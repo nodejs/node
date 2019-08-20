@@ -9,6 +9,9 @@ prefix known_issues
 [$system==win32]
 
 [$system==linux]
+# https://github.com/nodejs/node/pull/23743
+# https://github.com/nodejs/node/issues/3020
+test-vm-timeout-escape-promise: PASS,FLAKY
 
 [$system==macos]
 
@@ -17,3 +20,5 @@ prefix known_issues
 [$system==freebsd]
 
 [$system==aix]
+
+[$arch==arm]

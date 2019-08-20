@@ -5,10 +5,14 @@
 #ifndef V8_WASM_WASM_JS_H_
 #define V8_WASM_WASM_JS_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
+
+namespace wasm {
+class StreamingDecoder;
+}
 
 // Exposes a WebAssembly API to JavaScript through the V8 API.
 class WasmJs {

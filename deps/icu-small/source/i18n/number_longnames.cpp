@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "unicode/simpleformatter.h"
 #include "unicode/ures.h"
@@ -11,8 +11,10 @@
 #include "charstr.h"
 #include "uresimp.h"
 #include "number_longnames.h"
+#include "number_microprops.h"
 #include <algorithm>
 #include "cstring.h"
+#include "util.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -38,7 +40,7 @@ static int32_t getIndex(const char* pluralKeyword, UErrorCode& status) {
 
 static UnicodeString getWithPlural(
         const UnicodeString* strings,
-        int32_t plural,
+        StandardPlural::Form plural,
         UErrorCode& status) {
     UnicodeString result = strings[plural];
     if (result.isBogus()) {
@@ -90,6 +92,17 @@ void getMeasureData(const Locale &locale, const MeasureUnit &unit, const UNumber
     PluralTableSink sink(outArray);
     LocalUResourceBundlePointer unitsBundle(ures_open(U_ICUDATA_UNIT, locale.getName(), &status));
     if (U_FAILURE(status)) { return; }
+
+    // Map duration-year-person, duration-week-person, etc. to duration-year, duration-week, ...
+    // TODO(ICU-20400): Get duration-*-person data properly with aliases.
+    StringPiece subtypeForResource;
+    int32_t subtypeLen = static_cast<int32_t>(uprv_strlen(unit.getSubtype()));
+    if (subtypeLen > 7 && uprv_strcmp(unit.getSubtype() + subtypeLen - 7, "-person") == 0) {
+        subtypeForResource = {unit.getSubtype(), subtypeLen - 7};
+    } else {
+        subtypeForResource = unit.getSubtype();
+    }
+
     CharString key;
     key.append("units", status);
     if (width == UNUM_UNIT_WIDTH_NARROW) {
@@ -100,7 +113,24 @@ void getMeasureData(const Locale &locale, const MeasureUnit &unit, const UNumber
     key.append("/", status);
     key.append(unit.getType(), status);
     key.append("/", status);
-    key.append(unit.getSubtype(), status);
+    key.append(subtypeForResource, status);
+
+    UErrorCode localStatus = U_ZERO_ERROR;
+    ures_getAllItemsWithFallback(unitsBundle.getAlias(), key.data(), sink, localStatus);
+    if (width == UNUM_UNIT_WIDTH_SHORT) {
+        if (U_FAILURE(localStatus)) {
+            status = localStatus;
+        }
+        return;
+    }
+
+    // TODO(ICU-13353): The fallback to short does not work in ICU4C.
+    // Manually fall back to short (this is done automatically in Java).
+    key.clear();
+    key.append("unitsShort/", status);
+    key.append(unit.getType(), status);
+    key.append("/", status);
+    key.append(subtypeForResource, status);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), key.data(), sink, status);
 }
 
@@ -155,7 +185,7 @@ UnicodeString getPerUnitFormat(const Locale& locale, const UNumberUnitWidth &wid
 
 } // namespace
 
-LongNameHandler
+LongNameHandler*
 LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, const MeasureUnit &perUnit,
                                 const UNumberUnitWidth &width, const PluralRules *rules,
                                 const MicroPropsGenerator *parent, UErrorCode &status) {
@@ -172,20 +202,27 @@ LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, c
         }
     }
 
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, simpleFormats, status);
     if (U_FAILURE(status)) { return result; }
-    // TODO: What field to use for units?
-    simpleFormatsToModifiers(simpleFormats, UNUM_FIELD_COUNT, result.fModifiers, status);
+    result->simpleFormatsToModifiers(simpleFormats, UNUM_MEASURE_UNIT_FIELD, status);
     return result;
 }
 
-LongNameHandler
+LongNameHandler*
 LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
                                  const UNumberUnitWidth &width, const PluralRules *rules,
                                  const MicroPropsGenerator *parent, UErrorCode &status) {
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString primaryData[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, primaryData, status);
     if (U_FAILURE(status)) { return result; }
@@ -211,57 +248,77 @@ LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, con
         compiled.format(UnicodeString(u"{0}"), secondaryString, perUnitFormat, status);
         if (U_FAILURE(status)) { return result; }
     }
-    // TODO: What field to use for units?
-    multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_FIELD_COUNT, result.fModifiers, status);
+    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_MEASURE_UNIT_FIELD, status);
     return result;
 }
 
-LongNameHandler LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
+UnicodeString LongNameHandler::getUnitDisplayName(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return ICU_Utility::makeBogusString();
+    }
+    UnicodeString simpleFormats[ARRAY_LENGTH];
+    getMeasureData(loc, unit, width, simpleFormats, status);
+    return simpleFormats[DNAM_INDEX];
+}
+
+LongNameHandler* LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
                                                       const PluralRules *rules,
                                                       const MicroPropsGenerator *parent,
                                                       UErrorCode &status) {
-    LongNameHandler result(rules, parent);
+    auto* result = new LongNameHandler(rules, parent);
+    if (result == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getCurrencyLongNameData(loc, currency, simpleFormats, status);
-    if (U_FAILURE(status)) { return result; }
-    simpleFormatsToModifiers(simpleFormats, UNUM_CURRENCY_FIELD, result.fModifiers, status);
+    if (U_FAILURE(status)) { return nullptr; }
+    result->simpleFormatsToModifiers(simpleFormats, UNUM_CURRENCY_FIELD, status);
     return result;
 }
 
 void LongNameHandler::simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field,
-                                               SimpleModifier *output, UErrorCode &status) {
+                                               UErrorCode &status) {
     for (int32_t i = 0; i < StandardPlural::Form::COUNT; i++) {
-        UnicodeString simpleFormat = getWithPlural(simpleFormats, i, status);
+        StandardPlural::Form plural = static_cast<StandardPlural::Form>(i);
+        UnicodeString simpleFormat = getWithPlural(simpleFormats, plural, status);
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compiledFormatter(simpleFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        output[i] = SimpleModifier(compiledFormatter, field, false);
+        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, 0, plural});
     }
 }
 
 void LongNameHandler::multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
-                                                    Field field, SimpleModifier *output, UErrorCode &status) {
+                                                    Field field, UErrorCode &status) {
     SimpleFormatter trailCompiled(trailFormat, 1, 1, status);
     if (U_FAILURE(status)) { return; }
     for (int32_t i = 0; i < StandardPlural::Form::COUNT; i++) {
-        UnicodeString leadFormat = getWithPlural(leadFormats, i, status);
+        StandardPlural::Form plural = static_cast<StandardPlural::Form>(i);
+        UnicodeString leadFormat = getWithPlural(leadFormats, plural, status);
         if (U_FAILURE(status)) { return; }
         UnicodeString compoundFormat;
         trailCompiled.format(leadFormat, compoundFormat, status);
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compoundCompiled(compoundFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        output[i] = SimpleModifier(compoundCompiled, field, false);
+        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, 0, plural});
     }
 }
 
 void LongNameHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micros,
                                       UErrorCode &status) const {
     parent->processQuantity(quantity, micros, status);
-    // TODO: Avoid the copy here?
-    DecimalQuantity copy(quantity);
-    micros.rounding.apply(copy, status);
-    micros.modOuter = &fModifiers[copy.getStandardPlural(rules)];
+    StandardPlural::Form pluralForm = utils::getPluralSafe(micros.rounder, rules, quantity, status);
+    micros.modOuter = &fModifiers[pluralForm];
+}
+
+const Modifier* LongNameHandler::getModifier(int8_t /*signum*/, StandardPlural::Form plural) const {
+    return &fModifiers[plural];
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

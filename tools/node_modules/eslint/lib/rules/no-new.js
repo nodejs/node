@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `new` operators outside of assignments or comparisons",
             category: "Best Practices",

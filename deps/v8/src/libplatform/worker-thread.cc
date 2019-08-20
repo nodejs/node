@@ -15,11 +15,9 @@ WorkerThread::WorkerThread(TaskQueue* queue)
   Start();
 }
 
-
 WorkerThread::~WorkerThread() {
   Join();
 }
-
 
 void WorkerThread::Run() {
   while (std::unique_ptr<Task> task = queue_->GetNext()) {

@@ -17,6 +17,8 @@ const DEFAULT_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'.",
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow specified global variables",
             category: "Variables",
@@ -94,7 +96,7 @@ module.exports = {
          * @private
          */
         function isRestricted(name) {
-            return restrictedGlobalMessages.hasOwnProperty(name);
+            return Object.prototype.hasOwnProperty.call(restrictedGlobalMessages, name);
         }
 
         return {

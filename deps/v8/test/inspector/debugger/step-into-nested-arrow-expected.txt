@@ -14,4 +14,4 @@ paused
 (anonymous) (test.js:2:5)
 (anonymous) (:0:6)
 paused
-(anonymous) (:0:8)
+(anonymous) (:0:9)

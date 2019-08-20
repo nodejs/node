@@ -30,7 +30,7 @@ try {
     filename: 'test.vm',
     displayErrors: false
   });
-} catch (e) {}
+} catch {}
 
 console.error('middle');
 

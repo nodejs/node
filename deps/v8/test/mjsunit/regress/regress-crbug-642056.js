@@ -6,9 +6,9 @@
 
 function f(o) {
   return o.x instanceof Array;
-}
-
-var o = { x : 1.5 };
+};
+%PrepareFunctionForOptimization(f);
+var o = {x: 1.5};
 o.x = 0;
 
 f(o);

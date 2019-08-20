@@ -81,6 +81,14 @@ fi
 echo "Using GPG key: $gpgkey"
 echo "  Fingerprint: $gpgfing"
 
+function checktag {
+  local version=$1
+
+  if ! git tag -v $version 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
+    echo "Could not find signed tag for \"${version}\" or GPG key is not yours"
+    exit 1
+  fi
+}
 
 ################################################################################
 ## Create and sign checksums file for a given version
@@ -89,11 +97,6 @@ function sign {
   echo -e "\n# Creating SHASUMS256.txt ..."
 
   local version=$1
-
-  if ! git tag -v $version 2>&1 | grep "${gpgkey}" | grep key > /dev/null; then
-    echo "Could not find signed tag for \"${version}\" or GPG key is not yours"
-    exit 1
-  fi
 
   ghtaggedversion=$(curl -sL https://raw.githubusercontent.com/nodejs/node/${version}/src/node_version.h \
       | awk '/define NODE_(MAJOR|MINOR|PATCH)_VERSION/{ v = v "." $3 } END{ v = "v" substr(v, 2); print v }')
@@ -150,7 +153,8 @@ function sign {
 
 
 if [ -n "${signversion}" ]; then
-    sign ${signversion}
+		checktag $signversion
+    sign $signversion
     exit 0
 fi
 
@@ -192,11 +196,15 @@ for version in $versions; do
       continue
     fi
 
+		checktag $version
+
     echo -e "\n# Promoting ${version}..."
 
     ssh ${customsshkey} ${webuser}@${webhost} $promotecmd nodejs $version
 
-    sign $version
+    if [ $? -eq 0 ];then
+      sign $version
+    fi
 
     break
   done

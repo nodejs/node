@@ -5,15 +5,16 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { internalBinding } = require('internal/test/binding');
 const {
   constants,
   Http2Session,
   nghttp2ErrorString
-} = process.binding('http2');
+} = internalBinding('http2');
 const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
 
-// tests error handling within requestOnConnect
+// Tests error handling within requestOnConnect
 // - NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE (should emit session error)
 // - NGHTTP2_ERR_INVALID_ARGUMENT (should emit stream error)
 // - every other NGHTTP2 error from binding (should emit session error)
@@ -54,7 +55,7 @@ const genericTests = Object.getOwnPropertyNames(constants)
     error: {
       code: 'ERR_HTTP2_ERROR',
       type: NghttpError,
-      name: 'Error [ERR_HTTP2_ERROR]',
+      name: 'Error',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'session'
@@ -64,7 +65,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock submitRequest because we only care about testing error handling
+// Mock submitRequest because we only care about testing error handling
 Http2Session.prototype.request = () => currentError;
 
 const server = http2.createServer(common.mustNotCall());

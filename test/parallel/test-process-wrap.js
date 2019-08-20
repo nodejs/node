@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,8 +23,9 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const Process = process.binding('process_wrap').Process;
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { internalBinding } = require('internal/test/binding');
+const Process = internalBinding('process_wrap').Process;
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 const pipe = new Pipe(PipeConstants.SOCKET);
 const p = new Process();
 
@@ -36,17 +38,16 @@ p.onexit = function(exitCode, signal) {
   p.close();
   pipe.readStart();
 
-  assert.strictEqual(0, exitCode);
-  assert.strictEqual('', signal);
+  assert.strictEqual(exitCode, 0);
+  assert.strictEqual(signal, '');
 
   processExited = true;
 };
 
-pipe.onread = function(err, b, off, len) {
+pipe.onread = function(arrayBuffer) {
   assert.ok(processExited);
-  if (b) {
+  if (arrayBuffer) {
     gotPipeData = true;
-    console.log('read %d', len);
   } else {
     gotPipeEOF = true;
     pipe.close();

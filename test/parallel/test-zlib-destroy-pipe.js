@@ -4,7 +4,7 @@ const common = require('../common');
 const zlib = require('zlib');
 const { Writable } = require('stream');
 
-// verify that the zlib transform does not error in case
+// Verify that the zlib transform does not error in case
 // it is destroyed with data still in flight
 
 const ts = zlib.createGzip();

@@ -7,6 +7,8 @@ This module contains classes that help to emulate xcodebuild behavior on top of
 other build systems, such as make and ninja.
 """
 
+from __future__ import print_function
+
 import copy
 import gyp.common
 import os
@@ -73,7 +75,7 @@ class XcodeArchsDefault(object):
             if arch not in expanded_archs:
               expanded_archs.append(arch)
         except KeyError as e:
-          print 'Warning: Ignoring unsupported variable "%s".' % variable
+          print('Warning: Ignoring unsupported variable "%s".' % variable)
       elif arch not in expanded_archs:
         expanded_archs.append(arch)
     return expanded_archs
@@ -168,7 +170,7 @@ class XcodeSettings(object):
     # the same for all configs are implicitly per-target settings.
     self.xcode_settings = {}
     configs = spec['configurations']
-    for configname, config in configs.iteritems():
+    for configname, config in configs.items():
       self.xcode_settings[configname] = config.get('xcode_settings', {})
       self._ConvertConditionalKeys(configname)
       if self.xcode_settings[configname].get('IPHONEOS_DEPLOYMENT_TARGET',
@@ -194,8 +196,8 @@ class XcodeSettings(object):
           new_key = key.split("[")[0]
           settings[new_key] = settings[key]
       else:
-        print 'Warning: Conditional keys not implemented, ignoring:', \
-              ' '.join(conditional_keys)
+        print('Warning: Conditional keys not implemented, ignoring:', \
+              ' '.join(conditional_keys))
       del settings[key]
 
   def _Settings(self):
@@ -213,7 +215,7 @@ class XcodeSettings(object):
 
   def _WarnUnimplemented(self, test_key):
     if test_key in self._Settings():
-      print 'Warning: Ignoring not yet implemented key "%s".' % test_key
+      print('Warning: Ignoring not yet implemented key "%s".' % test_key)
 
   def IsBinaryOutputFormat(self, configname):
     default = "binary" if self.isIOS else "xml"
@@ -232,6 +234,9 @@ class XcodeSettings(object):
 
   def _IsIosWatchApp(self):
     return int(self.spec.get('ios_watch_app', 0)) != 0
+
+  def _IsXCTest(self):
+    return int(self.spec.get('mac_xctest_bundle', 0)) != 0
 
   def GetFrameworkVersion(self):
     """Returns the framework version of the current target. Only valid for
@@ -429,7 +434,7 @@ class XcodeSettings(object):
     # Since the CLT has no SDK paths anyway, returning None is the
     # most sensible route and should still do the right thing.
     try:
-      return GetStdout(['xcodebuild', '-version', '-sdk', sdk, infoitem])
+      return GetStdoutQuiet(['xcodebuild', '-version', '-sdk', sdk, infoitem])
     except:
       pass
 
@@ -567,6 +572,11 @@ class XcodeSettings(object):
         cflags.append('-msse4.2')
 
     cflags += self._Settings().get('WARNING_CFLAGS', [])
+
+    if self._IsXCTest():
+      platform_root = self._XcodePlatformPath(configname)
+      if platform_root:
+        cflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')
 
     if sdk_root:
       framework_root = sdk_root
@@ -831,6 +841,11 @@ class XcodeSettings(object):
     for directory in framework_dirs:
       ldflags.append('-F' + directory.replace('$(SDKROOT)', sdk_root))
 
+    if self._IsXCTest():
+      platform_root = self._XcodePlatformPath(configname)
+      if platform_root:
+        cflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')  # noqa TODO @cclauss
+
     is_extension = self._IsIosAppExtension() or self._IsIosWatchKitExtension()
     if sdk_root and is_extension:
       # Adds the link flags for extensions. These flags are common for all
@@ -876,7 +891,7 @@ class XcodeSettings(object):
         result = dict(self.xcode_settings[configname])
         first_pass = False
       else:
-        for key, value in self.xcode_settings[configname].iteritems():
+        for key, value in self.xcode_settings[configname].items():
           if key not in result:
             continue
           elif result[key] != value:
@@ -984,8 +999,8 @@ class XcodeSettings(object):
     unimpl = ['OTHER_CODE_SIGN_FLAGS']
     unimpl = set(unimpl) & set(self.xcode_settings[configname].keys())
     if unimpl:
-      print 'Warning: Some codesign keys not implemented, ignoring: %s' % (
-          ', '.join(sorted(unimpl)))
+      print('Warning: Some codesign keys not implemented, ignoring: %s' % (
+          ', '.join(sorted(unimpl))))
 
     return ['%s code-sign-bundle "%s" "%s" "%s" "%s"' % (
         os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
@@ -1251,7 +1266,7 @@ def XcodeVersion():
   if XCODE_VERSION_CACHE:
     return XCODE_VERSION_CACHE
   try:
-    version_list = GetStdout(['xcodebuild', '-version']).splitlines()
+    version_list = GetStdoutQuiet(['xcodebuild', '-version']).splitlines()
     # In some circumstances xcodebuild exits 0 but doesn't return
     # the right results; for example, a user on 10.7 or 10.8 with
     # a bogus path set via xcode-select
@@ -1262,7 +1277,7 @@ def XcodeVersion():
   except:
     version = CLTVersion()
     if version:
-      version = re.match(r'(\d\.\d\.?\d*)', version).groups()[0]
+      version = re.match(r'(\d+\.\d+\.?\d*)', version).groups()[0]
     else:
       raise GypError("No Xcode or CLT version detected!")
     # The CLT has no build information, so we return an empty string.
@@ -1299,6 +1314,17 @@ def CLTVersion():
       return re.search(regex, output).groupdict()['version']
     except:
       continue
+
+
+def GetStdoutQuiet(cmdlist):
+  """Returns the content of standard output returned by invoking |cmdlist|.
+  Ignores the stderr.
+  Raises |GypError| if the command return with a non-zero return code."""
+  job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  out = job.communicate()[0]
+  if job.returncode != 0:
+    raise GypError('Error %d running %s' % (job.returncode, cmdlist[0]))
+  return out.rstrip('\n')
 
 
 def GetStdout(cmdlist):
@@ -1573,7 +1599,7 @@ def _TopologicallySortedEnvVarKeys(env):
     order = gyp.common.TopologicallySorted(env.keys(), GetEdges)
     order.reverse()
     return order
-  except gyp.common.CycleError, e:
+  except gyp.common.CycleError as e:
     raise GypError(
         'Xcode environment variables are cyclically dependent: ' + str(e.nodes))
 
@@ -1613,7 +1639,7 @@ def _AddIOSDeviceConfigurations(targets):
   for target_dict in targets.itervalues():
     toolset = target_dict['toolset']
     configs = target_dict['configurations']
-    for config_name, config_dict in dict(configs).iteritems():
+    for config_name, config_dict in dict(configs).items():
       iphoneos_config_dict = copy.deepcopy(config_dict)
       configs[config_name + '-iphoneos'] = iphoneos_config_dict
       configs[config_name + '-iphonesimulator'] = config_dict

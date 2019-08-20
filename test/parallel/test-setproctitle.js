@@ -5,6 +5,8 @@ const common = require('../common');
 // FIXME add sunos support
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
+if (!common.isMainThread)
+  common.skip('Setting the process title from Workers is not supported');
 
 const assert = require('assert');
 const exec = require('child_process').exec;
@@ -33,10 +35,10 @@ exec(cmd, common.mustCall((error, stdout, stderr) => {
   assert.ifError(error);
   assert.strictEqual(stderr, '');
 
-  // freebsd always add ' (procname)' to the process title
+  // Freebsd always add ' (procname)' to the process title
   if (common.isFreeBSD || common.isOpenBSD)
     title += ` (${path.basename(process.execPath)})`;
 
-  // omitting trailing whitespace and \n
+  // Omitting trailing whitespace and \n
   assert.strictEqual(stdout.replace(/\s+$/, '').endsWith(title), true);
 }));

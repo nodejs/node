@@ -3,7 +3,6 @@
 const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
-const { inherits } = require('util');
 
 {
   const read = new Readable({
@@ -70,7 +69,7 @@ const { inherits } = require('util');
 
   read.on('end', common.mustNotCall('no end event'));
 
-  // error is swallowed by the custom _destroy
+  // Error is swallowed by the custom _destroy
   read.on('error', common.mustNotCall('no error event'));
   read.on('close', common.mustCall());
 
@@ -148,7 +147,7 @@ const { inherits } = require('util');
   read.destroyed = true;
   assert.strictEqual(read.destroyed, true);
 
-  // the internal destroy() mechanism should not be triggered
+  // The internal destroy() mechanism should not be triggered
   read.on('end', common.mustNotCall());
   read.destroy();
 }
@@ -160,13 +159,14 @@ const { inherits } = require('util');
     Readable.call(this);
   }
 
-  inherits(MyReadable, Readable);
+  Object.setPrototypeOf(MyReadable.prototype, Readable.prototype);
+  Object.setPrototypeOf(MyReadable, Readable);
 
   new MyReadable();
 }
 
 {
-  // destroy and destroy callback
+  // Destroy and destroy callback
   const read = new Readable({
     read() {}
   });
@@ -176,7 +176,7 @@ const { inherits } = require('util');
 
   read.on('close', common.mustCall());
   read.destroy(expected, common.mustCall(function(err) {
-    assert.strictEqual(expected, err);
+    assert.strictEqual(err, expected);
   }));
 }
 

@@ -37,13 +37,13 @@ async function f() {
   a +=
        await       // B1 StepNext
              g();
-  return a;        // B2 StepNext
-}                  // B3 Continue
+  return a;        // B2 Continue
+}
 
 f();
 
 late_resolve(3);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
-assertEquals(4, step_count);
+assertEquals(3, step_count);

@@ -5,6 +5,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
 const fixtures = require('../common/fixtures');
+const { pathToFileURL } = require('url');
 
 const script = fixtures.path('inspector-global-function.js');
 
@@ -26,7 +27,7 @@ async function breakOnLine(session) {
   const commands = [
     { 'method': 'Debugger.setBreakpointByUrl',
       'params': { 'lineNumber': 9,
-                  'url': script,
+                  'url': pathToFileURL(script).toString(),
                   'columnNumber': 0,
                   'condition': ''
       }
@@ -45,7 +46,7 @@ async function breakOnLine(session) {
     }
   ];
   session.send(commands);
-  await session.waitForBreakOnLine(9, script);
+  await session.waitForBreakOnLine(9, pathToFileURL(script).toString());
 }
 
 async function stepOverConsoleStatement(session) {
@@ -62,8 +63,7 @@ async function runTests() {
   await breakOnLine(session);
   await stepOverConsoleStatement(session);
   await session.runToCompletion();
-  assert.strictEqual(0, (await child.expectShutdown()).exitCode);
+  assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
-common.crashOnUnhandledRejection();
 runTests();

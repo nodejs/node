@@ -19,13 +19,14 @@ uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return 0;  // no permissions
+    case OS::MemoryPermission::kRead:
+      return ZX_VM_PERM_READ;
     case OS::MemoryPermission::kReadWrite:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE |
-             ZX_VM_FLAG_PERM_EXECUTE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_WRITE | ZX_VM_PERM_EXECUTE;
     case OS::MemoryPermission::kReadExecute:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_EXECUTE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_EXECUTE;
   }
   UNREACHABLE();
 }
@@ -53,10 +54,19 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   static const char kVirtualMemoryName[] = "v8-virtualmem";
   zx_object_set_property(vmo, ZX_PROP_NAME, kVirtualMemoryName,
                          strlen(kVirtualMemoryName));
+
+  // Always call zx_vmo_replace_as_executable() in case the memory will need
+  // to be marked as executable in the future.
+  // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
+  // region will need to be marked as executable in the future.
+  if (zx_vmo_replace_as_executable(vmo, ZX_HANDLE_INVALID, &vmo) != ZX_OK) {
+    return nullptr;
+  }
+
   uintptr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), 0, vmo, 0, request_size,
-                                   prot, &reservation);
+  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), prot, 0, vmo, 0,
+                                   request_size, &reservation);
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
   // so close the vmo either way.
   zx_handle_close(vmo);
@@ -65,7 +75,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   }
 
   uint8_t* base = reinterpret_cast<uint8_t*>(reservation);
-  uint8_t* aligned_base = RoundUp(base, alignment);
+  uint8_t* aligned_base = reinterpret_cast<uint8_t*>(
+      RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
 
   // Unmap extra memory reserved before and after the desired block.
   if (aligned_base != base) {
@@ -112,9 +123,14 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  return zx_vmar_protect(zx_vmar_root_self(),
-                         reinterpret_cast<uintptr_t>(address), size,
-                         prot) == ZX_OK;
+  return zx_vmar_protect(zx_vmar_root_self(), prot,
+                         reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+}
+
+// static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // TODO(hpayer): Does Fuchsia have madvise?
+  return true;
 }
 
 // static
@@ -134,7 +150,12 @@ void OS::SignalCodeMovingGC() {
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kNanosPerMicrosecond = 1000ULL;
   const auto kMicrosPerSecond = 1000000ULL;
-  const zx_time_t nanos_since_thread_started = zx_clock_get(ZX_CLOCK_THREAD);
+  zx_time_t nanos_since_thread_started;
+  zx_status_t status =
+      zx_clock_get(ZX_CLOCK_THREAD, &nanos_since_thread_started);
+  if (status != ZX_OK) {
+    return -1;
+  }
 
   // First convert to microseconds, rounding up.
   const uint64_t micros_since_thread_started =
@@ -146,6 +167,8 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
       static_cast<uint32_t>(micros_since_thread_started % kMicrosPerSecond);
   return 0;
 }
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

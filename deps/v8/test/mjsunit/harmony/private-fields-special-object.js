@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-private-fields --allow-natives-syntax
+// Flags: --allow-natives-syntax
+
+load('test/mjsunit/test-async.js');
 
 async function f(assert) {
   try {
-    module_namespace_obj = await import('modules-skip-1.js');
+    module_namespace_obj = await import('modules-skip-1.mjs');
   } catch(e) {
     %AbortJS(e);
   }

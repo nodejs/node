@@ -155,6 +155,11 @@ assertDoesNotThrow("new Date(0x40000000, 0x40000000, 0x40000000," +
 assertDoesNotThrow("new Date(-0x40000001, -0x40000001, -0x40000001," +
                    "-0x40000001, -0x40000001, -0x40000001, -0x40000001)")
 
+// Test that date as double type is treated as integer type in MakeDay
+// so that the hour should't be changed.
+d = new Date(2018, 0);
+assertEquals(Date.parse(new Date(2018, 0, 11)), d.setDate(11.2));
+assertEquals(0, d.getHours());
 
 // Modified test from WebKit
 // LayoutTests/fast/js/script-tests/date-utc-timeclip.js:
@@ -353,3 +358,13 @@ delete Date.prototype.getUTCMilliseconds;
   assertTrue(delete Date.prototype.toString);
   assertTrue('[object Date]' !== Date());
 })();
+
+// Test minimum and maximum date range according to ES6 section 20.3.1.1:
+// "The actual range of times supported by ECMAScript Date objects is slightly
+// smaller: exactly -100,000,000 days to 100,000,000 days measured relative to
+// midnight at the beginning of 01 January, 1970 UTC. This gives a range of
+// 8,640,000,000,000,000 milliseconds to either side of 01 January, 1970 UTC."
+assertEquals(-8640000000000000, Date.parse("-271821-04-20T00:00:00.000Z"));
+assertEquals(8640000000000000, Date.parse("+275760-09-13T00:00:00.000Z"));
+assertTrue(isNaN(Date.parse("-271821-04-19T00:00:00.000Z")));
+assertTrue(isNaN(Date.parse("+275760-09-14T00:00:00.000Z")));

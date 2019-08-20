@@ -5,21 +5,26 @@
 const common = require('../common.js');
 const util = require('util');
 
-// if there are dur=N and len=N args, then
+// If there are dur=N and len=N args, then
 // run the function with those settings.
-// if not, then queue up a bunch of child processes.
+// If not, then queue up a bunch of child processes.
 const bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5]
+}, {
+  flags: [ '--expose-internals', '--no-warnings' ]
 });
 
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
-const WriteWrap = process.binding('stream_wrap').WriteWrap;
-const PORT = common.PORT;
-
 function main({ dur, len, type }) {
+  const {
+    TCP,
+    TCPConnectWrap,
+    constants: TCPConstants
+  } = common.binding('tcp_wrap');
+  const { WriteWrap } = common.binding('stream_wrap');
+  const PORT = common.PORT;
+
   const serverHandle = new TCP(TCPConstants.SERVER);
   var err = serverHandle.bind('127.0.0.1', PORT);
   if (err)
@@ -73,7 +78,7 @@ function main({ dur, len, type }) {
       if (err) {
         fail(err, 'write');
       } else if (!writeReq.async) {
-        process.nextTick(function() {
+        process.nextTick(() => {
           afterWrite(0, clientHandle);
         });
       }
@@ -89,42 +94,42 @@ function main({ dur, len, type }) {
   };
 
   client(dur);
-}
 
-function fail(err, syscall) {
-  throw util._errnoException(err, syscall);
-}
+  function fail(err, syscall) {
+    throw util._errnoException(err, syscall);
+  }
 
-function client(dur) {
-  const clientHandle = new TCP(TCPConstants.SOCKET);
-  const connectReq = new TCPConnectWrap();
-  const err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
+  function client(dur) {
+    const clientHandle = new TCP(TCPConstants.SOCKET);
+    const connectReq = new TCPConnectWrap();
+    const err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
 
-  if (err)
-    fail(err, 'connect');
+    if (err)
+      fail(err, 'connect');
 
-  connectReq.oncomplete = function() {
-    var bytes = 0;
-    clientHandle.onread = function(nread, buffer) {
-      // we're not expecting to ever get an EOF from the client.
-      // just lots of data forever.
-      if (nread < 0)
-        fail(nread, 'read');
+    connectReq.oncomplete = function() {
+      var bytes = 0;
+      clientHandle.onread = function(buffer) {
+        // We're not expecting to ever get an EOF from the client.
+        // Just lots of data forever.
+        if (!buffer)
+          fail('read');
 
-      // don't slice the buffer.  the point of this is to isolate, not
-      // simulate real traffic.
-      bytes += buffer.length;
+        // Don't slice the buffer. The point of this is to isolate, not
+        // simulate real traffic.
+        bytes += buffer.byteLength;
+      };
+
+      clientHandle.readStart();
+
+      // The meat of the benchmark is right here:
+      bench.start();
+
+      setTimeout(() => {
+        // report in Gb/sec
+        bench.end((bytes * 8) / (1024 * 1024 * 1024));
+        process.exit(0);
+      }, dur * 1000);
     };
-
-    clientHandle.readStart();
-
-    // the meat of the benchmark is right here:
-    bench.start();
-
-    setTimeout(function() {
-      // report in Gb/sec
-      bench.end((bytes * 8) / (1024 * 1024 * 1024));
-      process.exit(0);
-    }, dur * 1000);
-  };
+  }
 }

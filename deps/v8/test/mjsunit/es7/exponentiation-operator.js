@@ -264,13 +264,13 @@ function TestOverrideMathPow() {
 TestOverrideMathPow();
 
 function TestBadAssignmentLHS() {
-  assertThrows("if (false) { 17 **= 10; }", ReferenceError);
-  assertThrows("if (false) { '17' **= 10; }", ReferenceError);
-  assertThrows("if (false) { /17/ **= 10; }", ReferenceError);
+  assertThrows("if (false) { 17 **= 10; }", SyntaxError);
+  assertThrows("if (false) { '17' **= 10; }", SyntaxError);
+  assertThrows("if (false) { /17/ **= 10; }", SyntaxError);
   assertThrows("if (false) { ({ valueOf() { return 17; } } **= 10); }",
-               ReferenceError);
-  // TODO(caitp): a Call expression as LHS should be an early ReferenceError!
-  // assertThrows("if (false) { Array() **= 10; }", ReferenceError);
+               SyntaxError);
+  // TODO(caitp): a Call expression as LHS should be an early SyntaxError!
+  // assertThrows("if (false) { Array() **= 10; }", SyntaxError);
   assertThrows(() => Array() **= 10, ReferenceError);
 }
 TestBadAssignmentLHS();

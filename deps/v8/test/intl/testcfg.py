@@ -26,46 +26,56 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
+
+
+class TestLoader(testsuite.JSTestLoader):
+  @property
+  def excluded_files(self):
+    return {"assert.js", "utils.js"}
+
+
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self):
-    tests = []
-    for dirname, dirs, files in os.walk(self.root):
-      for dotted in [x for x in dirs if x.startswith('.')]:
-        dirs.remove(dotted)
-      dirs.sort()
-      files.sort()
-      for filename in files:
-        if (filename.endswith(".js") and filename != "assert.js" and
-            filename != "utils.js" and filename != "regexp-assert.js" and
-            filename != "regexp-prepare.js"):
-          fullpath = os.path.join(dirname, filename)
-          relpath = fullpath[len(self.root) + 1 : -3]
-          testname = relpath.replace(os.path.sep, "/")
-          test = self._create_test(testname)
-          tests.append(test)
-    return tests
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
     self._source_flags = self._parse_source_flags()
+    source = self.get_source()
+    self._env = self._parse_source_env(source)
+
+  def _parse_source_env(self, source):
+    env_match = ENV_PATTERN.search(source)
+    # https://crbug.com/v8/8845
+    if 'LC_ALL' in os.environ:
+      del os.environ['LC_ALL']
+    env = {}
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        env[var] = value
+    return env
+
+  def _get_cmd_env(self):
+    return self._env
 
   def _get_files_params(self):
     files = map(lambda f: os.path.join(self.suite.root, f), [
         'assert.js',
         'utils.js',
-        'regexp-prepare.js',
         self.path + self._get_suffix(),
-        'regexp-assert.js',
     ])
 
     if self._test_config.isolates:

@@ -28,9 +28,9 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 
-const options = { key: fixtures.readSync('test_key.pem'),
-                  cert: fixtures.readSync('test_cert.pem'),
-                  ca: [ fixtures.readSync('test_ca.pem') ] };
+const options = { key: fixtures.readKey('rsa_private.pem'),
+                  cert: fixtures.readKey('rsa_cert.crt'),
+                  ca: [ fixtures.readKey('rsa_ca.crt') ] };
 
 const server = tls.createServer(options, onconnection);
 let gotChunk = false;
@@ -43,7 +43,7 @@ function onconnection(conn) {
       console.log('ok - got chunk');
     }
 
-    // just some basic sanity checks.
+    // Just some basic sanity checks.
     assert(c.length);
     assert(Buffer.isBuffer(c));
 
@@ -69,7 +69,7 @@ server.listen(0, function() {
     write();
   }
   function write() {
-    // this needs to return false eventually
+    // This needs to return false eventually
     while (false !== conn.write(chunk));
   }
 });

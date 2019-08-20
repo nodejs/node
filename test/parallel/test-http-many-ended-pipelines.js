@@ -22,7 +22,7 @@
 'use strict';
 require('../common');
 
-// no warnings should happen!
+// No warnings should happen!
 const trace = console.trace;
 console.trace = function() {
   trace.apply(console, arguments);

@@ -1,0 +1,122 @@
+Tests V8InspectorClient::resourceNameToUrl.
+Check script with url:
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 16
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 033b33d191ed51ed823355d865eb871d811403e2
+        isLiveEdit : false
+        isModule : false
+        length : 16
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : prefix://url
+    }
+}
+Check script with sourceURL comment:
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 37
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 06c136ce206c5f505f32af524e6ec71b5baa0bbb
+        isLiveEdit : false
+        isModule : false
+        length : 37
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : foo.js
+    }
+}
+Check script failed to parse:
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 15
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 033b33d191ed51ed1f44cd0465eb871d811403e2
+        isModule : false
+        length : 15
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : prefix://url
+    }
+}
+Check script failed to parse with sourceURL comment:
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 36
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 23a2885951475580023e2a742563d78876d8f05e
+        isModule : false
+        length : 36
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : foo.js
+    }
+}
+Test runtime stack trace:
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 14
+                    functionName : foo
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : prefix://url
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : eval
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : boo.js
+                }
+                [2] : {
+                    columnNumber : 4
+                    functionName : 
+                    lineNumber : 4
+                    scriptId : <scriptId>
+                    url : prefix://url
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+Test debugger stack trace:
+[
+    [0] : prefix://url
+    [1] : boo.js
+    [2] : prefix://url
+]

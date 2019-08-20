@@ -251,6 +251,12 @@ testFunction (test.js:25:11)
             return { value: this.i++, done: false };#
           }
 
+testFunction (test.js:25:11)
+(anonymous) (expr.js:0:0)
+  };
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
 testFunction (test.js:25:32)
 (anonymous) (expr.js:0:0)
   };
@@ -337,6 +343,12 @@ testFunction (test.js:27:11)
             return { value: this.i++, done: false };#
           }
 
+testFunction (test.js:27:11)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let #k of iterable) { all.push(k); }
+}
+
 testFunction (test.js:27:32)
 (anonymous) (expr.js:0:0)
   iterable.i = 0;
@@ -375,7 +387,7 @@ testFunction (test.js:28:0)
   for (let k of iterable) { all.push(k); }
 #}
 
-(anonymous) (expr.js:0:34)
+(anonymous) (expr.js:0:35)
 
 
 

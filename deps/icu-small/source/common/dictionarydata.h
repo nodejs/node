@@ -68,7 +68,7 @@ public:
  */
 class U_COMMON_API DictionaryMatcher : public UMemory {
 public:
-    DictionaryMatcher() {};
+    DictionaryMatcher() {}
     virtual ~DictionaryMatcher();
     // this should emulate CompactTrieDictionary::matches()
     /*  @param text      The text in which to look for matching words. Matching begins

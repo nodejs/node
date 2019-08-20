@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow magic numbers",
             category: "Best Practices",
@@ -22,10 +24,12 @@ module.exports = {
             type: "object",
             properties: {
                 detectObjects: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 enforceConst: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 ignore: {
                     type: "array",
@@ -35,11 +39,17 @@ module.exports = {
                     uniqueItems: true
                 },
                 ignoreArrayIndexes: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            useConst: "Number constants declarations must use 'const'.",
+            noMagic: "No magic number: {{raw}}."
+        }
     },
 
     create(context) {
@@ -136,7 +146,7 @@ module.exports = {
                     if (enforceConst && parent.parent.kind !== "const") {
                         context.report({
                             node: fullNumberNode,
-                            message: "Number constants declarations must use 'const'."
+                            messageId: "useConst"
                         });
                     }
                 } else if (
@@ -145,7 +155,7 @@ module.exports = {
                 ) {
                     context.report({
                         node: fullNumberNode,
-                        message: "No magic number: {{raw}}.",
+                        messageId: "noMagic",
                         data: {
                             raw
                         }

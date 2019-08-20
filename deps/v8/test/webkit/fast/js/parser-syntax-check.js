@@ -85,19 +85,19 @@ invalid("a.'l'");
 valid  ("a: +~!new a");
 invalid("new -a");
 valid  ("new (-1)")
-valid  ("a: b: c: new f(x++)++")
+invalid("a: b: c: new f(x++)++")
 valid  ("(a)++");
-valid  ("(1--).x");
+invalid("(1--).x");
 invalid("a-- ++");
 invalid("(a:) --b");
-valid  ("++ -- ++ a");
-valid  ("++ new new a ++");
+invalid("++ -- ++ a");
+invalid("++ new new a ++");
 valid  ("delete void 0");
 invalid("delete the void");
 invalid("(a++");
-valid  ("++a--");
-valid  ("++((a))--");
-valid  ("(a.x++)++");
+invalid("++a--");
+invalid("++((a))--");
+invalid("(a.x++)++");
 invalid("1: null");
 invalid("+-!~");
 invalid("+-!~((");
@@ -122,23 +122,23 @@ valid  ("a in b instanceof delete -c");
 invalid("a in instanceof b.l");
 valid  ("- - true % 5");
 invalid("- false = 3");
-valid  ("a: b: c: (1 + null) = 3");
+invalid("a: b: c: (1 + null) = 3");
 valid  ("a[2] = b.l += c /= 4 * 7 ^ !6");
 invalid("a + typeof b += c in d");
 invalid("typeof a &= typeof b");
-valid  ("a: ((typeof (a))) >>>= a || b.l && c");
+invalid("a: ((typeof (a))) >>>= a || b.l && c");
 valid  ("a: b: c[a /= f[a %= b]].l[c[x] = 7] -= a ? b <<= f : g");
 valid  ("-void+x['y'].l == x.l != 5 - f[7]");
 
 debug  ("Function calls (and new with arguments)");
 
 valid  ("a()()()");
-valid  ("s: l: a[2](4 == 6, 5 = 6)(f[4], 6)");
+invalid("s: l: a[2](4 == 6, 5 = 6)(f[4], 6)");
 valid  ("s: eval(a.apply(), b.call(c[5] - f[7]))");
 invalid("a(");
 invalid("a(5");
 invalid("a(5,");
-invalid("a(5,)");
+valid("a(5,)");
 invalid("a(5,6");
 valid  ("a(b[7], c <d> e.l, new a() > b)");
 invalid("a(b[5)");
@@ -158,7 +158,7 @@ valid  ("function f() {}");
 valid  ("function f(a,b) {}");
 invalid("function () {}");
 invalid("function f(a b) {}");
-invalid("function f(a,) {}");
+valid("function f(a,) {}");
 invalid("function f(a,");
 invalid("function f(a, 1) {}");
 valid  ("function g(arguments, eval) {}");
@@ -248,15 +248,15 @@ invalid("var 5 = 6");
 valid  ("while (0) var a, b, c=6, d, e, f=5*6, g=f*h, h");
 invalid("var a = if (b) { c }");
 invalid("var a = var b");
-valid  ("const a = b += c, a, a, a = (b - f())");
+invalid("const a = b += c, a, a, a = (b - f())");
 invalid("var a %= b | 5");
 invalid("var (a) = 5");
 invalid("var a = (4, b = 6");
 invalid("const 'l' = 3");
 invalid("var var = 3");
 valid  ("var varr = 3 in 1");
-valid  ("const a, a, a = void 7 - typeof 8, a = 8");
-valid  ("const x_x = 6 /= 7 ? e : f");
+invalid("const a, a, a = void 7 - typeof 8, a = 8");
+invalid("const x_x = 6 /= 7 ? e : f");
 invalid("var a = ?");
 invalid("const a = *7");
 invalid("var a = :)");
@@ -306,7 +306,7 @@ invalid("for ((a, b) in c) break");
 invalid("for (a ? b : c in c) break");
 invalid("for ((a ? b : c) in c) break");
 valid  ("for (var a in b in c) break");
-valid  ("for (var a = 5 += 6 in b) break");
+invalid("for (var a = 5 += 6 in b) break");
 invalid("for (var a += 5 in b) break");
 invalid("for (var a = in b) break");
 invalid("for (var a, b in b) break");
@@ -315,7 +315,7 @@ invalid("for (var a, b = 8 in b) break");
 valid  ("for (var a = (b in c) in d) break");
 invalid("for (var a = (b in c in d) break");
 invalid("for (var (a) in b) { }");
-valid  ("for (var a = 7, b = c < d >= d ; f()[6]++ ; --i()[1]++ ) {}");
+invalid("for (var a = 7, b = c < d >= d ; f()[6]++ ; --i()[1]++ ) {}");
 
 debug  ("try statement");
 
@@ -379,7 +379,7 @@ valid("if (0) obj.foo$; ")
 valid("if (0) obj.foo_; ")
 valid("if (0) obj.foo\\u03bb; ")
 valid("if (0) new a(b+c).d = 5");
-valid("if (0) new a(b+c) = 5");
+invalid("if (0) new a(b+c) = 5");
 valid("([1 || 1].a = 1)");
 valid("({a: 1 || 1}.a = 1)");
 

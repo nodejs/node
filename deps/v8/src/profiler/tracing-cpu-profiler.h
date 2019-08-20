@@ -6,7 +6,6 @@
 #define V8_PROFILER_TRACING_CPU_PROFILER_H_
 
 #include "include/v8-platform.h"
-#include "include/v8-profiler.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -18,11 +17,10 @@ class CpuProfiler;
 class Isolate;
 
 class TracingCpuProfilerImpl final
-    : public TracingCpuProfiler,
-      private v8::TracingController::TraceStateObserver {
+    : private v8::TracingController::TraceStateObserver {
  public:
   explicit TracingCpuProfilerImpl(Isolate*);
-  ~TracingCpuProfilerImpl();
+  ~TracingCpuProfilerImpl() override;
 
   // v8::TracingController::TraceStateObserver
   void OnTraceEnabled() final;

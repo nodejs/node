@@ -10,6 +10,7 @@ function foo() {
   return global;
 };
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(foo(), "bar");
 %OptimizeFunctionOnNextCall(foo);
 assertEquals(foo(), "bar");

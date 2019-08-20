@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --max-old-space-size=8
+// Flags: --max-old-space-size=16
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Check pause on OOM');
 

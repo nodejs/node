@@ -373,7 +373,7 @@ StringTrieBuilder::registerFinalValue(int32_t value, UErrorCode &errorCode) {
     return newNode;
 }
 
-UBool
+int32_t
 StringTrieBuilder::hashNode(const void *node) {
     return ((const Node *)node)->hashCode();
 }

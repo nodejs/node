@@ -21,7 +21,7 @@ function main({ input, n }) {
   const str = inputs[input];
 
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     toUSVString(str);
   bench.end(n);
 }

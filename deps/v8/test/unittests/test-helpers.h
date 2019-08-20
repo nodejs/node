@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "include/v8.h"
-#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {
@@ -46,6 +45,8 @@ Handle<String> CreateSource(
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate,
     v8::String::ExternalOneByteStringResource* maybe_resource);
+std::unique_ptr<ParseInfo> OuterParseInfoForShared(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
 }  // namespace test
 }  // namespace internal

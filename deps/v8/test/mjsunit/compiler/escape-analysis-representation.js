@@ -50,6 +50,7 @@ function test(value_track, value_break) {
   var deopt = { deopt:false };
 
   // Warm-up field tracking to a certain representation.
+  %PrepareFunctionForOptimization(access);
   access(value_track, value_track(), deopt);
   access(value_track, value_track(), deopt);
   %OptimizeFunctionOnNextCall(access);

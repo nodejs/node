@@ -13,6 +13,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow synchronous methods",
             category: "Node.js and CommonJS",
@@ -25,7 +27,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowAtRootLevel: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

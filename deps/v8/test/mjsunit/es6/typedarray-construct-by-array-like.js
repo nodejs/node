@@ -194,7 +194,7 @@ tests.push(function TestFromTypedArraySpecies(constr) {
   assertEquals(1, constructor_read);
 });
 
-tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
+tests.push(function TestFromTypedArraySpeciesDetachsBuffer(constr) {
   var b = new ArrayBuffer(16);
   var a1 = new constr(b);
 
@@ -203,18 +203,16 @@ tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
 
   Object.defineProperty(b, 'constructor', {
     get: function() {
-      %ArrayBufferNeuter(b);
+      %ArrayBufferDetach(b);
       return cons;
     }
   });
 
-  var a2 = new constr(a1);
-
-  assertArrayEquals([], a2);
+  assertThrows(() => new constr(a1));
 });
 
 tests.push(function TestLengthIsMaxSmi(constr) {
-  var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
+  var myObject = { 0: 5, 1: 6, length: %MaxSmi() + 1 };
 
   assertThrows(function() {
     new constr(myObject);
@@ -260,7 +258,7 @@ tests.push(function TestOffsetIsUsed(constr) {
 });
 
 tests.push(function TestLengthIsNonSmiNegativeNumber(constr) {
-  var ta = new constr({length: -%_MaxSmi() - 2});
+  var ta = new constr({length: -%MaxSmi() - 2});
 
   assertEquals(0, ta.length);
 });

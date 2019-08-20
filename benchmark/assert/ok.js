@@ -3,9 +3,7 @@
 const common = require('../common.js');
 const assert = require('assert');
 
-const bench = common.createBenchmark(main, {
-  n: [1e9]
-});
+const bench = common.createBenchmark(main, { n: [1e5] });
 
 function main({ n }) {
   var i;

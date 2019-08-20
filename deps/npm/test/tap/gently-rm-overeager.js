@@ -6,7 +6,7 @@ var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')
 
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var pkg = path.join(testdir, 'gently-rm-overeager')
 var dep = path.join(testdir, 'test-whoops')
 

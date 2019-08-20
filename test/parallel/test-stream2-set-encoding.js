@@ -34,14 +34,14 @@ class TestReader extends R {
   _read(n) {
     setTimeout(() => {
       if (this.pos >= this.len) {
-        // double push(null) to test eos handling
+        // Double push(null) to test eos handling
         this.push(null);
         return this.push(null);
       }
 
       n = Math.min(n, this.len - this.pos);
       if (n <= 0) {
-        // double push(null) to test eos handling
+        // Double push(null) to test eos handling
         this.push(null);
         return this.push(null);
       }

@@ -58,7 +58,7 @@ function testReferenceError()
   var err = "noerror";
   var caught = false;
   try {
-    var dummy = nonexistant; // throws reference error
+    var dummy = nonexistent; // throws reference error
   } catch (e) {
     caught = true;
     err = e.name;

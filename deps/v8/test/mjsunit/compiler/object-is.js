@@ -6,6 +6,7 @@
 
 (function() {
   function foo(o) { return Object.is(o, -0); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(-0));
   assertFalse(foo(0));
   assertFalse(foo(NaN));
@@ -23,6 +24,7 @@
 
 (function() {
   function foo(o) { return Object.is(-0, o); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(-0));
   assertFalse(foo(0));
   assertFalse(foo(NaN));
@@ -40,6 +42,7 @@
 
 (function() {
   function foo(o) { return Object.is(+o, -0); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(-0));
   assertFalse(foo(0));
   assertFalse(foo(NaN));
@@ -51,6 +54,7 @@
 
 (function() {
   function foo(o) { return Object.is(-0, +o); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(-0));
   assertFalse(foo(0));
   assertFalse(foo(NaN));
@@ -62,6 +66,7 @@
 
 (function() {
   function foo(o) { return Object.is(o, NaN); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(0));
   assertTrue(foo(NaN));
@@ -79,6 +84,7 @@
 
 (function() {
   function foo(o) { return Object.is(NaN, o); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(0));
   assertTrue(foo(NaN));
@@ -96,6 +102,7 @@
 
 (function() {
   function foo(o) { return Object.is(+o, NaN); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(0));
   assertTrue(foo(NaN));
@@ -107,6 +114,7 @@
 
 (function() {
   function foo(o) { return Object.is(NaN, +o); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(-0));
   assertFalse(foo(0));
   assertTrue(foo(NaN));
@@ -118,6 +126,7 @@
 
 (function() {
   function foo(o) { return Object.is(`${o}`, "foo"); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo("bar"));
   assertTrue(foo("foo"));
   %OptimizeFunctionOnNextCall(foo);
@@ -127,6 +136,7 @@
 
 (function() {
   function foo(o) { return Object.is(String(o), "foo"); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo("bar"));
   assertTrue(foo("foo"));
   %OptimizeFunctionOnNextCall(foo);
@@ -136,6 +146,7 @@
 
 (function() {
   function foo(o) { return Object.is(o, o); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(-0));
   assertTrue(foo(0));
   assertTrue(foo(NaN));
@@ -153,6 +164,7 @@
 
 (function() {
   function foo(o) { return Object.is(o|0, 0); }
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(0));
   assertTrue(foo(-0));
   assertTrue(foo(NaN));
@@ -167,8 +179,39 @@
 (function() {
   const s = Symbol();
   function foo() { return Object.is(s, Symbol()); }
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
+})();
+
+(function() {
+  function foo(a, b) { return Object.is(+a, +b); }
+  %PrepareFunctionForOptimization(foo);
+  assertFalse(foo(1, 2));
+  assertFalse(foo(0, -0));
+  assertFalse(foo(-0, 0));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-Infinity, Infinity));
+  assertTrue(foo(0, 0));
+  assertTrue(foo(0.1, 0.1));
+  assertTrue(foo(Infinity, Infinity));
+  assertTrue(foo(-0, -0));
+  assertTrue(foo(NaN, NaN));
+  assertFalse(foo(Infinity, NaN));
+  %OptimizeFunctionOnNextCall(foo);
+  assertFalse(foo(1, 2));
+  assertFalse(foo(0, -0));
+  assertFalse(foo(-0, 0));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-0, 1));
+  assertFalse(foo(-Infinity, Infinity));
+  assertTrue(foo(0, 0));
+  assertTrue(foo(0.1, 0.1));
+  assertTrue(foo(Infinity, Infinity));
+  assertTrue(foo(-0, -0));
+  assertTrue(foo(NaN, NaN));
+  assertFalse(foo(Infinity, NaN));
 })();

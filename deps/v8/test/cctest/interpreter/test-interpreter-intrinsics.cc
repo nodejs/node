@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
+#include "src/api/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
 
 namespace v8 {
@@ -26,7 +28,7 @@ class InvokeIntrinsicHelper {
   template <class... A>
   Handle<Object> Invoke(A... args) {
     CHECK(IntrinsicsHelper::IsSupported(function_id_));
-    BytecodeArrayBuilder builder(zone_, sizeof...(args), 0, 0);
+    BytecodeArrayBuilder builder(zone_, sizeof...(args), 0, nullptr);
     RegisterList reg_list = InterpreterTester::NewRegisterList(
         builder.Receiver().index(), sizeof...(args));
     builder.CallRuntime(function_id_, reg_list).Return();
@@ -93,60 +95,6 @@ TEST(IsArray) {
   CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
 }
 
-TEST(IsJSProxy) {
-  HandleAndZoneScope handles;
-
-  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
-                               Runtime::kInlineIsJSProxy);
-  Factory* factory = handles.main_isolate()->factory();
-
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("new Date()")));
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("(function() {})")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("(/x/)")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("'string'")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
-  CHECK_EQ(*factory->true_value(),
-           *helper.Invoke(helper.NewObject("new Proxy({},{})")));
-}
-
-TEST(IsTypedArray) {
-  HandleAndZoneScope handles;
-
-  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
-                               Runtime::kInlineIsTypedArray);
-  Factory* factory = handles.main_isolate()->factory();
-
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("new Date()")));
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("(function() {})")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("(/x/)")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
-  CHECK_EQ(*factory->false_value(),
-           *helper.Invoke(helper.NewObject("'string'")));
-  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
-
-  CHECK_EQ(
-      *factory->true_value(),
-      *helper.Invoke(helper.NewObject("new Uint8Array(new ArrayBuffer(1));")));
-  CHECK_EQ(
-      *factory->true_value(),
-      *helper.Invoke(helper.NewObject("new Uint16Array(new ArrayBuffer(2));")));
-  CHECK_EQ(
-      *factory->true_value(),
-      *helper.Invoke(helper.NewObject("new Int32Array(new ArrayBuffer(4));")));
-}
-
 TEST(IsSmi) {
   HandleAndZoneScope handles;
 
@@ -197,26 +145,17 @@ TEST(IntrinsicAsStubCall) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
-  InvokeIntrinsicHelper to_number_helper(isolate, handles.main_zone(),
-                                         Runtime::kInlineToNumber);
-  CHECK_EQ(Smi::FromInt(46),
-           *to_number_helper.Invoke(to_number_helper.NewObject("'46'")));
-
-  InvokeIntrinsicHelper to_integer_helper(isolate, handles.main_zone(),
-                                          Runtime::kInlineToInteger);
-  CHECK_EQ(Smi::FromInt(502),
-           *to_integer_helper.Invoke(to_integer_helper.NewObject("502.67")));
 
   InvokeIntrinsicHelper has_property_helper(isolate, handles.main_zone(),
                                             Runtime::kInlineHasProperty);
-  CHECK_EQ(*factory->true_value(),
-           *has_property_helper.Invoke(
-               has_property_helper.NewObject("'x'"),
-               has_property_helper.NewObject("({ x: 20 })")));
-  CHECK_EQ(*factory->false_value(),
-           *has_property_helper.Invoke(
-               has_property_helper.NewObject("'y'"),
-               has_property_helper.NewObject("({ x: 20 })")));
+  CHECK_EQ(
+      *factory->true_value(),
+      *has_property_helper.Invoke(has_property_helper.NewObject("({ x: 20 })"),
+                                  has_property_helper.NewObject("'x'")));
+  CHECK_EQ(
+      *factory->false_value(),
+      *has_property_helper.Invoke(has_property_helper.NewObject("({ x: 20 })"),
+                                  has_property_helper.NewObject("'y'")));
 }
 
 }  // namespace interpreter

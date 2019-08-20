@@ -11,16 +11,29 @@ npm install iferr
 
 ## Use
 
-### JavaScript example
+### JavaScript/ES6 example
+```js
+var iferr = require('iferr');
+
+function get_friends_count(id, cb) {
+  User.load_user(id, iferr(cb, user =>
+    user.load_friends(iferr(cb, friends =>
+      cb(null, friends.length)
+    ))
+  ))
+}
+```
+
+### JavaScript/ES5 example
 ```js
 var iferr = require('iferr');
 
 function get_friends_count(id, cb) {
   User.load_user(id, iferr(cb, function(user) {
     user.load_friends(iferr(cb, function(friends) {
-      cb(null, friends.length);
-    }));
-  }));
+      cb(null, friends.length)
+    }))
+  }))
 }
 ```
 

@@ -14,9 +14,9 @@
  *
  * Optimised ANSI C code for the Rijndael cipher (now AES)
  *
- * @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
- * @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
- * @author Paulo Barreto <paulo.barreto@terra.com.br>
+ * @author Vincent Rijmen
+ * @author Antoon Bosselaers
+ * @author Paulo Barreto
  *
  * This code is hereby placed in the public domain.
  *

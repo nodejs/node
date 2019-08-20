@@ -44,19 +44,18 @@ test(function() {
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
-// kArrayFunctionsOnFrozen
 test(function() {
   var a = [1, 2];
   Object.freeze(a);
   a.splice(1, 1, [1]);
-}, "Cannot modify frozen array elements", TypeError);
+}, "Cannot assign to read only property '1' of object '[object Array]'",
+   TypeError);
 
-// kArrayFunctionsOnSealed
 test(function() {
   var a = [1];
   Object.seal(a);
   a.shift();
-}, "Cannot add/remove sealed array elements", TypeError);
+}, "Cannot delete property '0' of [object Array]", TypeError);
 
 // kCalledNonCallable
 test(function() {
@@ -127,13 +126,6 @@ test(function() {
   [].join(o);
 }, "Cannot convert object to primitive value", TypeError);
 
-// kCircularStructure
-test(function() {
-  var o = {};
-  o.o = o;
-  JSON.stringify(o);
-}, "Converting circular structure to JSON", TypeError);
-
 // kConstructorNotFunction
 test(function() {
   Map();
@@ -172,15 +164,15 @@ test(function() {
 for (constructor of typedArrayConstructors) {
   test(() => {
     const ta = new constructor([1]);
-    %ArrayBufferNeuter(ta.buffer);
+    %ArrayBufferDetach(ta.buffer);
     ta.find(() => {});
-  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.find on a neutered ArrayBuffer", TypeError);
 
   test(() => {
     const ta = new constructor([1]);
-    %ArrayBufferNeuter(ta.buffer);
+    %ArrayBufferDetach(ta.buffer);
     ta.findIndex(() => {});
-  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a neutered ArrayBuffer", TypeError);
 }
 
 // kFirstArgumentNotRegExp
@@ -290,6 +282,20 @@ test(function() {
 test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
+
+test(function() {
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new Map(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
+
+test(function() {
+  let holeyDoubleArray = [, 123.123];
+  assertTrue(%HasDoubleElements(holeyDoubleArray));
+  assertTrue(%HasHoleyElements(holeyDoubleArray));
+  new WeakMap(holeyDoubleArray);
+}, "Iterator value undefined is not an entry object", TypeError);
 
 // kNotConstructor
 test(function() {
@@ -555,6 +561,10 @@ test(function() {
 
 test(function() {
   "a".repeat(1 << 30);
+}, "Invalid string length", RangeError);
+
+test(function() {
+  new Array(1 << 30).join();
 }, "Invalid string length", RangeError);
 
 // kNormalizationForm

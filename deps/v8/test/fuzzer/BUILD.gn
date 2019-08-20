@@ -1,0 +1,26 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+group("v8_fuzzer") {
+  testonly = true
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+    "../..:v8_fuzzers",
+  ]
+
+  data = [
+    "./fuzzer.status",
+    "./testcfg.py",
+    "./json/",
+    "./parser/",
+    "./regexp/",
+    "./regexp_builtins/",
+    "./multi_return/",
+    "./wasm/",
+    "./wasm_async/",
+    "./wasm_code/",
+    "./wasm_compile/",
+  ]
+}

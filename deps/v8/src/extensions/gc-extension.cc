@@ -18,9 +18,7 @@ v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->RequestGarbageCollectionForTesting(
-      args[0]
-              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
-              .FromMaybe(false)
+      args[0]->BooleanValue(args.GetIsolate())
           ? v8::Isolate::kMinorGarbageCollection
           : v8::Isolate::kFullGarbageCollection);
 }

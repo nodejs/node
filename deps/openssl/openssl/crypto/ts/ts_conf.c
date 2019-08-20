@@ -37,6 +37,7 @@
 #define ENV_CLOCK_PRECISION_DIGITS      "clock_precision_digits"
 #define ENV_VALUE_YES                   "yes"
 #define ENV_VALUE_NO                    "no"
+#define ENV_ESS_CERT_ID_ALG             "ess_cert_id_alg"
 
 /* Function definitions for certificate and key loading. */
 
@@ -465,4 +466,28 @@ int TS_CONF_set_ess_cert_id_chain(CONF *conf, const char *section,
 {
     return ts_CONF_add_flag(conf, section, ENV_ESS_CERT_ID_CHAIN,
                             TS_ESS_CERT_ID_CHAIN, ctx);
+}
+
+int TS_CONF_set_ess_cert_id_digest(CONF *conf, const char *section,
+                                   TS_RESP_CTX *ctx)
+{
+    int ret = 0;
+    const EVP_MD *cert_md = NULL;
+    const char *md = NCONF_get_string(conf, section, ENV_ESS_CERT_ID_ALG);
+
+    if (md == NULL)
+        md = "sha1";
+
+    cert_md = EVP_get_digestbyname(md);
+    if (cert_md == NULL) {
+        ts_CONF_invalid(section, ENV_ESS_CERT_ID_ALG);
+        goto err;
+    }
+
+    if (!TS_RESP_CTX_set_ess_cert_id_digest(ctx, cert_md))
+        goto err;
+
+    ret = 1;
+err:
+    return ret;
 }

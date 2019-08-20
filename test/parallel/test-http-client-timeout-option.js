@@ -3,6 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
+assert.throws(() => {
+  http.request({ timeout: null });
+}, /The "timeout" argument must be of type number/);
+
 const options = {
   method: 'GET',
   port: undefined,
@@ -17,7 +21,7 @@ server.listen(0, options.host, function() {
   options.port = this.address().port;
   const req = http.request(options);
   req.on('error', function() {
-    // this space is intentionally left blank
+    // This space is intentionally left blank
   });
   req.on('close', common.mustCall(() => server.close()));
 

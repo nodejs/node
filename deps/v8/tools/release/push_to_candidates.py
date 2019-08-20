@@ -26,6 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -46,7 +49,7 @@ class Preparation(Step):
 
     if(self["current_branch"] == self.Config("CANDIDATESBRANCH")
        or self["current_branch"] == self.Config("BRANCHNAME")):
-      print "Warning: Script started on branch %s" % self["current_branch"]
+      print("Warning: Script started on branch %s" % self["current_branch"])
 
     self.PrepareBranch()
     self.DeleteBranch(self.Config("CANDIDATESBRANCH"))
@@ -347,10 +350,10 @@ class PushToCandidates(ScriptsBase):
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.manual and not options.reviewer:
-      print "A reviewer (-r) is required in (semi-)automatic mode."
+      print("A reviewer (-r) is required in (semi-)automatic mode.")
       return False
     if not options.manual and not options.author:
-      print "Specify your chromium.org email with -a in (semi-)automatic mode."
+      print("Specify your chromium.org email with -a in (semi-)automatic mode.")
       return False
 
     options.tbr_commit = not options.manual

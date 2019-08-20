@@ -27,6 +27,12 @@
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
 
+#include <VersionHelpers.h>
+
+#if defined(_MSC_VER)
+#include <crtdbg.h>  // NOLINT
+#endif               // defined(_MSC_VER)
+
 // Extra functions for MinGW. Most of these are the _s functions which are in
 // the Microsoft Visual Studio C++ CRT.
 #ifdef __MINGW32__
@@ -107,11 +113,11 @@ class WindowsTimezoneCache : public TimezoneCache {
 
   ~WindowsTimezoneCache() override {}
 
-  void Clear() override { initialized_ = false; }
+  void Clear(TimeZoneDetection) override { initialized_ = false; }
 
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time, bool is_utc) override;
 
   double DaylightSavingsOffset(double time) override;
 
@@ -462,7 +468,9 @@ const char* WindowsTimezoneCache::LocalTimezone(double time) {
 
 // Returns the local time offset in milliseconds east of UTC without
 // taking daylight savings time into account.
-double WindowsTimezoneCache::LocalTimeOffset() {
+double WindowsTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
+  // Ignore is_utc and time_ms for now. That way, the behavior wouldn't
+  // change with icu_timezone_data disabled.
   // Use current time, rounded to the millisecond.
   Win32Time t(OS::TimeCurrentMillis());
   // Time::LocalOffset inlcudes any daylight savings offset, so subtract it.
@@ -493,6 +501,13 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(::GetCurrentThreadId());
 }
 
+void OS::ExitProcess(int exit_code) {
+  // Use TerminateProcess avoid races between isolate threads and
+  // static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  TerminateProcess(GetCurrentProcess(), exit_code);
+}
 
 // ----------------------------------------------------------------------------
 // Win32 console output.
@@ -655,11 +670,6 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 }
 
 
-char* OS::StrChr(char* str, int c) {
-  return const_cast<char*>(strchr(str, c));
-}
-
-
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   // Use _TRUNCATE or strncpy_s crashes (by design) if buffer is too small.
   size_t buffer_size = static_cast<size_t>(length);
@@ -674,8 +684,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef _TRUNCATE
 #undef STRUNCATE
 
-static LazyInstance<RandomNumberGenerator>::type
-    platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
@@ -708,8 +718,8 @@ size_t OS::CommitPageSize() {
 // static
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->SetSeed(seed);
+    MutexGuard guard(rng_mutex.Pointer());
+    GetPlatformRandomNumberGenerator()->SetSeed(seed);
   }
 }
 
@@ -729,9 +739,8 @@ void* OS::GetRandomMmapAddr() {
 #endif
   uintptr_t address;
   {
-    LockGuard<Mutex> guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->NextBytes(&address,
-                                                          sizeof(address));
+    MutexGuard guard(rng_mutex.Pointer());
+    GetPlatformRandomNumberGenerator()->NextBytes(&address, sizeof(address));
   }
   address <<= kPageSizeBits;
   address += kAllocationRandomAddressMin;
@@ -745,11 +754,17 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PAGE_NOACCESS;
+    case OS::MemoryPermission::kRead:
+      return PAGE_READONLY;
     case OS::MemoryPermission::kReadWrite:
       return PAGE_READWRITE;
     case OS::MemoryPermission::kReadWriteExecute:
+      if (IsWindows10OrGreater())
+        return PAGE_EXECUTE_READWRITE | PAGE_TARGETS_INVALID;
       return PAGE_EXECUTE_READWRITE;
     case OS::MemoryPermission::kReadExecute:
+      if (IsWindows10OrGreater())
+        return PAGE_EXECUTE_READ | PAGE_TARGETS_INVALID;
       return PAGE_EXECUTE_READ;
   }
   UNREACHABLE();
@@ -801,7 +816,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
   // If address is suitably aligned, we're done.
-  uint8_t* aligned_base = RoundUp(base, alignment);
+  uint8_t* aligned_base = reinterpret_cast<uint8_t*>(
+      RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
   if (base == aligned_base) return reinterpret_cast<void*>(base);
 
   // Otherwise, free it and try a larger allocation.
@@ -822,7 +838,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     // Try to trim the allocation by freeing the padded allocation and then
     // calling VirtualAlloc at the aligned base.
     CHECK(Free(base, padded_size));
-    aligned_base = RoundUp(base, alignment);
+    aligned_base = reinterpret_cast<uint8_t*>(
+        RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
     base = reinterpret_cast<uint8_t*>(
         VirtualAlloc(aligned_base, size, flags, protect));
     // We might not get the reduced allocation due to a race. In that case,
@@ -860,6 +877,33 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // On Windows, discarded pages are not returned to the system immediately and
+  // not guaranteed to be zeroed when returned to the application.
+  using DiscardVirtualMemoryFunction =
+      DWORD(WINAPI*)(PVOID virtualAddress, SIZE_T size);
+  static std::atomic<DiscardVirtualMemoryFunction> discard_virtual_memory(
+      reinterpret_cast<DiscardVirtualMemoryFunction>(-1));
+  if (discard_virtual_memory ==
+      reinterpret_cast<DiscardVirtualMemoryFunction>(-1))
+    discard_virtual_memory =
+        reinterpret_cast<DiscardVirtualMemoryFunction>(GetProcAddress(
+            GetModuleHandle(L"Kernel32.dll"), "DiscardVirtualMemory"));
+  // Use DiscardVirtualMemory when available because it releases faster than
+  // MEM_RESET.
+  DiscardVirtualMemoryFunction discard_function = discard_virtual_memory.load();
+  if (discard_function) {
+    DWORD ret = discard_function(address, size);
+    if (!ret) return true;
+  }
+  // DiscardVirtualMemory is buggy in Win10 SP0, so fall back to MEM_RESET on
+  // failure.
+  void* ptr = VirtualAlloc(address, size, MEM_RESET, PAGE_READWRITE);
+  CHECK(ptr);
+  return ptr;
+}
+
+// static
 bool OS::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
@@ -871,6 +915,11 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
+  // Give a chance to debug the failure.
+  if (IsDebuggerPresent()) {
+    DebugBreak();
+  }
+
   // Before aborting, make sure to flush output buffers.
   fflush(stdout);
   fflush(stderr);
@@ -919,39 +968,48 @@ class Win32MemoryMappedFile final : public OS::MemoryMappedFile {
 
 
 // static
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  // Open a physical file
-  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
-                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                            OPEN_EXISTING, 0, nullptr);
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
+                                                 FileMode mode) {
+  // Open a physical file.
+  DWORD access = GENERIC_READ;
+  if (mode == FileMode::kReadWrite) {
+    access |= GENERIC_WRITE;
+  }
+  HANDLE file = CreateFileA(name, access, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                            nullptr, OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
 
-  // Create a file mapping for the physical file
+  DWORD protection =
+      (mode == FileMode::kReadOnly) ? PAGE_READONLY : PAGE_READWRITE;
+  // Create a file mapping for the physical file.
   HANDLE file_mapping =
-      CreateFileMapping(file, nullptr, PAGE_READWRITE, 0, size, nullptr);
+      CreateFileMapping(file, nullptr, protection, 0, size, nullptr);
   if (file_mapping == nullptr) return nullptr;
 
-  // Map a view of the file into memory
-  void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+  // Map a view of the file into memory.
+  DWORD view_access =
+      (mode == FileMode::kReadOnly) ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS;
+  void* memory = MapViewOfFile(file_mapping, view_access, 0, 0, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
-
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
-  // Open a physical file
+  // Open a physical file.
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;
-  // Create a file mapping for the physical file
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
+  // Create a file mapping for the physical file.
   HANDLE file_mapping = CreateFileMapping(file, nullptr, PAGE_READWRITE, 0,
                                           static_cast<DWORD>(size), nullptr);
   if (file_mapping == nullptr) return nullptr;
-  // Map a view of the file into memory
+  // Map a view of the file into memory.
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
   if (memory) memmove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
@@ -960,7 +1018,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 Win32MemoryMappedFile::~Win32MemoryMappedFile() {
   if (memory_) UnmapViewOfFile(memory_);
-  CloseHandle(file_mapping_);
+  if (file_mapping_) CloseHandle(file_mapping_);
   CloseHandle(file_);
 }
 
@@ -1009,58 +1067,44 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
 // DbgHelp isn't supported on MinGW yet
 #ifndef __MINGW32__
 // DbgHelp.h functions.
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymInitialize))(IN HANDLE hProcess,
-                                                       IN PSTR UserSearchPath,
-                                                       IN BOOL fInvadeProcess);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymGetOptions))(VOID);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymSetOptions))(IN DWORD SymOptions);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSearchPath))(
-    IN HANDLE hProcess,
-    OUT PSTR SearchPath,
-    IN DWORD SearchPathLength);
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymLoadModule64))(
-    IN HANDLE hProcess,
-    IN HANDLE hFile,
-    IN PSTR ImageName,
-    IN PSTR ModuleName,
-    IN DWORD64 BaseOfDll,
-    IN DWORD SizeOfDll);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(StackWalk64))(
-    DWORD MachineType,
-    HANDLE hProcess,
-    HANDLE hThread,
-    LPSTACKFRAME64 StackFrame,
-    PVOID ContextRecord,
+using DLL_FUNC_TYPE(SymInitialize) = BOOL(__stdcall*)(IN HANDLE hProcess,
+                                                      IN PSTR UserSearchPath,
+                                                      IN BOOL fInvadeProcess);
+using DLL_FUNC_TYPE(SymGetOptions) = DWORD(__stdcall*)(VOID);
+using DLL_FUNC_TYPE(SymSetOptions) = DWORD(__stdcall*)(IN DWORD SymOptions);
+using DLL_FUNC_TYPE(SymGetSearchPath) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, OUT PSTR SearchPath, IN DWORD SearchPathLength);
+using DLL_FUNC_TYPE(SymLoadModule64) = DWORD64(__stdcall*)(
+    IN HANDLE hProcess, IN HANDLE hFile, IN PSTR ImageName, IN PSTR ModuleName,
+    IN DWORD64 BaseOfDll, IN DWORD SizeOfDll);
+using DLL_FUNC_TYPE(StackWalk64) = BOOL(__stdcall*)(
+    DWORD MachineType, HANDLE hProcess, HANDLE hThread,
+    LPSTACKFRAME64 StackFrame, PVOID ContextRecord,
     PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
     PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
     PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
     PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSymFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD64 pdwDisplacement,
+using DLL_FUNC_TYPE(SymGetSymFromAddr64) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, IN DWORD64 qwAddr, OUT PDWORD64 pdwDisplacement,
     OUT PIMAGEHLP_SYMBOL64 Symbol);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetLineFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD pdwDisplacement,
-    OUT PIMAGEHLP_LINE64 Line64);
+using DLL_FUNC_TYPE(SymGetLineFromAddr64) =
+    BOOL(__stdcall*)(IN HANDLE hProcess, IN DWORD64 qwAddr,
+                     OUT PDWORD pdwDisplacement, OUT PIMAGEHLP_LINE64 Line64);
 // DbgHelp.h typedefs. Implementation found in dbghelp.dll.
-typedef PVOID (__stdcall *DLL_FUNC_TYPE(SymFunctionTableAccess64))(
+using DLL_FUNC_TYPE(SymFunctionTableAccess64) = PVOID(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PFUNCTION_TABLE_ACCESS_ROUTINE64
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymGetModuleBase64))(
+using DLL_FUNC_TYPE(SymGetModuleBase64) = DWORD64(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PGET_MODULE_BASE_ROUTINE64
 
 // TlHelp32.h functions.
-typedef HANDLE (__stdcall *DLL_FUNC_TYPE(CreateToolhelp32Snapshot))(
-    DWORD dwFlags,
-    DWORD th32ProcessID);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32FirstW))(HANDLE hSnapshot,
-                                                        LPMODULEENTRY32W lpme);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32NextW))(HANDLE hSnapshot,
+using DLL_FUNC_TYPE(CreateToolhelp32Snapshot) =
+    HANDLE(__stdcall*)(DWORD dwFlags, DWORD th32ProcessID);
+using DLL_FUNC_TYPE(Module32FirstW) = BOOL(__stdcall*)(HANDLE hSnapshot,
                                                        LPMODULEENTRY32W lpme);
+using DLL_FUNC_TYPE(Module32NextW) = BOOL(__stdcall*)(HANDLE hSnapshot,
+                                                      LPMODULEENTRY32W lpme);
 
 #undef IN
 #undef VOID
@@ -1239,6 +1283,24 @@ int OS::ActivationFrameAlignment() {
 #endif
 }
 
+#if (defined(_WIN32) || defined(_WIN64))
+void EnsureConsoleOutputWin32() {
+  UINT new_flags =
+      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
+  UINT existing_flags = SetErrorMode(new_flags);
+  SetErrorMode(existing_flags | new_flags);
+#if defined(_MSC_VER)
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _set_error_mode(_OUT_TO_STDERR);
+#endif  // defined(_MSC_VER)
+}
+#endif  // (defined(_WIN32) || defined(_WIN64))
+
 // ----------------------------------------------------------------------------
 // Win32 thread support.
 
@@ -1329,6 +1391,8 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   USE(result);
   DCHECK(result);
 }
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

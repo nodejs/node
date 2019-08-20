@@ -1,14 +1,19 @@
+// Flags: --expose-internals
 'use strict';
 
 // This tests that fs.access and fs.accessSync works as expected
 // and the errors thrown from these APIs include the desired properties
 
 const common = require('../common');
+if (!common.isWindows && process.getuid() === 0)
+  common.skip('as this test should not be run as `root`');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_ENOENT } = internalBinding('uv');
 
 const tmpdir = require('../common/tmpdir');
 const doesNotExist = path.join(tmpdir.path, '__this_should_not_exist');
@@ -53,7 +58,7 @@ if (!common.isWindows && process.getuid() === 0) {
   try {
     process.setuid('nobody');
     hasWriteAccessForReadonlyFile = false;
-  } catch (err) {
+  } catch {
   }
 }
 
@@ -62,37 +67,70 @@ assert.strictEqual(typeof fs.R_OK, 'number');
 assert.strictEqual(typeof fs.W_OK, 'number');
 assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, common.mustCall(assert.ifError));
-fs.access(__filename, fs.R_OK, common.mustCall(assert.ifError));
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(assert.ifError));
+const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
-fs.access(doesNotExist, common.mustCall((err) => {
-  assert.notStrictEqual(err, null, 'error should exist');
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.path, doesNotExist);
+fs.access(__filename, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
 }));
-
-fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {
-  assert.strictEqual(this, undefined);
-  if (hasWriteAccessForReadonlyFile) {
-    assert.ifError(err);
-  } else {
-    assert.notStrictEqual(err, null, 'error should exist');
-    assert.strictEqual(err.path, readOnlyFile);
-  }
+fs.promises.access(__filename)
+  .then(common.mustCall())
+  .catch(throwNextTick);
+fs.access(__filename, fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
 }));
+fs.promises.access(__filename, fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
+fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
 
-common.expectsError(
-  () => {
-    fs.access(100, fs.F_OK, common.mustNotCall());
-  },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ' Received type number'
+{
+  const expectedError = (err) => {
+    assert.notStrictEqual(err, null);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+  };
+  fs.access(doesNotExist, common.mustCall(expectedError));
+  fs.promises.access(doesNotExist)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
+
+{
+  function expectedError(err) {
+    assert.strictEqual(this, undefined);
+    if (hasWriteAccessForReadonlyFile) {
+      assert.ifError(err);
+    } else {
+      assert.notStrictEqual(err, null);
+      assert.strictEqual(err.path, readOnlyFile);
+    }
   }
-);
+  fs.access(readOnlyFile, fs.W_OK, common.mustCall(expectedError));
+  fs.promises.access(readOnlyFile, fs.W_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
+
+{
+  const expectedError = (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+    assert.ok(err instanceof TypeError);
+    return true;
+  };
+  assert.throws(
+    () => { fs.access(100, fs.F_OK, common.mustNotCall()); },
+    expectedError
+  );
+
+  fs.promises.access(100, fs.F_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
 common.expectsError(
   () => {
@@ -128,7 +166,7 @@ assert.throws(
     );
     assert.strictEqual(err.constructor, Error);
     assert.strictEqual(err.syscall, 'access');
-    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.errno, UV_ENOENT);
     return true;
   }
 );
@@ -144,7 +182,7 @@ assert.throws(
     );
     assert.strictEqual(err.constructor, Error);
     assert.strictEqual(err.syscall, 'access');
-    assert.strictEqual(err.errno, uv.UV_ENOENT);
+    assert.strictEqual(err.errno, UV_ENOENT);
     return true;
   }
 );

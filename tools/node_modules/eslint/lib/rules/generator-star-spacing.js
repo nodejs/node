@@ -27,6 +27,8 @@ const OVERRIDE_SCHEMA = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent spacing around `*` operators in generator functions",
             category: "ECMAScript 6",
@@ -55,7 +57,14 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            missingBefore: "Missing space before *.",
+            missingAfter: "Missing space after *.",
+            unexpectedBefore: "Unexpected space before *.",
+            unexpectedAfter: "Unexpected space after *."
+        }
     },
 
     create(context) {
@@ -120,6 +129,15 @@ module.exports = {
         }
 
         /**
+         * capitalize a given string.
+         * @param {string} str the given string.
+         * @returns {string} the capitalized string.
+         */
+        function capitalize(str) {
+            return str[0].toUpperCase() + str.slice(1);
+        }
+
+        /**
          * Checks the spacing between two tokens before or after the star token.
          *
          * @param {string} kind Either "named", "anonymous", or "method"
@@ -135,17 +153,11 @@ module.exports = {
                 const after = leftToken.value === "*";
                 const spaceRequired = modes[kind][side];
                 const node = after ? leftToken : rightToken;
-                const type = spaceRequired ? "Missing" : "Unexpected";
-                const message = "{{type}} space {{side}} *.";
-                const data = {
-                    type,
-                    side
-                };
+                const messageId = `${spaceRequired ? "missing" : "unexpected"}${capitalize(side)}`;
 
                 context.report({
                     node,
-                    message,
-                    data,
+                    messageId,
                     fix(fixer) {
                         if (spaceRequired) {
                             if (after) {

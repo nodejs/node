@@ -26,7 +26,7 @@ $	ENDIF
 $
 $	! Abbrevs
 $	DEAS := DEASSIGN /NOLOG 'P1'
-$	sv   := {- sprintf "%02d%02d", $config{shlib_major}, $config{shlib_minor} -}
+$	sv   := {- sprintf "%02d%02d", split m|\.|, $config{shlib_version_number} -}
 $	pz   := {- $config{pointer_size} -}
 $
 $	DEAS OSSL$DATAROOT

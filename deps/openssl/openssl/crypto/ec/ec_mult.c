@@ -1,16 +1,11 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- * Portions of this software developed by SUN MICROSYSTEMS, INC.,
- * and contributed to the OpenSSL project.
  */
 
 #include <string.h>
@@ -19,6 +14,7 @@
 #include "internal/cryptlib.h"
 #include "internal/bn_int.h"
 #include "ec_lcl.h"
+#include "internal/refcount.h"
 
 /*
  * This file implements the wNAF-based interleaving multi-exponentiation method
@@ -42,7 +38,7 @@ struct ec_pre_comp_st {
                                  * generator: 'num' pointers to EC_POINT
                                  * objects followed by a NULL */
     size_t num;                 /* numblocks * 2^(w-1) */
-    int references;
+    CRYPTO_REF_COUNT references;
     CRYPTO_RWLOCK *lock;
 };
 
@@ -77,7 +73,7 @@ EC_PRE_COMP *EC_ec_pre_comp_dup(EC_PRE_COMP *pre)
 {
     int i;
     if (pre != NULL)
-        CRYPTO_atomic_add(&pre->references, 1, &i, pre->lock);
+        CRYPTO_UP_REF(&pre->references, &i, pre->lock);
     return pre;
 }
 
@@ -88,7 +84,7 @@ void EC_ec_pre_comp_free(EC_PRE_COMP *pre)
     if (pre == NULL)
         return;
 
-    CRYPTO_atomic_add(&pre->references, -1, &i, pre->lock);
+    CRYPTO_DOWN_REF(&pre->references, &i, pre->lock);
     REF_PRINT_COUNT("EC_ec", pre);
     if (i > 0)
         return;
@@ -104,6 +100,291 @@ void EC_ec_pre_comp_free(EC_PRE_COMP *pre)
     CRYPTO_THREAD_lock_free(pre->lock);
     OPENSSL_free(pre);
 }
+
+#define EC_POINT_BN_set_flags(P, flags) do { \
+    BN_set_flags((P)->X, (flags)); \
+    BN_set_flags((P)->Y, (flags)); \
+    BN_set_flags((P)->Z, (flags)); \
+} while(0)
+
+/*-
+ * This functions computes a single point multiplication over the EC group,
+ * using, at a high level, a Montgomery ladder with conditional swaps, with
+ * various timing attack defenses.
+ *
+ * It performs either a fixed point multiplication
+ *          (scalar * generator)
+ * when point is NULL, or a variable point multiplication
+ *          (scalar * point)
+ * when point is not NULL.
+ *
+ * `scalar` cannot be NULL and should be in the range [0,n) otherwise all
+ * constant time bets are off (where n is the cardinality of the EC group).
+ *
+ * This function expects `group->order` and `group->cardinality` to be well
+ * defined and non-zero: it fails with an error code otherwise.
+ *
+ * NB: This says nothing about the constant-timeness of the ladder step
+ * implementation (i.e., the default implementation is based on EC_POINT_add and
+ * EC_POINT_dbl, which of course are not constant time themselves) or the
+ * underlying multiprecision arithmetic.
+ *
+ * The product is stored in `r`.
+ *
+ * This is an internal function: callers are in charge of ensuring that the
+ * input parameters `group`, `r`, `scalar` and `ctx` are not NULL.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int ec_scalar_mul_ladder(const EC_GROUP *group, EC_POINT *r,
+                         const BIGNUM *scalar, const EC_POINT *point,
+                         BN_CTX *ctx)
+{
+    int i, cardinality_bits, group_top, kbit, pbit, Z_is_one;
+    EC_POINT *p = NULL;
+    EC_POINT *s = NULL;
+    BIGNUM *k = NULL;
+    BIGNUM *lambda = NULL;
+    BIGNUM *cardinality = NULL;
+    int ret = 0;
+
+    /* early exit if the input point is the point at infinity */
+    if (point != NULL && EC_POINT_is_at_infinity(group, point))
+        return EC_POINT_set_to_infinity(group, r);
+
+    if (BN_is_zero(group->order)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_UNKNOWN_ORDER);
+        return 0;
+    }
+    if (BN_is_zero(group->cofactor)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_UNKNOWN_COFACTOR);
+        return 0;
+    }
+
+    BN_CTX_start(ctx);
+
+    if (((p = EC_POINT_new(group)) == NULL)
+        || ((s = EC_POINT_new(group)) == NULL)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    if (point == NULL) {
+        if (!EC_POINT_copy(p, group->generator)) {
+            ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_EC_LIB);
+            goto err;
+        }
+    } else {
+        if (!EC_POINT_copy(p, point)) {
+            ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_EC_LIB);
+            goto err;
+        }
+    }
+
+    EC_POINT_BN_set_flags(p, BN_FLG_CONSTTIME);
+    EC_POINT_BN_set_flags(r, BN_FLG_CONSTTIME);
+    EC_POINT_BN_set_flags(s, BN_FLG_CONSTTIME);
+
+    cardinality = BN_CTX_get(ctx);
+    lambda = BN_CTX_get(ctx);
+    k = BN_CTX_get(ctx);
+    if (k == NULL) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    if (!BN_mul(cardinality, group->order, group->cofactor, ctx)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+
+    /*
+     * Group cardinalities are often on a word boundary.
+     * So when we pad the scalar, some timing diff might
+     * pop if it needs to be expanded due to carries.
+     * So expand ahead of time.
+     */
+    cardinality_bits = BN_num_bits(cardinality);
+    group_top = bn_get_top(cardinality);
+    if ((bn_wexpand(k, group_top + 2) == NULL)
+        || (bn_wexpand(lambda, group_top + 2) == NULL)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+
+    if (!BN_copy(k, scalar)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+
+    BN_set_flags(k, BN_FLG_CONSTTIME);
+
+    if ((BN_num_bits(k) > cardinality_bits) || (BN_is_negative(k))) {
+        /*-
+         * this is an unusual input, and we don't guarantee
+         * constant-timeness
+         */
+        if (!BN_nnmod(k, k, cardinality, ctx)) {
+            ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+            goto err;
+        }
+    }
+
+    if (!BN_add(lambda, k, cardinality)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+    BN_set_flags(lambda, BN_FLG_CONSTTIME);
+    if (!BN_add(k, lambda, cardinality)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+    /*
+     * lambda := scalar + cardinality
+     * k := scalar + 2*cardinality
+     */
+    kbit = BN_is_bit_set(lambda, cardinality_bits);
+    BN_consttime_swap(kbit, k, lambda, group_top + 2);
+
+    group_top = bn_get_top(group->field);
+    if ((bn_wexpand(s->X, group_top) == NULL)
+        || (bn_wexpand(s->Y, group_top) == NULL)
+        || (bn_wexpand(s->Z, group_top) == NULL)
+        || (bn_wexpand(r->X, group_top) == NULL)
+        || (bn_wexpand(r->Y, group_top) == NULL)
+        || (bn_wexpand(r->Z, group_top) == NULL)
+        || (bn_wexpand(p->X, group_top) == NULL)
+        || (bn_wexpand(p->Y, group_top) == NULL)
+        || (bn_wexpand(p->Z, group_top) == NULL)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, ERR_R_BN_LIB);
+        goto err;
+    }
+
+    /*-
+     * Apply coordinate blinding for EC_POINT.
+     *
+     * The underlying EC_METHOD can optionally implement this function:
+     * ec_point_blind_coordinates() returns 0 in case of errors or 1 on
+     * success or if coordinate blinding is not implemented for this
+     * group.
+     */
+    if (!ec_point_blind_coordinates(group, p, ctx)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_POINT_COORDINATES_BLIND_FAILURE);
+        goto err;
+    }
+
+    /* Initialize the Montgomery ladder */
+    if (!ec_point_ladder_pre(group, r, s, p, ctx)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_LADDER_PRE_FAILURE);
+        goto err;
+    }
+
+    /* top bit is a 1, in a fixed pos */
+    pbit = 1;
+
+#define EC_POINT_CSWAP(c, a, b, w, t) do {         \
+        BN_consttime_swap(c, (a)->X, (b)->X, w);   \
+        BN_consttime_swap(c, (a)->Y, (b)->Y, w);   \
+        BN_consttime_swap(c, (a)->Z, (b)->Z, w);   \
+        t = ((a)->Z_is_one ^ (b)->Z_is_one) & (c); \
+        (a)->Z_is_one ^= (t);                      \
+        (b)->Z_is_one ^= (t);                      \
+} while(0)
+
+    /*-
+     * The ladder step, with branches, is
+     *
+     * k[i] == 0: S = add(R, S), R = dbl(R)
+     * k[i] == 1: R = add(S, R), S = dbl(S)
+     *
+     * Swapping R, S conditionally on k[i] leaves you with state
+     *
+     * k[i] == 0: T, U = R, S
+     * k[i] == 1: T, U = S, R
+     *
+     * Then perform the ECC ops.
+     *
+     * U = add(T, U)
+     * T = dbl(T)
+     *
+     * Which leaves you with state
+     *
+     * k[i] == 0: U = add(R, S), T = dbl(R)
+     * k[i] == 1: U = add(S, R), T = dbl(S)
+     *
+     * Swapping T, U conditionally on k[i] leaves you with state
+     *
+     * k[i] == 0: R, S = T, U
+     * k[i] == 1: R, S = U, T
+     *
+     * Which leaves you with state
+     *
+     * k[i] == 0: S = add(R, S), R = dbl(R)
+     * k[i] == 1: R = add(S, R), S = dbl(S)
+     *
+     * So we get the same logic, but instead of a branch it's a
+     * conditional swap, followed by ECC ops, then another conditional swap.
+     *
+     * Optimization: The end of iteration i and start of i-1 looks like
+     *
+     * ...
+     * CSWAP(k[i], R, S)
+     * ECC
+     * CSWAP(k[i], R, S)
+     * (next iteration)
+     * CSWAP(k[i-1], R, S)
+     * ECC
+     * CSWAP(k[i-1], R, S)
+     * ...
+     *
+     * So instead of two contiguous swaps, you can merge the condition
+     * bits and do a single swap.
+     *
+     * k[i]   k[i-1]    Outcome
+     * 0      0         No Swap
+     * 0      1         Swap
+     * 1      0         Swap
+     * 1      1         No Swap
+     *
+     * This is XOR. pbit tracks the previous bit of k.
+     */
+
+    for (i = cardinality_bits - 1; i >= 0; i--) {
+        kbit = BN_is_bit_set(k, i) ^ pbit;
+        EC_POINT_CSWAP(kbit, r, s, group_top, Z_is_one);
+
+        /* Perform a single step of the Montgomery ladder */
+        if (!ec_point_ladder_step(group, r, s, p, ctx)) {
+            ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_LADDER_STEP_FAILURE);
+            goto err;
+        }
+        /*
+         * pbit logic merges this cswap with that of the
+         * next iteration
+         */
+        pbit ^= kbit;
+    }
+    /* one final cswap to move the right value into r */
+    EC_POINT_CSWAP(pbit, r, s, group_top, Z_is_one);
+#undef EC_POINT_CSWAP
+
+    /* Finalize ladder (and recover full point coordinates) */
+    if (!ec_point_ladder_post(group, r, s, p, ctx)) {
+        ECerr(EC_F_EC_SCALAR_MUL_LADDER, EC_R_LADDER_POST_FAILURE);
+        goto err;
+    }
+
+    ret = 1;
+
+ err:
+    EC_POINT_free(p);
+    EC_POINT_clear_free(s);
+    BN_CTX_end(ctx);
+
+    return ret;
+}
+
+#undef EC_POINT_BN_set_flags
 
 /*
  * TODO: table should be optimised for the wNAF-based implementation,
@@ -130,7 +411,6 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                 size_t num, const EC_POINT *points[], const BIGNUM *scalars[],
                 BN_CTX *ctx)
 {
-    BN_CTX *new_ctx = NULL;
     const EC_POINT *generator = NULL;
     EC_POINT *tmp = NULL;
     size_t totalnum;
@@ -155,26 +435,33 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                                  * precomputation is not available */
     int ret = 0;
 
-    if (group->meth != r->meth) {
-        ECerr(EC_F_EC_WNAF_MUL, EC_R_INCOMPATIBLE_OBJECTS);
-        return 0;
-    }
-
-    if ((scalar == NULL) && (num == 0)) {
-        return EC_POINT_set_to_infinity(group, r);
-    }
-
-    for (i = 0; i < num; i++) {
-        if (group->meth != points[i]->meth) {
-            ECerr(EC_F_EC_WNAF_MUL, EC_R_INCOMPATIBLE_OBJECTS);
-            return 0;
+    if (!BN_is_zero(group->order) && !BN_is_zero(group->cofactor)) {
+        /*-
+         * Handle the common cases where the scalar is secret, enforcing a
+         * scalar multiplication implementation based on a Montgomery ladder,
+         * with various timing attack defenses.
+         */
+        if ((scalar != group->order) && (scalar != NULL) && (num == 0)) {
+            /*-
+             * In this case we want to compute scalar * GeneratorPoint: this
+             * codepath is reached most prominently by (ephemeral) key
+             * generation of EC cryptosystems (i.e. ECDSA keygen and sign setup,
+             * ECDH keygen/first half), where the scalar is always secret. This
+             * is why we ignore if BN_FLG_CONSTTIME is actually set and we
+             * always call the ladder version.
+             */
+            return ec_scalar_mul_ladder(group, r, scalar, NULL, ctx);
         }
-    }
-
-    if (ctx == NULL) {
-        ctx = new_ctx = BN_CTX_new();
-        if (ctx == NULL)
-            goto err;
+        if ((scalar == NULL) && (num == 1) && (scalars[0] != group->order)) {
+            /*-
+             * In this case we want to compute scalar * VariablePoint: this
+             * codepath is reached most prominently by the second half of ECDH,
+             * where the secret scalar is multiplied by the peer's public point.
+             * To protect the secret scalar, we ignore if BN_FLG_CONSTTIME is
+             * actually set and we always call the ladder version.
+             */
+            return ec_scalar_mul_ladder(group, r, scalars[0], points[0], ctx);
+        }
     }
 
     if (scalar != NULL) {
@@ -483,7 +770,6 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
     ret = 1;
 
  err:
-    BN_CTX_free(new_ctx);
     EC_POINT_free(tmp);
     OPENSSL_free(wsize);
     OPENSSL_free(wNAF_len);
@@ -662,8 +948,7 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     ret = 1;
 
  err:
-    if (ctx != NULL)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     EC_ec_pre_comp_free(pre_comp);
     if (points) {

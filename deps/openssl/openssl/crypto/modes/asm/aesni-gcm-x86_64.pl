@@ -35,6 +35,8 @@
 # Applications using the EVP interface will observe a few percent
 # worse performance.]
 #
+# Knights Landing processes 1 byte in 1.25 cycles (measured with EVP).
+#
 # [1] http://rt.openssl.org/Ticket/Display.html?id=2900&user=guest&pass=guest
 # [2] http://www.intel.com/content/dam/www/public/us/en/documents/software-support/enabling-high-performance-gcm.pdf
 
@@ -116,23 +118,6 @@ _aesni_ctr32_ghash_6x:
 	  vpxor		$rndkey,$inout3,$inout3
 	  vmovups	0x10-0x80($key),$T2	# borrow $T2 for $rndkey
 	vpclmulqdq	\$0x01,$Hkey,$Z3,$Z2
-
-	# At this point, the current block of 96 (0x60) bytes has already been
-	# loaded into registers. Concurrently with processing it, we want to
-	# load the next 96 bytes of input for the next round. Obviously, we can
-	# only do this if there are at least 96 more bytes of input beyond the
-	# input we're currently processing, or else we'd read past the end of
-	# the input buffer. Here, we set |%r12| to 96 if there are at least 96
-	# bytes of input beyond the 96 bytes we're already processing, and we
-	# set |%r12| to 0 otherwise. In the case where we set |%r12| to 96,
-	# we'll read in the next block so that it is in registers for the next
-	# loop iteration. In the case where we set |%r12| to 0, we'll re-read
-	# the current block and then ignore what we re-read.
-	#
-	# At this point, |$in0| points to the current (already read into
-	# registers) block, and |$end0| points to 2*96 bytes before the end of
-	# the input. Thus, |$in0| > |$end0| means that we do not have the next
-	# 96-byte block to read in, and |$in0| <= |$end0| means we do.
 	xor		%r12,%r12
 	cmp		$in0,$end0
 
@@ -424,20 +409,25 @@ $code.=<<___;
 .type	aesni_gcm_decrypt,\@function,6
 .align	32
 aesni_gcm_decrypt:
+.cfi_startproc
 	xor	$ret,$ret
-
-	# We call |_aesni_ctr32_ghash_6x|, which requires at least 96 (0x60)
-	# bytes of input.
 	cmp	\$0x60,$len			# minimal accepted length
 	jb	.Lgcm_dec_abort
 
 	lea	(%rsp),%rax			# save stack pointer
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -482,15 +472,7 @@ $code.=<<___;
 	vmovdqu		0x50($inp),$Z3		# I[5]
 	lea		($inp),$in0
 	vmovdqu		0x40($inp),$Z0
-
-	# |_aesni_ctr32_ghash_6x| requires |$end0| to point to 2*96 (0xc0)
-	# bytes before the end of the input. Note, in particular, that this is
-	# correct even if |$len| is not an even multiple of 96 or 16. XXX: This
-	# seems to require that |$inp| + |$len| >= 2*96 (0xc0); i.e. |$inp| must
-	# not be near the very beginning of the address space when |$len| < 2*96
-	# (0xc0).
 	lea		-0xc0($inp,$len),$end0
-
 	vmovdqu		0x30($inp),$Z1
 	shr		\$4,$len
 	xor		$ret,$ret
@@ -537,15 +519,23 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp		# restore %rsp
+.cfi_def_cfa_register	%rsp
 .Lgcm_dec_abort:
 	mov	$ret,%rax		# return value
 	ret
+.cfi_endproc
 .size	aesni_gcm_decrypt,.-aesni_gcm_decrypt
 ___
 
@@ -645,21 +635,25 @@ _aesni_ctr32_6x:
 .type	aesni_gcm_encrypt,\@function,6
 .align	32
 aesni_gcm_encrypt:
+.cfi_startproc
 	xor	$ret,$ret
-
-	# We call |_aesni_ctr32_6x| twice, each call consuming 96 bytes of
-	# input. Then we call |_aesni_ctr32_ghash_6x|, which requires at
-	# least 96 more bytes of input.
 	cmp	\$0x60*3,$len			# minimal accepted length
 	jb	.Lgcm_enc_abort
 
 	lea	(%rsp),%rax			# save stack pointer
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -699,16 +693,7 @@ $code.=<<___;
 .Lenc_no_key_aliasing:
 
 	lea		($out),$in0
-
-	# |_aesni_ctr32_ghash_6x| requires |$end0| to point to 2*96 (0xc0)
-	# bytes before the end of the input. Note, in particular, that this is
-	# correct even if |$len| is not an even multiple of 96 or 16. Unlike in
-	# the decryption case, there's no caveat that |$out| must not be near
-	# the very beginning of the address space, because we know that
-	# |$len| >= 3*96 from the check above, and so we know
-	# |$out| + |$len| >= 2*96 (0xc0).
 	lea		-0xc0($out,$len),$end0
-
 	shr		\$4,$len
 
 	call		_aesni_ctr32_6x
@@ -931,15 +916,23 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp		# restore %rsp
+.cfi_def_cfa_register	%rsp
 .Lgcm_enc_abort:
 	mov	$ret,%rax		# return value
 	ret
+.cfi_endproc
 .size	aesni_gcm_encrypt,.-aesni_gcm_encrypt
 ___
 

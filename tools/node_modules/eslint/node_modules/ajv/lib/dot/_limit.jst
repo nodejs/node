@@ -50,6 +50,14 @@
                 )
             || {{=$data}} !== {{=$data}}) {
     var op{{=$lvl}} = {{=$exclusive}} ? '{{=$op}}' : '{{=$op}}=';
+    {{
+      if ($schema === undefined) {
+        $errorKeyword = $exclusiveKeyword;
+        $errSchemaPath = it.errSchemaPath + '/' + $exclusiveKeyword;
+        $schemaValue = $schemaValueExcl;
+        $isData = $isDataExcl;
+      }
+    }}
 {{??}}
   {{
     var $exclIsNumber = typeof $schemaExcl == 'number'

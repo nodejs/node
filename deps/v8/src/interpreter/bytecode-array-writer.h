@@ -6,9 +6,9 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
+#include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -19,9 +19,11 @@ class SourcePositionTableBuilder;
 namespace interpreter {
 
 class BytecodeLabel;
+class BytecodeLoopHeader;
 class BytecodeNode;
 class BytecodeJumpTable;
 class ConstantArrayBuilder;
+class HandlerTableBuilder;
 
 namespace bytecode_array_writer_unittest {
 class BytecodeArrayWriterUnittest;
@@ -37,13 +39,23 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteJumpLoop(BytecodeNode* node, BytecodeLoopHeader* loop_header);
   void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* jump_table);
   void BindLabel(BytecodeLabel* label);
-  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label);
+  void BindLoopHeader(BytecodeLoopHeader* loop_header);
   void BindJumpTableEntry(BytecodeJumpTable* jump_table, int case_value);
+  void BindHandlerTarget(HandlerTableBuilder* handler_table_builder,
+                         int handler_id);
+  void BindTryRegionStart(HandlerTableBuilder* handler_table_builder,
+                          int handler_id);
+  void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
+                        int handler_id);
+
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate, int register_count,
                                         int parameter_count,
                                         Handle<ByteArray> handler_table);
+
+  bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
 
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,
@@ -69,6 +81,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void EmitBytecode(const BytecodeNode* const node);
   void EmitJump(BytecodeNode* node, BytecodeLabel* label);
+  void EmitJumpLoop(BytecodeNode* node, BytecodeLoopHeader* loop_header);
   void EmitSwitch(BytecodeNode* node, BytecodeJumpTable* jump_table);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
@@ -76,6 +89,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void MaybeElideLastBytecode(Bytecode next_bytecode, bool has_source_info);
   void InvalidateLastBytecode();
+
+  void StartBasicBlock();
 
   ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
   SourcePositionTableBuilder* source_position_table_builder() {

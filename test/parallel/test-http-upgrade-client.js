@@ -31,6 +31,8 @@ const http = require('http');
 const net = require('net');
 const Countdown = require('../common/countdown');
 
+const expectedRecvData = 'nurtzo';
+
 // Create a TCP server
 const srv = net.createServer(function(c) {
   c.on('data', function(d) {
@@ -39,7 +41,7 @@ const srv = net.createServer(function(c) {
     c.write('connection: upgrade\r\n');
     c.write('upgrade: websocket\r\n');
     c.write('\r\n');
-    c.write('nurtzo');
+    c.write(expectedRecvData);
   });
 
   c.on('end', function() {
@@ -77,7 +79,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       });
 
       socket.on('close', common.mustCall(function() {
-        assert.strictEqual(recvData.toString(), 'nurtzo');
+        assert.strictEqual(recvData.toString(), expectedRecvData);
       }));
 
       console.log(res.headers);
@@ -86,8 +88,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
         connection: 'upgrade',
         upgrade: 'websocket'
       };
-      assert.deepStrictEqual(expectedHeaders, res.headers);
-
+      assert.deepStrictEqual(res.headers, expectedHeaders);
       socket.end();
       countdown.dec();
     }));

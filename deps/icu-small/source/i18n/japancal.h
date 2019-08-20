@@ -49,17 +49,32 @@ U_NAMESPACE_BEGIN
  * July 30, 1912 (Taisho), December 25, 1926 (Showa), and January 7, 1989 (Heisei).  Constants
  * for these eras, suitable for use in the <code>UCAL_ERA</code> field, are provided
  * in this class.  Note that the <em>number</em> used for each era is more or
- * less arbitrary.  Currently, the era starting in 1053 AD is era #0; however this
- * may change in the future as we add more historical data.  Use the predefined
- * constants rather than using actual, absolute numbers.
+ * less arbitrary.  Currently, the era starting in 645 AD is era #0; however this
+ * may change in the future.  Use the predefined constants rather than using actual,
+ * absolute numbers.
  * <p>
+ * Since ICU4C 63, start date of each era is imported from CLDR. CLDR era data
+ * may contain tentative era in near future with placeholder names. By default,
+ * such era data is not enabled. ICU4C users who want to test the behavior of
+ * the future era can enable this one of following settings (in the priority
+ * order):
+ * <ol>
+ * <li>Environment variable <code>ICU_ENABLE_TENTATIVE_ERA=true</code>.</li>
+ * </nl>
  * @internal
  */
 class JapaneseCalendar : public GregorianCalendar {
 public:
 
     /**
+     * Check environment variable.
+     * @internal
+     */
+    U_I18N_API static UBool U_EXPORT2 enableTentativeEra(void);
+
+    /**
      * Useful constants for JapaneseCalendar.
+     * Exported for use by test code.
      * @internal
      */
     U_I18N_API static uint32_t U_EXPORT2 getCurrentEra(void); // the current era

@@ -1,3 +1,3 @@
 // Flags: --experimental-modules
-import '../common';
-import('./test-esm-cyclic-dynamic-import');
+import '../common/index.mjs';
+import('./test-esm-cyclic-dynamic-import.mjs');

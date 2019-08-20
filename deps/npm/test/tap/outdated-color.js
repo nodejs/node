@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'outdated-color')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -54,14 +54,14 @@ test('does not use ansi styling', function (t) {
         '--registry', common.registry,
         'outdated', 'underscore'
       ],
-    EXEC_OPTS,
-    function (err, code, stdout) {
-      t.ifError(err)
-      t.is(code, 1, 'npm outdated exited with code 1')
-      t.ok(stdout, stdout.length)
-      t.ok(!hasControlCodes(stdout))
-      s.close()
-    })
+      EXEC_OPTS,
+      function (err, code, stdout) {
+        t.ifError(err)
+        t.is(code, 1, 'npm outdated exited with code 1')
+        t.ok(stdout, stdout.length)
+        t.ok(!hasControlCodes(stdout))
+        s.close()
+      })
   })
 })
 

@@ -28,17 +28,19 @@ function write (cache, data, opts) {
   if (typeof opts.size === 'number' && data.length !== opts.size) {
     return BB.reject(sizeError(opts.size, data.length))
   }
-  const sri = ssri.fromData(data, opts)
+  const sri = ssri.fromData(data, {
+    algorithms: opts.algorithms
+  })
   if (opts.integrity && !ssri.checkData(data, opts.integrity, opts)) {
     return BB.reject(checksumError(opts.integrity, sri))
   }
   return BB.using(makeTmp(cache, opts), tmp => (
     writeFileAsync(
-      tmp.target, data, {flag: 'wx'}
+      tmp.target, data, { flag: 'wx' }
     ).then(() => (
       moveToDestination(tmp, cache, sri, opts)
     ))
-  )).then(() => ({integrity: sri, size: data.length}))
+  )).then(() => ({ integrity: sri, size: data.length }))
 }
 
 module.exports.stream = writeStream
@@ -109,8 +111,8 @@ function pipeToTmp (inputStream, cache, tmpTarget, opts, errCheck) {
     })
     errCheck()
     return pipe(inputStream, hashStream, outStream).then(() => {
-      return {integrity, size}
-    }, err => {
+      return { integrity, size }
+    }).catch(err => {
       return rimraf(tmpTarget).then(() => { throw err })
     })
   })
@@ -119,7 +121,7 @@ function pipeToTmp (inputStream, cache, tmpTarget, opts, errCheck) {
 function makeTmp (cache, opts) {
   const tmpTarget = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
   return fixOwner.mkdirfix(
-    path.dirname(tmpTarget), opts.uid, opts.gid
+    cache, path.dirname(tmpTarget)
   ).then(() => ({
     target: tmpTarget,
     moved: false
@@ -132,14 +134,14 @@ function moveToDestination (tmp, cache, sri, opts, errCheck) {
   const destDir = path.dirname(destination)
 
   return fixOwner.mkdirfix(
-    destDir, opts.uid, opts.gid
+    cache, destDir
   ).then(() => {
     errCheck && errCheck()
     return moveFile(tmp.target, destination)
   }).then(() => {
     errCheck && errCheck()
     tmp.moved = true
-    return fixOwner.chownr(destination, opts.uid, opts.gid)
+    return fixOwner.chownr(cache, destination)
   })
 }
 

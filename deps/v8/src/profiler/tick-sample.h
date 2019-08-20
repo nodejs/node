@@ -7,7 +7,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -17,8 +17,12 @@ class Isolate;
 struct TickSample : public v8::TickSample {
   void Init(Isolate* isolate, const v8::RegisterState& state,
             RecordCEntryFrame record_c_entry_frame, bool update_stats,
-            bool use_simulator_reg_state = true);
+            bool use_simulator_reg_state = true,
+            base::TimeDelta sampling_interval = base::TimeDelta());
   base::TimeTicks timestamp;
+  base::TimeDelta sampling_interval;  // Sampling interval used to capture.
+
+  void print() const;
 };
 
 }  // namespace internal

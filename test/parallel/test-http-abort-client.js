@@ -24,11 +24,11 @@ const common = require('../common');
 const http = require('http');
 
 let serverRes;
-const server = http.Server((req, res) => {
+const server = http.Server(common.mustCall((req, res) => {
   serverRes = res;
   res.writeHead(200);
   res.write('Part of my res.');
-});
+}));
 
 server.listen(0, common.mustCall(() => {
   http.get({

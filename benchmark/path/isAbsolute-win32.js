@@ -9,15 +9,15 @@ const bench = common.createBenchmark(main, {
     '//server',
     'C:\\baz\\..',
     'C:baz\\..',
-    'bar\\baz'
+    'bar\\baz',
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
 function main({ n, path }) {
   bench.start();
   for (var i = 0; i < n; i++) {
-    win32.isAbsolute(path);
+    win32.isAbsolute(i % 3 === 0 ? `${path}${i}` : path);
   }
   bench.end(n);
 }

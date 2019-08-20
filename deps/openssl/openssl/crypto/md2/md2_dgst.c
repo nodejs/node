@@ -63,9 +63,9 @@ static const MD2_INT S[256] = {
 const char *MD2_options(void)
 {
     if (sizeof(MD2_INT) == 1)
-        return ("md2(char)");
+        return "md2(char)";
     else
-        return ("md2(int)");
+        return "md2(int)";
 }
 
 int MD2_Init(MD2_CTX *c)

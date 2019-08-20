@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_FRAME_H_
 #define V8_COMPILER_FRAME_H_
 
-#include "src/bit-vector.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -86,7 +86,7 @@ class CallDescriptor;
 //       |    return q-1   |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
-class Frame : public ZoneObject {
+class V8_EXPORT_PRIVATE Frame : public ZoneObject {
  public:
   explicit Frame(int fixed_frame_size_in_slots);
 
@@ -110,7 +110,7 @@ class Frame : public ZoneObject {
   }
 
   void AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
-    int alignment_slots = alignment / kPointerSize;
+    int alignment_slots = alignment / kSystemPointerSize;
     int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
     if (delta != alignment_slots) {
       frame_slot_count_ += delta;
@@ -126,10 +126,10 @@ class Frame : public ZoneObject {
     DCHECK_EQ(frame_slot_count_,
               fixed_slot_count_ + spill_slot_count_ + return_slot_count_);
     int frame_slot_count_before = frame_slot_count_;
-    if (alignment > kPointerSize) {
+    if (alignment > kSystemPointerSize) {
       // Slots are pointer sized, so alignment greater than a pointer size
       // requires allocating additional slots.
-      width += alignment - kPointerSize;
+      width += alignment - kSystemPointerSize;
     }
     AllocateAlignedFrameSlots(width);
     spill_slot_count_ += frame_slot_count_ - frame_slot_count_before;
@@ -153,18 +153,16 @@ class Frame : public ZoneObject {
     return frame_slot_count_ - 1;
   }
 
-  static const int kContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
-  static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
-
  private:
   void AllocateAlignedFrameSlots(int width) {
     DCHECK_LT(0, width);
-    int new_frame_slots = (width + kPointerSize - 1) / kPointerSize;
+    int new_frame_slots = (width + kSystemPointerSize - 1) / kSystemPointerSize;
     // Align to 8 bytes if width is a multiple of 8 bytes, and to 16 bytes if
     // multiple of 16.
-    int align_to = (width & 15) == 0 ? 16 : (width & 7) == 0 ? 8 : kPointerSize;
-    frame_slot_count_ =
-        RoundUp(frame_slot_count_ + new_frame_slots, align_to / kPointerSize);
+    int align_to =
+        (width & 15) == 0 ? 16 : (width & 7) == 0 ? 8 : kSystemPointerSize;
+    frame_slot_count_ = RoundUp(frame_slot_count_ + new_frame_slots,
+                                align_to / kSystemPointerSize);
     DCHECK_LT(0, frame_slot_count_);
   }
 
@@ -178,7 +176,6 @@ class Frame : public ZoneObject {
 
   DISALLOW_COPY_AND_ASSIGN(Frame);
 };
-
 
 // Represents an offset from either the stack pointer or frame pointer.
 class FrameOffset {
@@ -217,7 +214,7 @@ class FrameAccessState : public ZoneObject {
         has_frame_(false) {}
 
   const Frame* frame() const { return frame_; }
-  void MarkHasFrame(bool state);
+  V8_EXPORT_PRIVATE void MarkHasFrame(bool state);
 
   int sp_delta() const { return sp_delta_; }
   void ClearSPDelta() { sp_delta_ = 0; }
@@ -239,7 +236,9 @@ class FrameAccessState : public ZoneObject {
         StandardFrameConstants::kFixedSlotCountAboveFp;
     return frame_slot_count + sp_delta();
   }
-  int GetSPToFPOffset() const { return GetSPToFPSlotCount() * kPointerSize; }
+  int GetSPToFPOffset() const {
+    return GetSPToFPSlotCount() * kSystemPointerSize;
+  }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be

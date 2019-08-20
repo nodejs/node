@@ -7,14 +7,18 @@
 #include <limits>
 #include <memory>
 
-#include "src/assembler.h"
 #include "src/base/bits.h"
-#include "src/codegen.h"
-#include "src/compiler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/linkage.h"
-#include "src/machine-type.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/compiler/wasm-compiler.h"
+#include "src/objects/objects-inl.h"
+#include "src/wasm/function-compiler.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -25,94 +29,22 @@ namespace compiler {
 
 namespace {
 
-int size(MachineType type) {
-  return 1 << ElementSizeLog2Of(type.representation());
-}
+CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
+                                     int param_count, MachineType type) {
+  wasm::FunctionSig::Builder builder(zone, return_count, param_count);
 
-int num_registers(MachineType type) {
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  switch (type.representation()) {
-    case MachineRepresentation::kWord32:
-    case MachineRepresentation::kWord64:
-      return config->num_allocatable_general_registers();
-    case MachineRepresentation::kFloat32:
-      return config->num_allocatable_float_registers();
-    case MachineRepresentation::kFloat64:
-      return config->num_allocatable_double_registers();
-    default:
-      UNREACHABLE();
-  }
-}
-
-const int* codes(MachineType type) {
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  switch (type.representation()) {
-    case MachineRepresentation::kWord32:
-    case MachineRepresentation::kWord64:
-      return config->allocatable_general_codes();
-    case MachineRepresentation::kFloat32:
-      return config->allocatable_float_codes();
-    case MachineRepresentation::kFloat64:
-      return config->allocatable_double_codes();
-    default:
-      UNREACHABLE();
-  }
-}
-
-CallDescriptor* CreateMonoCallDescriptor(Zone* zone, int return_count,
-                                         int param_count, MachineType type) {
-  LocationSignature::Builder locations(zone, return_count, param_count);
-
-  int span = std::max(1, size(type) / kPointerSize);
-  int stack_params = 0;
   for (int i = 0; i < param_count; i++) {
-    LinkageLocation location = LinkageLocation::ForAnyRegister();
-    if (i < num_registers(type)) {
-      location = LinkageLocation::ForRegister(codes(type)[i], type);
-    } else {
-      int slot = span * (i - param_count);
-      location = LinkageLocation::ForCallerFrameSlot(slot, type);
-      stack_params += span;
-    }
-    locations.AddParam(location);
+    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
   }
 
-  int stack_returns = 0;
   for (int i = 0; i < return_count; i++) {
-    LinkageLocation location = LinkageLocation::ForAnyRegister();
-    if (i < num_registers(type)) {
-      location = LinkageLocation::ForRegister(codes(type)[i], type);
-    } else {
-      int slot = span * (num_registers(type) - i) - stack_params - 1;
-      location = LinkageLocation::ForCallerFrameSlot(slot, type);
-      stack_returns += span;
-    }
-    locations.AddReturn(location);
+    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
   }
-
-  const RegList kCalleeSaveRegisters = 0;
-  const RegList kCalleeSaveFPRegisters = 0;
-
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return new (zone) CallDescriptor(       // --
-      CallDescriptor::kCallCodeObject,    // kind
-      target_type,                        // target MachineType
-      target_loc,                         // target location
-      locations.Build(),                  // location_sig
-      stack_params,                       // on-stack parameter count
-      compiler::Operator::kNoProperties,  // properties
-      kCalleeSaveRegisters,               // callee-saved registers
-      kCalleeSaveFPRegisters,             // callee-saved fp regs
-      CallDescriptor::kNoFlags,           // flags
-      "c-call",                           // debug name
-      0,                                  // allocatable registers
-      stack_returns);                     // on-stack return count
+  return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
 
-}  // namespace
-
-Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
+Node* MakeConstant(RawMachineAssembler& m,  // NOLINT(runtime/references)
+                   MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Constant(static_cast<int32_t>(value));
@@ -127,7 +59,8 @@ Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
   }
 }
 
-Node* Add(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Add(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Add(a, b);
@@ -142,7 +75,8 @@ Node* Add(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* Sub(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Sub(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Sub(a, b);
@@ -157,7 +91,8 @@ Node* Sub(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* Mul(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Mul(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Mul(a, b);
@@ -172,7 +107,8 @@ Node* Mul(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
+Node* ToInt32(RawMachineAssembler& m,  // NOLINT(runtime/references)
+              MachineType type, Node* a) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return a;
@@ -187,76 +123,115 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
   }
 }
 
+std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
+                                                         size_t code_size) {
+  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
+  module->num_declared_functions = 1;
+  // We have to add the code object to a NativeModule, because the
+  // WasmCallDescriptor assumes that code is on the native heap and not
+  // within a code object.
+  return isolate->wasm_engine()->NewNativeModule(
+      isolate, wasm::kAllWasmFeatures, code_size, false, std::move(module));
+}
+
 void TestReturnMultipleValues(MachineType type) {
   const int kMaxCount = 20;
-  for (int count = 0; count < kMaxCount; ++count) {
-    printf("\n==== type = %s, count = %d ====\n\n\n",
-           MachineReprToString(type.representation()), count);
-    v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
-    CallDescriptor* desc = CreateMonoCallDescriptor(&zone, count, 2, type);
-    HandleAndZoneScope handles;
-    RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
-                          desc, MachineType::PointerRepresentation(),
-                          InstructionSelector::SupportedMachineOperatorFlags());
+  const int kMaxParamCount = 9;
+  // Use 9 parameters as a regression test or https://crbug.com/838098.
+  for (int param_count : {2, kMaxParamCount}) {
+    for (int count = 0; count < kMaxCount; ++count) {
+      printf("\n==== type = %s, count = %d ====\n\n\n",
+             MachineReprToString(type.representation()), count);
+      v8::internal::AccountingAllocator allocator;
+      Zone zone(&allocator, ZONE_NAME);
+      CallDescriptor* desc =
+          CreateCallDescriptor(&zone, count, param_count, type);
+      HandleAndZoneScope handles;
+      RawMachineAssembler m(
+          handles.main_isolate(),
+          new (handles.main_zone()) Graph(handles.main_zone()), desc,
+          MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags());
 
-    Node* p0 = m.Parameter(0);
-    Node* p1 = m.Parameter(1);
-    typedef Node* Node_ptr;
-    std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
-    for (int i = 0; i < count; ++i) {
-      if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
-      if (i % 3 == 1) returns[i] = Sub(m, type, p0, p1);
-      if (i % 3 == 2) returns[i] = Mul(m, type, p0, p1);
-    }
-    m.Return(count, returns.get());
+      // m.Parameter(0) is the WasmContext.
+      Node* p0 = m.Parameter(1);
+      Node* p1 = m.Parameter(2);
+      using Node_ptr = Node*;
+      std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
+      for (int i = 0; i < count; ++i) {
+        if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
+        if (i % 3 == 1) returns[i] = Sub(m, type, p0, p1);
+        if (i % 3 == 2) returns[i] = Mul(m, type, p0, p1);
+      }
+      m.Return(count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+      OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                    Code::WASM_FUNCTION);
+      Handle<Code> code =
+          Pipeline::GenerateCodeForTesting(
+              &info, handles.main_isolate(), desc, m.graph(),
+              AssemblerOptions::Default(handles.main_isolate()), m.Export())
+              .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_code) {
-      OFStream os(stdout);
-      code->Disassemble("multi_value", os);
-    }
+      if (FLAG_print_code) {
+        StdoutStream os;
+        code->Disassemble("multi_value", os);
+      }
 #endif
 
-    const int a = 47, b = 12;
-    int expect = 0;
-    for (int i = 0, sign = +1; i < count; ++i) {
-      if (i % 3 == 0) expect += sign * (a + b);
-      if (i % 3 == 1) expect += sign * (a - b);
-      if (i % 3 == 2) expect += sign * (a * b);
-      if (i % 4 == 0) sign = -sign;
-    }
+      const int a = 47, b = 12;
+      int expect = 0;
+      for (int i = 0, sign = +1; i < count; ++i) {
+        if (i % 3 == 0) expect += sign * (a + b);
+        if (i % 3 == 1) expect += sign * (a - b);
+        if (i % 3 == 2) expect += sign * (a * b);
+        if (i % 4 == 0) sign = -sign;
+      }
 
-    RawMachineAssemblerTester<int32_t> mt;
-    Node* na = Constant(mt, type, a);
-    Node* nb = Constant(mt, type, b);
-    Node* ret_multi =
-        mt.AddNode(mt.common()->Call(desc), mt.HeapConstant(code), na, nb);
-    Node* ret = Constant(mt, type, 0);
-    bool sign = false;
-    for (int i = 0; i < count; ++i) {
-      Node* x = (count == 1)
-                    ? ret_multi
-                    : mt.AddNode(mt.common()->Projection(i), ret_multi);
-      ret = sign ? Sub(mt, type, ret, x) : Add(mt, type, ret, x);
-      if (i % 4 == 0) sign = !sign;
-    }
-    mt.Return(ToInt32(mt, type, ret));
+      std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+          handles.main_isolate(), code->raw_instruction_size());
+      wasm::WasmCodeRefScope wasm_code_ref_scope;
+      byte* code_start =
+          module->AddCodeForTesting(code)->instructions().begin();
+
+      RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
+      const int input_count = 2 + param_count;
+      Node* call_inputs[2 + kMaxParamCount];
+      call_inputs[0] = mt.PointerConstant(code_start);
+      // WasmContext dummy
+      call_inputs[1] = mt.PointerConstant(nullptr);
+      // Special inputs for the test.
+      call_inputs[2] = MakeConstant(mt, type, a);
+      call_inputs[3] = MakeConstant(mt, type, b);
+      for (int i = 2; i < param_count; i++) {
+        call_inputs[2 + i] = MakeConstant(mt, type, i);
+      }
+
+      Node* ret_multi = mt.AddNode(mt.common()->Call(desc),
+                                   input_count, call_inputs);
+      Node* ret = MakeConstant(mt, type, 0);
+      bool sign = false;
+      for (int i = 0; i < count; ++i) {
+        Node* x = (count == 1)
+                      ? ret_multi
+                      : mt.AddNode(mt.common()->Projection(i), ret_multi);
+        ret = sign ? Sub(mt, type, ret, x) : Add(mt, type, ret, x);
+        if (i % 4 == 0) sign = !sign;
+      }
+      mt.Return(ToInt32(mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
-    Handle<Code> code2 = mt.GetCode();
-    if (FLAG_print_code) {
-      OFStream os(stdout);
-      code2->Disassemble("multi_value_call", os);
-    }
+      Handle<Code> code2 = mt.GetCode();
+      if (FLAG_print_code) {
+        StdoutStream os;
+        code2->Disassemble("multi_value_call", os);
+      }
 #endif
-    CHECK_EQ(expect, mt.Call());
+      CHECK_EQ(expect, mt.Call());
+    }
   }
 }
+
+}  // namespace
 
 #define TEST_MULTI(Type, type) \
   TEST(ReturnMultiple##Type) { TestReturnMultipleValues(type); }
@@ -275,10 +250,11 @@ void ReturnLastValue(MachineType type) {
   for (auto slot_count : slot_counts) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    const int return_count = num_registers(type) + slot_count;
+    // The wasm-linkage provides 2 return registers at the moment, on all
+    // platforms.
+    const int return_count = 2 + slot_count;
 
-    CallDescriptor* desc =
-        CreateMonoCallDescriptor(&zone, return_count, 0, type);
+    CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
     HandleAndZoneScope handles;
     RawMachineAssembler m(handles.main_isolate(),
@@ -289,22 +265,32 @@ void ReturnLastValue(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = Constant(m, type, i);
+      returns[i] = MakeConstant(m, type, i);
     }
 
     m.Return(return_count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                  Code::WASM_FUNCTION);
+    Handle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()), m.Export())
+            .ToHandleChecked();
+
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     int expect = return_count - 1;
     RawMachineAssemblerTester<int32_t> mt;
-    Node* code_node = mt.HeapConstant(code);
+    Node* inputs[] = {mt.PointerConstant(code_start),
+                      // WasmContext dummy
+                      mt.PointerConstant(nullptr)};
 
-    Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
+    Node* call = mt.AddNode(mt.common()->Call(desc), 2, inputs);
 
     mt.Return(ToInt32(
         mt, type, mt.AddNode(mt.common()->Projection(return_count - 1), call)));
@@ -326,10 +312,11 @@ void ReturnSumOfReturns(MachineType type) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     // Let {unused_stack_slots + 1} returns be on the stack.
-    const int return_count = num_registers(type) + unused_stack_slots + 1;
+    // The wasm-linkage provides 2 return registers at the moment, on all
+    // platforms.
+    const int return_count = 2 + unused_stack_slots + 1;
 
-    CallDescriptor* desc =
-        CreateMonoCallDescriptor(&zone, return_count, 0, type);
+    CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
     HandleAndZoneScope handles;
     RawMachineAssembler m(handles.main_isolate(),
@@ -340,21 +327,31 @@ void ReturnSumOfReturns(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = Constant(m, type, i);
+      returns[i] = MakeConstant(m, type, i);
     }
 
     m.Return(return_count, returns.get());
 
-    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                         Code::STUB);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                                  Code::WASM_FUNCTION);
+    Handle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()), m.Export())
+            .ToHandleChecked();
+
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
+        handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;
-    Node* code_node = mt.HeapConstant(code);
+    Node* call_inputs[] = {mt.PointerConstant(code_start),
+                           // WasmContext dummy
+                           mt.PointerConstant(nullptr)};
 
-    Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
+    Node* call = mt.AddNode(mt.common()->Call(desc), 2, call_inputs);
 
     uint32_t expect = 0;
     Node* result = mt.Int32Constant(0);

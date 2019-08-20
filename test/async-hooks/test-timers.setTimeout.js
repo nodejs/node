@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const TIMEOUT = common.platformTimeout(100);
@@ -10,7 +10,7 @@ const TIMEOUT = common.platformTimeout(100);
 const hooks = initHooks();
 hooks.enable();
 
-// install first timeout
+// Install first timeout
 setTimeout(common.mustCall(ontimeout), TIMEOUT);
 const as = hooks.activitiesOfTypes('Timeout');
 assert.strictEqual(as.length, 1);

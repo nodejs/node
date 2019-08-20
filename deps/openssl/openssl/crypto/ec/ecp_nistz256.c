@@ -1,45 +1,29 @@
 /*
- * Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2014, Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2015, CloudFlare, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
+ *
+ * Originally written by Shay Gueron (1, 2), and Vlad Krasnov (1, 3)
+ * (1) Intel Corporation, Israel Development Center, Haifa, Israel
+ * (2) University of Haifa, Israel
+ * (3) CloudFlare, Inc.
+ *
+ * Reference:
+ * S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with
+ *                          256 Bit Primes"
  */
-
-/******************************************************************************
- *                                                                            *
- * Copyright 2014 Intel Corporation                                           *
- *                                                                            *
- * Licensed under the Apache License, Version 2.0 (the "License");            *
- * you may not use this file except in compliance with the License.           *
- * You may obtain a copy of the License at                                    *
- *                                                                            *
- *    http://www.apache.org/licenses/LICENSE-2.0                              *
- *                                                                            *
- * Unless required by applicable law or agreed to in writing, software        *
- * distributed under the License is distributed on an "AS IS" BASIS,          *
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
- * See the License for the specific language governing permissions and        *
- * limitations under the License.                                             *
- *                                                                            *
- ******************************************************************************
- *                                                                            *
- * Developers and authors:                                                    *
- * Shay Gueron (1, 2), and Vlad Krasnov (1)                                   *
- * (1) Intel Corporation, Israel Development Center                           *
- * (2) University of Haifa                                                    *
- * Reference:                                                                 *
- * S.Gueron and V.Krasnov, "Fast Prime Field Elliptic Curve Cryptography with *
- *                          256 Bit Primes"                                   *
- *                                                                            *
- ******************************************************************************/
 
 #include <string.h>
 
 #include "internal/cryptlib.h"
 #include "internal/bn_int.h"
 #include "ec_lcl.h"
+#include "internal/refcount.h"
 
 #if BN_BITS2 != 64
 # define TOBN(hi,lo)    lo,hi
@@ -84,7 +68,7 @@ struct nistz256_pre_comp_st {
      */
     PRECOMP256_ROW *precomp;
     void *precomp_storage;
-    int references;
+    CRYPTO_REF_COUNT references;
     CRYPTO_RWLOCK *lock;
 };
 
@@ -254,6 +238,16 @@ static BN_ULONG is_one(const BIGNUM *z)
     return res;
 }
 
+/*
+ * For reference, this macro is used only when new ecp_nistz256 assembly
+ * module is being developed.  For example, configure with
+ * -DECP_NISTZ256_REFERENCE_IMPLEMENTATION and implement only functions
+ * performing simplest arithmetic operations on 256-bit vectors. Then
+ * work on implementation of higher-level functions performing point
+ * operations. Then remove ECP_NISTZ256_REFERENCE_IMPLEMENTATION
+ * and never define it again. (The correct macro denoting presence of
+ * ecp_nistz256 module is ECP_NISTZ256_ASM.)
+ */
 #ifndef ECP_NISTZ256_REFERENCE_IMPLEMENTATION
 void ecp_nistz256_point_double(P256_POINT *r, const P256_POINT *a);
 void ecp_nistz256_point_add(P256_POINT *r,
@@ -894,8 +888,7 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
     ret = 1;
 
  err:
-    if (ctx != NULL)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
 
     EC_nistz256_pre_comp_free(pre_comp);
@@ -916,7 +909,7 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
  */
 #if defined(ECP_NISTZ256_AVX2)
 # if !(defined(__x86_64) || defined(__x86_64__) || \
-       defined(_M_AMD64) || defined(_MX64)) || \
+       defined(_M_AMD64) || defined(_M_X64)) || \
      !(defined(__GNUC__) || defined(_MSC_VER)) /* this is for ALIGN32 */
 #  undef ECP_NISTZ256_AVX2
 # else
@@ -1110,28 +1103,12 @@ __owur static int ecp_nistz256_set_from_affine(EC_POINT *out, const EC_GROUP *gr
                                                const P256_POINT_AFFINE *in,
                                                BN_CTX *ctx)
 {
-    BIGNUM *x, *y;
-    BN_ULONG d_x[P256_LIMBS], d_y[P256_LIMBS];
     int ret = 0;
 
-    x = BN_new();
-    if (x == NULL)
-        return 0;
-    y = BN_new();
-    if (y == NULL) {
-        BN_free(x);
-        return 0;
-    }
-    memcpy(d_x, in->X, sizeof(d_x));
-    bn_set_static_words(x, d_x, P256_LIMBS);
-
-    memcpy(d_y, in->Y, sizeof(d_y));
-    bn_set_static_words(y, d_y, P256_LIMBS);
-
-    ret = EC_POINT_set_affine_coordinates_GFp(group, out, x, y, ctx);
-
-    BN_free(x);
-    BN_free(y);
+    if ((ret = bn_set_words(out->X, in->X, P256_LIMBS))
+        && (ret = bn_set_words(out->Y, in->Y, P256_LIMBS))
+        && (ret = bn_set_words(out->Z, ONE, P256_LIMBS)))
+        out->Z_is_one = 1;
 
     return ret;
 }
@@ -1145,12 +1122,10 @@ __owur static int ecp_nistz256_points_mul(const EC_GROUP *group,
                                           const BIGNUM *scalars[], BN_CTX *ctx)
 {
     int i = 0, ret = 0, no_precomp_for_generator = 0, p_is_infinity = 0;
-    size_t j;
     unsigned char p_str[33] = { 0 };
     const PRECOMP256_ROW *preComputedTable = NULL;
     const NISTZ256_PRE_COMP *pre_comp = NULL;
     const EC_POINT *generator = NULL;
-    BN_CTX *new_ctx = NULL;
     const BIGNUM **new_scalars = NULL;
     const EC_POINT **new_points = NULL;
     unsigned int idx = 0;
@@ -1166,27 +1141,6 @@ __owur static int ecp_nistz256_points_mul(const EC_GROUP *group,
     if ((num + 1) == 0 || (num + 1) > OPENSSL_MALLOC_MAX_NELEMS(void *)) {
         ECerr(EC_F_ECP_NISTZ256_POINTS_MUL, ERR_R_MALLOC_FAILURE);
         return 0;
-    }
-
-    if (group->meth != r->meth) {
-        ECerr(EC_F_ECP_NISTZ256_POINTS_MUL, EC_R_INCOMPATIBLE_OBJECTS);
-        return 0;
-    }
-
-    if ((scalar == NULL) && (num == 0))
-        return EC_POINT_set_to_infinity(group, r);
-
-    for (j = 0; j < num; j++) {
-        if (group->meth != points[j]->meth) {
-            ECerr(EC_F_ECP_NISTZ256_POINTS_MUL, EC_R_INCOMPATIBLE_OBJECTS);
-            return 0;
-        }
-    }
-
-    if (ctx == NULL) {
-        ctx = new_ctx = BN_CTX_new();
-        if (ctx == NULL)
-            goto err;
     }
 
     BN_CTX_start(ctx);
@@ -1210,9 +1164,9 @@ __owur static int ecp_nistz256_points_mul(const EC_GROUP *group,
             if (pre_comp_generator == NULL)
                 goto err;
 
+            ecp_nistz256_gather_w7(&p.a, pre_comp->precomp[0], 1);
             if (!ecp_nistz256_set_from_affine(pre_comp_generator,
-                                              group, pre_comp->precomp[0],
-                                              ctx)) {
+                                              group, &p.a, ctx)) {
                 EC_POINT_free(pre_comp_generator);
                 goto err;
             }
@@ -1384,9 +1338,7 @@ __owur static int ecp_nistz256_points_mul(const EC_GROUP *group,
     ret = 1;
 
 err:
-    if (ctx)
-        BN_CTX_end(ctx);
-    BN_CTX_free(new_ctx);
+    BN_CTX_end(ctx);
     OPENSSL_free(new_points);
     OPENSSL_free(new_scalars);
     return ret;
@@ -1467,7 +1419,7 @@ NISTZ256_PRE_COMP *EC_nistz256_pre_comp_dup(NISTZ256_PRE_COMP *p)
 {
     int i;
     if (p != NULL)
-        CRYPTO_atomic_add(&p->references, 1, &i, p->lock);
+        CRYPTO_UP_REF(&p->references, &i, p->lock);
     return p;
 }
 
@@ -1478,7 +1430,7 @@ void EC_nistz256_pre_comp_free(NISTZ256_PRE_COMP *pre)
     if (pre == NULL)
         return;
 
-    CRYPTO_atomic_add(&pre->references, -1, &i, pre->lock);
+    CRYPTO_DOWN_REF(&pre->references, &i, pre->lock);
     REF_PRINT_COUNT("EC_nistz256", x);
     if (i > 0)
         return;
@@ -1502,6 +1454,189 @@ static int ecp_nistz256_window_have_precompute_mult(const EC_GROUP *group)
 
     return HAVEPRECOMP(group, nistz256);
 }
+
+#if defined(__x86_64) || defined(__x86_64__) || \
+    defined(_M_AMD64) || defined(_M_X64) || \
+    defined(__powerpc64__) || defined(_ARCH_PP64) || \
+    defined(__aarch64__)
+/*
+ * Montgomery mul modulo Order(P): res = a*b*2^-256 mod Order(P)
+ */
+void ecp_nistz256_ord_mul_mont(BN_ULONG res[P256_LIMBS],
+                               const BN_ULONG a[P256_LIMBS],
+                               const BN_ULONG b[P256_LIMBS]);
+void ecp_nistz256_ord_sqr_mont(BN_ULONG res[P256_LIMBS],
+                               const BN_ULONG a[P256_LIMBS],
+                               int rep);
+
+static int ecp_nistz256_inv_mod_ord(const EC_GROUP *group, BIGNUM *r,
+                                    const BIGNUM *x, BN_CTX *ctx)
+{
+    /* RR = 2^512 mod ord(p256) */
+    static const BN_ULONG RR[P256_LIMBS]  = {
+        TOBN(0x83244c95,0xbe79eea2), TOBN(0x4699799c,0x49bd6fa6),
+        TOBN(0x2845b239,0x2b6bec59), TOBN(0x66e12d94,0xf3d95620)
+    };
+    /* The constant 1 (unlike ONE that is one in Montgomery representation) */
+    static const BN_ULONG one[P256_LIMBS] = {
+        TOBN(0,1), TOBN(0,0), TOBN(0,0), TOBN(0,0)
+    };
+    /*
+     * We don't use entry 0 in the table, so we omit it and address
+     * with -1 offset.
+     */
+    BN_ULONG table[15][P256_LIMBS];
+    BN_ULONG out[P256_LIMBS], t[P256_LIMBS];
+    int i, ret = 0;
+    enum {
+        i_1 = 0, i_10,     i_11,     i_101, i_111, i_1010, i_1111,
+        i_10101, i_101010, i_101111, i_x6,  i_x8,  i_x16,  i_x32
+    };
+
+    /*
+     * Catch allocation failure early.
+     */
+    if (bn_wexpand(r, P256_LIMBS) == NULL) {
+        ECerr(EC_F_ECP_NISTZ256_INV_MOD_ORD, ERR_R_BN_LIB);
+        goto err;
+    }
+
+    if ((BN_num_bits(x) > 256) || BN_is_negative(x)) {
+        BIGNUM *tmp;
+
+        if ((tmp = BN_CTX_get(ctx)) == NULL
+            || !BN_nnmod(tmp, x, group->order, ctx)) {
+            ECerr(EC_F_ECP_NISTZ256_INV_MOD_ORD, ERR_R_BN_LIB);
+            goto err;
+        }
+        x = tmp;
+    }
+
+    if (!ecp_nistz256_bignum_to_field_elem(t, x)) {
+        ECerr(EC_F_ECP_NISTZ256_INV_MOD_ORD, EC_R_COORDINATES_OUT_OF_RANGE);
+        goto err;
+    }
+
+    ecp_nistz256_ord_mul_mont(table[0], t, RR);
+#if 0
+    /*
+     * Original sparse-then-fixed-window algorithm, retained for reference.
+     */
+    for (i = 2; i < 16; i += 2) {
+        ecp_nistz256_ord_sqr_mont(table[i-1], table[i/2-1], 1);
+        ecp_nistz256_ord_mul_mont(table[i], table[i-1], table[0]);
+    }
+
+    /*
+     * The top 128bit of the exponent are highly redudndant, so we
+     * perform an optimized flow
+     */
+    ecp_nistz256_ord_sqr_mont(t, table[15-1], 4);   /* f0 */
+    ecp_nistz256_ord_mul_mont(t, t, table[15-1]);   /* ff */
+
+    ecp_nistz256_ord_sqr_mont(out, t, 8);           /* ff00 */
+    ecp_nistz256_ord_mul_mont(out, out, t);         /* ffff */
+
+    ecp_nistz256_ord_sqr_mont(t, out, 16);          /* ffff0000 */
+    ecp_nistz256_ord_mul_mont(t, t, out);           /* ffffffff */
+
+    ecp_nistz256_ord_sqr_mont(out, t, 64);          /* ffffffff0000000000000000 */
+    ecp_nistz256_ord_mul_mont(out, out, t);         /* ffffffff00000000ffffffff */
+
+    ecp_nistz256_ord_sqr_mont(out, out, 32);        /* ffffffff00000000ffffffff00000000 */
+    ecp_nistz256_ord_mul_mont(out, out, t);         /* ffffffff00000000ffffffffffffffff */
+
+    /*
+     * The bottom 128 bit of the exponent are processed with fixed 4-bit window
+     */
+    for(i = 0; i < 32; i++) {
+        /* expLo - the low 128 bits of the exponent we use (ord(p256) - 2),
+         * split into nibbles */
+        static const unsigned char expLo[32]  = {
+            0xb,0xc,0xe,0x6,0xf,0xa,0xa,0xd,0xa,0x7,0x1,0x7,0x9,0xe,0x8,0x4,
+            0xf,0x3,0xb,0x9,0xc,0xa,0xc,0x2,0xf,0xc,0x6,0x3,0x2,0x5,0x4,0xf
+        };
+
+        ecp_nistz256_ord_sqr_mont(out, out, 4);
+        /* The exponent is public, no need in constant-time access */
+        ecp_nistz256_ord_mul_mont(out, out, table[expLo[i]-1]);
+    }
+#else
+    /*
+     * https://briansmith.org/ecc-inversion-addition-chains-01#p256_scalar_inversion
+     *
+     * Even though this code path spares 12 squarings, 4.5%, and 13
+     * multiplications, 25%, on grand scale sign operation is not that
+     * much faster, not more that 2%...
+     */
+
+    /* pre-calculate powers */
+    ecp_nistz256_ord_sqr_mont(table[i_10], table[i_1], 1);
+
+    ecp_nistz256_ord_mul_mont(table[i_11], table[i_1], table[i_10]);
+
+    ecp_nistz256_ord_mul_mont(table[i_101], table[i_11], table[i_10]);
+
+    ecp_nistz256_ord_mul_mont(table[i_111], table[i_101], table[i_10]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_1010], table[i_101], 1);
+
+    ecp_nistz256_ord_mul_mont(table[i_1111], table[i_1010], table[i_101]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_10101], table[i_1010], 1);
+    ecp_nistz256_ord_mul_mont(table[i_10101], table[i_10101], table[i_1]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_101010], table[i_10101], 1);
+
+    ecp_nistz256_ord_mul_mont(table[i_101111], table[i_101010], table[i_101]);
+
+    ecp_nistz256_ord_mul_mont(table[i_x6], table[i_101010], table[i_10101]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_x8], table[i_x6], 2);
+    ecp_nistz256_ord_mul_mont(table[i_x8], table[i_x8], table[i_11]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_x16], table[i_x8], 8);
+    ecp_nistz256_ord_mul_mont(table[i_x16], table[i_x16], table[i_x8]);
+
+    ecp_nistz256_ord_sqr_mont(table[i_x32], table[i_x16], 16);
+    ecp_nistz256_ord_mul_mont(table[i_x32], table[i_x32], table[i_x16]);
+
+    /* calculations */
+    ecp_nistz256_ord_sqr_mont(out, table[i_x32], 64);
+    ecp_nistz256_ord_mul_mont(out, out, table[i_x32]);
+
+    for (i = 0; i < 27; i++) {
+        static const struct { unsigned char p, i; } chain[27] = {
+            { 32, i_x32 }, { 6,  i_101111 }, { 5,  i_111    },
+            { 4,  i_11  }, { 5,  i_1111   }, { 5,  i_10101  },
+            { 4,  i_101 }, { 3,  i_101    }, { 3,  i_101    },
+            { 5,  i_111 }, { 9,  i_101111 }, { 6,  i_1111   },
+            { 2,  i_1   }, { 5,  i_1      }, { 6,  i_1111   },
+            { 5,  i_111 }, { 4,  i_111    }, { 5,  i_111    },
+            { 5,  i_101 }, { 3,  i_11     }, { 10, i_101111 },
+            { 2,  i_11  }, { 5,  i_11     }, { 5,  i_11     },
+            { 3,  i_1   }, { 7,  i_10101  }, { 6,  i_1111   }
+        };
+
+        ecp_nistz256_ord_sqr_mont(out, out, chain[i].p);
+        ecp_nistz256_ord_mul_mont(out, out, table[chain[i].i]);
+    }
+#endif
+    ecp_nistz256_ord_mul_mont(out, out, one);
+
+    /*
+     * Can't fail, but check return code to be consistent anyway.
+     */
+    if (!bn_set_words(r, out, P256_LIMBS))
+        goto err;
+
+    ret = 1;
+err:
+    return ret;
+}
+#else
+# define ecp_nistz256_inv_mod_ord NULL
+#endif
 
 const EC_METHOD *EC_GFp_nistz256_method(void)
 {
@@ -1541,6 +1676,7 @@ const EC_METHOD *EC_GFp_nistz256_method(void)
         ec_GFp_mont_field_mul,
         ec_GFp_mont_field_sqr,
         0,                                          /* field_div */
+        ec_GFp_mont_field_inv,
         ec_GFp_mont_field_encode,
         ec_GFp_mont_field_decode,
         ec_GFp_mont_field_set_to_one,
@@ -1552,7 +1688,12 @@ const EC_METHOD *EC_GFp_nistz256_method(void)
         ec_key_simple_generate_public_key,
         0, /* keycopy */
         0, /* keyfinish */
-        ecdh_simple_compute_key
+        ecdh_simple_compute_key,
+        ecp_nistz256_inv_mod_ord,                   /* can be #define-d NULL */
+        0,                                          /* blind_coordinates */
+        0,                                          /* ladder_pre */
+        0,                                          /* ladder_step */
+        0                                           /* ladder_post */
     };
 
     return &ret;

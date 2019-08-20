@@ -6,13 +6,16 @@
 #define V8_COMPILER_LOOP_ANALYSIS_H_
 
 #include "src/base/iterator.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // TODO(titzer): don't assume entry edges have a particular index.
@@ -20,7 +23,7 @@ static const int kAssumedLoopEntryIndex = 0;  // assume loops are entered here.
 
 class LoopFinderImpl;
 
-typedef base::iterator_range<Node**> NodeRange;
+using NodeRange = base::iterator_range<Node**>;
 
 // Represents a tree of loops in a graph.
 class LoopTree : public ZoneObject {
@@ -156,7 +159,8 @@ class LoopTree : public ZoneObject {
 class V8_EXPORT_PRIVATE LoopFinder {
  public:
   // Build a loop tree for the entire graph.
-  static LoopTree* BuildLoopTree(Graph* graph, Zone* temp_zone);
+  static LoopTree* BuildLoopTree(Graph* graph, TickCounter* tick_counter,
+                                 Zone* temp_zone);
 };
 
 

@@ -33,19 +33,21 @@ const tcp = net.Server(common.mustCall((s) => {
     buf += d;
   });
 
-  s.on('end', function() {
+  s.on('end', common.mustCall(function() {
     console.error('SERVER: end', buf);
     assert.strictEqual(buf, "L'État, c'est moi");
     s.end();
-  });
+  }));
 }));
 
 tcp.listen(0, common.mustCall(function() {
   const socket = net.Stream({ highWaterMark: 0 });
 
   let connected = false;
+  assert.strictEqual(socket.pending, true);
   socket.connect(this.address().port, common.mustCall(() => connected = true));
 
+  assert.strictEqual(socket.pending, true);
   assert.strictEqual(socket.connecting, true);
   assert.strictEqual(socket.readyState, 'opening');
 
@@ -67,12 +69,14 @@ tcp.listen(0, common.mustCall(function() {
     [],
     {}
   ].forEach((value) => {
-    common.expectsError(() => socket.write(value), {
+    // We need to check the callback since 'error' will only
+    // be emitted once per instance.
+    socket.write(value, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "chunk" argument must be one of type string or Buffer. ' +
                `Received type ${typeof value}`
-    });
+    }));
   });
 
   // Write a string that contains a multi-byte character sequence to test that
@@ -87,6 +91,10 @@ tcp.listen(0, common.mustCall(function() {
     console.error('write cb');
     assert.ok(connected);
     assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
+    assert.strictEqual(socket.pending, false);
+  }));
+  socket.on('close', common.mustCall(() => {
+    assert.strictEqual(socket.pending, true);
   }));
 
   assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);

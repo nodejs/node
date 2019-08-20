@@ -13,4 +13,4 @@ SOURCE[../../libcrypto]=\
         x_pkey.c bio_asn1.c bio_ndef.c asn_mime.c \
         asn1_gen.c asn1_par.c asn1_lib.c asn1_err.c a_strnid.c \
         evp_asn1.c asn_pack.c p5_pbe.c p5_pbev2.c p5_scrypt.c p8_pkey.c \
-        asn_moid.c asn_mstbl.c
+        asn_moid.c asn_mstbl.c asn1_item_list.c

@@ -66,8 +66,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
-  strncpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path) - 1);
-  saddr.sun_path[sizeof(saddr.sun_path) - 1] = '\0';
+  uv__strscpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
   saddr.sun_family = AF_UNIX;
 
   if (bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr)) {
@@ -132,7 +131,20 @@ void uv__pipe_close(uv_pipe_t* handle) {
 
 
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
+  int flags;
+  int mode;
   int err;
+  flags = 0;
+
+  if (uv__fd_exists(handle->loop, fd))
+    return UV_EEXIST;
+
+  do
+    mode = fcntl(fd, F_GETFL);
+  while (mode == -1 && errno == EINTR);
+
+  if (mode == -1)
+    return UV__ERR(errno); /* according to docs, must be EBADF */
 
   err = uv__nonblock(fd, 1);
   if (err)
@@ -144,9 +156,13 @@ int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
     return err;
 #endif /* defined(__APPLE__) */
 
-  return uv__stream_open((uv_stream_t*)handle,
-                         fd,
-                         UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+  mode &= O_ACCMODE;
+  if (mode != O_WRONLY)
+    flags |= UV_HANDLE_READABLE;
+  if (mode != O_RDONLY)
+    flags |= UV_HANDLE_WRITABLE;
+
+  return uv__stream_open((uv_stream_t*)handle, fd, flags);
 }
 
 
@@ -169,8 +185,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   memset(&saddr, 0, sizeof saddr);
-  strncpy(saddr.sun_path, name, sizeof(saddr.sun_path) - 1);
-  saddr.sun_path[sizeof(saddr.sun_path) - 1] = '\0';
+  uv__strscpy(saddr.sun_path, name, sizeof(saddr.sun_path));
   saddr.sun_family = AF_UNIX;
 
   do {
@@ -196,11 +211,11 @@ void uv_pipe_connect(uv_connect_t* req,
   if (new_sock) {
     err = uv__stream_open((uv_stream_t*)handle,
                           uv__stream_fd(handle),
-                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);
+                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   }
 
   if (err == 0)
-    uv__io_start(handle->loop, &handle->io_watcher, POLLIN | POLLOUT);
+    uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
 
 out:
   handle->delayed_error = err;
@@ -218,9 +233,6 @@ out:
 }
 
 
-typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
-
-
 static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
                                     uv__peersockfunc func,
                                     char* buffer,
@@ -231,10 +243,13 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
 
   addrlen = sizeof(sa);
   memset(&sa, 0, addrlen);
-  err = func(uv__stream_fd(handle), (struct sockaddr*) &sa, &addrlen);
+  err = uv__getsockpeername((const uv_handle_t*) handle,
+                            func,
+                            (struct sockaddr*) &sa,
+                            (int*) &addrlen);
   if (err < 0) {
     *size = 0;
-    return UV__ERR(errno);
+    return err;
   }
 
 #if defined(__linux__)
@@ -319,21 +334,6 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
       mode != (UV_WRITABLE | UV_READABLE))
     return UV_EINVAL;
 
-  if (fstat(uv__stream_fd(handle), &pipe_stat) == -1)
-    return UV__ERR(errno);
-
-  desired_mode = 0;
-  if (mode & UV_READABLE)
-    desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
-  if (mode & UV_WRITABLE)
-    desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-
-  /* Exit early if pipe already has desired mode. */
-  if ((pipe_stat.st_mode & desired_mode) == desired_mode)
-    return 0;
-
-  pipe_stat.st_mode |= desired_mode;
-
   /* Unfortunately fchmod does not work on all platforms, we will use chmod. */
   name_len = 0;
   r = uv_pipe_getsockname(handle, NULL, &name_len);
@@ -349,6 +349,26 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
     uv__free(name_buffer);
     return r;
   }
+
+  /* stat must be used as fstat has a bug on Darwin */
+  if (stat(name_buffer, &pipe_stat) == -1) {
+    uv__free(name_buffer);
+    return -errno;
+  }
+
+  desired_mode = 0;
+  if (mode & UV_READABLE)
+    desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
+  if (mode & UV_WRITABLE)
+    desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+
+  /* Exit early if pipe already has desired mode. */
+  if ((pipe_stat.st_mode & desired_mode) == desired_mode) {
+    uv__free(name_buffer);
+    return 0;
+  }
+
+  pipe_stat.st_mode |= desired_mode;
 
   r = chmod(name_buffer, pipe_stat.st_mode);
   uv__free(name_buffer);

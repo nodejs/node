@@ -4,10 +4,9 @@
 
 // Flags: --wasm-lazy-compilation
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-let mem = new WebAssembly.Memory({});
+let mem = new WebAssembly.Memory({initial: 0});
 let builder = new WasmModuleBuilder();
 builder.addImportedMemory("mod", "imported_mem");
 builder.addFunction('mem_size', kSig_i_v)

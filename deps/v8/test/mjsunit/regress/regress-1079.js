@@ -33,6 +33,7 @@
 function optimized() {
   return unoptimized.apply(null, arguments);
 }
+%PrepareFunctionForOptimization(optimized);
 
 // It's not crucial that this is unoptimized.
 function unoptimized() {

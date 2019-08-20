@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const { inspect } = require('util');
 
 const server = h2.createServer();
 server.on('stream', (stream) => {
@@ -21,7 +22,7 @@ server.listen(0, common.mustCall(() => {
   assert.throws(
     () => req.close(2 ** 32),
     {
-      name: 'RangeError [ERR_OUT_OF_RANGE]',
+      name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
       message: 'The value of "code" is out of range. It must be ' +
                '>= 0 && <= 4294967295. Received 4294967296'
@@ -35,7 +36,7 @@ server.listen(0, common.mustCall(() => {
       {
         type: TypeError,
         code: 'ERR_INVALID_CALLBACK',
-        message: 'Callback must be a function'
+        message: `Callback must be a function. Received ${inspect(notFunction)}`
       }
     );
     assert.strictEqual(req.closed, false);
@@ -63,8 +64,14 @@ server.listen(0, common.mustCall(() => {
     message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
   }));
 
-  req.on('response', common.mustCall());
-  req.resume();
+  // The `response` event should not fire as the server should receive the
+  // RST_STREAM frame before it ever has a chance to reply.
+  req.on('response', common.mustNotCall());
+
+  // The `end` event should still fire as we close the readable stream by
+  // pushing a `null` chunk.
   req.on('end', common.mustCall());
+
+  req.resume();
   req.end();
 }));

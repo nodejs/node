@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_SCAVENGE_JOB_H_
 #define V8_HEAP_SCAVENGE_JOB_H_
 
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {

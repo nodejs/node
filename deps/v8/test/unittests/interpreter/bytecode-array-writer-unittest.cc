@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api.h"
-#include "src/factory.h"
+#include "src/api/api.h"
+#include "src/codegen/source-position-table.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/source-position-table.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -34,7 +34,7 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
         bytecode_array_writer_(
             zone(), &constant_array_builder_,
             SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}
-  ~BytecodeArrayWriterUnittest() override {}
+  ~BytecodeArrayWriterUnittest() override = default;
 
   void Write(Bytecode bytecode, BytecodeSourceInfo info = BytecodeSourceInfo());
   void Write(Bytecode bytecode, uint32_t operand0,
@@ -49,8 +49,8 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
 
   void WriteJump(Bytecode bytecode, BytecodeLabel* label,
                  BytecodeSourceInfo info = BytecodeSourceInfo());
-  void WriteJumpLoop(Bytecode bytecode, BytecodeLabel* label, int depth,
-                     BytecodeSourceInfo info = BytecodeSourceInfo());
+  void WriteJumpLoop(Bytecode bytecode, BytecodeLoopHeader* loop_header,
+                     int depth, BytecodeSourceInfo info = BytecodeSourceInfo());
 
   BytecodeArrayWriter* writer() { return &bytecode_array_writer_; }
   ZoneVector<unsigned char>* bytecodes() { return writer()->bytecodes(); }
@@ -105,10 +105,11 @@ void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
 }
 
 void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
-                                                BytecodeLabel* label, int depth,
+                                                BytecodeLoopHeader* loop_header,
+                                                int depth,
                                                 BytecodeSourceInfo info) {
   BytecodeNode node(bytecode, 0, depth, info);
-  writer()->WriteJump(&node, label);
+  writer()->WriteJumpLoop(&node, loop_header);
 }
 
 TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
@@ -195,7 +196,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       {0, 30, false}, {1, 42, true},   {3, 42, false}, {6, 68, true},
       {18, 63, true}, {32, 54, false}, {37, 85, true}, {46, 85, true}};
 
-  BytecodeLabel back_jump, jump_for_in, jump_end_1, jump_end_2, jump_end_3;
+  BytecodeLoopHeader loop_header;
+  BytecodeLabel jump_for_in, jump_end_1, jump_end_2, jump_end_3;
 
   Write(Bytecode::kStackCheck, {30, false});
   Write(Bytecode::kLdaConstant, U8(0), {42, true});
@@ -206,7 +208,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   Write(Bytecode::kForInPrepare, R(3), U8(4));
   Write(Bytecode::kLdaZero);
   Write(Bytecode::kStar, R(7));
-  writer()->BindLabel(&back_jump);
+  writer()->BindLoopHeader(&loop_header);
   Write(Bytecode::kForInContinue, R(7), R(6), {63, true});
   WriteJump(Bytecode::kJumpIfFalse, &jump_end_3);
   Write(Bytecode::kForInNext, R(3), R(7), R(4), U8(1));
@@ -219,7 +221,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   writer()->BindLabel(&jump_for_in);
   Write(Bytecode::kForInStep, R(7));
   Write(Bytecode::kStar, R(7));
-  WriteJumpLoop(Bytecode::kJumpLoop, &back_jump, 0);
+  WriteJumpLoop(Bytecode::kJumpLoop, &loop_header, 0);
   writer()->BindLabel(&jump_end_1);
   writer()->BindLabel(&jump_end_2);
   writer()->BindLabel(&jump_end_3);
@@ -328,7 +330,9 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
   Write(Bytecode::kLdaSmi, 127);                               // Dead code.
   WriteJump(Bytecode::kJumpIfFalse, &after_conditional_jump);  // Dead code.
   writer()->BindLabel(&after_jump);
-  writer()->BindLabel(&after_conditional_jump);
+  // We would bind the after_conditional_jump label here, but the jump to it is
+  // dead.
+  CHECK(!after_conditional_jump.has_referrer_jump());
   Write(Bytecode::kLdaSmi, 127, {65, true});
   WriteJump(Bytecode::kJumpIfFalse, &after_return);
   Write(Bytecode::kReturn, {75, true});

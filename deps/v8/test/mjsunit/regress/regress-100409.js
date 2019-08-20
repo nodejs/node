@@ -27,10 +27,10 @@
 
 // Flags: --allow-natives-syntax
 
-function outer () {
+function outer() {
   var val = 0;
 
-  function foo () {
+  function foo() {
     val = 0;
     val;
     var z = false;
@@ -41,15 +41,14 @@ function outer () {
       }
     }
     return val++;
-  }
-
+  };
+  %PrepareFunctionForOptimization(foo);
   return foo;
 }
-
 
 var foo = outer();
 
 assertEquals(1, foo());
 assertEquals(1, foo());
-    %OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionOnNextCall(foo);
 assertEquals(1, foo());

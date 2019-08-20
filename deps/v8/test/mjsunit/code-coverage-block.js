@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-opt --no-stress-flush-bytecode
 // Files: test/mjsunit/code-coverage-utils.js
 
 %DebugToggleBlockCoverage(true);
@@ -213,12 +213,11 @@ TestCoverage(
     nop();                                // 0100
   }                                       // 0150
 }();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
- {"start":83,"end":153,"count":4},
- {"start":153,"end":200,"count":1}]
+ {"start":1,"end":201,"count":1},
+ {"start":83,"end":153,"count":4}]
 );
 
 TestCoverage(
@@ -246,8 +245,7 @@ function g() {}                           // 0000
  {"start":224,"end":237,"count":12},
  {"start":273,"end":277,"count":0},
  {"start":412,"end":416,"count":12},
- {"start":462,"end":475,"count":12},
- {"start":620,"end":622,"count":0}]
+ {"start":462,"end":475,"count":12}]
 );
 
 TestCoverage(
@@ -354,11 +352,11 @@ TestCoverage(
 [{"start":0,"end":849,"count":1},
  {"start":1,"end":801,"count":1},
  {"start":67,"end":87,"count":0},
- {"start":219,"end":222,"count":0},
+ {"start":221,"end":222,"count":0},
  {"start":254,"end":274,"count":0},
- {"start":369,"end":372,"count":0},
- {"start":390,"end":404,"count":0},
- {"start":513,"end":554,"count":0}]
+ {"start":371,"end":372,"count":0},
+ {"start":403,"end":404,"count":0},
+ {"start":553,"end":554,"count":0}]
 );
 
 TestCoverage("try/catch/finally statements with early return",
@@ -375,11 +373,11 @@ TestCoverage("try/catch/finally statements with early return",
 `,
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":70,"count":0},
- {"start":89,"end":150,"count":0},
+ {"start":69,"end":70,"count":0},
+ {"start":91,"end":150,"count":0},
  {"start":201,"end":401,"count":1},
- {"start":267,"end":270,"count":0},
- {"start":319,"end":400,"count":0}]
+ {"start":269,"end":270,"count":0},
+ {"start":321,"end":400,"count":0}]
 );
 
 TestCoverage(
@@ -410,15 +408,15 @@ TestCoverage(
 `,
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":70,"count":0},
- {"start":89,"end":150,"count":0},
+ {"start":69,"end":70,"count":0},
+ {"start":91,"end":150,"count":0},
  {"start":201,"end":351,"count":1},
- {"start":284,"end":350,"count":0},
+ {"start":286,"end":350,"count":0},
  {"start":401,"end":701,"count":1},
- {"start":569,"end":700,"count":0},
- {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
+ {"start":603,"end":700,"count":0},
+ {"start":561,"end":568,"count":0},
  {"start":751,"end":1051,"count":1},
- {"start":817,"end":820,"count":0},
+ {"start":819,"end":820,"count":0},
  {"start":861,"end":1050,"count":0}]
 );
 
@@ -437,7 +435,7 @@ TestCoverage(
 [{"start":0,"end":399,"count":1},
  {"start":1,"end":351,"count":1},
  {"start":154,"end":204,"count":0},
- {"start":226,"end":303,"count":0}]
+ {"start":226,"end":350,"count":0}]
 );
 
 TestCoverage(
@@ -467,11 +465,7 @@ TestCoverage(
 [{"start":0,"end":999,"count":1},
  {"start":1,"end":951,"count":1},
  {"start":152,"end":202,"count":0},
- {"start":285,"end":353,"count":0},
- {"start":472,"end":503,"count":0},
- {"start":626,"end":653,"count":0},
- {"start":768,"end":803,"count":0},
- {"start":867,"end":869,"count":0}]
+ {"start":285,"end":353,"count":0}]
 );
 
 TestCoverage(
@@ -496,11 +490,8 @@ TestCoverage(
 [{"start":0,"end":749,"count":1},
  {"start":1,"end":701,"count":1},
  {"start":87,"end":153,"count":2},
- {"start":125,"end":153,"count":0},
  {"start":271,"end":403,"count":2},
- {"start":379,"end":403,"count":0},
- {"start":509,"end":653,"count":2},
- {"start":621,"end":653,"count":0}]
+ {"start":509,"end":653,"count":2}]
 );
 
 TestCoverage(
@@ -548,10 +539,25 @@ const it = function*() {                  // 0000
 it.next(); it.next();                     // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":11,"end":201,"count":3},
- {"start":64,"end":114,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":114,"end":121,"count":0},
- {"start":122,"end":129,"count":1},
+ {"start":129,"end":200,"count":0}]
+);
+
+TestCoverage(
+"yield expressions twice",
+`
+function* gen() {                         // 0000
+  yield nop();                            // 0050
+  yield nop() ? nop() : nop()             // 0100
+  return nop();                           // 0150
+};                                        // 0200
+{const it = gen(); it.next(); it.next();} // 0250
+{const it = gen(); it.next(); it.next();} // 0300
+`,
+[{"start":0,"end":349,"count":1},
+ {"start":0,"end":201,"count":2},
+ {"start":114,"end":121,"count":0},
  {"start":129,"end":200,"count":0}]
 );
 
@@ -570,9 +576,10 @@ try {                                     // 0200
 } catch (e) {}                            // 0450
 `,
 [{"start":0,"end":499,"count":1},
- {"start":12,"end":101,"count":3},
+ {"start":451,"end":452,"count":0},
+ {"start":12,"end":101,"count":1},
  {"start":60,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":312,"end":352,"count":0}]
 );
 
@@ -589,9 +596,8 @@ const it = function*() {                  // 0000
 it.next(); it.return();                   // 0450
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":254,"count":0},
- {"start":254,"end":272,"count":1},
  {"start":272,"end":350,"count":0}]
 );
 
@@ -608,9 +614,8 @@ const it = function*() {                  // 0000
 it.next(); it.throw(42);                  // 0550
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":154,"count":0},
- {"start":154,"end":310,"count":1},
  {"start":310,"end":350,"count":0}]
 );
 
@@ -626,10 +631,8 @@ it.next(); it.next(); it.next();          // 0250
 it.next(); it.next(); it.next();          // 0300
 `,
 [{"start":0,"end":349,"count":1},
- {"start":11,"end":201,"count":7},
- {"start":65,"end":115,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":115,"end":122,"count":0},
- {"start":123,"end":130,"count":1},
  {"start":130,"end":200,"count":0}]
 );
 
@@ -648,9 +651,10 @@ try {                                     // 0200
 } catch (e) {}                            // 0450
 `,
 [{"start":0,"end":499,"count":1},
- {"start":12,"end":101,"count":3},
+ {"start":451,"end":452,"count":0},
+ {"start":12,"end":101,"count":1},
  {"start":65,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":317,"end":352,"count":0}]
 );
 
@@ -662,11 +666,10 @@ async function f() {                      // 0000
   await 42;                               // 0100
 };                                        // 0150
 f();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":0,"end":151,"count":3},
- {"start":61,"end":150,"count":1}]
+ {"start":0,"end":151,"count":1}]
 );
 
 TestCoverage(
@@ -682,7 +685,8 @@ b()                                       // 0250
 [{"start":0,"end":299,"count":1},
  {"start":15,"end":20,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalOrExpression IsTest()",
@@ -711,7 +715,8 @@ const c = true && 50                      // 0300
 [{"start":0,"end":349,"count":1},
  {"start":16,"end":21,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalAndExpression IsTest()",
@@ -830,5 +835,221 @@ const i = d || c || (c ? 'left' : 'right')// 0400
  {"start":382,"end":391,"count":0},
  {"start":423,"end":431,"count":0}
 ]);
+
+TestCoverage(
+"https://crbug.com/827530",
+`
+Util = {};                                // 0000
+Util.escape = function UtilEscape(str) {  // 0050
+  if (!str) {                             // 0100
+    return 'if';                          // 0150
+  } else {                                // 0200
+    return 'else';                        // 0250
+  }                                       // 0300
+};                                        // 0350
+Util.escape("foo.bar");                   // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":64,"end":351,"count":1},
+ {"start":112,"end":203,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/8237",
+`
+!function() {                             // 0000
+  if (true)                               // 0050
+    while (false) return; else nop();     // 0100
+}();                                      // 0150
+!function() {                             // 0200
+  if (true) l0: { break l0; } else        // 0250
+    if (nop()) { }                        // 0300
+}();                                      // 0350
+!function() {                             // 0400
+  if (true) { if (false) { return; }      // 0450
+  } else if (nop()) { } }();              // 0500
+!function(){                              // 0550
+  if(true)while(false)return;else nop()   // 0600
+}();                                      // 0650
+!function(){                              // 0700
+  if(true) l0:{break l0}else if (nop()){} // 0750
+}();                                      // 0800
+!function(){                              // 0850
+  if(true){if(false){return}}else         // 0900
+    if(nop()){}                           // 0950
+}();                                      // 1000
+`,
+[{"start":0,"end":1049,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":118,"end":137,"count":0},
+ {"start":201,"end":351,"count":1},
+ {"start":279,"end":318,"count":0},
+ {"start":401,"end":525,"count":1},
+ {"start":475,"end":486,"count":0},
+ {"start":503,"end":523,"count":0},
+ {"start":551,"end":651,"count":1},
+ {"start":622,"end":639,"count":0},
+ {"start":701,"end":801,"count":1},
+ {"start":774,"end":791,"count":0},
+ {"start":851,"end":1001,"count":1},
+ {"start":920,"end":928,"count":0},
+ {"start":929,"end":965,"count":0}]
+);
+
+TestCoverage(
+"terminal break statement",
+`
+while (true) {                            // 0000
+  const b = false                         // 0050
+  break                                   // 0100
+}                                         // 0150
+let stop = false                          // 0200
+while (true) {                            // 0250
+  if (stop) {                             // 0300
+    break                                 // 0350
+  }                                       // 0400
+  stop = true                             // 0450
+}                                         // 0500
+`,
+[{"start":0,"end":549,"count":1},
+ {"start":263,"end":501,"count":2},
+ {"start":312,"end":501,"count":1}]
+);
+
+TestCoverage(
+"terminal return statement",
+`
+function a () {                           // 0000
+  const b = false                         // 0050
+  return 1                                // 0100
+}                                         // 0150
+const b = (early) => {                    // 0200
+  if (early) {                            // 0250
+    return 2                              // 0300
+  }                                       // 0350
+  return 3                                // 0400
+}                                         // 0450
+const c = () => {                         // 0500
+  if (true) {                             // 0550
+    return                                // 0600
+  }                                       // 0650
+}                                         // 0700
+a(); b(false); b(true); c()               // 0750
+`,
+[{"start":0,"end":799,"count":1},
+ {"start":0,"end":151,"count":1},
+ {"start":210,"end":451,"count":2},
+ {"start":263,"end":450,"count":1},
+ {"start":510,"end":701,"count":1}]
+);
+
+TestCoverage(
+"terminal blocks",
+`
+function a () {                           // 0000
+  {                                       // 0050
+    return 'a'                            // 0100
+  }                                       // 0150
+}                                         // 0200
+function b () {                           // 0250
+  {                                       // 0300
+    {                                     // 0350
+      return 'b'                          // 0400
+    }                                     // 0450
+  }                                       // 0500
+}                                         // 0550
+a(); b()                                  // 0600
+`,
+[{"start":0,"end":649,"count":1},
+ {"start":0,"end":201,"count":1},
+ {"start":250,"end":551,"count":1}]
+);
+
+TestCoverage(
+"terminal if statements",
+`
+function a (branch) {                     // 0000
+  if (branch) {                           // 0050
+    return 'a'                            // 0100
+  } else {                                // 0150
+    return 'b'                            // 0200
+  }                                       // 0250
+}                                         // 0300
+function b (branch) {                     // 0350
+  if (branch) {                           // 0400
+    if (branch) {                         // 0450
+      return 'c'                          // 0500
+    }                                     // 0550
+  }                                       // 0600
+}                                         // 0650
+function c (branch) {                     // 0700
+  if (branch) {                           // 0750
+    return 'c'                            // 0800
+  } else {                                // 0850
+    return 'd'                            // 0900
+  }                                       // 0950
+}                                         // 1000
+function d (branch) {                     // 1050
+  if (branch) {                           // 1100
+    if (!branch) {                        // 1150
+      return 'e'                          // 1200
+    } else {                              // 1250
+      return 'f'                          // 1300
+    }                                     // 1350
+  } else {                                // 1400
+    // noop                               // 1450
+  }                                       // 1500
+}                                         // 1550
+a(true); a(false); b(true); b(false)      // 1600
+c(true); d(true);                         // 1650
+`,
+[{"start":0,"end":1699,"count":1},
+ {"start":0,"end":301,"count":2},
+ {"start":64,"end":253,"count":1},
+ {"start":350,"end":651,"count":2},
+ {"start":414,"end":603,"count":1},
+ {"start":700,"end":1001,"count":1},
+ {"start":853,"end":953,"count":0},
+ {"start":1050,"end":1551,"count":1},
+ {"start":1167,"end":1255,"count":0},
+ {"start":1403,"end":1503,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/927464",
+`
+!function f() {                           // 0000
+  function unused() { nop(); }            // 0050
+  nop();                                  // 0100
+}();                                      // 0150
+`,
+[{"start":0,"end":199,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":52,"end":80,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/8691",
+`
+function f(shouldThrow) {                 // 0000
+  if (shouldThrow) {                      // 0050
+    throw Error('threw')                  // 0100
+  }                                       // 0150
+}                                         // 0200
+try {                                     // 0250
+  f(true)                                 // 0300
+} catch (err) {                           // 0350
+                                          // 0400
+}                                         // 0450
+try {                                     // 0500
+  f(false)                                // 0550
+} catch (err) {}                          // 0600
+`,
+[{"start":0,"end":649,"count":1},
+ {"start":351,"end":352,"count":0},
+ {"start":602,"end":616,"count":0},
+ {"start":0,"end":201,"count":2},
+ {"start":69,"end":153,"count":1}]
+);
 
 %DebugToggleBlockCoverage(false);

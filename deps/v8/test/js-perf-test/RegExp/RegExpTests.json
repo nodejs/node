@@ -13,6 +13,8 @@
       "path": ["."],
       "main": "run.js",
       "resources": [
+        "case_test.js",
+        "complex_case_test.js",
         "base_ctor.js",
         "base_exec.js",
         "base_flags.js",
@@ -25,6 +27,7 @@
         "ctor.js",
         "exec.js",
         "flags.js",
+        "inline_test.js",
         "match.js",
         "replace.js",
         "search.js",
@@ -40,6 +43,8 @@
       ],
       "results_regexp": "^%s\\-RegExp\\(Score\\): (.+)$",
       "tests": [
+        {"name": "CaseInsensitiveTest"},
+        {"name": "ComplexCaseInsensitiveTest"},
         {"name": "Ctor"},
         {"name": "Exec"},
         {"name": "Flags"},
@@ -54,7 +59,8 @@
         {"name": "SlowReplace"},
         {"name": "SlowSearch"},
         {"name": "SlowSplit"},
-        {"name": "SlowTest"}
+        {"name": "SlowTest"},
+        {"name": "InlineTest"}
       ]
     }
   ]

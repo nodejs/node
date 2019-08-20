@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -519,7 +519,7 @@ $code.=<<___;
 	mov		$Cctx,$C
 	mov		$Dctx,$D
 	mov		$Ectx,$E
-	alignaddr	%g0,$tmp0,%g0	
+	alignaddr	%g0,$tmp0,%g0
 	dec		1,$len
 	ba		.Loop
 	mov		$nXfer,$Xfer

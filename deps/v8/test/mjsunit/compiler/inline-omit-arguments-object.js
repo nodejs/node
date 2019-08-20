@@ -10,5 +10,6 @@ function foo(s, t) {
   return args.length == 1 && args[0] == 11;
 }
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertEquals(true, foo(11));

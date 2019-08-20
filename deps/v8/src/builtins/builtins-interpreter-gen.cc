@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins.h"
-#include "src/globals.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -14,24 +14,11 @@ void Builtins::Generate_InterpreterPushArgsThenCall(MacroAssembler* masm) {
       masm, ConvertReceiverMode::kAny, InterpreterPushArgsMode::kOther);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenCallFunction(
-    MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, InterpreterPushArgsMode::kJSFunction);
-}
-
 void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCall(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
       masm, ConvertReceiverMode::kNullOrUndefined,
       InterpreterPushArgsMode::kOther);
-}
-
-void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCallFunction(
-    MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kNullOrUndefined,
-      InterpreterPushArgsMode::kJSFunction);
 }
 
 void Builtins::Generate_InterpreterPushArgsThenCallWithFinalSpread(
@@ -52,10 +39,10 @@ void Builtins::Generate_InterpreterPushArgsThenConstructWithFinalSpread(
       masm, InterpreterPushArgsMode::kWithFinalSpread);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenConstructFunction(
+void Builtins::Generate_InterpreterPushArgsThenConstructArrayFunction(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenConstructImpl(
-      masm, InterpreterPushArgsMode::kJSFunction);
+      masm, InterpreterPushArgsMode::kArrayFunction);
 }
 
 }  // namespace internal

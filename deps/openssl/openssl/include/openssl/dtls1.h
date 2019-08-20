@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,6 +26,10 @@ extern "C" {
 # define DTLS_ANY_VERSION                0x1FFFF
 
 /* lengths of messages */
+/*
+ * Actually the max cookie length in DTLS is 255. But we can't change this now
+ * due to compatibility concerns.
+ */
 # define DTLS1_COOKIE_LENGTH                     256
 
 # define DTLS1_RT_HEADER_LENGTH                  13
@@ -37,12 +41,7 @@ extern "C" {
 
 # define DTLS1_CCS_HEADER_LENGTH                  1
 
-# ifdef DTLS1_AD_MISSING_HANDSHAKE_MESSAGE
-#  define DTLS1_AL_HEADER_LENGTH                   7
-# else
-#  define DTLS1_AL_HEADER_LENGTH                   2
-# endif
-
+# define DTLS1_AL_HEADER_LENGTH                   2
 
 /* Timeout multipliers (timeout slice is defined in apps/timeouts.h */
 # define DTLS1_TMO_READ_COUNT                      2

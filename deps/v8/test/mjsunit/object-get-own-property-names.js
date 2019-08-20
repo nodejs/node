@@ -28,6 +28,9 @@
 // Test ES5 section 15.2.3.4 Object.getOwnPropertyNames.
 
 // Check simple cases.
+var obj = {};
+assertEquals(0, Object.getOwnPropertyNames(obj).length);
+
 var obj = { a: 1, b: 2};
 var propertyNames = Object.getOwnPropertyNames(obj);
 propertyNames.sort();
@@ -52,6 +55,13 @@ assertEquals("a", propertyNames[0]);
 assertEquals("c", propertyNames[1]);
 
 // Check that non-enumerable properties are being returned.
+var obj = {};
+Object.defineProperty(obj, 'x', {
+  value: 1,
+  enumerable: false
+});
+assertEquals(1, Object.getOwnPropertyNames(obj).length);
+
 var propertyNames = Object.getOwnPropertyNames([1, 2]);
 propertyNames.sort();
 assertEquals(3, propertyNames.length);

@@ -14,6 +14,8 @@ function test(...rest) {
   return [rest, f.apply(null, rest)];
 }
 
+%PrepareFunctionForOptimization(test);
+
 assertEquals(test(), [[], NaN]);
 assertEquals(test(1), [[1], NaN])
 assertEquals(test(1, 2), [[1,2], 3]);
@@ -36,6 +38,8 @@ function f(x, y) {
 function test(a, ...rest) {
   return [rest, a, f.apply(null, rest)];
 }
+
+%PrepareFunctionForOptimization(test);
 
 assertEquals(test(), [[], undefined, NaN]);
 assertEquals(test(1), [[], 1, NaN]);

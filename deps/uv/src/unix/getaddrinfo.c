@@ -27,6 +27,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "idna.h"
 
 #include <errno.h>
 #include <stddef.h> /* NULL */
@@ -91,7 +92,9 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   }
   assert(!"unknown EAI_* error code");
   abort();
+#ifndef __SUNPRO_C
   return 0;  /* Pacify compiler. */
+#endif
 }
 
 
@@ -141,14 +144,33 @@ int uv_getaddrinfo(uv_loop_t* loop,
                    const char* hostname,
                    const char* service,
                    const struct addrinfo* hints) {
+  char hostname_ascii[256];
   size_t hostname_len;
   size_t service_len;
   size_t hints_len;
   size_t len;
   char* buf;
+  long rc;
 
   if (req == NULL || (hostname == NULL && service == NULL))
     return UV_EINVAL;
+
+  /* FIXME(bnoordhuis) IDNA does not seem to work z/OS,
+   * probably because it uses EBCDIC rather than ASCII.
+   */
+#ifdef __MVS__
+  (void) &hostname_ascii;
+#else
+  if (hostname != NULL) {
+    rc = uv__idna_toascii(hostname,
+                          hostname + strlen(hostname),
+                          hostname_ascii,
+                          hostname_ascii + sizeof(hostname_ascii));
+    if (rc < 0)
+      return rc;
+    hostname = hostname_ascii;
+  }
+#endif
 
   hostname_len = hostname ? strlen(hostname) + 1 : 0;
   service_len = service ? strlen(service) + 1 : 0;
@@ -186,6 +208,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   if (cb) {
     uv__work_submit(loop,
                     &req->work_req,
+                    UV__WORK_SLOW_IO,
                     uv__getaddrinfo_work,
                     uv__getaddrinfo_done);
     return 0;

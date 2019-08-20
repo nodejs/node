@@ -10,8 +10,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -32,7 +32,7 @@ namespace compiler {
 // meaningful to the operator itself.
 class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  typedef uint16_t Opcode;
+  using Opcode = uint16_t;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   V(Commutative)                  \
   V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
 
-  typedef base::Flags<Property, uint8_t> Properties;
+  using Properties = base::Flags<Property, uint8_t>;
   enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.
@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
            size_t value_in, size_t effect_in, size_t control_in,
            size_t value_out, size_t effect_out, size_t control_out);
 
-  virtual ~Operator() {}
+  virtual ~Operator() = default;
 
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
@@ -148,8 +148,8 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
 
 DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 
-std::ostream& operator<<(std::ostream& os, const Operator& op);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Operator& op);
 
 // Default equality function for below Operator1<*> class.
 template <typename T>
@@ -197,7 +197,7 @@ class Operator1 : public Operator {
     os << "[" << parameter() << "]";
   }
 
-  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
+  void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const override {
     os << mnemonic();
     PrintParameter(os, verbose);
   }

@@ -33,12 +33,11 @@ const invalidArgValueError =
   common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 14);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 10);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
 
 assert.throws(function() {
-  const child = spawn(invalidcmd, 'this is not an array');
-  child.on('error', common.mustNotCall());
-}, TypeError);
+  spawn(invalidcmd, 'this is not an array');
+}, invalidArgTypeError);
 
 // Verify that valid argument combinations do not throw.
 spawn(cmd);
@@ -61,10 +60,6 @@ assert.throws(function() {
 }, invalidArgTypeError);
 
 assert.throws(function() {
-  spawn(cmd, null);
-}, invalidArgTypeError);
-
-assert.throws(function() {
   spawn(cmd, true);
 }, invalidArgTypeError);
 
@@ -76,6 +71,14 @@ assert.throws(function() {
   spawn(cmd, [], 1);
 }, invalidArgTypeError);
 
+assert.throws(function() {
+  spawn(cmd, [], { uid: 2 ** 63 });
+}, invalidArgTypeError);
+
+assert.throws(function() {
+  spawn(cmd, [], { gid: 2 ** 63 });
+}, invalidArgTypeError);
+
 // Argument types for combinatorics.
 const a = [];
 const o = {};
@@ -84,7 +87,7 @@ const s = 'string';
 const u = undefined;
 const n = null;
 
-// function spawn(file=f [,args=a] [, options=o]) has valid combinations:
+// Function spawn(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)
 //   (f, a)
 //   (f, a, o)
@@ -96,9 +99,9 @@ spawn(cmd, o);
 
 // Variants of undefined as explicit 'no argument' at a position.
 spawn(cmd, u, o);
+spawn(cmd, n, o);
 spawn(cmd, a, u);
 
-assert.throws(function() { spawn(cmd, n, o); }, invalidArgTypeError);
 assert.throws(function() { spawn(cmd, a, n); }, invalidArgTypeError);
 
 assert.throws(function() { spawn(cmd, s); }, invalidArgTypeError);

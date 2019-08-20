@@ -4,10 +4,12 @@
 
 #include "src/inspector/string-util.h"
 
+#include <cinttypes>
+#include <cmath>
+
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/unicode-cache.h"
+#include "src/numbers/conversions.h"
 
 namespace v8_inspector {
 
@@ -52,16 +54,18 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-String16 toProtocolString(v8::Local<v8::String> value) {
+String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
   if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
   std::unique_ptr<UChar[]> buffer(new UChar[value->Length()]);
-  value->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, value->Length());
+  value->Write(isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0,
+               value->Length());
   return String16(buffer.get(), value->Length());
 }
 
-String16 toProtocolStringWithTypeCheck(v8::Local<v8::Value> value) {
+String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,
+                                       v8::Local<v8::Value> value) {
   if (value.IsEmpty() || !value->IsString()) return String16();
-  return toProtocolString(value.As<v8::String>());
+  return toProtocolString(isolate, value.As<v8::String>());
 }
 
 String16 toString16(const StringView& string) {
@@ -97,10 +101,9 @@ namespace protocol {
 
 // static
 double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
-  v8::internal::UnicodeCache unicode_cache;
   int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
               v8::internal::ALLOW_BINARY;
-  double result = StringToDouble(&unicode_cache, s, flags);
+  double result = v8::internal::StringToDouble(s, flags);
   *isOk = !std::isnan(result);
   return result;
 }
@@ -120,6 +123,20 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
   if (!string.length()) return nullptr;
   return parseJSONCharacters(string.characters16(),
                              static_cast<int>(string.length()));
+}
+
+// static
+ProtocolMessage StringUtil::jsonToMessage(String message) {
+  ProtocolMessage result;
+  result.json = std::move(message);
+  return result;
+}
+
+// static
+ProtocolMessage StringUtil::binaryToMessage(std::vector<uint8_t> message) {
+  ProtocolMessage result;
+  result.binary = std::move(message);
+  return result;
 }
 
 // static

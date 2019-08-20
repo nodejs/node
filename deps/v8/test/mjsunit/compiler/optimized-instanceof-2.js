@@ -8,6 +8,7 @@ function F() {}
 var f = new F
 
 function foo(x) { return x instanceof F };
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertFalse(foo(1));
 

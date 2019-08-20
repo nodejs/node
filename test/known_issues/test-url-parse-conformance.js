@@ -5,7 +5,9 @@ require('../common');
 const url = require('url');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const tests = require(fixtures.path('url-tests'));
+const tests = require(
+  fixtures.path('wpt', 'url', 'resources', 'urltestdata.json')
+);
 
 let failed = 0;
 let attempted = 0;
@@ -40,12 +42,12 @@ tests.forEach((test) => {
         assert.strictEqual(test.pathname, parsed.pathname || '/');
         assert.strictEqual(test.search, parsed.search || '');
         assert.strictEqual(test.hash, parsed.hash || '');
-      } catch (err) {
+      } catch {
         // For now, we're just interested in the number of failures.
         failed++;
       }
     }
-  } catch (err) {
+  } catch {
     // If Parse failed and it wasn't supposed to, treat it as a failure.
     if (!test.failure)
       failed++;

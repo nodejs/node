@@ -53,10 +53,13 @@ above use-case in a shorter way:
 The second line is the equivalent of doing:
 
     (cd ../node-redis; npm link)
-    npm link node-redis
+    npm link redis
 
 That is, it first creates a global link, and then links the global
 installation target into your project's `node_modules` folder.
+
+Note that in this case, you are referring to the directory name, `node-redis`,
+rather than the package name `redis`.
 
 If your linked package is scoped (see `npm-scope(7)`) your link command must
 include that scope, e.g.

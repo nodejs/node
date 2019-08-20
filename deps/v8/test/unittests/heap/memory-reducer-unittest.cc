@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/heap/memory-reducer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

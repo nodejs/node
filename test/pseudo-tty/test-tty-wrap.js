@@ -1,8 +1,10 @@
+// Flags: --expose-internals --no-warnings
 'use strict';
 require('../common');
 
-const TTY = process.binding('tty_wrap').TTY;
-const WriteWrap = process.binding('stream_wrap').WriteWrap;
+const { internalBinding } = require('internal/test/binding');
+const { TTY } = internalBinding('tty_wrap');
+const { WriteWrap } = internalBinding('stream_wrap');
 
 const handle = new TTY(1);
 const req = new WriteWrap();

@@ -13,6 +13,7 @@ function DeoptFromTry(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(DeoptFromTry);
 %OptimizeFunctionOnNextCall(DeoptFromTry);
 assertEquals(24, DeoptFromTry(23));
 
@@ -26,6 +27,7 @@ function DeoptFromCatch(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(DeoptFromCatch);
 %OptimizeFunctionOnNextCall(DeoptFromCatch);
 assertEquals(24, DeoptFromCatch(23));
 
@@ -39,6 +41,7 @@ function DeoptFromFinally_Return(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(DeoptFromFinally_Return);
 %OptimizeFunctionOnNextCall(DeoptFromFinally_Return);
 assertEquals(24, DeoptFromFinally_Return(23));
 
@@ -51,5 +54,6 @@ function DeoptFromFinally_ReThrow(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(DeoptFromFinally_ReThrow);
 %OptimizeFunctionOnNextCall(DeoptFromFinally_ReThrow);
 assertThrows("DeoptFromFinally_ReThrow(new Error)", Error);

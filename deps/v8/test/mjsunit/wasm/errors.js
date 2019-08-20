@@ -4,161 +4,159 @@
 
 // Flags: --expose-wasm --allow-natives-syntax
 
-'use strict';
-
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
-
-function module(bytes) {
-  let buffer = bytes;
-  if (typeof buffer === 'string') {
-    buffer = new ArrayBuffer(bytes.length);
-    let view = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.length; ++i) {
-      view[i] = bytes.charCodeAt(i);
-    }
-  }
-  return new WebAssembly.Module(buffer);
-}
-
-function instance(bytes, imports = {}) {
-  return new WebAssembly.Instance(module(bytes), imports);
-}
-
-// instantiate should succeed but run should fail.
-function instantiateAndFailAtRuntime(bytes, imports = {}) {
-  var instance =
-      assertDoesNotThrow(new WebAssembly.Instance(module(bytes), imports));
-  instance.exports.run();
-}
 
 function builder() {
   return new WasmModuleBuilder;
 }
 
 function assertCompileError(bytes, msg) {
-  assertThrows(() => module(bytes), WebAssembly.CompileError, msg);
+  assertThrows(
+      () => new WebAssembly.Module(bytes), WebAssembly.CompileError,
+      'WebAssembly.Module(): ' + msg);
+  assertThrowsAsync(
+      WebAssembly.compile(bytes), WebAssembly.CompileError,
+      'WebAssembly.compile(): ' + msg);
+}
+
+function assertInstantiateError(error, bytes, imports = {}, msg) {
+  assertThrows(
+      () => new WebAssembly.Instance(new WebAssembly.Module(bytes), imports),
+      error, 'WebAssembly.Instance(): ' + msg);
+  assertThrowsAsync(
+      WebAssembly.instantiate(bytes, imports), error,
+      'WebAssembly.instantiate(): ' + msg);
 }
 
 // default imports to {} so we get LinkError by default, thus allowing us to
 // distinguish the TypeError we want to catch
 function assertTypeError(bytes, imports = {}, msg) {
-  assertThrows(() => instance(bytes, imports), TypeError, msg);
+  assertInstantiateError(TypeError, bytes, imports, msg);
 }
 
 function assertLinkError(bytes, imports, msg) {
-  assertThrows(() => instance(bytes, imports), WebAssembly.LinkError, msg);
-}
-
-function assertRuntimeError(bytes, imports, msg) {
-  assertThrows(
-      () => instantiateAndFailAtRuntime(bytes, imports),
-      WebAssembly.RuntimeError, msg);
+  assertInstantiateError(WebAssembly.LinkError, bytes, imports, msg);
 }
 
 function assertConversionError(bytes, imports, msg) {
-  assertThrows(
-      () => instantiateAndFailAtRuntime(bytes, imports), TypeError, msg);
+  let instance =
+      new WebAssembly.Instance(new WebAssembly.Module(bytes), imports);
+  assertThrows(() => instance.exports.run(), TypeError, msg);
 }
 
 (function TestDecodingError() {
-  assertCompileError("", /is empty/);
-  assertCompileError("X", /expected 4 bytes, fell off end @\+0/);
+  print(arguments.callee.name);
+  assertCompileError(bytes(), 'BufferSource argument is empty');
+  assertCompileError(bytes('X'), 'expected 4 bytes, fell off end @+0');
   assertCompileError(
-    "\0x00asm", /expected magic word 00 61 73 6d, found 00 78 30 30 @\+0/);
+      bytes('\0x00asm'),
+      'expected magic word 00 61 73 6d, found 00 78 30 30 @+0');
 })();
 
 (function TestValidationError() {
+  print(arguments.callee.name);
+  let f_error = msg => 'Compiling function #0:"f" failed: ' + msg;
   assertCompileError(
-      builder().addFunction("f", kSig_i_v).end().toBuffer(),
-      /function body must end with "end" opcode @/);
-  assertCompileError(builder().addFunction("f", kSig_i_v).addBody([
-    kExprReturn
-  ]).end().toBuffer(), /return found empty stack @/);
-  assertCompileError(builder().addFunction("f", kSig_v_v).addBody([
+      builder().addFunction('f', kSig_i_v).end().toBuffer(),
+      f_error('function body must end with "end" opcode @+24'));
+  assertCompileError(
+      builder().addFunction('f', kSig_i_v).addBody([kExprReturn])
+          .end().toBuffer(),
+      f_error('expected 1 elements on the stack for return, found 0 @+24'));
+  assertCompileError(builder().addFunction('f', kSig_v_v).addBody([
     kExprGetLocal, 0
-  ]).end().toBuffer(), /invalid local index: 0 @/);
+  ]).end().toBuffer(), f_error('invalid local index: 0 @+24'));
   assertCompileError(
-      builder().addStart(0).toBuffer(), /function index 0 out of bounds/);
+      builder().addStart(0).toBuffer(),
+      'start function index 0 out of bounds (0 entries) @+10');
 })();
 
+function import_error(index, module, func, msg) {
+  let full_msg = 'Import #' + index + ' module=\"' + module + '\"';
+  if (func !== undefined) full_msg += ' function=\"' + func + '\"';
+  return full_msg + ' error: ' + msg;
+}
+
 (function TestTypeError() {
-  let b;
-  b = builder();
-  b.addImport("foo", "bar", kSig_v_v);
-  assertTypeError(b.toBuffer(), {}, /module is not an object or function/);
+  print(arguments.callee.name);
+  let b = builder();
+  b.addImport('foo', 'bar', kSig_v_v);
+  let msg =
+      import_error(0, 'foo', undefined, 'module is not an object or function');
+  assertTypeError(b.toBuffer(), {}, msg);
 
   b = builder();
-  b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertTypeError(b.toBuffer(), {}, /module is not an object or function/);
+  b.addImportedGlobal('foo', 'bar', kWasmI32);
+  assertTypeError(b.toBuffer(), {}, msg);
 
   b = builder();
-  b.addImportedMemory("foo", "bar");
-  assertTypeError(b.toBuffer(), {}, /module is not an object or function/);
+  b.addImportedMemory('foo', 'bar');
+  assertTypeError(b.toBuffer(), {}, msg);
 })();
 
 (function TestLinkingError() {
+  print(arguments.callee.name);
   let b;
+  let msg;
 
   b = builder();
-  b.addImport("foo", "bar", kSig_v_v);
-  assertLinkError(
-      b.toBuffer(), {foo: {}}, /function import requires a callable/);
+  msg = import_error(0, 'foo', 'bar', 'function import requires a callable');
+  b.addImport('foo', 'bar', kSig_v_v);
+  assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();
-  b.addImport("foo", "bar", kSig_v_v);
-  assertLinkError(
-      b.toBuffer(), {foo: {bar: 9}}, /function import requires a callable/);
+  b.addImport('foo', 'bar', kSig_v_v);
+  assertLinkError(b.toBuffer(), {foo: {bar: 9}}, msg);
 
   b = builder();
-  b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertLinkError(b.toBuffer(), {foo: {}}, /global import must be a number/);
+  msg = import_error(
+      0, 'foo', 'bar',
+      'global import must be a number or WebAssembly.Global object');
+  b.addImportedGlobal('foo', 'bar', kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();
-  b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertLinkError(
-      b.toBuffer(), {foo: {bar: ""}}, /global import must be a number/);
+  b.addImportedGlobal('foo', 'bar', kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: ''}}, msg);
   b = builder();
-  b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertLinkError(
-      b.toBuffer(), {foo: {bar: () => 9}}, /global import must be a number/);
+  b.addImportedGlobal('foo', 'bar', kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: () => 9}}, msg);
 
   b = builder();
-  b.addImportedMemory("foo", "bar");
-  assertLinkError(
-      b.toBuffer(), {foo: {}},
-      /memory import must be a WebAssembly\.Memory object/);
+  msg = import_error(
+      0, 'foo', 'bar', 'memory import must be a WebAssembly.Memory object');
+  b.addImportedMemory('foo', 'bar');
+  assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();
-  b.addImportedMemory("foo", "bar", 1);
+  b.addImportedMemory('foo', 'bar', 1);
   assertLinkError(
       b.toBuffer(), {foo: {bar: () => new WebAssembly.Memory({initial: 0})}},
-      /memory import must be a WebAssembly\.Memory object/);
-
-  b = builder();
-  b.addFunction("startup", kSig_v_v).addBody([
-    kExprUnreachable,
-  ]).end().addStart(0);
-  assertRuntimeError(b.toBuffer(), {}, "unreachable");
+      msg);
 })();
 
-(function TestTrapError() {
-  assertRuntimeError(builder().addFunction("run", kSig_v_v).addBody([
-    kExprUnreachable
-  ]).exportFunc().end().toBuffer(), {}, "unreachable");
+(function TestTrapUnreachable() {
+  print(arguments.callee.name);
+  let instance = builder().addFunction('run', kSig_v_v)
+    .addBody([kExprUnreachable]).exportFunc().end().instantiate();
+  assertTraps(kTrapUnreachable, instance.exports.run);
+})();
 
-  assertRuntimeError(builder().addFunction("run", kSig_v_v).addBody([
-    kExprI32Const, 1,
-    kExprI32Const, 0,
-    kExprI32DivS,
-    kExprDrop
-  ]).exportFunc().end().toBuffer(), {}, "divide by zero");
+(function TestTrapDivByZero() {
+  print(arguments.callee.name);
+  let instance = builder().addFunction('run', kSig_v_v).addBody(
+     [kExprI32Const, 1, kExprI32Const, 0, kExprI32DivS, kExprDrop])
+    .exportFunc().end().instantiate();
+  assertTraps(kTrapDivByZero, instance.exports.run);
+})();
 
-  assertRuntimeError(builder().
-      addFunction("run", kSig_v_v).addBody([]).exportFunc().end().
-      addFunction("start", kSig_v_v).addBody([kExprUnreachable]).end().
-      addStart(1).toBuffer(),
-    {}, "unreachable");
+(function TestUnreachableInStart() {
+  print(arguments.callee.name);
+
+  let b = builder().addFunction("start", kSig_v_v).addBody(
+     [kExprUnreachable]).end().addStart(0);
+  assertTraps(kTrapUnreachable, () => b.instantiate());
 })();
 
 (function TestConversionError() {
+  print(arguments.callee.name);
   let b = builder();
   b.addImport('foo', 'bar', kSig_v_l);
   let buffer = b.addFunction('run', kSig_v_v)
@@ -178,8 +176,8 @@ function assertConversionError(bytes, imports, msg) {
   assertConversionError(buffer, {}, kTrapMsgs[kTrapTypeError]);
 })();
 
-
 (function InternalDebugTrace() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var sig = builder.addType(kSig_i_dd);
   builder.addImport("mod", "func", sig);
@@ -192,4 +190,19 @@ function assertConversionError(bytes, imports, msg) {
     }
   }).exports.main;
   main();
+})();
+
+(function TestMultipleCorruptFunctions() {
+  print(arguments.callee.name);
+  // Generate a module with multiple corrupt functions. The error message must
+  // be deterministic.
+  var builder = new WasmModuleBuilder();
+  var sig = builder.addType(kSig_v_v);
+  for (let i = 0; i < 10; ++i) {
+    builder.addFunction('f' + i, sig).addBody([kExprEnd]);
+  }
+  assertCompileError(
+      builder.toBuffer(),
+      'Compiling function #0:"f0" failed: ' +
+          'trailing code after function end @+33');
 })();

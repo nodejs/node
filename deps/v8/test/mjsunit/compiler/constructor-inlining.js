@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-restrict-constructor-return --allow-natives-syntax --stress-inline
+// Flags: --allow-natives-syntax --stress-inline
 
-if (this.FLAG_harmony_restrict_constructor_return === undefined)
-  this.FLAG_harmony_restrict_constructor_return = true;
 var counter = 0;
 var deopt_at = -1;
 
@@ -65,17 +63,7 @@ function testConstructorInlining(){
 
   assertEquals(a, new Base(true, a));
   assertEquals(7, new Base(false, 7).x);
-  if (FLAG_harmony_restrict_constructor_return) {
-    // not using assertThrows to ensure proper inlining
-    try {
-      new Base(true, 5);
-      assertTrue(false);
-    } catch (e) {
-      if (!(e instanceof TypeError)) throw e;
-    }
-  } else {
-    assertEquals(5, new Base(true, 5).x);
-  }
+  assertEquals(5, new Base(true, 5).x);
 
   assertEquals(b, new Derived(true, a, b));
   assertEquals(a, new Derived(true, a, undefined));
@@ -87,28 +75,24 @@ function testConstructorInlining(){
   } catch (e) {
     if (!(e instanceof TypeError)) throw e;
   }
-  if (FLAG_harmony_restrict_constructor_return) {
-    try {
-      new Derived(true, 5, a)
-      assertTrue(false);
-    } catch (e) {
-      if (!(e instanceof TypeError)) throw e;
-    }
-  } else {
-    assertEquals(a, new Derived(true, 5, a));
-  }
+  assertEquals(a, new Derived(true, 5, a));
 
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(b, new DerivedDeoptCreate(true, a, b));
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(a, new DerivedDeoptCreate(true, a, undefined));
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(5, new DerivedDeoptCreate(false, 5, 7).x);
+  %PrepareFunctionForOptimization(Derived);
   %OptimizeFunctionOnNextCall(Derived);
   assertEquals(7, new DerivedDeoptCreate(false, 5, 7).y);
 }
 
 testConstructorInlining();
+%PrepareFunctionForOptimization(testConstructorInlining);
 %OptimizeFunctionOnNextCall(testConstructorInlining);
 testConstructorInlining();
 
@@ -116,6 +100,7 @@ var last = undefined;
 for(var i = 0; deopt_at < 0; ++i) {
   deopt_at = i;
   counter = 0;
+  %PrepareFunctionForOptimization(testConstructorInlining);
   %OptimizeFunctionOnNextCall(testConstructorInlining);
   testConstructorInlining();
   if (last !== undefined) {

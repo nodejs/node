@@ -168,7 +168,7 @@ process.on('exit', function() {
   assert.equal(response, 1, 'http request "response" callback was not called');
 });
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   request++;
   res.end();
 }).listen(0, function() {
@@ -176,7 +176,7 @@ const server = http.createServer(function(req, res) {
     agent: null,
     port: this.address().port
   };
-  http.get(options, function(res) {
+  http.get(options, (res) => {
     response++;
     res.resume();
     server.close();
@@ -191,14 +191,14 @@ This test could be greatly simplified by using `common.mustCall` like this:
 const common = require('../common');
 const http = require('http');
 
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 })).listen(0, function() {
   const options = {
     agent: null,
     port: this.address().port
   };
-  http.get(options, common.mustCall(function(res) {
+  http.get(options, common.mustCall((res) => {
     res.resume();
     server.close();
   }));
@@ -223,6 +223,27 @@ countdown.dec();
 countdown.dec(); // The countdown callback will be invoked now.
 ```
 
+#### Testing promises
+
+When writing tests involving promises, it is generally good to wrap the
+`onFulfilled` handler, otherwise the test could successfully finish if the
+promise never resolves (pending promises do not keep the event loop alive). The
+`common` module automatically adds a handler that makes the process crash - and
+hence, the test fail - in the case of an `unhandledRejection` event. It is
+possible to disable it with `common.disableCrashOnUnhandledRejection()` if
+needed.
+
+```javascript
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs').promises;
+
+// Wrap the `onFulfilled` handler in `common.mustCall()`.
+fs.readFile('test-file').then(
+  common.mustCall(
+    (content) => assert.strictEqual(content.toString(), 'test2')
+  ));
+```
 
 ### Flags
 
@@ -260,6 +281,34 @@ assert.throws(
 );
 ```
 
+### Console output
+
+Output written by tests to stdout or stderr, such as with `console.log()` or
+`console.error()`, can be useful when writing tests, as well as for debugging
+them during later maintenance. The output will be suppressed by the test runner
+(`./tools/test.py`) unless the test fails, but will always be displayed when
+running tests directly with `node`. For failing tests, the test runner will
+include the output along with the failed test assertion in the test report.
+
+Some output can help debugging by giving context to test failures. For example,
+when troubleshooting tests that timeout in CI. With no log statements, we have
+no idea where the test got hung up.
+
+There have been cases where tests fail without `console.log()`, and then pass
+when its added, so be cautious about its use, particularly in tests of the I/O
+and streaming APIs.
+
+Excessive use of console output is discouraged as it can overwhelm the display,
+including the Jenkins console and test report displays. Be particularly
+cautious of output in loops, or other contexts where output may be repeated many
+times in the case of failure.
+
+In some tests, it can be unclear whether a `console.log()` statement is required
+as part of the test (message tests, tests that check output from child
+processes, etc.), or is there as a debug aide. If there is any chance of
+confusion, use comments to make the purpose clear.
+
+
 ### ES.Next features
 
 For performance considerations, we only use a selected subset of ES.Next
@@ -289,27 +338,7 @@ functions worked correctly with the `beforeExit` event, then it might be named
 
 ### Web Platform Tests
 
-Some of the tests for the WHATWG URL implementation (named
-`test-whatwg-url-*.js`) are imported from the [Web Platform Tests Project][].
-These imported tests will be wrapped like this:
-
-```js
-/* The following tests are copied from WPT. Modifications to them should be
-   upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
-   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
-*/
-/* eslint-disable */
-
-// Test code
-
-/* eslint-enable */
-```
-
-To improve tests that have been imported this way, please send
-a PR to the upstream project first. When the proposed change is merged in
-the upstream project, send another PR here to update Node.js accordingly.
-Be sure to update the hash in the URL following `WPT Refs:`.
+See [`test/wpt`](../../test/wpt/README.md) for more information.
 
 ## C++ Unit test
 
@@ -361,7 +390,7 @@ Next add the test to the `sources` in the `cctest` target in node.gyp:
 ],
 ```
 
-Note that the only sources that should be included in the cctest target are
+The only sources that should be included in the cctest target are
 actual test or helper source files. There might be a need to include specific
 object files that are compiled by the `node` target and this can be done by
 adding them to the `libraries` section in the cctest target.
@@ -370,6 +399,16 @@ The test can be executed by running the `cctest` target:
 
 ```console
 $ make cctest
+```
+
+A filter can be applied to run single/multiple test cases:
+```console
+$ make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
+```
+
+`cctest` can also be run directly which can be useful when debugging:
+```console
+$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit*
 ```
 
 ### Node.js test fixture
@@ -383,14 +422,16 @@ will depend on what is being tested if this is required or not.
 ### Test Coverage
 
 To generate a test coverage report, see the
-[Test Coverage section of the Pull Requests guide][].
+[Test Coverage section of the Building guide][].
+
+Nightly coverage reports for the Node.js master branch are available at
+https://coverage.nodejs.org/.
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
-[Test Coverage section of the Pull Requests guide]: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage
+[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
 [directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories

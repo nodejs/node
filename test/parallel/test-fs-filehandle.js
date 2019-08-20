@@ -4,8 +4,9 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const fs = process.binding('fs');
-const { stringToFlags } = require('internal/fs');
+const { internalBinding } = require('internal/test/binding');
+const fs = internalBinding('fs');
+const { stringToFlags } = require('internal/fs/utils');
 
 // Verifies that the FileHandle object is garbage collected and that a
 // warning is emitted if it is not closed.
@@ -18,12 +19,15 @@ let fdnum;
   assert.strictEqual(ctx.errno, undefined);
 }
 
-common.expectWarning(
-  'Warning',
-  `Closing file descriptor ${fdnum} on garbage collection`,
-  common.noWarnCode
-);
+common.expectWarning({
+  'internal/test/binding': [
+    'These APIs are for internal testing only. Do not use them.'
+  ],
+  'Warning': [
+    `Closing file descriptor ${fdnum} on garbage collection`
+  ]
+});
 
-gc();  // eslint-disable-line no-undef
+global.gc();
 
 setTimeout(() => {}, 10);

@@ -22,6 +22,7 @@ function testArray() {
   } catch (e) {
   }
 }
+%PrepareFunctionForOptimization(testArray);
 testArray();
 testArray();
 %OptimizeFunctionOnNextCall(testArray);
@@ -33,6 +34,7 @@ function testTypedArray() {
   } catch (e) {
   }
 }
+%PrepareFunctionForOptimization(testTypedArray);
 testTypedArray();
 testTypedArray();
 %OptimizeFunctionOnNextCall(testTypedArray);

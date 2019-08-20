@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "src/interpreter/bytecodes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 
@@ -32,6 +32,8 @@ class BytecodeExpectationsPrinter final {
         module_(false),
         wrap_(true),
         top_level_(false),
+        print_callee_(false),
+        oneshot_opt_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT
@@ -45,6 +47,12 @@ class BytecodeExpectationsPrinter final {
 
   void set_top_level(bool top_level) { top_level_ = top_level; }
   bool top_level() const { return top_level_; }
+
+  void set_print_callee(bool print_callee) { print_callee_ = print_callee; }
+  bool print_callee() { return print_callee_; }
+
+  void set_oneshot_opt(bool oneshot_opt) { oneshot_opt_ = oneshot_opt; }
+  bool oneshot_opt() { return oneshot_opt_; }
 
   void set_test_function_name(const std::string& test_function_name) {
     test_function_name_ = test_function_name;
@@ -62,10 +70,11 @@ class BytecodeExpectationsPrinter final {
                      const BytecodeArrayIterator& bytecode_iterator,
                      int parameter_count) const;
   void PrintSourcePosition(std::ostream& stream,  // NOLINT
-                           SourcePositionTableIterator& source_iterator,
+                           SourcePositionTableIterator&
+                               source_iterator,  // NOLINT(runtime/references)
                            int bytecode_offset) const;
   void PrintV8String(std::ostream& stream,  // NOLINT
-                     i::String* string) const;
+                     i::String string) const;
   void PrintConstant(std::ostream& stream,  // NOLINT
                      i::Handle<i::Object> constant) const;
   void PrintFrameSize(std::ostream& stream,  // NOLINT
@@ -73,7 +82,7 @@ class BytecodeExpectationsPrinter final {
   void PrintBytecodeSequence(std::ostream& stream,  // NOLINT
                              i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintConstantPool(std::ostream& stream,  // NOLINT
-                         i::FixedArray* constant_pool) const;
+                         i::FixedArray constant_pool) const;
   void PrintCodeSnippet(std::ostream& stream,  // NOLINT
                         const std::string& body) const;
   void PrintBytecodeArray(std::ostream& stream,  // NOLINT
@@ -94,6 +103,8 @@ class BytecodeExpectationsPrinter final {
       v8::Local<v8::Module> module) const;
   i::Handle<v8::internal::BytecodeArray> GetBytecodeArrayForScript(
       v8::Local<v8::Script> script) const;
+  i::Handle<i::BytecodeArray> GetBytecodeArrayOfCallee(
+      const char* source_code) const;
 
   i::Isolate* i_isolate() const {
     return reinterpret_cast<i::Isolate*>(isolate_);
@@ -103,6 +114,8 @@ class BytecodeExpectationsPrinter final {
   bool module_;
   bool wrap_;
   bool top_level_;
+  bool print_callee_;
+  bool oneshot_opt_;
   std::string test_function_name_;
 
   static const char* const kDefaultTopFunctionName;

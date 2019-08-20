@@ -10,7 +10,7 @@
 #include <unistd.h>  // NOLINT
 #endif
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "test/cctest/cctest.h"
 
@@ -20,7 +20,7 @@ using v8::IdleTask;
 using v8::Isolate;
 using v8::Task;
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/zone/accounting-allocator.h"
 
 // ASAN isn't configured to return nullptr, so skip all of these tests.
@@ -37,7 +37,7 @@ class AllocationPlatform : public TestPlatform {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~AllocationPlatform() = default;
+  ~AllocationPlatform() override = default;
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 
@@ -99,9 +99,38 @@ TEST(AccountingAllocatorOOM) {
   AllocationPlatform platform;
   v8::internal::AccountingAllocator allocator;
   CHECK(!platform.oom_callback_called);
-  v8::internal::Segment* result = allocator.GetSegment(GetHugeMemoryAmount());
+  v8::internal::Segment* result =
+      allocator.AllocateSegment(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
+}
+
+TEST(AccountingAllocatorCurrentAndMax) {
+  AllocationPlatform platform;
+  v8::internal::AccountingAllocator allocator;
+  static constexpr size_t kAllocationSizes[] = {51, 231, 27};
+  std::vector<v8::internal::Segment*> segments;
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK_EQ(0, allocator.GetMaxMemoryUsage());
+  size_t expected_current = 0;
+  size_t expected_max = 0;
+  for (size_t size : kAllocationSizes) {
+    segments.push_back(allocator.AllocateSegment(size));
+    CHECK_NOT_NULL(segments.back());
+    CHECK_EQ(size, segments.back()->total_size());
+    expected_current += size;
+    if (expected_current > expected_max) expected_max = expected_current;
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+    CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  }
+  for (auto* segment : segments) {
+    expected_current -= segment->total_size();
+    allocator.ReturnSegment(segment);
+    CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
+  }
+  CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());
+  CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
+  CHECK(!platform.oom_callback_called);
 }
 
 TEST(MallocedOperatorNewOOM) {
@@ -110,7 +139,7 @@ TEST(MallocedOperatorNewOOM) {
   CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
   // On failure, this won't return, since a Malloced::New failure is fatal.
   // In that case, behavior is checked in OnMallocedOperatorNewOOM before exit.
-  void* result = v8::internal::Malloced::New(GetHugeMemoryAmount());
+  void* result = v8::internal::Malloced::operator new(GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
@@ -141,24 +170,20 @@ TEST(AlignedAllocOOM) {
 TEST(AllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result;
-  bool success =
-      v8::internal::AllocVirtualMemory(GetHugeMemoryAmount(), nullptr, &result);
+  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
+                                     GetHugeMemoryAmount(), nullptr);
   // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(success, result.IsReserved());
-  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
+  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
 TEST(AlignedAllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result;
-  bool success = v8::internal::AlignedAllocVirtualMemory(
-      GetHugeMemoryAmount(), v8::internal::AllocatePageSize(), nullptr,
-      &result);
+  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
+                                     GetHugeMemoryAmount(), nullptr,
+                                     v8::internal::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(success, result.IsReserved());
-  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
+  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&

@@ -22,7 +22,6 @@
 #include "unicode/utypes.h"
 #include "unicode/utf8.h"
 #include "putilimp.h"
-#include "udataswp.h"
 
 U_CDECL_BEGIN
 
@@ -329,40 +328,6 @@ utrie2_serialize(const UTrie2 *trie,
                  UErrorCode *pErrorCode);
 
 /* Public UTrie2 API: miscellaneous functions ------------------------------- */
-
-/**
- * Get the UTrie version from 32-bit-aligned memory containing the serialized form
- * of either a UTrie (version 1) or a UTrie2 (version 2).
- *
- * @param data a pointer to 32-bit-aligned memory containing the serialized form
- *             of a UTrie, version 1 or 2
- * @param length the number of bytes available at data;
- *               can be more than necessary (see return value)
- * @param anyEndianOk If FALSE, only platform-endian serialized forms are recognized.
- *                    If TRUE, opposite-endian serialized forms are recognized as well.
- * @return the UTrie version of the serialized form, or 0 if it is not
- *         recognized as a serialized UTrie
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_getVersion(const void *data, int32_t length, UBool anyEndianOk);
-
-/**
- * Swap a serialized UTrie2.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_swap(const UDataSwapper *ds,
-            const void *inData, int32_t length, void *outData,
-            UErrorCode *pErrorCode);
-
-/**
- * Swap a serialized UTrie or UTrie2.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_swapAnyVersion(const UDataSwapper *ds,
-                      const void *inData, int32_t length, void *outData,
-                      UErrorCode *pErrorCode);
 
 /**
  * Build a UTrie2 (version 2) from a UTrie (version 1).
@@ -709,6 +674,10 @@ struct UTrie2 {
     UBool padding1;
     int16_t padding2;
     UNewTrie2 *newTrie;     /* builder object; NULL when frozen */
+
+#ifdef UTRIE2_DEBUG
+    const char *name;
+#endif
 };
 
 /**

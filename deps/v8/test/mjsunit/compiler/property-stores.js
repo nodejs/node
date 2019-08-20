@@ -35,16 +35,19 @@ var obj = {x: 0,
            h: function() { this.x = a; }};
 
 var i;
+%PrepareFunctionForOptimization(obj.f);
 for (i = 0; i < 5; i++) { obj.f(); }
 %OptimizeFunctionOnNextCall(obj.f);
 obj.f();
 assertEquals(7, obj.x);
 
+%PrepareFunctionForOptimization(obj.g);
 for (i = 0; i < 5; i++) { obj.g(); }
 %OptimizeFunctionOnNextCall(obj.g);
 obj.g();
 assertEquals(43, obj.x);
 
+%PrepareFunctionForOptimization(obj.h);
 for (i = 0; i < 5; i++) { obj.h(); }
 %OptimizeFunctionOnNextCall(obj.h);
 obj.h();

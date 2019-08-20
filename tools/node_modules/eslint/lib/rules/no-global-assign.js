@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow assignments to native objects or read-only global variables",
             category: "Best Practices",

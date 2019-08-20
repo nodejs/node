@@ -22,22 +22,20 @@
 #ifndef __UTRIE2_IMPL_H__
 #define __UTRIE2_IMPL_H__
 
+#ifdef UCPTRIE_DEBUG
+#include "unicode/umutablecptrie.h"
+#endif
 #include "utrie2.h"
 
 /* Public UTrie2 API implementation ----------------------------------------- */
 
 /*
- * These definitions are mostly needed by utrie2.c,
+ * These definitions are mostly needed by utrie2.cpp,
  * but also by utrie2_serialize() and utrie2_swap().
  */
 
-/*
- * UTrie and UTrie2 signature values,
- * in platform endianness and opposite endianness.
- */
-#define UTRIE_SIG       0x54726965
-#define UTRIE_OE_SIG    0x65697254
-
+// UTrie2 signature values, in platform endianness and opposite endianness.
+// The UTrie2 signature ASCII byte values spell "Tri2".
 #define UTRIE2_SIG      0x54726932
 #define UTRIE2_OE_SIG   0x32697254
 
@@ -145,6 +143,9 @@ struct UNewTrie2 {
     int32_t index1[UNEWTRIE2_INDEX_1_LENGTH];
     int32_t index2[UNEWTRIE2_MAX_INDEX_2_LENGTH];
     uint32_t *data;
+#ifdef UCPTRIE_DEBUG
+    UMutableCPTrie *t3;
+#endif
 
     uint32_t initialValue, errorValue;
     int32_t index2Length, dataCapacity, dataLength;

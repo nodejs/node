@@ -9,10 +9,10 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'shrinkwrap-dev-dependency')
+var pkg = common.pkg
 
 var opts = [
-  '--cache', path.resolve(pkg, 'cache'),
+  '--cache', common.cache,
   '--registry', common.registry
 ]
 

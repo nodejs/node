@@ -46,6 +46,7 @@ function do_eval(str) {
 }
 
 var eval_foo = do_eval('(' + foo + ')');
+%PrepareFunctionForOptimization(eval_foo);
 for (var i = 0; i < 5; i++) assertTrue(eval_foo());
 %OptimizeFunctionOnNextCall(eval_foo);
 assertTrue(eval_foo());

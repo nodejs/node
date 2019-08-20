@@ -18,5 +18,6 @@ function f() {
 
 
 for (var i = 0; i < 2; i++) {
+  %PrepareFunctionForOptimization(f);
   assertEquals(509500, f());
 }

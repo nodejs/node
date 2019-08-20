@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --regexp-mode-modifiers --harmony-regexp-property
+// Flags: --regexp-mode-modifiers
 
 // These regexps are just grepped out of the other tests we already have
 // and the syntax changed from out-of-line i flag to inline i flag.

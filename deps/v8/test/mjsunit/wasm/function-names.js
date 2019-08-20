@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
@@ -40,7 +39,7 @@ var module = builder.instantiate();
     for (var i = 0; i < names.length; ++i) {
       var line = lines[i].trim();
       if (names[i] === null) continue;
-      var printed_name = names[i] === undefined ? "<WASM UNNAMED>" : names[i]
+      var printed_name = names[i];
       var expected_start = "at " + printed_name + " (";
       assertTrue(line.startsWith(expected_start),
           "should start with '" + expected_start + "': '" + line + "'");

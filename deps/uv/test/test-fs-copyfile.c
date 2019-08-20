@@ -23,7 +23,9 @@
 #include "task.h"
 
 #if defined(__unix__) || defined(__POSIX__) || \
-    defined(__APPLE__) || defined(_AIX) || defined(__MVS__)
+    defined(__APPLE__) || defined(__sun) || \
+    defined(_AIX) || defined(__MVS__) || \
+    defined(__HAIKU__)
 #include <unistd.h> /* unlink, etc. */
 #else
 # include <direct.h>
@@ -118,6 +120,13 @@ TEST_IMPL(fs_copyfile) {
   ASSERT(r != 0);
   uv_fs_req_cleanup(&req);
 
+  /* Succeeds if src and dst files are identical. */
+  touch_file(src, 12);
+  r = uv_fs_copyfile(NULL, &req, src, src, 0, NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+  unlink(src);
+
   /* Copies file synchronously. Creates new file. */
   unlink(dst);
   r = uv_fs_copyfile(NULL, &req, fixture, dst, 0, NULL);
@@ -179,10 +188,21 @@ TEST_IMPL(fs_copyfile) {
   unlink(dst);
   r = uv_fs_copyfile(NULL, &req, fixture, dst, UV_FS_COPYFILE_FICLONE_FORCE,
                      NULL);
-  ASSERT(r == 0 || r == UV_ENOSYS || r == UV_ENOTSUP || r == UV_ENOTTY);
+  ASSERT(r == 0 || r == UV_ENOSYS || r == UV_ENOTSUP);
 
   if (r == 0)
     handle_result(&req);
+
+#ifndef _WIN32
+  /* Copying respects permissions/mode. */
+  unlink(dst);
+  touch_file(dst, 0);
+  chmod(dst, S_IRUSR|S_IRGRP|S_IROTH); /* Sets file mode to 444 (read-only). */
+  r = uv_fs_copyfile(NULL, &req, fixture, dst, 0, NULL);
+  ASSERT(req.result == UV_EACCES);
+  ASSERT(r == UV_EACCES);
+  uv_fs_req_cleanup(&req);
+#endif
 
   unlink(dst); /* Cleanup */
   return 0;

@@ -1,0 +1,61 @@
+# Copyright 2019 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+static_library("encoding") {
+  sources = [
+    "encoding/encoding.cc",
+    "encoding/encoding.h",
+  ]
+}
+
+static_library("bindings") {
+  sources = [
+    "bindings/bindings.cc",
+    "bindings/bindings.h",
+  ]
+}
+
+# encoding_test is part of the unittests, defined in
+# test/unittests/BUILD.gn.
+
+import("../../gni/v8.gni")
+
+v8_source_set("encoding_test") {
+  sources = [
+    "encoding/encoding_test.cc",
+    "encoding/encoding_test_helper.h",
+  ]
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+  deps = [
+    ":encoding",
+    "../..:v8_libbase",
+    "../../src/inspector:inspector_string_conversions",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  testonly = true
+}
+
+v8_source_set("bindings_test") {
+  sources = [
+    "bindings/bindings_test.cc",
+    "bindings/bindings_test_helper.h",
+  ]
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+  deps = [
+    ":bindings",
+    "../..:v8_libbase",
+    "../../src/inspector:inspector_string_conversions",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  testonly = true
+}
+

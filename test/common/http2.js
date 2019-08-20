@@ -1,4 +1,4 @@
-/* eslint-disable node-core/required-modules */
+/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 // An HTTP/2 testing tool used to create mock frames for direct testing
@@ -127,8 +127,18 @@ class PingFrame extends Frame {
   }
 }
 
+class AltSvcFrame extends Frame {
+  constructor(size) {
+    const buffers = [Buffer.alloc(size)];
+    super(size, 10, 0, 0);
+    buffers.unshift(this[kFrameData]);
+    this[kFrameData] = Buffer.concat(buffers);
+  }
+}
+
 module.exports = {
   Frame,
+  AltSvcFrame,
   DataFrame,
   HeadersFrame,
   SettingsFrame,

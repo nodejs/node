@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -233,7 +233,7 @@ __ecp_nistz256_add:
 	@ if a+b >= modulus, subtract modulus.
 	@
 	@ But since comparison implies subtraction, we subtract
-	@ modulus and then add it back if subraction borrowed.
+	@ modulus and then add it back if subtraction borrowed.
 
 	subs	$a0,$a0,#-1
 	sbcs	$a1,$a1,#-1
@@ -894,13 +894,13 @@ ecp_nistz256_scatter_w7:
 .Loop_scatter_w7:
 	ldr	$mask,[$inp],#4
 	subs	$index,$index,#1
-	strb	$mask,[$out,#64*0-1]
+	strb	$mask,[$out,#64*0]
 	mov	$mask,$mask,lsr#8
-	strb	$mask,[$out,#64*1-1]
+	strb	$mask,[$out,#64*1]
 	mov	$mask,$mask,lsr#8
-	strb	$mask,[$out,#64*2-1]
+	strb	$mask,[$out,#64*2]
 	mov	$mask,$mask,lsr#8
-	strb	$mask,[$out,#64*3-1]
+	strb	$mask,[$out,#64*3]
 	add	$out,$out,#64*4
 	bne	.Loop_scatter_w7
 
@@ -1222,7 +1222,7 @@ __ecp_nistz256_add_self:
 	@ if a+b >= modulus, subtract modulus.
 	@
 	@ But since comparison implies subtraction, we subtract
-	@ modulus and then add it back if subraction borrowed.
+	@ modulus and then add it back if subtraction borrowed.
 
 	subs	$a0,$a0,#-1
 	sbcs	$a1,$a1,#-1
@@ -1633,7 +1633,7 @@ ___
 $code.=<<___;
 .Ladd_done:
 	add	sp,sp,#32*18+16+16	@ +16 means "skip even over saved r0-r3"
-#if __ARM_ARCH__>=5 || defined(__thumb__)
+#if __ARM_ARCH__>=5 || !defined(__thumb__)
 	ldmia	sp!,{r4-r12,pc}
 #else
 	ldmia	sp!,{r4-r12,lr}

@@ -33,18 +33,22 @@ const s = http.createServer(function(req, res) {
 
 s.listen(0, test);
 
-
 function test() {
   const bufs = [];
-  const client = net.connect(this.address().port, function() {
-    client.write('GET / HTTP/1.1\r\nConnection: close\r\n\r\n');
-  });
+  const client = net.connect(
+    this.address().port,
+    function() {
+      client.write('GET / HTTP/1.1\r\nConnection: close\r\n\r\n');
+    }
+  );
   client.on('data', function(chunk) {
     bufs.push(chunk);
   });
   client.on('end', function() {
-    const head = Buffer.concat(bufs).toString('latin1').split('\r\n')[0];
-    assert.strictEqual('HTTP/1.1 200 Custom Message', head);
+    const head = Buffer.concat(bufs)
+      .toString('latin1')
+      .split('\r\n')[0];
+    assert.strictEqual(head, 'HTTP/1.1 200 Custom Message');
     console.log('ok');
     s.close();
   });

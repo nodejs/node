@@ -557,7 +557,10 @@ UTS46::processUnicode(const UnicodeString &src,
             destArray=dest.getBuffer();
             destLength+=newLength-labelLength;
             labelLimit=labelStart+=newLength+1;
-        } else if(0xdf<=c && c<=0x200d && (c==0xdf || c==0x3c2 || c>=0x200c)) {
+            continue;
+        } else if(c<0xdf) {
+            // pass
+        } else if(c<=0x200d && (c==0xdf || c==0x3c2 || c>=0x200c)) {
             info.isTransDiff=TRUE;
             if(doMapDevChars) {
                 destLength=mapDevChars(dest, labelStart, labelLimit, errorCode);
@@ -565,15 +568,23 @@ UTS46::processUnicode(const UnicodeString &src,
                     return dest;
                 }
                 destArray=dest.getBuffer();
-                // Do not increment labelLimit in case c was removed.
                 // All deviation characters have been mapped, no need to check for them again.
                 doMapDevChars=FALSE;
-            } else {
-                ++labelLimit;
+                // Do not increment labelLimit in case c was removed.
+                continue;
             }
-        } else {
-            ++labelLimit;
+        } else if(U16_IS_SURROGATE(c)) {
+            if(U16_IS_SURROGATE_LEAD(c) ?
+                    (labelLimit+1)==destLength || !U16_IS_TRAIL(destArray[labelLimit+1]) :
+                    labelLimit==labelStart || !U16_IS_LEAD(destArray[labelLimit-1])) {
+                // Map an unpaired surrogate to U+FFFD before normalization so that when
+                // that removes characters we do not turn two unpaired ones into a pair.
+                info.labelErrors|=UIDNA_ERROR_DISALLOWED;
+                dest.setCharAt(labelLimit, 0xfffd);
+                destArray=dest.getBuffer();
+            }
         }
+        ++labelLimit;
     }
     // Permit an empty label at the end (0<labelStart==labelLimit==destLength is ok)
     // but not an empty label elsewhere nor a completely empty domain name.

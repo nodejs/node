@@ -26,7 +26,7 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       switch (entry.type) {
         case 'server':
           assert.strictEqual(entry.streamCount, 1);
-          assert.strictEqual(entry.framesReceived, 5);
+          assert(entry.framesReceived >= 3);
           break;
         case 'client':
           assert.strictEqual(entry.streamCount, 1);
@@ -47,6 +47,14 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       assert.fail('invalid entry name');
   }
 }, 4));
+
+// Should throw if entryTypes are not valid
+{
+  const expectedError = { code: 'ERR_VALID_PERFORMANCE_ENTRY_TYPE' };
+  const wrongEntryTypes = { entryTypes: ['foo', 'bar', 'baz'] };
+  assert.throws(() => obs.observe(wrongEntryTypes), expectedError);
+}
+
 obs.observe({ entryTypes: ['http2'] });
 
 const body =
@@ -54,7 +62,7 @@ const body =
 
 const server = h2.createServer();
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall(onStream));
 
 function onStream(stream, headers, flags) {

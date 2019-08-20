@@ -4,10 +4,10 @@
 
 #include "src/debug/debug-type-profile.h"
 
-#include "src/feedback-vector.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -24,8 +24,9 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
 
   Script::Iterator scripts(isolate);
 
-  while (Script* script = scripts.Next()) {
-    if (!script->IsUserJavaScript()) {
+  for (Script script = scripts.Next(); !script.is_null();
+       script = scripts.Next()) {
+    if (!script.IsUserJavaScript()) {
       continue;
     }
 
@@ -37,21 +38,21 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
     // TODO(franzih): Sort the vectors by script first instead of iterating
     // the list multiple times.
     for (int i = 0; i < list->Length(); i++) {
-      FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
-      SharedFunctionInfo* info = vector->shared_function_info();
-      DCHECK(info->IsSubjectToDebugging());
+      FeedbackVector vector = FeedbackVector::cast(list->Get(i));
+      SharedFunctionInfo info = vector.shared_function_info();
+      DCHECK(info.IsSubjectToDebugging());
 
       // Match vectors with script.
-      if (script != info->script()) {
+      if (script != info.script()) {
         continue;
       }
-      if (info->feedback_metadata()->is_empty() ||
-          !info->feedback_metadata()->HasTypeProfileSlot()) {
+      if (!info.HasFeedbackMetadata() || info.feedback_metadata().is_empty() ||
+          !info.feedback_metadata().HasTypeProfileSlot()) {
         continue;
       }
-      FeedbackSlot slot = vector->GetTypeProfileSlot();
+      FeedbackSlot slot = vector.GetTypeProfileSlot();
       FeedbackNexus nexus(vector, slot);
-      Handle<String> name(info->DebugName(), isolate);
+      Handle<String> name(info.DebugName(), isolate);
       std::vector<int> source_positions = nexus.GetSourcePositions();
       for (int position : source_positions) {
         DCHECK_GE(position, 0);
@@ -69,10 +70,10 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
   return result;
 }
 
-void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
+void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfileMode mode) {
   HandleScope handle_scope(isolate);
 
-  if (mode == debug::TypeProfile::Mode::kNone) {
+  if (mode == debug::TypeProfileMode::kNone) {
     if (!isolate->factory()
              ->feedback_vectors_for_profiling_tools()
              ->IsUndefined(isolate)) {
@@ -86,11 +87,11 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
           isolate->factory()->feedback_vectors_for_profiling_tools());
 
       for (int i = 0; i < list->Length(); i++) {
-        FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
-        SharedFunctionInfo* info = vector->shared_function_info();
-        DCHECK(info->IsSubjectToDebugging());
-        if (info->feedback_metadata()->HasTypeProfileSlot()) {
-          FeedbackSlot slot = vector->GetTypeProfileSlot();
+        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
+        SharedFunctionInfo info = vector.shared_function_info();
+        DCHECK(info.IsSubjectToDebugging());
+        if (info.feedback_metadata().HasTypeProfileSlot()) {
+          FeedbackSlot slot = vector.GetTypeProfileSlot();
           FeedbackNexus nexus(vector, slot);
           nexus.ResetTypeProfile();
         }
@@ -100,11 +101,11 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
       // coverage.
       if (isolate->is_best_effort_code_coverage()) {
         isolate->SetFeedbackVectorsForProfilingTools(
-            isolate->heap()->undefined_value());
+            ReadOnlyRoots(isolate).undefined_value());
       }
     }
   } else {
-    DCHECK_EQ(debug::TypeProfile::Mode::kCollect, mode);
+    DCHECK_EQ(debug::TypeProfileMode::kCollect, mode);
     isolate->MaybeInitializeVectorListFromHeap();
   }
   isolate->set_type_profile_mode(mode);

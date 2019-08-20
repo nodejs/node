@@ -14,7 +14,6 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/safe_math.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -39,6 +38,25 @@ template<class TimeClass>
 class TimeBase;
 }
 
+class TimeConstants {
+ public:
+  static constexpr int64_t kHoursPerDay = 24;
+  static constexpr int64_t kMillisecondsPerSecond = 1000;
+  static constexpr int64_t kMillisecondsPerDay =
+      kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
+  static constexpr int64_t kMicrosecondsPerSecond =
+      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
+  static constexpr int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
+  static constexpr int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
+  static constexpr int64_t kMicrosecondsPerDay =
+      kMicrosecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
+  static constexpr int64_t kNanosecondsPerSecond =
+      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+};
+
 // -----------------------------------------------------------------------------
 // TimeDelta
 //
@@ -50,15 +68,27 @@ class V8_BASE_EXPORT TimeDelta final {
   constexpr TimeDelta() : delta_(0) {}
 
   // Converts units of time to TimeDeltas.
-  static TimeDelta FromDays(int days);
-  static TimeDelta FromHours(int hours);
-  static TimeDelta FromMinutes(int minutes);
-  static TimeDelta FromSeconds(int64_t seconds);
-  static TimeDelta FromMilliseconds(int64_t milliseconds);
-  static TimeDelta FromMicroseconds(int64_t microseconds) {
+  static constexpr TimeDelta FromDays(int days) {
+    return TimeDelta(days * TimeConstants::kMicrosecondsPerDay);
+  }
+  static constexpr TimeDelta FromHours(int hours) {
+    return TimeDelta(hours * TimeConstants::kMicrosecondsPerHour);
+  }
+  static constexpr TimeDelta FromMinutes(int minutes) {
+    return TimeDelta(minutes * TimeConstants::kMicrosecondsPerMinute);
+  }
+  static constexpr TimeDelta FromSeconds(int64_t seconds) {
+    return TimeDelta(seconds * TimeConstants::kMicrosecondsPerSecond);
+  }
+  static constexpr TimeDelta FromMilliseconds(int64_t milliseconds) {
+    return TimeDelta(milliseconds * TimeConstants::kMicrosecondsPerMillisecond);
+  }
+  static constexpr TimeDelta FromMicroseconds(int64_t microseconds) {
     return TimeDelta(microseconds);
   }
-  static TimeDelta FromNanoseconds(int64_t nanoseconds);
+  static constexpr TimeDelta FromNanoseconds(int64_t nanoseconds) {
+    return TimeDelta(nanoseconds / TimeConstants::kNanosecondsPerMicrosecond);
+  }
 
   // Returns the maximum time delta, which should be greater than any reasonable
   // time delta we might compare it to. Adding or subtracting the maximum time
@@ -104,11 +134,6 @@ class V8_BASE_EXPORT TimeDelta final {
   // Converts to/from POSIX time specs.
   static TimeDelta FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
-
-  TimeDelta& operator=(const TimeDelta& other) {
-    delta_ = other.delta_;
-    return *this;
-  }
 
   // Computations with other deltas.
   TimeDelta operator+(const TimeDelta& other) const {
@@ -204,25 +229,9 @@ namespace time_internal {
 // classes. Each subclass provides for strong type-checking to ensure
 // semantically meaningful comparison/math of time values from the same clock
 // source or timeline.
-template<class TimeClass>
-class TimeBase {
+template <class TimeClass>
+class TimeBase : public TimeConstants {
  public:
-  static constexpr int64_t kHoursPerDay = 24;
-  static constexpr int64_t kMillisecondsPerSecond = 1000;
-  static constexpr int64_t kMillisecondsPerDay =
-      kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
-  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
-  static constexpr int64_t kMicrosecondsPerSecond =
-      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
-  static constexpr int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
-  static constexpr int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
-  static constexpr int64_t kMicrosecondsPerDay =
-      kMicrosecondsPerHour * kHoursPerDay;
-  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
-  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
-  static constexpr int64_t kNanosecondsPerSecond =
-      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
-
 #if V8_OS_WIN
   // To avoid overflow in QPC to Microseconds calculations, since we multiply
   // by kMicrosecondsPerSecond, then the QPC value should not exceed

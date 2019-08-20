@@ -45,8 +45,8 @@ function* opt() {
     } else {
       yield;
     }
-}
-
+};
+%PrepareFunctionForOptimization(opt);
 opt();
 // Optimize function to trigger the iteration over jump
 // table.

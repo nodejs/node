@@ -2,7 +2,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const errors = require('internal/errors');
+const { codes: { ERR_OUT_OF_RANGE } } = require('internal/errors');
+const { internalBinding } = require('internal/test/binding');
 const SIZE = 28;
 
 const buf1 = Buffer.allocUnsafe(SIZE);
@@ -173,7 +174,7 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
 ].forEach((args) => {
   common.expectsError(
     () => buf1.fill(...args),
-    { code: 'ERR_INDEX_OUT_OF_RANGE' }
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 });
 
@@ -214,12 +215,10 @@ function genBuffer(size, args) {
   return b.fill(0).fill.apply(b, args);
 }
 
-
 function bufReset() {
   buf1.fill(0);
   buf2.fill(0);
 }
-
 
 // This is mostly accurate. Except write() won't write partial bytes to the
 // string while fill() blindly copies bytes into memory. To account for that an
@@ -237,8 +236,9 @@ function writeToFill(string, offset, end, encoding) {
     end = buf2.length;
   }
 
+  // Should never be reached.
   if (offset < 0 || end > buf2.length)
-    throw new errors.RangeError('ERR_INDEX_OUT_OF_RANGE');
+    throw new ERR_OUT_OF_RANGE();
 
   if (end <= offset)
     return buf2;
@@ -266,7 +266,6 @@ function writeToFill(string, offset, end, encoding) {
   return buf2;
 }
 
-
 function testBufs(string, offset, length, encoding) {
   bufReset();
   buf1.fill.apply(buf1, arguments);
@@ -278,10 +277,10 @@ function testBufs(string, offset, length, encoding) {
 // Make sure these throw.
 common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', -1),
-  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+  { code: 'ERR_OUT_OF_RANGE' });
 common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', 0, 9),
-  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+  { code: 'ERR_OUT_OF_RANGE' });
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');
@@ -304,19 +303,19 @@ Buffer.alloc(8, '');
 
   buf.fill(0);
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 
   buf.fill(null);
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 
   buf.fill(1, 16, 32);
   for (let i = 0; i < 16; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
   for (let i = 16; i < 32; i++)
-    assert.strictEqual(1, buf[i]);
+    assert.strictEqual(buf[i], 1);
   for (let i = 32; i < buf.length; i++)
-    assert.strictEqual(0, buf[i]);
+    assert.strictEqual(buf[i], 0);
 }
 
 {
@@ -329,42 +328,28 @@ Buffer.alloc(8, '');
 // Testing process.binding. Make sure "start" is properly checked for -1 wrap
 // around.
 assert.strictEqual(
-  process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1), -2);
+  internalBinding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1), -2);
 
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
 {
-  let elseWasLast = false;
   common.expectsError(() => {
-    let ctr = 0;
     const end = {
       [Symbol.toPrimitive]() {
-        // We use this condition to get around the check in lib/buffer.js
-        if (ctr === 0) {
-          elseWasLast = false;
-          ctr++;
-          return 1;
-        }
-        elseWasLast = true;
-        // Once buffer.js calls the C++ implementation of fill, return -1
-        return -1;
+        return 1;
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
-    code: 'ERR_INDEX_OUT_OF_RANGE',
-    type: RangeError,
-    message: 'Index out of range'
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "end" argument must be of type number. Received type object'
   });
-  // Make sure -1 is making it to Buffer::Fill().
-  assert.ok(elseWasLast,
-            'internal API changed, -1 no longer in correct location');
 }
 
 // Testing process.binding. Make sure "end" is properly checked for -1 wrap
 // around.
 assert.strictEqual(
-  process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1), -2);
+  internalBinding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1), -2);
 
 // Test that bypassing 'length' won't cause an abort.
 common.expectsError(() => {
@@ -375,9 +360,9 @@ common.expectsError(() => {
   });
   buf.fill('');
 }, {
-  code: 'ERR_INDEX_OUT_OF_RANGE',
+  code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   type: RangeError,
-  message: 'Index out of range'
+  message: 'Attempt to access memory outside buffer bounds'
 });
 
 assert.deepStrictEqual(

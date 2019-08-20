@@ -32,16 +32,16 @@ for my $trial (1, 0) {
   for my $test (0 .. 3) {
     my $tmpl;
     if ($trial == 0) {
-      $tmpl = new Text::Template::Preprocess
+      $tmpl = new Text::Template::Preprocess 
 	(TYPE => 'STRING', SOURCE => $t) or die;
     } else {
       open TF, "< $TMPFILE" or die "Couldn't open test file: $!; aborting";
-      $tmpl = new Text::Template::Preprocess
+      $tmpl = new Text::Template::Preprocess 
 	(TYPE => 'FILEHANDLE', SOURCE => \*TF) or die;
     }
     $tmpl->preprocessor($py) if ($test & 1) == 1;
     my @args = ((($test & 2) == 2) ? (PREPROCESSOR => $pz) : ());
-    my $o = $tmpl->fill_in(@args,
+    my $o = $tmpl->fill_in(@args, 
 			   HASH => {x => 119, 'y' => 23, z => 5});
 #    print STDERR "$o/$result[$test]\n";
     print +(($o eq $result[$test]) ? '' : 'not '), "ok $n\n";

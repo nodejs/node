@@ -1,68 +1,29 @@
 #! /usr/bin/env perl
 # Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright (c) 2012, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
-
-
-##############################################################################
-#                                                                            #
-#  Copyright (c) 2012, Intel Corporation                                     #
-#                                                                            #
-#  All rights reserved.                                                      #
-#                                                                            #
-#  Redistribution and use in source and binary forms, with or without        #
-#  modification, are permitted provided that the following conditions are    #
-#  met:                                                                      #
-#                                                                            #
-#  *  Redistributions of source code must retain the above copyright         #
-#     notice, this list of conditions and the following disclaimer.          #
-#                                                                            #
-#  *  Redistributions in binary form must reproduce the above copyright      #
-#     notice, this list of conditions and the following disclaimer in the    #
-#     documentation and/or other materials provided with the                 #
-#     distribution.                                                          #
-#                                                                            #
-#  *  Neither the name of the Intel Corporation nor the names of its         #
-#     contributors may be used to endorse or promote products derived from   #
-#     this software without specific prior written permission.               #
-#                                                                            #
-#                                                                            #
-#  THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION ""AS IS"" AND ANY          #
-#  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE         #
-#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR        #
-#  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL INTEL CORPORATION OR            #
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,     #
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       #
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        #
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    #
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      #
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        #
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              #
-#                                                                            #
-##############################################################################
-# Developers and authors:                                                    #
-# Shay Gueron (1, 2), and Vlad Krasnov (1)                                   #
-# (1) Intel Architecture Group, Microprocessor and Chipset Development,      #
-#     Israel Development Center, Haifa, Israel                               #
-# (2) University of Haifa                                                    #
-##############################################################################
-# Reference:                                                                 #
-# [1] S. Gueron, "Efficient Software Implementations of Modular              #
-#     Exponentiation", http://eprint.iacr.org/2011/239                       #
-# [2] S. Gueron, V. Krasnov. "Speeding up Big-Numbers Squaring".             #
-#     IEEE Proceedings of 9th International Conference on Information        #
-#     Technology: New Generations (ITNG 2012), 821-823 (2012).               #
-# [3] S. Gueron, Efficient Software Implementations of Modular Exponentiation#
-#     Journal of Cryptographic Engineering 2:31-43 (2012).                   #
-# [4] S. Gueron, V. Krasnov: "[PATCH] Efficient and side channel analysis    #
-#     resistant 512-bit and 1024-bit modular exponentiation for optimizing   #
-#     RSA1024 and RSA2048 on x86_64 platforms",                              #
-#     http://rt.openssl.org/Ticket/Display.html?id=2582&user=guest&pass=guest#
-##############################################################################
-
+#
+# Originally written by Shay Gueron (1, 2), and Vlad Krasnov (1)
+# (1) Intel Corporation, Israel Development Center, Haifa, Israel
+# (2) University of Haifa, Israel
+#
+# References:
+# [1] S. Gueron, "Efficient Software Implementations of Modular
+#     Exponentiation", http://eprint.iacr.org/2011/239
+# [2] S. Gueron, V. Krasnov. "Speeding up Big-Numbers Squaring".
+#     IEEE Proceedings of 9th International Conference on Information
+#     Technology: New Generations (ITNG 2012), 821-823 (2012).
+# [3] S. Gueron, Efficient Software Implementations of Modular Exponentiation
+#     Journal of Cryptographic Engineering 2:31-43 (2012).
+# [4] S. Gueron, V. Krasnov: "[PATCH] Efficient and side channel analysis
+#     resistant 512-bit and 1024-bit modular exponentiation for optimizing
+#     RSA1024 and RSA2048 on x86_64 platforms",
+#     http://rt.openssl.org/Ticket/Display.html?id=2582&user=guest&pass=guest
+#
 # While original submission covers 512- and 1024-bit exponentiation,
 # this module is limited to 512-bit version only (and as such
 # accelerates RSA1024 sign). This is because improvement for longer
@@ -138,14 +99,22 @@ $code.=<<___;
 .type	rsaz_512_sqr,\@function,5
 .align	32
 rsaz_512_sqr:				# 25-29% faster than rsaz_512_mul
+.cfi_startproc
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	subq	\$128+24, %rsp
+.cfi_adjust_cfa_offset	128+24
 .Lsqr_body:
 	movq	$mod, %rbp		# common argument
 	movq	($inp), %rdx
@@ -282,9 +251,9 @@ $code.=<<___;
 	movq	%r9, 16(%rsp)
 	movq	%r10, 24(%rsp)
 	shrq	\$63, %rbx
-	
+
 #third iteration
-	movq	16($inp), %r9	
+	movq	16($inp), %r9
 	movq	24($inp), %rax
 	mulq	%r9
 	addq	%rax, %r12
@@ -532,7 +501,7 @@ $code.=<<___;
 	movl	$times,128+8(%rsp)
 	movq	$out, %xmm0		# off-load
 	movq	%rbp, %xmm1		# off-load
-#first iteration	
+#first iteration
 	mulx	%rax, %r8, %r9
 
 	mulx	16($inp), %rcx, %r10
@@ -568,7 +537,7 @@ $code.=<<___;
 	mov	%rax, (%rsp)
 	mov	%r8, 8(%rsp)
 
-#second iteration	
+#second iteration
 	mulx	16($inp), %rax, %rbx
 	adox	%rax, %r10
 	adcx	%rbx, %r11
@@ -607,8 +576,8 @@ $code.=<<___;
 
 	mov	%r9, 16(%rsp)
 	.byte	0x4c,0x89,0x94,0x24,0x18,0x00,0x00,0x00		# mov	%r10, 24(%rsp)
-	
-#third iteration	
+
+#third iteration
 	.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x18,0x00,0x00,0x00	# mulx	24($inp), $out, %r9
 	adox	$out, %r12
 	adcx	%r9, %r13
@@ -643,8 +612,8 @@ $code.=<<___;
 
 	mov	%r11, 32(%rsp)
 	.byte	0x4c,0x89,0xa4,0x24,0x28,0x00,0x00,0x00		# mov	%r12, 40(%rsp)
-	
-#fourth iteration	
+
+#fourth iteration
 	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x20,0x00,0x00,0x00	# mulx	32($inp), %rax, %rbx
 	adox	%rax, %r14
 	adcx	%rbx, %r15
@@ -676,8 +645,8 @@ $code.=<<___;
 
 	mov	%r13, 48(%rsp)
 	mov	%r14, 56(%rsp)
-	
-#fifth iteration	
+
+#fifth iteration
 	.byte	0xc4,0x62,0xc3,0xf6,0x9e,0x28,0x00,0x00,0x00	# mulx	40($inp), $out, %r11
 	adox	$out, %r8
 	adcx	%r11, %r9
@@ -704,8 +673,8 @@ $code.=<<___;
 
 	mov	%r15, 64(%rsp)
 	mov	%r8, 72(%rsp)
-	
-#sixth iteration	
+
+#sixth iteration
 	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x30,0x00,0x00,0x00	# mulx	48($inp), %rax, %rbx
 	adox	%rax, %r10
 	adcx	%rbx, %r11
@@ -800,15 +769,24 @@ ___
 $code.=<<___;
 
 	leaq	128+24+48(%rsp), %rax
+.cfi_def_cfa	%rax,8
 	movq	-48(%rax), %r15
+.cfi_restore	%r15
 	movq	-40(%rax), %r14
+.cfi_restore	%r14
 	movq	-32(%rax), %r13
+.cfi_restore	%r13
 	movq	-24(%rax), %r12
+.cfi_restore	%r12
 	movq	-16(%rax), %rbp
+.cfi_restore	%rbp
 	movq	-8(%rax), %rbx
+.cfi_restore	%rbx
 	leaq	(%rax), %rsp
+.cfi_def_cfa_register	%rsp
 .Lsqr_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_512_sqr,.-rsaz_512_sqr
 ___
 }
@@ -819,14 +797,22 @@ $code.=<<___;
 .type	rsaz_512_mul,\@function,5
 .align	32
 rsaz_512_mul:
+.cfi_startproc
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	subq	\$128+24, %rsp
+.cfi_adjust_cfa_offset	128+24
 .Lmul_body:
 	movq	$out, %xmm0		# off-load arguments
 	movq	$mod, %xmm1
@@ -896,15 +882,24 @@ $code.=<<___;
 	call	__rsaz_512_subtract
 
 	leaq	128+24+48(%rsp), %rax
+.cfi_def_cfa	%rax,8
 	movq	-48(%rax), %r15
+.cfi_restore	%r15
 	movq	-40(%rax), %r14
+.cfi_restore	%r14
 	movq	-32(%rax), %r13
+.cfi_restore	%r13
 	movq	-24(%rax), %r12
+.cfi_restore	%r12
 	movq	-16(%rax), %rbp
+.cfi_restore	%rbp
 	movq	-8(%rax), %rbx
+.cfi_restore	%rbx
 	leaq	(%rax), %rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_512_mul,.-rsaz_512_mul
 ___
 }
@@ -915,14 +910,22 @@ $code.=<<___;
 .type	rsaz_512_mul_gather4,\@function,6
 .align	32
 rsaz_512_mul_gather4:
+.cfi_startproc
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	subq	\$`128+24+($win64?0xb0:0)`, %rsp
+.cfi_adjust_cfa_offset	`128+24+($win64?0xb0:0)`
 ___
 $code.=<<___	if ($win64);
 	movaps	%xmm6,0xa0(%rsp)
@@ -1048,7 +1051,7 @@ $code.=<<___;
 	movq	56($ap), %rax
 	movq	%rdx, %r14
 	adcq	\$0, %r14
-	
+
 	mulq	%rbx
 	addq	%rax, %r14
 	 movq	($ap), %rax
@@ -1150,7 +1153,7 @@ $code.=<<___;
 	 movq	($ap), %rax
 	adcq	\$0, %rdx
 	addq	%r15, %r14
-	movq	%rdx, %r15	
+	movq	%rdx, %r15
 	adcq	\$0, %r15
 
 	leaq	8(%rdi), %rdi
@@ -1212,7 +1215,7 @@ $code.=<<___ if ($addx);
 
 	mulx	48($ap), %rbx, %r14
 	adcx	%rax, %r12
-	
+
 	mulx	56($ap), %rax, %r15
 	adcx	%rbx, %r13
 	adcx	%rax, %r14
@@ -1348,15 +1351,24 @@ $code.=<<___	if ($win64);
 	lea	0xb0(%rax),%rax
 ___
 $code.=<<___;
+.cfi_def_cfa	%rax,8
 	movq	-48(%rax), %r15
+.cfi_restore	%r15
 	movq	-40(%rax), %r14
+.cfi_restore	%r14
 	movq	-32(%rax), %r13
+.cfi_restore	%r13
 	movq	-24(%rax), %r12
+.cfi_restore	%r12
 	movq	-16(%rax), %rbp
+.cfi_restore	%rbp
 	movq	-8(%rax), %rbx
+.cfi_restore	%rbx
 	leaq	(%rax), %rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_gather4_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_512_mul_gather4,.-rsaz_512_mul_gather4
 ___
 }
@@ -1367,15 +1379,23 @@ $code.=<<___;
 .type	rsaz_512_mul_scatter4,\@function,6
 .align	32
 rsaz_512_mul_scatter4:
+.cfi_startproc
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	mov	$pwr, $pwr
 	subq	\$128+24, %rsp
+.cfi_adjust_cfa_offset	128+24
 .Lmul_scatter4_body:
 	leaq	($tbl,$pwr,8), $tbl
 	movq	$out, %xmm0		# off-load arguments
@@ -1411,7 +1431,7 @@ $code.=<<___;
 ___
 $code.=<<___ if ($addx);
 	jmp	.Lmul_scatter_tail
-	
+
 .align	32
 .Lmulx_scatter:
 	movq	($out), %rdx		# pass b[0]
@@ -1458,15 +1478,24 @@ $code.=<<___;
 	movq	%r15, 128*7($inp)
 
 	leaq	128+24+48(%rsp), %rax
+.cfi_def_cfa	%rax,8
 	movq	-48(%rax), %r15
+.cfi_restore	%r15
 	movq	-40(%rax), %r14
+.cfi_restore	%r14
 	movq	-32(%rax), %r13
+.cfi_restore	%r13
 	movq	-24(%rax), %r12
+.cfi_restore	%r12
 	movq	-16(%rax), %rbp
+.cfi_restore	%rbp
 	movq	-8(%rax), %rbx
+.cfi_restore	%rbx
 	leaq	(%rax), %rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_scatter4_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_512_mul_scatter4,.-rsaz_512_mul_scatter4
 ___
 }
@@ -1477,14 +1506,22 @@ $code.=<<___;
 .type	rsaz_512_mul_by_one,\@function,4
 .align	32
 rsaz_512_mul_by_one:
+.cfi_startproc
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	subq	\$128+24, %rsp
+.cfi_adjust_cfa_offset	128+24
 .Lmul_by_one_body:
 ___
 $code.=<<___ if ($addx);
@@ -1539,15 +1576,24 @@ $code.=<<___;
 	movq	%r15, 56($out)
 
 	leaq	128+24+48(%rsp), %rax
+.cfi_def_cfa	%rax,8
 	movq	-48(%rax), %r15
+.cfi_restore	%r15
 	movq	-40(%rax), %r14
+.cfi_restore	%r14
 	movq	-32(%rax), %r13
+.cfi_restore	%r13
 	movq	-24(%rax), %r12
+.cfi_restore	%r12
 	movq	-16(%rax), %rbp
+.cfi_restore	%rbp
 	movq	-8(%rax), %rbx
+.cfi_restore	%rbx
 	leaq	(%rax), %rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_by_one_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_512_mul_by_one,.-rsaz_512_mul_by_one
 ___
 }
@@ -1824,7 +1870,7 @@ __rsaz_512_mul:
 	movq	56($ap), %rax
 	movq	%rdx, %r14
 	adcq	\$0, %r14
-	
+
 	mulq	%rbx
 	addq	%rax, %r14
 	 movq	($ap), %rax
@@ -1901,7 +1947,7 @@ __rsaz_512_mul:
 	 movq	($ap), %rax
 	adcq	\$0, %rdx
 	addq	%r15, %r14
-	movq	%rdx, %r15	
+	movq	%rdx, %r15
 	adcq	\$0, %r15
 
 	leaq	8(%rdi), %rdi

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,9 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <ctype.h>
+#include "e_os.h"
 #include <limits.h>
-#include <e_os.h>
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include "internal/o_str.h"
@@ -28,14 +27,12 @@ int OPENSSL_memcmp(const void *v1, const void *v2, size_t n)
 char *CRYPTO_strdup(const char *str, const char* file, int line)
 {
     char *ret;
-    size_t size;
 
     if (str == NULL)
         return NULL;
-    size = strlen(str) + 1;
-    ret = CRYPTO_malloc(size, file, line);
+    ret = CRYPTO_malloc(strlen(str) + 1, file, line);
     if (ret != NULL)
-        memcpy(ret, str, size);
+        strcpy(ret, str);
     return ret;
 }
 
@@ -226,7 +223,26 @@ int openssl_strerror_r(int errnum, char *buf, size_t buflen)
 #if defined(_MSC_VER) && _MSC_VER>=1400
     return !strerror_s(buf, buflen, errnum);
 #elif defined(_GNU_SOURCE)
-    return strerror_r(errnum, buf, buflen) != NULL;
+    char *err;
+
+    /*
+     * GNU strerror_r may not actually set buf.
+     * It can return a pointer to some (immutable) static string in which case
+     * buf is left unused.
+     */
+    err = strerror_r(errnum, buf, buflen);
+    if (err == NULL)
+        return 0;
+    /*
+     * If err is statically allocated, err != buf and we need to copy the data.
+     * If err points somewhere inside buf, OPENSSL_strlcpy can handle this,
+     * since src and dest are not annotated with __restrict and the function
+     * reads src byte for byte and writes to dest.
+     * If err == buf we do not have to copy anything.
+     */
+    if (err != buf)
+        OPENSSL_strlcpy(buf, err, buflen);
+    return 1;
 #elif (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || \
       (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600)
     /*
@@ -237,6 +253,7 @@ int openssl_strerror_r(int errnum, char *buf, size_t buflen)
     return !strerror_r(errnum, buf, buflen);
 #else
     char *err;
+
     /* Fall back to non-thread safe strerror()...its all we can do */
     if (buflen < 2)
         return 0;
@@ -244,8 +261,7 @@ int openssl_strerror_r(int errnum, char *buf, size_t buflen)
     /* Can this ever happen? */
     if (err == NULL)
         return 0;
-    strncpy(buf, err, buflen - 1);
-    buf[buflen - 1] = '\0';
+    OPENSSL_strlcpy(buf, err, buflen);
     return 1;
 #endif
 }

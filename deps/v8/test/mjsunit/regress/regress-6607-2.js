@@ -8,6 +8,7 @@ function get(a, i) {
   return a[i];
 }
 
+%PrepareFunctionForOptimization(get);
 get([1,,3], 0);
 get([1,,3], 2);
 %OptimizeFunctionOnNextCall(get);

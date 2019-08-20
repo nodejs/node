@@ -38,6 +38,6 @@ socket.on('listening', common.mustCall(() => {
   socket.close();
 }));
 
-const result = socket.bind(); // should not throw
+const result = socket.bind(); // Should not throw.
 
-assert.strictEqual(result, socket); // should have returned itself
+assert.strictEqual(result, socket); // Should have returned itself.

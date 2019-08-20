@@ -37,10 +37,31 @@
   'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
 
+# Slow variants.
+['variant in [jitless, nooptimization, stress]', {
+  # Slow tests.
+  'kraken/ai-astar': [PASS, SLOW],
+  'kraken/imaging-desaturate': [PASS, SLOW],
+  'octane/box2d': [PASS, SLOW],
+  'octane/code-load': [PASS, SLOW],
+  'octane/crypto': [PASS, SLOW],
+  'octane/gbemu-part1': [PASS, SLOW],
+  'octane/pdfjs': [PASS, SLOW],
+  'octane/regexp': [PASS, SLOW],
+}],
+
 ['variant == stress', {
   # Too slow for stress mode.
   'octane/mandreel': [SKIP],
   'octane/typescript': [SKIP],
+
+  # Too memory hungry on Odroid devices: https://crbug.com/v8/8963
+  'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],
+}],
+
+['variant == jitless', {
+  # Too slow for jitless mode.
+  'octane/zlib': [SKIP],
 }],
 
 ['gc_fuzzer', {
@@ -49,4 +70,14 @@
   'octane/splay': [SKIP],
   'octane/typescript': [SKIP],
 }],  # 'gc_fuzzer'
+
+['predictable', {
+  # https://crbug.com/v8/8537
+  'octane/typescript': [SKIP],
+}],  # 'predictable'
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 ]

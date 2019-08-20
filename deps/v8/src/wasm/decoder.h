@@ -5,13 +5,16 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <cinttypes>
 #include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/flags.h"
-#include "src/signature.h"
-#include "src/utils.h"
+#include "src/base/memory.h"
+#include "src/codegen/signature.h"
+#include "src/flags/flags.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
@@ -28,11 +31,8 @@ namespace wasm {
     if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
   } while (false)
 
-// A {DecodeResult} only stores the failure / success status, but no data. Thus
-// we use {nullptr_t} as data value, such that the only valid data stored in
-// this type is a nullptr.
-// Storing {void} would require template specialization.
-using DecodeResult = Result<std::nullptr_t>;
+// A {DecodeResult} only stores the failure / success status, but no data.
+using DecodeResult = VoidResult;
 
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
@@ -46,6 +46,8 @@ class Decoder {
 
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, start, end, buffer_offset) {}
+  explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
+      : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
           uint32_t buffer_offset = 0)
       : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
@@ -54,12 +56,11 @@ class Decoder {
     DCHECK_EQ(static_cast<uint32_t>(end - start), end - start);
   }
 
-  virtual ~Decoder() {}
+  virtual ~Decoder() = default;
 
   inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
-    DCHECK_LE(pc, end_);
-    if (V8_UNLIKELY(length > static_cast<uint32_t>(end_ - pc))) {
+    if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
       error(pc, msg);
       return false;
     }
@@ -174,30 +175,30 @@ class Decoder {
     return true;
   }
 
-  void error(const char* msg) { errorf(pc_, "%s", msg); }
+  // Do not inline error methods. This has measurable impact on validation time,
+  // see https://crbug.com/910432.
+  void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
+  void V8_NOINLINE error(const uint8_t* pc, const char* msg) {
+    errorf(pc_offset(pc), "%s", msg);
+  }
+  void V8_NOINLINE error(uint32_t offset, const char* msg) {
+    errorf(offset, "%s", msg);
+  }
 
-  void error(const byte* pc, const char* msg) { errorf(pc, "%s", msg); }
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(uint32_t offset, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(offset, format, args);
+    va_end(args);
+  }
 
-  // Sets internal error state.
-  void PRINTF_FORMAT(3, 4) errorf(const byte* pc, const char* format, ...) {
-    // Only report the first error.
-    if (!ok()) return;
-#if DEBUG
-    if (FLAG_wasm_break_on_decoder_error) {
-      base::OS::DebugBreak();
-    }
-#endif
-    constexpr int kMaxErrorMsg = 256;
-    EmbeddedVector<char, kMaxErrorMsg> buffer;
-    va_list arguments;
-    va_start(arguments, format);
-    int len = VSNPrintF(buffer, format, arguments);
-    CHECK_LT(0, len);
-    va_end(arguments);
-    error_msg_.assign(buffer.start(), len);
-    DCHECK_GE(pc, start_);
-    error_offset_ = static_cast<uint32_t>(pc - start_) + buffer_offset_;
-    onFirstError();
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(const uint8_t* pc, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(pc), format, args);
+    va_end(args);
   }
 
   // Behavior triggered on first error, overridden in subclasses.
@@ -218,12 +219,11 @@ class Decoder {
   // Converts the given value to a {Result}, copying the error if necessary.
   template <typename T, typename U = typename std::remove_reference<T>::type>
   Result<U> toResult(T&& val) {
-    Result<U> result(std::forward<T>(val));
     if (failed()) {
-      TRACE("Result error: %s\n", error_msg_.c_str());
-      result.error(error_offset_, std::move(error_msg_));
+      TRACE("Result error: %s\n", error_.message().c_str());
+      return Result<U>{error_};
     }
-    return result;
+    return Result<U>{std::forward<T>(val)};
   }
 
   // Resets the boundaries of this decoder.
@@ -234,23 +234,30 @@ class Decoder {
     pc_ = start;
     end_ = end;
     buffer_offset_ = buffer_offset;
-    error_offset_ = 0;
-    error_msg_.clear();
+    error_ = {};
   }
 
   void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
     Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
-  bool ok() const { return error_msg_.empty(); }
+  bool ok() const { return error_.empty(); }
   bool failed() const { return !ok(); }
   bool more() const { return pc_ < end_; }
+  const WasmError& error() const { return error_; }
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
-  uint32_t pc_offset() const {
-    return static_cast<uint32_t>(pc_ - start_) + buffer_offset_;
+  uint32_t V8_INLINE position() const {
+    return static_cast<uint32_t>(pc_ - start_);
   }
+  // This needs to be inlined for performance (see https://crbug.com/910432).
+  uint32_t V8_INLINE pc_offset(const uint8_t* pc) const {
+    DCHECK_LE(start_, pc);
+    DCHECK_GE(kMaxUInt32 - buffer_offset_, pc - start_);
+    return static_cast<uint32_t>(pc - start_) + buffer_offset_;
+  }
+  uint32_t pc_offset() const { return pc_offset(pc_); }
   uint32_t buffer_offset() const { return buffer_offset_; }
   // Takes an offset relative to the module start and returns an offset relative
   // to the current buffer of the decoder.
@@ -266,10 +273,25 @@ class Decoder {
   const byte* end_;
   // The offset of the current buffer in the module. Needed for streaming.
   uint32_t buffer_offset_;
-  uint32_t error_offset_ = 0;
-  std::string error_msg_;
+  WasmError error_;
 
  private:
+  void verrorf(uint32_t offset, const char* format, va_list args) {
+    // Only report the first error.
+    if (!ok()) return;
+#if DEBUG
+    if (FLAG_wasm_break_on_decoder_error) {
+      base::OS::DebugBreak();
+    }
+#endif
+    constexpr int kMaxErrorMsg = 256;
+    EmbeddedVector<char, kMaxErrorMsg> buffer;
+    int len = VSNPrintF(buffer, format, args);
+    CHECK_LT(0, len);
+    error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
+    onFirstError();
+  }
+
   template <typename IntType, bool validate>
   inline IntType read_little_endian(const byte* pc, const char* msg) {
     if (!validate) {
@@ -277,7 +299,7 @@ class Decoder {
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
       return IntType{0};
     }
-    return ReadLittleEndianValue<IntType>(pc);
+    return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
   template <typename IntType>
@@ -314,14 +336,15 @@ class Decoder {
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
     constexpr int shift = byte_index * 7;
     constexpr bool is_last_byte = byte_index == kMaxLength - 1;
-    DCHECK_LE(pc, end_);
-    const bool at_end = validate && pc == end_;
+    const bool at_end = validate && pc >= end_;
     byte b = 0;
     if (!at_end) {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
-      result = result | ((static_cast<IntType>(b) & 0x7f) << shift);
+      using Unsigned = typename std::make_unsigned<IntType>::type;
+      result = result |
+               (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }
     if (!is_last_byte && (b & 0x80)) {
       // Make sure that we only instantiate the template for valid byte indexes.
@@ -370,27 +393,6 @@ class Decoder {
     }
     return result;
   }
-};
-
-// Reference to a string in the wire bytes.
-class WireBytesRef {
- public:
-  WireBytesRef() : WireBytesRef(0, 0) {}
-  WireBytesRef(uint32_t offset, uint32_t length)
-      : offset_(offset), length_(length) {
-    DCHECK_IMPLIES(offset_ == 0, length_ == 0);
-    DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
-  }
-
-  uint32_t offset() const { return offset_; }
-  uint32_t length() const { return length_; }
-  uint32_t end_offset() const { return offset_ + length_; }
-  bool is_empty() const { return length_ == 0; }
-  bool is_set() const { return offset_ != 0; }
-
- private:
-  uint32_t offset_;
-  uint32_t length_;
 };
 
 #undef TRACE

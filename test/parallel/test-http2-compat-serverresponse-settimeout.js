@@ -12,6 +12,7 @@ server.on('request', (req, res) => {
   res.setTimeout(msecs, common.mustCall(() => {
     res.end();
   }));
+  res.on('timeout', common.mustCall());
   res.on('finish', common.mustCall(() => {
     res.setTimeout(msecs, common.mustNotCall());
     process.nextTick(() => {

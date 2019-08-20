@@ -13,6 +13,8 @@ written to public logs. Public automated callers of this script should
 suppress stdout and stderr and only process contents of the results_file.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import argparse
 import httplib
@@ -222,7 +224,7 @@ def Main():
     with open(options.results_file, "w") as f:
       f.write(json.dumps(results))
   else:
-    print results
+    print(results)
 
 
 if __name__ == "__main__":

@@ -3,17 +3,17 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   method: ['offset', 'slice'],
-  size: [16, 512, 1024, 4096, 16386],
+  size: [16, 512, 4096, 16386],
   n: [1e6]
 });
 
 function compareUsingSlice(b0, b1, len, iter) {
-  for (var i = 0; i < iter; i++)
+  for (let i = 0; i < iter; i++)
     Buffer.compare(b0.slice(1, len), b1.slice(1, len));
 }
 
 function compareUsingOffset(b0, b1, len, iter) {
-  for (var i = 0; i < iter; i++)
+  for (let i = 0; i < iter; i++)
     b0.compare(b1, 1, len, 1, len);
 }
 

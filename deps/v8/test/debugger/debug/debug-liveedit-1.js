@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -34,13 +35,11 @@ eval("var something1 = 25; "
 
 assertEquals("Cat", ChooseAnimal());
 
-var script = Debug.findScript(ChooseAnimal);
-
 var orig_animal = "Cat";
-var patch_pos = script.source.indexOf(orig_animal);
 var new_animal_patch = "Cap' + 'y' + 'bara";
+var new_source =
+    Debug.scriptSource(ChooseAnimal).replace(orig_animal, new_animal_patch);
 
-var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+%LiveEditPatchScript(ChooseAnimal, new_source);
 
 assertEquals("Capybara", ChooseAnimal());

@@ -141,13 +141,13 @@ print +($text1 eq $text2 ? '' : 'not '), "ok $n\n";
 $n++;
 
 # (16) Try the BROKEN routine in safe compartments
-sub my_broken {
+sub my_broken { 
   my %a = @_; $a{error} =~ s/ at.*//s;
   "OK! text:$a{text} error:$a{error} lineno:$a{lineno} arg:$a{arg}" ;
 }
 $templateB = new Text::Template (TYPE => 'STRING', SOURCE => '{die}')
     or die;
-$text1 = $templateB->fill_in(BROKEN => \&my_broken,
+$text1 = $templateB->fill_in(BROKEN => \&my_broken, 
 			     BROKEN_ARG => 'barg',
 			     SAFE => new Safe,
 			     );
@@ -158,3 +158,4 @@ $n++;
 
 
 exit;
+

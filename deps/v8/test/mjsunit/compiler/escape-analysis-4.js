@@ -41,6 +41,7 @@ function g() {
   return "" + f(1,2,3) + " " + h(4,5,6);
 }
 
+%PrepareFunctionForOptimization(g);
 assertEquals("3 [object Arguments]", g());
 assertEquals("3 [object Arguments]", g());
 %OptimizeFunctionOnNextCall(g);

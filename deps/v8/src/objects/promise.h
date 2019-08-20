@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class JSPromise;
+
 // Struct to hold state required for PromiseReactionJob. See the comment on the
 // PromiseReaction below for details on how this is being managed to reduce the
 // memory and allocation overhead. This is the base class for the concrete
@@ -26,23 +28,19 @@ class PromiseReactionJobTask : public Microtask {
  public:
   DECL_ACCESSORS(argument, Object)
   DECL_ACCESSORS(context, Context)
-  // [handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(handler, HeapObject)
-  // [payload]: Usually a JSPromise or a PromiseCapability.
-  DECL_ACCESSORS(payload, HeapObject)
+  // [promise_or_capability]: Either a JSPromise (in case of native promises),
+  // a PromiseCapability (general case), or undefined (in case of await).
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  static const int kArgumentOffset = Microtask::kHeaderSize;
-  static const int kContextOffset = kArgumentOffset + kPointerSize;
-  static const int kHandlerOffset = kContextOffset + kPointerSize;
-  static const int kPayloadOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kPayloadOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      Microtask::kHeaderSize, TORQUE_GENERATED_PROMISE_REACTION_JOB_TASK_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobTask);
+  static const int kSizeOfAllPromiseReactionJobTasks = kHeaderSize;
+  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Fulfill".
@@ -53,8 +51,12 @@ class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseFulfillReactionJobTask);
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      PromiseReactionJobTask::kHeaderSize,
+      TORQUE_GENERATED_PROMISE_FULFILL_REACTION_JOB_TASK_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
+  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Reject".
@@ -65,8 +67,12 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseRejectReactionJobTask);
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      PromiseReactionJobTask::kHeaderSize,
+      TORQUE_GENERATED_PROMISE_REJECT_REACTION_JOB_TASK_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
+  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask);
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -77,19 +83,16 @@ class PromiseResolveThenableJobTask : public Microtask {
   DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(thenable, JSReceiver)
 
-  static const int kContextOffset = Microtask::kHeaderSize;
-  static const int kPromiseToResolveOffset = kContextOffset + kPointerSize;
-  static const int kThenOffset = kPromiseToResolveOffset + kPointerSize;
-  static const int kThenableOffset = kThenOffset + kPointerSize;
-  static const int kSize = kThenableOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      Microtask::kHeaderSize,
+      TORQUE_GENERATED_PROMISE_RESOLVE_THENABLE_JOB_TASK_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseResolveThenableJobTask)
   DECL_PRINTER(PromiseResolveThenableJobTask)
   DECL_VERIFIER(PromiseResolveThenableJobTask)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobTask);
+  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask);
 };
 
 // Struct to hold the state of a PromiseCapability.
@@ -99,18 +102,15 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-  static const int kPromiseOffset = Struct::kHeaderSize;
-  static const int kResolveOffset = kPromiseOffset + kPointerSize;
-  static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kSize = kRejectOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_CAPABILITY_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseCapability)
   DECL_PRINTER(PromiseCapability)
   DECL_VERIFIER(PromiseCapability)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseCapability);
+  OBJECT_CONSTRUCTORS(PromiseCapability, Struct);
 };
 
 // A representation of promise reaction. This differs from the specification
@@ -121,13 +121,10 @@ class PromiseCapability : public Struct {
 // of microtasks. So the size of PromiseReaction and the size of the
 // PromiseReactionJobTask has to be same for this to work.
 //
-// The PromiseReaction::payload field usually holds a JSPromise
-// instance (in the fast case of a native promise) or a PromiseCapability
-// in case of a custom promise. For await we store the JSGeneratorObject
-// here and use custom Code handlers.
-//
-// We need to keep the context in the PromiseReaction so that we can run
-// the default handlers (in case they are undefined) in the proper context.
+// The PromiseReaction::promise_or_capability field can either hold a JSPromise
+// instance (in the fast case of a native promise) or a PromiseCapability in
+// case of a Promise subclass. In case of await it can also be undefined if
+// PromiseHooks are disabled (see https://github.com/tc39/ecma262/pull/1146).
 //
 // The PromiseReaction objects form a singly-linked list, terminated by
 // Smi 0. On the JSPromise instance they are linked in reverse order,
@@ -138,26 +135,21 @@ class PromiseReaction : public Struct {
   enum Type { kFulfill, kReject };
 
   DECL_ACCESSORS(next, Object)
-  // [reject_handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(reject_handler, HeapObject)
-  // [fulfill_handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(fulfill_handler, HeapObject)
-  // [payload]: Usually a JSPromise or a PromiseCapability.
-  DECL_ACCESSORS(payload, HeapObject)
+  // [promise_or_capability]: Either a JSPromise (in case of native promises),
+  // a PromiseCapability (general case), or undefined (in case of await).
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  static const int kNextOffset = Struct::kHeaderSize;
-  static const int kRejectHandlerOffset = kNextOffset + kPointerSize;
-  static const int kFulfillHandlerOffset = kRejectHandlerOffset + kPointerSize;
-  static const int kPayloadOffset = kFulfillHandlerOffset + kPointerSize;
-  static const int kSize = kPayloadOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_REACTION_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)
   DECL_PRINTER(PromiseReaction)
   DECL_VERIFIER(PromiseReaction)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReaction);
+  OBJECT_CONSTRUCTORS(PromiseReaction, Struct);
 };
 
 }  // namespace internal

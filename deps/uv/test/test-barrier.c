@@ -104,3 +104,45 @@ TEST_IMPL(barrier_3) {
 
   return 0;
 }
+
+static void serial_worker(void* data) {
+  uv_barrier_t* barrier;
+
+  barrier = data;
+  if (uv_barrier_wait(barrier) > 0)
+    uv_barrier_destroy(barrier);
+
+  uv_sleep(100);  /* Wait a bit before terminating. */
+}
+
+/* Ensure that uv_barrier_wait returns positive only after all threads have
+ * exited the barrier. If this value is returned too early and the barrier is
+ * destroyed prematurely, then this test may see a crash. */
+TEST_IMPL(barrier_serial_thread) {
+  uv_thread_t threads[4];
+  uv_barrier_t barrier;
+  unsigned i;
+
+  ASSERT(0 == uv_barrier_init(&barrier, ARRAY_SIZE(threads) + 1));
+
+  for (i = 0; i < ARRAY_SIZE(threads); ++i)
+    ASSERT(0 == uv_thread_create(&threads[i], serial_worker, &barrier));
+
+  if (uv_barrier_wait(&barrier) > 0)
+    uv_barrier_destroy(&barrier);
+
+  for (i = 0; i < ARRAY_SIZE(threads); ++i)
+    ASSERT(0 == uv_thread_join(&threads[i]));
+
+  return 0;
+}
+
+/* Single thread uv_barrier_wait should return correct return value. */
+TEST_IMPL(barrier_serial_thread_single) {
+  uv_barrier_t barrier;
+
+  ASSERT(0 == uv_barrier_init(&barrier, 1));
+  ASSERT(0 < uv_barrier_wait(&barrier));
+  uv_barrier_destroy(&barrier);
+  return 0;
+}

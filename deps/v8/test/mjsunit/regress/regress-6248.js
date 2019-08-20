@@ -16,6 +16,8 @@ class C extends Object {
     }
   }
 }
+
+%PrepareFunctionForOptimization(C);
 Object.setPrototypeOf(C, parseInt);
 assertSame(sentinelObject, new C());
 assertSame(sentinelObject, new C());

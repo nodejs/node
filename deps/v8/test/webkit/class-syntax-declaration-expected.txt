@@ -16,10 +16,10 @@ PASS setterValue = undefined; (new A).someSetter = 789; setterValue is 789
 PASS (new A).__proto__ is A.prototype
 PASS A.prototype.constructor is A
 PASS class threw exception SyntaxError: Unexpected end of input.
-PASS class [ threw exception SyntaxError: Unexpected token [.
-PASS class { threw exception SyntaxError: Unexpected token {.
+PASS class [ threw exception SyntaxError: Unexpected token '['.
+PASS class { threw exception SyntaxError: Unexpected token '{'.
 PASS class X { threw exception SyntaxError: Unexpected end of input.
-PASS class X { ( } threw exception SyntaxError: Unexpected token (.
+PASS class X { ( } threw exception SyntaxError: Unexpected token '('.
 PASS class X {} did not throw exception.
 PASS class X { constructor() {} constructor() {} } threw exception SyntaxError: A class may only have one constructor.
 PASS class X { get constructor() {} } threw exception SyntaxError: Class constructor may not be an accessor.

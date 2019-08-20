@@ -7,10 +7,10 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
-var npm = npm = require('../../')
+var npm = require('../../')
 
 var common = require('../common-tap.js')
-var pkg = path.resolve(__dirname, 'shrinkwrap-prod-dependency')
+var pkg = common.pkg
 
 test("shrinkwrap --dev doesn't strip out prod dependencies", function (t) {
   t.plan(1)
@@ -77,7 +77,7 @@ function setup (opts, cb) {
   process.chdir(pkg)
 
   var allOpts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     registry: common.registry
   }
 

@@ -21,7 +21,7 @@ function main({ type, n }) {
     url.format(inputs[name]);
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     url.format(input);
   bench.end(n);
 }

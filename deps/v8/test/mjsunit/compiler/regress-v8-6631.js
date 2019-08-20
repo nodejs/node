@@ -16,6 +16,7 @@ function f() {
   return g(h({}))
 };
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

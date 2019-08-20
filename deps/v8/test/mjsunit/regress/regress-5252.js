@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --ignition-osr
+// Flags: --allow-natives-syntax
 
 (function TestNonLoopyLoop() {
   function f() {
@@ -11,7 +11,9 @@
       return 23;
     } while(false)
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(23, f());
+  %PrepareFunctionForOptimization(f);
   assertEquals(23, f());
 })();
 
@@ -24,6 +26,7 @@
     } while(false)
     return 999;
   }
+  %PrepareFunctionForOptimization(g);
   var gen = g();
   assertEquals({ value:23, done:false }, gen.next());
   assertEquals({ value:42, done:false }, gen.next());

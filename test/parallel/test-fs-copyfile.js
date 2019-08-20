@@ -1,10 +1,15 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const {
+  UV_ENOENT,
+  UV_EEXIST
+} = internalBinding('uv');
 const path = require('path');
 const src = fixtures.path('a.js');
 const dest = path.join(tmpdir.path, 'copyfile.out');
@@ -64,7 +69,7 @@ try {
 } catch (err) {
   assert.strictEqual(err.syscall, 'copyfile');
   assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
-    err.code === 'ENOSYS');
+    err.code === 'ENOSYS' || err.code === 'EXDEV');
   assert.strictEqual(err.path, src);
   assert.strictEqual(err.dest, dest);
 }
@@ -81,14 +86,14 @@ fs.copyFile(src, dest, common.mustCall((err) => {
       assert.strictEqual(err.message,
                          'ENOENT: no such file or directory, copyfile ' +
                          `'${src}' -> '${dest}'`);
-      assert.strictEqual(err.errno, uv.UV_ENOENT);
+      assert.strictEqual(err.errno, UV_ENOENT);
       assert.strictEqual(err.code, 'ENOENT');
       assert.strictEqual(err.syscall, 'copyfile');
     } else {
       assert.strictEqual(err.message,
                          'EEXIST: file already exists, copyfile ' +
                          `'${src}' -> '${dest}'`);
-      assert.strictEqual(err.errno, uv.UV_EEXIST);
+      assert.strictEqual(err.errno, UV_EEXIST);
       assert.strictEqual(err.code, 'EEXIST');
       assert.strictEqual(err.syscall, 'copyfile');
     }

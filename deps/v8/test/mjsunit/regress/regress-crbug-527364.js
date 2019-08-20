@@ -22,5 +22,6 @@ function run_close_to_stack_limit(f) {
 }
 
 var boom = module().f;
+%PrepareFunctionForOptimization(boom);
 %OptimizeFunctionOnNextCall(boom)
 run_close_to_stack_limit(boom);

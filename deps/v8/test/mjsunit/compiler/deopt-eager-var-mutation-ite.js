@@ -22,6 +22,7 @@ function g(b) {
   } // It should trigger an eager deoptimization when b=true.
 }
 
+%PrepareFunctionForOptimization(f);
 f(false); f(false);
 %OptimizeFunctionOnNextCall(f);
 f(false);

@@ -33,7 +33,7 @@ b.fill('1234');
 let s = buffer.SlowBuffer(4);
 s.fill('1234');
 
-let expected = '<Buffer 31 32 ... >';
+let expected = '<Buffer 31 32 ... 2 more bytes>';
 
 assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);
@@ -55,4 +55,16 @@ assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);
 
 b.inspect = undefined;
-assert.strictEqual(util.inspect(b), expected);
+b.prop = new Uint8Array(0);
+assert.strictEqual(
+  util.inspect(b),
+  '<Buffer 31 32, inspect: undefined, prop: Uint8Array []>'
+);
+
+b = Buffer.alloc(0);
+b.prop = 123;
+
+assert.strictEqual(
+  util.inspect(b),
+  '<Buffer prop: 123>'
+);

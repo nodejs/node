@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kMaxTableSize = 10000000;
@@ -133,7 +132,7 @@ let id = (() => {  // identity exported function
 
   builder.addImportedTable("q", "table", 5, 32);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addFunctionTableInit(g, true,
+  builder.addElementSegment(0, g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -179,10 +178,8 @@ let id = (() => {  // identity exported function
   let i = builder.addImport("q", "exp_inc", sig_i_i);
   let t = builder.addImport("q", "exp_ten", sig_i_v);
 
-  builder.setFunctionTableBounds(7, 35);
-  // builder.addFunctionTableInit(g1, true,
-  //     [funcs.mul.index, funcs.add.index, funcs.sub.index]);
-  builder.addFunctionTableInit(g1, true, [a, i, t]);
+  builder.setTableBounds(7, 35);
+  builder.addElementSegment(0, g1, true, [a, i, t]);
 
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -195,41 +192,47 @@ let id = (() => {  // identity exported function
     exp_add: exp_add, exp_inc: exp_inc, exp_ten: exp_ten}});
 
   let table = instance.exports.table;
-  exp_a = table.get(0);
-  exp_i = table.get(1);
-  exp_t = table.get(2);
 
-  assertEquals(exp_a(1, 4), 5);
-  assertEquals(exp_i(8), 9);
-  assertEquals(exp_t(0), 10);
+  print("   initial check");
+
+  function checkTableFunc(index, expected, ...args) {
+    let f = table.get(index);
+    print("  table[" + index + "] = " + f);
+    result = f(...args);
+    print("    -> expect " + expected + ", got " + result);
+    assertEquals(expected, result);
+  }
+
+  checkTableFunc(0, 5, 1, 4);
+  checkTableFunc(1, 9, 8);
+  checkTableFunc(2, 10, 0);
 
   let builder1 = new WasmModuleBuilder();
   let g = builder1.addImportedGlobal("q", "base", kWasmI32);
   let funcs = addFunctions(builder1);
 
   builder1.addImportedTable("q", "table", 6, 36);
-  builder1.addFunctionTableInit(g, true,
+  builder1.addElementSegment(0, g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
 
   function verifyTableFuncs(base) {
-    assertEquals(exp_a(1, 4), 5);
-    assertEquals(exp_i(8), 9);
-    assertEquals(exp_t(0), 10);
+    print("  base = " + base);
+    checkTableFunc(0, 5, 1, 4);
+    checkTableFunc(1, 9, 8);
+    checkTableFunc(2, 10, 0);
 
-    mul = table.get(base);
-    add = table.get(base + 1);
-    sub = table.get(base + 2);
-
-    assertEquals(20, mul(10, 2));
-    assertEquals(12, add(10, 2));
-    assertEquals(8, sub(10, 2));
+    checkTableFunc(base+0, 20, 10, 2); // mul
+    checkTableFunc(base+1, 12, 10, 2); // add
+    checkTableFunc(base+2,  8, 10, 2); // sub
   }
 
   for (let i = 3; i < 10; i++) {
     let instance1 = new WebAssembly.Instance(module1, {q: {base: i, table: table}});
     verifyTableFuncs(i);
-    assertEquals(table.length, table.grow(3));
+    var prev = table.length;
+    assertEquals(prev,     table.grow(3));
+    assertEquals(prev + 3, table.length);
     verifyTableFuncs(i);
 
     assertThrows(() => table.set(table.length, id), RangeError);
@@ -261,7 +264,7 @@ let id = (() => {  // identity exported function
         kExprGetLocal, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
-    builder.addFunctionTableInit(0, false, [0], true);
+    builder.addElementSegment(0, 0, false, [0]);
     return new WebAssembly.Module(builder.toBuffer());
   }
 

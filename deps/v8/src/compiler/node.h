@@ -5,10 +5,10 @@
 #ifndef V8_COMPILER_NODE_H_
 #define V8_COMPILER_NODE_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -23,13 +23,11 @@ class Graph;
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a
 // {NodeMarker} has a range of values that indicate states of a node.
-typedef uint32_t Mark;
-
+using Mark = uint32_t;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
-
+using NodeId = uint32_t;
 
 // A Node is the basic primitive of graphs. Nodes are chained together by
 // input/use chains but by default otherwise contain only an identifying number
@@ -60,7 +58,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   int InputCount() const {
     return has_inline_inputs() ? InlineCountField::decode(bit_field_)
-                               : inputs_.outline_->count_;
+                               : outline_inputs()->count_;
   }
 
 #ifdef DEBUG
@@ -117,7 +115,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   class UseEdges final {
    public:
-    typedef Edge value_type;
+    using value_type = Edge;
 
     class iterator;
     inline iterator begin() const;
@@ -135,7 +133,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   class V8_EXPORT_PRIVATE Uses final {
    public:
-    typedef Node* value_type;
+    using value_type = Node*;
 
     class const_iterator;
     inline const_iterator begin() const;
@@ -159,10 +157,8 @@ class V8_EXPORT_PRIVATE Node final {
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
 
-  // Returns true if addressing related operands (such as load, store, lea)
-  // are the only users of {this} node.
-  bool OwnedByAddressingOperand() const;
   void Print() const;
+  void Print(std::ostream&) const;
 
  private:
   struct Use;
@@ -172,7 +168,9 @@ class V8_EXPORT_PRIVATE Node final {
     Node* node_;
     int count_;
     int capacity_;
-    Node* inputs_[1];
+
+    // Inputs are allocated right behind the OutOfLineInputs instance.
+    inline Node** inputs();
 
     static OutOfLineInputs* New(Zone* zone, int capacity);
     void ExtractFrom(Use* use_ptr, Node** input_ptr, int count);
@@ -191,8 +189,8 @@ class V8_EXPORT_PRIVATE Node final {
       int index = input_index();
       Use* start = this + 1 + index;
       Node** inputs = is_inline_use()
-                          ? reinterpret_cast<Node*>(start)->inputs_.inline_
-                          : reinterpret_cast<OutOfLineInputs*>(start)->inputs_;
+                          ? reinterpret_cast<Node*>(start)->inline_inputs()
+                          : reinterpret_cast<OutOfLineInputs*>(start)->inputs();
       return &inputs[index];
     }
 
@@ -202,8 +200,8 @@ class V8_EXPORT_PRIVATE Node final {
                              : reinterpret_cast<OutOfLineInputs*>(start)->node_;
     }
 
-    typedef BitField<bool, 0, 1> InlineField;
-    typedef BitField<unsigned, 1, 17> InputIndexField;
+    using InlineField = BitField<bool, 0, 1>;
+    using InputIndexField = BitField<unsigned, 1, 17>;
     // Leaving some space in the bitset in case we ever decide to record
     // the output index.
   };
@@ -241,17 +239,29 @@ class V8_EXPORT_PRIVATE Node final {
 
   Node(NodeId id, const Operator* op, int inline_count, int inline_capacity);
 
+  inline Address inputs_location() const;
+
+  Node** inline_inputs() const {
+    return reinterpret_cast<Node**>(inputs_location());
+  }
+  OutOfLineInputs* outline_inputs() const {
+    return *reinterpret_cast<OutOfLineInputs**>(inputs_location());
+  }
+  void set_outline_inputs(OutOfLineInputs* outline) {
+    *reinterpret_cast<OutOfLineInputs**>(inputs_location()) = outline;
+  }
+
   Node* const* GetInputPtrConst(int input_index) const {
-    return has_inline_inputs() ? &(inputs_.inline_[input_index])
-                               : &inputs_.outline_->inputs_[input_index];
+    return has_inline_inputs() ? &(inline_inputs()[input_index])
+                               : &(outline_inputs()->inputs()[input_index]);
   }
   Node** GetInputPtr(int input_index) {
-    return has_inline_inputs() ? &(inputs_.inline_[input_index])
-                               : &inputs_.outline_->inputs_[input_index];
+    return has_inline_inputs() ? &(inline_inputs()[input_index])
+                               : &(outline_inputs()->inputs()[input_index]);
   }
   Use* GetUsePtr(int input_index) {
     Use* ptr = has_inline_inputs() ? reinterpret_cast<Use*>(this)
-                                   : reinterpret_cast<Use*>(inputs_.outline_);
+                                   : reinterpret_cast<Use*>(outline_inputs());
     return &ptr[-1 - input_index];
   }
 
@@ -264,8 +274,8 @@ class V8_EXPORT_PRIVATE Node final {
   void set_op(const Operator* op) { op_ = op; }
 
   // Only NodeProperties should manipulate the type.
-  Type* type() const { return type_; }
-  void set_type(Type* type) { type_ = type; }
+  Type type() const { return type_; }
+  void set_type(Type type) { type_ = type; }
 
   // Only NodeMarkers should manipulate the marks on nodes.
   Mark mark() const { return mark_; }
@@ -277,23 +287,18 @@ class V8_EXPORT_PRIVATE Node final {
 
   void ClearInputs(int start, int count);
 
-  typedef BitField<NodeId, 0, 24> IdField;
-  typedef BitField<unsigned, 24, 4> InlineCountField;
-  typedef BitField<unsigned, 28, 4> InlineCapacityField;
+  using IdField = BitField<NodeId, 0, 24>;
+  using InlineCountField = BitField<unsigned, 24, 4>;
+  using InlineCapacityField = BitField<unsigned, 28, 4>;
   static const int kOutlineMarker = InlineCountField::kMax;
   static const int kMaxInlineCount = InlineCountField::kMax - 1;
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
 
   const Operator* op_;
-  Type* type_;
+  Type type_;
   Mark mark_;
   uint32_t bit_field_;
   Use* first_use_;
-  union {
-    // Inline storage for inputs or out-of-line storage.
-    Node* inline_[1];
-    OutOfLineInputs* outline_;
-  } inputs_;
 
   friend class Edge;
   friend class NodeMarkerBase;
@@ -302,26 +307,27 @@ class V8_EXPORT_PRIVATE Node final {
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
+Address Node::inputs_location() const {
+  return reinterpret_cast<Address>(this) + sizeof(Node);
+}
+
+Node** Node::OutOfLineInputs::inputs() {
+  return reinterpret_cast<Node**>(reinterpret_cast<Address>(this) +
+                                  sizeof(Node::OutOfLineInputs));
+}
 
 std::ostream& operator<<(std::ostream& os, const Node& n);
 
 
 // Typedefs to shorten commonly used Node containers.
-typedef ZoneDeque<Node*> NodeDeque;
-typedef ZoneSet<Node*> NodeSet;
-typedef ZoneVector<Node*> NodeVector;
-typedef ZoneVector<NodeVector> NodeVectorVector;
-
-
-// Helper to extract parameters from Operator1<*> nodes.
-template <typename T>
-static inline const T& OpParameter(const Node* node) {
-  return OpParameter<T>(node->op());
-}
+using NodeDeque = ZoneDeque<Node*>;
+using NodeSet = ZoneSet<Node*>;
+using NodeVector = ZoneVector<Node*>;
+using NodeVectorVector = ZoneVector<NodeVector>;
 
 class Node::InputEdges final {
  public:
-  typedef Edge value_type;
+  using value_type = Edge;
 
   class iterator;
   inline iterator begin() const;
@@ -343,7 +349,7 @@ class Node::InputEdges final {
 
 class V8_EXPORT_PRIVATE Node::Inputs final {
  public:
-  typedef Node* value_type;
+  using value_type = Node*;
 
   class const_iterator;
   inline const_iterator begin() const;
@@ -410,36 +416,35 @@ bool Node::IsDead() const {
 Node::InputEdges Node::input_edges() {
   int inline_count = InlineCountField::decode(bit_field_);
   if (inline_count != kOutlineMarker) {
-    return InputEdges(inputs_.inline_, reinterpret_cast<Use*>(this) - 1,
+    return InputEdges(inline_inputs(), reinterpret_cast<Use*>(this) - 1,
                       inline_count);
   } else {
-    return InputEdges(inputs_.outline_->inputs_,
-                      reinterpret_cast<Use*>(inputs_.outline_) - 1,
-                      inputs_.outline_->count_);
+    return InputEdges(outline_inputs()->inputs(),
+                      reinterpret_cast<Use*>(outline_inputs()) - 1,
+                      outline_inputs()->count_);
   }
 }
 
 Node::Inputs Node::inputs() const {
   int inline_count = InlineCountField::decode(bit_field_);
   if (inline_count != kOutlineMarker) {
-    return Inputs(inputs_.inline_, inline_count);
+    return Inputs(inline_inputs(), inline_count);
   } else {
-    return Inputs(inputs_.outline_->inputs_, inputs_.outline_->count_);
+    return Inputs(outline_inputs()->inputs(), outline_inputs()->count_);
   }
 }
 
 // A forward iterator to visit the edges for the input dependencies of a node.
 class Node::InputEdges::iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
-  typedef Edge value_type;
-  typedef Edge* pointer;
-  typedef Edge& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = Edge;
+  using pointer = Edge*;
+  using reference = Edge&;
 
   iterator() : use_(nullptr), input_ptr_(nullptr) {}
-  iterator(const iterator& other)
-      : use_(other.use_), input_ptr_(other.input_ptr_) {}
+  iterator(const iterator& other) = default;
 
   Edge operator*() const { return Edge(use_, input_ptr_); }
   bool operator==(const iterator& other) const {
@@ -491,13 +496,13 @@ Edge Node::InputEdges::operator[](int index) const {
 // A forward iterator to visit the inputs of a node.
 class Node::Inputs::const_iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t difference_type;
-  typedef Node* value_type;
-  typedef const value_type* pointer;
-  typedef value_type& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = Node*;
+  using pointer = const value_type*;
+  using reference = value_type&;
 
-  const_iterator(const const_iterator& other) : input_ptr_(other.input_ptr_) {}
+  const_iterator(const const_iterator& other) = default;
 
   Node* operator*() const { return *input_ptr_; }
   bool operator==(const const_iterator& other) const {
@@ -545,8 +550,7 @@ Node* Node::Inputs::operator[](int index) const { return input_root_[index]; }
 // A forward iterator to visit the uses edges of a node.
 class Node::UseEdges::iterator final {
  public:
-  iterator(const iterator& other)
-      : current_(other.current_), next_(other.next_) {}
+  iterator(const iterator& other) = default;
 
   Edge operator*() const { return Edge(current_, current_->input_ptr()); }
   bool operator==(const iterator& other) const {
@@ -587,20 +591,11 @@ Node::UseEdges::iterator Node::UseEdges::end() const {
 // A forward iterator to visit the uses of a node.
 class Node::Uses::const_iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef int difference_type;
-  typedef Node* value_type;
-  typedef Node** pointer;
-  typedef Node*& reference;
-
-  const_iterator(const const_iterator& other)
-      : current_(other.current_)
-#ifdef DEBUG
-        ,
-        next_(other.next_)
-#endif
-  {
-  }
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = int;
+  using value_type = Node*;
+  using pointer = Node**;
+  using reference = Node*&;
 
   Node* operator*() const { return current_->from(); }
   bool operator==(const const_iterator& other) const {

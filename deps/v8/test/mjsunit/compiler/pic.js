@@ -47,6 +47,8 @@ function Test(o) {
   assertEquals(99, CallF(o));
 }
 
+%PrepareFunctionForOptimization(Test);
+
 // Create a bunch of objects with different layouts.
 var o1 = { x: 0, y: 1 };
 var o2 = { y: 1, x: 0 };

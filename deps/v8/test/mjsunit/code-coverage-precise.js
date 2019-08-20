@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-opt --no-stress-flush-bytecode
 // Flags: --no-stress-incremental-marking
 // Files: test/mjsunit/code-coverage-utils.js
 
@@ -48,6 +48,19 @@ for (var i = 0; i < 10; i++) {
 }
 `,
 [{"start":0,"end":63,"count":1},{"start":41,"end":48,"count":5}]
+);
+
+TestCoverage(
+"https://crbug.com/927464",
+`
+!function f() {                           // 0000
+  function unused() { nop(); }            // 0100
+  nop();                                  // 0150
+}();                                      // 0200
+`,
+[{"start":0,"end":199,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":52,"end":80,"count":0}]
 );
 
 %DebugTogglePreciseCoverage(false);

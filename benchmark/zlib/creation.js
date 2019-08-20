@@ -4,7 +4,8 @@ const zlib = require('zlib');
 
 const bench = common.createBenchmark(main, {
   type: [
-    'Deflate', 'DeflateRaw', 'Inflate', 'InflateRaw', 'Gzip', 'Gunzip', 'Unzip'
+    'Deflate', 'DeflateRaw', 'Inflate', 'InflateRaw', 'Gzip', 'Gunzip', 'Unzip',
+    'BrotliCompress', 'BrotliDecompress',
   ],
   options: ['true', 'false'],
   n: [5e5]

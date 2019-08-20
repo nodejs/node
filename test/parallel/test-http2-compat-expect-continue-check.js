@@ -20,7 +20,7 @@ server.on('checkContinue', common.mustCall((req, res) => {
   res.writeContinue();
   res.writeHead(200, {});
   res.end(testResBody);
-  // should simply return false if already too late to write
+  // Should simply return false if already too late to write
   assert.strictEqual(res.writeContinue(), false);
   res.on('finish', common.mustCall(
     () => process.nextTick(() => assert.strictEqual(res.writeContinue(), false))

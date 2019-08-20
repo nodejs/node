@@ -344,6 +344,11 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
+uint64_t uv_get_constrained_memory(void) {
+  return 0;  /* Memory constraints are unknown. */
+}
+
+
 void uv_loadavg(double avg[3]) {
   perfstat_cpu_total_t ps_total;
   int result = perfstat_cpu_total(NULL, &ps_total, sizeof(ps_total), 1);
@@ -358,19 +363,15 @@ void uv_loadavg(double avg[3]) {
 
 
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-static char *uv__rawname(char *cp) {
-  static char rawbuf[FILENAME_MAX+1];
-  char *dp = rindex(cp, '/');
+static char* uv__rawname(const char* cp, char (*dst)[FILENAME_MAX+1]) {
+  char* dp;
 
+  dp = rindex(cp, '/');
   if (dp == 0)
     return 0;
 
-  *dp = 0;
-  strcpy(rawbuf, cp);
-  *dp = '/';
-  strcat(rawbuf, "/r");
-  strcat(rawbuf, dp+1);
-  return rawbuf;
+  snprintf(*dst, sizeof(*dst), "%.*s/r%s", (int) (dp - cp), cp, dp + 1);
+  return *dst;
 }
 
 
@@ -399,6 +400,7 @@ static int uv__path_is_a_directory(char* filename) {
  * Returns 0 if AHAFS is mounted, or an error code < 0 on failure
  */
 static int uv__is_ahafs_mounted(void){
+  char rawbuf[FILENAME_MAX+1];
   int rv, i = 2;
   struct vmount *p;
   int size_multiplier = 10;
@@ -432,7 +434,7 @@ static int uv__is_ahafs_mounted(void){
     obj = vmt2dataptr(vmt, VMT_OBJECT);     /* device */
     stub = vmt2dataptr(vmt, VMT_STUB);      /* mount point */
 
-    if (EQ(obj, dev) || EQ(uv__rawname(obj), dev) || EQ(stub, dev)) {
+    if (EQ(obj, dev) || EQ(uv__rawname(obj, &rawbuf), dev) || EQ(stub, dev)) {
       uv__free(p);  /* Found a match */
       return 0;
     }
@@ -453,7 +455,8 @@ static int uv__makedir_p(const char *dir) {
   size_t len;
   int err;
 
-  snprintf(tmp, sizeof(tmp),"%s",dir);
+  /* TODO(bnoordhuis) Check uv__strscpy() return value. */
+  uv__strscpy(tmp, dir, sizeof(tmp));
   len = strlen(tmp);
   if (tmp[len - 1] == '/')
     tmp[len - 1] = 0;
@@ -557,7 +560,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
     sprintf(mon_file_write_string, "CHANGED=YES;WAIT_TYPE=WAIT_IN_SELECT;INFO_LVL=1");
 
   rc = write(*fd, mon_file_write_string, strlen(mon_file_write_string)+1);
-  if (rc < 0)
+  if (rc < 0 && errno != EBUSY)
     return UV__ERR(errno);
 
   return 0;
@@ -702,9 +705,9 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
     else
       p++;
   }
-  strncpy(fname, p, sizeof(fname) - 1);
-  /* Just in case */
-  fname[sizeof(fname) - 1] = '\0';
+
+  /* TODO(bnoordhuis) Check uv__strscpy() return value. */
+  uv__strscpy(fname, p, sizeof(fname));
 
   handle->cb(handle, fname, events, 0);
 }
@@ -730,12 +733,19 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   char cwd[PATH_MAX];
   char absolute_path[PATH_MAX];
   char readlink_cwd[PATH_MAX];
+  struct timeval zt;
+  fd_set pollfd;
 
 
   /* Figure out whether filename is absolute or not */
-  if (filename[0] == '/') {
+  if (filename[0] == '\0') {
+    /* Missing a pathname */
+    return UV_ENOENT;
+  }
+  else if (filename[0] == '/') {
     /* We have absolute pathname */
-    snprintf(absolute_path, sizeof(absolute_path), "%s", filename);
+    /* TODO(bnoordhuis) Check uv__strscpy() return value. */
+    uv__strscpy(absolute_path, filename, sizeof(absolute_path));
   } else {
     /* We have a relative pathname, compose the absolute pathname */
     snprintf(cwd, sizeof(cwd), "/proc/%lu/cwd", (unsigned long) getpid());
@@ -769,6 +779,15 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
+  /* AHAFS wants someone to poll for it to start mointoring.
+   *  so kick-start it so that we don't miss an event in the
+   *  eventuality of an event that occurs in the current loop. */
+  do {
+    memset(&zt, 0, sizeof(zt));
+    FD_ZERO(&pollfd);
+    FD_SET(fd, &pollfd);
+    rc = select(fd + 1, &pollfd, NULL, NULL, &zt);
+  } while (rc == -1 && errno == EINTR);
   return 0;
 #else
   return UV_ENOSYS;
@@ -886,16 +905,20 @@ int uv_set_process_title(const char* title) {
 
 int uv_get_process_title(char* buffer, size_t size) {
   size_t len;
-  len = strlen(process_argv[0]);
   if (buffer == NULL || size == 0)
     return UV_EINVAL;
-  else if (size <= len)
-    return UV_ENOBUFS;
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);
 
-  memcpy(buffer, process_argv[0], len + 1);
+  len = strlen(process_argv[0]);
+  if (size <= len) {
+    uv_mutex_unlock(&process_title_mutex);
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, process_argv[0], len);
+  buffer[len] = '\0';
 
   uv_mutex_unlock(&process_title_mutex);
 
@@ -982,7 +1005,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return UV_ENOMEM;
   }
 
-  strcpy(cpu_id.name, FIRST_CPU);
+  /* TODO(bnoordhuis) Check uv__strscpy() return value. */
+  uv__strscpy(cpu_id.name, FIRST_CPU, sizeof(cpu_id.name));
   result = perfstat_cpu(&cpu_id, ps_cpus, sizeof(perfstat_cpu_t), ncpus);
   if (result == -1) {
     uv__free(ps_cpus);
@@ -1022,6 +1046,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   struct poll_ctl pc;
 
   assert(loop->watchers != NULL);
+  assert(fd >= 0);
 
   events = (struct pollfd*) loop->watchers[loop->nwatchers];
   nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];

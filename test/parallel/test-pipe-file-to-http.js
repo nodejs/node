@@ -25,28 +25,27 @@ const assert = require('assert');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const cp = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = path.join(tmpdir.path || '/tmp', 'big');
+const filename = path.join(tmpdir.path, 'big');
 let count = 0;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   let timeoutId;
-  assert.strictEqual('POST', req.method);
+  assert.strictEqual(req.method, 'POST');
   req.pause();
 
-  setTimeout(function() {
+  setTimeout(() => {
     req.resume();
   }, 1000);
 
-  req.on('data', function(chunk) {
+  req.on('data', (chunk) => {
     count += chunk.length;
   });
 
-  req.on('end', function() {
+  req.on('end', () => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
@@ -56,13 +55,9 @@ const server = http.createServer(function(req, res) {
 });
 server.listen(0);
 
-server.on('listening', function() {
-  const cmd = common.ddCommand(filename, 10240);
-
-  cp.exec(cmd, function(err) {
-    assert.ifError(err);
-    makeRequest();
-  });
+server.on('listening', () => {
+  common.createZeroFilledFile(filename);
+  makeRequest();
 });
 
 function makeRequest() {
@@ -78,14 +73,14 @@ function makeRequest() {
     assert.ifError(err);
   }));
 
-  req.on('response', function(res) {
+  req.on('response', (res) => {
     res.resume();
-    res.on('end', function() {
+    res.on('end', () => {
       server.close();
     });
   });
 }
 
-process.on('exit', function() {
-  assert.strictEqual(1024 * 10240, count);
+process.on('exit', () => {
+  assert.strictEqual(count, 1024 * 10240);
 });

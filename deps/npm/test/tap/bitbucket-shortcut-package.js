@@ -13,7 +13,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'bitbucket-shortcut-package')
+var pkg = common.pkg
 
 var json = {
   name: 'bitbucket-shortcut-package',
@@ -51,7 +51,7 @@ test('bitbucket-shortcut', function (t) {
   })
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'

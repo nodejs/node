@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler.h"
-#include "src/codegen.h"
+#include <vector>
+
+#include "src/base/overflowing-math.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/register-configuration.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/machine-type.h"
-#include "src/objects-inl.h"
-#include "src/register-configuration.h"
+#include "src/objects/objects-inl.h"
+#include "src/wasm/wasm-linkage.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/graph-and-builders.h"
 #include "test/cctest/compiler/value-helper.h"
 
 namespace v8 {
@@ -20,11 +23,9 @@ namespace internal {
 namespace compiler {
 namespace test_run_native_calls {
 
-const auto GetRegConfig = RegisterConfiguration::Default;
-
 namespace {
-typedef float float32;
-typedef double float64;
+using float32 = float;
+using float64 = double;
 
 // Picks a representative pair of integers from the given range.
 // If there are less than {max_pairs} possible pairs, do them all, otherwise try
@@ -84,21 +85,12 @@ class RegisterPairs : public Pairs {
               GetRegConfig()->allocatable_general_codes()) {}
 };
 
-
-// Pairs of double registers.
+// Pairs of float registers.
 class Float32RegisterPairs : public Pairs {
  public:
   Float32RegisterPairs()
-      : Pairs(
-            100,
-#if V8_TARGET_ARCH_ARM
-            // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-            GetRegConfig()->num_allocatable_double_registers() / 2 - 2,
-#else
-            GetRegConfig()->num_allocatable_double_registers(),
-#endif
-            GetRegConfig()->allocatable_double_codes()) {
-  }
+      : Pairs(100, GetRegConfig()->num_allocatable_float_registers(),
+              GetRegConfig()->allocatable_float_codes()) {}
 };
 
 
@@ -112,61 +104,59 @@ class Float64RegisterPairs : public Pairs {
 
 
 // Helper for allocating either an GP or FP reg, or the next stack slot.
-struct Allocator {
-  Allocator(int* gp, int gpc, int* fp, int fpc)
-      : gp_count(gpc),
-        gp_offset(0),
-        gp_regs(gp),
-        fp_count(fpc),
-        fp_offset(0),
-        fp_regs(fp),
-        stack_offset(0) {}
+class Allocator {
+ public:
+  Allocator(int* gp, int gpc, int* fp, int fpc) : stack_offset_(0) {
+    for (int i = 0; i < gpc; ++i) {
+      gp_.push_back(Register::from_code(gp[i]));
+    }
+    for (int i = 0; i < fpc; ++i) {
+      fp_.push_back(DoubleRegister::from_code(fp[i]));
+    }
+    Reset();
+  }
 
-  int gp_count;
-  int gp_offset;
-  int* gp_regs;
-
-  int fp_count;
-  int fp_offset;
-  int* fp_regs;
-
-  int stack_offset;
+  int stack_offset() const { return stack_offset_; }
 
   LinkageLocation Next(MachineType type) {
     if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
-      if (fp_offset < fp_count) {
-        int code = fp_regs[fp_offset++];
-#if V8_TARGET_ARCH_ARM
-        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type.representation() == MachineRepresentation::kFloat32) code *= 2;
-#endif
+      if (reg_allocator_->CanAllocateFP(type.representation())) {
+        int code = reg_allocator_->NextFpReg(type.representation());
         return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     } else {
       // Allocate a general purpose register/stack location.
-      if (gp_offset < gp_count) {
-        return LinkageLocation::ForRegister(gp_regs[gp_offset++], type);
+      if (reg_allocator_->CanAllocateGP()) {
+        int code = reg_allocator_->NextGpReg();
+        return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     }
   }
   int StackWords(MachineType type) {
     int size = 1 << ElementSizeLog2Of(type.representation());
-    return size <= kPointerSize ? 1 : size / kPointerSize;
+    return size <= kSystemPointerSize ? 1 : size / kSystemPointerSize;
   }
   void Reset() {
-    fp_offset = 0;
-    gp_offset = 0;
-    stack_offset = 0;
+    stack_offset_ = 0;
+    reg_allocator_.reset(
+        new wasm::LinkageAllocator(gp_.data(), static_cast<int>(gp_.size()),
+                                   fp_.data(), static_cast<int>(fp_.size())));
   }
+
+ private:
+  std::vector<Register> gp_;
+  std::vector<DoubleRegister> fp_;
+  std::unique_ptr<wasm::LinkageAllocator> reg_allocator_;
+  int stack_offset_;
 };
 
 
@@ -197,7 +187,7 @@ class RegisterConfig {
 
     MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
-    int stack_param_count = params.stack_offset;
+    int stack_param_count = params.stack_offset();
     return new (zone) CallDescriptor(       // --
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
@@ -255,13 +245,15 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), graph->zone(), Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
+                                Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, call_descriptor, graph, schedule);
-  CHECK(!code.is_null());
+                          &info, isolate, call_descriptor, graph,
+                          AssemblerOptions::Default(isolate), schedule)
+                          .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
-    OFStream os(stdout);
+    StdoutStream os;
     code->Disassemble(name, os);
   }
 #endif
@@ -335,28 +327,34 @@ class ArgsBuffer {
     return kTypes;
   }
 
-  Node* MakeConstant(RawMachineAssembler& raw, int32_t value) {
+  Node* MakeConstant(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                     int32_t value) {
     return raw.Int32Constant(value);
   }
 
-  Node* MakeConstant(RawMachineAssembler& raw, int64_t value) {
+  Node* MakeConstant(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                     int64_t value) {
     return raw.Int64Constant(value);
   }
 
-  Node* MakeConstant(RawMachineAssembler& raw, float32 value) {
+  Node* MakeConstant(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                     float32 value) {
     return raw.Float32Constant(value);
   }
 
-  Node* MakeConstant(RawMachineAssembler& raw, float64 value) {
+  Node* MakeConstant(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                     float64 value) {
     return raw.Float64Constant(value);
   }
 
-  Node* LoadInput(RawMachineAssembler& raw, Node* base, int index) {
+  Node* LoadInput(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                  Node* base, int index) {
     Node* offset = raw.Int32Constant(index * sizeof(CType));
     return raw.Load(MachineTypeForC<CType>(), base, offset);
   }
 
-  Node* StoreOutput(RawMachineAssembler& raw, Node* value) {
+  Node* StoreOutput(RawMachineAssembler& raw,  // NOLINT(runtime/references)
+                    Node* value) {
     Node* base = raw.PointerConstant(&output);
     Node* offset = raw.Int32Constant(0);
     return raw.Store(MachineTypeForC<CType>().representation(), base, offset,
@@ -550,9 +548,9 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>(static_cast<uint32_t>(*i) -
-                                              static_cast<uint32_t>(*j));
-      int32_t result = runnable.Call(*i, *j);
+      int32_t expected = static_cast<int32_t>(static_cast<uint32_t>(i) -
+                                              static_cast<uint32_t>(j));
+      int32_t result = runnable.Call(i, j);
       CHECK_EQ(expected, result);
     }
   }
@@ -718,9 +716,9 @@ static uint32_t coeff[] = {1,  2,  3,  5,  7,   11,  13,  17,  19, 23, 29,
                            31, 37, 41, 43, 47,  53,  59,  61,  67, 71, 73,
                            79, 83, 89, 97, 101, 103, 107, 109, 113};
 
-
-static void Build_Int32_WeightedSum(CallDescriptor* desc,
-                                    RawMachineAssembler& raw) {
+static void Build_Int32_WeightedSum(
+    CallDescriptor* desc,
+    RawMachineAssembler& raw) {  // NOLINT(runtime/references)
   Node* result = raw.Int32Constant(0);
   for (int i = 0; i < ParamCount(desc); i++) {
     Node* term = raw.Int32Mul(raw.Parameter(i), raw.Int32Constant(coeff[i]));
@@ -728,7 +726,6 @@ static void Build_Int32_WeightedSum(CallDescriptor* desc,
   }
   raw.Return(result);
 }
-
 
 static int32_t Compute_Int32_WeightedSum(CallDescriptor* desc, int32_t* input) {
   uint32_t result = 0;
@@ -775,12 +772,12 @@ TEST_INT32_WEIGHTEDSUM(11)
 TEST_INT32_WEIGHTEDSUM(17)
 TEST_INT32_WEIGHTEDSUM(19)
 
-
 template <int which>
-static void Build_Select(CallDescriptor* desc, RawMachineAssembler& raw) {
+static void Build_Select(
+    CallDescriptor* desc,
+    RawMachineAssembler& raw) {  // NOLINT(runtime/references)
   raw.Return(raw.Parameter(which));
 }
-
 
 template <typename CType, int which>
 static CType Compute_Select(CallDescriptor* desc, CType* inputs) {
@@ -839,7 +836,8 @@ TEST_INT32_SELECT(63)
 
 TEST(Int64Select_registers) {
   if (GetRegConfig()->num_allocatable_general_registers() < 2) return;
-  if (kPointerSize < 8) return;  // TODO(titzer): int64 on 32-bit platforms
+  // TODO(titzer): int64 on 32-bit platforms
+  if (kSystemPointerSize < 8) return;
 
   int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
   ArgsBuffer<int64_t>::Sig sig(2);
@@ -866,7 +864,7 @@ TEST(Float32Select_registers) {
     return;
   }
 
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
   Float32RegisterPairs pairs;
@@ -910,7 +908,7 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
@@ -950,10 +948,10 @@ TEST(Float64Select_stack_params_return_reg) {
   }
 }
 
-
 template <typename CType, int which>
-static void Build_Select_With_Call(CallDescriptor* desc,
-                                   RawMachineAssembler& raw) {
+static void Build_Select_With_Call(
+    CallDescriptor* desc,
+    RawMachineAssembler& raw) {  // NOLINT(runtime/references)
   Handle<Code> inner = Handle<Code>::null();
   int num_params = ParamCount(desc);
   CHECK_LE(num_params, kMaxParamCount);
@@ -983,7 +981,6 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     raw.Return(call);
   }
 }
-
 
 TEST(Float64StackParamsToStackParams) {
   int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
@@ -1069,7 +1066,7 @@ void MixedParamTest(int start) {
       Handle<Code> wrapper = Handle<Code>::null();
       int32_t expected_ret;
       char bytes[kDoubleSize];
-      V8_ALIGNED(8) char output[kDoubleSize];
+      alignas(8) char output[kDoubleSize];
       int expected_size = 0;
       CSignatureOf<int32_t> csig;
       {
@@ -1109,7 +1106,8 @@ void MixedParamTest(int start) {
           CHECK_NOT_NULL(konst);
 
           inputs[input_count++] = konst;
-          constant += 0x1010101010101010;
+          const int64_t kIncrement = 0x1010101010101010;
+          constant = base::AddWithWraparound(constant, kIncrement);
         }
 
         Node* call = raw.CallN(desc, input_count, inputs);

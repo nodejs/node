@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #if V8_TARGET_ARCH_S390
 
 #include "src/debug/debug.h"
 
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
+#include "src/execution/frames-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +39,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
   __ LoadP(r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(
+  __ LoadLogicalHalfWordP(
       r2, FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRR(r4, r2);
 

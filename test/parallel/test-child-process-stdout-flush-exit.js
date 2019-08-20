@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// if child process output to console and exit
+// If child process output to console and exit
 if (process.argv[2] === 'child') {
   console.log('hello');
   for (let i = 0; i < 200; i++) {
@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
     assert.fail(`Unexpected parent stderr: ${data}`);
   });
 
-  // check if we receive both 'hello' at start and 'goodbye' at end
+  // Check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(data) {
     stdout += data;

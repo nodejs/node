@@ -19,10 +19,8 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class BuiltinDeserializerAllocator;
 class Callable;
-class CompilationInfo;
-class CompilationJob;
+class UnoptimizedCompilationJob;
 class FunctionLiteral;
 class ParseInfo;
 class RootVisitor;
@@ -37,38 +35,39 @@ class InterpreterAssembler;
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
-  virtual ~Interpreter() {}
+  virtual ~Interpreter() = default;
 
   // Returns the interrupt budget which should be used for the profiler counter.
-  static int InterruptBudget();
+  V8_EXPORT_PRIVATE static int InterruptBudget();
 
   // Creates a compilation job which will generate bytecode for |literal|.
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.
-  static CompilationJob* NewCompilationJob(
+  static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
-
-  // Return bytecode handler for |bytecode| and |operand_scale|.
-  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
+  V8_EXPORT_PRIVATE Code GetBytecodeHandler(Bytecode bytecode,
+                                            OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
-                          Code* handler);
+                          Code handler);
 
   // GC support.
   void IterateDispatchTable(RootVisitor* v);
 
-  // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  const char* LookupNameOfBytecodeHandler(Code* code);
+  // Disassembler support.
+  V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+
+  void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
+
+  void Initialize();
 
   bool IsDispatchTableInitialized() const;
 
@@ -80,10 +79,14 @@ class Interpreter {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
+  Address address_of_interpreter_entry_trampoline_instruction_start() const {
+    return reinterpret_cast<Address>(
+        &interpreter_entry_trampoline_instruction_start_);
+  }
+
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
-  friend class v8::internal::BuiltinDeserializerAllocator;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
@@ -98,6 +101,7 @@ class Interpreter {
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
+  Address interpreter_entry_trampoline_instruction_start_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

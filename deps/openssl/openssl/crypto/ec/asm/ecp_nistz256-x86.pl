@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"ecp_nistz256-x86.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $sse2=0;
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -1179,7 +1179,7 @@ for ($i=0;$i<7;$i++) {
 	&mov	("esi",&wparam(1));
 	&mov	("ebp",&wparam(2));
 
-	&lea	("edi",&DWP(-1,"edi","ebp"));
+	&lea	("edi",&DWP(0,"edi","ebp"));
 	&mov	("ebp",64/4);
 &set_label("scatter_w7_loop");
 	&mov	("eax",&DWP(0,"esi"));

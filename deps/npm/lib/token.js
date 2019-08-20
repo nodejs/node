@@ -1,17 +1,23 @@
 'use strict'
-const profile = require('npm-profile')
+
+const profile = require('libnpm/profile')
 const npm = require('./npm.js')
+const figgyPudding = require('figgy-pudding')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
-const Table = require('cli-table2')
+const otplease = require('./utils/otplease.js')
+const Table = require('cli-table3')
 const Bluebird = require('bluebird')
-const isCidrV4 = require('is-cidr').isCidrV4
-const isCidrV6 = require('is-cidr').isCidrV6
+const isCidrV4 = require('is-cidr').v4
+const isCidrV6 = require('is-cidr').v6
 const readUserInfo = require('./utils/read-user-info.js')
 const ansistyles = require('ansistyles')
 const log = require('npmlog')
 const pulseTillDone = require('./utils/pulse-till-done.js')
 
 module.exports = token
+
+token._validateCIDRList = validateCIDRList
 
 token.usage =
   'npm token list\n' +
@@ -74,14 +80,46 @@ function generateTokenIds (tokens, minLength) {
   return byId
 }
 
+const TokenConfig = figgyPudding({
+  auth: {},
+  registry: {},
+  otp: {},
+  cidr: {},
+  'read-only': {},
+  json: {},
+  parseable: {}
+})
+
 function config () {
-  const conf = {
-    json: npm.config.get('json'),
-    parseable: npm.config.get('parseable'),
-    registry: npm.config.get('registry'),
-    otp: npm.config.get('otp')
+  let conf = TokenConfig(npmConfig())
+  const creds = npm.config.getCredentialsByURI(conf.registry)
+  if (creds.token) {
+    conf = conf.concat({
+      auth: { token: creds.token }
+    })
+  } else if (creds.username) {
+    conf = conf.concat({
+      auth: {
+        basic: {
+          username: creds.username,
+          password: creds.password
+        }
+      }
+    })
+  } else if (creds.auth) {
+    const auth = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
+    conf = conf.concat({
+      auth: {
+        basic: {
+          username: auth[0],
+          password: auth[1]
+        }
+      }
+    })
+  } else {
+    conf = conf.concat({ auth: {} })
+    conf.auth = {}
   }
-  conf.auth = npm.config.getCredentialsByURI(conf.registry)
   if (conf.otp) conf.auth.otp = conf.otp
   return conf
 }
@@ -149,8 +187,9 @@ function rm (args) {
       }
     })
     return Bluebird.map(toRemove, (key) => {
-      progress.info('token', 'removing', key)
-      profile.removeToken(key, conf).then(() => profile.completeWork(1))
+      return otplease(conf, conf => {
+        return profile.removeToken(key, conf)
+      })
     })
   })).then(() => {
     if (conf.json) {
@@ -165,21 +204,15 @@ function rm (args) {
 
 function create (args) {
   const conf = config()
-  const cidr = npm.config.get('cidr')
-  const readonly = npm.config.get('read-only')
+  const cidr = conf.cidr
+  const readonly = conf['read-only']
 
   const validCIDR = validateCIDRList(cidr)
   return readUserInfo.password().then((password) => {
     log.info('token', 'creating')
-    return profile.createToken(password, readonly, validCIDR, conf).catch((ex) => {
-      if (ex.code !== 'EOTP') throw ex
-      log.info('token', 'failed because it requires OTP')
-      return readUserInfo.otp('Authenticator provided OTP:').then((otp) => {
-        conf.auth.otp = otp
-        log.info('token', 'creating with OTP')
-        return pulseTillDone.withPromise(profile.createToken(password, readonly, validCIDR, conf))
-      })
-    })
+    return pulseTillDone.withPromise(otplease(conf, conf => {
+      return profile.createToken(password, readonly, validCIDR, conf)
+    }))
   }).then((result) => {
     delete result.key
     delete result.updated
@@ -205,7 +238,8 @@ function validateCIDR (cidr) {
 }
 
 function validateCIDRList (cidrs) {
-  const list = Array.isArray(cidrs) ? cidrs : cidrs ? cidrs.split(/,\s*/) : []
+  const maybeList = cidrs ? (Array.isArray(cidrs) ? cidrs : [cidrs]) : []
+  const list = maybeList.length === 1 ? maybeList[0].split(/,\s*/) : maybeList
   list.forEach(validateCIDR)
   return list
 }

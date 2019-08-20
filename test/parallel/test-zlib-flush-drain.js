@@ -12,7 +12,7 @@ const opts = {
 
 const deflater = zlib.createDeflate(opts);
 
-// shim deflater.flush so we can count times executed
+// Shim deflater.flush so we can count times executed
 let flushCount = 0;
 let drainCount = 0;
 
@@ -44,5 +44,5 @@ process.once('exit', function() {
   assert.strictEqual(
     drainCount, 1);
   assert.strictEqual(
-    flushCount, 2);
+    flushCount, 1);
 });

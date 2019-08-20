@@ -15,25 +15,25 @@ $ npm install supports-color
 ```js
 const supportsColor = require('supports-color');
 
-if (supportsColor) {
-	console.log('Terminal supports color');
+if (supportsColor.stdout) {
+	console.log('Terminal stdout supports color');
 }
 
-if (supportsColor.has256) {
-	console.log('Terminal supports 256 colors');
+if (supportsColor.stdout.has256) {
+	console.log('Terminal stdout supports 256 colors');
 }
 
-if (supportsColor.has16m) {
-	console.log('Terminal supports 16 million colors (truecolor)');
+if (supportsColor.stderr.has16m) {
+	console.log('Terminal stderr supports 16 million colors (truecolor)');
 }
 ```
 
 
 ## API
 
-Returns an `Object`, or `false` if color is not supported.
+Returns an `Object` with a `stdout` and `stderr` property for testing either streams. Each property is an `Object`, or `false` if color is not supported.
 
-The returned object specifies a level of support for color through a `.level` property and a corresponding flag:
+The `stdout`/`stderr` objects specifies a level of support for color through a `.level` property and a corresponding flag:
 
 - `.level = 1` and `.hasBasic = true`: Basic color support (16 colors)
 - `.level = 2` and `.has256 = true`: 256 color support

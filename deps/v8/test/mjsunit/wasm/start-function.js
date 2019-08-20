@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function instantiate(sig, body) {
@@ -46,8 +45,8 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
-      'WebAssembly.Module(): Wasm decoding failed: ' +
-          'function index 1 out of bounds (1 entry) @+20');
+      'WebAssembly.Module(): ' +
+          'start function index 1 out of bounds (1 entry) @+20');
 })();
 
 
@@ -63,8 +62,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
-      'WebAssembly.Module(): Wasm decoding failed: ' +
-          'unexpected section: Start @+27');
+      'WebAssembly.Module(): unexpected section <Start> @+27');
 })();
 
 
@@ -126,15 +124,23 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 (function testStartFunctionThrowsExplicitly() {
   print('testStartFunctionThrowsExplicitly');
   let error = new Error('my explicit error');
-  function throw_fn() {
-    throw error;
-  }
+  var ffi = {
+    foo: {
+      throw_fn: function() {
+        throw error;
+      }
+    }
+  };
   let builder = new WasmModuleBuilder();
-  builder.addImport('foo', 'bar', kSig_v_v);
+  builder.addImport('foo', 'throw_fn', kSig_v_v);
   let func = builder.addFunction('', kSig_v_v).addBody([kExprCallFunction, 0]);
   builder.addStart(func.index);
 
   assertThrowsEquals(() => builder.instantiate(ffi), error);
+  assertPromiseResult(builder.asyncInstantiate(ffi), assertUnreachable,
+    e => assertSame(e, error));
+  assertPromiseResult(WebAssembly.instantiate(builder.toModule(), ffi),
+    assertUnreachable, e => assertSame(e, error));
 })();
 
 (function testStartFunctionThrowsImplicitly() {
@@ -145,4 +151,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
   assertThrows(
       () => builder.instantiate(), WebAssembly.RuntimeError, /unreachable/);
+  assertThrowsAsync(builder.asyncInstantiate(), WebAssembly.RuntimeError);
+  assertThrowsAsync(
+      WebAssembly.instantiate(builder.toModule()), WebAssembly.RuntimeError);
 })();

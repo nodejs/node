@@ -11,5 +11,6 @@ function f() {
   return !global;
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 assertTrue(f());

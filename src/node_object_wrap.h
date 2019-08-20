@@ -23,7 +23,7 @@
 #define SRC_NODE_OBJECT_WRAP_H_
 
 #include "v8.h"
-#include <assert.h>
+#include <cassert>
 
 
 namespace node {
@@ -38,7 +38,6 @@ class ObjectWrap {
   virtual ~ObjectWrap() {
     if (persistent().IsEmpty())
       return;
-    assert(persistent().IsNearDeath());
     persistent().ClearWeak();
     persistent().Reset();
   }
@@ -81,9 +80,8 @@ class ObjectWrap {
   }
 
 
-  inline void MakeWeak(void) {
+  inline void MakeWeak() {
     persistent().SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-    persistent().MarkIndependent();
   }
 
   /* Ref() marks the object as being attached to an event loop.

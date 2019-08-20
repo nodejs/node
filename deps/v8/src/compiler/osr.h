@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -20,7 +20,7 @@ class Frame;
 // details of the frame layout.
 class OsrHelper {
  public:
-  explicit OsrHelper(CompilationInfo* info);
+  explicit OsrHelper(OptimizedCompilationInfo* info);
 
   // Prepares the frame w.r.t. OSR.
   void SetupFrame(Frame* frame);

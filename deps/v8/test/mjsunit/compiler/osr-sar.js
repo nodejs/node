@@ -39,6 +39,7 @@ function test() {
   }
 
   var K3 = 0x80000000;
+  %PrepareFunctionForOptimization(SarShr);
   assertEquals(-2, SarShr(K3 | 0));
   assertEquals(-2, SarShr(K3 | 0));
   %OptimizeFunctionOnNextCall(SarShr);

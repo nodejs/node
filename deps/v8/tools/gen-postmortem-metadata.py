@@ -46,6 +46,9 @@
 # the generated libv8 binary.
 #
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import re
 import sys
 
@@ -57,6 +60,9 @@ consts_misc = [
     { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
     { 'name': 'APIObjectType',          'value': 'JS_API_OBJECT_TYPE' },
     { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
+
+    { 'name': 'FirstContextType',     'value': 'FIRST_CONTEXT_TYPE' },
+    { 'name': 'LastContextType',     'value': 'LAST_CONTEXT_TYPE' },
 
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
@@ -79,7 +85,10 @@ consts_misc = [
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
-    { 'name': 'PointerSizeLog2',        'value': 'kPointerSizeLog2' },
+    { 'name': 'SystemPointerSize',      'value': 'kSystemPointerSize' },
+    { 'name': 'SystemPointerSizeLog2',  'value': 'kSystemPointerSizeLog2' },
+    { 'name': 'TaggedSize',             'value': 'kTaggedSize' },
+    { 'name': 'TaggedSizeLog2',         'value': 'kTaggedSizeLog2' },
 
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
@@ -91,8 +100,6 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
-    { 'name': 'prop_idx_first',
-        'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -123,26 +130,14 @@ consts_misc = [
         'value': 'PropertyDetails::RepresentationField::kMask' },
     { 'name': 'prop_representation_shift',
         'value': 'PropertyDetails::RepresentationField::kShift' },
-    { 'name': 'prop_representation_integer8',
-        'value': 'Representation::Kind::kInteger8' },
-    { 'name': 'prop_representation_uinteger8',
-        'value': 'Representation::Kind::kUInteger8' },
-    { 'name': 'prop_representation_integer16',
-        'value': 'Representation::Kind::kInteger16' },
-    { 'name': 'prop_representation_uinteger16',
-        'value': 'Representation::Kind::kUInteger16' },
     { 'name': 'prop_representation_smi',
         'value': 'Representation::Kind::kSmi' },
-    { 'name': 'prop_representation_integer32',
-        'value': 'Representation::Kind::kInteger32' },
     { 'name': 'prop_representation_double',
         'value': 'Representation::Kind::kDouble' },
     { 'name': 'prop_representation_heapobject',
         'value': 'Representation::Kind::kHeapObject' },
     { 'name': 'prop_representation_tagged',
         'value': 'Representation::Kind::kTagged' },
-    { 'name': 'prop_representation_external',
-        'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
         'value': 'DescriptorArray::kEntryKeyIndex' },
@@ -170,6 +165,8 @@ consts_misc = [
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
+    { 'name': 'class_Map__instance_descriptors_offset',
+       'value': 'Map::kInstanceDescriptorsOffset' },
 
     { 'name': 'off_fp_context_or_frame_type',
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
@@ -184,25 +181,18 @@ consts_misc = [
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
-    { 'name': 'scopeinfo_idx_nstacklocals',
-        'value': 'ScopeInfo::kStackLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
-    { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::StartPositionBits::kMask' },
-    { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::StartPositionBits::kShift' },
+    { 'name': 'jsarray_buffer_was_detached_mask',
+        'value': 'JSArrayBuffer::WasDetachedBit::kMask' },
+    { 'name': 'jsarray_buffer_was_detached_shift',
+        'value': 'JSArrayBuffer::WasDetachedBit::kShift' },
 
-    { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeutered::kMask' },
-    { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeutered::kShift' },
-
-    { 'name': 'context_idx_closure',
-        'value': 'Context::CLOSURE_INDEX' },
+    { 'name': 'context_idx_scope_info',
+        'value': 'Context::SCOPE_INFO_INDEX' },
     { 'name': 'context_idx_native',
         'value': 'Context::NATIVE_CONTEXT_INDEX' },
     { 'name': 'context_idx_prev',
@@ -211,6 +201,9 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
+    { 'name': 'native_context_embedder_data_offset',
+        'value': 'Internals::kNativeContextEmbedderDataOffset' },
+
 
     { 'name': 'namedictionaryshape_prefix_size',
         'value': 'NameDictionaryShape::kPrefixSize' },
@@ -231,6 +224,20 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
     { 'name': 'simplenumberdictionaryshape_entry_size',
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
+
+    { 'name': 'class_SharedFunctionInfo__function_data__Object',
+        'value': 'SharedFunctionInfo::kFunctionDataOffset' },
+
+    { 'name': 'class_ConsString__first_offset__int',
+        'value': 'ConsString::kFirstOffset' },
+    { 'name': 'class_ConsString__second_offset__int',
+        'value': 'ConsString::kSecondOffset' },
+    { 'name': 'class_SlicedString__offset_offset__int',
+        'value': 'SlicedString::kOffsetOffset' },
+    { 'name': 'class_ThinString__actual_offset__int',
+        'value': 'ThinString::kActualOffset' },
 ];
 
 #
@@ -243,13 +250,16 @@ consts_misc = [
 #
 extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
+    'JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
-    'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
-    'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
-    'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
+    'JSArrayBuffer, backing_store, uintptr_t, kBackingStoreOffset',
+    'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
+    'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
+    'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
+    'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
@@ -260,22 +270,19 @@ extras_accessors = [
     'Map, prototype, Object, kPrototypeOffset',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
-    'ConsString, first, String, kFirstOffset',
-    'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'SharedFunctionInfo, code, Code, kCodeOffset',
-    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
-    'SharedFunctionInfo, function_token_position, int, kFunctionTokenPositionOffset',
-    'SharedFunctionInfo, start_position_and_type, int, kStartPositionAndTypeOffset',
-    'SharedFunctionInfo, end_position, int, kEndPositionOffset',
-    'SharedFunctionInfo, internal_formal_parameter_count, int, kFormalParameterCountOffset',
-    'SharedFunctionInfo, compiler_hints, int, kCompilerHintsOffset',
-    'SharedFunctionInfo, length, int, kLengthOffset',
+    'UncompiledData, start_position, int32_t, kStartPositionOffset',
+    'UncompiledData, end_position, int32_t, kEndPositionOffset',
+    'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
+    'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
+    'SharedFunctionInfo, flags, int, kFlagsOffset',
+    'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
+    'String, length, int32_t, kLengthOffset',
 ];
 
 #
@@ -285,8 +292,8 @@ extras_accessors = [
 #
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
-    'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo'
+    'JSObject', 'JSRegExp', 'JSPrimitiveWrapper', 'Map', 'Oddball', 'Script',
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
 ];
 
 
@@ -304,12 +311,17 @@ header = '''
  * This file is generated by %s.  Do not edit directly.
  */
 
-#include "src/v8.h"
-#include "src/frames.h"
-#include "src/frames-inl.h" /* for architecture-specific frame constants */
-#include "src/contexts.h"
+#include "src/init/v8.h"
+#include "src/execution/frames.h"
+#include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
+#include "src/objects/contexts.h"
+#include "src/objects/objects.h"
+#include "src/objects/data-handler.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/js-regexp-string-iterator.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 extern "C" {
 
@@ -324,6 +336,9 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 ''' % sys.argv[0];
 
 footer = '''
+}
+
+}
 }
 '''
 
@@ -369,6 +384,7 @@ def load_objects_from_file(objfilename, checktypes):
         in_insttype = False;
 
         typestr = '';
+        uncommented_file = ''
 
         #
         # Iterate the header file line-by-line to collect type and class
@@ -391,15 +407,26 @@ def load_objects_from_file(objfilename, checktypes):
                         typestr += line;
                         continue;
 
-                match = re.match('class (\w[^:]*)(: public (\w[^{]*))?\s*{\s*',
-                    line);
+                uncommented_file += '\n' + line
 
-                if (match):
-                        klass = match.group(1).strip();
-                        pklass = match.group(3);
-                        if (pklass):
-                                pklass = pklass.strip();
-                        klasses[klass] = { 'parent': pklass };
+        for match in re.finditer(r'\nclass(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
+                                 r'\s+(\w[^:;]*)'
+                                 r'(?:: public (\w[^{]*))?\s*{\s*',
+                                 uncommented_file):
+                klass = match.group(1).strip();
+                pklass = match.group(2);
+                if (pklass):
+                        # Check for generated Torque class.
+                        gen_match = re.match(
+                            r'TorqueGenerated\w+\s*<\s*\w+,\s*(\w+)\s*>',
+                            pklass)
+                        if (gen_match):
+                                pklass = gen_match.group(1)
+                        # Strip potential template arguments from parent
+                        # class.
+                        match = re.match(r'(\w+)(<.*>)?', pklass.strip());
+                        pklass = match.group(1).strip();
+                klasses[klass] = { 'parent': pklass };
 
         #
         # Process the instance type declaration.
@@ -417,14 +444,9 @@ def load_objects_from_file(objfilename, checktypes):
         #
         for type in types:
                 #
-                # Symbols and Strings are implemented using the same classes.
-                #
-                usetype = re.sub('SYMBOL_', 'STRING_', type);
-
-                #
                 # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
                 #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', usetype);
+                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,
@@ -518,7 +540,8 @@ def parse_field(call):
 
         consts = [];
 
-        if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
+        if (kind == 'ACCESSORS' or kind == 'ACCESSORS2' or
+            kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
                 dtype = args[2].replace('<', '_').replace('>', '_')
@@ -561,7 +584,7 @@ def load_fields_from_file(filename):
         # may span multiple lines and may contain nested parentheses.  We also
         # call parse_field() to pick apart the invocation.
         #
-        prefixes = [ 'ACCESSORS', 'ACCESSORS_GCSAFE',
+        prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
                      'SMI_ACCESSORS', 'ACCESSORS_TO_SMI' ];
         current = '';
         opens = 0;
@@ -621,7 +644,7 @@ def emit_set(out, consts):
 # Emit the whole output file.
 #
 def emit_config():
-        out = file(sys.argv[1], 'w');
+        out = open(sys.argv[1], 'w');
 
         out.write(header);
 
@@ -630,9 +653,7 @@ def emit_config():
 
         out.write('/* class type information */\n');
         consts = [];
-        keys = typeclasses.keys();
-        keys.sort();
-        for typename in keys:
+        for typename in sorted(typeclasses):
                 klass = typeclasses[typename];
                 consts.append({
                     'name': 'type_%s__%s' % (klass, typename),
@@ -643,9 +664,7 @@ def emit_config():
 
         out.write('/* class hierarchy information */\n');
         consts = [];
-        keys = klasses.keys();
-        keys.sort();
-        for klassname in keys:
+        for klassname in sorted(klasses):
                 pklass = klasses[klassname]['parent'];
                 bklass = get_base_class(klassname);
                 if (bklass != 'Object'):

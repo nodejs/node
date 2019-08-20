@@ -10,10 +10,39 @@ separate module.
 ## Class: https.Agent
 <!-- YAML
 added: v0.4.5
+changes:
+  - version: v2.5.0
+    pr-url: https://github.com/nodejs/node/pull/2228
+    description: parameter `maxCachedSessions` added to `options` for TLS
+                 sessions reuse.
+  - version: v5.3.0
+    pr-url: https://github.com/nodejs/node/pull/4252
+    description: support `0` `maxCachedSessions` to disable TLS session caching.
 -->
 
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
+
+### new Agent([options])
+<!-- YAML
+changes:
+  - version: v12.5.0
+    pr-url: https://github.com/nodejs/node/pull/28209
+    description: do not automatically set servername if the target host was
+                 specified using an IP address.
+-->
+* `options` {Object} Set of configurable options to set on the agent.
+  Can have the same fields as for [`http.Agent(options)`][], and
+  * `maxCachedSessions` {number} maximum number of TLS cached sessions.
+    Use `0` to disable TLS session caching. **Default:** `100`.
+  * `servername` {string} the value of
+    [Server Name Indication extension][sni wiki] to be sent to the server. Use
+    empty string `''` to disable sending the extension.
+    **Default:** hostname of the target server, unless the target server
+    is specified using an IP address, in which case the default is `''` (no
+    extension).
+
+    See [`Session Resumption`][] for information about TLS session reuse.
 
 ## Class: https.Server
 <!-- YAML
@@ -27,21 +56,38 @@ This class is a subclass of `tls.Server` and emits events same as
 <!-- YAML
 added: v0.1.90
 -->
-- `callback` {Function}
+* `callback` {Function}
+* Returns: {https.Server}
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
+
+### server.headersTimeout
+<!-- YAML
+added: v11.3.0
+-->
+- {number} **Default:** `40000`
+
+See [`http.Server#headersTimeout`][].
 
 ### server.listen()
 
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
+
+### server.maxHeadersCount
+
+- {number} **Default:** `2000`
+
+See [`http.Server#maxHeadersCount`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
 -->
-- `msecs` {number} **Default:** `120000` (2 minutes)
-- `callback` {Function}
+* `msecs` {number} **Default:** `120000` (2 minutes)
+* `callback` {Function}
+* Returns: {https.Server}
 
 See [`http.Server#setTimeout()`][].
 
@@ -65,11 +111,10 @@ See [`http.Server#keepAliveTimeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-- `options` {Object} Accepts `options` from [`tls.createServer()`][],
+* `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
-- `requestListener` {Function} A listener to be added to the `'request'` event.
-
-Example:
+* `requestListener` {Function} A listener to be added to the `'request'` event.
+* Returns: {https.Server}
 
 ```js
 // curl -k https://localhost:8000/
@@ -105,24 +150,28 @@ https.createServer(options, (req, res) => {
 ```
 
 ## https.get(options[, callback])
+## https.get(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: v10.9.0
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: The `url` parameter can now be passed along with a separate
+                 `options` object.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts the same `options` as
+* `url` {string | URL}
+* `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
-- `callback` {Function}
+* `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
-string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
-
-Example:
 
 ```js
 const https = require('https');
@@ -148,9 +197,14 @@ added: v0.5.9
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options[, callback])
+## https.request(url[, options][, callback])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: v10.9.0
+    pr-url: https://github.com/nodejs/node/pull/21616
+    description: The `url` parameter can now be passed along with a separate
+                 `options` object.
   - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
@@ -158,26 +212,24 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from
+* `url` {string | URL}
+* `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`
   - `port` **Default:** `443`
   - `agent` **Default:** `https.globalAgent`
-- `callback` {Function}
-
+* `callback` {Function}
 
 Makes a request to a secure web server.
 
 The following additional `options` from [`tls.connect()`][] are also accepted:
 `ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
 `honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
-`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`
+`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
-string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
-
-Example:
 
 ```js
 const https = require('https');
@@ -222,8 +274,6 @@ const req = https.request(options, (res) => {
 ```
 
 Alternatively, opt out of connection pooling by not using an [`Agent`][].
-
-Example:
 
 ```js
 const options = {
@@ -326,9 +376,10 @@ req.on('error', (e) => {
   console.error(e.message);
 });
 req.end();
-
 ```
- Outputs for example:
+
+Outputs for example:
+
 ```text
 Subject Common Name: github.com
   Certificate SHA256 fingerprint: 25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:D8:3E:4C:1D:98:DB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16
@@ -347,19 +398,24 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`Agent`]: #https_class_https_agent
 [`URL`]: url.html#url_the_whatwg_url_api
 [`http.Agent`]: http.html#http_class_http_agent
+[`http.Agent(options)`]: http.html#http_new_agent_options
+[`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
 [`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
+[`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
 [`http.Server`]: http.html#http_class_http_server
-[`http.createServer()`]: http.html#http_http_createserver_options_requestlistener
 [`http.close()`]: http.html#http_server_close_callback
+[`http.createServer()`]: http.html#http_http_createserver_options_requestlistener
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
 [`net.Server`]: net.html#net_class_net_server
+[`new URL()`]: url.html#url_constructor_new_url_input_base
 [`server.listen()`]: net.html#net_server_listen
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`Session Resumption`]: tls.html#tls_session_resumption
+[sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication

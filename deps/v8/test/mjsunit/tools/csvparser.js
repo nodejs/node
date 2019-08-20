@@ -84,3 +84,7 @@ assertEquals(
 assertEquals(
     ['code-creation','Function','0x42f0a0','163','""'],
     parser.parseLine('code-creation,Function,0x42f0a0,163,""'));
+
+assertEquals(
+    ['foo C:\\Users\\someuser\\script.js:1:13'],
+    parser.parseLine('foo C:\\\\Users\\\\someuser\\\\script.js:1:13'));

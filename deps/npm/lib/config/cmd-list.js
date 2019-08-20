@@ -4,8 +4,10 @@ var shorthands = {
   'rb': 'rebuild',
   'list': 'ls',
   'ln': 'link',
+  'create': 'init',
   'i': 'install',
   'it': 'install-test',
+  'cit': 'install-ci-test',
   'up': 'update',
   'c': 'config',
   's': 'search',
@@ -15,14 +17,20 @@ var shorthands = {
   't': 'test',
   'ddp': 'dedupe',
   'v': 'view',
-  'run': 'run-script'
+  'run': 'run-script',
+  'clean-install': 'ci',
+  'clean-install-test': 'cit'
 }
 
 var affordances = {
   'la': 'ls',
   'll': 'ls',
   'verison': 'version',
+  'ic': 'ci',
+  'innit': 'init',
   'isntall': 'install',
+  'install-clean': 'ci',
+  'isntall-clean': 'ci',
   'dist-tags': 'dist-tag',
   'apihelp': 'help',
   'find-dupes': 'dedupe',
@@ -41,11 +49,16 @@ var affordances = {
   'remove': 'uninstall',
   'rm': 'uninstall',
   'r': 'uninstall',
-  'rum': 'run-script'
+  'rum': 'run-script',
+  'sit': 'cit',
+  'urn': 'run-script',
+  'ogr': 'org'
 }
 
 // these are filenames in .
 var cmdList = [
+  'ci',
+  'install-ci-test',
   'install',
   'install-test',
   'uninstall',
@@ -58,6 +71,7 @@ var cmdList = [
   'prune',
   'pack',
   'dedupe',
+  'hook',
 
   'rebuild',
   'link',
@@ -76,6 +90,8 @@ var cmdList = [
   'shrinkwrap',
   'token',
   'profile',
+  'audit',
+  'org',
 
   'help',
   'help-search',

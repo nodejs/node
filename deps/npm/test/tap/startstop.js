@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'startstop')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -16,8 +16,8 @@ var json = {
   name: 'startstop',
   version: '1.2.3',
   scripts: {
-    start: 'node -e \"console.log(\'start\')\"',
-    stop: 'node -e \"console.log(\'stop\')\"'
+    start: 'node -e "console.log(\'start\')"',
+    stop: 'node -e "console.log(\'stop\')"'
   }
 }
 

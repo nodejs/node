@@ -182,6 +182,15 @@ function bar() {
   session2.Protocol.Runtime.evaluate({expression: 'baz();\ndebugger;'});
   await waitForPaused(session2, 2);
 
+  session1.Protocol.Debugger.onResumed(() => InspectorTest.log('session1 is resumed'));
+  session2.Protocol.Debugger.onResumed(() => InspectorTest.log('session2 is resumed'));
+  InspectorTest.log('Activating debugger agent in 1');
+  await session1.Protocol.Debugger.enable();
+  InspectorTest.log('Disabling debugger agent in 2');
+  await session2.Protocol.Debugger.disable();
+  InspectorTest.log('Disabling debugger agent in 1');
+  await session1.Protocol.Debugger.disable();
+
   InspectorTest.completeTest();
 
   function waitForBothPaused() {

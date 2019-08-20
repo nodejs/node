@@ -1,0 +1,71 @@
+{
+  "_from": "socks-proxy-agent@^4.0.0",
+  "_id": "socks-proxy-agent@4.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-NT6syHhI9LmuEMSK6Kd2V7gNv5KFZoLE7V5udWmn0de+3Mkj3UMA/AJPLyeNUVmElCurSHtUdM3ETpR3z770Wg==",
+  "_location": "/socks-proxy-agent",
+  "_phantomChildren": {
+    "es6-promisify": "5.0.0"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "socks-proxy-agent@^4.0.0",
+    "name": "socks-proxy-agent",
+    "escapedName": "socks-proxy-agent",
+    "rawSpec": "^4.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.0"
+  },
+  "_requiredBy": [
+    "/make-fetch-happen"
+  ],
+  "_resolved": "https://registry.npmjs.org/socks-proxy-agent/-/socks-proxy-agent-4.0.2.tgz",
+  "_shasum": "3c8991f3145b2799e70e11bd5fbc8b1963116386",
+  "_spec": "socks-proxy-agent@^4.0.0",
+  "_where": "/Users/isaacs/dev/npm/cli/node_modules/make-fetch-happen",
+  "author": {
+    "name": "Nathan Rajlich",
+    "email": "nathan@tootallnate.net",
+    "url": "http://n8.io/"
+  },
+  "bugs": {
+    "url": "https://github.com/TooTallNate/node-socks-proxy-agent/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "agent-base": "~4.2.1",
+    "socks": "~2.3.2"
+  },
+  "deprecated": false,
+  "description": "A SOCKS proxy `http.Agent` implementation for HTTP and HTTPS",
+  "devDependencies": {
+    "mocha": "~5.1.0",
+    "raw-body": "~2.3.2",
+    "socksv5": "0.0.6"
+  },
+  "engines": {
+    "node": ">= 6"
+  },
+  "homepage": "https://github.com/TooTallNate/node-socks-proxy-agent#readme",
+  "keywords": [
+    "socks",
+    "socks4",
+    "socks4a",
+    "proxy",
+    "http",
+    "https",
+    "agent"
+  ],
+  "license": "MIT",
+  "main": "./index.js",
+  "name": "socks-proxy-agent",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/TooTallNate/node-socks-proxy-agent.git"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec"
+  },
+  "version": "4.0.2"
+}

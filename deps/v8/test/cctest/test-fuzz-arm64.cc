@@ -25,9 +25,15 @@
 #include <stdlib.h>
 #include "test/cctest/cctest.h"
 
-#include "src/arm64/decoder-arm64.h"
-#include "src/arm64/decoder-arm64-inl.h"
-#include "src/arm64/disasm-arm64.h"
+#include "src/codegen/arm64/decoder-arm64-inl.h"
+#include "src/codegen/arm64/decoder-arm64.h"
+#include "src/diagnostics/arm64/disasm-arm64.h"
+
+#if defined(V8_OS_WIN)
+#define RANDGEN() rand()
+#else
+#define RANDGEN() mrand48()
+#endif
 
 namespace v8 {
 namespace internal {
@@ -37,14 +43,18 @@ TEST(FUZZ_decoder) {
   // 43 million = ~1% of the instruction space.
   static const int instruction_count = 43 * 1024 * 1024;
 
+#if defined(V8_OS_WIN)
+  srand(1);
+#else
   uint16_t seed[3] = {1, 2, 3};
   seed48(seed);
+#endif
 
   Decoder<DispatchingDecoderVisitor> decoder;
-  Instruction buffer[kInstructionSize];
+  Instruction buffer[kInstrSize];
 
   for (int i = 0; i < instruction_count; i++) {
-    uint32_t instr = static_cast<uint32_t>(mrand48());
+    uint32_t instr = static_cast<uint32_t>(RANDGEN());
     buffer->SetInstructionBits(instr);
     decoder.Decode(buffer);
   }
@@ -56,16 +66,20 @@ TEST(FUZZ_disasm) {
   // 9 million = ~0.2% of the instruction space.
   static const int instruction_count = 9 * 1024 * 1024;
 
+#if defined(V8_OS_WIN)
+  srand(42);
+#else
   uint16_t seed[3] = {42, 43, 44};
   seed48(seed);
+#endif
 
   Decoder<DispatchingDecoderVisitor> decoder;
   DisassemblingDecoder disasm;
-  Instruction buffer[kInstructionSize];
+  Instruction buffer[kInstrSize];
 
   decoder.AppendVisitor(&disasm);
   for (int i = 0; i < instruction_count; i++) {
-    uint32_t instr = static_cast<uint32_t>(mrand48());
+    uint32_t instr = static_cast<uint32_t>(RANDGEN());
     buffer->SetInstructionBits(instr);
     decoder.Decode(buffer);
   }
@@ -73,3 +87,5 @@ TEST(FUZZ_disasm) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef RANDGEN

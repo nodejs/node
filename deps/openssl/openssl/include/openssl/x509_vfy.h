@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -180,6 +180,10 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 # define         X509_V_ERR_NO_VALID_SCTS                        71
 
 # define         X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION         72
+/* OCSP status errors */
+# define         X509_V_ERR_OCSP_VERIFY_NEEDED                   73  /* Need OCSP verification */
+# define         X509_V_ERR_OCSP_VERIFY_FAILED                   74  /* Couldn't verify cert through OCSP */
+# define         X509_V_ERR_OCSP_CERT_UNKNOWN                    75  /* Certificate wasn't recognized by the OCSP responder */
 
 /* Certificate verify flags */
 
@@ -257,7 +261,9 @@ X509_OBJECT *X509_OBJECT_new(void);
 void X509_OBJECT_free(X509_OBJECT *a);
 X509_LOOKUP_TYPE X509_OBJECT_get_type(const X509_OBJECT *a);
 X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a);
+int X509_OBJECT_set1_X509(X509_OBJECT *a, X509 *obj);
 X509_CRL *X509_OBJECT_get0_X509_CRL(X509_OBJECT *a);
+int X509_OBJECT_set1_X509_CRL(X509_OBJECT *a, X509_CRL *obj);
 X509_STORE *X509_STORE_new(void);
 void X509_STORE_free(X509_STORE *v);
 int X509_STORE_lock(X509_STORE *ctx);
@@ -356,13 +362,87 @@ X509_STORE_CTX_cleanup_fn X509_STORE_CTX_get_cleanup(X509_STORE_CTX *ctx);
 # define X509_STORE_CTX_set_chain X509_STORE_CTX_set0_untrusted
 # define X509_STORE_CTX_trusted_stack X509_STORE_CTX_set0_trusted_stack
 # define X509_STORE_get_by_subject X509_STORE_CTX_get_by_subject
+# define X509_STORE_get1_certs X509_STORE_CTX_get1_certs
+# define X509_STORE_get1_crls X509_STORE_CTX_get1_crls
+/* the following macro is misspelled; use X509_STORE_get1_certs instead */
 # define X509_STORE_get1_cert X509_STORE_CTX_get1_certs
+/* the following macro is misspelled; use X509_STORE_get1_crls instead */
 # define X509_STORE_get1_crl X509_STORE_CTX_get1_crls
 #endif
 
 X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, X509_LOOKUP_METHOD *m);
 X509_LOOKUP_METHOD *X509_LOOKUP_hash_dir(void);
 X509_LOOKUP_METHOD *X509_LOOKUP_file(void);
+
+typedef int (*X509_LOOKUP_ctrl_fn)(X509_LOOKUP *ctx, int cmd, const char *argc,
+                                   long argl, char **ret);
+typedef int (*X509_LOOKUP_get_by_subject_fn)(X509_LOOKUP *ctx,
+                                             X509_LOOKUP_TYPE type,
+                                             X509_NAME *name,
+                                             X509_OBJECT *ret);
+typedef int (*X509_LOOKUP_get_by_issuer_serial_fn)(X509_LOOKUP *ctx,
+                                                   X509_LOOKUP_TYPE type,
+                                                   X509_NAME *name,
+                                                   ASN1_INTEGER *serial,
+                                                   X509_OBJECT *ret);
+typedef int (*X509_LOOKUP_get_by_fingerprint_fn)(X509_LOOKUP *ctx,
+                                                 X509_LOOKUP_TYPE type,
+                                                 const unsigned char* bytes,
+                                                 int len,
+                                                 X509_OBJECT *ret);
+typedef int (*X509_LOOKUP_get_by_alias_fn)(X509_LOOKUP *ctx,
+                                           X509_LOOKUP_TYPE type,
+                                           const char *str,
+                                           int len,
+                                           X509_OBJECT *ret);
+
+X509_LOOKUP_METHOD *X509_LOOKUP_meth_new(const char *name);
+void X509_LOOKUP_meth_free(X509_LOOKUP_METHOD *method);
+
+int X509_LOOKUP_meth_set_new_item(X509_LOOKUP_METHOD *method,
+                                  int (*new_item) (X509_LOOKUP *ctx));
+int (*X509_LOOKUP_meth_get_new_item(const X509_LOOKUP_METHOD* method))
+    (X509_LOOKUP *ctx);
+
+int X509_LOOKUP_meth_set_free(X509_LOOKUP_METHOD *method,
+                              void (*free_fn) (X509_LOOKUP *ctx));
+void (*X509_LOOKUP_meth_get_free(const X509_LOOKUP_METHOD* method))
+    (X509_LOOKUP *ctx);
+
+int X509_LOOKUP_meth_set_init(X509_LOOKUP_METHOD *method,
+                              int (*init) (X509_LOOKUP *ctx));
+int (*X509_LOOKUP_meth_get_init(const X509_LOOKUP_METHOD* method))
+    (X509_LOOKUP *ctx);
+
+int X509_LOOKUP_meth_set_shutdown(X509_LOOKUP_METHOD *method,
+                                  int (*shutdown) (X509_LOOKUP *ctx));
+int (*X509_LOOKUP_meth_get_shutdown(const X509_LOOKUP_METHOD* method))
+    (X509_LOOKUP *ctx);
+
+int X509_LOOKUP_meth_set_ctrl(X509_LOOKUP_METHOD *method,
+                              X509_LOOKUP_ctrl_fn ctrl_fn);
+X509_LOOKUP_ctrl_fn X509_LOOKUP_meth_get_ctrl(const X509_LOOKUP_METHOD *method);
+
+int X509_LOOKUP_meth_set_get_by_subject(X509_LOOKUP_METHOD *method,
+                                        X509_LOOKUP_get_by_subject_fn fn);
+X509_LOOKUP_get_by_subject_fn X509_LOOKUP_meth_get_get_by_subject(
+    const X509_LOOKUP_METHOD *method);
+
+int X509_LOOKUP_meth_set_get_by_issuer_serial(X509_LOOKUP_METHOD *method,
+    X509_LOOKUP_get_by_issuer_serial_fn fn);
+X509_LOOKUP_get_by_issuer_serial_fn X509_LOOKUP_meth_get_get_by_issuer_serial(
+    const X509_LOOKUP_METHOD *method);
+
+int X509_LOOKUP_meth_set_get_by_fingerprint(X509_LOOKUP_METHOD *method,
+    X509_LOOKUP_get_by_fingerprint_fn fn);
+X509_LOOKUP_get_by_fingerprint_fn X509_LOOKUP_meth_get_get_by_fingerprint(
+    const X509_LOOKUP_METHOD *method);
+
+int X509_LOOKUP_meth_set_get_by_alias(X509_LOOKUP_METHOD *method,
+                                      X509_LOOKUP_get_by_alias_fn fn);
+X509_LOOKUP_get_by_alias_fn X509_LOOKUP_meth_get_get_by_alias(
+    const X509_LOOKUP_METHOD *method);
+
 
 int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
 int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x);
@@ -393,6 +473,9 @@ int X509_LOOKUP_by_fingerprint(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
                                X509_OBJECT *ret);
 int X509_LOOKUP_by_alias(X509_LOOKUP *ctx, X509_LOOKUP_TYPE type,
                          const char *str, int len, X509_OBJECT *ret);
+int X509_LOOKUP_set_method_data(X509_LOOKUP *ctx, void *data);
+void *X509_LOOKUP_get_method_data(const X509_LOOKUP *ctx);
+X509_STORE *X509_LOOKUP_get_store(const X509_LOOKUP *ctx);
 int X509_LOOKUP_shutdown(X509_LOOKUP *ctx);
 
 int X509_STORE_load_locations(X509_STORE *ctx,
@@ -475,6 +558,7 @@ int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
                                 const char *name, size_t namelen);
 void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
                                      unsigned int flags);
+unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param);
 char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *);
 void X509_VERIFY_PARAM_move_peername(X509_VERIFY_PARAM *, X509_VERIFY_PARAM *);
 int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,

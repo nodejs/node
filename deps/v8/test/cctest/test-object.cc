@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
-#include "src/factory.h"
-#include "src/handles-inl.h"
-#include "src/handles.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/v8.h"
+#include "src/api/api-inl.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/factory.h"
+#include "src/init/v8.h"
+#include "src/objects/function-kind.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -17,8 +17,10 @@ namespace internal {
 
 static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
-  Object* print_string = *Object::NoSideEffectsToString(isolate, obj);
-  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
+  Handle<String> print_string = String::Flatten(
+      isolate,
+      Handle<String>::cast(Object::NoSideEffectsToString(isolate, obj)));
+  CHECK(print_string->IsOneByteEqualTo(CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
@@ -113,143 +115,302 @@ TEST(EnumCache) {
       *env->Global()->Get(env.local(), v8_str("cc")).ToLocalChecked()));
 
   // Check the transition tree.
-  CHECK_EQ(a->map()->instance_descriptors(), b->map()->instance_descriptors());
-  CHECK_EQ(b->map()->instance_descriptors(), c->map()->instance_descriptors());
-  CHECK_NE(c->map()->instance_descriptors(), cc->map()->instance_descriptors());
-  CHECK_NE(b->map()->instance_descriptors(), cc->map()->instance_descriptors());
+  CHECK_EQ(a->map().instance_descriptors(), b->map().instance_descriptors());
+  CHECK_EQ(b->map().instance_descriptors(), c->map().instance_descriptors());
+  CHECK_NE(c->map().instance_descriptors(), cc->map().instance_descriptors());
+  CHECK_NE(b->map().instance_descriptors(), cc->map().instance_descriptors());
 
   // Check that the EnumLength is unset.
-  CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(cc->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(cc->map().EnumLength(), kInvalidEnumCacheSentinel);
 
   // Check that the EnumCache is empty.
-  CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(a->map().instance_descriptors().enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(b->map().instance_descriptors().enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(c->map().instance_descriptors().enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(cc->map()->instance_descriptors()->GetEnumCache(),
+  CHECK_EQ(cc->map().instance_descriptors().enum_cache(),
            *factory->empty_enum_cache());
 
   // The EnumCache is shared on the DescriptorArray, creating it on {cc} has no
   // effect on the other maps.
   CompileRun("var s = 0; for (let key in cc) { s += cc[key] };");
   {
-    CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map()->EnumLength(), 3);
+    CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map().EnumLength(), 3);
 
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(a->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(b->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_EQ(c->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
 
-    EnumCache* enum_cache = cc->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = cc->map().instance_descriptors().enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache.keys().length(), 3);
+    CHECK_EQ(enum_cache.indices().length(), 3);
   }
 
   // Initializing the EnumCache for the the topmost map {a} will not create the
   // cache for the other maps.
   CompileRun("var s = 0; for (let key in a) { s += a[key] };");
   {
-    CHECK_EQ(a->map()->EnumLength(), 1);
-    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map()->EnumLength(), 3);
+    CHECK_EQ(a->map().EnumLength(), 1);
+    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map().EnumLength(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    EnumCache* enum_cache = a->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = a->map().instance_descriptors().enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
 
-    CHECK_EQ(enum_cache->keys()->length(), 1);
-    CHECK_EQ(enum_cache->indices()->length(), 1);
+    CHECK_EQ(enum_cache.keys().length(), 1);
+    CHECK_EQ(enum_cache.indices().length(), 1);
   }
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   Handle<EnumCache> previous_enum_cache(
-      a->map()->instance_descriptors()->GetEnumCache());
-  Handle<FixedArray> previous_keys(previous_enum_cache->keys());
-  Handle<FixedArray> previous_indices(previous_enum_cache->indices());
+      a->map().instance_descriptors().enum_cache(), a->GetIsolate());
+  Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
+                                   a->GetIsolate());
+  Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
+                                      a->GetIsolate());
   CompileRun("var s = 0; for (let key in c) { s += c[key] };");
   {
-    CHECK_EQ(a->map()->EnumLength(), 1);
-    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map()->EnumLength(), 3);
-    CHECK_EQ(cc->map()->EnumLength(), 3);
+    CHECK_EQ(a->map().EnumLength(), 1);
+    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map().EnumLength(), 3);
+    CHECK_EQ(cc->map().EnumLength(), 3);
 
-    EnumCache* enum_cache = c->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_NE(enum_cache->keys(), *previous_keys);
-    CHECK_NE(enum_cache->indices(), *previous_indices);
+    CHECK_NE(enum_cache.keys(), *previous_keys);
+    CHECK_NE(enum_cache.indices(), *previous_indices);
     CHECK_EQ(previous_keys->length(), 1);
     CHECK_EQ(previous_indices->length(), 1);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache.keys().length(), 3);
+    CHECK_EQ(enum_cache.indices().length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
   }
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache =
-      handle(a->map()->instance_descriptors()->GetEnumCache());
-  previous_keys = handle(previous_enum_cache->keys());
-  previous_indices = handle(previous_enum_cache->indices());
+      handle(a->map().instance_descriptors().enum_cache(), a->GetIsolate());
+  previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
+  previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
   CompileRun("var s = 0; for (let key in b) { s += b[key] };");
   {
-    CHECK_EQ(a->map()->EnumLength(), 1);
-    CHECK_EQ(b->map()->EnumLength(), 2);
-    CHECK_EQ(c->map()->EnumLength(), 3);
-    CHECK_EQ(cc->map()->EnumLength(), 3);
+    CHECK_EQ(a->map().EnumLength(), 1);
+    CHECK_EQ(b->map().EnumLength(), 2);
+    CHECK_EQ(c->map().EnumLength(), 3);
+    CHECK_EQ(cc->map().EnumLength(), 3);
 
-    EnumCache* enum_cache = c->map()->instance_descriptors()->GetEnumCache();
+    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are not updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_EQ(enum_cache->keys(), *previous_keys);
-    CHECK_EQ(enum_cache->indices(), *previous_indices);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache.keys(), *previous_keys);
+    CHECK_EQ(enum_cache.indices(), *previous_indices);
+    CHECK_EQ(enum_cache.keys().length(), 3);
+    CHECK_EQ(enum_cache.indices().length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_NE(cc->map()->instance_descriptors()->GetEnumCache(),
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(b->map()->instance_descriptors()->GetEnumCache(), enum_cache);
-    CHECK_EQ(c->map()->instance_descriptors()->GetEnumCache(), enum_cache);
+    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
   }
 }
+
+#define TEST_FUNCTION_KIND(Name)                                \
+  TEST(Name) {                                                  \
+    for (int i = 0; i < FunctionKind::kLastFunctionKind; i++) { \
+      FunctionKind kind = static_cast<FunctionKind>(i);         \
+      CHECK_EQ(FunctionKind##Name(kind), Name(kind));           \
+    }                                                           \
+  }
+
+bool FunctionKindIsArrowFunction(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kArrowFunction:
+    case FunctionKind::kAsyncArrowFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsArrowFunction)
+
+bool FunctionKindIsAsyncGeneratorFunction(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kAsyncConciseGeneratorMethod:
+    case FunctionKind::kAsyncGeneratorFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsAsyncGeneratorFunction)
+
+bool FunctionKindIsGeneratorFunction(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kConciseGeneratorMethod:
+    case FunctionKind::kAsyncConciseGeneratorMethod:
+    case FunctionKind::kGeneratorFunction:
+    case FunctionKind::kAsyncGeneratorFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsGeneratorFunction)
+
+bool FunctionKindIsAsyncFunction(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kAsyncFunction:
+    case FunctionKind::kAsyncArrowFunction:
+    case FunctionKind::kAsyncConciseMethod:
+    case FunctionKind::kAsyncConciseGeneratorMethod:
+    case FunctionKind::kAsyncGeneratorFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsAsyncFunction)
+
+bool FunctionKindIsConciseMethod(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kConciseMethod:
+    case FunctionKind::kConciseGeneratorMethod:
+    case FunctionKind::kAsyncConciseMethod:
+    case FunctionKind::kAsyncConciseGeneratorMethod:
+    case FunctionKind::kClassMembersInitializerFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsConciseMethod)
+
+bool FunctionKindIsAccessorFunction(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kGetterFunction:
+    case FunctionKind::kSetterFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsAccessorFunction)
+
+bool FunctionKindIsDefaultConstructor(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kDefaultBaseConstructor:
+    case FunctionKind::kDefaultDerivedConstructor:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsDefaultConstructor)
+
+bool FunctionKindIsBaseConstructor(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kBaseConstructor:
+    case FunctionKind::kDefaultBaseConstructor:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsBaseConstructor)
+
+bool FunctionKindIsDerivedConstructor(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kDefaultDerivedConstructor:
+    case FunctionKind::kDerivedConstructor:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsDerivedConstructor)
+
+bool FunctionKindIsClassConstructor(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kBaseConstructor:
+    case FunctionKind::kDefaultBaseConstructor:
+    case FunctionKind::kDefaultDerivedConstructor:
+    case FunctionKind::kDerivedConstructor:
+      return true;
+    default:
+      return false;
+  }
+}
+TEST_FUNCTION_KIND(IsClassConstructor)
+
+bool FunctionKindIsConstructable(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kGetterFunction:
+    case FunctionKind::kSetterFunction:
+    case FunctionKind::kArrowFunction:
+    case FunctionKind::kAsyncArrowFunction:
+    case FunctionKind::kAsyncFunction:
+    case FunctionKind::kAsyncConciseMethod:
+    case FunctionKind::kAsyncConciseGeneratorMethod:
+    case FunctionKind::kAsyncGeneratorFunction:
+    case FunctionKind::kGeneratorFunction:
+    case FunctionKind::kConciseGeneratorMethod:
+    case FunctionKind::kConciseMethod:
+    case FunctionKind::kClassMembersInitializerFunction:
+      return false;
+    default:
+      return true;
+  }
+}
+TEST_FUNCTION_KIND(IsConstructable)
+
+bool FunctionKindIsStrictFunctionWithoutPrototype(FunctionKind kind) {
+  return IsArrowFunction(kind) || IsConciseMethod(kind) ||
+         IsAccessorFunction(kind);
+}
+TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
+
+#undef TEST_FUNCTION_KIND
 
 }  // namespace internal
 }  // namespace v8

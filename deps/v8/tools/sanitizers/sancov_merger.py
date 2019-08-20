@@ -106,7 +106,7 @@ def generate_inputs(keep, coverage_dir, file_map, cpus):
     n = max(2, int(math.ceil(len(files) / float(cpus))))
 
     # Chop files into buckets.
-    buckets = [files[i:i+n] for i in xrange(0, len(files), n)]
+    buckets = [files[i:i+n] for i in range(0, len(files), n)]
 
     # Inputs for multiprocessing. List of tuples containing:
     # Keep-files option, base path, executable name, index of bucket,

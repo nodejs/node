@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,11 +12,11 @@
 #include <string.h>
 #include <time.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/lhash.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 
@@ -24,14 +24,15 @@ typedef enum OPTION_choice {
     OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
     OPT_NOOUT, OPT_PUBKEY, OPT_VERIFY, OPT_IN, OPT_OUT,
     OPT_ENGINE, OPT_KEY, OPT_CHALLENGE, OPT_PASSIN, OPT_SPKAC,
-    OPT_SPKSECT
+    OPT_SPKSECT, OPT_KEYFORM
 } OPTION_CHOICE;
 
-OPTIONS spkac_options[] = {
+const OPTIONS spkac_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"in", OPT_IN, '<', "Input file"},
     {"out", OPT_OUT, '>', "Output file"},
     {"key", OPT_KEY, '<', "Create SPKAC using private key"},
+    {"keyform", OPT_KEYFORM, 'f', "Private key file format - default PEM (PEM, DER, or ENGINE)"},
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
     {"challenge", OPT_CHALLENGE, 's', "Challenge string"},
     {"spkac", OPT_SPKAC, 's', "Alternative SPKAC name"},
@@ -58,6 +59,7 @@ int spkac_main(int argc, char **argv)
     char *spkstr = NULL, *prog;
     const char *spkac = "SPKAC", *spksect = "default";
     int i, ret = 1, verify = 0, noout = 0, pubkey = 0;
+    int keyformat = FORMAT_PEM;
     OPTION_CHOICE o;
 
     prog = opt_init(argc, argv, spkac_options);
@@ -93,6 +95,10 @@ int spkac_main(int argc, char **argv)
         case OPT_KEY:
             keyfile = opt_arg();
             break;
+        case OPT_KEYFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_ANY, &keyformat))
+                goto opthelp;
+            break;
         case OPT_CHALLENGE:
             challenge = opt_arg();
             break;
@@ -118,7 +124,7 @@ int spkac_main(int argc, char **argv)
 
     if (keyfile != NULL) {
         pkey = load_key(strcmp(keyfile, "-") ? keyfile : NULL,
-                        FORMAT_PEM, 1, passin, e, "private key");
+                        keyformat, 1, passin, e, "private key");
         if (pkey == NULL)
             goto end;
         spki = NETSCAPE_SPKI_new();
@@ -192,5 +198,5 @@ int spkac_main(int argc, char **argv)
     EVP_PKEY_free(pkey);
     release_engine(e);
     OPENSSL_free(passin);
-    return (ret);
+    return ret;
 }

@@ -1,4 +1,3 @@
-.file	"vpaes-x86.s"
 .text
 .align	64
 .L_vpaes_consts:

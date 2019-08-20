@@ -7,13 +7,13 @@ crl = ca2-crl.pem
 database = ca2-database.txt
 name_opt = CA_default
 cert_opt = CA_default
-default_crl_days = 999
+default_crl_days = 9999
 default_md = sha512
 
 
 [ req ]
 default_bits           = 1024
-days                   = 999
+days                   = 9999
 distinguished_name     = req_distinguished_name
 attributes             = req_attributes
 prompt                 = no

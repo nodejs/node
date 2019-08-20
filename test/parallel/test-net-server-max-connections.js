@@ -75,10 +75,10 @@ function makeConnection(index) {
       }
 
       if (index < server.maxConnections) {
-        assert.strictEqual(true, gotData,
+        assert.strictEqual(gotData, true,
                            `${index} didn't get data, but should have`);
       } else {
-        assert.strictEqual(false, gotData,
+        assert.strictEqual(gotData, false,
                            `${index} got data, but shouldn't have`);
       }
     });
@@ -103,5 +103,5 @@ function makeConnection(index) {
 
 
 process.on('exit', function() {
-  assert.strictEqual(N, closes);
+  assert.strictEqual(closes, N);
 });

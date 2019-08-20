@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow the unary operators `++` and `--`",
             category: "Stylistic Issues",
@@ -24,7 +26,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowForLoopAfterthoughts: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

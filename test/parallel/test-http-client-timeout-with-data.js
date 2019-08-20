@@ -46,7 +46,7 @@ server.listen(0, options.host, function() {
 
   function onresponse(res) {
     req.setTimeout(50, common.mustCall(function() {
-      assert.strictEqual(nchunks, 1); // should have received the first chunk
+      assert.strictEqual(nchunks, 1); // Should have received the first chunk
       server.emit('timeout');
     }));
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-bigint
+// Flags: --allow-natives-syntax
 
 'use strict'
 
@@ -297,18 +297,6 @@ const six = BigInt(6);
   assertTrue(Reflect.defineProperty(obj, 'foo', {value: zero}));
   assertTrue(Reflect.defineProperty(obj, 'foo', {value: another_zero}));
   assertFalse(Reflect.defineProperty(obj, 'foo', {value: one}));
-}{
-  assertTrue(%SameValue(zero, zero));
-  assertTrue(%SameValue(zero, another_zero));
-
-  assertFalse(%SameValue(zero, +0));
-  assertFalse(%SameValue(zero, -0));
-
-  assertFalse(%SameValue(+0, zero));
-  assertFalse(%SameValue(-0, zero));
-
-  assertTrue(%SameValue(one, one));
-  assertTrue(%SameValue(one, another_one));
 }
 
 // SameValueZero
@@ -351,18 +339,6 @@ const six = BigInt(6);
 
   assertTrue(new Map([[one, 42]]).has(one));
   assertTrue(new Map([[one, 42]]).has(another_one));
-}{
-  assertTrue(%SameValueZero(zero, zero));
-  assertTrue(%SameValueZero(zero, another_zero));
-
-  assertFalse(%SameValueZero(zero, +0));
-  assertFalse(%SameValueZero(zero, -0));
-
-  assertFalse(%SameValueZero(+0, zero));
-  assertFalse(%SameValueZero(-0, zero));
-
-  assertTrue(%SameValueZero(one, one));
-  assertTrue(%SameValueZero(one, another_one));
 }
 
 // Abstract comparison
@@ -429,8 +405,8 @@ const six = BigInt(6);
   assertFalse(%Equal("-0x1", minus_one));
 
   const unsafe = "9007199254740993";  // 2**53 + 1
-  assertTrue(%GreaterThan(eval(unsafe + "n"), unsafe));
-  assertTrue(%LessThan(unsafe, eval(unsafe + "n")));
+  assertFalse(%GreaterThan(eval(unsafe + "n"), unsafe));
+  assertFalse(%LessThan(unsafe, eval(unsafe + "n")));
 
   assertThrows(() => %LessThan(six, Symbol(6)), TypeError);
   assertThrows(() => %LessThan(Symbol(6), six), TypeError);
@@ -509,8 +485,8 @@ const six = BigInt(6);
 
   const unsafe = "9007199254740993";  // 2**53 + 1
   assertFalse(eval(unsafe + "n") < unsafe);
-  assertFalse(eval(unsafe + "n") <= unsafe);
-  assertTrue(unsafe < eval(unsafe + "n"));
+  assertTrue(eval(unsafe + "n") <= unsafe);
+  assertFalse(unsafe < eval(unsafe + "n"));
   assertTrue(unsafe <= eval(unsafe + "n"));
 
   assertThrows(() => six < Symbol(6), TypeError);

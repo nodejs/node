@@ -9,7 +9,8 @@ var zero = 0;
 (function ConstantFoldZeroDivZero() {
   function f() {
     return 0 / zero;
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   assertTrue(isNaN(f()));
   assertTrue(isNaN(f()));
   %OptimizeFunctionOnNextCall(f);
@@ -19,7 +20,8 @@ var zero = 0;
 (function ConstantFoldMinusZeroDivZero() {
   function f() {
     return -0 / zero;
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   assertTrue(isNaN(f()));
   assertTrue(isNaN(f()));
   %OptimizeFunctionOnNextCall(f);
@@ -29,7 +31,8 @@ var zero = 0;
 (function ConstantFoldNaNDivZero() {
   function f() {
     return NaN / 0;
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   assertTrue(isNaN(f()));
   assertTrue(isNaN(f()));
   %OptimizeFunctionOnNextCall(f);

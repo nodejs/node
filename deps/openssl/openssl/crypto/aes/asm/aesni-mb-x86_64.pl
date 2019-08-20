@@ -105,6 +105,7 @@ $code.=<<___;
 .type	aesni_multi_cbc_encrypt,\@function,3
 .align	32
 aesni_multi_cbc_encrypt:
+.cfi_startproc
 ___
 $code.=<<___ if ($avx);
 	cmp	\$2,$num
@@ -118,12 +119,19 @@ $code.=<<___ if ($avx);
 ___
 $code.=<<___;
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -134,7 +142,7 @@ $code.=<<___ if ($win64);
 	movaps	%xmm10,0x40(%rsp)
 	movaps	%xmm11,0x50(%rsp)
 	movaps	%xmm12,0x60(%rsp)
-	movaps	%xmm13,-0x68(%rax)	# not used, saved to share se_handler 
+	movaps	%xmm13,-0x68(%rax)	# not used, saved to share se_handler
 	movaps	%xmm14,-0x58(%rax)
 	movaps	%xmm15,-0x48(%rax)
 ___
@@ -148,6 +156,7 @@ $code.=<<___;
 	sub	\$48,%rsp
 	and	\$-64,%rsp
 	mov	%rax,16(%rsp)			# original %rsp
+.cfi_cfa_expression	%rsp+16,deref,+8
 
 .Lenc4x_body:
 	movdqu	($key),$zero			# 0-round key
@@ -308,9 +317,9 @@ $code.=<<___;
 
 	movups		@out[0],-16(@outptr[0],$offset)
 	 pxor		@inp[0],@out[0]
-	movups		@out[1],-16(@outptr[1],$offset)	
+	movups		@out[1],-16(@outptr[1],$offset)
 	 pxor		@inp[1],@out[1]
-	movups		@out[2],-16(@outptr[2],$offset)	
+	movups		@out[2],-16(@outptr[2],$offset)
 	 pxor		@inp[2],@out[2]
 	movups		@out[3],-16(@outptr[3],$offset)
 	 pxor		@inp[3],@out[3]
@@ -319,6 +328,7 @@ $code.=<<___;
 	jnz	.Loop_enc4x
 
 	mov	16(%rsp),%rax			# original %rsp
+.cfi_def_cfa	%rax,8
 	mov	24(%rsp),$num
 
 	#pxor	@inp[0],@out[0]
@@ -350,20 +360,29 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lenc4x_epilogue:
 	ret
+.cfi_endproc
 .size	aesni_multi_cbc_encrypt,.-aesni_multi_cbc_encrypt
 
 .globl	aesni_multi_cbc_decrypt
 .type	aesni_multi_cbc_decrypt,\@function,3
 .align	32
 aesni_multi_cbc_decrypt:
+.cfi_startproc
 ___
 $code.=<<___ if ($avx);
 	cmp	\$2,$num
@@ -377,12 +396,19 @@ $code.=<<___ if ($avx);
 ___
 $code.=<<___;
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -393,7 +419,7 @@ $code.=<<___ if ($win64);
 	movaps	%xmm10,0x40(%rsp)
 	movaps	%xmm11,0x50(%rsp)
 	movaps	%xmm12,0x60(%rsp)
-	movaps	%xmm13,-0x68(%rax)	# not used, saved to share se_handler 
+	movaps	%xmm13,-0x68(%rax)	# not used, saved to share se_handler
 	movaps	%xmm14,-0x58(%rax)
 	movaps	%xmm15,-0x48(%rax)
 ___
@@ -407,6 +433,7 @@ $code.=<<___;
 	sub	\$48,%rsp
 	and	\$-64,%rsp
 	mov	%rax,16(%rsp)			# original %rsp
+.cfi_cfa_expression	%rsp+16,deref,+8
 
 .Ldec4x_body:
 	movdqu	($key),$zero			# 0-round key
@@ -563,10 +590,10 @@ $code.=<<___;
 
 	movups		@out[0],-16(@outptr[0],$offset)
 	 movdqu		(@inptr[0],$offset),@out[0]
-	movups		@out[1],-16(@outptr[1],$offset)	
+	movups		@out[1],-16(@outptr[1],$offset)
 	 movdqu		(@inptr[1],$offset),@out[1]
 	 pxor		$zero,@out[0]
-	movups		@out[2],-16(@outptr[2],$offset)	
+	movups		@out[2],-16(@outptr[2],$offset)
 	 movdqu		(@inptr[2],$offset),@out[2]
 	 pxor		$zero,@out[1]
 	movups		@out[3],-16(@outptr[3],$offset)
@@ -578,6 +605,7 @@ $code.=<<___;
 	jnz	.Loop_dec4x
 
 	mov	16(%rsp),%rax			# original %rsp
+.cfi_def_cfa	%rax,8
 	mov	24(%rsp),$num
 
 	lea	`40*4`($inp),$inp
@@ -600,14 +628,22 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Ldec4x_epilogue:
 	ret
+.cfi_endproc
 .size	aesni_multi_cbc_decrypt,.-aesni_multi_cbc_decrypt
 ___
 
@@ -623,14 +659,22 @@ $code.=<<___;
 .type	aesni_multi_cbc_encrypt_avx,\@function,3
 .align	32
 aesni_multi_cbc_encrypt_avx:
+.cfi_startproc
 _avx_cbc_enc_shortcut:
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -657,6 +701,7 @@ $code.=<<___;
 	sub	\$192,%rsp
 	and	\$-128,%rsp
 	mov	%rax,16(%rsp)			# original %rsp
+.cfi_cfa_expression	%rsp+16,deref,+8
 
 .Lenc8x_body:
 	vzeroupper
@@ -835,10 +880,10 @@ $code.=<<___;
 	vmovups		@out[0],-16(@ptr[0])		# write output
 	 sub		$offset,@ptr[0]			# switch to input
 	 vpxor		0x00($offload),@out[0],@out[0]
-	vmovups		@out[1],-16(@ptr[1])	
+	vmovups		@out[1],-16(@ptr[1])
 	 sub		`64+1*8`(%rsp),@ptr[1]
 	 vpxor		0x10($offload),@out[1],@out[1]
-	vmovups		@out[2],-16(@ptr[2])	
+	vmovups		@out[2],-16(@ptr[2])
 	 sub		`64+2*8`(%rsp),@ptr[2]
 	 vpxor		0x20($offload),@out[2],@out[2]
 	vmovups		@out[3],-16(@ptr[3])
@@ -847,10 +892,10 @@ $code.=<<___;
 	vmovups		@out[4],-16(@ptr[4])
 	 sub		`64+4*8`(%rsp),@ptr[4]
 	 vpxor		@inp[0],@out[4],@out[4]
-	vmovups		@out[5],-16(@ptr[5])	
+	vmovups		@out[5],-16(@ptr[5])
 	 sub		`64+5*8`(%rsp),@ptr[5]
 	 vpxor		@inp[1],@out[5],@out[5]
-	vmovups		@out[6],-16(@ptr[6])	
+	vmovups		@out[6],-16(@ptr[6])
 	 sub		`64+6*8`(%rsp),@ptr[6]
 	 vpxor		@inp[2],@out[6],@out[6]
 	vmovups		@out[7],-16(@ptr[7])
@@ -861,6 +906,7 @@ $code.=<<___;
 	jnz	.Loop_enc8x
 
 	mov	16(%rsp),%rax			# original %rsp
+.cfi_def_cfa	%rax,8
 	#mov	24(%rsp),$num
 	#lea	`40*8`($inp),$inp
 	#dec	$num
@@ -883,27 +929,43 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lenc8x_epilogue:
 	ret
+.cfi_endproc
 .size	aesni_multi_cbc_encrypt_avx,.-aesni_multi_cbc_encrypt_avx
 
 .type	aesni_multi_cbc_decrypt_avx,\@function,3
 .align	32
 aesni_multi_cbc_decrypt_avx:
+.cfi_startproc
 _avx_cbc_dec_shortcut:
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	lea	-0xa8(%rsp),%rsp
@@ -932,6 +994,7 @@ $code.=<<___;
 	and	\$-256,%rsp
 	sub	\$192,%rsp
 	mov	%rax,16(%rsp)			# original %rsp
+.cfi_cfa_expression	%rsp+16,deref,+8
 
 .Ldec8x_body:
 	vzeroupper
@@ -1128,12 +1191,12 @@ $code.=<<___;
 	 sub		$offset,@ptr[0]			# switch to input
 	 vmovdqu	128+0(%rsp),@out[0]
 	vpxor		0x70($offload),@out[7],@out[7]
-	vmovups		@out[1],-16(@ptr[1])	
+	vmovups		@out[1],-16(@ptr[1])
 	 sub		`64+1*8`(%rsp),@ptr[1]
 	 vmovdqu	@out[0],0x00($offload)
 	 vpxor		$zero,@out[0],@out[0]
 	 vmovdqu	128+16(%rsp),@out[1]
-	vmovups		@out[2],-16(@ptr[2])	
+	vmovups		@out[2],-16(@ptr[2])
 	 sub		`64+2*8`(%rsp),@ptr[2]
 	 vmovdqu	@out[1],0x10($offload)
 	 vpxor		$zero,@out[1],@out[1]
@@ -1149,11 +1212,11 @@ $code.=<<___;
 	 vpxor		$zero,@out[3],@out[3]
 	 vmovdqu	@inp[0],0x40($offload)
 	 vpxor		@inp[0],$zero,@out[4]
-	vmovups		@out[5],-16(@ptr[5])	
+	vmovups		@out[5],-16(@ptr[5])
 	 sub		`64+5*8`(%rsp),@ptr[5]
 	 vmovdqu	@inp[1],0x50($offload)
 	 vpxor		@inp[1],$zero,@out[5]
-	vmovups		@out[6],-16(@ptr[6])	
+	vmovups		@out[6],-16(@ptr[6])
 	 sub		`64+6*8`(%rsp),@ptr[6]
 	 vmovdqu	@inp[2],0x60($offload)
 	 vpxor		@inp[2],$zero,@out[6]
@@ -1167,6 +1230,7 @@ $code.=<<___;
 	jnz	.Loop_dec8x
 
 	mov	16(%rsp),%rax			# original %rsp
+.cfi_def_cfa	%rax,8
 	#mov	24(%rsp),$num
 	#lea	`40*8`($inp),$inp
 	#dec	$num
@@ -1189,14 +1253,22 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Ldec8x_epilogue:
 	ret
+.cfi_endproc
 .size	aesni_multi_cbc_decrypt_avx,.-aesni_multi_cbc_decrypt_avx
 ___
 						}}}
@@ -1253,10 +1325,10 @@ se_handler:
 	mov	-48(%rax),%r15
 	mov	%rbx,144($context)	# restore context->Rbx
 	mov	%rbp,160($context)	# restore context->Rbp
-	mov	%r12,216($context)	# restore cotnext->R12
-	mov	%r13,224($context)	# restore cotnext->R13
-	mov	%r14,232($context)	# restore cotnext->R14
-	mov	%r15,240($context)	# restore cotnext->R15
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
 
 	lea	-56-10*16(%rax),%rsi
 	lea	512($context),%rdi	# &context.Xmm6

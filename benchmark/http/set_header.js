@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
     'Content-Type',
     'Content-Length',
     'Connection',
-    'Transfer-Encoding'
+    'Transfer-Encoding',
   ],
   n: [1e6],
 });
@@ -23,7 +23,7 @@ function main(conf) {
   const og = new OutgoingMessage();
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     og.setHeader(value, '');
   }
   bench.end(n);

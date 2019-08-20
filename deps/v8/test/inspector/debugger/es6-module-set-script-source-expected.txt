@@ -1,8 +1,0 @@
-Checks that Debugger.setScriptSource doesn't crash with modules
-{
-    error : {
-        code : -32000
-        message : Editing module's script is not supported.
-    }
-    id : <messageId>
-}

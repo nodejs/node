@@ -14,8 +14,8 @@ function bar(x, y) {
 
 function baz() {
   bar(64, 2);
-}
-
+};
+%PrepareFunctionForOptimization(baz);
 baz();
 baz();
 %OptimizeFunctionOnNextCall(baz);

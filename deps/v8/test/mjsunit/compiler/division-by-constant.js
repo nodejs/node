@@ -107,6 +107,7 @@ function TestDivisionLike(ref, construct, values, divisor) {
   var OptFun = new Function("dividend", construct(divisor));
 
   // Warm up type feedback.
+  %PrepareFunctionForOptimization(OptFun);
   OptFun(7);
   OptFun(11);
   %OptimizeFunctionOnNextCall(OptFun);

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/control-flow-builders.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -13,7 +13,7 @@ namespace interpreter {
 BreakableControlFlowBuilder::~BreakableControlFlowBuilder() {
   BindBreakTarget();
   DCHECK(break_labels_.empty() || break_labels_.is_bound());
-  if (block_coverage_builder_ != nullptr && needs_continuation_counter()) {
+  if (block_coverage_builder_ != nullptr) {
     block_coverage_builder_->IncrementBlockCounter(
         node_, SourceRangeKind::kContinuation);
   }
@@ -70,7 +70,6 @@ void LoopBuilder::JumpToHeader(int loop_depth) {
   int level = Min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
   // Loop must have closed form, i.e. all loop elements are within the loop,
   // the loop header precedes the body and next elements in the loop.
-  DCHECK(loop_header_.is_bound());
   builder()->JumpLoop(&loop_header_, level);
 }
 
@@ -79,7 +78,7 @@ void LoopBuilder::BindContinueTarget() { continue_labels_.Bind(builder()); }
 SwitchBuilder::~SwitchBuilder() {
 #ifdef DEBUG
   for (auto site : case_sites_) {
-    DCHECK(site.is_bound());
+    DCHECK(!site.has_referrer_jump() || site.is_bound());
   }
 #endif
 }
@@ -108,7 +107,6 @@ void TryCatchBuilder::BeginTry(Register context) {
 void TryCatchBuilder::EndTry() {
   builder()->MarkTryEnd(handler_id_);
   builder()->Jump(&exit_);
-  builder()->Bind(&handler_);
   builder()->MarkHandler(handler_id_, catch_prediction_);
 
   if (block_coverage_builder_ != nullptr) {

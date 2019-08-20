@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,13 +20,17 @@ static long mem_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int mem_new(BIO *h);
 static int secmem_new(BIO *h);
 static int mem_free(BIO *data);
-static int mem_buf_free(BIO *data, int free_all);
+static int mem_buf_free(BIO *data);
 static int mem_buf_sync(BIO *h);
 
 static const BIO_METHOD mem_method = {
     BIO_TYPE_MEM,
     "memory buffer",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     mem_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     mem_read,
     mem_puts,
     mem_gets,
@@ -39,7 +43,11 @@ static const BIO_METHOD mem_method = {
 static const BIO_METHOD secmem_method = {
     BIO_TYPE_MEM,
     "secure memory buffer",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     mem_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     mem_read,
     mem_puts,
     mem_gets,
@@ -49,7 +57,12 @@ static const BIO_METHOD secmem_method = {
     NULL,                      /* mem_callback_ctrl */
 };
 
-/* BIO memory stores buffer and read pointer  */
+/*
+ * BIO memory stores buffer and read pointer
+ * however the roles are different for read only BIOs.
+ * In that case the readp just stores the original state
+ * to be used for reset.
+ */
 typedef struct bio_buf_mem_st {
     struct buf_mem_st *buf;   /* allocated buffer */
     struct buf_mem_st *readp; /* read pointer */
@@ -62,7 +75,7 @@ typedef struct bio_buf_mem_st {
 
 const BIO_METHOD *BIO_s_mem(void)
 {
-    return (&mem_method);
+    return &mem_method;
 }
 
 const BIO_METHOD *BIO_s_secmem(void)
@@ -122,42 +135,43 @@ static int mem_init(BIO *bi, unsigned long flags)
 
 static int mem_new(BIO *bi)
 {
-    return (mem_init(bi, 0L));
+    return mem_init(bi, 0L);
 }
 
 static int secmem_new(BIO *bi)
 {
-    return (mem_init(bi, BUF_MEM_FLAG_SECURE));
+    return mem_init(bi, BUF_MEM_FLAG_SECURE);
 }
 
 static int mem_free(BIO *a)
 {
-    return (mem_buf_free(a, 1));
+    BIO_BUF_MEM *bb;
+
+    if (a == NULL)
+        return 0;
+
+    bb = (BIO_BUF_MEM *)a->ptr;
+    if (!mem_buf_free(a))
+        return 0;
+    OPENSSL_free(bb->readp);
+    OPENSSL_free(bb);
+    return 1;
 }
 
-static int mem_buf_free(BIO *a, int free_all)
+static int mem_buf_free(BIO *a)
 {
     if (a == NULL)
-        return (0);
-    if (a->shutdown) {
-        if ((a->init) && (a->ptr != NULL)) {
-            BUF_MEM *b;
-            BIO_BUF_MEM *bb = (BIO_BUF_MEM *)a->ptr;
+        return 0;
 
-            if (bb != NULL) {
-                b = bb->buf;
-                if (a->flags & BIO_FLAGS_MEM_RDONLY)
-                    b->data = NULL;
-                BUF_MEM_free(b);
-                if (free_all) {
-                    OPENSSL_free(bb->readp);
-                    OPENSSL_free(bb);
-                }
-            }
-            a->ptr = NULL;
-        }
+    if (a->shutdown && a->init && a->ptr != NULL) {
+        BIO_BUF_MEM *bb = (BIO_BUF_MEM *)a->ptr;
+        BUF_MEM *b = bb->buf;
+
+        if (a->flags & BIO_FLAGS_MEM_RDONLY)
+            b->data = NULL;
+        BUF_MEM_free(b);
     }
-    return (1);
+    return 1;
 }
 
 /*
@@ -174,7 +188,7 @@ static int mem_buf_sync(BIO *b)
             bbm->readp->data = bbm->buf->data;
         }
     }
-    return (0);
+    return 0;
 }
 
 static int mem_read(BIO *b, char *out, int outl)
@@ -183,18 +197,21 @@ static int mem_read(BIO *b, char *out, int outl)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
     BUF_MEM *bm = bbm->readp;
 
+    if (b->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
     BIO_clear_retry_flags(b);
     ret = (outl >= 0 && (size_t)outl > bm->length) ? (int)bm->length : outl;
     if ((out != NULL) && (ret > 0)) {
         memcpy(out, bm->data, ret);
         bm->length -= ret;
+        bm->max -= ret;
         bm->data += ret;
     } else if (bm->length == 0) {
         ret = b->num;
         if (ret != 0)
             BIO_set_retry_read(b);
     }
-    return (ret);
+    return ret;
 }
 
 static int mem_write(BIO *b, const char *in, int inl)
@@ -212,6 +229,8 @@ static int mem_write(BIO *b, const char *in, int inl)
         goto end;
     }
     BIO_clear_retry_flags(b);
+    if (inl == 0)
+        return 0;
     blen = bbm->readp->length;
     mem_buf_sync(b);
     if (BUF_MEM_grow_clean(bbm->buf, blen + inl) == 0)
@@ -220,7 +239,7 @@ static int mem_write(BIO *b, const char *in, int inl)
     *bbm->readp = *bbm->buf;
     ret = inl;
  end:
-    return (ret);
+    return ret;
 }
 
 static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
@@ -230,29 +249,36 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
     BUF_MEM *bm;
 
+    if (b->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
+    else
+        bm = bbm->readp;
+
     switch (cmd) {
     case BIO_CTRL_RESET:
         bm = bbm->buf;
         if (bm->data != NULL) {
-            /* For read only case reset to the start again */
-            if ((b->flags & BIO_FLAGS_MEM_RDONLY) || (b->flags & BIO_FLAGS_NONCLEAR_RST)) {
-                bm->length = bm->max;
+            if (!(b->flags & BIO_FLAGS_MEM_RDONLY)) {
+                if (b->flags & BIO_FLAGS_NONCLEAR_RST) {
+                    bm->length = bm->max;
+                } else {
+                    memset(bm->data, 0, bm->max);
+                    bm->length = 0;
+                }
+                *bbm->readp = *bbm->buf;
             } else {
-                memset(bm->data, 0, bm->max);
-                bm->length = 0;
+                /* For read only case just reset to the start again */
+                *bbm->buf = *bbm->readp;
             }
-            *bbm->readp = *bbm->buf;
         }
         break;
     case BIO_CTRL_EOF:
-        bm = bbm->readp;
         ret = (long)(bm->length == 0);
         break;
     case BIO_C_SET_BUF_MEM_EOF_RETURN:
         b->num = (int)num;
         break;
     case BIO_CTRL_INFO:
-        bm = bbm->readp;
         ret = (long)bm->length;
         if (ptr != NULL) {
             pptr = (char **)ptr;
@@ -260,16 +286,16 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         }
         break;
     case BIO_C_SET_BUF_MEM:
-        mem_buf_free(b, 0);
+        mem_buf_free(b);
         b->shutdown = (int)num;
         bbm->buf = ptr;
         *bbm->readp = *bbm->buf;
-        b->ptr = bbm;
         break;
     case BIO_C_GET_BUF_MEM_PTR:
         if (ptr != NULL) {
-            mem_buf_sync(b);
-            bm = bbm->readp;
+            if (!(b->flags & BIO_FLAGS_MEM_RDONLY))
+                mem_buf_sync(b);
+            bm = bbm->buf;
             pptr = (char **)ptr;
             *pptr = (char *)bm;
         }
@@ -284,7 +310,6 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 0L;
         break;
     case BIO_CTRL_PENDING:
-        bm = bbm->readp;
         ret = (long)bm->length;
         break;
     case BIO_CTRL_DUP:
@@ -297,7 +322,7 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 0;
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static int mem_gets(BIO *bp, char *buf, int size)
@@ -308,6 +333,8 @@ static int mem_gets(BIO *bp, char *buf, int size)
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)bp->ptr;
     BUF_MEM *bm = bbm->readp;
 
+    if (bp->flags & BIO_FLAGS_MEM_RDONLY)
+        bm = bbm->buf;
     BIO_clear_retry_flags(bp);
     j = bm->length;
     if ((size - 1) < j)
@@ -333,7 +360,7 @@ static int mem_gets(BIO *bp, char *buf, int size)
     if (i > 0)
         buf[i] = '\0';
     ret = i;
-    return (ret);
+    return ret;
 }
 
 static int mem_puts(BIO *bp, const char *str)
@@ -343,5 +370,5 @@ static int mem_puts(BIO *bp, const char *str)
     n = strlen(str);
     ret = mem_write(bp, str, n);
     /* memory semantics is that it will always work */
-    return (ret);
+    return ret;
 }

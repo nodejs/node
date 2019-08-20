@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -577,7 +577,7 @@ static int bind_helper(ENGINE *e, const char *id)
 }
 
 IMPLEMENT_DYNAMIC_CHECK_FN()
-    IMPLEMENT_DYNAMIC_BIND_FN(bind_helper)
+IMPLEMENT_DYNAMIC_BIND_FN(bind_helper)
 # else
 static ENGINE *engine_capi(void)
 {
@@ -835,7 +835,7 @@ int capi_rsa_sign(int dtype, const unsigned char *m, unsigned int m_len,
         CAPIerr(CAPI_F_CAPI_RSA_SIGN, CAPI_R_CANT_GET_KEY);
         return -1;
     }
-/* Convert the signature type to a CryptoAPI algorithm ID */
+    /* Convert the signature type to a CryptoAPI algorithm ID */
     switch (dtype) {
     case NID_sha256:
         alg = CALG_SHA_256;
@@ -870,13 +870,13 @@ int capi_rsa_sign(int dtype, const unsigned char *m, unsigned int m_len,
         }
     }
 
-/* Create the hash object */
+    /* Create the hash object */
     if (!CryptCreateHash(capi_key->hprov, alg, 0, 0, &hash)) {
         CAPIerr(CAPI_F_CAPI_RSA_SIGN, CAPI_R_CANT_CREATE_HASH_OBJECT);
         capi_addlasterror();
         return -1;
     }
-/* Set the hash value to the value passed */
+    /* Set the hash value to the value passed */
 
     if (!CryptSetHashParam(hash, HP_HASHVAL, (unsigned char *)m, 0)) {
         CAPIerr(CAPI_F_CAPI_RSA_SIGN, CAPI_R_CANT_SET_HASH_VALUE);
@@ -884,7 +884,7 @@ int capi_rsa_sign(int dtype, const unsigned char *m, unsigned int m_len,
         goto err;
     }
 
-/* Finally sign it */
+    /* Finally sign it */
     slen = RSA_size(rsa);
     if (!CryptSignHash(hash, capi_key->keyspec, NULL, 0, sigret, &slen)) {
         CAPIerr(CAPI_F_CAPI_RSA_SIGN, CAPI_R_ERROR_SIGNING_HASH);
@@ -917,6 +917,7 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
     unsigned char *tmpbuf;
     CAPI_KEY *capi_key;
     CAPI_CTX *ctx;
+    DWORD flags = 0;
     DWORD dlen;
 
     if (flen <= 0)
@@ -932,12 +933,23 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
         return -1;
     }
 
-    if (padding != RSA_PKCS1_PADDING) {
-        char errstr[10];
-        BIO_snprintf(errstr, 10, "%d", padding);
-        CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_UNSUPPORTED_PADDING);
-        ERR_add_error_data(2, "padding=", errstr);
-        return -1;
+    switch (padding) {
+    case RSA_PKCS1_PADDING:
+        /* Nothing to do */
+        break;
+#ifdef CRYPT_DECRYPT_RSA_NO_PADDING_CHECK
+    case RSA_NO_PADDING:
+        flags = CRYPT_DECRYPT_RSA_NO_PADDING_CHECK;
+        break;
+#endif
+    default:
+        {
+            char errstr[10];
+            BIO_snprintf(errstr, 10, "%d", padding);
+            CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_UNSUPPORTED_PADDING);
+            ERR_add_error_data(2, "padding=", errstr);
+            return -1;
+        }
     }
 
     /* Create temp reverse order version of input */
@@ -950,14 +962,16 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
 
     /* Finally decrypt it */
     dlen = flen;
-    if (!CryptDecrypt(capi_key->key, 0, TRUE, 0, tmpbuf, &dlen)) {
+    if (!CryptDecrypt(capi_key->key, 0, TRUE, flags, tmpbuf, &dlen)) {
         CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_DECRYPT_ERROR);
         capi_addlasterror();
+        OPENSSL_cleanse(tmpbuf, dlen);
         OPENSSL_free(tmpbuf);
         return -1;
     } else {
         memcpy(to, tmpbuf, (flen = (int)dlen));
     }
+    OPENSSL_cleanse(tmpbuf, flen);
     OPENSSL_free(tmpbuf);
 
     return flen;
@@ -1477,8 +1491,10 @@ static CAPI_KEY *capi_get_key(CAPI_CTX *ctx, const WCHAR *contname,
         ptype = PROV_RSA_AES;
     }
     if (ctx && ctx->debug_level >= CAPI_DBG_TRACE && ctx->debug_file) {
-        /* above 'if' is [complementary] copy from CAPI_trace and serves
-	 * as optimization to minimize [below] malloc-ations */
+        /*
+         * above 'if' is [complementary] copy from CAPI_trace and serves
+         * as optimization to minimize [below] malloc-ations
+         */
         char *_contname = wide_to_asc(contname);
         char *_provname = wide_to_asc(provname);
 

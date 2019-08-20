@@ -31,6 +31,7 @@ function divp4(x) {
   return x / 4;
 }
 
+%PrepareFunctionForOptimization(divp4);
 divp4(8);
 divp4(8);
 %OptimizeFunctionOnNextCall(divp4);
@@ -42,6 +43,7 @@ function divn4(x) {
   return x / (-4);
 }
 
+%PrepareFunctionForOptimization(divn4);
 divn4(8);
 divn4(8);
 %OptimizeFunctionOnNextCall(divn4);
@@ -55,6 +57,7 @@ function divn1(x) {
   return x / (-1);
 }
 
+%PrepareFunctionForOptimization(divn1);
 var two_31 = 1 << 31;
 divn1(2);
 divn1(2);
@@ -68,6 +71,7 @@ function divp4t(x) {
   return (x / 4) | 0;
 }
 
+%PrepareFunctionForOptimization(divp4t);
 divp4t(8);
 divp4t(8);
 %OptimizeFunctionOnNextCall(divp4t);
@@ -79,6 +83,7 @@ function divn4t(x) {
   return (x / -4) | 0;
 }
 
+%PrepareFunctionForOptimization(divn4t);
 divn4t(8);
 divn4t(8);
 %OptimizeFunctionOnNextCall(divn4t);
@@ -91,6 +96,7 @@ function div_by_two(x) {
   return (x / 2) | 0;
 }
 
+%PrepareFunctionForOptimization(div_by_two);
 div_by_two(12);
 div_by_two(34);
 %OptimizeFunctionOnNextCall(div_by_two);

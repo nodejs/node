@@ -88,7 +88,7 @@ const events = require('events');
   assert.ok(e._events.fortytwo.hasOwnProperty('warned'));
 }
 
-// but _maxListeners still has precedence over defaultMaxListeners
+// But _maxListeners still has precedence over defaultMaxListeners
 {
   events.EventEmitter.defaultMaxListeners = 42;
   const e = new events.EventEmitter();

@@ -27,17 +27,17 @@ var foo = gen(1, 2);
 
 foo.next()
 assertEquals(2, args.length);
-assertEquals(undefined, args[0]);
-assertEquals(undefined, args[1]);
+assertEquals(1, args[0]);
+assertEquals(2, args[1]);
 
 foo.next()
 assertEquals(2, args.length);
-assertEquals(undefined, args[0]);
-assertEquals(undefined, args[1]);
+assertEquals(1, args[0]);
+assertEquals(2, args[1]);
 
 foo.next()
 assertEquals(2, args.length);
-assertEquals(undefined, args[0]);
-assertEquals(undefined, args[1]);
+assertEquals(1, args[0]);
+assertEquals(2, args[1]);
 
 assertNull(failure);

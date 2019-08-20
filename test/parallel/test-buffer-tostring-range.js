@@ -5,19 +5,19 @@ const assert = require('assert');
 
 const rangeBuffer = Buffer.from('abc');
 
-// if start >= buffer's length, empty string will be returned
+// If start >= buffer's length, empty string will be returned
 assert.strictEqual(rangeBuffer.toString('ascii', 3), '');
 assert.strictEqual(rangeBuffer.toString('ascii', +Infinity), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 3.14, 3), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 'Infinity', 3), '');
 
-// if end <= 0, empty string will be returned
+// If end <= 0, empty string will be returned
 assert.strictEqual(rangeBuffer.toString('ascii', 1, 0), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -1.2), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -100), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 1, -Infinity), '');
 
-// if start < 0, start will be taken as zero
+// If start < 0, start will be taken as zero
 assert.strictEqual(rangeBuffer.toString('ascii', -1, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', -1.99, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', -Infinity, 3), 'abc');
@@ -25,7 +25,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', '-1', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
 
-// if start is an invalid integer, start will be taken as zero
+// If start is an invalid integer, start will be taken as zero
 assert.strictEqual(rangeBuffer.toString('ascii', 'node.js', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', {}, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', [], 3), 'abc');
@@ -35,7 +35,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', undefined, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', false, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '', 3), 'abc');
 
-// but, if start is an integer when coerced, then it will be coerced and used.
+// But, if start is an integer when coerced, then it will be coerced and used.
 assert.strictEqual(rangeBuffer.toString('ascii', '-1', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '1', 3), 'bc');
 assert.strictEqual(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
@@ -47,7 +47,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', 1.99, 3), 'bc');
 assert.strictEqual(rangeBuffer.toString('ascii', true, 3), 'bc');
 
-// if end > buffer's length, end will be taken as buffer's length
+// If end > buffer's length, end will be taken as buffer's length
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 5), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 6.99), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, Infinity), 'abc');
@@ -55,7 +55,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, '5'), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, '6.99'), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 'Infinity'), 'abc');
 
-// if end is an invalid integer, end will be taken as buffer's length
+// If end is an invalid integer, end will be taken as buffer's length
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 'node.js'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, {}), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, NaN), '');
@@ -66,7 +66,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, []), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, false), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, ''), '');
 
-// but, if end is an integer when coerced, then it will be coerced and used.
+// But, if end is an integer when coerced, then it will be coerced and used.
 assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, '1'), 'a');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, '-Infinity'), '');
@@ -78,12 +78,12 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1.99'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 1.99), 'a');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 
-// try toString() with a object as a encoding
+// Try toString() with an object as an encoding
 assert.strictEqual(rangeBuffer.toString({ toString: function() {
   return 'ascii';
 } }), 'abc');
 
-// try toString() with 0 and null as the encoding
+// Try toString() with 0 and null as the encoding
 common.expectsError(() => {
   rangeBuffer.toString(0, 1, 2);
 }, {

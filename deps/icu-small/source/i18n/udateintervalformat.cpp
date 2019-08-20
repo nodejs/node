@@ -18,8 +18,19 @@
 #include "unicode/timezone.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
+#include "formattedval_impl.h"
 
 U_NAMESPACE_USE
+
+
+// Magic number: FDIV in ASCII
+UPRV_FORMATTED_VALUE_CAPI_AUTO_IMPL(
+    FormattedDateInterval,
+    UFormattedDateInterval,
+    UFormattedDateIntervalImpl,
+    UFormattedDateIntervalApiHelper,
+    udtitvfmt,
+    0x46444956)
 
 
 U_CAPI UDateIntervalFormat* U_EXPORT2
@@ -102,6 +113,23 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
     }
 
     return res.extract(result, resultCapacity, *status);
+}
+
+
+U_DRAFT void U_EXPORT2
+udtitvfmt_formatToResult(
+                const UDateIntervalFormat* formatter,
+                UFormattedDateInterval* result,
+                UDate           fromDate,
+                UDate           toDate,
+                UErrorCode*     status) {
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    auto* resultImpl = UFormattedDateIntervalApiHelper::validate(result, *status);
+    DateInterval interval = DateInterval(fromDate,toDate);
+    resultImpl->fImpl = reinterpret_cast<const DateIntervalFormat*>(formatter)
+        ->formatToValue(interval, *status);
 }
 
 

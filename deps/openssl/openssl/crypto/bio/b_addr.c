@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <assert.h>
 #include <string.h>
 
 #include "bio_lcl.h"
@@ -15,8 +16,7 @@
 #ifndef OPENSSL_NO_SOCK
 #include <openssl/err.h>
 #include <openssl/buffer.h>
-#include <internal/thread_once.h>
-#include <ctype.h>
+#include "internal/thread_once.h"
 
 CRYPTO_RWLOCK *bio_lookup_lock;
 static CRYPTO_ONCE bio_lookup_init = CRYPTO_ONCE_STATIC_INIT;
@@ -66,18 +66,18 @@ void BIO_ADDR_clear(BIO_ADDR *ap)
 int BIO_ADDR_make(BIO_ADDR *ap, const struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET) {
-        ap->s_in = *(const struct sockaddr_in *)sa;
+        memcpy(&(ap->s_in), sa, sizeof(struct sockaddr_in));
         return 1;
     }
 #ifdef AF_INET6
     if (sa->sa_family == AF_INET6) {
-        ap->s_in6 = *(const struct sockaddr_in6 *)sa;
+        memcpy(&(ap->s_in6), sa, sizeof(struct sockaddr_in6));
         return 1;
     }
 #endif
 #ifdef AF_UNIX
     if (sa->sa_family == AF_UNIX) {
-        ap->s_un = *(const struct sockaddr_un *)sa;
+        memcpy(&(ap->s_un), sa, sizeof(struct sockaddr_un));
         return 1;
     }
 #endif
@@ -565,11 +565,10 @@ static int addrinfo_wrap(int family, int socktype,
                          unsigned short port,
                          BIO_ADDRINFO **bai)
 {
-    OPENSSL_assert(bai != NULL);
-
-    *bai = OPENSSL_zalloc(sizeof(**bai));
-    if (*bai == NULL)
+    if ((*bai = OPENSSL_zalloc(sizeof(**bai))) == NULL) {
+        BIOerr(BIO_F_ADDRINFO_WRAP, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
 
     (*bai)->bai_family = family;
     (*bai)->bai_socktype = socktype;
@@ -604,13 +603,21 @@ static int addrinfo_wrap(int family, int socktype,
 
 DEFINE_RUN_ONCE_STATIC(do_bio_lookup_init)
 {
-    OPENSSL_init_crypto(0, NULL);
+    if (!OPENSSL_init_crypto(0, NULL))
+        return 0;
     bio_lookup_lock = CRYPTO_THREAD_lock_new();
     return bio_lookup_lock != NULL;
 }
 
+int BIO_lookup(const char *host, const char *service,
+               enum BIO_lookup_type lookup_type,
+               int family, int socktype, BIO_ADDRINFO **res)
+{
+    return BIO_lookup_ex(host, service, lookup_type, family, socktype, 0, res);
+}
+
 /*-
- * BIO_lookup - look up the node and service you want to connect to.
+ * BIO_lookup_ex - look up the node and service you want to connect to.
  * @node: the node you want to connect to.
  * @service: the service you want to connect to.
  * @lookup_type: declare intent with the result, client or server.
@@ -618,6 +625,10 @@ DEFINE_RUN_ONCE_STATIC(do_bio_lookup_init)
  *  AF_INET, AF_INET6 or AF_UNIX.
  * @socktype: The socket type you want to use.  Can be SOCK_STREAM, SOCK_DGRAM
  *  or 0 for all.
+ * @protocol: The protocol to use, e.g. IPPROTO_TCP or IPPROTO_UDP or 0 for all.
+ *            Note that some platforms may not return IPPROTO_SCTP without
+ *            explicitly requesting it (i.e. IPPROTO_SCTP may not be returned
+ *            with 0 for the protocol)
  * @res: Storage place for the resulting list of returned addresses
  *
  * This will do a lookup of the node and service that you want to connect to.
@@ -627,9 +638,8 @@ DEFINE_RUN_ONCE_STATIC(do_bio_lookup_init)
  *
  * The return value is 1 on success or 0 in case of error.
  */
-int BIO_lookup(const char *host, const char *service,
-               enum BIO_lookup_type lookup_type,
-               int family, int socktype, BIO_ADDRINFO **res)
+int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
+                  int family, int socktype, int protocol, BIO_ADDRINFO **res)
 {
     int ret = 0;                 /* Assume failure */
 
@@ -646,7 +656,7 @@ int BIO_lookup(const char *host, const char *service,
 #endif
         break;
     default:
-        BIOerr(BIO_F_BIO_LOOKUP, BIO_R_UNSUPPORTED_PROTOCOL_FAMILY);
+        BIOerr(BIO_F_BIO_LOOKUP_EX, BIO_R_UNSUPPORTED_PROTOCOL_FAMILY);
         return 0;
     }
 
@@ -655,7 +665,7 @@ int BIO_lookup(const char *host, const char *service,
         if (addrinfo_wrap(family, socktype, host, strlen(host), 0, res))
             return 1;
         else
-            BIOerr(BIO_F_BIO_LOOKUP, ERR_R_MALLOC_FAILURE);
+            BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_MALLOC_FAILURE);
         return 0;
     }
 #endif
@@ -672,6 +682,13 @@ int BIO_lookup(const char *host, const char *service,
 
         hints.ai_family = family;
         hints.ai_socktype = socktype;
+        hints.ai_protocol = protocol;
+#ifdef AI_ADDRCONFIG
+#ifdef AF_UNSPEC
+        if (family == AF_UNSPEC)
+#endif
+            hints.ai_flags |= AI_ADDRCONFIG;
+#endif
 
         if (lookup_type == BIO_LOOKUP_SERVER)
             hints.ai_flags |= AI_PASSIVE;
@@ -683,14 +700,14 @@ int BIO_lookup(const char *host, const char *service,
 # ifdef EAI_SYSTEM
         case EAI_SYSTEM:
             SYSerr(SYS_F_GETADDRINFO, get_last_socket_error());
-            BIOerr(BIO_F_BIO_LOOKUP, ERR_R_SYS_LIB);
+            BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_SYS_LIB);
             break;
 # endif
         case 0:
             ret = 1;             /* Success */
             break;
         default:
-            BIOerr(BIO_F_BIO_LOOKUP, ERR_R_SYS_LIB);
+            BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_SYS_LIB);
             ERR_add_error_data(1, gai_strerror(gai_ret));
             break;
         }
@@ -732,7 +749,7 @@ int BIO_lookup(const char *host, const char *service,
 #endif
 
         if (!RUN_ONCE(&bio_lookup_init, do_bio_lookup_init)) {
-            BIOerr(BIO_F_BIO_LOOKUP, ERR_R_MALLOC_FAILURE);
+            BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_MALLOC_FAILURE);
             ret = 0;
             goto err;
         }
@@ -749,8 +766,11 @@ int BIO_lookup(const char *host, const char *service,
                 he_fallback_address = INADDR_ANY;
                 break;
             default:
-                OPENSSL_assert(("We forgot to handle a lookup type!" == 0));
-                break;
+                /* We forgot to handle a lookup type! */
+                assert("We forgot to handle a lookup type!" == NULL);
+                BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_INTERNAL_ERROR);
+                ret = 0;
+                goto err;
             }
         } else {
             he = gethostbyname(host);
@@ -768,7 +788,12 @@ int BIO_lookup(const char *host, const char *service,
                  * anyway [above getaddrinfo/gai_strerror is]. We just let
                  * system administrator figure this out...
                  */
+# if defined(OPENSSL_SYS_VXWORKS)
+                /* h_errno doesn't exist on VxWorks */
+                SYSerr(SYS_F_GETHOSTBYNAME, 1000 );
+# else
                 SYSerr(SYS_F_GETHOSTBYNAME, 1000 + h_errno);
+# endif
 #else
                 SYSerr(SYS_F_GETHOSTBYNAME, WSAGetLastError());
 #endif
@@ -809,7 +834,7 @@ int BIO_lookup(const char *host, const char *service,
 
             if (endp != service && *endp == '\0'
                     && portnum > 0 && portnum < 65536) {
-                se_fallback.s_port = htons(portnum);
+                se_fallback.s_port = htons((unsigned short)portnum);
                 se_fallback.s_proto = proto;
                 se = &se_fallback;
             } else if (endp == service) {
@@ -824,7 +849,7 @@ int BIO_lookup(const char *host, const char *service,
                     goto err;
                 }
             } else {
-                BIOerr(BIO_F_BIO_LOOKUP, BIO_R_MALFORMED_HOST_OR_SERVICE);
+                BIOerr(BIO_F_BIO_LOOKUP_EX, BIO_R_MALFORMED_HOST_OR_SERVICE);
                 goto err;
             }
         }
@@ -866,7 +891,7 @@ int BIO_lookup(const char *host, const char *service,
              addrinfo_malloc_err:
                 BIO_ADDRINFO_free(*res);
                 *res = NULL;
-                BIOerr(BIO_F_BIO_LOOKUP, ERR_R_MALLOC_FAILURE);
+                BIOerr(BIO_F_BIO_LOOKUP_EX, ERR_R_MALLOC_FAILURE);
                 ret = 0;
                 goto err;
             }

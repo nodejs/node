@@ -1,5 +1,6 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2013-2014 Timo Teräs <timo.teras@gmail.com>
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,13 +8,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-/*
- * C implementation based on the original Perl and shell versions
- *
- * Copyright (c) 2013-2014 Timo Teräs <timo.teras@iki.fi>
- */
-
 #include "apps.h"
+#include "progs.h"
 
 #if defined(OPENSSL_SYS_UNIX) || defined(__APPLE__) || \
     (defined(__VMS) && defined(__DECC) && __CRTL_VER >= 80300000)
@@ -54,6 +50,26 @@
 #  define NAME_MAX 255
 # endif
 # define MAX_COLLISIONS  256
+
+# if defined(OPENSSL_SYS_VXWORKS)
+/*
+ * VxWorks has no symbolic links
+ */
+
+#  define lstat(path, buf) stat(path, buf)
+
+int symlink(const char *target, const char *linkpath)
+{
+    errno = ENOSYS;
+    return -1;
+}
+
+ssize_t readlink(const char *pathname, char *buf, size_t bufsiz)
+{
+    errno = ENOSYS;
+    return -1;
+}
+# endif
 
 typedef struct hentry_st {
     struct hentry_st *next;
@@ -130,9 +146,10 @@ static int add_entry(enum Type type, unsigned int hash, const char *filename,
     for (ep = bp->first_entry; ep; ep = ep->next) {
         if (digest && memcmp(digest, ep->digest, evpmdsize) == 0) {
             BIO_printf(bio_err,
-                       "%s: skipping duplicate %s in %s\n", opt_getprog(),
+                       "%s: warning: skipping duplicate %s in %s\n",
+                       opt_getprog(),
                        type == TYPE_CERT ? "certificate" : "CRL", filename);
-            return 1;
+            return 0;
         }
         if (strcmp(filename, ep->filename) == 0) {
             found = ep;
@@ -144,7 +161,7 @@ static int add_entry(enum Type type, unsigned int hash, const char *filename,
     if (ep == NULL) {
         if (bp->num_needed >= MAX_COLLISIONS) {
             BIO_printf(bio_err,
-                       "%s: hash table overflow for %s\n",
+                       "%s: error: hash table overflow for %s\n",
                        opt_getprog(), filename);
             return 1;
         }
@@ -235,7 +252,7 @@ static int do_file(const char *filename, const char *fullpath, enum Hash h)
 
     /* Does it have X.509 data in it? */
     if ((b = BIO_new_file(fullpath, "r")) == NULL) {
-        BIO_printf(bio_err, "%s: skipping %s, cannot open file\n",
+        BIO_printf(bio_err, "%s: error: skipping %s, cannot open file\n",
                    opt_getprog(), filename);
         errs++;
         goto end;
@@ -247,18 +264,18 @@ static int do_file(const char *filename, const char *fullpath, enum Hash h)
 
     if (sk_X509_INFO_num(inf) != 1) {
         BIO_printf(bio_err,
-                   "%s: skipping %s,"
+                   "%s: warning: skipping %s,"
                    "it does not contain exactly one certificate or CRL\n",
                    opt_getprog(), filename);
         /* This is not an error. */
         goto end;
     }
     x = sk_X509_INFO_value(inf, 0);
-    if (x->x509) {
+    if (x->x509 != NULL) {
         type = TYPE_CERT;
         name = X509_get_subject_name(x->x509);
         X509_digest(x->x509, evpmd, digest, NULL);
-    } else if (x->crl) {
+    } else if (x->crl != NULL) {
         type = TYPE_CRL;
         name = X509_CRL_get_issuer(x->crl);
         X509_CRL_digest(x->crl, evpmd, digest, NULL);
@@ -266,7 +283,7 @@ static int do_file(const char *filename, const char *fullpath, enum Hash h)
         ++errs;
         goto end;
     }
-    if (name) {
+    if (name != NULL) {
         if ((h == HASH_NEW) || (h == HASH_BOTH))
             errs += add_entry(type, X509_NAME_hash(name), filename, digest, 1, ~0);
         if ((h == HASH_OLD) || (h == HASH_BOTH))
@@ -297,24 +314,6 @@ static int ends_with_dirsep(const char *path)
     return *path == '/';
 }
 
-static int massage_filename(char *name)
-{
-# ifdef __VMS
-    char *p = strchr(name, ';');
-    char *q = p;
-
-    if (q != NULL) {
-        for (q++; *q != '\0'; q++) {
-            if (!isdigit((unsigned char)*q))
-                return 1;
-        }
-    }
-
-    *p = '\0';
-# endif
-    return 1;
-}
-
 /*
  * Process a directory; return number of errors found.
  */
@@ -329,7 +328,7 @@ static int do_dir(const char *dirname, enum Hash h)
     size_t i;
     const char *pathsep;
     const char *filename;
-    char *buf, *copy;
+    char *buf, *copy = NULL;
     STACK_OF(OPENSSL_STRING) *files = NULL;
 
     if (app_access(dirname, W_OK) < 0) {
@@ -346,14 +345,16 @@ static int do_dir(const char *dirname, enum Hash h)
 
     if ((files = sk_OPENSSL_STRING_new_null()) == NULL) {
         BIO_printf(bio_err, "Skipping %s, out of memory\n", dirname);
-        exit(1);
+        errs = 1;
+        goto err;
     }
     while ((filename = OPENSSL_DIR_read(&d, dirname)) != NULL) {
-        if ((copy = strdup(filename)) == NULL
-                || !massage_filename(copy)
+        if ((copy = OPENSSL_strdup(filename)) == NULL
                 || sk_OPENSSL_STRING_push(files, copy) == 0) {
+            OPENSSL_free(copy);
             BIO_puts(bio_err, "out of memory\n");
-            exit(1);
+            errs = 1;
+            goto err;
         }
     }
     OPENSSL_DIR_end(&d);
@@ -371,7 +372,6 @@ static int do_dir(const char *dirname, enum Hash h)
             continue;
         errs += do_file(filename, buf, h);
     }
-    sk_OPENSSL_STRING_pop_free(files, str_free);
 
     for (i = 0; i < OSSL_NELEM(hash_table); i++) {
         for (bp = hash_table[i]; bp; bp = nextbp) {
@@ -439,6 +439,8 @@ static int do_dir(const char *dirname, enum Hash h)
         hash_table[i] = NULL;
     }
 
+ err:
+    sk_OPENSSL_STRING_pop_free(files, str_free);
     OPENSSL_free(buf);
     return errs;
 }
@@ -448,7 +450,7 @@ typedef enum OPTION_choice {
     OPT_COMPAT, OPT_OLD, OPT_N, OPT_VERBOSE
 } OPTION_CHOICE;
 
-OPTIONS rehash_options[] = {
+const OPTIONS rehash_options[] = {
     {OPT_HELP_STR, 1, '-', "Usage: %s [options] [cert-directory...]\n"},
     {OPT_HELP_STR, 1, '-', "Valid options are:\n"},
     {"help", OPT_HELP, '-', "Display this summary"},
@@ -499,16 +501,17 @@ int rehash_main(int argc, char **argv)
     evpmd = EVP_sha1();
     evpmdsize = EVP_MD_size(evpmd);
 
-    if (*argv) {
-        while (*argv)
+    if (*argv != NULL) {
+        while (*argv != NULL)
             errs += do_dir(*argv++, h);
-    } else if ((env = getenv("SSL_CERT_DIR")) != NULL) {
+    } else if ((env = getenv(X509_get_default_cert_dir_env())) != NULL) {
+        char lsc[2] = { LIST_SEPARATOR_CHAR, '\0' };
         m = OPENSSL_strdup(env);
-        for (e = strtok(m, ":"); e != NULL; e = strtok(NULL, ":"))
+        for (e = strtok(m, lsc); e != NULL; e = strtok(NULL, lsc))
             errs += do_dir(e, h);
         OPENSSL_free(m);
     } else {
-        errs += do_dir("/etc/ssl/certs", h);
+        errs += do_dir(X509_get_default_cert_dir(), h);
     }
 
  end:
@@ -516,14 +519,14 @@ int rehash_main(int argc, char **argv)
 }
 
 #else
-OPTIONS rehash_options[] = {
+const OPTIONS rehash_options[] = {
     {NULL}
 };
 
 int rehash_main(int argc, char **argv)
 {
     BIO_printf(bio_err, "Not available; use c_rehash script\n");
-    return (1);
+    return 1;
 }
 
 #endif /* defined(OPENSSL_SYS_UNIX) || defined(__APPLE__) */

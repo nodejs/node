@@ -340,6 +340,7 @@ HELPER_IMPL(tcp4_echo_server) {
   if (tcp4_echo_start(TEST_PORT))
     return 1;
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }
@@ -351,6 +352,7 @@ HELPER_IMPL(tcp6_echo_server) {
   if (tcp6_echo_start(TEST_PORT))
     return 1;
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }
@@ -362,6 +364,7 @@ HELPER_IMPL(pipe_echo_server) {
   if (pipe_echo_start(TEST_PIPENAME))
     return 1;
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }
@@ -373,6 +376,7 @@ HELPER_IMPL(udp4_echo_server) {
   if (udp4_echo_start(TEST_PORT))
     return 1;
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }

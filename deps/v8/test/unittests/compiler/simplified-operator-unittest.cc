@@ -53,6 +53,7 @@ const PureOperator kPureOperators[] = {
     PURE(NumberShiftRightLogical, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
+    PURE(ChangeCompressedSignedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToUint32, Operator::kNoProperties, 1),
@@ -115,9 +116,8 @@ TEST_P(SimplifiedPureOperatorTest, Properties) {
   EXPECT_EQ(pop.properties, op->properties() & pop.properties);
 }
 
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
-                        ::testing::ValuesIn(kPureOperators));
-
+INSTANTIATE_TEST_SUITE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
+                         ::testing::ValuesIn(kPureOperators));
 
 // -----------------------------------------------------------------------------
 
@@ -147,25 +147,24 @@ const ElementAccess kElementAccesses[] = {
     {kUntaggedBase, 0, Type::Number(),
      MachineType(MachineRepresentation::kFloat64, MachineSemantic::kNone),
      kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     MachineType::Int8(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Signed32(), MachineType::Int8(),
+     kNoWriteBarrier},
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Unsigned32(),
      MachineType::Uint8(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Signed32(),
      MachineType::Int16(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Unsigned32(),
      MachineType::Uint16(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Signed32(),
      MachineType::Int32(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Unsigned32(),
      MachineType::Uint32(), kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Number(),
      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
      kNoWriteBarrier},
-    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
+    {kTaggedBase, ByteArray::kHeaderSize, Type::Number(),
      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
      kNoWriteBarrier}};
-
 
 class SimplifiedElementAccessOperatorTest
     : public TestWithZone,
@@ -213,10 +212,9 @@ TEST_P(SimplifiedElementAccessOperatorTest, StoreElement) {
   EXPECT_EQ(0, op->ControlOutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
-                        SimplifiedElementAccessOperatorTest,
-                        ::testing::ValuesIn(kElementAccesses));
+INSTANTIATE_TEST_SUITE_P(SimplifiedOperatorTest,
+                         SimplifiedElementAccessOperatorTest,
+                         ::testing::ValuesIn(kElementAccesses));
 
 }  // namespace simplified_operator_unittest
 }  // namespace compiler

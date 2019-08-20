@@ -241,13 +241,13 @@ void BMPSet::overrideIllegal() {
             bmpBlockBits[i]|=bits;
         }
 
-        mask=~(0x10001<<0xd);   // Lead byte 0xED.
+        mask= static_cast<uint32_t>(~(0x10001<<0xd));   // Lead byte 0xED.
         bits=1<<0xd;
         for(i=32; i<64; ++i) {  // Second half of 4k block.
             bmpBlockBits[i]=(bmpBlockBits[i]&mask)|bits;
         }
     } else {
-        mask=~(0x10001<<0xd);   // Lead byte 0xED.
+        mask= static_cast<uint32_t>(~(0x10001<<0xd));   // Lead byte 0xED.
         for(i=32; i<64; ++i) {  // Second half of 4k block.
             bmpBlockBits[i]&=mask;
         }

@@ -33,7 +33,7 @@ const options = {
   cert: fixtures.readKey('agent1-cert.pem')
 };
 
-// a server that never replies
+// A server that never replies
 const server = https.createServer(options, function() {
   console.log('Got request.  Doing nothing.');
 }).listen(0, common.mustCall(function() {

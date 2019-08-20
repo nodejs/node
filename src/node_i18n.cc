@@ -44,11 +44,12 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
+#include "base_object-inl.h"
 #include "node.h"
 #include "node_buffer.h"
-#include "env-inl.h"
+#include "node_errors.h"
+#include "node_internals.h"
 #include "util-inl.h"
-#include "base_object-inl.h"
 #include "v8.h"
 
 #include <unicode/utypes.h>
@@ -86,9 +87,11 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
@@ -126,7 +129,7 @@ struct Converter {
 
   explicit Converter(UConverter* converter,
                      const char* sub = nullptr) : conv(converter) {
-    CHECK_NE(conv, nullptr);
+    CHECK_NOT_NULL(conv);
     UErrorCode status = U_ZERO_ERROR;
     if (sub != nullptr) {
       ucnv_setSubstChars(conv, sub, strlen(sub), &status);
@@ -148,7 +151,7 @@ class ConverterObject : public BaseObject, Converter {
     CONVERTER_FLAGS_IGNORE_BOM = 0x4
   };
 
-  ~ConverterObject() override {}
+  ~ConverterObject() override = default;
 
   static void Has(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -166,6 +169,11 @@ class ConverterObject : public BaseObject, Converter {
   static void Create(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     HandleScope scope(env->isolate());
+
+    Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
+    t->SetInternalFieldCount(1);
+    Local<Object> obj;
+    if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
 
     CHECK_GE(args.Length(), 2);
     Utf8Value label(env->isolate(), args[0]);
@@ -186,9 +194,6 @@ class ConverterObject : public BaseObject, Converter {
                           nullptr, nullptr, nullptr, &status);
     }
 
-    Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
-    t->SetInternalFieldCount(1);
-    Local<Object> obj = t->NewInstance(env->context()).ToLocalChecked();
     new ConverterObject(env, obj, conv, ignoreBOM);
     args.GetReturnValue().Set(obj);
   }
@@ -198,24 +203,29 @@ class ConverterObject : public BaseObject, Converter {
 
     CHECK_GE(args.Length(), 3);  // Converter, Buffer, Flags
 
-    Converter utf8("utf8");
     ConverterObject* converter;
     ASSIGN_OR_RETURN_UNWRAP(&converter, args[0].As<Object>());
-    SPREAD_BUFFER_ARG(args[1], input_obj);
+    ArrayBufferViewContents<char> input(args[1]);
     int flags = args[2]->Uint32Value(env->context()).ToChecked();
 
     UErrorCode status = U_ZERO_ERROR;
     MaybeStackBuffer<UChar> result;
     MaybeLocal<Object> ret;
-    size_t limit = ucnv_getMinCharSize(converter->conv) *
-                   input_obj_length;
+    size_t limit = ucnv_getMinCharSize(converter->conv) * input.length();
     if (limit > 0)
       result.AllocateSufficientStorage(limit);
 
     UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
+    OnScopeLeave cleanup([&]() {
+      if (flush) {
+        // Reset the converter state.
+        converter->bomSeen_ = false;
+        ucnv_reset(converter->conv);
+      }
+    });
 
-    const char* source = input_obj_data;
-    size_t source_length = input_obj_length;
+    const char* source = input.data();
+    size_t source_length = input.length();
 
     if (converter->unicode_ && !converter->ignoreBOM_ && !converter->bomSeen_) {
       int32_t bomOffset = 0;
@@ -236,29 +246,26 @@ class ConverterObject : public BaseObject, Converter {
         result.SetLength(target - &result[0]);
       ret = ToBufferEndian(env, &result);
       args.GetReturnValue().Set(ret.ToLocalChecked());
-      goto reset;
+      return;
     }
 
     args.GetReturnValue().Set(status);
-
-   reset:
-    if (flush) {
-      // Reset the converter state
-      converter->bomSeen_ = false;
-      ucnv_reset(converter->conv);
-    }
   }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(ConverterObject)
+  SET_SELF_SIZE(ConverterObject)
 
  protected:
   ConverterObject(Environment* env,
-                  v8::Local<v8::Object> wrap,
+                  Local<Object> wrap,
                   UConverter* converter,
                   bool ignoreBOM,
                   const char* sub = nullptr) :
                   BaseObject(env, wrap),
                   Converter(converter, sub),
                   ignoreBOM_(ignoreBOM) {
-    MakeWeak<ConverterObject>(this);
+    MakeWeak();
 
     switch (ucnv_getType(converter)) {
       case UCNV_UTF8:
@@ -447,8 +454,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
   UErrorCode status = U_ZERO_ERROR;
   MaybeLocal<Object> result;
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  SPREAD_BUFFER_ARG(args[0], ts_obj);
+  ArrayBufferViewContents<char> input(args[0]);
   const enum encoding fromEncoding = ParseEncoding(isolate, args[1], BUFFER);
   const enum encoding toEncoding = ParseEncoding(isolate, args[2], BUFFER);
 
@@ -482,7 +488,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
     }
 
     result = tfn(env, EncodingName(fromEncoding), EncodingName(toEncoding),
-                 ts_obj_data, ts_obj_length, &status);
+                 input.data(), input.length(), &status);
   } else {
     status = U_ILLEGAL_ARGUMENT_ERROR;
   }
@@ -495,72 +501,12 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
 
 void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
+  CHECK(args[0]->IsInt32());
+  UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           u_errorName(status),
-                          v8::NewStringType::kNormal).ToLocalChecked());
-}
-
-#define TYPE_ICU "icu"
-#define TYPE_UNICODE "unicode"
-#define TYPE_CLDR "cldr"
-#define TYPE_TZ "tz"
-
-/**
- * This is the workhorse function that deals with the actual version info.
- * Get an ICU version.
- * @param type the type of version to get. One of VERSION_TYPES
- * @param buf optional buffer for result
- * @param status ICU error status. If failure, assume result is undefined.
- * @return version number, or NULL. May or may not be buf.
- */
-const char* GetVersion(const char* type,
-                       char buf[U_MAX_VERSION_STRING_LENGTH],
-                       UErrorCode* status) {
-  if (!strcmp(type, TYPE_ICU)) {
-    return U_ICU_VERSION;
-  } else if (!strcmp(type, TYPE_UNICODE)) {
-    return U_UNICODE_VERSION;
-  } else if (!strcmp(type, TYPE_TZ)) {
-    return icu::TimeZone::getTZDataVersion(*status);
-  } else if (!strcmp(type, TYPE_CLDR)) {
-    UVersionInfo versionArray;
-    ulocdata_getCLDRVersion(versionArray, status);
-    if (U_SUCCESS(*status)) {
-      u_versionToString(versionArray, buf);
-      return buf;
-    }
-  }
-  // Fall through - unknown type or error case
-  return nullptr;
-}
-
-void GetVersion(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if ( args.Length() == 0 ) {
-    // With no args - return a comma-separated list of allowed values
-      args.GetReturnValue().Set(
-          String::NewFromUtf8(env->isolate(),
-            TYPE_ICU ","
-            TYPE_UNICODE ","
-            TYPE_CLDR ","
-            TYPE_TZ));
-  } else {
-    CHECK_GE(args.Length(), 1);
-    CHECK(args[0]->IsString());
-    Utf8Value val(env->isolate(), args[0]);
-    UErrorCode status = U_ZERO_ERROR;
-    char buf[U_MAX_VERSION_STRING_LENGTH] = "";  // Possible output buffer.
-    const char* versionString = GetVersion(*val, buf, &status);
-
-    if (U_SUCCESS(status) && versionString) {
-      // Success.
-      args.GetReturnValue().Set(
-          String::NewFromUtf8(env->isolate(),
-          versionString));
-    }
-  }
+                          NewStringType::kNormal).ToLocalChecked());
 }
 
 }  // anonymous namespace
@@ -709,13 +655,13 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   int32_t len = ToUnicode(&buf, *val, val.length());
 
   if (len < 0) {
-    return env->ThrowError("Cannot convert name to Unicode");
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Cannot convert name to Unicode");
   }
 
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           *buf,
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           len).ToLocalChecked());
 }
 
@@ -725,20 +671,20 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
   // optional arg
-  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+  bool lenient = args[1]->BooleanValue(env->isolate());
   enum idna_mode mode = lenient ? IDNA_LENIENT : IDNA_DEFAULT;
 
   MaybeStackBuffer<char> buf;
   int32_t len = ToASCII(&buf, *val, val.length(), mode);
 
   if (len < 0) {
-    return env->ThrowError("Cannot convert name to ASCII");
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Cannot convert name to ASCII");
   }
 
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           *buf,
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           len).ToLocalChecked());
 }
 
@@ -808,13 +754,13 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1)
     return;
 
-  bool ambiguous_as_full_width = args[1]->BooleanValue();
-  bool expand_emoji_sequence = args[2]->BooleanValue();
+  bool ambiguous_as_full_width = args[1]->IsTrue();
+  bool expand_emoji_sequence = args[2]->IsTrue();
 
   if (args[0]->IsNumber()) {
-    args.GetReturnValue().Set(
-        GetColumnWidth(args[0]->Uint32Value(),
-                       ambiguous_as_full_width));
+    uint32_t val;
+    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
+    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
     return;
   }
 
@@ -860,7 +806,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "toUnicode", ToUnicode);
   env->SetMethod(target, "toASCII", ToASCII);
   env->SetMethod(target, "getStringWidth", GetStringWidth);
-  env->SetMethod(target, "getVersion", GetVersion);
 
   // One-shot converters
   env->SetMethod(target, "icuErrName", ICUErrorName);
@@ -875,6 +820,6 @@ void Initialize(Local<Object> target,
 }  // namespace i18n
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

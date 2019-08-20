@@ -6,8 +6,8 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var opts = {cwd: __dirname}
-var outfile = path.resolve(__dirname, '_npmrc')
+var opts = { cwd: common.pkg }
+var outfile = path.resolve(common.pkg, '_npmrc')
 var responses = {
   'Username': 'u\n',
   'Password': 'p\n',
@@ -33,10 +33,13 @@ function verifyStdout (runner, successMessage, t) {
 
 function mocks (server) {
   server.filteringRequestBody(function (r) {
-    if (r.match(/\"_id\":\"org\.couchdb\.user:u\"/)) {
+    if (r.match(/"_id":"org\.couchdb\.user:u"/)) {
       return 'auth'
+    } else {
+      return 'invalid'
     }
   })
+  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:u', 'auth')
     .reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
 }
@@ -50,18 +53,18 @@ test('npm login', function (t) {
         '--loglevel', 'silent',
         '--userconfig', outfile
       ],
-    opts,
-    function (err, code) {
-      t.notOk(code, 'exited OK')
-      t.notOk(err, 'no error output')
-      var config = fs.readFileSync(outfile, 'utf8')
-      t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
-      s.close()
-      rimraf(outfile, function (err) {
-        t.ifError(err, 'removed config file OK')
-        t.end()
+      opts,
+      function (err, code) {
+        t.notOk(code, 'exited OK')
+        t.notOk(err, 'no error output')
+        var config = fs.readFileSync(outfile, 'utf8')
+        t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
+        s.close()
+        rimraf(outfile, function (err) {
+          t.ifError(err, 'removed config file OK')
+          t.end()
+        })
       })
-    })
 
     var message = 'Logged in as u on ' + common.registry + '/.'
     runner.stdout.on('data', verifyStdout(runner, message, t))
@@ -80,36 +83,36 @@ test('npm login --scope <scope> uses <scope>:registry as its URI', function (t) 
       scope + ':registry',
       uri
     ],
-  opts,
-  function (err, code) {
-    t.notOk(code, 'exited OK')
-    t.notOk(err, 'no error output')
+    opts,
+    function (err, code) {
+      t.notOk(code, 'exited OK')
+      t.notOk(err, 'no error output')
 
-    mr({ port: port, plugin: mocks }, function (er, s) {
-      var runner = common.npm(
-        [
-          'login',
-          '--loglevel', 'silent',
-          '--userconfig', outfile,
-          '--scope', scope
-        ],
-      opts,
-      function (err, code) {
-        t.notOk(code, 'exited OK')
-        t.notOk(err, 'no error output')
-        var config = fs.readFileSync(outfile, 'utf8')
-        t.like(config, new RegExp(scope + ':registry=' + uri), 'scope:registry is set')
-        s.close()
-        rimraf(outfile, function (err) {
-          t.ifError(err, 'removed config file OK')
-          t.end()
-        })
+      mr({ port: port, plugin: mocks }, function (er, s) {
+        var runner = common.npm(
+          [
+            'login',
+            '--loglevel', 'silent',
+            '--userconfig', outfile,
+            '--scope', scope
+          ],
+          opts,
+          function (err, code) {
+            t.equal(code, 0, 'exited OK')
+            t.notOk(err, 'no error output')
+            var config = fs.readFileSync(outfile, 'utf8')
+            t.like(config, new RegExp(scope + ':registry=' + uri), 'scope:registry is set')
+            s.close()
+            rimraf(outfile, function (err) {
+              t.ifError(err, 'removed config file OK')
+              t.end()
+            })
+          })
+
+        var message = 'Logged in as u to scope ' + scope + ' on ' + uri + '.'
+        runner.stdout.on('data', verifyStdout(runner, message, t))
       })
-
-      var message = 'Logged in as u to scope ' + scope + ' on ' + uri + '.'
-      runner.stdout.on('data', verifyStdout(runner, message, t))
     })
-  })
 })
 
 test('npm login --scope <scope> makes sure <scope> is prefixed by an @', function (t) {
@@ -125,36 +128,36 @@ test('npm login --scope <scope> makes sure <scope> is prefixed by an @', functio
       prefixedScope + ':registry',
       uri
     ],
-  opts,
-  function (err, code) {
-    t.notOk(code, 'exited OK')
-    t.notOk(err, 'no error output')
+    opts,
+    function (err, code) {
+      t.notOk(code, 'exited OK')
+      t.notOk(err, 'no error output')
 
-    mr({ port: port, plugin: mocks }, function (er, s) {
-      var runner = common.npm(
-        [
-          'login',
-          '--loglevel', 'silent',
-          '--userconfig', outfile,
-          '--scope', scope
-        ],
-      opts,
-      function (err, code) {
-        t.notOk(code, 'exited OK')
-        t.notOk(err, 'no error output')
-        var config = fs.readFileSync(outfile, 'utf8')
-        t.like(config, new RegExp(prefixedScope + ':registry=' + uri), 'scope:registry is set')
-        s.close()
-        rimraf(outfile, function (err) {
-          t.ifError(err, 'removed config file OK')
-          t.end()
-        })
+      mr({ port: port, plugin: mocks }, function (er, s) {
+        var runner = common.npm(
+          [
+            'login',
+            '--loglevel', 'silent',
+            '--userconfig', outfile,
+            '--scope', scope
+          ],
+          opts,
+          function (err, code) {
+            t.notOk(code, 'exited OK')
+            t.notOk(err, 'no error output')
+            var config = fs.readFileSync(outfile, 'utf8')
+            t.like(config, new RegExp(prefixedScope + ':registry=' + uri), 'scope:registry is set')
+            s.close()
+            rimraf(outfile, function (err) {
+              t.ifError(err, 'removed config file OK')
+              t.end()
+            })
+          })
+
+        var message = 'Logged in as u to scope ' + prefixedScope + ' on ' + uri + '.'
+        runner.stdout.on('data', verifyStdout(runner, message, t))
       })
-
-      var message = 'Logged in as u to scope ' + prefixedScope + ' on ' + uri + '.'
-      runner.stdout.on('data', verifyStdout(runner, message, t))
     })
-  })
 })
 
 test('npm login --scope <scope> --registry <registry> uses <registry> as its URI', function (t) {
@@ -167,37 +170,37 @@ test('npm login --scope <scope> --registry <registry> uses <registry> as its URI
       scope + ':registry',
       'invalidurl'
     ],
-  opts,
-  function (err, code) {
-    t.notOk(code, 'exited OK')
-    t.notOk(err, 'no error output')
+    opts,
+    function (err, code) {
+      t.notOk(code, 'exited OK')
+      t.notOk(err, 'no error output')
 
-    mr({ port: common.port, plugin: mocks }, function (er, s) {
-      var runner = common.npm(
-        [
-          'login',
-          '--registry', common.registry,
-          '--loglevel', 'silent',
-          '--userconfig', outfile,
-          '--scope', scope
-        ],
-      opts,
-      function (err, code) {
-        t.notOk(code, 'exited OK')
-        t.notOk(err, 'no error output')
-        var config = fs.readFileSync(outfile, 'utf8')
-        t.like(config, new RegExp(scope + ':registry=' + common.registry), 'scope:registry is set')
-        s.close()
-        rimraf(outfile, function (err) {
-          t.ifError(err, 'removed config file OK')
-          t.end()
-        })
+      mr({ port: common.port, plugin: mocks }, function (er, s) {
+        var runner = common.npm(
+          [
+            'login',
+            '--registry', common.registry,
+            '--loglevel', 'silent',
+            '--userconfig', outfile,
+            '--scope', scope
+          ],
+          opts,
+          function (err, code) {
+            t.notOk(code, 'exited OK')
+            t.notOk(err, 'no error output')
+            var config = fs.readFileSync(outfile, 'utf8')
+            t.like(config, new RegExp(scope + ':registry=' + common.registry), 'scope:registry is set')
+            s.close()
+            rimraf(outfile, function (err) {
+              t.ifError(err, 'removed config file OK')
+              t.end()
+            })
+          })
+
+        var message = 'Logged in as u to scope ' + scope + ' on ' + common.registry + '/.'
+        runner.stdout.on('data', verifyStdout(runner, message, t))
       })
-
-      var message = 'Logged in as u to scope ' + scope + ' on ' + common.registry + '/.'
-      runner.stdout.on('data', verifyStdout(runner, message, t))
     })
-  })
 })
 
 test('npm login --always-auth', function (t) {
@@ -210,18 +213,18 @@ test('npm login --always-auth', function (t) {
         '--userconfig', outfile,
         '--always-auth'
       ],
-    opts,
-    function (err, code) {
-      t.notOk(code, 'exited OK')
-      t.notOk(err, 'no error output')
-      var config = fs.readFileSync(outfile, 'utf8')
-      t.like(config, /:always-auth=true/, 'always-auth is scoped and true')
-      s.close()
-      rimraf(outfile, function (err) {
-        t.ifError(err, 'removed config file OK')
-        t.end()
+      opts,
+      function (err, code) {
+        t.notOk(code, 'exited OK')
+        t.notOk(err, 'no error output')
+        var config = fs.readFileSync(outfile, 'utf8')
+        t.like(config, /:always-auth=true/, 'always-auth is scoped and true')
+        s.close()
+        rimraf(outfile, function (err) {
+          t.ifError(err, 'removed config file OK')
+          t.end()
+        })
       })
-    })
 
     var message = 'Logged in as u on ' + common.registry + '/.'
     runner.stdout.on('data', verifyStdout(runner, message, t))
@@ -238,18 +241,18 @@ test('npm login --no-always-auth', function (t) {
         '--userconfig', outfile,
         '--no-always-auth'
       ],
-    opts,
-    function (err, code) {
-      t.notOk(code, 'exited OK')
-      t.notOk(err, 'no error output')
-      var config = fs.readFileSync(outfile, 'utf8')
-      t.like(config, /:always-auth=false/, 'always-auth is scoped and false')
-      s.close()
-      rimraf(outfile, function (err) {
-        t.ifError(err, 'removed config file OK')
-        t.end()
+      opts,
+      function (err, code) {
+        t.notOk(code, 'exited OK')
+        t.notOk(err, 'no error output')
+        var config = fs.readFileSync(outfile, 'utf8')
+        t.like(config, /:always-auth=false/, 'always-auth is scoped and false')
+        s.close()
+        rimraf(outfile, function (err) {
+          t.ifError(err, 'removed config file OK')
+          t.end()
+        })
       })
-    })
 
     var message = 'Logged in as u on ' + common.registry + '/.'
     runner.stdout.on('data', verifyStdout(runner, message, t))

@@ -2,17 +2,17 @@
 
 require('../common');
 const { DeflateRaw } = require('zlib');
-const { inherits } = require('util');
 const { Readable } = require('stream');
 
-// validates that zlib.DeflateRaw can be inherited
-// with util.inherits
+// Validates that zlib.DeflateRaw can be inherited
+// with Object.setPrototypeOf
 
 function NotInitialized(options) {
   DeflateRaw.call(this, options);
   this.prop = true;
 }
-inherits(NotInitialized, DeflateRaw);
+Object.setPrototypeOf(NotInitialized.prototype, DeflateRaw.prototype);
+Object.setPrototypeOf(NotInitialized, DeflateRaw);
 
 const dest = new NotInitialized();
 

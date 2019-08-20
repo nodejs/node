@@ -8,9 +8,9 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var npm = npm = require('../../')
+var npm = require('../../')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 
 var json = {
   dependencies: {
@@ -38,7 +38,7 @@ test('npm install with duplicate dependencies, different versions', function (t)
   t.plan(1)
   mr({ port: common.port }, function (er, s) {
     var opts = {
-      cache: path.resolve(pkg, 'cache'),
+      cache: common.cache,
       registry: common.registry
     }
 

@@ -58,8 +58,8 @@ if (process.argv[2] === 'child') {
   const child = fork(process.argv[1], ['child']);
 
   child.on('exit', function(code, signal) {
-    if (!childKilled)
-      throw new Error('child died unexpectedly!');
+    if (!subprocessKilled)
+      throw new Error('subprocess died unexpectedly!');
   });
 
   const server = net.createServer();
@@ -86,10 +86,10 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  let childKilled = false;
+  let subprocessKilled = false;
   function closeSockets(i) {
     if (i === count) {
-      childKilled = true;
+      subprocessKilled = true;
       server.close();
       child.kill();
       return;

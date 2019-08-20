@@ -14,6 +14,7 @@ function* foo() {
   }
 }
 
+%PrepareFunctionForOptimization(foo);
 let gaga = foo();
 gaga.next();
 %OptimizeFunctionOnNextCall(foo);

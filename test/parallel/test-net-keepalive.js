@@ -29,7 +29,7 @@ let clientConnection;
 const echoServer = net.createServer(function(connection) {
   serverConnection = connection;
   setTimeout(common.mustCall(function() {
-    // make sure both connections are still open
+    // Make sure both connections are still open
     assert.strictEqual(serverConnection.readyState, 'open');
     assert.strictEqual(clientConnection.readyState, 'open');
     serverConnection.end();
@@ -38,7 +38,7 @@ const echoServer = net.createServer(function(connection) {
   }, 1), common.platformTimeout(100));
   connection.setTimeout(0);
   assert.notStrictEqual(connection.setKeepAlive, undefined);
-  // send a keepalive packet after 50 ms
+  // Send a keepalive packet after 50 ms
   connection.setKeepAlive(true, common.platformTimeout(50));
   connection.on('end', function() {
     connection.end();

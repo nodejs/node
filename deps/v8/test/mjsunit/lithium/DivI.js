@@ -38,6 +38,7 @@ function foo(a, b) {
   return result / b;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(700, 5);
 var r1 = foo(700, 5);
 %OptimizeFunctionOnNextCall(foo);
@@ -50,6 +51,7 @@ function boo(value) {
 }
 
 // Test deoptimization of MinInt / -1.
+%PrepareFunctionForOptimization(boo);
 assertEquals(2147483600, boo(-2147483600));
 assertEquals(2147483600, boo(-2147483600));
 %OptimizeFunctionOnNextCall(boo);

@@ -10,22 +10,50 @@
 
 namespace node {
 
+class ReqWrapBase {
+ public:
+  explicit inline ReqWrapBase(Environment* env);
+
+  virtual ~ReqWrapBase() = default;
+
+  virtual void Cancel() = 0;
+  virtual AsyncWrap* GetAsyncWrap() = 0;
+
+ private:
+  friend int GenDebugSymbols();
+  friend class Environment;
+
+  ListNode<ReqWrapBase> req_wrap_queue_;
+};
+
 template <typename T>
-class ReqWrap : public AsyncWrap {
+class ReqWrap : public AsyncWrap, public ReqWrapBase {
  public:
   inline ReqWrap(Environment* env,
                  v8::Local<v8::Object> object,
                  AsyncWrap::ProviderType provider);
   inline ~ReqWrap() override;
-  inline void Dispatched();  // Call this after the req has been dispatched.
+  // Call this after the req has been dispatched, if that did not already
+  // happen by using Dispatch().
+  inline void Dispatched();
+  // Call this after a request has finished, if re-using this object is planned.
+  inline void Reset();
   T* req() { return &req_; }
+  inline void Cancel() final;
+  inline AsyncWrap* GetAsyncWrap() override;
 
   static ReqWrap* from_req(T* req);
 
+  template <typename LibuvFunction, typename... Args>
+  inline int Dispatch(LibuvFunction fn, Args... args);
+
  private:
-  friend class Environment;
   friend int GenDebugSymbols();
-  ListNode<ReqWrap> req_wrap_queue_;
+  template <typename ReqT, typename U>
+  friend struct MakeLibuvRequestCallback;
+
+  typedef void (*callback_t)();
+  callback_t original_callback_ = nullptr;
 
  protected:
   // req_wrap_queue_ needs to be at a fixed offset from the start of the class

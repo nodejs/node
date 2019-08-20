@@ -25,24 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/disassembler.h"
-#include "src/factory.h"
-#include "src/macro-assembler.h"
-#include "src/s390/assembler-s390-inl.h"
-#include "src/simulator.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
+#include "src/heap/factory.h"
 #include "test/cctest/cctest.h"
+#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(s390): Refine these signatures per test case.
-using F1 = Object*(int x, int p1, int p2, int p3, int p4);
-using F2 = Object*(int x, int y, int p2, int p3, int p4);
-using F3 = Object*(void* p0, int p1, int p2, int p3, int p4);
-using F4 = Object*(void* p0, void* p1, int p2, int p3, int p4);
+using F1 = void*(int x, int p1, int p2, int p3, int p4);
+using F2 = void*(int x, int y, int p2, int p3, int p4);
+using F3 = void*(void* p0, int p1, int p2, int p3, int p4);
+using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -52,7 +53,7 @@ TEST(0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   __ lhi(r1, Operand(3));    // test 4-byte instr
   __ llilf(r2, Operand(4));  // test 6-byte instr
@@ -62,8 +63,7 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -79,7 +79,7 @@ TEST(1) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
   Label L, C;
 
 #if defined(_AIX)
@@ -101,8 +101,7 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -119,7 +118,7 @@ TEST(2) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(CcTest::i_isolate(), nullptr, 0);
+  Assembler assm(AssemblerOptions{});
   Label L, C;
 
 #if defined(_AIX)
@@ -152,8 +151,7 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -168,7 +166,7 @@ TEST(3) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   __ ar(r14, r13);
   __ sr(r14, r13);
@@ -197,7 +195,7 @@ TEST(3) {
   __ brcl(Condition(14), Operand(-123));
   __ iilf(r13, Operand(123456789));
   __ iihf(r13, Operand(-123456789));
-  __ mvc(MemOperand(r0, 123), MemOperand(r4, 567), 89);
+  __ mvc(MemOperand(r0, 123), MemOperand(r4, 567), Operand(88));
   __ sll(r13, Operand(10));
 
   v8::internal::byte* bufPos = assm.buffer_pos();
@@ -207,8 +205,7 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -222,7 +219,7 @@ TEST(4) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
   Label L2, L3, L4;
 
   __ chi(r2, Operand(10));
@@ -267,7 +264,7 @@ TEST(5) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   __ mov(r2, Operand(0x12345678));
   __ ExtractBitRange(r3, r2, 3, 2);
@@ -295,7 +292,7 @@ TEST(6) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   Label yes;
 
@@ -329,7 +326,7 @@ TEST(7) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   Label yes;
 
@@ -361,7 +358,7 @@ TEST(8) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   // Zero upper bits of r3/r4
   __ llihf(r3, Operand::Zero());
@@ -393,7 +390,7 @@ TEST(9) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   __ lzdr(d4);
   __ b(r14);
@@ -424,7 +421,7 @@ TEST(10) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   Label ok, failed;
 
@@ -485,13 +482,571 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef DEBUG
   code->Print();
 #endif
   auto f = GeneratedCode<F2>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
+// brxh
+TEST(11) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(AssemblerOptions{});
+
+  Label ok, failed, continue1, continue2;
+  // r1 - operand; r3 - inc / test val
+  __ lgfi(r1, Operand(1));
+  __ lgfi(r3, Operand(1));
+  __ brxh(r1, r3, &continue1);
+  __ b(&failed);
+
+  __ bind(&continue1);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r3, Operand(1));
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &failed);
+  __ brxh(r1, r3, &continue2);
+  __ b(&failed);
+
+  //r1 - operand; r4 - inc; r5 - test val
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r4, Operand(1));
+  __ lgfi(r5, Operand(-1));
+  __ brxh(r1, r4, &failed);
+  __ brxh(r1, r4, &ok);
+  __ b(&failed);
+
+  __ bind(&ok);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);  // test done.
+
+  __ bind(&failed);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);  // test done.
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
+// brxhg
+TEST(12) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(AssemblerOptions{});
+
+  Label ok, failed, continue1, continue2;
+  // r1 - operand; r3 - inc / test val
+  __ lgfi(r1, Operand(1));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &continue1);
+  __ b(&failed);
+
+  __ bind(&continue1);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r3, Operand(1));
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &failed);
+  __ brxhg(r1, r3, &continue2);
+  __ b(&failed);
+
+  //r1 - operand; r4 - inc; r5 - test val
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-2));
+  __ lgfi(r4, Operand(1));
+  __ lgfi(r5, Operand(-1));
+  __ brxhg(r1, r4, &failed);
+  __ brxhg(r1, r4, &ok);
+  __ b(&failed);
+
+  __ bind(&ok);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);  // test done.
+
+  __ bind(&failed);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);  // test done.
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector basics
+TEST(13) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector loads, replicate, and arithmetics
+  __ vrepi(d2, Operand(100), Condition(2));
+  __ lay(sp, MemOperand(sp, -4));
+  __ sty(r3, MemOperand(sp));
+  __ vlrep(d3, MemOperand(sp), Condition(2));
+  __ lay(sp, MemOperand(sp, 4));
+  __ vlvg(d4, r2, MemOperand(r0, 2), Condition(2));
+  __ vrep(d4, d4, Operand(2), Condition(2));
+  __ lay(sp, MemOperand(sp, -kSimd128Size));
+  __ vst(d4, MemOperand(sp), Condition(0));
+  __ va(d2, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vl(d3, MemOperand(sp), Condition(0));
+  __ lay(sp, MemOperand(sp, kSimd128Size));
+  __ vs(d2, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vml(d3, d3, d2, Condition(0), Condition(0), Condition(2));
+  __ lay(sp, MemOperand(sp, -4));
+  __ vstef(d3, MemOperand(sp), Condition(3));
+  __ vlef(d2, MemOperand(sp), Condition(0));
+  __ lay(sp, MemOperand(sp, 4));
+  __ vlgv(r2, d2, MemOperand(r0, 0), Condition(2));
+  __ cfi(r2, Operand(15000));
+  __ bne(&error);
+  __ vrepi(d2, Operand(-30), Condition(3));
+  __ vlc(d2, d2, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d2, MemOperand(r0, 1), Condition(3));
+  __ lgfi(r1, Operand(-30));
+  __ lcgr(r1, r1);
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(50, 250, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+
+// vector sum, packs, unpacks
+TEST(14) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector sum word and doubleword
+  __ vrepi(d2, Operand(100), Condition(2));
+  __ vsumg(d1, d2, d2, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cfi(r2, Operand(300));
+  __ bne(&error);
+  __ vrepi(d1, Operand(0), Condition(1));
+  __ vrepi(d2, Operand(75), Condition(1));
+  __ vsum(d1, d2, d1, Condition(0), Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cfi(r2, Operand(150));
+  __ bne(&error);
+  // vector packs
+  __ vrepi(d1, Operand(200), Condition(2));
+  __ vpk(d1, d1, d1, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 5), Condition(1));
+  __ cfi(r2, Operand(200));
+  __ bne(&error);
+  __ vrepi(d2, Operand(30), Condition(1));
+  __ vpks(d1, d1, d2, Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(0));
+  __ vlgv(r3, d1, MemOperand(r0, 8), Condition(0));
+  __ ar(r2, r3);
+  __ cfi(r2, Operand(157));
+  __ bne(&error);
+  __ vrepi(d1, Operand(270), Condition(1));
+  __ vrepi(d2, Operand(-30), Condition(1));
+  __ vpkls(d1, d1, d2, Condition(0), Condition(1));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(0));
+  __ vlgv(r3, d1, MemOperand(r0, 8), Condition(0));
+  __ cfi(r2, Operand(255));
+  __ bne(&error);
+  __ cfi(r3, Operand(255));
+  __ bne(&error);
+  // vector unpacks
+  __ vrepi(d1, Operand(50), Condition(2));
+  __ lgfi(r1, Operand(10));
+  __ lgfi(r2, Operand(20));
+  __ vlvg(d1, r1, MemOperand(r0, 0), Condition(2));
+  __ vlvg(d1, r2, MemOperand(r0, 2), Condition(2));
+  __ vuph(d2, d1, Condition(0), Condition(0), Condition(2));
+  __ vupl(d1, d1, Condition(0), Condition(0), Condition(2));
+  __ va(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ vlgv(r3, d1, MemOperand(r0, 1), Condition(3));
+  __ ar(r2, r3);
+  __ cfi(r2, Operand(130));
+  __ bne(&error);
+  __ vrepi(d1, Operand(-100), Condition(2));
+  __ vuplh(d2, d1, Condition(0), Condition(0), Condition(2));
+  __ vupll(d1, d1, Condition(0), Condition(0), Condition(2));
+  __ va(d1, d1, d1, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cfi(r2, Operand(0x1ffffff38));
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector comparisons
+TEST(15) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector max and min
+  __ vrepi(d2, Operand(-50), Condition(2));
+  __ vrepi(d3, Operand(40), Condition(2));
+  __ vmx(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vmnl(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ vmxl(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vmn(d1, d2, d3, Condition(0), Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector comparisons
+  __ vlr(d4, d3, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d3, d4, Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vch(d1, d2, d3, Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ vchl(d1, d2, d3, Condition(0), Condition(2));
+  __ vlgv(r3, d1, MemOperand(r0, 0), Condition(2));
+  __ ar(r2, r3);
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector bitwise ops
+  __ vrepi(d2, Operand(0), Condition(2));
+  __ vn(d1, d2, d3, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d1, d2, Condition(0), Condition(2));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(2));
+  __ vo(d1, d2, d3, Condition(0), Condition(0), Condition(0));
+  __ vx(d1, d1, d2, Condition(0), Condition(0), Condition(0));
+  __ vceq(d1, d1, d3, Condition(0), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  // vector bitwise shift
+  __ vceq(d1, d1, d1, Condition(0), Condition(2));
+  __ vesra(d1, d1, MemOperand(r0, 5), Condition(2));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(2));
+  __ cgr(r3, r2);
+  __ bne(&error);
+  __ lgfi(r1, Operand(0xfffff895));
+  __ vlvg(d1, r1, MemOperand(r0, 0), Condition(3));
+  __ vrep(d1, d1, Operand(0), Condition(3));
+  __ slag(r1, r1, Operand(10));
+  __ vesl(d1, d1, MemOperand(r0, 10), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ srlg(r1, r1, Operand(10));
+  __ vesrl(d1, d1, MemOperand(r0, 10), Condition(3));
+  __ vlgv(r2, d1, MemOperand(r0, 0), Condition(3));
+  __ cgr(r1, r2);
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector select and test mask
+TEST(16) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector select
+  __ vrepi(d1, Operand(0x1011), Condition(1));
+  __ vrepi(d2, Operand(0x4343), Condition(1));
+  __ vrepi(d3, Operand(0x3434), Condition(1));
+  __ vsel(d1, d2, d3, d1, Condition(0), Condition(0));
+  __ vlgv(r2, d1, MemOperand(r0, 2), Condition(1));
+  __ cfi(r2, Operand(0x2425));
+  __ bne(&error);
+  // vector test mask
+  __ vtm(d2, d1, Condition(0), Condition(0), Condition(0));
+  __ b(Condition(0x1), &error);
+  __ b(Condition(0x8), &error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+// vector fp instructions
+TEST(17) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+
+  // vector fp arithmetics
+  __ cdgbr(d1, r3);
+  __ ldr(d2, d1);
+  __ vfa(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ cdgbr(d3, r2);
+  __ vfm(d1, d1, d3, Condition(0), Condition(0), Condition(3));
+  __ vfs(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+  __ vfd(d1, d1, d3, Condition(0), Condition(0), Condition(3));
+  __ vfsq(d1, d1, Condition(0), Condition(0), Condition(3));
+  __ cgdbr(Condition(4), r2, d1);
+  __ cgfi(r2, Operand(0x8));
+  __ bne(&error);
+  // vector fp comparisons
+  __ cdgbra(Condition(4), d1, r3);
+  __ ldr(d2, d1);
+  __ vfa(d1, d1, d2, Condition(0), Condition(0), Condition(3));
+#ifdef VECTOR_ENHANCE_FACILITY_1
+  __ vfmin(d3, d1, d2, Condition(1), Condition(0), Condition(3));
+  __ vfmax(d4, d1, d2, Condition(1), Condition(0), Condition(3));
+#else
+  __ vlr(d3, d2, Condition(0), Condition(0), Condition(0));
+  __ vlr(d4, d1, Condition(0), Condition(0), Condition(0));
+#endif
+  __ vfch(d5, d4, d3, Condition(0), Condition(0), Condition(3));
+  __ vfche(d3, d3, d4, Condition(0), Condition(0), Condition(3));
+  __ vfce(d4, d1, d4, Condition(0), Condition(0), Condition(3));
+  __ va(d3, d3, d4, Condition(0), Condition(0), Condition(3));
+  __ vs(d3, d3, d5, Condition(0), Condition(0), Condition(3));
+  __ vlgv(r2, d3, MemOperand(r0, 0), Condition(3));
+  // vector fp sign ops
+  __ lgfi(r1, Operand(-0x50));
+  __ cdgbra(Condition(4), d1, r1);
+  __ vfpso(d1, d1, Condition(0), Condition(0), Condition(3));
+  __ vfi(d1, d1, Condition(5), Condition(0), Condition(3));
+  __ vlgv(r1, d1, MemOperand(r0, 0), Condition(3));
+  __ agr(r2, r1);
+  __ srlg(r2, r2, Operand(32));
+  __ cgfi(r2, Operand(0x40540000));
+  __ bne(&error);
+  __ lgfi(r2, Operand(0));
+  __ b(&done);
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ bind(&done);
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0x2, 0x30, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
+//TMHH, TMHL
+TEST(18) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+  Label continue1, continue2, continue3, continue4;
+  Label continue5, continue6, continue7, continue8, continue9;
+
+  // selected bits all 0
+  __ lgfi(r1, Operand(0));
+  __ tmhh(r1, Operand(1));
+  __ beq(&continue1); //8
+  __ b(&error);
+
+  __ bind(&continue1);
+  __ tmhl(r1, Operand(1));
+  __ beq(&continue2); //8
+  __ b(&error);
+
+  // mask = 0
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-1));
+  __ tmhh(r1, Operand(0));
+  __ beq(&continue3);  //8
+  __ b(&error);
+
+  __ bind(&continue3);
+  __ tmhh(r1, Operand(0));
+  __ beq(&continue4);  //8
+  __ b(&error);
+
+  // selected bits all 1
+  __ bind(&continue4);
+  __ tmhh(r1, Operand(1));
+  __ b(Condition(1), &continue5); //1
+  __ b(&error);
+
+  __ bind(&continue5);
+  __ tmhl(r1, Operand(1));
+  __ b(Condition(1), &continue6); //1
+  __ b(&error);
+
+  // leftmost = 1
+  __ bind(&continue6);
+  __ lgfi(r1, Operand(0xF000F000));
+  __ slag(r2, r1, Operand(32));
+  __ tmhh(r2, Operand(0xFFFF));
+  __ b(Condition(2), &done); //2
+  __ b(&error);
+
+  __ bind(&continue7);
+  __ tmhl(r1, Operand(0xFFFF));
+  __ b(Condition(2), &continue8); //2
+  __ b(&error);
+
+  // leftmost = 0
+  __ bind(&continue8);
+  __ lgfi(r1, Operand(0x0FF00FF0));
+  __ slag(r2, r1, Operand(32));
+  __ tmhh(r2, Operand(0xFFFF));
+  __ b(Condition(4), &done); //4
+  __ b(&error);
+
+  __ bind(&continue9);
+  __ tmhl(r1, Operand(0xFFFF));
+  __ b(Condition(4), &done); //4
+  __ b(&error);
+
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);
+
+  __ bind(&done);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  // f.Call(reg2, reg3, reg4, reg5, reg6) -> set the register value
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
 }

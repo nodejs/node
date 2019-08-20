@@ -19,7 +19,7 @@ function f() {
   return sum;
 }
 
-
+%PrepareFunctionForOptimization(f);
 assertEquals(15000, f());
 assertEquals(15000, f());
 assertEquals(15000, f());

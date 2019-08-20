@@ -17,5 +17,6 @@ function f() {
   } catch(e) {"Caught: " + e; }
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f();

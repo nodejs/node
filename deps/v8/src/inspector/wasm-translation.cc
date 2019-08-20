@@ -5,6 +5,7 @@
 #include "src/inspector/wasm-translation.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "src/debug/debug-interface.h"
 #include "src/inspector/string-util.h"
@@ -14,6 +15,42 @@
 #include "src/inspector/v8-inspector-impl.h"
 
 namespace v8_inspector {
+
+using OffsetTable = v8::debug::WasmDisassembly::OffsetTable;
+
+struct WasmSourceInformation {
+  String16 source;
+  int end_line = 0;
+  int end_column = 0;
+
+  OffsetTable offset_table;
+  OffsetTable reverse_offset_table;
+
+  WasmSourceInformation(String16 source, OffsetTable offset_table)
+      : source(std::move(source)), offset_table(std::move(offset_table)) {
+    int num_lines = 0;
+    int last_newline = -1;
+    size_t next_newline = this->source.find('\n', last_newline + 1);
+    while (next_newline != String16::kNotFound) {
+      last_newline = static_cast<int>(next_newline);
+      next_newline = this->source.find('\n', last_newline + 1);
+      ++num_lines;
+    }
+    end_line = num_lines;
+    end_column = static_cast<int>(this->source.length()) - last_newline - 1;
+
+    reverse_offset_table = this->offset_table;
+    // Order by line, column, then byte offset.
+    auto cmp = [](OffsetTable::value_type el1, OffsetTable::value_type el2) {
+      if (el1.line != el2.line) return el1.line < el2.line;
+      if (el1.column != el2.column) return el1.column < el2.column;
+      return el1.byte_offset < el2.byte_offset;
+    };
+    std::sort(reverse_offset_table.begin(), reverse_offset_table.end(), cmp);
+  }
+
+  WasmSourceInformation() = default;
+};
 
 class WasmTranslation::TranslatorImpl {
  public:
@@ -25,39 +62,18 @@ class WasmTranslation::TranslatorImpl {
     TransLocation(WasmTranslation* translation, String16 script_id, int line,
                   int column)
         : translation(translation),
-          script_id(script_id),
+          script_id(std::move(script_id)),
           line(line),
           column(column) {}
   };
 
-  virtual void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) = 0;
-  virtual void Translate(TransLocation*) = 0;
-  virtual void TranslateBack(TransLocation*) = 0;
-  virtual ~TranslatorImpl() {}
-
-  class RawTranslator;
-  class DisassemblingTranslator;
-};
-
-class WasmTranslation::TranslatorImpl::RawTranslator
-    : public WasmTranslation::TranslatorImpl {
- public:
-  void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) {}
-  void Translate(TransLocation*) {}
-  void TranslateBack(TransLocation*) {}
-};
-
-class WasmTranslation::TranslatorImpl::DisassemblingTranslator
-    : public WasmTranslation::TranslatorImpl {
-  using OffsetTable = v8::debug::WasmDisassembly::OffsetTable;
-
- public:
-  DisassemblingTranslator(v8::Isolate* isolate,
-                          v8::Local<v8::debug::WasmScript> script)
-      : script_(isolate, script) {}
+  TranslatorImpl(v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> script)
+      : script_(isolate, script) {
+    script_.AnnotateStrongRetainer(kGlobalScriptHandleLabel);
+  }
 
   void Init(v8::Isolate* isolate, WasmTranslation* translation,
-            V8DebuggerAgentImpl* agent) override {
+            V8DebuggerAgentImpl* agent) {
     // Register fake scripts for each function in this wasm module/script.
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     int num_functions = script->NumFunctions();
@@ -72,7 +88,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     }
   }
 
-  void Translate(TransLocation* loc) override {
+  void Translate(TransLocation* loc) {
     const OffsetTable& offset_table = GetOffsetTable(loc);
     DCHECK(!offset_table.empty());
     uint32_t byte_offset = static_cast<uint32_t>(loc->column);
@@ -99,48 +115,36 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     }
   }
 
-  void TranslateBack(TransLocation* loc) override {
-    int func_index = GetFunctionIndexFromFakeScriptId(loc->script_id);
-    const OffsetTable* reverse_table = GetReverseTable(func_index);
-    if (!reverse_table) return;
-    DCHECK(!reverse_table->empty());
+  static bool LessThan(const v8::debug::WasmDisassemblyOffsetTableEntry& entry,
+                       const TransLocation& loc) {
+    return entry.line < loc.line ||
+           (entry.line == loc.line && entry.column < loc.column);
+  }
+
+  void TranslateBack(TransLocation* loc) {
     v8::Isolate* isolate = loc->translation->isolate_;
+    int func_index = GetFunctionIndexFromFakeScriptId(loc->script_id);
+    const OffsetTable& reverse_table = GetReverseTable(isolate, func_index);
+    if (reverse_table.empty()) return;
 
     // Binary search for the given line and column.
-    unsigned left = 0;                                              // inclusive
-    unsigned right = static_cast<unsigned>(reverse_table->size());  // exclusive
-    while (right - left > 1) {
-      unsigned mid = (left + right) / 2;
-      auto& entry = (*reverse_table)[mid];
-      if (entry.line < loc->line ||
-          (entry.line == loc->line && entry.column <= loc->column)) {
-        left = mid;
-      } else {
-        right = mid;
-      }
-    }
+    auto element = std::lower_bound(reverse_table.begin(), reverse_table.end(),
+                                    *loc, LessThan);
 
     int found_byte_offset = 0;
-    // [left] is <= <line,column>, or left==0 and [0] > <line,column>.
-    // We are searching for the smallest entry >= <line,column> which is still
-    // on the same line. This must be either [left] or [left + 1].
-    // If we don't find such an entry, we might have hit the special case of
-    // pointing after the last line, which is translated to the end of the
-    // function (one byte after the last function byte).
-    if ((*reverse_table)[left].line == loc->line &&
-        (*reverse_table)[left].column >= loc->column) {
-      found_byte_offset = (*reverse_table)[left].byte_offset;
-    } else if (left + 1 < reverse_table->size() &&
-               (*reverse_table)[left + 1].line == loc->line &&
-               (*reverse_table)[left + 1].column >= loc->column) {
-      found_byte_offset = (*reverse_table)[left + 1].byte_offset;
-    } else if (left == reverse_table->size() - 1 &&
-               (*reverse_table)[left].line == loc->line - 1 &&
-               loc->column == 0) {
+    // We want an entry on the same line if possible.
+    if (element == reverse_table.end()) {
+      // We did not find an element, so this points after the function.
       std::pair<int, int> func_range =
           script_.Get(isolate)->GetFunctionRange(func_index);
       DCHECK_LE(func_range.first, func_range.second);
       found_byte_offset = func_range.second - func_range.first;
+    } else if (element->line == loc->line || element == reverse_table.begin()) {
+      found_byte_offset = element->byte_offset;
+    } else {
+      auto prev = element - 1;
+      DCHECK(prev->line == loc->line);
+      found_byte_offset = prev->byte_offset;
     }
 
     loc->script_id = String16::fromInteger(script_.Get(isolate)->Id());
@@ -148,10 +152,42 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     loc->column = found_byte_offset;
   }
 
+  const WasmSourceInformation& GetSourceInformation(v8::Isolate* isolate,
+                                                    int index) {
+    auto it = source_informations_.find(index);
+    if (it != source_informations_.end()) return it->second;
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    v8::debug::WasmDisassembly disassembly = script->DisassembleFunction(index);
+
+    auto inserted = source_informations_.insert(std::make_pair(
+        index, WasmSourceInformation({disassembly.disassembly.data(),
+                                      disassembly.disassembly.length()},
+                                     std::move(disassembly.offset_table))));
+    DCHECK(inserted.second);
+    return inserted.first->second;
+  }
+
+  const String16 GetHash(v8::Isolate* isolate, int index) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    uint32_t hash = script->GetFunctionHash(index);
+    String16Builder builder;
+    builder.appendUnsignedAsHex(hash);
+    return builder.toString();
+  }
+
+  int GetContextId(v8::Isolate* isolate) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    return script->ContextId().FromMaybe(0);
+  }
+
  private:
   String16 GetFakeScriptUrl(v8::Isolate* isolate, int func_index) {
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
-    String16 script_name = toProtocolString(script->Name().ToLocalChecked());
+    String16 script_name =
+        toProtocolString(isolate, script->Name().ToLocalChecked());
     int numFunctions = script->NumFunctions();
     int numImported = script->NumImportedFunctions();
     String16Builder builder;
@@ -169,7 +205,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     return builder.toString();
   }
 
-  String16 GetFakeScriptId(const String16 script_id, int func_index) {
+  String16 GetFakeScriptId(const String16& script_id, int func_index) {
     return String16::concat(script_id, '-', String16::fromInteger(func_index));
   }
   String16 GetFakeScriptId(const TransLocation* loc) {
@@ -182,20 +218,10 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     String16 fake_script_id = GetFakeScriptId(underlyingScriptId, func_idx);
     String16 fake_script_url = GetFakeScriptUrl(isolate, func_idx);
 
-    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
-    // TODO(clemensh): Generate disassembly lazily when queried by the frontend.
-    v8::debug::WasmDisassembly disassembly =
-        script->DisassembleFunction(func_idx);
-
-    DCHECK_EQ(0, offset_tables_.count(func_idx));
-    offset_tables_.insert(
-        std::make_pair(func_idx, std::move(disassembly.offset_table)));
-    String16 source(disassembly.disassembly.data(),
-                    disassembly.disassembly.length());
     std::unique_ptr<V8DebuggerScript> fake_script =
-        V8DebuggerScript::CreateWasm(isolate, translation, script,
+        V8DebuggerScript::CreateWasm(isolate, translation, script_.Get(isolate),
                                      fake_script_id, std::move(fake_script_url),
-                                     source);
+                                     func_idx);
 
     translation->AddFakeScript(fake_script->scriptId(), this);
     agent->didParseSource(std::move(fake_script), true);
@@ -212,60 +238,34 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
 
   const OffsetTable& GetOffsetTable(const TransLocation* loc) {
     int func_index = loc->line;
-    auto it = offset_tables_.find(func_index);
-    // TODO(clemensh): Once we load disassembly lazily, the offset table
-    // might not be there yet. Load it lazily then.
-    DCHECK(it != offset_tables_.end());
-    return it->second;
+    return GetSourceInformation(loc->translation->isolate_, func_index)
+        .offset_table;
   }
 
-  const OffsetTable* GetReverseTable(int func_index) {
-    auto it = reverse_tables_.find(func_index);
-    if (it != reverse_tables_.end()) return &it->second;
-
-    // Find offset table, copy and sort it to get reverse table.
-    it = offset_tables_.find(func_index);
-    if (it == offset_tables_.end()) return nullptr;
-
-    OffsetTable reverse_table = it->second;
-    // Order by line, column, then byte offset.
-    auto cmp = [](OffsetTable::value_type el1, OffsetTable::value_type el2) {
-      if (el1.line != el2.line) return el1.line < el2.line;
-      if (el1.column != el2.column) return el1.column < el2.column;
-      return el1.byte_offset < el2.byte_offset;
-    };
-    std::sort(reverse_table.begin(), reverse_table.end(), cmp);
-
-    auto inserted = reverse_tables_.insert(
-        std::make_pair(func_index, std::move(reverse_table)));
-    DCHECK(inserted.second);
-    return &inserted.first->second;
+  const OffsetTable& GetReverseTable(v8::Isolate* isolate, int func_index) {
+    return GetSourceInformation(isolate, func_index).reverse_offset_table;
   }
+
+  static constexpr char kGlobalScriptHandleLabel[] =
+      "WasmTranslation::TranslatorImpl::script_";
 
   v8::Global<v8::debug::WasmScript> script_;
 
   // We assume to only disassemble a subset of the functions, so store them in a
   // map instead of an array.
-  std::unordered_map<int, const OffsetTable> offset_tables_;
-  std::unordered_map<int, const OffsetTable> reverse_tables_;
+  std::unordered_map<int, WasmSourceInformation> source_informations_;
 };
 
-WasmTranslation::WasmTranslation(v8::Isolate* isolate)
-    : isolate_(isolate), mode_(Disassemble) {}
+constexpr char WasmTranslation::TranslatorImpl::kGlobalScriptHandleLabel[];
+
+WasmTranslation::WasmTranslation(v8::Isolate* isolate) : isolate_(isolate) {}
 
 WasmTranslation::~WasmTranslation() { Clear(); }
 
 void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
                                 V8DebuggerAgentImpl* agent) {
   std::unique_ptr<TranslatorImpl> impl;
-  switch (mode_) {
-    case Raw:
-      impl.reset(new TranslatorImpl::RawTranslator());
-      break;
-    case Disassemble:
-      impl.reset(new TranslatorImpl::DisassemblingTranslator(isolate_, script));
-      break;
-  }
+  impl.reset(new TranslatorImpl(isolate_, script));
   DCHECK(impl);
   auto inserted =
       wasm_translators_.insert(std::make_pair(script->Id(), std::move(impl)));
@@ -278,6 +278,57 @@ void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
 void WasmTranslation::Clear() {
   wasm_translators_.clear();
   fake_scripts_.clear();
+}
+
+void WasmTranslation::Clear(v8::Isolate* isolate,
+                            const std::vector<int>& contextIdsToClear) {
+  for (auto iter = fake_scripts_.begin(); iter != fake_scripts_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = fake_scripts_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+
+  for (auto iter = wasm_translators_.begin();
+       iter != wasm_translators_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = wasm_translators_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+}
+
+const String16& WasmTranslation::GetSource(const String16& script_id,
+                                           int func_index) {
+  auto it = fake_scripts_.find(script_id);
+  DCHECK_NE(it, fake_scripts_.end());
+  return it->second->GetSourceInformation(isolate_, func_index).source;
+}
+
+int WasmTranslation::GetEndLine(const String16& script_id, int func_index) {
+  auto it = fake_scripts_.find(script_id);
+  DCHECK_NE(it, fake_scripts_.end());
+  return it->second->GetSourceInformation(isolate_, func_index).end_line;
+}
+
+int WasmTranslation::GetEndColumn(const String16& script_id, int func_index) {
+  auto it = fake_scripts_.find(script_id);
+  DCHECK_NE(it, fake_scripts_.end());
+  return it->second->GetSourceInformation(isolate_, func_index).end_column;
+}
+
+String16 WasmTranslation::GetHash(const String16& script_id, int func_index) {
+  auto it = fake_scripts_.find(script_id);
+  DCHECK_NE(it, fake_scripts_.end());
+  return it->second->GetHash(isolate_, func_index);
 }
 
 // Translation "forward" (to artificial scripts).
@@ -326,5 +377,4 @@ void WasmTranslation::AddFakeScript(const String16& scriptId,
   DCHECK_EQ(0, fake_scripts_.count(scriptId));
   fake_scripts_.insert(std::make_pair(scriptId, translator));
 }
-
 }  // namespace v8_inspector

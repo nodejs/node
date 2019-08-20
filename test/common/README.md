@@ -4,14 +4,22 @@ This directory contains modules used to test the Node.js implementation.
 
 ## Table of Contents
 
+* [ArrayStream module](#arraystream-module)
 * [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
+* [CPU Profiler module](#cpu-profiler-module)
 * [DNS module](#dns-module)
 * [Duplex pair helper](#duplex-pair-helper)
+* [Environment variables](#environment-variables)
 * [Fixtures module](#fixtures-module)
+* [Heap dump checker module](#heap-dump-checker-module)
+* [hijackstdio module](#hijackstdio-module)
 * [HTTP2 module](#http2-module)
 * [Internet module](#internet-module)
+* [ongc module](#ongc-module)
+* [Report module](#report-module)
+* [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
 * [WPT module](#wpt-module)
 
@@ -37,9 +45,6 @@ tasks.
 
 Takes `whitelist` and concats that with predefined `knownGlobals`.
 
-### arrayStream
-A stream to push an array into a REPL
-
 ### busyLoop(time)
 * `time` [&lt;number>]
 
@@ -54,17 +59,17 @@ symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this always returns `true`.
 
-### crashOnUnhandledRejection()
+### createZeroFilledFile(filename)
 
-Installs a `process.on('unhandledRejection')` handler that crashes the process
-after a tick. This is useful for tests that use Promises and need to make sure
-no unexpected rejections occur, because currently they result in silent
-failures.
+Creates a 10 MB file of all null characters.
 
-### ddCommand(filename, kilobytes)
-* return [&lt;Object>]
+### disableCrashOnUnhandledRejection()
 
-Platform normalizes the `dd` command
+Removes the `process.on('unhandledRejection')` handler that crashes the process
+after a tick. The handler is useful for tests that use Promises and need to make
+sure no unexpected rejections occur, because currently they result in silent
+failures. However, it is useful in some rare cases to disable it, for example if
+the `unhandledRejection` hook is directly used by the test.
 
 ### enoughTestMem
 * [&lt;boolean>]
@@ -110,23 +115,51 @@ Indicates if there is more than 1gb of total memory.
   returned function has not been called exactly `exact` number of times when the
   test is complete, then the test will fail.
 
-### expectWarning(name, expected, code)
-* `name` [&lt;string>]
-* `expected` [&lt;string>] | [&lt;Array>]
+### expectWarning(name[, expected[, code]])
+* `name` [&lt;string>] | [&lt;Object>]
+* `expected` [&lt;string>] | [&lt;Array>] | [&lt;Object>]
 * `code` [&lt;string>]
 
-Tests whether `name`, `expected`, and `code` are part of a raised warning. If
-an expected warning does not have a code then `common.noWarnCode` can be used
-to indicate this.
+Tests whether `name`, `expected`, and `code` are part of a raised warning.
 
-### noWarnCode
-See `common.expectWarning()` for usage.
+The code is required in case the name is set to `'DeprecationWarning'`.
 
-### fileExists(pathname)
-* pathname [&lt;string>]
-* return [&lt;boolean>]
+Examples:
 
-Checks if `pathname` exists
+```js
+const { expectWarning } = require('../common');
+
+expectWarning('Warning', 'Foobar is really bad');
+
+expectWarning('DeprecationWarning', 'Foobar is deprecated', 'DEP0XXX');
+
+expectWarning('DeprecationWarning', [
+  'Foobar is deprecated', 'DEP0XXX'
+]);
+
+expectWarning('DeprecationWarning', [
+  ['Foobar is deprecated', 'DEP0XXX'],
+  ['Baz is also deprecated', 'DEP0XX2']
+]);
+
+expectWarning('DeprecationWarning', {
+  DEP0XXX: 'Foobar is deprecated',
+  DEP0XX2: 'Baz is also deprecated'
+});
+
+expectWarning({
+  DeprecationWarning: {
+    DEP0XXX: 'Foobar is deprecated',
+    DEP0XX1: 'Baz is also deprecated'
+  },
+  Warning: [
+    ['Multiple array entries are fine', 'SpecialWarningCode'],
+    ['No code is also fine']
+  ],
+  SingleEntry: ['This will also work', 'WarningCode'],
+  SingleString: 'Single string entries without code will also work'
+});
+```
 
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
@@ -147,18 +180,11 @@ consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
 Returns the file name and line number for the provided Function.
 
-### runWithInvalidFD(func)
-* `func` [&lt;Function>]
+### getTTYfd()
 
-Runs `func` with an invalid file descriptor that is an unsigned integer and
-can be used to trigger `EBADF` as the first argument. If no such file
-descriptor could be generated, a skip message will be printed and the `func`
-will not be run.
+Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
 
-### globalCheck
-* [&lt;boolean>]
-
-Set to `false` if the test should not check for global leaks.
+The TTY file descriptor is assumed to be capable of being writable.
 
 ### hasCrypto
 * [&lt;boolean>]
@@ -168,17 +194,17 @@ Indicates whether OpenSSL is available.
 ### hasFipsCrypto
 * [&lt;boolean>]
 
-Indicates `hasCrypto` and `crypto` with fips.
+Indicates that Node.js has been linked with a FIPS compatible OpenSSL library,
+and that FIPS as been enabled using `--enable-fips`.
+
+To only detect if the OpenSSL library is FIPS compatible, regardless if it has
+been enabled or not, then `process.config.variables.openssl_is_fips` can be
+used to determine that situation.
 
 ### hasIntl
 * [&lt;boolean>]
 
 Indicates if [internationalization] is supported.
-
-### hasSmallICU
-* [&lt;boolean>]
-
-Indicates `hasIntl` and `small-icu` are supported.
 
 ### hasIPv6
 * [&lt;boolean>]
@@ -189,24 +215,6 @@ Indicates whether `IPv6` is supported on this platform.
 * [&lt;boolean>]
 
 Indicates if there are multiple localhosts available.
-
-### hijackStderr(listener)
-* `listener` [&lt;Function>]: a listener with a single parameter
-  called `data`.
-
-Eavesdrop to `process.stderr.write` calls. Once `process.stderr.write` is
-called, `listener` will also be called and the `data` of `write` function will
-be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
-the number of calls.
-
-### hijackStdout(listener)
-* `listener` [&lt;Function>]: a listener with a single parameter
-  called `data`.
-
-Eavesdrop to `process.stdout.write` calls. Once `process.stdout.write` is
-called, `listener` will also be called and the `data` of `write` function will
-be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
-the number of calls.
 
 ### inFreeBSDJail
 * [&lt;boolean>]
@@ -254,21 +262,6 @@ Platform check for SunOS.
 
 Platform check for Windows.
 
-### isWOW64
-* [&lt;boolean>]
-
-Platform check for Windows 32-bit on Windows 64-bit.
-
-### isCPPSymbolsNotMapped
-* [&lt;boolean>]
-
-Platform check for C++ symbols are mapped or not.
-
-### leakedGlobals()
-* return [&lt;Array>]
-
-Indicates whether any globals are not on the `knownGlobals` list.
-
 ### localhostIPv4
 * [&lt;string>]
 
@@ -289,17 +282,6 @@ exactly `exact` number of times when the test is complete, then the test will
 fail.
 
 If `fn` is not provided, an empty function will be used.
-
-### mustCallAsync([fn][, exact])
-* `fn` [&lt;Function>]
-* `exact` [&lt;number>] default = 1
-* return [&lt;Function>]
-
-The same as `mustCall()`, except that it is also checked that the Promise
-returned by the function is fulfilled for each invocation of the function.
-
-The return value of the wrapped function is the return value of the original
-function, if necessary wrapped as a promise.
 
 ### mustCallAtLeast([fn][, minimum])
 * `fn` [&lt;Function>] default = () => {}
@@ -334,10 +316,12 @@ otherwise.
 Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;number>]
-* return [&lt;number>]
+* `ms` [&lt;number>] | [&lt;bigint>]
+* return [&lt;number>] | [&lt;bigint>]
 
-Platform normalizes timeout.
+Returns a timeout value based on detected conditions. For example, a debug build
+may need extra time so the returned value will be larger than on a release
+build.
 
 ### PIPE
 * [&lt;string>]
@@ -354,20 +338,29 @@ A port number for tests to use if one is needed.
 
 Logs '1..0 # Skipped: ' + `msg`
 
-### restoreStderr()
+### pwdCommand
+* [&lt;array>] First two argument for the `spawn`/`exec` functions.
 
-Restore the original `process.stderr.write`. Used to restore `stderr` to its
-original state after calling [`common.hijackStdErr()`][].
+Platform normalized `pwd` command options. Usage example:
+```js
+const common = require('../common');
+const { spawn } = require('child_process');
 
-### restoreStdout()
-
-Restore the original `process.stdout.write`. Used to restore `stdout` to its
-original state after calling [`common.hijackStdOut()`][].
+spawn(...common.pwdCommand, { stdio: ['pipe'] });
+```
 
 ### rootDir
 * [&lt;string>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
+
+### runWithInvalidFD(func)
+* `func` [&lt;Function>]
+
+Runs `func` with an invalid file descriptor that is an unsigned integer and
+can be used to trigger `EBADF` as the first argument. If no such file
+descriptor could be generated, a skip message will be printed and the `func`
+will not be run.
 
 ### skip(msg)
 * `msg` [&lt;string>]
@@ -389,17 +382,24 @@ was disabled at compile time.
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
 
-### spawnPwd(options)
-* `options` [&lt;Object>]
-* return [&lt;Object>]
+### skipIfWorker()
 
-Platform normalizes the `pwd` command.
+Skip the rest of the tests in the current file when not running on a main
+thread.
 
-### spawnSyncPwd(options)
-* `options` [&lt;Object>]
-* return [&lt;Object>]
+## ArrayStream Module
 
-Synchronous version of `spawnPwd`.
+The `ArrayStream` module provides a simple `Stream` that pushes elements from
+a given array.
+
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
+```js
+const ArrayStream = require('../common/arraystream');
+const stream = new ArrayStream();
+stream.run(['a', 'b', 'c']);
+```
+
+It can be used within tests as a simple mock stream.
 
 ## Countdown Module
 
@@ -408,7 +408,7 @@ require a particular action to be taken after a given number of completed
 tasks (for instance, shutting down an HTTP server after a specific number of
 requests). The Countdown will fail the test if the remainder did not reach 0.
 
-<!-- eslint-disable strict, node-core/required-modules -->
+<!-- eslint-disable strict, node-core/require-common-first, node-core/required-modules -->
 ```js
 const Countdown = require('../common/countdown');
 
@@ -436,6 +436,45 @@ Decrements the `Countdown` counter.
 
 Specifies the remaining number of times `Countdown.prototype.dec()` must be
 called before the callback is invoked.
+
+## CPU Profiler module
+
+The `cpu-prof` module provides utilities related to CPU profiling tests.
+
+### env
+
+* Default: { ...process.env, NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER' }
+
+Environment variables used in profiled processes.
+
+### getCpuProfiles(dir)
+
+* `dir` {string} The directory containing the CPU profile files.
+* return [&lt;string>]
+
+Returns an array of all `.cpuprofile` files found in `dir`.
+
+### getFrames(file, suffix)
+
+* `file` {string} Path to a `.cpuprofile` file.
+* `suffix` {string} Suffix of the URL of call frames to retrieve.
+* returns { frames: [&lt;Object>], nodes: [&lt;Object>] }
+
+Returns an object containing an array of the relevant call frames and an array
+of all the profile nodes.
+
+### kCpuProfInterval
+
+Sampling interval in microseconds.
+
+### verifyFrames(output, file, suffix)
+
+* `output` {string}
+* `file` {string}
+* `suffix` {string}
+
+Throws an `AssertionError` if there are no call frames with the expected
+`suffix` in the profiling data contained in `file`.
 
 ## DNS Module
 
@@ -506,6 +545,26 @@ which returns an object `{ clientSide, serverSide }` where each side is a
 
 There is no difference between client or server side beyond their names.
 
+## Environment variables
+
+The behavior of the Node.js test suite can be altered using the following
+environment variables.
+
+### NODE_COMMON_PORT
+
+If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
+12346.
+
+### NODE_SKIP_FLAG_CHECK
+
+If set, command line arguments passed to individual tests are not validated.
+
+### NODE_TEST_KNOWN_GLOBALS
+
+A comma-separated list of variables names that are appended to the global
+variable whitelist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
+global leak detection is disabled.
+
 ## Fixtures Module
 
 The `common/fixtures` module provides convenience methods for working with
@@ -537,12 +596,94 @@ Returns the result of
 Returns the result of
 `fs.readFileSync(path.join(fixtures.fixturesDir, 'keys', arg), 'enc')`.
 
+## Heap dump checker module
+
+This provides utilities for checking the validity of heap dumps.
+This requires the usage of `--expose-internals`.
+
+### heap.recordState()
+
+Create a heap dump and an embedder graph copy for inspection.
+The returned object has a `validateSnapshotNodes` function similar to the
+one listed below. (`heap.validateSnapshotNodes(...)` is a shortcut for
+`heap.recordState().validateSnapshotNodes(...)`.)
+
+### heap.validateSnapshotNodes(name, expected, options)
+
+* `name` [&lt;string>] Look for this string as the name of heap dump nodes.
+* `expected` [&lt;Array>] A list of objects, possibly with an `children`
+  property that points to expected other adjacent nodes.
+* `options` [&lt;Array>]
+  * `loose` [&lt;boolean>] Do not expect an exact listing of occurrences
+    of nodes with name `name` in `expected`.
+
+Create a heap dump and an embedder graph copy and validate occurrences.
+
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
+```js
+validateSnapshotNodes('TLSWRAP', [
+  {
+    children: [
+      { name: 'enc_out' },
+      { name: 'enc_in' },
+      { name: 'TLSWrap' }
+    ]
+  }
+]);
+```
+
+## hijackstdio Module
+
+The `hijackstdio` module provides utility functions for temporarily redirecting
+`stdout` and `stderr` output.
+
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
+```js
+const { hijackStdout, restoreStdout } = require('../common/hijackstdio');
+
+hijackStdout((data) => {
+  /* Do something with data */
+  restoreStdout();
+});
+
+console.log('this is sent to the hijacked listener');
+```
+
+### hijackStderr(listener)
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
+
+Eavesdrop to `process.stderr.write()` calls. Once `process.stderr.write()` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
+the number of calls.
+
+### hijackStdout(listener)
+* `listener` [&lt;Function>]: a listener with a single parameter
+  called `data`.
+
+Eavesdrop to `process.stdout.write()` calls. Once `process.stdout.write()` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
+the number of calls.
+
+### restoreStderr()
+
+Restore the original `process.stderr.write()`. Used to restore `stderr` to its
+original state after calling [`hijackstdio.hijackStdErr()`][].
+
+### restoreStdout()
+
+Restore the original `process.stdout.write()`. Used to restore `stdout` to its
+original state after calling [`hijackstdio.hijackStdOut()`][].
+
+
 ## HTTP/2 Module
 
 The http2.js module provides a handful of utilities for creating mock HTTP/2
 frames for testing of HTTP/2 endpoints
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-unused-vars, node-core/require-common-first, node-core/required-modules -->
 ```js
 const http2 = require('../common/http2');
 ```
@@ -552,7 +693,7 @@ const http2 = require('../common/http2');
 The `http2.Frame` is a base class that creates a `Buffer` containing a
 serialized HTTP/2 frame header.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 // length is a 24-bit unsigned integer
 // type is an 8-bit unsigned integer identifying the frame type
@@ -571,7 +712,7 @@ The serialized `Buffer` may be retrieved using the `frame.data` property.
 The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
 frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 // id is the 32-bit stream identifier
 // payload is a Buffer containing the DATA payload
@@ -588,7 +729,7 @@ socket.write(frame.data);
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 `HEADERS` frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 // id is the 32-bit stream identifier
 // payload is a Buffer containing the HEADERS payload (see either
@@ -606,7 +747,7 @@ socket.write(frame.data);
 The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
 empty `SETTINGS` frame.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 // ack is a boolean indicating whether or not to set the ACK flag.
 const frame = new http2.SettingsFrame(ack);
@@ -619,7 +760,7 @@ socket.write(frame.data);
 Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
 request headers to be used as the payload of a `http2.HeadersFrame`.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 const frame = new http2.HeadersFrame(1, http2.kFakeRequestHeaders, 0, true);
 
@@ -631,7 +772,7 @@ socket.write(frame.data);
 Set to a `Buffer` instance that contains a minimal set of serialized HTTP/2
 response headers to be used as the payload a `http2.HeadersFrame`.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 const frame = new http2.HeadersFrame(1, http2.kFakeResponseHeaders, 0, true);
 
@@ -643,7 +784,7 @@ socket.write(frame.data);
 Set to a `Buffer` containing the preamble bytes an HTTP/2 client must send
 upon initial establishment of a connection.
 
-<!-- eslint-disable no-undef, no-unused-vars, node-core/required-modules, strict -->
+<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
 ```js
 socket.write(http2.kClientMagic);
 ```
@@ -682,6 +823,72 @@ via `NODE_TEST_*` environment variables. For example, to configure
 `internet.addresses.INET_HOST`, set the environment
 variable `NODE_TEST_INET_HOST` to a specified host.
 
+## ongc Module
+
+The `ongc` module allows a garbage collection listener to be installed. The
+module exports a single `onGC()` function.
+
+```js
+require('../common');
+const onGC = require('../common/ongc');
+
+onGC({}, { ongc() { console.log('collected'); } });
+```
+
+### onGC(target, listener)
+* `target` [&lt;Object>]
+* `listener` [&lt;Object>]
+  * `ongc` [&lt;Function>]
+
+Installs a GC listener for the collection of `target`.
+
+This uses `async_hooks` for GC tracking. This means that it enables
+`async_hooks` tracking, which may affect the test functionality. It also
+means that between a `global.gc()` call and the listener being invoked
+a full `setImmediate()` invocation passes.
+
+`listener` is an object to make it easier to use a closure; the target object
+should not be in scope when `listener.ongc()` is created.
+
+## Report Module
+
+The `report` module provides helper functions for testing diagnostic reporting
+functionality.
+
+### findReports(pid, dir)
+
+* `pid` [&lt;number>] Process ID to retrieve diagnostic report files for.
+* `dir` [&lt;string>] Directory to search for diagnostic report files.
+* return [&lt;Array>]
+
+Returns an array of diagnotic report file names found in `dir`. The files should
+have been generated by a process whose PID matches `pid`.
+
+### validate(filepath)
+
+* `filepath` [&lt;string>] Diagnostic report filepath to validate.
+
+Validates the schema of a diagnostic report file whose path is specified in
+`filepath`. If the report fails validation, an exception is thrown.
+
+### validateContent(report)
+
+* `report` [&lt;Object|string>] JSON contents of a diagnostic report file, the
+parsed Object thereof, or the result of `process.report.getReport()`.
+
+Validates the schema of a diagnostic report whose content is specified in
+`report`. If the report fails validation, an exception is thrown.
+
+## tick Module
+
+The `tick` module provides a helper function that can be used to call a callback
+after a given number of event loop "ticks".
+
+### tick(x, cb)
+
+* `x` [&lt;number>] Number of event loop "ticks".
+* `cb` [&lt;Function>] A callback function.
+
 ## tmpdir Module
 
 The `tmpdir` module supports the use of a temporary directory for testing.
@@ -691,24 +898,36 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
-### refresh()
+### refresh([opts])
+
+* `opts` [&lt;Object>] (optional) Extra options.
+  * `spawn` [&lt;boolean>] (default: `true`) Indicates that `refresh` is allowed
+    to optionally spawn a subprocess.
 
 Deletes and recreates the testing temporary directory.
 
-### getTTYfd()
-
-Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
-
-The TTY file descriptor is assumed to be capable of being writable.
+The first time `refresh()` runs,  it adds a listener to process `'exit'` that
+cleans the temporary directory. Thus, every file under `tmpdir.path` needs to
+be closed before the test completes. A good way to do this is to add a
+listener to process `'beforeExit'`. If a file needs to be left open until
+Node.js completes, use a child process and call `refresh()` only in the
+parent.
 
 ## WPT Module
 
-The wpt.js module is a port of parts of
-[W3C testharness.js](https://github.com/w3c/testharness.js) for testing the
-Node.js
-[WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
-implementation with tests from
-[W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
+### harness
+
+A legacy port of [Web Platform Tests][] harness.
+
+See the source code for definitions. Please avoid using it in new
+code - the current usage of this port in tests is being migrated to
+the original WPT harness, see [the WPT tests README][].
+
+### Class: WPTRunner
+
+A driver class for running WPT with the WPT harness in a vm.
+
+See [the WPT tests README][] for details.
 
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
@@ -717,9 +936,12 @@ implementation with tests from
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[&lt;bigint>]: https://github.com/tc39/proposal-bigint
 [&lt;boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [&lt;number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [&lt;string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
-[`common.hijackStdErr()`]: #hijackstderrlistener
-[`common.hijackStdOut()`]: #hijackstdoutlistener
+[Web Platform Tests]: https://github.com/web-platform-tests/wpt
+[`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
+[`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
+[the WPT tests README]: ../wpt/README.md

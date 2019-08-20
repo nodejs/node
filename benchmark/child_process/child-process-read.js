@@ -25,11 +25,11 @@ function main({ dur, len }) {
   const child = child_process.spawn('yes', [msg], options);
 
   var bytes = 0;
-  child.stdout.on('data', function(msg) {
+  child.stdout.on('data', (msg) => {
     bytes += msg.length;
   });
 
-  setTimeout(function() {
+  setTimeout(() => {
     if (process.platform === 'win32') {
       // Sometimes there's a yes.exe process left hanging around on Windows...
       child_process.execSync(`taskkill /f /t /pid ${child.pid}`);

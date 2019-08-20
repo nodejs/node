@@ -33,8 +33,8 @@ const net = require('net');
 const spawn = require('child_process').spawn;
 const fixtures = require('../common/fixtures');
 
-const key = fixtures.readSync('agent.key').toString();
-const cert = fixtures.readSync('agent.crt').toString();
+const key = fixtures.readKey('rsa_private.pem');
+const cert = fixtures.readKey('rsa_cert.crt');
 
 function log(a) {
   console.error(`***server*** ${a}`);
@@ -137,7 +137,7 @@ server.listen(0, common.mustCall(function() {
   client.stdout.pipe(process.stdout, { end: false });
 
   client.on('exit', common.mustCall(function(code) {
-    assert.strictEqual(0, code);
+    assert.strictEqual(code, 0);
     server.close();
   }));
 }));

@@ -7,8 +7,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/code-stubs.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -31,10 +30,10 @@ uint8_t CreateObjectLiteralFlags::Encode(int runtime_flags,
 }
 
 // static
-uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope) {
+uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope,
+                                   bool might_always_opt) {
   uint8_t result = PretenuredBit::encode(pretenure);
-  if (!FLAG_always_opt && !FLAG_prepare_always_opt &&
-      pretenure == NOT_TENURED && is_function_scope) {
+  if (!might_always_opt && !pretenure && is_function_scope) {
     result |= FastNewClosureBit::encode(true);
   }
   return result;

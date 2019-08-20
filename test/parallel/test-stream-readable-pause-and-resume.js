@@ -1,7 +1,7 @@
 'use strict';
 
-const { Readable } = require('stream');
 const common = require('../common');
+const { Readable } = require('stream');
 
 let ticks = 18;
 let expectedData = 19;
@@ -34,7 +34,7 @@ function readAndPause() {
       readAndPause();
       rs.resume();
     });
-  }, 1); // only call ondata once
+  }, 1); // Only call ondata once
 
   rs.on('data', ondata);
 }

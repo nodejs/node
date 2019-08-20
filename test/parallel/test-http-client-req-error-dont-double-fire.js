@@ -4,11 +4,12 @@
 // not get fired again when the 'error' event handler throws
 // an error.
 
-const assert = require('assert');
-const http = require('http');
 const common = require('../common');
 const { addresses } = require('../common/internet');
 const { errorLookupMock } = require('../common/dns');
+
+const assert = require('assert');
+const http = require('http');
 
 const host = addresses.INVALID_HOST;
 

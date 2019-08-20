@@ -7,7 +7,7 @@
 # https://www.openssl.org/source/license.html
 
 
-## Test Session ticket
+## Test SNI/Session tickets
 
 use strict;
 use warnings;
@@ -17,12 +17,15 @@ package ssltests;
 
 our @tests = ();
 
+#Note: MaxProtocol is set to TLSv1.2 as session tickets work differently in
+#TLSv1.3.
 sub generate_tests() {
     foreach my $c ("SessionTicket", "-SessionTicket") {
-	foreach my $s1 ("SessionTicket", "-SessionTicket") {
-	    foreach my $s2 ("SessionTicket", "-SessionTicket") {
-		foreach my $n ("server1", "server2") {
-		    my $result = expected_result($c, $s1, $s2, $n);
+        foreach my $s1 ("SessionTicket", "-SessionTicket") {
+            foreach my $s2 ("SessionTicket", "-SessionTicket") {
+                foreach my $n ("server1", "server2") {
+                    my $ticket_result = expected_result($c, $s1, $s2, $n);
+                    my $session_id_result = "Yes"; # always, even with a ticket
                     push @tests, {
                         "name" => "sni-session-ticket",
                         "client" => {
@@ -30,6 +33,7 @@ sub generate_tests() {
                             "extra" => {
                                 "ServerName" => $n,
                             },
+                            "MaxProtocol" => "TLSv1.2"
                         },
                         "server" => {
                             "Options" => $s1,
@@ -38,13 +42,14 @@ sub generate_tests() {
                                 "ServerNameCallback" => "IgnoreMismatch",
                             },
                         },
-			"server2" => {
-			    "Options" => $s2,
-			},
+                        "server2" => {
+                            "Options" => $s2,
+                        },
                         "test" => {
                             "ExpectedServerName" => $n,
                             "ExpectedResult" => "Success",
-			    "SessionTicketExpected" => $result,
+                            "SessionIdExpected" => $session_id_result,
+                            "SessionTicketExpected" => $ticket_result,
                         }
                     };
                 }
@@ -72,23 +77,24 @@ sub expected_result {
 push @tests, {
     "name" => "sni-session-ticket",
     "client" => {
-	"Options" => "SessionTicket",
+        "MaxProtocol" => "TLSv1.2",
+        "Options" => "SessionTicket",
         "extra" => {
             "ServerName" => "server1",
         }
     },
     "server" => {
-	"Options" => "SessionTicket",
+        "Options" => "SessionTicket",
         "extra" => {
               "BrokenSessionTicket" => "Yes",
         },
     },
     "server2" => {
-	"Options" => "SessionTicket",
+        "Options" => "SessionTicket",
     },
     "test" => {
-	"ExpectedResult" => "Success",
-	"SessionTicketExpected" => "No",
+        "ExpectedResult" => "Success",
+        "SessionTicketExpected" => "No",
     }
 };
 

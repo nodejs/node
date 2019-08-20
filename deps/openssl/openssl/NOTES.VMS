@@ -56,6 +56,32 @@
  to use.
 
 
+ About debugging
+ ---------------
+
+ If you build for debugging, the default on VMS is that image
+ activation starts the debugger automatically, giving you a debug
+ prompt.  Unfortunately, this disrupts all other uses, such as running
+ test programs in the test framework.
+
+ Generally speaking, if you build for debugging, only use the programs
+ directly for debugging.  Do not try to use them from a script, such
+ as running the test suite.
+
+ *The following is not available on Alpha*
+
+ As a compromise, we're turning off the flag that makes the debugger
+ start automatically.  If there is a program that you need to debug,
+ you need to turn that flag back on first, for example:
+
+    $ set image /flag=call_debug [.test]evp_test.exe
+
+ Then just run it and you will find yourself in a debugging session.
+ When done, we recommend that you turn that flag back off:
+
+    $ set image /flag=nocall_debug [.test]evp_test.exe
+
+
  Checking the distribution
  -------------------------
 

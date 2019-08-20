@@ -10,7 +10,6 @@ const exec = require('child_process').execFile;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 disallow('--version');
 disallow('-v');
@@ -27,11 +26,10 @@ disallow('--interactive');
 disallow('-i');
 disallow('--v8-options');
 disallow('--');
-disallow('--no_warnings'); // Node options don't allow '_' instead of '-'.
 
 function disallow(opt) {
   const env = Object.assign({}, process.env, { NODE_OPTIONS: opt });
-  exec(process.execPath, { env }, common.mustCall(function(err) {
+  exec(process.execPath, { cwd: tmpdir.path, env }, common.mustCall((err) => {
     const message = err.message.split(/\r?\n/)[1];
     const expect = `${process.execPath}: ${opt} is not allowed in NODE_OPTIONS`;
 

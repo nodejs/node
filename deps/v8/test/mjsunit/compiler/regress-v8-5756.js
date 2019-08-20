@@ -22,6 +22,7 @@ function k() {
 }
 
 function f1() {
+  %PrepareFunctionForOptimization(k);
   z.toString = k;
   z.toString();
   z.toString();

@@ -5,9 +5,9 @@
 #include "src/builtins/builtins-async-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/frames-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/execution/frames-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,10 +25,9 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
                                        Variable* var_exception,
                                        const char* method_name);
 
-  typedef std::function<void(Node* const context, Node* const promise,
-                             Label* if_exception)>
-      UndefinedMethodHandler;
-  typedef std::function<Node*(Node*)> SyncIteratorNodeGenerator;
+  using UndefinedMethodHandler = std::function<void(
+      Node* const context, Node* const promise, Label* if_exception)>;
+  using SyncIteratorNodeGenerator = std::function<Node*(Node*)>;
   void Generate_AsyncFromSyncIteratorMethod(
       Node* const context, Node* const iterator, Node* const sent_value,
       const SyncIteratorNodeGenerator& get_method,
@@ -132,20 +131,25 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   Node* done;
   std::tie(value, done) = LoadIteratorResult(
       context, native_context, iter_result, &reject_promise, &var_exception);
-  Node* const wrapper = AllocateAndInitJSPromise(context);
 
-  // Perform ! Call(valueWrapperCapability.[[Resolve]], undefined, «
-  // throwValue »).
-  CallBuiltin(Builtins::kResolvePromise, context, wrapper, value);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  CSA_ASSERT(this, IsConstructor(promise_fun));
+
+  // Let valueWrapper be PromiseResolve(%Promise%, « value »).
+  Node* const value_wrapper = CallBuiltin(Builtins::kPromiseResolve,
+                                          native_context, promise_fun, value);
+  // IfAbruptRejectPromise(valueWrapper, promiseCapability).
+  GotoIfException(value_wrapper, &reject_promise, &var_exception);
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
   // Set onFulfilled.[[Done]] to throwDone.
   Node* const on_fulfilled = CreateUnwrapClosure(native_context, done);
 
-  // Perform ! PerformPromiseThen(valueWrapperCapability.[[Promise]],
+  // Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, wrapper,
+  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, value_wrapper,
                      on_fulfilled, UndefinedConstant(), promise));
 
   BIND(&reject_promise);
@@ -156,7 +160,6 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     Return(promise);
   }
 }
-
 std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     Node* const context, Node* const native_context, Node* const iter_result,
     Label* if_exception, Variable* var_exception) {

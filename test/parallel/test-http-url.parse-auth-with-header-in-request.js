@@ -26,12 +26,12 @@ const http = require('http');
 const url = require('url');
 
 function check(request) {
-  // the correct authorization header is be passed
+  // The correct authorization header is be passed
   assert.strictEqual(request.headers.authorization, 'NoAuthForYOU');
 }
 
 const server = http.createServer(function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');
@@ -41,7 +41,7 @@ const server = http.createServer(function(request, response) {
 server.listen(0, function() {
   const testURL =
     url.parse(`http://asdf:qwer@localhost:${this.address().port}`);
-  // the test here is if you set a specific authorization header in the
+  // The test here is if you set a specific authorization header in the
   // request we should not override that with basic auth
   testURL.headers = {
     Authorization: 'NoAuthForYOU'

@@ -33,7 +33,7 @@ bool NoReturn(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
          node->opcode() == IrOpcode::kUnreachable ||
          node->opcode() == IrOpcode::kDeadValue ||
-         NodeProperties::GetTypeOrAny(node)->IsNone();
+         NodeProperties::GetTypeOrAny(node).IsNone();
 }
 
 Node* FindDeadInput(Node* node) {
@@ -46,6 +46,7 @@ Node* FindDeadInput(Node* node) {
 }  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kEnd:
       return ReduceEnd(node);
@@ -60,11 +61,12 @@ Reduction DeadCodeElimination::Reduce(Node* node) {
     case IrOpcode::kPhi:
       return ReducePhi(node);
     case IrOpcode::kEffectPhi:
-      return PropagateDeadControl(node);
+      return ReduceEffectPhi(node);
     case IrOpcode::kDeoptimize:
     case IrOpcode::kReturn:
     case IrOpcode::kTerminate:
-      return ReduceDeoptimizeOrReturnOrTerminate(node);
+    case IrOpcode::kTailCall:
+      return ReduceDeoptimizeOrReturnOrTerminateOrTailCall(node);
     case IrOpcode::kThrow:
       return PropagateDeadControl(node);
     case IrOpcode::kBranch:
@@ -106,7 +108,6 @@ Reduction DeadCodeElimination::ReduceEnd(Node* node) {
   DCHECK_EQ(inputs.count(), live_input_count);
   return NoChange();
 }
-
 
 Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
   DCHECK(IrOpcode::IsMergeOpcode(node->opcode()));
@@ -217,7 +218,7 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
   if (reduction.Changed()) return reduction;
   MachineRepresentation rep = PhiRepresentationOf(node->op());
   if (rep == MachineRepresentation::kNone ||
-      NodeProperties::GetTypeOrAny(node)->IsNone()) {
+      NodeProperties::GetTypeOrAny(node).IsNone()) {
     return Replace(DeadValue(node, rep));
   }
   int input_count = node->op()->ValueInputCount();
@@ -229,6 +230,34 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
     }
   }
   return NoChange();
+}
+
+Reduction DeadCodeElimination::ReduceEffectPhi(Node* node) {
+  DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
+  Reduction reduction = PropagateDeadControl(node);
+  if (reduction.Changed()) return reduction;
+
+  Node* merge = NodeProperties::GetControlInput(node);
+  DCHECK(merge->opcode() == IrOpcode::kMerge ||
+         merge->opcode() == IrOpcode::kLoop);
+  int input_count = node->op()->EffectInputCount();
+  for (int i = 0; i < input_count; ++i) {
+    Node* effect = NodeProperties::GetEffectInput(node, i);
+    if (effect->opcode() == IrOpcode::kUnreachable) {
+      // If Unreachable hits an effect phi, we can re-connect the effect chain
+      // to the graph end and delete the corresponding inputs from the merge and
+      // phi nodes.
+      Node* control = NodeProperties::GetControlInput(merge, i);
+      Node* throw_node = graph_->NewNode(common_->Throw(), effect, control);
+      NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
+      NodeProperties::ReplaceEffectInput(node, dead_, i);
+      NodeProperties::ReplaceControlInput(merge, dead_, i);
+      Revisit(merge);
+      Revisit(graph_->end());
+      reduction = Changed(node);
+    }
+  }
+  return reduction;
 }
 
 Reduction DeadCodeElimination::ReducePureNode(Node* node) {
@@ -280,10 +309,12 @@ Reduction DeadCodeElimination::ReduceEffectNode(Node* node) {
   return NoChange();
 }
 
-Reduction DeadCodeElimination::ReduceDeoptimizeOrReturnOrTerminate(Node* node) {
+Reduction DeadCodeElimination::ReduceDeoptimizeOrReturnOrTerminateOrTailCall(
+    Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimize ||
          node->opcode() == IrOpcode::kReturn ||
-         node->opcode() == IrOpcode::kTerminate);
+         node->opcode() == IrOpcode::kTerminate ||
+         node->opcode() == IrOpcode::kTailCall);
   Reduction reduction = PropagateDeadControl(node);
   if (reduction.Changed()) return reduction;
   if (FindDeadInput(node) != nullptr) {

@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_FLAGS_H_
 #define V8_INTERPRETER_BYTECODE_FLAGS_H_
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +43,8 @@ class CreateClosureFlags {
   class PretenuredBit : public BitField8<bool, 0, 1> {};
   class FastNewClosureBit : public BitField8<bool, PretenuredBit::kNext, 1> {};
 
-  static uint8_t Encode(bool pretenure, bool is_function_scope);
+  static uint8_t Encode(bool pretenure, bool is_function_scope,
+                        bool might_always_opt);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);

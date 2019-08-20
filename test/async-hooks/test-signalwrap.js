@@ -3,6 +3,8 @@ const common = require('../common');
 
 if (common.isWindows)
   common.skip('no signals in Windows');
+if (!common.isMainThread)
+  common.skip('No signal handling available in Workers');
 
 const assert = require('assert');
 const initHooks = require('./init-hooks');
@@ -40,7 +42,7 @@ function onsigusr2() {
       signal1, { init: 1, before: 1 },
       ' signal1: when first SIGUSR2 handler is called for the first time');
 
-    // trigger same signal handler again
+    // Trigger same signal handler again
     exec(`kill -USR2 ${process.pid}`);
   } else {
     // second invocation
@@ -48,7 +50,7 @@ function onsigusr2() {
       signal1, { init: 1, before: 2, after: 1 },
       'signal1: when first SIGUSR2 handler is called for the second time');
 
-    // install another signal handler
+    // Install another signal handler
     process.removeAllListeners('SIGUSR2');
     process.on('SIGUSR2', common.mustCall(onsigusr2Again));
 
@@ -90,7 +92,7 @@ function onexit() {
   checkInvocations(
     signal1, { init: 1, before: 2, after: 2, destroy: 1 },
     'signal1: when second SIGUSR2 process exits');
-  // second signal not destroyed yet since its event listener is still active
+  // Second signal not destroyed yet since its event listener is still active
   checkInvocations(
     signal2, { init: 1, before: 1, after: 1 },
     'signal2: when second SIGUSR2 process exits');

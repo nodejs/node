@@ -163,405 +163,411 @@ handlers: [
 snippet: "
   function f(a) {
     a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
+    var b = {};
+    b.name128;
+    b.name129;
+    b.name130;
+    b.name131;
+    b.name132;
+    b.name133;
+    b.name134;
+    b.name135;
+    b.name136;
+    b.name137;
+    b.name138;
+    b.name139;
+    b.name140;
+    b.name141;
+    b.name142;
+    b.name143;
+    b.name144;
+    b.name145;
+    b.name146;
+    b.name147;
+    b.name148;
+    b.name149;
+    b.name150;
+    b.name151;
+    b.name152;
+    b.name153;
+    b.name154;
+    b.name155;
+    b.name156;
+    b.name157;
+    b.name158;
+    b.name159;
+    b.name160;
+    b.name161;
+    b.name162;
+    b.name163;
+    b.name164;
+    b.name165;
+    b.name166;
+    b.name167;
+    b.name168;
+    b.name169;
+    b.name170;
+    b.name171;
+    b.name172;
+    b.name173;
+    b.name174;
+    b.name175;
+    b.name176;
+    b.name177;
+    b.name178;
+    b.name179;
+    b.name180;
+    b.name181;
+    b.name182;
+    b.name183;
+    b.name184;
+    b.name185;
+    b.name186;
+    b.name187;
+    b.name188;
+    b.name189;
+    b.name190;
+    b.name191;
+    b.name192;
+    b.name193;
+    b.name194;
+    b.name195;
+    b.name196;
+    b.name197;
+    b.name198;
+    b.name199;
+    b.name200;
+    b.name201;
+    b.name202;
+    b.name203;
+    b.name204;
+    b.name205;
+    b.name206;
+    b.name207;
+    b.name208;
+    b.name209;
+    b.name210;
+    b.name211;
+    b.name212;
+    b.name213;
+    b.name214;
+    b.name215;
+    b.name216;
+    b.name217;
+    b.name218;
+    b.name219;
+    b.name220;
+    b.name221;
+    b.name222;
+    b.name223;
+    b.name224;
+    b.name225;
+    b.name226;
+    b.name227;
+    b.name228;
+    b.name229;
+    b.name230;
+    b.name231;
+    b.name232;
+    b.name233;
+    b.name234;
+    b.name235;
+    b.name236;
+    b.name237;
+    b.name238;
+    b.name239;
+    b.name240;
+    b.name241;
+    b.name242;
+    b.name243;
+    b.name244;
+    b.name245;
+    b.name246;
+    b.name247;
+    b.name248;
+    b.name249;
+    b.name250;
+    b.name251;
+    b.name252;
+    b.name253;
+    b.name254;
+    b.name255;
     a.name = 2;
   }
   f({name : \"test\"})
 "
-frame size: 0
+frame size: 1
 parameter count: 2
-bytecode array length: 781
+bytecode array length: 534
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   18 S> */ B(LdaSmi), I8(1),
   /*   25 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
-  /*   32 S> */ B(LdaSmi), I8(1),
-  /*   39 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(2),
-  /*   46 S> */ B(LdaSmi), I8(1),
-  /*   53 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(4),
-  /*   60 S> */ B(LdaSmi), I8(1),
-  /*   67 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(6),
-  /*   74 S> */ B(LdaSmi), I8(1),
-  /*   81 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(8),
-  /*   88 S> */ B(LdaSmi), I8(1),
-  /*   95 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(10),
-  /*  102 S> */ B(LdaSmi), I8(1),
-  /*  109 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(12),
-  /*  116 S> */ B(LdaSmi), I8(1),
-  /*  123 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(14),
-  /*  130 S> */ B(LdaSmi), I8(1),
-  /*  137 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(16),
-  /*  144 S> */ B(LdaSmi), I8(1),
-  /*  151 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(18),
-  /*  158 S> */ B(LdaSmi), I8(1),
-  /*  165 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(20),
-  /*  172 S> */ B(LdaSmi), I8(1),
-  /*  179 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(22),
-  /*  186 S> */ B(LdaSmi), I8(1),
-  /*  193 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(24),
-  /*  200 S> */ B(LdaSmi), I8(1),
-  /*  207 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(26),
-  /*  214 S> */ B(LdaSmi), I8(1),
-  /*  221 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(28),
-  /*  228 S> */ B(LdaSmi), I8(1),
-  /*  235 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(30),
-  /*  242 S> */ B(LdaSmi), I8(1),
-  /*  249 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(32),
-  /*  256 S> */ B(LdaSmi), I8(1),
-  /*  263 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(34),
-  /*  270 S> */ B(LdaSmi), I8(1),
-  /*  277 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(36),
-  /*  284 S> */ B(LdaSmi), I8(1),
-  /*  291 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(38),
-  /*  298 S> */ B(LdaSmi), I8(1),
-  /*  305 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(40),
-  /*  312 S> */ B(LdaSmi), I8(1),
-  /*  319 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(42),
-  /*  326 S> */ B(LdaSmi), I8(1),
-  /*  333 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(44),
-  /*  340 S> */ B(LdaSmi), I8(1),
-  /*  347 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(46),
-  /*  354 S> */ B(LdaSmi), I8(1),
-  /*  361 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(48),
-  /*  368 S> */ B(LdaSmi), I8(1),
-  /*  375 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(50),
-  /*  382 S> */ B(LdaSmi), I8(1),
-  /*  389 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(52),
-  /*  396 S> */ B(LdaSmi), I8(1),
-  /*  403 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(54),
-  /*  410 S> */ B(LdaSmi), I8(1),
-  /*  417 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(56),
-  /*  424 S> */ B(LdaSmi), I8(1),
-  /*  431 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(58),
-  /*  438 S> */ B(LdaSmi), I8(1),
-  /*  445 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(60),
-  /*  452 S> */ B(LdaSmi), I8(1),
-  /*  459 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(62),
-  /*  466 S> */ B(LdaSmi), I8(1),
-  /*  473 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(64),
-  /*  480 S> */ B(LdaSmi), I8(1),
-  /*  487 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(66),
-  /*  494 S> */ B(LdaSmi), I8(1),
-  /*  501 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(68),
-  /*  508 S> */ B(LdaSmi), I8(1),
-  /*  515 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(70),
-  /*  522 S> */ B(LdaSmi), I8(1),
-  /*  529 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(72),
-  /*  536 S> */ B(LdaSmi), I8(1),
-  /*  543 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(74),
-  /*  550 S> */ B(LdaSmi), I8(1),
-  /*  557 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(76),
-  /*  564 S> */ B(LdaSmi), I8(1),
-  /*  571 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(78),
-  /*  578 S> */ B(LdaSmi), I8(1),
-  /*  585 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(80),
-  /*  592 S> */ B(LdaSmi), I8(1),
-  /*  599 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(82),
-  /*  606 S> */ B(LdaSmi), I8(1),
-  /*  613 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(84),
-  /*  620 S> */ B(LdaSmi), I8(1),
-  /*  627 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(86),
-  /*  634 S> */ B(LdaSmi), I8(1),
-  /*  641 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(88),
-  /*  648 S> */ B(LdaSmi), I8(1),
-  /*  655 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(90),
-  /*  662 S> */ B(LdaSmi), I8(1),
-  /*  669 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(92),
-  /*  676 S> */ B(LdaSmi), I8(1),
-  /*  683 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(94),
-  /*  690 S> */ B(LdaSmi), I8(1),
-  /*  697 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(96),
-  /*  704 S> */ B(LdaSmi), I8(1),
-  /*  711 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(98),
-  /*  718 S> */ B(LdaSmi), I8(1),
-  /*  725 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(100),
-  /*  732 S> */ B(LdaSmi), I8(1),
-  /*  739 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(102),
-  /*  746 S> */ B(LdaSmi), I8(1),
-  /*  753 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(104),
-  /*  760 S> */ B(LdaSmi), I8(1),
-  /*  767 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(106),
-  /*  774 S> */ B(LdaSmi), I8(1),
-  /*  781 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(108),
-  /*  788 S> */ B(LdaSmi), I8(1),
-  /*  795 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(110),
-  /*  802 S> */ B(LdaSmi), I8(1),
-  /*  809 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(112),
-  /*  816 S> */ B(LdaSmi), I8(1),
-  /*  823 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(114),
-  /*  830 S> */ B(LdaSmi), I8(1),
-  /*  837 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(116),
-  /*  844 S> */ B(LdaSmi), I8(1),
-  /*  851 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(118),
-  /*  858 S> */ B(LdaSmi), I8(1),
-  /*  865 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(120),
-  /*  872 S> */ B(LdaSmi), I8(1),
-  /*  879 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(122),
-  /*  886 S> */ B(LdaSmi), I8(1),
-  /*  893 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(124),
-  /*  900 S> */ B(LdaSmi), I8(1),
-  /*  907 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(126),
-  /*  914 S> */ B(LdaSmi), I8(1),
-  /*  921 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(128),
-  /*  928 S> */ B(LdaSmi), I8(1),
-  /*  935 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(130),
-  /*  942 S> */ B(LdaSmi), I8(1),
-  /*  949 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(132),
-  /*  956 S> */ B(LdaSmi), I8(1),
-  /*  963 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(134),
-  /*  970 S> */ B(LdaSmi), I8(1),
-  /*  977 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(136),
-  /*  984 S> */ B(LdaSmi), I8(1),
-  /*  991 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(138),
-  /*  998 S> */ B(LdaSmi), I8(1),
-  /* 1005 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(140),
-  /* 1012 S> */ B(LdaSmi), I8(1),
-  /* 1019 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(142),
-  /* 1026 S> */ B(LdaSmi), I8(1),
-  /* 1033 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(144),
-  /* 1040 S> */ B(LdaSmi), I8(1),
-  /* 1047 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(146),
-  /* 1054 S> */ B(LdaSmi), I8(1),
-  /* 1061 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(148),
-  /* 1068 S> */ B(LdaSmi), I8(1),
-  /* 1075 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(150),
-  /* 1082 S> */ B(LdaSmi), I8(1),
-  /* 1089 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(152),
-  /* 1096 S> */ B(LdaSmi), I8(1),
-  /* 1103 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(154),
-  /* 1110 S> */ B(LdaSmi), I8(1),
-  /* 1117 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(156),
-  /* 1124 S> */ B(LdaSmi), I8(1),
-  /* 1131 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(158),
-  /* 1138 S> */ B(LdaSmi), I8(1),
-  /* 1145 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(160),
-  /* 1152 S> */ B(LdaSmi), I8(1),
-  /* 1159 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(162),
-  /* 1166 S> */ B(LdaSmi), I8(1),
-  /* 1173 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(164),
-  /* 1180 S> */ B(LdaSmi), I8(1),
-  /* 1187 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(166),
-  /* 1194 S> */ B(LdaSmi), I8(1),
-  /* 1201 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(168),
-  /* 1208 S> */ B(LdaSmi), I8(1),
-  /* 1215 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(170),
-  /* 1222 S> */ B(LdaSmi), I8(1),
-  /* 1229 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(172),
-  /* 1236 S> */ B(LdaSmi), I8(1),
-  /* 1243 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(174),
-  /* 1250 S> */ B(LdaSmi), I8(1),
-  /* 1257 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(176),
-  /* 1264 S> */ B(LdaSmi), I8(1),
-  /* 1271 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(178),
-  /* 1278 S> */ B(LdaSmi), I8(1),
-  /* 1285 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(180),
-  /* 1292 S> */ B(LdaSmi), I8(1),
-  /* 1299 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(182),
-  /* 1306 S> */ B(LdaSmi), I8(1),
-  /* 1313 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(184),
-  /* 1320 S> */ B(LdaSmi), I8(1),
-  /* 1327 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(186),
-  /* 1334 S> */ B(LdaSmi), I8(1),
-  /* 1341 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(188),
-  /* 1348 S> */ B(LdaSmi), I8(1),
-  /* 1355 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(190),
-  /* 1362 S> */ B(LdaSmi), I8(1),
-  /* 1369 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(192),
-  /* 1376 S> */ B(LdaSmi), I8(1),
-  /* 1383 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(194),
-  /* 1390 S> */ B(LdaSmi), I8(1),
-  /* 1397 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(196),
-  /* 1404 S> */ B(LdaSmi), I8(1),
-  /* 1411 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(198),
-  /* 1418 S> */ B(LdaSmi), I8(1),
-  /* 1425 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(200),
-  /* 1432 S> */ B(LdaSmi), I8(1),
-  /* 1439 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(202),
-  /* 1446 S> */ B(LdaSmi), I8(1),
-  /* 1453 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(204),
-  /* 1460 S> */ B(LdaSmi), I8(1),
-  /* 1467 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(206),
-  /* 1474 S> */ B(LdaSmi), I8(1),
-  /* 1481 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(208),
-  /* 1488 S> */ B(LdaSmi), I8(1),
-  /* 1495 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(210),
-  /* 1502 S> */ B(LdaSmi), I8(1),
-  /* 1509 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(212),
-  /* 1516 S> */ B(LdaSmi), I8(1),
-  /* 1523 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(214),
-  /* 1530 S> */ B(LdaSmi), I8(1),
-  /* 1537 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(216),
-  /* 1544 S> */ B(LdaSmi), I8(1),
-  /* 1551 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(218),
-  /* 1558 S> */ B(LdaSmi), I8(1),
-  /* 1565 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(220),
-  /* 1572 S> */ B(LdaSmi), I8(1),
-  /* 1579 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(222),
-  /* 1586 S> */ B(LdaSmi), I8(1),
-  /* 1593 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(224),
-  /* 1600 S> */ B(LdaSmi), I8(1),
-  /* 1607 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(226),
-  /* 1614 S> */ B(LdaSmi), I8(1),
-  /* 1621 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(228),
-  /* 1628 S> */ B(LdaSmi), I8(1),
-  /* 1635 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(230),
-  /* 1642 S> */ B(LdaSmi), I8(1),
-  /* 1649 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(232),
-  /* 1656 S> */ B(LdaSmi), I8(1),
-  /* 1663 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(234),
-  /* 1670 S> */ B(LdaSmi), I8(1),
-  /* 1677 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(236),
-  /* 1684 S> */ B(LdaSmi), I8(1),
-  /* 1691 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(238),
-  /* 1698 S> */ B(LdaSmi), I8(1),
-  /* 1705 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(240),
-  /* 1712 S> */ B(LdaSmi), I8(1),
-  /* 1719 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(242),
-  /* 1726 S> */ B(LdaSmi), I8(1),
-  /* 1733 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(244),
-  /* 1740 S> */ B(LdaSmi), I8(1),
-  /* 1747 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(246),
-  /* 1754 S> */ B(LdaSmi), I8(1),
-  /* 1761 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(248),
-  /* 1768 S> */ B(LdaSmi), I8(1),
-  /* 1775 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(250),
-  /* 1782 S> */ B(LdaSmi), I8(1),
-  /* 1789 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(252),
-  /* 1796 S> */ B(LdaSmi), I8(1),
-  /* 1803 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(254),
-  /* 1810 S> */ B(LdaSmi), I8(2),
-  /* 1817 E> */ B(Wide), B(StaNamedProperty), R16(arg0), U16(0), U16(256),
+  /*   40 S> */ B(CreateEmptyObjectLiteral),
+                B(Star), R(0),
+  /*   48 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
+  /*   61 S> */ B(LdaNamedProperty), R(0), U8(2), U8(4),
+  /*   74 S> */ B(LdaNamedProperty), R(0), U8(3), U8(6),
+  /*   87 S> */ B(LdaNamedProperty), R(0), U8(4), U8(8),
+  /*  100 S> */ B(LdaNamedProperty), R(0), U8(5), U8(10),
+  /*  113 S> */ B(LdaNamedProperty), R(0), U8(6), U8(12),
+  /*  126 S> */ B(LdaNamedProperty), R(0), U8(7), U8(14),
+  /*  139 S> */ B(LdaNamedProperty), R(0), U8(8), U8(16),
+  /*  152 S> */ B(LdaNamedProperty), R(0), U8(9), U8(18),
+  /*  165 S> */ B(LdaNamedProperty), R(0), U8(10), U8(20),
+  /*  178 S> */ B(LdaNamedProperty), R(0), U8(11), U8(22),
+  /*  191 S> */ B(LdaNamedProperty), R(0), U8(12), U8(24),
+  /*  204 S> */ B(LdaNamedProperty), R(0), U8(13), U8(26),
+  /*  217 S> */ B(LdaNamedProperty), R(0), U8(14), U8(28),
+  /*  230 S> */ B(LdaNamedProperty), R(0), U8(15), U8(30),
+  /*  243 S> */ B(LdaNamedProperty), R(0), U8(16), U8(32),
+  /*  256 S> */ B(LdaNamedProperty), R(0), U8(17), U8(34),
+  /*  269 S> */ B(LdaNamedProperty), R(0), U8(18), U8(36),
+  /*  282 S> */ B(LdaNamedProperty), R(0), U8(19), U8(38),
+  /*  295 S> */ B(LdaNamedProperty), R(0), U8(20), U8(40),
+  /*  308 S> */ B(LdaNamedProperty), R(0), U8(21), U8(42),
+  /*  321 S> */ B(LdaNamedProperty), R(0), U8(22), U8(44),
+  /*  334 S> */ B(LdaNamedProperty), R(0), U8(23), U8(46),
+  /*  347 S> */ B(LdaNamedProperty), R(0), U8(24), U8(48),
+  /*  360 S> */ B(LdaNamedProperty), R(0), U8(25), U8(50),
+  /*  373 S> */ B(LdaNamedProperty), R(0), U8(26), U8(52),
+  /*  386 S> */ B(LdaNamedProperty), R(0), U8(27), U8(54),
+  /*  399 S> */ B(LdaNamedProperty), R(0), U8(28), U8(56),
+  /*  412 S> */ B(LdaNamedProperty), R(0), U8(29), U8(58),
+  /*  425 S> */ B(LdaNamedProperty), R(0), U8(30), U8(60),
+  /*  438 S> */ B(LdaNamedProperty), R(0), U8(31), U8(62),
+  /*  451 S> */ B(LdaNamedProperty), R(0), U8(32), U8(64),
+  /*  464 S> */ B(LdaNamedProperty), R(0), U8(33), U8(66),
+  /*  477 S> */ B(LdaNamedProperty), R(0), U8(34), U8(68),
+  /*  490 S> */ B(LdaNamedProperty), R(0), U8(35), U8(70),
+  /*  503 S> */ B(LdaNamedProperty), R(0), U8(36), U8(72),
+  /*  516 S> */ B(LdaNamedProperty), R(0), U8(37), U8(74),
+  /*  529 S> */ B(LdaNamedProperty), R(0), U8(38), U8(76),
+  /*  542 S> */ B(LdaNamedProperty), R(0), U8(39), U8(78),
+  /*  555 S> */ B(LdaNamedProperty), R(0), U8(40), U8(80),
+  /*  568 S> */ B(LdaNamedProperty), R(0), U8(41), U8(82),
+  /*  581 S> */ B(LdaNamedProperty), R(0), U8(42), U8(84),
+  /*  594 S> */ B(LdaNamedProperty), R(0), U8(43), U8(86),
+  /*  607 S> */ B(LdaNamedProperty), R(0), U8(44), U8(88),
+  /*  620 S> */ B(LdaNamedProperty), R(0), U8(45), U8(90),
+  /*  633 S> */ B(LdaNamedProperty), R(0), U8(46), U8(92),
+  /*  646 S> */ B(LdaNamedProperty), R(0), U8(47), U8(94),
+  /*  659 S> */ B(LdaNamedProperty), R(0), U8(48), U8(96),
+  /*  672 S> */ B(LdaNamedProperty), R(0), U8(49), U8(98),
+  /*  685 S> */ B(LdaNamedProperty), R(0), U8(50), U8(100),
+  /*  698 S> */ B(LdaNamedProperty), R(0), U8(51), U8(102),
+  /*  711 S> */ B(LdaNamedProperty), R(0), U8(52), U8(104),
+  /*  724 S> */ B(LdaNamedProperty), R(0), U8(53), U8(106),
+  /*  737 S> */ B(LdaNamedProperty), R(0), U8(54), U8(108),
+  /*  750 S> */ B(LdaNamedProperty), R(0), U8(55), U8(110),
+  /*  763 S> */ B(LdaNamedProperty), R(0), U8(56), U8(112),
+  /*  776 S> */ B(LdaNamedProperty), R(0), U8(57), U8(114),
+  /*  789 S> */ B(LdaNamedProperty), R(0), U8(58), U8(116),
+  /*  802 S> */ B(LdaNamedProperty), R(0), U8(59), U8(118),
+  /*  815 S> */ B(LdaNamedProperty), R(0), U8(60), U8(120),
+  /*  828 S> */ B(LdaNamedProperty), R(0), U8(61), U8(122),
+  /*  841 S> */ B(LdaNamedProperty), R(0), U8(62), U8(124),
+  /*  854 S> */ B(LdaNamedProperty), R(0), U8(63), U8(126),
+  /*  867 S> */ B(LdaNamedProperty), R(0), U8(64), U8(128),
+  /*  880 S> */ B(LdaNamedProperty), R(0), U8(65), U8(130),
+  /*  893 S> */ B(LdaNamedProperty), R(0), U8(66), U8(132),
+  /*  906 S> */ B(LdaNamedProperty), R(0), U8(67), U8(134),
+  /*  919 S> */ B(LdaNamedProperty), R(0), U8(68), U8(136),
+  /*  932 S> */ B(LdaNamedProperty), R(0), U8(69), U8(138),
+  /*  945 S> */ B(LdaNamedProperty), R(0), U8(70), U8(140),
+  /*  958 S> */ B(LdaNamedProperty), R(0), U8(71), U8(142),
+  /*  971 S> */ B(LdaNamedProperty), R(0), U8(72), U8(144),
+  /*  984 S> */ B(LdaNamedProperty), R(0), U8(73), U8(146),
+  /*  997 S> */ B(LdaNamedProperty), R(0), U8(74), U8(148),
+  /* 1010 S> */ B(LdaNamedProperty), R(0), U8(75), U8(150),
+  /* 1023 S> */ B(LdaNamedProperty), R(0), U8(76), U8(152),
+  /* 1036 S> */ B(LdaNamedProperty), R(0), U8(77), U8(154),
+  /* 1049 S> */ B(LdaNamedProperty), R(0), U8(78), U8(156),
+  /* 1062 S> */ B(LdaNamedProperty), R(0), U8(79), U8(158),
+  /* 1075 S> */ B(LdaNamedProperty), R(0), U8(80), U8(160),
+  /* 1088 S> */ B(LdaNamedProperty), R(0), U8(81), U8(162),
+  /* 1101 S> */ B(LdaNamedProperty), R(0), U8(82), U8(164),
+  /* 1114 S> */ B(LdaNamedProperty), R(0), U8(83), U8(166),
+  /* 1127 S> */ B(LdaNamedProperty), R(0), U8(84), U8(168),
+  /* 1140 S> */ B(LdaNamedProperty), R(0), U8(85), U8(170),
+  /* 1153 S> */ B(LdaNamedProperty), R(0), U8(86), U8(172),
+  /* 1166 S> */ B(LdaNamedProperty), R(0), U8(87), U8(174),
+  /* 1179 S> */ B(LdaNamedProperty), R(0), U8(88), U8(176),
+  /* 1192 S> */ B(LdaNamedProperty), R(0), U8(89), U8(178),
+  /* 1205 S> */ B(LdaNamedProperty), R(0), U8(90), U8(180),
+  /* 1218 S> */ B(LdaNamedProperty), R(0), U8(91), U8(182),
+  /* 1231 S> */ B(LdaNamedProperty), R(0), U8(92), U8(184),
+  /* 1244 S> */ B(LdaNamedProperty), R(0), U8(93), U8(186),
+  /* 1257 S> */ B(LdaNamedProperty), R(0), U8(94), U8(188),
+  /* 1270 S> */ B(LdaNamedProperty), R(0), U8(95), U8(190),
+  /* 1283 S> */ B(LdaNamedProperty), R(0), U8(96), U8(192),
+  /* 1296 S> */ B(LdaNamedProperty), R(0), U8(97), U8(194),
+  /* 1309 S> */ B(LdaNamedProperty), R(0), U8(98), U8(196),
+  /* 1322 S> */ B(LdaNamedProperty), R(0), U8(99), U8(198),
+  /* 1335 S> */ B(LdaNamedProperty), R(0), U8(100), U8(200),
+  /* 1348 S> */ B(LdaNamedProperty), R(0), U8(101), U8(202),
+  /* 1361 S> */ B(LdaNamedProperty), R(0), U8(102), U8(204),
+  /* 1374 S> */ B(LdaNamedProperty), R(0), U8(103), U8(206),
+  /* 1387 S> */ B(LdaNamedProperty), R(0), U8(104), U8(208),
+  /* 1400 S> */ B(LdaNamedProperty), R(0), U8(105), U8(210),
+  /* 1413 S> */ B(LdaNamedProperty), R(0), U8(106), U8(212),
+  /* 1426 S> */ B(LdaNamedProperty), R(0), U8(107), U8(214),
+  /* 1439 S> */ B(LdaNamedProperty), R(0), U8(108), U8(216),
+  /* 1452 S> */ B(LdaNamedProperty), R(0), U8(109), U8(218),
+  /* 1465 S> */ B(LdaNamedProperty), R(0), U8(110), U8(220),
+  /* 1478 S> */ B(LdaNamedProperty), R(0), U8(111), U8(222),
+  /* 1491 S> */ B(LdaNamedProperty), R(0), U8(112), U8(224),
+  /* 1504 S> */ B(LdaNamedProperty), R(0), U8(113), U8(226),
+  /* 1517 S> */ B(LdaNamedProperty), R(0), U8(114), U8(228),
+  /* 1530 S> */ B(LdaNamedProperty), R(0), U8(115), U8(230),
+  /* 1543 S> */ B(LdaNamedProperty), R(0), U8(116), U8(232),
+  /* 1556 S> */ B(LdaNamedProperty), R(0), U8(117), U8(234),
+  /* 1569 S> */ B(LdaNamedProperty), R(0), U8(118), U8(236),
+  /* 1582 S> */ B(LdaNamedProperty), R(0), U8(119), U8(238),
+  /* 1595 S> */ B(LdaNamedProperty), R(0), U8(120), U8(240),
+  /* 1608 S> */ B(LdaNamedProperty), R(0), U8(121), U8(242),
+  /* 1621 S> */ B(LdaNamedProperty), R(0), U8(122), U8(244),
+  /* 1634 S> */ B(LdaNamedProperty), R(0), U8(123), U8(246),
+  /* 1647 S> */ B(LdaNamedProperty), R(0), U8(124), U8(248),
+  /* 1660 S> */ B(LdaNamedProperty), R(0), U8(125), U8(250),
+  /* 1673 S> */ B(LdaNamedProperty), R(0), U8(126), U8(252),
+  /* 1686 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
+  /* 1699 S> */ B(Wide), B(LdaNamedProperty), R16(0), U16(128), U16(256),
+  /* 1710 S> */ B(LdaSmi), I8(2),
+  /* 1717 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
                 B(LdaUndefined),
-  /* 1822 S> */ B(Return),
+  /* 1722 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name128"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name129"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name130"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name131"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name132"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name133"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name134"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name135"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name136"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name137"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name138"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name139"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name140"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name141"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name142"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name143"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name144"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name145"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name146"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name147"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name148"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name149"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name150"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name151"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name152"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name153"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name154"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name155"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name156"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name157"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name158"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name159"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name160"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name161"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name162"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name163"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name164"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name165"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name166"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name167"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name168"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name169"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name170"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name171"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name172"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name173"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name174"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name175"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name176"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name177"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name178"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name179"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name180"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name181"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name182"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name183"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name184"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name185"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name186"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name187"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name188"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name189"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name190"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name191"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name192"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name193"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name194"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name195"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name196"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name197"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name198"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name199"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name200"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name201"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name202"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name203"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name204"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name205"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name206"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name207"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name208"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name209"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name210"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name211"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name212"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name213"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name214"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name215"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name216"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name217"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name218"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name219"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name220"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name221"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name222"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name223"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name224"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name225"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name226"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name227"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name228"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name229"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name230"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name231"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name232"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name233"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name234"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name235"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name236"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name237"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name238"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name239"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name240"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name241"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name242"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name243"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name244"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name245"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name246"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name247"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name248"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name249"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name250"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name251"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name252"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name253"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name254"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name255"],
 ]
 handlers: [
 ]
@@ -571,405 +577,411 @@ snippet: "
   function f(a) {
    'use strict';
     a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
-    a.name = 1;
+    var b = {};
+    b.name256;
+    b.name257;
+    b.name258;
+    b.name259;
+    b.name260;
+    b.name261;
+    b.name262;
+    b.name263;
+    b.name264;
+    b.name265;
+    b.name266;
+    b.name267;
+    b.name268;
+    b.name269;
+    b.name270;
+    b.name271;
+    b.name272;
+    b.name273;
+    b.name274;
+    b.name275;
+    b.name276;
+    b.name277;
+    b.name278;
+    b.name279;
+    b.name280;
+    b.name281;
+    b.name282;
+    b.name283;
+    b.name284;
+    b.name285;
+    b.name286;
+    b.name287;
+    b.name288;
+    b.name289;
+    b.name290;
+    b.name291;
+    b.name292;
+    b.name293;
+    b.name294;
+    b.name295;
+    b.name296;
+    b.name297;
+    b.name298;
+    b.name299;
+    b.name300;
+    b.name301;
+    b.name302;
+    b.name303;
+    b.name304;
+    b.name305;
+    b.name306;
+    b.name307;
+    b.name308;
+    b.name309;
+    b.name310;
+    b.name311;
+    b.name312;
+    b.name313;
+    b.name314;
+    b.name315;
+    b.name316;
+    b.name317;
+    b.name318;
+    b.name319;
+    b.name320;
+    b.name321;
+    b.name322;
+    b.name323;
+    b.name324;
+    b.name325;
+    b.name326;
+    b.name327;
+    b.name328;
+    b.name329;
+    b.name330;
+    b.name331;
+    b.name332;
+    b.name333;
+    b.name334;
+    b.name335;
+    b.name336;
+    b.name337;
+    b.name338;
+    b.name339;
+    b.name340;
+    b.name341;
+    b.name342;
+    b.name343;
+    b.name344;
+    b.name345;
+    b.name346;
+    b.name347;
+    b.name348;
+    b.name349;
+    b.name350;
+    b.name351;
+    b.name352;
+    b.name353;
+    b.name354;
+    b.name355;
+    b.name356;
+    b.name357;
+    b.name358;
+    b.name359;
+    b.name360;
+    b.name361;
+    b.name362;
+    b.name363;
+    b.name364;
+    b.name365;
+    b.name366;
+    b.name367;
+    b.name368;
+    b.name369;
+    b.name370;
+    b.name371;
+    b.name372;
+    b.name373;
+    b.name374;
+    b.name375;
+    b.name376;
+    b.name377;
+    b.name378;
+    b.name379;
+    b.name380;
+    b.name381;
+    b.name382;
+    b.name383;
     a.name = 2;
   }
   f({name : \"test\"})
 "
-frame size: 0
+frame size: 1
 parameter count: 2
-bytecode array length: 781
+bytecode array length: 534
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   33 S> */ B(LdaSmi), I8(1),
   /*   40 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
-  /*   47 S> */ B(LdaSmi), I8(1),
-  /*   54 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(2),
-  /*   61 S> */ B(LdaSmi), I8(1),
-  /*   68 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(4),
-  /*   75 S> */ B(LdaSmi), I8(1),
-  /*   82 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(6),
-  /*   89 S> */ B(LdaSmi), I8(1),
-  /*   96 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(8),
-  /*  103 S> */ B(LdaSmi), I8(1),
-  /*  110 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(10),
-  /*  117 S> */ B(LdaSmi), I8(1),
-  /*  124 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(12),
-  /*  131 S> */ B(LdaSmi), I8(1),
-  /*  138 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(14),
-  /*  145 S> */ B(LdaSmi), I8(1),
-  /*  152 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(16),
-  /*  159 S> */ B(LdaSmi), I8(1),
-  /*  166 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(18),
-  /*  173 S> */ B(LdaSmi), I8(1),
-  /*  180 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(20),
-  /*  187 S> */ B(LdaSmi), I8(1),
-  /*  194 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(22),
-  /*  201 S> */ B(LdaSmi), I8(1),
-  /*  208 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(24),
-  /*  215 S> */ B(LdaSmi), I8(1),
-  /*  222 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(26),
-  /*  229 S> */ B(LdaSmi), I8(1),
-  /*  236 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(28),
-  /*  243 S> */ B(LdaSmi), I8(1),
-  /*  250 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(30),
-  /*  257 S> */ B(LdaSmi), I8(1),
-  /*  264 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(32),
-  /*  271 S> */ B(LdaSmi), I8(1),
-  /*  278 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(34),
-  /*  285 S> */ B(LdaSmi), I8(1),
-  /*  292 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(36),
-  /*  299 S> */ B(LdaSmi), I8(1),
-  /*  306 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(38),
-  /*  313 S> */ B(LdaSmi), I8(1),
-  /*  320 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(40),
-  /*  327 S> */ B(LdaSmi), I8(1),
-  /*  334 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(42),
-  /*  341 S> */ B(LdaSmi), I8(1),
-  /*  348 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(44),
-  /*  355 S> */ B(LdaSmi), I8(1),
-  /*  362 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(46),
-  /*  369 S> */ B(LdaSmi), I8(1),
-  /*  376 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(48),
-  /*  383 S> */ B(LdaSmi), I8(1),
-  /*  390 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(50),
-  /*  397 S> */ B(LdaSmi), I8(1),
-  /*  404 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(52),
-  /*  411 S> */ B(LdaSmi), I8(1),
-  /*  418 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(54),
-  /*  425 S> */ B(LdaSmi), I8(1),
-  /*  432 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(56),
-  /*  439 S> */ B(LdaSmi), I8(1),
-  /*  446 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(58),
-  /*  453 S> */ B(LdaSmi), I8(1),
-  /*  460 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(60),
-  /*  467 S> */ B(LdaSmi), I8(1),
-  /*  474 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(62),
-  /*  481 S> */ B(LdaSmi), I8(1),
-  /*  488 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(64),
-  /*  495 S> */ B(LdaSmi), I8(1),
-  /*  502 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(66),
-  /*  509 S> */ B(LdaSmi), I8(1),
-  /*  516 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(68),
-  /*  523 S> */ B(LdaSmi), I8(1),
-  /*  530 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(70),
-  /*  537 S> */ B(LdaSmi), I8(1),
-  /*  544 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(72),
-  /*  551 S> */ B(LdaSmi), I8(1),
-  /*  558 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(74),
-  /*  565 S> */ B(LdaSmi), I8(1),
-  /*  572 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(76),
-  /*  579 S> */ B(LdaSmi), I8(1),
-  /*  586 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(78),
-  /*  593 S> */ B(LdaSmi), I8(1),
-  /*  600 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(80),
-  /*  607 S> */ B(LdaSmi), I8(1),
-  /*  614 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(82),
-  /*  621 S> */ B(LdaSmi), I8(1),
-  /*  628 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(84),
-  /*  635 S> */ B(LdaSmi), I8(1),
-  /*  642 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(86),
-  /*  649 S> */ B(LdaSmi), I8(1),
-  /*  656 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(88),
-  /*  663 S> */ B(LdaSmi), I8(1),
-  /*  670 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(90),
-  /*  677 S> */ B(LdaSmi), I8(1),
-  /*  684 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(92),
-  /*  691 S> */ B(LdaSmi), I8(1),
-  /*  698 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(94),
-  /*  705 S> */ B(LdaSmi), I8(1),
-  /*  712 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(96),
-  /*  719 S> */ B(LdaSmi), I8(1),
-  /*  726 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(98),
-  /*  733 S> */ B(LdaSmi), I8(1),
-  /*  740 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(100),
-  /*  747 S> */ B(LdaSmi), I8(1),
-  /*  754 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(102),
-  /*  761 S> */ B(LdaSmi), I8(1),
-  /*  768 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(104),
-  /*  775 S> */ B(LdaSmi), I8(1),
-  /*  782 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(106),
-  /*  789 S> */ B(LdaSmi), I8(1),
-  /*  796 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(108),
-  /*  803 S> */ B(LdaSmi), I8(1),
-  /*  810 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(110),
-  /*  817 S> */ B(LdaSmi), I8(1),
-  /*  824 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(112),
-  /*  831 S> */ B(LdaSmi), I8(1),
-  /*  838 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(114),
-  /*  845 S> */ B(LdaSmi), I8(1),
-  /*  852 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(116),
-  /*  859 S> */ B(LdaSmi), I8(1),
-  /*  866 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(118),
-  /*  873 S> */ B(LdaSmi), I8(1),
-  /*  880 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(120),
-  /*  887 S> */ B(LdaSmi), I8(1),
-  /*  894 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(122),
-  /*  901 S> */ B(LdaSmi), I8(1),
-  /*  908 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(124),
-  /*  915 S> */ B(LdaSmi), I8(1),
-  /*  922 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(126),
-  /*  929 S> */ B(LdaSmi), I8(1),
-  /*  936 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(128),
-  /*  943 S> */ B(LdaSmi), I8(1),
-  /*  950 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(130),
-  /*  957 S> */ B(LdaSmi), I8(1),
-  /*  964 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(132),
-  /*  971 S> */ B(LdaSmi), I8(1),
-  /*  978 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(134),
-  /*  985 S> */ B(LdaSmi), I8(1),
-  /*  992 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(136),
-  /*  999 S> */ B(LdaSmi), I8(1),
-  /* 1006 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(138),
-  /* 1013 S> */ B(LdaSmi), I8(1),
-  /* 1020 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(140),
-  /* 1027 S> */ B(LdaSmi), I8(1),
-  /* 1034 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(142),
-  /* 1041 S> */ B(LdaSmi), I8(1),
-  /* 1048 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(144),
-  /* 1055 S> */ B(LdaSmi), I8(1),
-  /* 1062 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(146),
-  /* 1069 S> */ B(LdaSmi), I8(1),
-  /* 1076 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(148),
-  /* 1083 S> */ B(LdaSmi), I8(1),
-  /* 1090 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(150),
-  /* 1097 S> */ B(LdaSmi), I8(1),
-  /* 1104 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(152),
-  /* 1111 S> */ B(LdaSmi), I8(1),
-  /* 1118 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(154),
-  /* 1125 S> */ B(LdaSmi), I8(1),
-  /* 1132 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(156),
-  /* 1139 S> */ B(LdaSmi), I8(1),
-  /* 1146 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(158),
-  /* 1153 S> */ B(LdaSmi), I8(1),
-  /* 1160 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(160),
-  /* 1167 S> */ B(LdaSmi), I8(1),
-  /* 1174 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(162),
-  /* 1181 S> */ B(LdaSmi), I8(1),
-  /* 1188 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(164),
-  /* 1195 S> */ B(LdaSmi), I8(1),
-  /* 1202 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(166),
-  /* 1209 S> */ B(LdaSmi), I8(1),
-  /* 1216 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(168),
-  /* 1223 S> */ B(LdaSmi), I8(1),
-  /* 1230 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(170),
-  /* 1237 S> */ B(LdaSmi), I8(1),
-  /* 1244 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(172),
-  /* 1251 S> */ B(LdaSmi), I8(1),
-  /* 1258 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(174),
-  /* 1265 S> */ B(LdaSmi), I8(1),
-  /* 1272 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(176),
-  /* 1279 S> */ B(LdaSmi), I8(1),
-  /* 1286 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(178),
-  /* 1293 S> */ B(LdaSmi), I8(1),
-  /* 1300 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(180),
-  /* 1307 S> */ B(LdaSmi), I8(1),
-  /* 1314 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(182),
-  /* 1321 S> */ B(LdaSmi), I8(1),
-  /* 1328 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(184),
-  /* 1335 S> */ B(LdaSmi), I8(1),
-  /* 1342 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(186),
-  /* 1349 S> */ B(LdaSmi), I8(1),
-  /* 1356 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(188),
-  /* 1363 S> */ B(LdaSmi), I8(1),
-  /* 1370 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(190),
-  /* 1377 S> */ B(LdaSmi), I8(1),
-  /* 1384 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(192),
-  /* 1391 S> */ B(LdaSmi), I8(1),
-  /* 1398 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(194),
-  /* 1405 S> */ B(LdaSmi), I8(1),
-  /* 1412 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(196),
-  /* 1419 S> */ B(LdaSmi), I8(1),
-  /* 1426 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(198),
-  /* 1433 S> */ B(LdaSmi), I8(1),
-  /* 1440 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(200),
-  /* 1447 S> */ B(LdaSmi), I8(1),
-  /* 1454 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(202),
-  /* 1461 S> */ B(LdaSmi), I8(1),
-  /* 1468 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(204),
-  /* 1475 S> */ B(LdaSmi), I8(1),
-  /* 1482 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(206),
-  /* 1489 S> */ B(LdaSmi), I8(1),
-  /* 1496 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(208),
-  /* 1503 S> */ B(LdaSmi), I8(1),
-  /* 1510 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(210),
-  /* 1517 S> */ B(LdaSmi), I8(1),
-  /* 1524 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(212),
-  /* 1531 S> */ B(LdaSmi), I8(1),
-  /* 1538 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(214),
-  /* 1545 S> */ B(LdaSmi), I8(1),
-  /* 1552 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(216),
-  /* 1559 S> */ B(LdaSmi), I8(1),
-  /* 1566 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(218),
-  /* 1573 S> */ B(LdaSmi), I8(1),
-  /* 1580 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(220),
-  /* 1587 S> */ B(LdaSmi), I8(1),
-  /* 1594 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(222),
-  /* 1601 S> */ B(LdaSmi), I8(1),
-  /* 1608 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(224),
-  /* 1615 S> */ B(LdaSmi), I8(1),
-  /* 1622 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(226),
-  /* 1629 S> */ B(LdaSmi), I8(1),
-  /* 1636 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(228),
-  /* 1643 S> */ B(LdaSmi), I8(1),
-  /* 1650 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(230),
-  /* 1657 S> */ B(LdaSmi), I8(1),
-  /* 1664 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(232),
-  /* 1671 S> */ B(LdaSmi), I8(1),
-  /* 1678 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(234),
-  /* 1685 S> */ B(LdaSmi), I8(1),
-  /* 1692 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(236),
-  /* 1699 S> */ B(LdaSmi), I8(1),
-  /* 1706 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(238),
-  /* 1713 S> */ B(LdaSmi), I8(1),
-  /* 1720 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(240),
-  /* 1727 S> */ B(LdaSmi), I8(1),
-  /* 1734 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(242),
-  /* 1741 S> */ B(LdaSmi), I8(1),
-  /* 1748 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(244),
-  /* 1755 S> */ B(LdaSmi), I8(1),
-  /* 1762 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(246),
-  /* 1769 S> */ B(LdaSmi), I8(1),
-  /* 1776 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(248),
-  /* 1783 S> */ B(LdaSmi), I8(1),
-  /* 1790 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(250),
-  /* 1797 S> */ B(LdaSmi), I8(1),
-  /* 1804 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(252),
-  /* 1811 S> */ B(LdaSmi), I8(1),
-  /* 1818 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(254),
-  /* 1825 S> */ B(LdaSmi), I8(2),
-  /* 1832 E> */ B(Wide), B(StaNamedProperty), R16(arg0), U16(0), U16(256),
+  /*   55 S> */ B(CreateEmptyObjectLiteral),
+                B(Star), R(0),
+  /*   63 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
+  /*   76 S> */ B(LdaNamedProperty), R(0), U8(2), U8(4),
+  /*   89 S> */ B(LdaNamedProperty), R(0), U8(3), U8(6),
+  /*  102 S> */ B(LdaNamedProperty), R(0), U8(4), U8(8),
+  /*  115 S> */ B(LdaNamedProperty), R(0), U8(5), U8(10),
+  /*  128 S> */ B(LdaNamedProperty), R(0), U8(6), U8(12),
+  /*  141 S> */ B(LdaNamedProperty), R(0), U8(7), U8(14),
+  /*  154 S> */ B(LdaNamedProperty), R(0), U8(8), U8(16),
+  /*  167 S> */ B(LdaNamedProperty), R(0), U8(9), U8(18),
+  /*  180 S> */ B(LdaNamedProperty), R(0), U8(10), U8(20),
+  /*  193 S> */ B(LdaNamedProperty), R(0), U8(11), U8(22),
+  /*  206 S> */ B(LdaNamedProperty), R(0), U8(12), U8(24),
+  /*  219 S> */ B(LdaNamedProperty), R(0), U8(13), U8(26),
+  /*  232 S> */ B(LdaNamedProperty), R(0), U8(14), U8(28),
+  /*  245 S> */ B(LdaNamedProperty), R(0), U8(15), U8(30),
+  /*  258 S> */ B(LdaNamedProperty), R(0), U8(16), U8(32),
+  /*  271 S> */ B(LdaNamedProperty), R(0), U8(17), U8(34),
+  /*  284 S> */ B(LdaNamedProperty), R(0), U8(18), U8(36),
+  /*  297 S> */ B(LdaNamedProperty), R(0), U8(19), U8(38),
+  /*  310 S> */ B(LdaNamedProperty), R(0), U8(20), U8(40),
+  /*  323 S> */ B(LdaNamedProperty), R(0), U8(21), U8(42),
+  /*  336 S> */ B(LdaNamedProperty), R(0), U8(22), U8(44),
+  /*  349 S> */ B(LdaNamedProperty), R(0), U8(23), U8(46),
+  /*  362 S> */ B(LdaNamedProperty), R(0), U8(24), U8(48),
+  /*  375 S> */ B(LdaNamedProperty), R(0), U8(25), U8(50),
+  /*  388 S> */ B(LdaNamedProperty), R(0), U8(26), U8(52),
+  /*  401 S> */ B(LdaNamedProperty), R(0), U8(27), U8(54),
+  /*  414 S> */ B(LdaNamedProperty), R(0), U8(28), U8(56),
+  /*  427 S> */ B(LdaNamedProperty), R(0), U8(29), U8(58),
+  /*  440 S> */ B(LdaNamedProperty), R(0), U8(30), U8(60),
+  /*  453 S> */ B(LdaNamedProperty), R(0), U8(31), U8(62),
+  /*  466 S> */ B(LdaNamedProperty), R(0), U8(32), U8(64),
+  /*  479 S> */ B(LdaNamedProperty), R(0), U8(33), U8(66),
+  /*  492 S> */ B(LdaNamedProperty), R(0), U8(34), U8(68),
+  /*  505 S> */ B(LdaNamedProperty), R(0), U8(35), U8(70),
+  /*  518 S> */ B(LdaNamedProperty), R(0), U8(36), U8(72),
+  /*  531 S> */ B(LdaNamedProperty), R(0), U8(37), U8(74),
+  /*  544 S> */ B(LdaNamedProperty), R(0), U8(38), U8(76),
+  /*  557 S> */ B(LdaNamedProperty), R(0), U8(39), U8(78),
+  /*  570 S> */ B(LdaNamedProperty), R(0), U8(40), U8(80),
+  /*  583 S> */ B(LdaNamedProperty), R(0), U8(41), U8(82),
+  /*  596 S> */ B(LdaNamedProperty), R(0), U8(42), U8(84),
+  /*  609 S> */ B(LdaNamedProperty), R(0), U8(43), U8(86),
+  /*  622 S> */ B(LdaNamedProperty), R(0), U8(44), U8(88),
+  /*  635 S> */ B(LdaNamedProperty), R(0), U8(45), U8(90),
+  /*  648 S> */ B(LdaNamedProperty), R(0), U8(46), U8(92),
+  /*  661 S> */ B(LdaNamedProperty), R(0), U8(47), U8(94),
+  /*  674 S> */ B(LdaNamedProperty), R(0), U8(48), U8(96),
+  /*  687 S> */ B(LdaNamedProperty), R(0), U8(49), U8(98),
+  /*  700 S> */ B(LdaNamedProperty), R(0), U8(50), U8(100),
+  /*  713 S> */ B(LdaNamedProperty), R(0), U8(51), U8(102),
+  /*  726 S> */ B(LdaNamedProperty), R(0), U8(52), U8(104),
+  /*  739 S> */ B(LdaNamedProperty), R(0), U8(53), U8(106),
+  /*  752 S> */ B(LdaNamedProperty), R(0), U8(54), U8(108),
+  /*  765 S> */ B(LdaNamedProperty), R(0), U8(55), U8(110),
+  /*  778 S> */ B(LdaNamedProperty), R(0), U8(56), U8(112),
+  /*  791 S> */ B(LdaNamedProperty), R(0), U8(57), U8(114),
+  /*  804 S> */ B(LdaNamedProperty), R(0), U8(58), U8(116),
+  /*  817 S> */ B(LdaNamedProperty), R(0), U8(59), U8(118),
+  /*  830 S> */ B(LdaNamedProperty), R(0), U8(60), U8(120),
+  /*  843 S> */ B(LdaNamedProperty), R(0), U8(61), U8(122),
+  /*  856 S> */ B(LdaNamedProperty), R(0), U8(62), U8(124),
+  /*  869 S> */ B(LdaNamedProperty), R(0), U8(63), U8(126),
+  /*  882 S> */ B(LdaNamedProperty), R(0), U8(64), U8(128),
+  /*  895 S> */ B(LdaNamedProperty), R(0), U8(65), U8(130),
+  /*  908 S> */ B(LdaNamedProperty), R(0), U8(66), U8(132),
+  /*  921 S> */ B(LdaNamedProperty), R(0), U8(67), U8(134),
+  /*  934 S> */ B(LdaNamedProperty), R(0), U8(68), U8(136),
+  /*  947 S> */ B(LdaNamedProperty), R(0), U8(69), U8(138),
+  /*  960 S> */ B(LdaNamedProperty), R(0), U8(70), U8(140),
+  /*  973 S> */ B(LdaNamedProperty), R(0), U8(71), U8(142),
+  /*  986 S> */ B(LdaNamedProperty), R(0), U8(72), U8(144),
+  /*  999 S> */ B(LdaNamedProperty), R(0), U8(73), U8(146),
+  /* 1012 S> */ B(LdaNamedProperty), R(0), U8(74), U8(148),
+  /* 1025 S> */ B(LdaNamedProperty), R(0), U8(75), U8(150),
+  /* 1038 S> */ B(LdaNamedProperty), R(0), U8(76), U8(152),
+  /* 1051 S> */ B(LdaNamedProperty), R(0), U8(77), U8(154),
+  /* 1064 S> */ B(LdaNamedProperty), R(0), U8(78), U8(156),
+  /* 1077 S> */ B(LdaNamedProperty), R(0), U8(79), U8(158),
+  /* 1090 S> */ B(LdaNamedProperty), R(0), U8(80), U8(160),
+  /* 1103 S> */ B(LdaNamedProperty), R(0), U8(81), U8(162),
+  /* 1116 S> */ B(LdaNamedProperty), R(0), U8(82), U8(164),
+  /* 1129 S> */ B(LdaNamedProperty), R(0), U8(83), U8(166),
+  /* 1142 S> */ B(LdaNamedProperty), R(0), U8(84), U8(168),
+  /* 1155 S> */ B(LdaNamedProperty), R(0), U8(85), U8(170),
+  /* 1168 S> */ B(LdaNamedProperty), R(0), U8(86), U8(172),
+  /* 1181 S> */ B(LdaNamedProperty), R(0), U8(87), U8(174),
+  /* 1194 S> */ B(LdaNamedProperty), R(0), U8(88), U8(176),
+  /* 1207 S> */ B(LdaNamedProperty), R(0), U8(89), U8(178),
+  /* 1220 S> */ B(LdaNamedProperty), R(0), U8(90), U8(180),
+  /* 1233 S> */ B(LdaNamedProperty), R(0), U8(91), U8(182),
+  /* 1246 S> */ B(LdaNamedProperty), R(0), U8(92), U8(184),
+  /* 1259 S> */ B(LdaNamedProperty), R(0), U8(93), U8(186),
+  /* 1272 S> */ B(LdaNamedProperty), R(0), U8(94), U8(188),
+  /* 1285 S> */ B(LdaNamedProperty), R(0), U8(95), U8(190),
+  /* 1298 S> */ B(LdaNamedProperty), R(0), U8(96), U8(192),
+  /* 1311 S> */ B(LdaNamedProperty), R(0), U8(97), U8(194),
+  /* 1324 S> */ B(LdaNamedProperty), R(0), U8(98), U8(196),
+  /* 1337 S> */ B(LdaNamedProperty), R(0), U8(99), U8(198),
+  /* 1350 S> */ B(LdaNamedProperty), R(0), U8(100), U8(200),
+  /* 1363 S> */ B(LdaNamedProperty), R(0), U8(101), U8(202),
+  /* 1376 S> */ B(LdaNamedProperty), R(0), U8(102), U8(204),
+  /* 1389 S> */ B(LdaNamedProperty), R(0), U8(103), U8(206),
+  /* 1402 S> */ B(LdaNamedProperty), R(0), U8(104), U8(208),
+  /* 1415 S> */ B(LdaNamedProperty), R(0), U8(105), U8(210),
+  /* 1428 S> */ B(LdaNamedProperty), R(0), U8(106), U8(212),
+  /* 1441 S> */ B(LdaNamedProperty), R(0), U8(107), U8(214),
+  /* 1454 S> */ B(LdaNamedProperty), R(0), U8(108), U8(216),
+  /* 1467 S> */ B(LdaNamedProperty), R(0), U8(109), U8(218),
+  /* 1480 S> */ B(LdaNamedProperty), R(0), U8(110), U8(220),
+  /* 1493 S> */ B(LdaNamedProperty), R(0), U8(111), U8(222),
+  /* 1506 S> */ B(LdaNamedProperty), R(0), U8(112), U8(224),
+  /* 1519 S> */ B(LdaNamedProperty), R(0), U8(113), U8(226),
+  /* 1532 S> */ B(LdaNamedProperty), R(0), U8(114), U8(228),
+  /* 1545 S> */ B(LdaNamedProperty), R(0), U8(115), U8(230),
+  /* 1558 S> */ B(LdaNamedProperty), R(0), U8(116), U8(232),
+  /* 1571 S> */ B(LdaNamedProperty), R(0), U8(117), U8(234),
+  /* 1584 S> */ B(LdaNamedProperty), R(0), U8(118), U8(236),
+  /* 1597 S> */ B(LdaNamedProperty), R(0), U8(119), U8(238),
+  /* 1610 S> */ B(LdaNamedProperty), R(0), U8(120), U8(240),
+  /* 1623 S> */ B(LdaNamedProperty), R(0), U8(121), U8(242),
+  /* 1636 S> */ B(LdaNamedProperty), R(0), U8(122), U8(244),
+  /* 1649 S> */ B(LdaNamedProperty), R(0), U8(123), U8(246),
+  /* 1662 S> */ B(LdaNamedProperty), R(0), U8(124), U8(248),
+  /* 1675 S> */ B(LdaNamedProperty), R(0), U8(125), U8(250),
+  /* 1688 S> */ B(LdaNamedProperty), R(0), U8(126), U8(252),
+  /* 1701 S> */ B(LdaNamedProperty), R(0), U8(127), U8(254),
+  /* 1714 S> */ B(Wide), B(LdaNamedProperty), R16(0), U16(128), U16(256),
+  /* 1725 S> */ B(LdaSmi), I8(2),
+  /* 1732 E> */ B(StaNamedProperty), R(arg0), U8(0), U8(0),
                 B(LdaUndefined),
-  /* 1837 S> */ B(Return),
+  /* 1737 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name256"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name257"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name258"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name259"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name260"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name261"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name262"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name263"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name264"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name265"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name266"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name267"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name268"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name269"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name270"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name271"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name272"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name273"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name274"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name275"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name276"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name277"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name278"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name279"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name280"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name281"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name282"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name283"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name284"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name285"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name286"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name287"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name288"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name289"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name290"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name291"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name292"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name293"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name294"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name295"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name296"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name297"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name298"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name299"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name300"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name301"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name302"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name303"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name304"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name305"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name306"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name307"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name308"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name309"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name310"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name311"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name312"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name313"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name314"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name315"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name316"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name317"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name318"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name319"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name320"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name321"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name322"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name323"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name324"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name325"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name326"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name327"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name328"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name329"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name330"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name331"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name332"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name333"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name334"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name335"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name336"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name337"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name338"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name339"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name340"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name341"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name342"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name343"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name344"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name345"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name346"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name347"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name348"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name349"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name350"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name351"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name352"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name353"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name354"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name355"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name356"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name357"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name358"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name359"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name360"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name361"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name362"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name363"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name364"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name365"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name366"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name367"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name368"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name369"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name370"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name371"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name372"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name373"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name374"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name375"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name376"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name377"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name378"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name379"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name380"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name381"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name382"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name383"],
 ]
 handlers: [
 ]

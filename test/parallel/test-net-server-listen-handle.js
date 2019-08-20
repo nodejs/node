@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -5,8 +6,9 @@ const assert = require('assert');
 const net = require('net');
 const fs = require('fs');
 const { getSystemErrorName } = require('util');
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -51,7 +53,7 @@ function randomHandle(type) {
     assert.fail(`unable to bind ${handleName}: ${getSystemErrorName(errno)}`);
   }
 
-  if (!common.isWindows) {  // fd doesn't work on windows
+  if (!common.isWindows) {  // `fd` doesn't work on Windows.
     // err >= 0 but fd = -1, should not happen
     assert.notStrictEqual(handle.fd, -1,
                           `Bound ${handleName} has fd -1 and errno ${errno}`);
@@ -80,7 +82,7 @@ function randomPipes(number) {
 
 // Not a public API, used by child_process
 if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
-  const handles = randomPipes(2);  // generate pipes in advance
+  const handles = randomPipes(2);  // Generate pipes in advance
   // Test listen(pipe)
   net.createServer()
     .listen(handles[0])
@@ -118,7 +120,7 @@ if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
 }
 
 if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
-  const handles = randomPipes(6);  // generate pipes in advance
+  const handles = randomPipes(6);  // Generate pipes in advance
   // Test listen({handle: pipe}, cb)
   net.createServer()
     .listen({ handle: handles[0] }, closePipeServer(handles[0]));
@@ -148,7 +150,7 @@ if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   net.createServer()
     .listen({ fd }, common.mustNotCall())
     .on('error', common.mustCall(function(err) {
-      assert.strictEqual(String(err), 'Error: listen EINVAL');
+      assert.strictEqual(String(err), 'Error: listen EINVAL: invalid argument');
       this.close();
     }));
 }

@@ -28,5 +28,4 @@ async function runTests() {
   assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
-common.crashOnUnhandledRejection();
 runTests();

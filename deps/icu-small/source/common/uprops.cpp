@@ -25,18 +25,131 @@
 
 #include "unicode/utypes.h"
 #include "unicode/uchar.h"
+#include "unicode/ucptrie.h"
+#include "unicode/udata.h"
 #include "unicode/unorm2.h"
 #include "unicode/uscript.h"
 #include "unicode/ustring.h"
 #include "cstring.h"
+#include "mutex.h"
 #include "normalizer2impl.h"
 #include "umutex.h"
 #include "ubidi_props.h"
 #include "uprops.h"
 #include "ucase.h"
+#include "ucln_cmn.h"
+#include "ulayout_props.h"
 #include "ustr_imp.h"
 
 U_NAMESPACE_USE
+
+// Unicode text layout properties data -----------------------------------------
+
+namespace {
+
+icu::UInitOnce gLayoutInitOnce = U_INITONCE_INITIALIZER;
+UDataMemory *gLayoutMemory = nullptr;
+
+UCPTrie *gInpcTrie = nullptr;  // Indic_Positional_Category
+UCPTrie *gInscTrie = nullptr;  // Indic_Syllabic_Category
+UCPTrie *gVoTrie = nullptr;  // Vertical_Orientation
+
+int32_t gMaxInpcValue = 0;
+int32_t gMaxInscValue = 0;
+int32_t gMaxVoValue = 0;
+
+UBool U_CALLCONV uprops_cleanup() {
+    udata_close(gLayoutMemory);
+    gLayoutMemory = nullptr;
+
+    ucptrie_close(gInpcTrie);
+    gInpcTrie = nullptr;
+    ucptrie_close(gInscTrie);
+    gInscTrie = nullptr;
+    ucptrie_close(gVoTrie);
+    gVoTrie = nullptr;
+
+    gMaxInpcValue = 0;
+    gMaxInscValue = 0;
+    gMaxVoValue = 0;
+
+    gLayoutInitOnce.reset();
+    return TRUE;
+}
+
+UBool U_CALLCONV
+ulayout_isAcceptable(void * /*context*/,
+                     const char * /* type */, const char * /*name*/,
+                     const UDataInfo *pInfo) {
+    return pInfo->size >= 20 &&
+        pInfo->isBigEndian == U_IS_BIG_ENDIAN &&
+        pInfo->charsetFamily == U_CHARSET_FAMILY &&
+        pInfo->dataFormat[0] == ULAYOUT_FMT_0 &&
+        pInfo->dataFormat[1] == ULAYOUT_FMT_1 &&
+        pInfo->dataFormat[2] == ULAYOUT_FMT_2 &&
+        pInfo->dataFormat[3] == ULAYOUT_FMT_3 &&
+        pInfo->formatVersion[0] == 1;
+}
+
+// UInitOnce singleton initialization function
+void U_CALLCONV ulayout_load(UErrorCode &errorCode) {
+    gLayoutMemory = udata_openChoice(
+        nullptr, ULAYOUT_DATA_TYPE, ULAYOUT_DATA_NAME,
+        ulayout_isAcceptable, nullptr, &errorCode);
+    if (U_FAILURE(errorCode)) { return; }
+
+    const uint8_t *inBytes = (const uint8_t *)udata_getMemory(gLayoutMemory);
+    const int32_t *inIndexes = (const int32_t *)inBytes;
+    int32_t indexesLength = inIndexes[ULAYOUT_IX_INDEXES_LENGTH];
+    if (indexesLength < 12) {
+        errorCode = U_INVALID_FORMAT_ERROR;  // Not enough indexes.
+        return;
+    }
+    int32_t offset = indexesLength * 4;
+    int32_t top = inIndexes[ULAYOUT_IX_INPC_TRIE_TOP];
+    int32_t trieSize = top - offset;
+    if (trieSize >= 16) {
+        gInpcTrie = ucptrie_openFromBinary(
+            UCPTRIE_TYPE_ANY, UCPTRIE_VALUE_BITS_ANY,
+            inBytes + offset, trieSize, nullptr, &errorCode);
+    }
+    offset = top;
+    top = inIndexes[ULAYOUT_IX_INSC_TRIE_TOP];
+    trieSize = top - offset;
+    if (trieSize >= 16) {
+        gInscTrie = ucptrie_openFromBinary(
+            UCPTRIE_TYPE_ANY, UCPTRIE_VALUE_BITS_ANY,
+            inBytes + offset, trieSize, nullptr, &errorCode);
+    }
+    offset = top;
+    top = inIndexes[ULAYOUT_IX_VO_TRIE_TOP];
+    trieSize = top - offset;
+    if (trieSize >= 16) {
+        gVoTrie = ucptrie_openFromBinary(
+            UCPTRIE_TYPE_ANY, UCPTRIE_VALUE_BITS_ANY,
+            inBytes + offset, trieSize, nullptr, &errorCode);
+    }
+
+    uint32_t maxValues = inIndexes[ULAYOUT_IX_MAX_VALUES];
+    gMaxInpcValue = maxValues >> ULAYOUT_MAX_INPC_SHIFT;
+    gMaxInscValue = (maxValues >> ULAYOUT_MAX_INSC_SHIFT) & 0xff;
+    gMaxVoValue = (maxValues >> ULAYOUT_MAX_VO_SHIFT) & 0xff;
+
+    ucln_common_registerCleanup(UCLN_COMMON_UPROPS, uprops_cleanup);
+}
+
+UBool ulayout_ensureData(UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return FALSE; }
+    umtx_initOnce(gLayoutInitOnce, &ulayout_load, errorCode);
+    return U_SUCCESS(errorCode);
+}
+
+UBool ulayout_ensureData() {
+    UErrorCode errorCode = U_ZERO_ERROR;
+    return ulayout_ensureData(errorCode);
+}
+
+}  // namespace
 
 /* general properties API functions ----------------------------------------- */
 
@@ -56,7 +169,7 @@ static UBool defaultContains(const BinaryProperty &prop, UChar32 c, UProperty /*
 }
 
 static UBool caseBinaryPropertyContains(const BinaryProperty &/*prop*/, UChar32 c, UProperty which) {
-    return ucase_hasBinaryProperty(c, which);
+    return static_cast<UBool>(ucase_hasBinaryProperty(c, which));
 }
 
 static UBool isBidiControl(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -282,6 +395,7 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { 2,                U_MASK(UPROPS_2_EMOJI_COMPONENT), defaultContains },
     { 2,                0, isRegionalIndicator },
     { 1,                U_MASK(UPROPS_PREPENDED_CONCATENATION_MARK), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EXTENDED_PICTOGRAPHIC), defaultContains },
 };
 
 U_CAPI UBool U_EXPORT2
@@ -427,6 +541,32 @@ static int32_t getTrailCombiningClass(const IntProperty &/*prop*/, UChar32 c, UP
 }
 #endif
 
+static int32_t getInPC(const IntProperty &, UChar32 c, UProperty) {
+    return ulayout_ensureData() && gInpcTrie != nullptr ? ucptrie_get(gInpcTrie, c) : 0;
+}
+
+static int32_t getInSC(const IntProperty &, UChar32 c, UProperty) {
+    return ulayout_ensureData() && gInscTrie != nullptr ? ucptrie_get(gInscTrie, c) : 0;
+}
+
+static int32_t getVo(const IntProperty &, UChar32 c, UProperty) {
+    return ulayout_ensureData() && gVoTrie != nullptr ? ucptrie_get(gVoTrie, c) : 0;
+}
+
+static int32_t layoutGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
+    if (!ulayout_ensureData()) { return 0; }
+    switch (which) {
+    case UCHAR_INDIC_POSITIONAL_CATEGORY:
+        return gMaxInpcValue;
+    case UCHAR_INDIC_SYLLABIC_CATEGORY:
+        return gMaxInscValue;
+    case UCHAR_VERTICAL_ORIENTATION:
+        return gMaxVoValue;
+    default:
+        return 0;
+    }
+}
+
 static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     /*
      * column, mask and shift values for int-value properties from u_getUnicodeProperties().
@@ -462,6 +602,9 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     { 2,                UPROPS_SB_MASK, UPROPS_SB_SHIFT,    defaultGetValue, defaultGetMaxValue },
     { 2,                UPROPS_WB_MASK, UPROPS_WB_SHIFT,    defaultGetValue, defaultGetMaxValue },
     { UPROPS_SRC_BIDI,  0, 0,                               getBiDiPairedBracketType, biDiGetMaxValue },
+    { UPROPS_SRC_INPC,  0, 0,                               getInPC, layoutGetMaxValue },
+    { UPROPS_SRC_INSC,  0, 0,                               getInSC, layoutGetMaxValue },
+    { UPROPS_SRC_VO,    0, 0,                               getVo, layoutGetMaxValue },
 };
 
 U_CAPI int32_t U_EXPORT2
@@ -560,6 +703,39 @@ uprops_getSource(UProperty which) {
         default:
             return UPROPS_SRC_NONE; /* undefined */
         }
+    }
+}
+
+U_CFUNC void U_EXPORT2
+uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *pErrorCode) {
+    if (!ulayout_ensureData(*pErrorCode)) { return; }
+    const UCPTrie *trie;
+    switch (src) {
+    case UPROPS_SRC_INPC:
+        trie = gInpcTrie;
+        break;
+    case UPROPS_SRC_INSC:
+        trie = gInscTrie;
+        break;
+    case UPROPS_SRC_VO:
+        trie = gVoTrie;
+        break;
+    default:
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+
+    if (trie == nullptr) {
+        *pErrorCode = U_MISSING_RESOURCE_ERROR;
+        return;
+    }
+
+    // Add the start code point of each same-value range of the trie.
+    UChar32 start = 0, end;
+    while ((end = ucptrie_getRange(trie, start, UCPMAP_RANGE_NORMAL, 0,
+                                   nullptr, nullptr, nullptr)) >= 0) {
+        sa->add(sa->set, start);
+        start = end + 1;
     }
 }
 

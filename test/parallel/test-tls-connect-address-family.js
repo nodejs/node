@@ -15,7 +15,7 @@ function runTest() {
   tls.createServer({
     cert: fixtures.readKey('agent1-cert.pem'),
     key: fixtures.readKey('agent1-key.pem'),
-  }, common.mustCall(function() {
+  }).on('connection', common.mustCall(function() {
     this.close();
   })).listen(0, '::1', common.mustCall(function() {
     const options = {
@@ -26,13 +26,15 @@ function runTest() {
     };
     // Will fail with ECONNREFUSED if the address family is not honored.
     tls.connect(options).once('secureConnect', common.mustCall(function() {
-      assert.strictEqual('::1', this.remoteAddress);
+      assert.strictEqual(this.remoteAddress, '::1');
       this.destroy();
     }));
   }));
 }
 
-dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
+dns.lookup('localhost', {
+  family: 6, all: true
+}, common.mustCall((err, addresses) => {
   if (err) {
     if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')
       common.skip('localhost does not resolve to ::1');
@@ -44,4 +46,4 @@ dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
     runTest();
   else
     common.skip('localhost does not resolve to ::1');
-});
+}));

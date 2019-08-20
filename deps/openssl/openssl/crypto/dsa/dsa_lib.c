@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,9 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* Original version from Steven Schoch <schoch@sheba.arc.nasa.gov> */
-
 #include <stdio.h>
 #include "internal/cryptlib.h"
+#include "internal/refcount.h"
 #include <openssl/bn.h>
 #include "dsa_locl.h"
 #include <openssl/asn1.h>
@@ -91,12 +90,14 @@ DSA *DSA_new_method(ENGINE *engine)
 
     if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
         DSAerr(DSA_F_DSA_NEW_METHOD, ERR_R_INIT_FAIL);
-err:
-        DSA_free(ret);
-        ret = NULL;
+        goto err;
     }
 
     return ret;
+
+ err:
+    DSA_free(ret);
+    return NULL;
 }
 
 void DSA_free(DSA *r)
@@ -106,13 +107,13 @@ void DSA_free(DSA *r)
     if (r == NULL)
         return;
 
-    CRYPTO_atomic_add(&r->references, -1, &i, r->lock);
+    CRYPTO_DOWN_REF(&r->references, &i, r->lock);
     REF_PRINT_COUNT("DSA", r);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);
 
-    if (r->meth->finish)
+    if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 #ifndef OPENSSL_NO_ENGINE
     ENGINE_finish(r->engine);
@@ -134,7 +135,7 @@ int DSA_up_ref(DSA *r)
 {
     int i;
 
-    if (CRYPTO_atomic_add(&r->references, 1, &i, r->lock) <= 0)
+    if (CRYPTO_UP_REF(&r->references, &i, r->lock) <= 0)
         return 0;
 
     REF_PRINT_COUNT("DSA", r);
@@ -161,17 +162,17 @@ int DSA_size(const DSA *r)
     i = i2d_ASN1_INTEGER(&bs, NULL);
     i += i;                     /* r and s */
     ret = ASN1_object_size(1, i, V_ASN1_SEQUENCE);
-    return (ret);
+    return ret;
 }
 
 int DSA_set_ex_data(DSA *d, int idx, void *arg)
 {
-    return (CRYPTO_set_ex_data(&d->ex_data, idx, arg));
+    return CRYPTO_set_ex_data(&d->ex_data, idx, arg);
 }
 
 void *DSA_get_ex_data(DSA *d, int idx)
 {
-    return (CRYPTO_get_ex_data(&d->ex_data, idx));
+    return CRYPTO_get_ex_data(&d->ex_data, idx);
 }
 
 int DSA_security_bits(const DSA *d)
@@ -304,6 +305,31 @@ int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key)
     }
 
     return 1;
+}
+
+const BIGNUM *DSA_get0_p(const DSA *d)
+{
+    return d->p;
+}
+
+const BIGNUM *DSA_get0_q(const DSA *d)
+{
+    return d->q;
+}
+
+const BIGNUM *DSA_get0_g(const DSA *d)
+{
+    return d->g;
+}
+
+const BIGNUM *DSA_get0_pub_key(const DSA *d)
+{
+    return d->pub_key;
+}
+
+const BIGNUM *DSA_get0_priv_key(const DSA *d)
+{
+    return d->priv_key;
 }
 
 void DSA_clear_flags(DSA *d, int flags)

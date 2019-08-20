@@ -4076,8 +4076,8 @@
 # define STATUS_HASH_NOT_PRESENT ((NTSTATUS) 0xC000A101L)
 #endif
 
-/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the */
-/* DDK got it wrong! */
+/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the DDK
+ * got it wrong! */
 #ifdef NTSTATUS_FROM_WIN32
 # undef NTSTATUS_FROM_WIN32
 #endif
@@ -4109,6 +4109,9 @@
 #endif
 
 /* from winternl.h */
+#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32_)
+#define __UNICODE_STRING_DEFINED
+#endif
 typedef struct _UNICODE_STRING {
   USHORT Length;
   USHORT MaximumLength;
@@ -4433,6 +4436,10 @@ typedef struct _SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION {
 # define SystemProcessorPerformanceInformation 8
 #endif
 
+#ifndef ProcessConsoleHostProcess
+# define ProcessConsoleHostProcess 49
+#endif
+
 #ifndef FILE_DEVICE_FILE_SYSTEM
 # define FILE_DEVICE_FILE_SYSTEM 0x00000009
 #endif
@@ -4516,6 +4523,9 @@ typedef VOID (NTAPI *PIO_APC_ROUTINE)
               PIO_STATUS_BLOCK IoStatusBlock,
               ULONG Reserved);
 
+typedef NTSTATUS (NTAPI *sRtlGetVersion)
+                 (PRTL_OSVERSIONINFOW lpVersionInformation);
+
 typedef ULONG (NTAPI *sRtlNtStatusToDosError)
               (NTSTATUS Status);
 
@@ -4571,6 +4581,13 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
                   PUNICODE_STRING FileName,
                   BOOLEAN RestartScan
                 );
+
+typedef NTSTATUS (NTAPI *sNtQueryInformationProcess)
+                 (HANDLE ProcessHandle,
+                  UINT ProcessInformationClass,
+                  PVOID ProcessInformation,
+                  ULONG Length,
+                  PULONG ReturnLength);
 
 /*
  * Kernel32 headers
@@ -4650,48 +4667,6 @@ typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
               DWORD dwMilliseconds,
               BOOL fAlertable);
 
-typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
-             (HANDLE FileHandle,
-              UCHAR Flags);
-
-typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
-                (LPCWSTR lpSymlinkFileName,
-                 LPCWSTR lpTargetFileName,
-                 DWORD dwFlags);
-
-typedef BOOL (WINAPI* sCancelIoEx)
-             (HANDLE hFile,
-              LPOVERLAPPED lpOverlapped);
-
-typedef VOID (WINAPI* sInitializeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef BOOL (WINAPI* sSleepConditionVariableCS)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PCRITICAL_SECTION CriticalSection,
-              DWORD dwMilliseconds);
-
-typedef BOOL (WINAPI* sSleepConditionVariableSRW)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PSRWLOCK SRWLock,
-              DWORD dwMilliseconds,
-              ULONG Flags);
-
-typedef VOID (WINAPI* sWakeAllConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef VOID (WINAPI* sWakeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef BOOL (WINAPI* sCancelSynchronousIo)
-             (HANDLE hThread);
-
-typedef DWORD (WINAPI* sGetFinalPathNameByHandleW)
-             (HANDLE hFile,
-              LPWSTR lpszFilePath,
-              DWORD cchFilePath,
-              DWORD dwFlags);
-
 /* from powerbase.h */
 #ifndef DEVICE_NOTIFY_CALLBACK
 # define DEVICE_NOTIFY_CALLBACK 2
@@ -4746,6 +4721,7 @@ typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
 
 
 /* Ntdll function pointers */
+extern sRtlGetVersion pRtlGetVersion;
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
@@ -4753,21 +4729,10 @@ extern sNtSetInformationFile pNtSetInformationFile;
 extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
 extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
-
+extern sNtQueryInformationProcess pNtQueryInformationProcess;
 
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
-extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
-extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
-extern sCancelIoEx pCancelIoEx;
-extern sInitializeConditionVariable pInitializeConditionVariable;
-extern sSleepConditionVariableCS pSleepConditionVariableCS;
-extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
-extern sWakeAllConditionVariable pWakeAllConditionVariable;
-extern sWakeConditionVariable pWakeConditionVariable;
-extern sCancelSynchronousIo pCancelSynchronousIo;
-extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
-
 
 /* Powrprof.dll function pointer */
 extern sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;

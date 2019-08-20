@@ -4,13 +4,13 @@
 
 #include <functional>
 
-#include "src/codegen.h"
+#include "src/base/overflowing-math.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects-inl.h"
-#include "test/cctest/types-fuzz.h"
+#include "src/objects/objects-inl.h"
+#include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
@@ -22,7 +22,8 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
-        operation_typer_(isolate(), zone()),
+        broker_(isolate(), zone(), FLAG_trace_heap_broker),
+        operation_typer_(&broker_, zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),
         simplified_(zone()) {
@@ -55,6 +56,7 @@ class TyperTest : public TypedGraphTest {
 
   const int kRepetitions = 50;
 
+  JSHeapBroker broker_;
   OperationTyper operation_typer_;
   Types types_;
   JSOperatorBuilder javascript_;
@@ -65,7 +67,7 @@ class TyperTest : public TypedGraphTest {
   std::vector<double> integers;
   std::vector<double> int32s;
 
-  Type* TypeUnaryOp(const Operator* op, Type* type0) {
+  Type TypeUnaryOp(const Operator* op, Type type0) {
     Node* p0 = Parameter(0);
     NodeProperties::SetType(p0, type0);
     std::vector<Node*> inputs;
@@ -87,7 +89,7 @@ class TyperTest : public TypedGraphTest {
     return NodeProperties::GetType(n);
   }
 
-  Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
+  Type TypeBinaryOp(const Operator* op, Type lhs, Type rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
     NodeProperties::SetType(p0, lhs);
@@ -112,14 +114,14 @@ class TyperTest : public TypedGraphTest {
     return NodeProperties::GetType(n);
   }
 
-  Type* RandomRange(bool int32 = false) {
+  Type RandomRange(bool int32 = false) {
     std::vector<double>& numbers = int32 ? int32s : integers;
     double i = numbers[rng_->NextInt(static_cast<int>(numbers.size()))];
     double j = numbers[rng_->NextInt(static_cast<int>(numbers.size()))];
     return NewRange(i, j);
   }
 
-  Type* NewRange(double i, double j) {
+  Type NewRange(double i, double j) {
     if (i > j) std::swap(i, j);
     return Type::Range(i, j, zone());
   }
@@ -145,15 +147,15 @@ class TyperTest : public TypedGraphTest {
     return result;
   }
 
-  double RandomInt(RangeType* range) {
+  double RandomInt(const RangeType* range) {
     return RandomInt(range->Min(), range->Max());
   }
 
-  Type* RandomSubtype(Type* type) {
-    Type* subtype;
+  Type RandomSubtype(Type type) {
+    Type subtype;
     do {
       subtype = types_.Fuzz();
-    } while (!subtype->Is(type));
+    } while (!subtype.Is(type));
     return subtype;
   }
 
@@ -166,16 +168,17 @@ class TyperTest : public TypedGraphTest {
     for (int width = 0; width < max_width; width++) {
       for (int lmin = min_min; lmin <= max_min; lmin++) {
         for (int rmin = min_min; rmin <= max_min; rmin++) {
-          Type* r1 = NewRange(lmin, lmin + width);
-          Type* r2 = NewRange(rmin, rmin + width);
-          Type* expected_type = TypeBinaryOp(op, r1, r2);
+          Type r1 = NewRange(lmin, lmin + width);
+          Type r2 = NewRange(rmin, rmin + width);
+          Type expected_type = TypeBinaryOp(op, r1, r2);
 
           for (int x1 = lmin; x1 < lmin + width; x1++) {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
-              Type* result_type = Type::NewConstant(
-                  isolate()->factory()->NewNumber(result_value), zone());
-              EXPECT_TRUE(result_type->Is(expected_type));
+              Type result_type = Type::NewConstant(
+                  &broker_, isolate()->factory()->NewNumber(result_value),
+                  zone());
+              EXPECT_TRUE(result_type.Is(expected_type));
             }
           }
         }
@@ -187,45 +190,48 @@ class TyperTest : public TypedGraphTest {
   void TestBinaryArithOp(const Operator* op, BinaryFunction opfun) {
     TestBinaryArithOpCloseToZero(op, opfun, 8);
     for (int i = 0; i < 100; ++i) {
-      Type* r1 = RandomRange();
-      Type* r2 = RandomRange();
-      Type* expected_type = TypeBinaryOp(op, r1, r2);
+      Type r1 = RandomRange();
+      Type r2 = RandomRange();
+      Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1->AsRange());
-        double x2 = RandomInt(r2->AsRange());
+        double x1 = RandomInt(r1.AsRange());
+        double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
-        Type* result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        Type result_type = Type::NewConstant(
+            &broker_, isolate()->factory()->NewNumber(result_value), zone());
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
     // Test extreme cases.
     double x1 = +1e-308;
     double x2 = -1e-308;
-    Type* r1 = Type::NewConstant(isolate()->factory()->NewNumber(x1), zone());
-    Type* r2 = Type::NewConstant(isolate()->factory()->NewNumber(x2), zone());
-    Type* expected_type = TypeBinaryOp(op, r1, r2);
+    Type r1 = Type::NewConstant(&broker_, isolate()->factory()->NewNumber(x1),
+                                zone());
+    Type r2 = Type::NewConstant(&broker_, isolate()->factory()->NewNumber(x2),
+                                zone());
+    Type expected_type = TypeBinaryOp(op, r1, r2);
     double result_value = opfun(x1, x2);
-    Type* result_type = Type::NewConstant(
-        isolate()->factory()->NewNumber(result_value), zone());
-    EXPECT_TRUE(result_type->Is(expected_type));
+    Type result_type = Type::NewConstant(
+        &broker_, isolate()->factory()->NewNumber(result_value), zone());
+    EXPECT_TRUE(result_type.Is(expected_type));
   }
 
   template <class BinaryFunction>
   void TestBinaryCompareOp(const Operator* op, BinaryFunction opfun) {
     for (int i = 0; i < 100; ++i) {
-      Type* r1 = RandomRange();
-      Type* r2 = RandomRange();
-      Type* expected_type = TypeBinaryOp(op, r1, r2);
+      Type r1 = RandomRange();
+      Type r2 = RandomRange();
+      Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1->AsRange());
-        double x2 = RandomInt(r2->AsRange());
+        double x1 = RandomInt(r1.AsRange());
+        double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
-        Type* result_type = Type::NewConstant(
+        Type result_type = Type::NewConstant(
+            &broker_,
             result_value ? isolate()->factory()->true_value()
                          : isolate()->factory()->false_value(),
             zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
   }
@@ -233,59 +239,59 @@ class TyperTest : public TypedGraphTest {
   template <class BinaryFunction>
   void TestBinaryBitOp(const Operator* op, BinaryFunction opfun) {
     for (int i = 0; i < 100; ++i) {
-      Type* r1 = RandomRange(true);
-      Type* r2 = RandomRange(true);
-      Type* expected_type = TypeBinaryOp(op, r1, r2);
+      Type r1 = RandomRange(true);
+      Type r2 = RandomRange(true);
+      Type expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        int32_t x1 = static_cast<int32_t>(RandomInt(r1->AsRange()));
-        int32_t x2 = static_cast<int32_t>(RandomInt(r2->AsRange()));
+        int32_t x1 = static_cast<int32_t>(RandomInt(r1.AsRange()));
+        int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
-        Type* result_type = Type::NewConstant(
-            isolate()->factory()->NewNumber(result_value), zone());
-        EXPECT_TRUE(result_type->Is(expected_type));
+        Type result_type = Type::NewConstant(
+            &broker_, isolate()->factory()->NewNumber(result_value), zone());
+        EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
   }
 
-  typedef std::function<Type*(Type*)> UnaryTyper;
-  typedef std::function<Type*(Type*, Type*)> BinaryTyper;
+  using UnaryTyper = std::function<Type(Type)>;
+  using BinaryTyper = std::function<Type(Type, Type)>;
 
-  void TestUnaryMonotonicity(UnaryTyper typer, Type* upper1 = Type::Any()) {
-    Type* type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
-    DCHECK(type1->Is(upper1));
-    Type* type = typer(type1);
+  void TestUnaryMonotonicity(UnaryTyper typer, Type upper1 = Type::Any()) {
+    Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
+    DCHECK(type1.Is(upper1));
+    Type type = typer(type1);
 
-    Type* subtype1 = RandomSubtype(type1);
-    Type* subtype = typer(subtype1);
+    Type subtype1 = RandomSubtype(type1);
+    Type subtype = typer(subtype1);
 
-    EXPECT_TRUE(subtype->Is(type));
+    EXPECT_TRUE(subtype.Is(type));
   }
 
-  void TestBinaryMonotonicity(BinaryTyper typer, Type* upper1 = Type::Any(),
-                              Type* upper2 = Type::Any()) {
-    Type* type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
-    DCHECK(type1->Is(upper1));
-    Type* type2 = Type::Intersect(types_.Fuzz(), upper2, zone());
-    DCHECK(type2->Is(upper2));
-    Type* type = typer(type1, type2);
+  void TestBinaryMonotonicity(BinaryTyper typer, Type upper1 = Type::Any(),
+                              Type upper2 = Type::Any()) {
+    Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
+    DCHECK(type1.Is(upper1));
+    Type type2 = Type::Intersect(types_.Fuzz(), upper2, zone());
+    DCHECK(type2.Is(upper2));
+    Type type = typer(type1, type2);
 
-    Type* subtype1 = RandomSubtype(type1);
-    Type* subtype2 = RandomSubtype(type2);
-    Type* subtype = typer(subtype1, subtype2);
+    Type subtype1 = RandomSubtype(type1);
+    Type subtype2 = RandomSubtype(type2);
+    Type subtype = typer(subtype1, subtype2);
 
-    EXPECT_TRUE(subtype->Is(type));
+    EXPECT_TRUE(subtype.Is(type));
   }
 
-  void TestUnaryMonotonicity(const Operator* op, Type* upper1 = Type::Any()) {
-    UnaryTyper typer = [&](Type* type1) { return TypeUnaryOp(op, type1); };
+  void TestUnaryMonotonicity(const Operator* op, Type upper1 = Type::Any()) {
+    UnaryTyper typer = [&](Type type1) { return TypeUnaryOp(op, type1); };
     for (int i = 0; i < kRepetitions; ++i) {
       TestUnaryMonotonicity(typer, upper1);
     }
   }
 
-  void TestBinaryMonotonicity(const Operator* op, Type* upper1 = Type::Any(),
-                              Type* upper2 = Type::Any()) {
-    BinaryTyper typer = [&](Type* type1, Type* type2) {
+  void TestBinaryMonotonicity(const Operator* op, Type upper1 = Type::Any(),
+                              Type upper2 = Type::Any()) {
+    BinaryTyper typer = [&](Type type1, Type type2) {
       return TypeBinaryOp(op, type1, type2);
     };
     for (int i = 0; i < kRepetitions; ++i) {
@@ -297,11 +303,14 @@ class TyperTest : public TypedGraphTest {
 
 namespace {
 
-int32_t shift_left(int32_t x, int32_t y) { return x << (y & 0x1F); }
+int32_t shift_left(int32_t x, int32_t y) {
+  return static_cast<uint32_t>(x) << (y & 0x1F);
+}
 int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1F); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }
 int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+double divide_double_double(double x, double y) { return base::Divide(x, y); }
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
 }  // namespace
@@ -326,7 +335,7 @@ TEST_F(TyperTest, TypeJSMultiply) {
 }
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(), divide_double_double);
 }
 
 TEST_F(TyperTest, TypeJSModulus) {
@@ -425,7 +434,6 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
   TEST_F(TyperTest, Monotonicity_##name) {     \
     TestUnaryMonotonicity(javascript_.name()); \
   }
-TEST_MONOTONICITY(ToInteger)
 TEST_MONOTONICITY(ToLength)
 TEST_MONOTONICITY(ToName)
 TEST_MONOTONICITY(ToNumber)
@@ -500,7 +508,7 @@ TEST_MONOTONICITY(ToBoolean)
     TestBinaryMonotonicity(simplified_.name(), Type::Number(), \
                            Type::Number());                    \
   }
-SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, without input restriction
@@ -541,7 +549,7 @@ SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 // SIMPLIFIED UNOPs with Number input restriction
 #define TEST_MONOTONICITY(name)                      \
   TEST_F(TyperTest, Monotonicity_Operation_##name) { \
-    UnaryTyper typer = [&](Type* type1) {            \
+    UnaryTyper typer = [&](Type type1) {             \
       return operation_typer_.name(type1);           \
     };                                               \
     for (int i = 0; i < kRepetitions; ++i) {         \
@@ -554,7 +562,7 @@ SIMPLIFIED_NUMBER_UNOP_LIST(TEST_MONOTONICITY)
 // SIMPLIFIED BINOPs with Number input restriction
 #define TEST_MONOTONICITY(name)                                      \
   TEST_F(TyperTest, Monotonicity_Operation_##name) {                 \
-    BinaryTyper typer = [&](Type* type1, Type* type2) {              \
+    BinaryTyper typer = [&](Type type1, Type type2) {                \
       return operation_typer_.name(type1, type2);                    \
     };                                                               \
     for (int i = 0; i < kRepetitions; ++i) {                         \
@@ -565,14 +573,14 @@ SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without input restriction
-#define TEST_MONOTONICITY(name)                         \
-  TEST_F(TyperTest, Monotonicity_Operation_##name) {    \
-    BinaryTyper typer = [&](Type* type1, Type* type2) { \
-      return operation_typer_.name(type1, type2);       \
-    };                                                  \
-    for (int i = 0; i < kRepetitions; ++i) {            \
-      TestBinaryMonotonicity(typer);                    \
-    }                                                   \
+#define TEST_MONOTONICITY(name)                       \
+  TEST_F(TyperTest, Monotonicity_Operation_##name) {  \
+    BinaryTyper typer = [&](Type type1, Type type2) { \
+      return operation_typer_.name(type1, type2);     \
+    };                                                \
+    for (int i = 0; i < kRepetitions; ++i) {          \
+      TestBinaryMonotonicity(typer);                  \
+    }                                                 \
   }
 SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY

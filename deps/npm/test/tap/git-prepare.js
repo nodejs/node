@@ -11,10 +11,10 @@ const mr = require('npm-registry-mock')
 const npm = require('../../lib/npm.js')
 const common = require('../common-tap.js')
 
-const testdir = path.resolve(__dirname, path.basename(__filename, '.js'))
+const testdir = common.pkg
 const repo = path.join(testdir, 'repo')
 const prefix = path.join(testdir, 'prefix')
-const cache = path.join(testdir, 'cache')
+const cache = common.cache
 
 var Tacks = require('tacks')
 var Dir = Tacks.Dir
@@ -30,14 +30,13 @@ process.env.npm_config_prefix = prefix
 const fixture = new Tacks(Dir({
   repo: Dir({}),
   prefix: Dir({}),
-  cache: Dir({}),
   deps: Dir({
     parent: Dir({
       'package.json': File({
         name: 'parent',
         version: '1.2.3',
         dependencies: {
-          'child': 'git://localhost:1234/child.git'
+          'child': 'git://localhost:' + common.gitPort + '/child.git'
         }
       })
     }),
@@ -144,7 +143,7 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: repo,

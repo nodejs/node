@@ -5,8 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_PARSER_H_
 #define V8_REGEXP_REGEXP_PARSER_H_
 
-#include "src/objects.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/objects.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/zone/zone.h"
 
@@ -151,8 +151,7 @@ class RegExpBuilder : public ZoneObject {
 #endif
 };
 
-
-class RegExpParser BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE RegExpParser {
  public:
   RegExpParser(FlatStringReader* in, Handle<String>* error,
                JSRegExp::Flags flags, Isolate* isolate, Zone* zone);
@@ -177,7 +176,14 @@ class RegExpParser BASE_EMBEDDED {
   bool ParseHexEscape(int length, uc32* value);
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
-  bool ParsePropertyClass(ZoneList<CharacterRange>* result, bool negate);
+
+  bool ParsePropertyClassName(std::vector<char>* name_1,
+                              std::vector<char>* name_2);
+  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
+                             const std::vector<char>& name_1,
+                             const std::vector<char>& name_2);
+
+  RegExpTree* GetPropertySequence(const std::vector<char>& name_1);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
   uc32 ParseOctalLiteral();
@@ -320,11 +326,19 @@ class RegExpParser BASE_EMBEDDED {
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
+  struct RegExpCaptureNameLess {
+    bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
+      DCHECK_NOT_NULL(lhs);
+      DCHECK_NOT_NULL(rhs);
+      return *lhs->name() < *rhs->name();
+    }
+  };
+
   Isolate* isolate_;
   Zone* zone_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
-  ZoneList<RegExpCapture*>* named_captures_;
+  ZoneSet<RegExpCapture*, RegExpCaptureNameLess>* named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;
   FlatStringReader* in_;
   uc32 current_;

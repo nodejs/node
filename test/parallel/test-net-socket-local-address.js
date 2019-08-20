@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-// skip test in FreeBSD jails
+// Skip test in FreeBSD jails
 if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
 
@@ -17,9 +17,9 @@ const server = net.createServer((socket) => {
 });
 
 server.on('close', common.mustCall(() => {
-  assert.deepStrictEqual(clientLocalPorts, serverRemotePorts,
-                         'client and server should agree on the ports used');
-  assert.strictEqual(2, conns);
+  // Client and server should agree on the ports used
+  assert.deepStrictEqual(serverRemotePorts, clientLocalPorts);
+  assert.strictEqual(conns, 2);
 }));
 
 server.listen(0, common.localhostIPv4, connect);

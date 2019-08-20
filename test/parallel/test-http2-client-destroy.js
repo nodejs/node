@@ -49,7 +49,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test destroy before client operations
+// Test destroy before client operations
 {
   const server = h2.createServer();
   server.listen(0, common.mustCall(() => {
@@ -81,7 +81,7 @@ const Countdown = require('../common/countdown');
     common.expectsError(() => client.settings({}), sessionError);
     common.expectsError(() => client.goaway(), sessionError);
     common.expectsError(() => client.request(), sessionError);
-    client.close();  // should be a non-op at this point
+    client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
@@ -91,7 +91,7 @@ const Countdown = require('../common/countdown');
       common.expectsError(() => client.settings({}), sessionError);
       common.expectsError(() => client.goaway(), sessionError);
       common.expectsError(() => client.request(), sessionError);
-      client.close();  // should be a non-op at this point
+      client.close();  // Should be a non-op at this point
     });
 
     req.resume();
@@ -100,7 +100,7 @@ const Countdown = require('../common/countdown');
   }));
 }
 
-// test destroy before goaway
+// Test destroy before goaway
 {
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
@@ -109,19 +109,58 @@ const Countdown = require('../common/countdown');
 
   server.listen(0, common.mustCall(() => {
     const client = h2.connect(`http://localhost:${server.address().port}`);
-    // On some platforms (e.g. windows), an ECONNRESET may occur at this
-    // point -- or it may not. Do not make this a mustCall
-    client.on('error', () => {});
 
     client.on('close', () => {
       server.close();
-      // calling destroy in here should not matter
+      // Calling destroy in here should not matter
       client.destroy();
     });
 
+    client.request();
+  }));
+}
+
+// Test destroy before connect
+{
+  const server = h2.createServer();
+  server.on('stream', common.mustNotCall());
+
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+
+    server.on('connection', common.mustCall(() => {
+      server.close();
+      client.close();
+    }));
+
     const req = client.request();
-    // On some platforms (e.g. windows), an ECONNRESET may occur at this
-    // point -- or it may not. Do not make this a mustCall
-    req.on('error', () => {});
+    req.destroy();
+  }));
+}
+
+// Test close before connect
+{
+  const server = h2.createServer();
+
+  server.on('stream', common.mustNotCall());
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+    const socket = client[kSocket];
+    socket.on('close', common.mustCall(() => {
+      assert(socket.destroyed);
+    }));
+
+    const req = client.request();
+    // Should throw goaway error
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_GOAWAY_SESSION',
+      type: Error,
+      message: 'New streams cannot be created after receiving a GOAWAY'
+    }));
+
+    client.close();
+    req.resume();
+    req.on('end', common.mustCall());
+    req.on('close', common.mustCall(() => server.close()));
   }));
 }

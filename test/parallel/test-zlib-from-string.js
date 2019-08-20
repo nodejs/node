@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// test compressing and uncompressing a string with zlib
+// Test compressing and uncompressing a string with zlib
 
 const common = require('../common');
 const assert = require('assert');

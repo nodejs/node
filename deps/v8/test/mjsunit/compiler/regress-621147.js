@@ -16,6 +16,8 @@ function test3(a) {
   a[0] = 1;
 }
 
+%PrepareFunctionForOptimization(test2);
+
 test(0);
 
 var smi_array = [1,2];

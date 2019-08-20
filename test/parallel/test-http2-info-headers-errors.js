@@ -5,14 +5,15 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
+const { internalBinding } = require('internal/test/binding');
 const {
   constants,
   Http2Stream,
   nghttp2ErrorString
-} = process.binding('http2');
+} = internalBinding('http2');
 const { NghttpError } = require('internal/http2/util');
 
-// tests error handling within additionalHeaders
+// Tests error handling within additionalHeaders
 // - every other NGHTTP2 error from binding (should emit stream error)
 
 const specificTestKeys = [];
@@ -27,7 +28,7 @@ const genericTests = Object.getOwnPropertyNames(constants)
     error: {
       code: 'ERR_HTTP2_ERROR',
       type: NghttpError,
-      name: 'Error [ERR_HTTP2_ERROR]',
+      name: 'Error',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'stream'
@@ -38,7 +39,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock sendHeaders because we only care about testing error handling
+// Mock sendHeaders because we only care about testing error handling
 Http2Stream.prototype.info = () => currentError.ngError;
 
 const server = http2.createServer();

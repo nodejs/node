@@ -11,10 +11,31 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-std::pair<std::unique_ptr<const byte[]>, size_t> SerializeNativeModule(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+// Support for serializing WebAssembly {NativeModule} objects. This class takes
+// a snapshot of the module state at instantiation, and other code that modifies
+// the module after that won't affect the serialized result.
+class V8_EXPORT_PRIVATE WasmSerializer {
+ public:
+  explicit WasmSerializer(NativeModule* native_module);
 
-MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
+  // Measure the required buffer size needed for serialization.
+  size_t GetSerializedNativeModuleSize() const;
+
+  // Serialize the {NativeModule} into the provided {buffer}. Returns true on
+  // success and false if the given buffer it too small for serialization.
+  bool SerializeNativeModule(Vector<byte> buffer) const;
+
+ private:
+  NativeModule* native_module_;
+  std::vector<WasmCode*> code_table_;
+};
+
+// Support for deserializing WebAssembly {NativeModule} objects.
+// Checks the version header of the data against the current version.
+bool IsSupportedVersion(Vector<const byte> data);
+
+// Deserializes the given data to create a Wasm module object.
+MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes);
 
 }  // namespace wasm

@@ -892,16 +892,24 @@ JsonProfile.prototype.addStaticCode = function(
 
 JsonProfile.prototype.addCode = function(
     kind, name, timestamp, start, size) {
+  let codeId = this.codeEntries_.length;
+  // Find out if we have a static code entry for the code. If yes, we will
+  // make sure it is written to the JSON file just once.
+  let staticEntry = this.codeMap_.findAddress(start);
+  if (staticEntry && staticEntry.entry.type === 'CPP') {
+    codeId = staticEntry.entry.codeId;
+  }
+
   var entry = new CodeMap.CodeEntry(size, name, 'CODE');
   this.codeMap_.addCode(start, entry);
 
-  entry.codeId = this.codeEntries_.length;
-  this.codeEntries_.push({
+  entry.codeId = codeId;
+  this.codeEntries_[codeId] = {
     name : entry.name,
     timestamp: timestamp,
     type : entry.type,
     kind : kind
-  });
+  };
 
   return entry;
 };
@@ -975,7 +983,7 @@ JsonProfile.prototype.addSourcePositions = function(
   if (!entry) return;
   var codeId = entry.codeId;
 
-  // Resolve the inlined fucntions list.
+  // Resolve the inlined functions list.
   if (inlinedFunctions.length > 0) {
     inlinedFunctions = inlinedFunctions.substring(1).split("S");
     for (var i = 0; i < inlinedFunctions.length; i++) {
@@ -1002,33 +1010,10 @@ JsonProfile.prototype.addSourcePositions = function(
   };
 };
 
-function unescapeString(s) {
-  s = s.split("\\");
-  for (var i = 1; i < s.length; i++) {
-    if (s[i] === "") {
-      // Double backslash.
-      s[i] = "\\";
-    } else if (i > 0 && s[i].startsWith("x")) {
-      // Escaped Ascii character.
-      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 3), 16)) +
-          s[i].substring(3);
-    } else if (i > 0 && s[i].startsWith("u")) {
-      // Escaped unicode character.
-      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 5), 16)) +
-          s[i].substring(5);
-    } else {
-      if (i > 0 && s[i - 1] !== "\\") {
-        printErr("Malformed source string");
-      }
-    }
-  }
-  return s.join("");
-}
-
 JsonProfile.prototype.addScriptSource = function(script, url, source) {
   this.scripts_[script] = {
-    name : unescapeString(url),
-    source : unescapeString(source)
+    name : url,
+    source : source
   };
 };
 

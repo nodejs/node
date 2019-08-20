@@ -635,7 +635,7 @@ int cms_SignedData_final(CMS_ContentInfo *cms, BIO *chain)
 int CMS_SignerInfo_sign(CMS_SignerInfo *si)
 {
     EVP_MD_CTX *mctx = si->mctx;
-    EVP_PKEY_CTX *pctx;
+    EVP_PKEY_CTX *pctx = NULL;
     unsigned char *abuf = NULL;
     int alen;
     size_t siglen;
@@ -656,6 +656,7 @@ int CMS_SignerInfo_sign(CMS_SignerInfo *si)
         EVP_MD_CTX_reset(mctx);
         if (EVP_DigestSignInit(mctx, &pctx, md, NULL, si->pkey) <= 0)
             goto err;
+        si->pctx = pctx;
     }
 
     if (EVP_PKEY_CTX_ctrl(pctx, -1, EVP_PKEY_OP_SIGN,

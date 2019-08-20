@@ -27,9 +27,11 @@
 
 TEST_IMPL(env_vars) {
   const char* name = "UV_TEST_FOO";
+  const char* name2 = "UV_TEST_FOO2";
   char buf[BUF_SIZE];
   size_t size;
-  int r;
+  int i, r, envcount, found;
+  uv_env_item_t* envitems;
 
   /* Reject invalid inputs when setting an environment variable */
   r = uv_os_setenv(NULL, "foo");
@@ -84,6 +86,39 @@ TEST_IMPL(env_vars) {
 
   /* Successfully delete an environment variable that does not exist */
   r = uv_os_unsetenv(name);
+  ASSERT(r == 0);
+
+  /* Check getting all env variables. */
+  r = uv_os_setenv(name, "123456789");
+  ASSERT(r == 0);
+  r = uv_os_setenv(name2, "");
+  ASSERT(r == 0);
+
+  r = uv_os_environ(&envitems, &envcount);
+  ASSERT(r == 0);
+  ASSERT(envcount > 0);
+
+  found = 0;
+
+  for (i = 0; i < envcount; i++) {
+    /* printf("Env: %s = %s\n", envitems[i].name, envitems[i].value); */
+    if (strcmp(envitems[i].name, name) == 0) {
+      found++;
+      ASSERT(strcmp(envitems[i].value, "123456789") == 0);
+    } else if (strcmp(envitems[i].name, name2) == 0) {
+      found++;
+      ASSERT(strlen(envitems[i].value) == 0);
+    }
+  }
+
+  ASSERT(found == 2);
+
+  uv_os_free_environ(envitems, envcount);
+
+  r = uv_os_unsetenv(name);
+  ASSERT(r == 0);
+
+  r = uv_os_unsetenv(name2);
   ASSERT(r == 0);
 
   return 0;

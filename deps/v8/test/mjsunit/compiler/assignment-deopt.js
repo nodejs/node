@@ -42,6 +42,8 @@ assertEquals(2.1, o.x);
 // Test deopt with count operation on named property.
 function assign2(p) { p.x += 1 }
 
+%PrepareFunctionForOptimization(assign2);
+
 o.x = "42";
 assign2(o);
 assertEquals("421", o.x);
@@ -59,6 +61,8 @@ assertEquals(max_smi + 10, o.x);
 
 // Test deopt with count operation on keyed property.
 function assign3(a, b) { a[b] += 1; }
+
+%PrepareFunctionForOptimization(assign3);
 
 o = ["42"];
 assign3(o, 0);
@@ -83,12 +87,14 @@ o[0] = 0;
 for(var i = 0; i < 5; i++) {
   assign3(o, 0);
 }
+%PrepareFunctionForOptimization(assign3);
 %OptimizeFunctionOnNextCall(assign3);
 assign3(o, 0);
 assign3(o, 1);
 
 // Test bailout with count operation in a value context.
 function assign5(x,y) { return (x += 1) + y; }
+%PrepareFunctionForOptimization(assign5);
 for (var i = 0; i < 5; ++i) assertEquals(4, assign5(2, 1));
 %OptimizeFunctionOnNextCall(assign5);
 assertEquals(4, assign5(2, 1));
@@ -97,6 +103,7 @@ assertEquals(4.1, assign5(2, 1.1));
 assertEquals(4.1, assign5(2.1, 1));
 
 function assign7(o,y) { return (o.x += 1) + y; }
+%PrepareFunctionForOptimization(assign7);
 o = {x:0};
 for (var i = 0; i < 5; ++i) {
   o.x = 42;
@@ -112,6 +119,7 @@ o.x = 42.1;
 assertEquals(44.1, assign7(o, 1));
 
 function assign9(o,y) { return (o[0] += 1) + y; }
+%PrepareFunctionForOptimization(assign9);
 q = [0];
 for (var i = 0; i < 5; ++i) {
   q[0] = 42;
@@ -128,6 +136,7 @@ assertEquals(44.1, assign9(q, 1));
 
 // Test deopt because of a failed map check on the load.
 function assign10(p) { return p.x += 1 }
+%PrepareFunctionForOptimization(assign10);
 var g1 = {x:0};
 var g2 = {y:0, x:42};
 for (var i = 0; i < 5; ++i) {
@@ -148,6 +157,7 @@ assertEquals(43, g2.x);
 o = {x:0};
 var g3 = { valueOf: function() { o.y = "bar"; return 42; }};
 function assign11(p) { return p.x += 1; }
+%PrepareFunctionForOptimization(assign11);
 
 for (var i = 0; i < 5; i++) {
   o.x = "a";
@@ -165,6 +175,7 @@ assertEquals("bar", o.y);
 o = [0];
 var g4 = { valueOf: function() { o.y = "bar"; return 42; }};
 function assign12(p) { return p[0] += 1; }
+%PrepareFunctionForOptimization(assign12);
 
 for (var i = 0; i < 5; i++) {
   o[0] = "a";

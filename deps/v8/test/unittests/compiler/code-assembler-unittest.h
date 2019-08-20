@@ -15,8 +15,8 @@ namespace compiler {
 
 class CodeAssemblerTest : public TestWithIsolateAndZone {
  public:
-  CodeAssemblerTest() {}
-  ~CodeAssemblerTest() override {}
+  CodeAssemblerTest() = default;
+  ~CodeAssemblerTest() override = default;
 };
 
 class CodeAssemblerTestState : public CodeAssemblerState {

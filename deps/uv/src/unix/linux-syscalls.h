@@ -66,12 +66,6 @@
 # define UV__SOCK_NONBLOCK    UV__O_NONBLOCK
 #endif
 
-/* epoll flags */
-#define UV__EPOLL_CLOEXEC     UV__O_CLOEXEC
-#define UV__EPOLL_CTL_ADD     1
-#define UV__EPOLL_CTL_DEL     2
-#define UV__EPOLL_CTL_MOD     3
-
 /* inotify flags */
 #define UV__IN_ACCESS         0x001
 #define UV__IN_MODIFY         0x002
@@ -86,17 +80,35 @@
 #define UV__IN_DELETE_SELF    0x400
 #define UV__IN_MOVE_SELF      0x800
 
-#if defined(__x86_64__)
-struct uv__epoll_event {
-  uint32_t events;
-  uint64_t data;
-} __attribute__((packed));
-#else
-struct uv__epoll_event {
-  uint32_t events;
-  uint64_t data;
+struct uv__statx_timestamp {
+  int64_t tv_sec;
+  uint32_t tv_nsec;
+  int32_t unused0;
 };
-#endif
+
+struct uv__statx {
+  uint32_t stx_mask;
+  uint32_t stx_blksize;
+  uint64_t stx_attributes;
+  uint32_t stx_nlink;
+  uint32_t stx_uid;
+  uint32_t stx_gid;
+  uint16_t stx_mode;
+  uint16_t unused0;
+  uint64_t stx_ino;
+  uint64_t stx_size;
+  uint64_t stx_blocks;
+  uint64_t stx_attributes_mask;
+  struct uv__statx_timestamp stx_atime;
+  struct uv__statx_timestamp stx_btime;
+  struct uv__statx_timestamp stx_ctime;
+  struct uv__statx_timestamp stx_mtime;
+  uint32_t stx_rdev_major;
+  uint32_t stx_rdev_minor;
+  uint32_t stx_dev_major;
+  uint32_t stx_dev_minor;
+  uint64_t unused1[14];
+};
 
 struct uv__inotify_event {
   int32_t wd;
@@ -113,18 +125,6 @@ struct uv__mmsghdr {
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags);
 int uv__eventfd(unsigned int count);
-int uv__epoll_create(int size);
-int uv__epoll_create1(int flags);
-int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event *ev);
-int uv__epoll_wait(int epfd,
-                   struct uv__epoll_event* events,
-                   int nevents,
-                   int timeout);
-int uv__epoll_pwait(int epfd,
-                    struct uv__epoll_event* events,
-                    int nevents,
-                    int timeout,
-                    uint64_t sigmask);
 int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);
@@ -140,12 +140,13 @@ int uv__sendmmsg(int fd,
                  struct uv__mmsghdr* mmsg,
                  unsigned int vlen,
                  unsigned int flags);
-int uv__utimesat(int dirfd,
-                 const char* path,
-                 const struct timespec times[2],
-                 int flags);
 ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
 ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
 int uv__dup3(int oldfd, int newfd, int flags);
+int uv__statx(int dirfd,
+              const char* path,
+              int flags,
+              unsigned int mask,
+              struct uv__statx* statxbuf);
 
 #endif /* UV_LINUX_SYSCALL_H_ */

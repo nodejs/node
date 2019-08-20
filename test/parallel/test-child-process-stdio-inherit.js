@@ -45,12 +45,12 @@ function grandparent() {
   child.on('close', function(code, signal) {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    // cat on windows adds a \r\n at the end.
+    // 'cat' on windows adds a \r\n at the end.
     assert.strictEqual(output.trim(), input.trim());
   });
 }
 
 function parent() {
-  // should not immediately exit.
+  // Should not immediately exit.
   spawn('cat', [], { stdio: 'inherit' });
 }

@@ -38,11 +38,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, expected, 0, expected.length, null, cb);
@@ -58,11 +58,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(2, written);
+      assert.strictEqual(written, 2);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual('lo', found);
+      assert.strictEqual(found, 'lo');
     });
 
     fs.write(fd, Buffer.from('hello'), 3, cb);
@@ -78,7 +78,7 @@ tmpdir.refresh();
     const cb = common.mustCall(function(err, written) {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
@@ -98,7 +98,7 @@ tmpdir.refresh();
     const cb = common.mustCall(function(err, written) {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
@@ -118,11 +118,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, expected, undefined, undefined, cb);
@@ -138,13 +138,37 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, Uint8Array.from(expected), cb);
+  }));
+}
+
+// fs.write with invalid offset type
+{
+  const filename = path.join(tmpdir.path, 'write7.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
+
+    assert.throws(() => {
+      fs.write(fd,
+               Buffer.from('abcd'),
+               NaN,
+               expected.length,
+               0,
+               common.mustNotCall());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError',
+      message: 'The value of "offset" is out of range. ' +
+               'It must be an integer. Received NaN'
+    });
+
+    fs.closeSync(fd);
   }));
 }

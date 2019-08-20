@@ -110,7 +110,7 @@ shouldBe("showHoles([0, , 2].concat([3, , 5]))", "'[0, peekaboo, 2, 3, peekaboo,
 shouldBe("showHoles([0, , 2, 3].reverse())", "'[3, 2, peekaboo, 0]'");
 shouldBe("a = [0, , 2, 3]; a.shift(); showHoles(a)", "'[peekaboo, 2, 3]'");
 shouldBe("showHoles([0, , 2, 3].slice(0, 3))", "'[0, peekaboo, 2]'");
-shouldBe("showHoles([0, , 2, 3].sort())", "'[0, 2, 3, hole]'");
+shouldBe("showHoles([0, , 2, 3].sort())", "'[0, 2, 3, peekaboo]'");
 shouldBe("showHoles([0, undefined, 2, 3].sort())", "'[0, 2, 3, undefined]'");
 shouldBe("a = [0, , 2, 3]; a.splice(2, 3, 5, 6); showHoles(a)", "'[0, hole, 5, 6]'");
 shouldBe("a = [0, , 2, 3]; a.unshift(4); showHoles(a)", "'[4, 0, peekaboo, 2, 3]'");

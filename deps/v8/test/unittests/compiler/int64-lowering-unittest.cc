@@ -3,19 +3,16 @@
 // found in the LICENSE file.
 
 #include "src/compiler/int64-lowering.h"
+#include "src/codegen/signature.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-
-#include "src/compiler/node-properties.h"
-
-#include "src/objects-inl.h"
-#include "src/signature.h"
-
+#include "src/objects/objects-inl.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
-
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -325,6 +322,40 @@ TEST_F(Int64LoweringTest, Parameter2) {
   EXPECT_THAT(start()->op()->ValueOutputCount(), start_parameter + 2);
 }
 
+TEST_F(Int64LoweringTest, ParameterWithJSContextParam) {
+  Signature<MachineRepresentation>::Builder sig_builder(zone(), 0, 2);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+
+  auto sig = sig_builder.Build();
+
+  Node* js_context = graph()->NewNode(
+      common()->Parameter(Linkage::GetJSCallContextParamIndex(
+                              static_cast<int>(sig->parameter_count()) + 1),
+                          "%context"),
+      start());
+  LowerGraph(js_context, sig);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn(js_context, start(), start()));
+}
+
+TEST_F(Int64LoweringTest, ParameterWithJSClosureParam) {
+  Signature<MachineRepresentation>::Builder sig_builder(zone(), 0, 2);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+  sig_builder.AddParam(MachineRepresentation::kWord64);
+
+  auto sig = sig_builder.Build();
+
+  Node* js_closure = graph()->NewNode(
+      common()->Parameter(Linkage::kJSCallClosureParamIndex, "%closure"),
+      start());
+  LowerGraph(js_closure, sig);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn(js_closure, start(), start()));
+}
+
 // The following tests assume that pointers are 32 bit and therefore pointers do
 // not get lowered. This assumption does not hold on 64 bit platforms, which
 // invalidates these tests.
@@ -334,8 +365,8 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   int32_t function = 0x9999;
   Node* context_address = Int32Constant(0);
 
-  Signature<MachineRepresentation>::Builder sig_builder(zone(), 1, 0);
-  sig_builder.AddReturn(MachineRepresentation::kWord64);
+  wasm::FunctionSig::Builder sig_builder(zone(), 1, 0);
+  sig_builder.AddReturn(wasm::kWasmI64);
 
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
@@ -355,8 +386,8 @@ TEST_F(Int64LoweringTest, CallI64Return) {
                         start(), start()));
 
   CompareCallDescriptors(
-      OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
+      CallDescriptorOf(
+          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)->op()),
       compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 
@@ -364,11 +395,11 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
   int32_t function = 0x9999;
   Node* context_address = Int32Constant(0);
 
-  Signature<MachineRepresentation>::Builder sig_builder(zone(), 1, 3);
-  sig_builder.AddReturn(MachineRepresentation::kWord32);
-  sig_builder.AddParam(MachineRepresentation::kWord64);
-  sig_builder.AddParam(MachineRepresentation::kWord32);
-  sig_builder.AddParam(MachineRepresentation::kWord64);
+  wasm::FunctionSig::Builder sig_builder(zone(), 1, 3);
+  sig_builder.AddReturn(wasm::kWasmI32);
+  sig_builder.AddParam(wasm::kWasmI64);
+  sig_builder.AddParam(wasm::kWasmI32);
+  sig_builder.AddParam(wasm::kWasmI64);
 
   auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
@@ -391,8 +422,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
                start(), start()));
 
   CompareCallDescriptors(
-      OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)),
+      CallDescriptorOf(graph()->end()->InputAt(1)->InputAt(1)->op()),
       compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 
@@ -886,7 +916,7 @@ TEST_F(Int64LoweringTest, I64PhiWord32) {
 }
 
 TEST_F(Int64LoweringTest, I64ReverseBytes) {
-  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes().placeholder(),
+  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);
   EXPECT_THAT(

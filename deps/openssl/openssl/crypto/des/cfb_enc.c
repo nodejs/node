@@ -37,7 +37,7 @@ void DES_cfb_encrypt(const unsigned char *in, unsigned char *out, int numbits,
     unsigned int sh[4];
     unsigned char *ovec = (unsigned char *)sh;
 
-    /* I kind of count that compiler optimizes away this assertioni, */
+    /* I kind of count that compiler optimizes away this assertion, */
     assert(sizeof(sh[0]) == 4); /* as this holds true for all, */
     /* but 16-bit platforms...      */
 

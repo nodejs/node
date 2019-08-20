@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -57,12 +57,14 @@ static int asn1_item_flags_i2d(ASN1_VALUE *val, unsigned char **out,
     if (out && !*out) {
         unsigned char *p, *buf;
         int len;
+
         len = ASN1_item_ex_i2d(&val, NULL, it, -1, flags);
         if (len <= 0)
             return len;
-        buf = OPENSSL_malloc(len);
-        if (buf == NULL)
+        if ((buf = OPENSSL_malloc(len)) == NULL) {
+            ASN1err(ASN1_F_ASN1_ITEM_FLAGS_I2D, ERR_R_MALLOC_FAILURE);
             return -1;
+        }
         p = buf;
         ASN1_item_ex_i2d(&val, &p, it, -1, flags);
         *out = buf;
@@ -528,6 +530,8 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
         otmp = (ASN1_OBJECT *)*pval;
         cont = otmp->data;
         len = otmp->length;
+        if (cont == NULL || len == 0)
+            return -1;
         break;
 
     case V_ASN1_NULL:

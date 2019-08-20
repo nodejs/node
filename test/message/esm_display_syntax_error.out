@@ -2,5 +2,7 @@
 file:///*/test/message/esm_display_syntax_error.mjs:3
 await async () => 0;
 ^^^^^
+
 SyntaxError: Unexpected reserved word
-    at translators.set (internal/modules/esm/translators.js:*:*)
+    at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
+    at async link (internal/modules/esm/module_job.js:*:*)

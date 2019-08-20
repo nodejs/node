@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,12 @@
 #include <openssl/x509.h>
 #include "internal/evp_int.h"
 #include "evp_locl.h"
+
+static int update(EVP_MD_CTX *ctx, const void *data, size_t datalen)
+{
+    EVPerr(EVP_F_UPDATE, EVP_R_ONLY_ONESHOT_SUPPORTED);
+    return 0;
+}
 
 static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
                           const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey,
@@ -43,15 +49,23 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
             if (ctx->pctx->pmeth->verifyctx_init(ctx->pctx, ctx) <= 0)
                 return 0;
             ctx->pctx->operation = EVP_PKEY_OP_VERIFYCTX;
-        } else if (EVP_PKEY_verify_init(ctx->pctx) <= 0)
+        } else if (ctx->pctx->pmeth->digestverify != 0) {
+            ctx->pctx->operation = EVP_PKEY_OP_VERIFY;
+            ctx->update = update;
+        } else if (EVP_PKEY_verify_init(ctx->pctx) <= 0) {
             return 0;
+        }
     } else {
         if (ctx->pctx->pmeth->signctx_init) {
             if (ctx->pctx->pmeth->signctx_init(ctx->pctx, ctx) <= 0)
                 return 0;
             ctx->pctx->operation = EVP_PKEY_OP_SIGNCTX;
-        } else if (EVP_PKEY_sign_init(ctx->pctx) <= 0)
+        } else if (ctx->pctx->pmeth->digestsign != 0) {
+            ctx->pctx->operation = EVP_PKEY_OP_SIGN;
+            ctx->update = update;
+        } else if (EVP_PKEY_sign_init(ctx->pctx) <= 0) {
             return 0;
+        }
     }
     if (EVP_PKEY_CTX_set_signature_md(ctx->pctx, type) <= 0)
         return 0;
@@ -61,6 +75,13 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
         return 1;
     if (!EVP_DigestInit_ex(ctx, type, e))
         return 0;
+    /*
+     * This indicates the current algorithm requires
+     * special treatment before hashing the tbs-message.
+     */
+    if (ctx->pctx->pmeth->digest_custom != NULL)
+        return ctx->pctx->pmeth->digest_custom(ctx->pctx, ctx);
+
     return 1;
 }
 
@@ -139,6 +160,16 @@ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
     return 1;
 }
 
+int EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sigret, size_t *siglen,
+                   const unsigned char *tbs, size_t tbslen)
+{
+    if (ctx->pctx->pmeth->digestsign != NULL)
+        return ctx->pctx->pmeth->digestsign(ctx, sigret, siglen, tbs, tbslen);
+    if (sigret != NULL && EVP_DigestSignUpdate(ctx, tbs, tbslen) <= 0)
+        return 0;
+    return EVP_DigestSignFinal(ctx, sigret, siglen);
+}
+
 int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
                           size_t siglen)
 {
@@ -152,9 +183,9 @@ int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
     else
         vctx = 0;
     if (ctx->flags & EVP_MD_CTX_FLAG_FINALISE) {
-        if (vctx) {
+        if (vctx)
             r = ctx->pctx->pmeth->verifyctx(ctx->pctx, sig, siglen, ctx);
-        } else
+        else
             r = EVP_DigestFinal_ex(ctx, md, &mdlen);
     } else {
         EVP_MD_CTX *tmp_ctx = EVP_MD_CTX_new();
@@ -164,14 +195,24 @@ int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
             EVP_MD_CTX_free(tmp_ctx);
             return -1;
         }
-        if (vctx) {
+        if (vctx)
             r = tmp_ctx->pctx->pmeth->verifyctx(tmp_ctx->pctx,
                                                 sig, siglen, tmp_ctx);
-        } else
+        else
             r = EVP_DigestFinal_ex(tmp_ctx, md, &mdlen);
         EVP_MD_CTX_free(tmp_ctx);
     }
     if (vctx || !r)
         return r;
     return EVP_PKEY_verify(ctx->pctx, sig, siglen, md, mdlen);
+}
+
+int EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret,
+                     size_t siglen, const unsigned char *tbs, size_t tbslen)
+{
+    if (ctx->pctx->pmeth->digestverify != NULL)
+        return ctx->pctx->pmeth->digestverify(ctx, sigret, siglen, tbs, tbslen);
+    if (EVP_DigestVerifyUpdate(ctx, tbs, tbslen) <= 0)
+        return -1;
+    return EVP_DigestVerifyFinal(ctx, sigret, siglen);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -87,7 +87,7 @@ static int blockpause(void *args)
     return 1;
 }
 
-static int test_ASYNC_init_thread()
+static int test_ASYNC_init_thread(void)
 {
     ASYNC_JOB *job1 = NULL, *job2 = NULL, *job3 = NULL;
     int funcret1, funcret2, funcret3;
@@ -123,7 +123,7 @@ static int test_ASYNC_init_thread()
     return 1;
 }
 
-static int test_ASYNC_start_job()
+static int test_ASYNC_start_job(void)
 {
     ASYNC_JOB *job = NULL;
     int funcret;
@@ -151,7 +151,7 @@ static int test_ASYNC_start_job()
     return 1;
 }
 
-static int test_ASYNC_get_current_job()
+static int test_ASYNC_get_current_job(void)
 {
     ASYNC_JOB *job = NULL;
     int funcret;
@@ -178,7 +178,7 @@ static int test_ASYNC_get_current_job()
     return 1;
 }
 
-static int test_ASYNC_WAIT_CTX_get_all_fds()
+static int test_ASYNC_WAIT_CTX_get_all_fds(void)
 {
     ASYNC_JOB *job = NULL;
     int funcret;
@@ -245,7 +245,7 @@ static int test_ASYNC_WAIT_CTX_get_all_fds()
     return 1;
 }
 
-static int test_ASYNC_block_pause()
+static int test_ASYNC_block_pause(void)
 {
     ASYNC_JOB *job = NULL;
     int funcret;

@@ -21,6 +21,7 @@ b[1] = 3.5;
 
 h(b, [1073741823, 2147483648, -12]);
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

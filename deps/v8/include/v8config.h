@@ -64,6 +64,7 @@
 //  V8_OS_FUCHSIA       - Fuchsia
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
+//  V8_OS_IOS           - iOS
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -80,6 +81,9 @@
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
+# if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#  define V8_OS_IOS 1
+# endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
 # define V8_OS_POSIX 1
@@ -161,14 +165,8 @@
 //
 // C++11 feature detection
 //
-//  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
-//  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
-//
 // Compiler-specific feature detection
 //
-//  V8_HAS___ALIGNOF                    - __alignof(type) operator supported
-//  V8_HAS___ALIGNOF__                  - __alignof__(type) operator supported
-//  V8_HAS_ATTRIBUTE_ALIGNED            - __attribute__((aligned(n))) supported
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
@@ -177,6 +175,9 @@
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
+//  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
+//  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
+//  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
 //  V8_HAS_BUILTIN_CLZ                  - __builtin_clz() supported
 //  V8_HAS_BUILTIN_CTZ                  - __builtin_ctz() supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
@@ -185,7 +186,6 @@
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
-//  V8_HAS_DECLSPEC_ALIGN               - __declspec(align(n)) supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
@@ -204,19 +204,19 @@
 # define V8_CC_GNU 1
 #endif
 
-// Clang defines __alignof__ as alias for __alignof
-# define V8_HAS___ALIGNOF 1
-# define V8_HAS___ALIGNOF__ V8_HAS___ALIGNOF
-
-# define V8_HAS_ATTRIBUTE_ALIGNED (__has_attribute(aligned))
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
+# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
+    (__has_extension(attribute_deprecated_with_message))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
 
+# define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
+# define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
+# define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
 # define V8_HAS_BUILTIN_CLZ (__has_builtin(__builtin_clz))
 # define V8_HAS_BUILTIN_CTZ (__has_builtin(__builtin_ctz))
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
@@ -226,7 +226,9 @@
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
-# define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
+# if __cplusplus >= 201402L
+#  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
+# endif
 
 #elif defined(__GNUC__)
 
@@ -242,9 +244,6 @@
 # endif
 # define V8_CC_MINGW (V8_CC_MINGW32 || V8_CC_MINGW64)
 
-# define V8_HAS___ALIGNOF__ (V8_GNUC_PREREQ(4, 3, 0))
-
-# define V8_HAS_ATTRIBUTE_ALIGNED (V8_GNUC_PREREQ(2, 95, 0))
 // always_inline is available in gcc 4.0 but not very reliable until 4.4.
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
@@ -263,17 +262,11 @@
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
 
-# if __cplusplus >= 201103L
-#  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
-#  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
-# endif
 #endif
 
 #if defined(_MSC_VER)
 # define V8_CC_MSVC 1
-# define V8_HAS___ALIGNOF 1
 
-# define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
@@ -351,66 +344,50 @@
 #endif
 
 
-// This macro allows to specify memory alignment for structs, classes, etc.
-// Use like:
-//   class V8_ALIGNED(16) MyClass { ... };
-//   V8_ALIGNED(32) int array[42];
-#if V8_HAS_CXX11_ALIGNAS
-# define V8_ALIGNED(n) alignas(n)
-#elif V8_HAS_ATTRIBUTE_ALIGNED
-# define V8_ALIGNED(n) __attribute__((aligned(n)))
-#elif V8_HAS_DECLSPEC_ALIGN
-# define V8_ALIGNED(n) __declspec(align(n))
-#else
-# define V8_ALIGNED(n) /* NOT SUPPORTED */
-#endif
-
-
-// This macro is similar to V8_ALIGNED(), but takes a type instead of size
-// in bytes. If the compiler does not supports using the alignment of the
-// |type|, it will align according to the |alignment| instead. For example,
-// Visual Studio C++ cannot combine __declspec(align) and __alignof. The
-// |alignment| must be a literal that is used as a kind of worst-case fallback
-// alignment.
-// Use like:
-//   struct V8_ALIGNAS(AnotherClass, 16) NewClass { ... };
-//   V8_ALIGNAS(double, 8) int array[100];
-#if V8_HAS_CXX11_ALIGNAS
-# define V8_ALIGNAS(type, alignment) alignas(type)
-#elif V8_HAS___ALIGNOF__ && V8_HAS_ATTRIBUTE_ALIGNED
-# define V8_ALIGNAS(type, alignment) __attribute__((aligned(__alignof__(type))))
-#else
-# define V8_ALIGNAS(type, alignment) V8_ALIGNED(alignment)
-#endif
-
-
-// This macro returns alignment in bytes (an integer power of two) required for
-// any instance of the given type, which is either complete type, an array type,
-// or a reference type.
-// Use like:
-//   size_t alignment = V8_ALIGNOF(double);
-#if V8_HAS_CXX11_ALIGNOF
-# define V8_ALIGNOF(type) alignof(type)
-#elif V8_HAS___ALIGNOF
-# define V8_ALIGNOF(type) __alignof(type)
-#elif V8_HAS___ALIGNOF__
-# define V8_ALIGNOF(type) __alignof__(type)
-#else
-// Note that alignment of a type within a struct can be less than the
-// alignment of the type stand-alone (because of ancient ABIs), so this
-// should only be used as a last resort.
-namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
-# define V8_ALIGNOF(type) (sizeof(::v8::AlignOfHelper<type>) - sizeof(type))
-#endif
-
 // Annotate a function indicating the caller must examine the return value.
 // Use like:
-//   int foo() WARN_UNUSED_RESULT;
+//   int foo() V8_WARN_UNUSED_RESULT;
 #if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
 #define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
+
+#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
+#error Inconsistent build configuration: To build the V8 shared library \
+set BUILDING_V8_SHARED, to include its headers for linking against the \
+V8 shared library set USING_V8_SHARED.
+#endif
+
+#ifdef V8_OS_WIN
+
+// Setup for Windows DLL export/import. When building the V8 DLL the
+// BUILDING_V8_SHARED needs to be defined. When building a program which uses
+// the V8 DLL USING_V8_SHARED needs to be defined. When either building the V8
+// static library or building a program which uses the V8 static library neither
+// BUILDING_V8_SHARED nor USING_V8_SHARED should be defined.
+#ifdef BUILDING_V8_SHARED
+# define V8_EXPORT __declspec(dllexport)
+#elif USING_V8_SHARED
+# define V8_EXPORT __declspec(dllimport)
+#else
+# define V8_EXPORT
+#endif  // BUILDING_V8_SHARED
+
+#else  // V8_OS_WIN
+
+// Setup for Linux shared library export.
+#if V8_HAS_ATTRIBUTE_VISIBILITY
+# ifdef BUILDING_V8_SHARED
+#  define V8_EXPORT __attribute__ ((visibility("default")))
+# else
+#  define V8_EXPORT
+# endif
+#else
+# define V8_EXPORT
+#endif
+
+#endif  // V8_OS_WIN
 
 // clang-format on
 

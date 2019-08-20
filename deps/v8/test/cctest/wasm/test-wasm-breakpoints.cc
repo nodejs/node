@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/debug/debug-interface.h"
-#include "src/frames-inl.h"
-#include "src/property-descriptor.h"
-#include "src/utils.h"
+#include "src/execution/frames-inl.h"
+#include "src/objects/property-descriptor.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #include "test/cctest/cctest.h"
@@ -22,10 +22,10 @@ namespace wasm {
 namespace {
 
 void CheckLocations(
-    WasmSharedModuleData* shared, debug::Location start, debug::Location end,
+    WasmModuleObject module_object, debug::Location start, debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success = shared->GetPossibleBreakpoints(start, end, &locations);
+  bool success = module_object.GetPossibleBreakpoints(start, end, &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -45,10 +45,10 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(WasmSharedModuleData* shared, debug::Location start,
+void CheckLocationsFail(WasmModuleObject module_object, debug::Location start,
                         debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success = shared->GetPossibleBreakpoints(start, end, &locations);
+  bool success = module_object.GetPossibleBreakpoints(start, end, &locations);
   CHECK(!success);
 }
 
@@ -72,7 +72,7 @@ class BreakHandler : public debug::DebugDelegate {
       : isolate_(isolate), expected_breaks_(expected_breaks) {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
-  ~BreakHandler() {
+  ~BreakHandler() override {
     // Check that all expected breakpoints have been hit.
     CHECK_EQ(count_, expected_breaks_.size());
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
@@ -87,7 +87,6 @@ class BreakHandler : public debug::DebugDelegate {
   std::vector<BreakPoint> expected_breaks_;
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             v8::Local<v8::Object> exec_state,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_breaks_.size(), count_);
@@ -113,21 +112,22 @@ class BreakHandler : public debug::DebugDelegate {
   }
 };
 
-
-void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
+void SetBreakpoint(WasmRunnerBase& runner,  // NOLINT(runtime/references)
+                   int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
   int func_offset =
       runner.builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner.builder().instance_object();
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module());
+  Handle<WasmModuleObject> module_object(instance->module_object(),
+                                         runner.main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner.main_isolate()->factory()->NewBreakPoint(
           break_index++, runner.main_isolate()->factory()->empty_string());
-  CHECK(WasmCompiledModule::SetBreakPoint(compiled_module, &code_offset,
-                                          break_point));
+  CHECK(WasmModuleObject::SetBreakPoint(module_object, &code_offset,
+                                        break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the
@@ -181,7 +181,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
       : isolate_(isolate), expected_values_(expected_values) {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
-  ~CollectValuesBreakHandler() {
+  ~CollectValuesBreakHandler() override {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
                                 nullptr);
   }
@@ -192,7 +192,6 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
   std::vector<BreakpointValues> expected_values_;
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             v8::Local<v8::Object> exec_state,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_values_.size(), count_);
@@ -206,7 +205,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     Handle<WasmInstanceObject> instance = summ.wasm_instance();
 
     auto frame =
-        instance->debug_info()->GetInterpretedFrame(frame_it.frame()->fp(), 0);
+        instance->debug_info().GetInterpretedFrame(frame_it.frame()->fp(), 0);
     CHECK_EQ(expected.locals.size(), frame->GetLocalCount());
     for (int i = 0; i < frame->GetLocalCount(); ++i) {
       CHECK_EQ(WasmValWrapper{expected.locals[i]},
@@ -243,34 +242,34 @@ std::vector<WasmValue> wasmVec(Args... args) {
 }  // namespace
 
 WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
-  WasmInstanceObject* instance = *runner.builder().instance_object();
-  WasmSharedModuleData* shared = instance->compiled_module()->shared();
+  WasmInstanceObject instance = *runner.builder().instance_object();
+  WasmModuleObject module_object = instance.module_object();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(shared, {0, 0}, {1, 0},
+  CheckLocations(module_object, {0, 0}, {1, 0},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(shared, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(module_object, {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(shared, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(module_object, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(shared, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(module_object, {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(shared, {0, 7}, {1, 0}, {{0, 7}});
+  CheckLocations(module_object, {0, 7}, {1, 0}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(shared, {0, 8}, {1, 0}, {});
+  CheckLocations(module_object, {0, 8}, {1, 0}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(shared, {0, 9}, {1, 0});
+  CheckLocationsFail(module_object, {0, 9}, {1, 0});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
@@ -281,7 +280,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK(!retval.is_null());
@@ -291,7 +290,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
-  WasmRunner<int> runner(execution_mode);
+  WasmRunner<int> runner(execution_tier);
   BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Isolate* isolate = runner.main_isolate();
@@ -308,7 +307,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
                                 {5, BreakHandler::Continue}   // I32Add
                             });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK(!retval.is_null());
@@ -318,9 +317,9 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
-  WasmRunner<int, int> runner(execution_mode);
+  WasmRunner<int, int> runner(execution_tier);
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
-  f2.AllocateLocal(ValueType::kWord32);
+  f2.AllocateLocal(kWasmI32);
 
   // Call f2 via indirect call, because a direct call requires f2 to exist when
   // we compile main, but we need to compile main first so that the order of
@@ -352,16 +351,16 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
                                 {23, BreakHandler::Continue}  // After Call
                             });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr)
              .is_null());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
-  WasmRunner<void, int> runner(execution_mode);
-  runner.AllocateLocal(ValueType::kWord64);
-  runner.AllocateLocal(ValueType::kFloat32);
-  runner.AllocateLocal(ValueType::kFloat64);
+  WasmRunner<void, int> runner(execution_tier);
+  runner.AllocateLocal(kWasmI64);
+  runner.AllocateLocal(kWasmF32);
+  runner.AllocateLocal(kWasmF64);
 
   BUILD(runner,
         // set [1] to 17
@@ -397,7 +396,7 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
           {wasmVec(7, 17L, 7.f, 8.5), wasmVec()},        // 10: end
       });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
   CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
 }

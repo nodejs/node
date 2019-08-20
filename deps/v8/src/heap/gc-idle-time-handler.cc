@@ -4,9 +4,9 @@
 
 #include "src/heap/gc-idle-time-handler.h"
 
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -17,31 +17,10 @@ const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
 const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
 
 
-void GCIdleTimeAction::Print() {
-  switch (type) {
-    case DONE:
-      PrintF("done");
-      break;
-    case DO_NOTHING:
-      PrintF("no action");
-      break;
-    case DO_INCREMENTAL_STEP:
-      PrintF("incremental step");
-      if (additional_work) {
-        PrintF("; finalized marking");
-      }
-      break;
-    case DO_FULL_GC:
-      PrintF("full GC");
-      break;
-  }
-}
-
-
 void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposed=%d ", contexts_disposed);
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
-  PrintF("size_of_objects=%" PRIuS " ", size_of_objects);
+  PrintF("size_of_objects=%zu ", size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
 }
 
@@ -96,19 +75,6 @@ bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
 }
 
 
-GCIdleTimeAction GCIdleTimeHandler::NothingOrDone(double idle_time_in_ms) {
-  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
-    return GCIdleTimeAction::Nothing();
-  }
-  if (idle_times_which_made_no_progress_ >= kMaxNoProgressIdleTimes) {
-    return GCIdleTimeAction::Done();
-  } else {
-    idle_times_which_made_no_progress_++;
-    return GCIdleTimeAction::Nothing();
-  }
-}
-
-
 // The following logic is implemented by the controller:
 // (1) If we don't have any idle time, do nothing, unless a context was
 // disposed, incremental marking is stopped, and the heap is small. Then do
@@ -128,25 +94,17 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
       if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
                                              heap_state.contexts_disposal_rate,
                                              heap_state.size_of_objects)) {
-        return GCIdleTimeAction::FullGC();
+        return GCIdleTimeAction::kFullGC;
       }
     }
-    return GCIdleTimeAction::Nothing();
+    return GCIdleTimeAction::kDone;
   }
 
-  // We are in a context disposal GC scenario. Don't do anything if we do not
-  // get the right idle signal.
-  if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
-                                         heap_state.contexts_disposal_rate,
-                                         heap_state.size_of_objects)) {
-    return NothingOrDone(idle_time_in_ms);
+  if (FLAG_incremental_marking && !heap_state.incremental_marking_stopped) {
+    return GCIdleTimeAction::kIncrementalStep;
   }
 
-  if (!FLAG_incremental_marking || heap_state.incremental_marking_stopped) {
-    return GCIdleTimeAction::Done();
-  }
-
-  return GCIdleTimeAction::IncrementalStep();
+  return GCIdleTimeAction::kDone;
 }
 
 bool GCIdleTimeHandler::Enabled() { return FLAG_incremental_marking; }

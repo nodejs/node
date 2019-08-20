@@ -4,11 +4,6 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (!process.features.tls_alpn) {
-  common.skip(
-    'Skipping because node compiled without ALPN feature of OpenSSL.');
-}
-
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
@@ -28,9 +23,10 @@ function runTest(clientsOptions, serverOptions, cb) {
   serverOptions.key = loadPEM('agent2-key');
   serverOptions.cert = loadPEM('agent2-cert');
   const results = [];
-  let index = 0;
+  let clientIndex = 0;
+  let serverIndex = 0;
   const server = tls.createServer(serverOptions, function(c) {
-    results[index].server = { ALPN: c.alpnProtocol };
+    results[serverIndex++].server = { ALPN: c.alpnProtocol };
   });
 
   server.listen(0, serverIP, function() {
@@ -43,16 +39,18 @@ function runTest(clientsOptions, serverOptions, cb) {
     opt.host = serverIP;
     opt.rejectUnauthorized = false;
 
-    results[index] = {};
+    results[clientIndex] = {};
     const client = tls.connect(opt, function() {
-      results[index].client = { ALPN: client.alpnProtocol };
-      client.destroy();
+      results[clientIndex].client = { ALPN: client.alpnProtocol };
+      client.end();
       if (options.length) {
-        index++;
+        clientIndex++;
         connectClient(options);
       } else {
         server.close();
-        cb(results);
+        server.on('close', () => {
+          cb(results);
+        });
       }
     });
   }
@@ -82,7 +80,7 @@ function Test1() {
     checkResults(results[1],
                  { server: { ALPN: 'b' },
                    client: { ALPN: 'b' } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
@@ -100,15 +98,15 @@ function Test2() {
   const clientsOptions = [{}, {}, {}];
 
   runTest(clientsOptions, serverOptions, function(results) {
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[0],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[1],
                  { server: { ALPN: false },
                    client: { ALPN: false } });
-    // nothing is selected by ALPN
+    // Nothing is selected by ALPN
     checkResults(results[2],
                  { server: { ALPN: false },
                    client: { ALPN: false } });

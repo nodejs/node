@@ -31,17 +31,18 @@
 
 #include <memory>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/compiler.h"
-#include "src/execution.h"
-#include "src/flags.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/base/enum-set.h"
+#include "src/codegen/compiler.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
@@ -49,8 +50,7 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
-#include "src/unicode-cache.h"
-#include "src/utils.h"
+#include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -71,6 +71,436 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 }  // namespace
 
+bool TokenIsAutoSemicolon(Token::Value token) {
+  switch (token) {
+    case Token::SEMICOLON:
+    case Token::EOS:
+    case Token::RBRACE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AutoSemicolonToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAutoSemicolon(token), Token::IsAutoSemicolon(token));
+  }
+}
+
+bool TokenIsAnyIdentifier(Token::Value token) {
+  switch (token) {
+    case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::YIELD:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AnyIdentifierToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAnyIdentifier(token), Token::IsAnyIdentifier(token));
+  }
+}
+
+bool TokenIsCallable(Token::Value token) {
+  switch (token) {
+    case Token::SUPER:
+    case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::YIELD:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(CallableToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCallable(token), Token::IsCallable(token));
+  }
+}
+
+bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
+                            bool is_generator, bool disallow_await) {
+  switch (token) {
+    case Token::IDENTIFIER:
+    case Token::GET:
+    case Token::SET:
+    case Token::ASYNC:
+      return true;
+    case Token::YIELD:
+      return !is_generator && is_sloppy(language_mode);
+    case Token::AWAIT:
+      return !disallow_await;
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return is_sloppy(language_mode);
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsValidIdentifierToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
+         raw_language_mode++) {
+      LanguageMode mode = static_cast<LanguageMode>(raw_language_mode);
+      for (int is_generator = 0; is_generator < 2; is_generator++) {
+        for (int disallow_await = 0; disallow_await < 2; disallow_await++) {
+          CHECK_EQ(
+              TokenIsValidIdentifier(token, mode, is_generator, disallow_await),
+              Token::IsValidIdentifier(token, mode, is_generator,
+                                       disallow_await));
+        }
+      }
+    }
+  }
+}
+
+bool TokenIsStrictReservedWord(Token::Value token) {
+  switch (token) {
+    case Token::LET:
+    case Token::YIELD:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsStrictReservedWord) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsStrictReservedWord(token),
+             Token::IsStrictReservedWord(token));
+  }
+}
+
+bool TokenIsLiteral(Token::Value token) {
+  switch (token) {
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::NUMBER:
+    case Token::SMI:
+    case Token::BIGINT:
+    case Token::STRING:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsLiteralToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
+  }
+}
+
+bool TokenIsAssignmentOp(Token::Value token) {
+  switch (token) {
+    case Token::INIT:
+    case Token::ASSIGN:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
+  }
+}
+
+bool TokenIsArrowOrAssignmentOp(Token::Value token) {
+  return token == Token::ARROW || TokenIsAssignmentOp(token);
+}
+
+TEST(ArrowOrAssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsArrowOrAssignmentOp(token),
+             Token::IsArrowOrAssignmentOp(token));
+  }
+}
+
+bool TokenIsBinaryOp(Token::Value token) {
+  switch (token) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(BinaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBinaryOp(token), Token::IsBinaryOp(token));
+  }
+}
+
+bool TokenIsCompareOp(Token::Value token) {
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+    case Token::NE:
+    case Token::NE_STRICT:
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+    case Token::INSTANCEOF:
+    case Token::IN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(CompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCompareOp(token), Token::IsCompareOp(token));
+  }
+}
+
+bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
+  switch (token) {
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsOrderedRelationalCompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsOrderedRelationalCompareOp(token),
+             Token::IsOrderedRelationalCompareOp(token));
+  }
+}
+
+bool TokenIsEqualityOp(Token::Value token) {
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsEqualityOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsEqualityOp(token), Token::IsEqualityOp(token));
+  }
+}
+
+bool TokenIsBitOp(Token::Value token) {
+  switch (token) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::BIT_NOT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsBitOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBitOp(token), Token::IsBitOp(token));
+  }
+}
+
+bool TokenIsUnaryOp(Token::Value token) {
+  switch (token) {
+    case Token::NOT:
+    case Token::BIT_NOT:
+    case Token::DELETE:
+    case Token::TYPEOF:
+    case Token::VOID:
+    case Token::ADD:
+    case Token::SUB:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsUnaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token), Token::IsUnaryOp(token));
+  }
+}
+
+bool TokenIsPropertyOrCall(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+    case Token::PERIOD:
+    case Token::LBRACK:
+    case Token::LPAREN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsPropertyOrCall) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsPropertyOrCall(token), Token::IsPropertyOrCall(token));
+  }
+}
+
+bool TokenIsMember(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+    case Token::PERIOD:
+    case Token::LBRACK:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TokenIsTemplate(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TokenIsProperty(Token::Value token) {
+  switch (token) {
+    case Token::PERIOD:
+    case Token::LBRACK:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsMember) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsMember(token), Token::IsMember(token));
+  }
+}
+
+TEST(IsTemplate) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTemplate(token), Token::IsTemplate(token));
+  }
+}
+
+TEST(IsProperty) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsProperty(token), Token::IsProperty(token));
+  }
+}
+
+bool TokenIsCountOp(Token::Value token) {
+  switch (token) {
+    case Token::INC:
+    case Token::DEC:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCountOp(token), Token::IsCountOp(token));
+  }
+}
+
+TEST(IsUnaryOrCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token) || TokenIsCountOp(token),
+             Token::IsUnaryOrCountOp(token));
+  }
+}
+
+bool TokenIsShiftOp(Token::Value token) {
+  switch (token) {
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsShiftOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsShiftOp(token), Token::IsShiftOp(token));
+  }
+}
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
@@ -79,12 +509,11 @@ TEST(ScanKeywords) {
 
   static const KeywordToken keywords[] = {
 #define KEYWORD(t, s, d) { s, i::Token::t },
-      TOKEN_LIST(IGNORE_TOKEN, KEYWORD, IGNORE_TOKEN)
+      TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
 #undef KEYWORD
           {nullptr, i::Token::IDENTIFIER}};
 
   KeywordToken key_token;
-  i::UnicodeCache unicode_cache;
   char buffer[32];
   for (int i = 0; (key_token = keywords[i]).keyword != nullptr; i++) {
     const char* keyword = key_token.keyword;
@@ -92,16 +521,16 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
-      i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
+      scanner.Initialize();
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
+      scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -111,8 +540,8 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
+      scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -121,8 +550,8 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
-      i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
+      scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -188,12 +617,11 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache());
-    scanner.Initialize(stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
+    scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -207,12 +635,11 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache());
-    scanner.Initialize(stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
+    scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -221,19 +648,18 @@ TEST(ScanHTMLEndComments) {
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(pending_error_handler.has_pending_error());
+    CHECK(pending_error_handler.has_pending_error() ||
+          pending_error_handler.has_error_unidentifiable_by_preparser());
   }
 }
 
 TEST(ScanHtmlComments) {
   const char* src = "a <!-- b --> c";
-  i::UnicodeCache unicode_cache;
-
   // Disallow HTML comments.
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache);
-    scanner.Initialize(stream.get(), true);
+    i::Scanner scanner(stream.get(), true);
+    scanner.Initialize();
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
   }
@@ -241,8 +667,8 @@ TEST(ScanHtmlComments) {
   // Skip HTML comments:
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache);
-    scanner.Initialize(stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
+    scanner.Initialize();
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::EOS, scanner.Next());
   }
@@ -253,8 +679,8 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   ScriptResource(const char* data, size_t length)
       : data_(data), length_(length) { }
 
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* data_;
@@ -280,13 +706,12 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = i_isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(i_isolate->unicode_cache());
-    scanner.Initialize(stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
+    scanner.Initialize();
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -304,8 +729,8 @@ TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
   i::Isolate* isolate = CcTest::i_isolate();
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   const char* programs[] = {"%ArgleBargle(glop);", "var x = %_IsSmi(42);",
                             nullptr};
@@ -313,14 +738,13 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(isolate->unicode_cache());
-    scanner.Initialize(stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
+    scanner.Initialize();
 
     // Preparser defaults to disallowing natives syntax.
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -328,7 +752,8 @@ TEST(StandAlonePreParserNoNatives) {
                            isolate->logger());
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    CHECK(pending_error_handler.has_pending_error());
+    CHECK(pending_error_handler.has_pending_error() ||
+          pending_error_handler.has_error_unidentifiable_by_preparser());
   }
 }
 
@@ -348,21 +773,21 @@ TEST(RegressChromium62639) {
   // failed in debug mode, and sometimes crashed in release mode.
 
   auto stream = i::ScannerStream::ForTesting(program);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream.get(), false);
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Scanner scanner(stream.get(), false);
+  scanner.Initialize();
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(
-      &zone, &scanner, CcTest::i_isolate()->stack_guard()->real_climit(),
-      &ast_value_factory, &pending_error_handler,
-      isolate->counters()->runtime_call_stats(), isolate->logger());
+  i::PreParser preparser(&zone, &scanner, isolate->stack_guard()->real_climit(),
+                         &ast_value_factory, &pending_error_handler,
+                         isolate->counters()->runtime_call_stats(),
+                         isolate->logger());
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  CHECK(pending_error_handler.has_pending_error());
+  CHECK(pending_error_handler.has_pending_error() ||
+        pending_error_handler.has_error_unidentifiable_by_preparser());
 }
 
 
@@ -381,13 +806,12 @@ TEST(PreParseOverflow) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(isolate->unicode_cache());
-  scanner.Initialize(stream.get(), false);
+  i::Scanner scanner(stream.get(), false);
+  scanner.Initialize();
 
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
   i::PreParser preparser(
       &zone, &scanner, stack_limit, &ast_value_factory, &pending_error_handler,
@@ -396,13 +820,12 @@ TEST(PreParseOverflow) {
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
 
-
 void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream, false);
+  i::Scanner scanner(stream, false);
+  scanner.Initialize();
 
   int i = 0;
   do {
@@ -423,19 +846,9 @@ TEST(StreamScanner) {
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
-      i::Token::LBRACE,
-      i::Token::IDENTIFIER,
-      i::Token::IDENTIFIER,
-      i::Token::FOR,
-      i::Token::COLON,
-      i::Token::MUL,
-      i::Token::DIV,
-      i::Token::LT,
-      i::Token::SUB,
-      i::Token::IDENTIFIER,
-      i::Token::EOS,
-      i::Token::ILLEGAL
-  };
+      i::Token::LBRACE, i::Token::IDENTIFIER, i::Token::GET, i::Token::FOR,
+      i::Token::COLON,  i::Token::MUL,        i::Token::DIV, i::Token::LT,
+      i::Token::SUB,    i::Token::IDENTIFIER, i::Token::EOS, i::Token::ILLEGAL};
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
@@ -479,8 +892,8 @@ TEST(StreamScanner) {
 void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(stream.get(), false);
+  i::Scanner scanner(stream.get(), false);
+  scanner.Initialize();
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
@@ -489,13 +902,13 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
       &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+      HashSeed(CcTest::i_isolate()));
   const i::AstRawString* current_symbol =
       scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
   i::DisallowHeapAllocation no_alloc;
-  i::String::FlatContent content = val->GetFlatContent();
+  i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
   i::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
@@ -631,25 +1044,24 @@ TEST(ScopeUsesArgumentsSuperThis) {
            (source_data[i].expected == NONE)) && j != 2) {
         continue;
       }
-      int kProgramByteSize = i::StrLength(surroundings[j].prefix) +
-                             i::StrLength(surroundings[j].suffix) +
-                             i::StrLength(source_data[i].body);
+      int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
+                                              strlen(surroundings[j].suffix) +
+                                              strlen(source_data[i].body));
       i::ScopedVector<char> program(kProgramByteSize + 1);
       i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
                   source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
-          factory->NewStringFromUtf8(i::CStrVector(program.start()))
+          factory->NewStringFromUtf8(i::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
       info.ast_value_factory()->Internalize(isolate);
       CHECK(i::DeclarationScope::Analyze(&info));
-      i::DeclarationScope::AllocateScopeInfos(&info, isolate,
-                                              i::AnalyzeMode::kRegular);
+      i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -680,8 +1092,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
-        CHECK(
-            scope->Lookup(info.ast_value_factory()->this_string())->is_used());
+        CHECK(scope->GetReceiverScope()->receiver()->is_used());
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
@@ -708,7 +1119,7 @@ static void CheckParsesToNumber(const char* source) {
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
@@ -1001,9 +1412,9 @@ TEST(ScopePositions) {
     int kPrefixLen = Utf8LengthHelper(source_data[i].outer_prefix);
     int kInnerLen = Utf8LengthHelper(source_data[i].inner_source);
     int kSuffixLen = Utf8LengthHelper(source_data[i].outer_suffix);
-    int kPrefixByteLen = i::StrLength(source_data[i].outer_prefix);
-    int kInnerByteLen = i::StrLength(source_data[i].inner_source);
-    int kSuffixByteLen = i::StrLength(source_data[i].outer_suffix);
+    int kPrefixByteLen = static_cast<int>(strlen(source_data[i].outer_prefix));
+    int kInnerByteLen = static_cast<int>(strlen(source_data[i].inner_source));
+    int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     i::ScopedVector<char> program(kProgramByteSize + 1);
@@ -1013,11 +1424,12 @@ TEST(ScopePositions) {
                          source_data[i].outer_suffix);
 
     // Parse program source.
-    i::Handle<i::String> source = factory->NewStringFromUtf8(
-        i::CStrVector(program.start())).ToHandleChecked();
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+            .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_language_mode(source_data[i].language_mode);
     i::parsing::ParseProgram(&info, isolate);
     CHECK_NOT_NULL(info.literal());
@@ -1063,11 +1475,10 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::String> source_code =
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
-    CHECK_NOT_NULL(function->body());
     CHECK_EQ(1, function->body()->length());
     i::FunctionLiteral* inner =
         function->body()->first()->AsExpressionStatement()->expression()->
@@ -1083,7 +1494,7 @@ TEST(DiscardFunctionBody) {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.
       UNREACHABLE();
-      CHECK_NOT_NULL(inner->body());
+      CHECK(inner->ShouldEagerCompile());
       CHECK_GE(2, inner->body()->length());
       i::Expression* exp = inner->body()->at(1)->AsExpressionStatement()->
                            expression()->AsBinaryOperation()->right();
@@ -1097,7 +1508,7 @@ TEST(DiscardFunctionBody) {
               AsFunctionLiteral();
       }
     }
-    CHECK_NULL(fun->body());
+    CHECK(!fun->ShouldEagerCompile());
   }
 }
 
@@ -1115,13 +1526,10 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyPublicFields,
-  kAllowHarmonyPrivateFields,
-  kAllowHarmonyStaticFields,
+  kAllowHarmonyPrivateMethods,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
-  kAllowHarmonyDoExpressions,
-  kAllowHarmonyOptionalCatchBinding,
+  kAllowHarmonyNumericSeparator
 };
 
 enum ParserSyncTestResult {
@@ -1130,38 +1538,29 @@ enum ParserSyncTestResult {
   kError
 };
 
-void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
-  i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
-  i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
-  i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
-  i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
-  i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
-  i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
-  i::FLAG_harmony_optional_catch_binding =
-      flags.Contains(kAllowHarmonyOptionalCatchBinding);
+void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
+  i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
+  i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
+  i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
+  i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
+  i::FLAG_harmony_numeric_separator =
+      flags.contains(kAllowHarmonyNumericSeparator);
 }
 
-void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
-  parser->set_allow_natives(flags.Contains(kAllowNatives));
-  parser->set_allow_harmony_public_fields(
-      flags.Contains(kAllowHarmonyPublicFields));
-  parser->set_allow_harmony_private_fields(
-      flags.Contains(kAllowHarmonyPrivateFields));
-  parser->set_allow_harmony_static_fields(
-      flags.Contains(kAllowHarmonyStaticFields));
+void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
+  parser->set_allow_natives(flags.contains(kAllowNatives));
+  parser->set_allow_harmony_private_methods(
+      flags.contains(kAllowHarmonyPrivateMethods));
   parser->set_allow_harmony_dynamic_import(
-      flags.Contains(kAllowHarmonyDynamicImport));
+      flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
-      flags.Contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_do_expressions(
-      flags.Contains(kAllowHarmonyDoExpressions));
-  parser->set_allow_harmony_optional_catch_binding(
-      flags.Contains(kAllowHarmonyOptionalCatchBinding));
+      flags.contains(kAllowHarmonyImportMeta));
+  parser->set_allow_harmony_numeric_separator(
+      flags.contains(kAllowHarmonyNumericSeparator));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
-                             i::EnumSet<ParserFlag> flags,
+                             base::EnumSet<ParserFlag> flags,
                              ParserSyncTestResult result,
                              bool is_module = false, bool test_preparser = true,
                              bool ignore_error_msg = false) {
@@ -1173,19 +1572,18 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
-    i::Scanner scanner(isolate->unicode_cache());
     std::unique_ptr<i::Utf16CharacterStream> stream(
-        i::ScannerStream::For(source));
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+        i::ScannerStream::For(isolate, source));
+    i::Scanner scanner(stream.get(), is_module);
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
                            isolate->counters()->runtime_call_stats(),
                            isolate->logger(), -1, is_module);
     SetParserFlags(&preparser, flags);
-    scanner.Initialize(stream.get(), is_module);
+    scanner.Initialize();
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
@@ -1193,10 +1591,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Parse the data
   i::FunctionLiteral* function;
   {
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
-    info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     SetGlobalFlags(flags);
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::ParseInfo info(isolate, script);
+    info.set_allow_lazy_parsing(flags.contains(kAllowLazy));
     if (is_module) info.set_module();
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
@@ -1207,7 +1605,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Extract exception from the parser.
     CHECK(isolate->has_pending_exception());
     i::Handle<i::JSObject> exception_handle(
-        i::JSObject::cast(isolate->pending_exception()));
+        i::JSObject::cast(isolate->pending_exception()), isolate);
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(
         i::JSReceiver::GetProperty(isolate, exception_handle, "message")
             .ToHandleChecked());
@@ -1223,7 +1621,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           source->ToCString().get(), message_string->ToCString().get());
     }
 
-    if (test_preparser && !pending_error_handler.has_pending_error()) {
+    if (test_preparser && !pending_error_handler.has_pending_error() &&
+        !pending_error_handler.has_error_unidentifiable_by_preparser()) {
       FATAL(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1232,11 +1631,13 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "However, the preparser succeeded",
           source->ToCString().get(), message_string->ToCString().get());
     }
-    // Check that preparser and parser produce the same error.
-    if (test_preparser && !ignore_error_msg) {
+    // Check that preparser and parser produce the same error, except for cases
+    // where we do not track errors in the preparser.
+    if (test_preparser && !ignore_error_msg &&
+        !pending_error_handler.has_error_unidentifiable_by_preparser()) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
-      if (!i::String::Equals(message_string, preparser_message)) {
+      if (!i::String::Equals(isolate, message_string, preparser_message)) {
         FATAL(
             "Expected parser and preparser to produce the same error on:\n"
             "\t%s\n"
@@ -1282,7 +1683,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
           ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
           .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
-    i::EnumSet<ParserFlag> flags;
+    base::EnumSet<ParserFlag> flags;
     for (size_t flag_index = 0; flag_index < varying_flags_length;
          ++flag_index) {
       if ((bits & (1 << flag_index)) != 0) flags.Add(varying_flags[flag_index]);
@@ -1344,12 +1745,13 @@ TEST(ParserSync) {
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
       for (int k = 0; termination_data[k] != nullptr; ++k) {
-        int kPrefixLen = i::StrLength(context_data[i][0]);
-        int kStatementLen = i::StrLength(statement_data[j]);
-        int kTerminationLen = i::StrLength(termination_data[k]);
-        int kSuffixLen = i::StrLength(context_data[i][1]);
-        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen
-            + kSuffixLen + i::StrLength("label: for (;;) {  }");
+        int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+        int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+        int kTerminationLen = static_cast<int>(strlen(termination_data[k]));
+        int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
+        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen +
+                           kSuffixLen +
+                           static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
         i::ScopedVector<char> program(kProgramSize + 1);
@@ -1360,7 +1762,7 @@ TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
-        TestParserSync(program.start(), nullptr, 0);
+        TestParserSync(program.begin(), nullptr, 0);
       }
     }
   }
@@ -1446,9 +1848,9 @@ void RunParserSyncTest(
   }
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+      int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+      int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.
@@ -1458,8 +1860,9 @@ void RunParserSyncTest(
                                context_data[i][0],
                                statement_data[j],
                                context_data[i][1]);
+      PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
-      TestParserSync(program.start(), flags, flags_len, result,
+      TestParserSync(program.begin(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
                      always_false_len, is_module, test_preparser,
                      ignore_error_msg);
@@ -1480,6 +1883,77 @@ void RunModuleParserSyncTest(
                     always_false_len, true, test_preparser, ignore_error_msg);
 }
 
+TEST(NumericSeparator) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {
+      "1_0_0_0", "1_0e+1",  "1_0e+1_0", "0xF_F_FF", "0o7_7_7", "0b0_1_0_1_0",
+      ".3_2_1",  "0.0_2_1", "1_0.0_1",  ".0_1_2",   nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {
+      "1_0_0_0_", "1e_1",    "1e+_1", "1_e+1",  "1__0",    "0x_1",
+      "0x1__1",   "0x1_",    "0_x1",  "0_x_1",  "0b_0101", "0b11_",
+      "0b1__1",   "0_b1",    "0_b_1", "0o777_", "0o_777",  "0o7__77",
+      "0.0_2_1_", "0.0__21", "0_.01", "0._01",  nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorImplicitOctalsErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"00_122",  "0_012",  "07_7_7",
+                                  "0_7_7_7", "0_777",  "07_7_7_",
+                                  "07__77",  "0__777", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorUnicodeEscapeSequencesErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict'", ""}, {nullptr, nullptr}};
+  // https://github.com/tc39/proposal-numeric-separator/issues/25
+  const char* statement_data[] = {"\\u{10_FFFF}", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
 
 TEST(ErrorsEvalAndArguments) {
   // Tests that both preparsing and parsing produce the right kind of errors for
@@ -1652,7 +2126,7 @@ TEST(ErrorsFutureStrictReservedWords) {
                                           {"() => {", "}"},
                                           {nullptr, nullptr}};
   const char* invalid_statements[] = {
-      FUTURE_STRICT_RESERVED_LEX_BINDINGS("let") nullptr};
+      FUTURE_STRICT_RESERVED_LEX_BINDINGS(let) nullptr};
 
   RunParserSyncTest(non_strict_contexts, invalid_statements, kError);
 }
@@ -2183,9 +2657,9 @@ TEST(FunctionDeclaresItselfStrict) {
 TEST(ErrorsTryWithoutCatchOrFinally) {
   const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-      "try { }",           "try { } foo();",         "try { } catch (e) foo();",
-      "try { } catch { }", "try { } finally foo();", nullptr};
+  const char* statement_data[] = {"try { }", "try { } foo();",
+                                  "try { } catch (e) foo();",
+                                  "try { } finally foo();", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2211,7 +2685,7 @@ TEST(OptionalCatchBinding) {
     {"try {", "} catch ({e}) { }"},
     {"try {} catch ({e}) {", "}"},
     {"function f() {", "}"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2219,47 +2693,11 @@ TEST(OptionalCatchBinding) {
     "try { } catch { } finally { }",
     "try { let e; } catch { let e; }",
     "try { let e; } catch { let e; } finally { let e; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag flags[] = {kAllowHarmonyOptionalCatchBinding};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0, flags,
-                    arraysize(flags));
-
-  // Still an error without flag
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-TEST(OptionalCatchBindingInDoExpression) {
-  // This is an edge case no otherwise hit: a catch scope in a parameter
-  // expression which needs its own scope.
-  // clang-format off
-  const char* context_data[][2] = {
-    {"((x = (eval(''), do {", "}))=>{})()"},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "try { } catch { }",
-    "try { } catch { } finally { }",
-    "try { let e; } catch { let e; }",
-    "try { let e; } catch { let e; } finally { let e; }",
-    NULL
-  };
-  // clang-format on
-
-  // No error with flag
-  static const ParserFlag do_and_catch_flags[] = {
-      kAllowHarmonyDoExpressions, kAllowHarmonyOptionalCatchBinding};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    do_and_catch_flags, arraysize(do_and_catch_flags));
-
-  // Still an error without flag
-  static const ParserFlag do_flag[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, do_flag,
-                    arraysize(do_flag));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(ErrorsRegexpLiteral) {
@@ -2659,8 +3097,7 @@ TEST(FuncNameInferrerBasic) {
   ExpectString("Ctor()", "Ctor.foo5");
   ExpectString("%FunctionGetInferredName(obj1.foo6)", "obj1.foo6");
   ExpectString("%FunctionGetInferredName(obj2.foo7)", "obj2.foo7");
-  ExpectString("%FunctionGetInferredName(obj3[1])",
-               "obj3.(anonymous function)");
+  ExpectString("%FunctionGetInferredName(obj3[1])", "obj3.<computed>");
   ExpectString("%FunctionGetInferredName(obj4[1])", "");
   ExpectString("%FunctionGetInferredName(obj5['foo9'])", "obj5.foo9");
   ExpectString("%FunctionGetInferredName(obj6.obj7.foo10)", "obj6.obj7.foo10");
@@ -2768,16 +3205,16 @@ TEST(SerializationOfMaybeAssignmentFlag) {
 
   i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   i::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
   avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
@@ -2785,13 +3222,13 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context.scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
   CHECK_NOT_NULL(name);
 
   // Get result from h's function context (that is f's context)
-  i::Variable* var = s->Lookup(name);
+  i::Variable* var = s->LookupForTesting(name);
 
   CHECK_NOT_NULL(var);
   // Maybe assigned should survive deserialization
@@ -2818,28 +3255,28 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
   i::SNPrintF(program, "%s", src);
-  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
   i::Zone zone(isolate->allocator(), ZONE_NAME);
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   avf.Internalize(isolate);
 
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      &zone, context->scope_info(), script_scope, &avf,
+      isolate, &zone, context.scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
 
   // Get result from f's function context (that is g's outer context)
-  i::Variable* var_x = s->Lookup(name_x);
+  i::Variable* var_x = s->LookupForTesting(name_x);
   CHECK_NOT_NULL(var_x);
   CHECK_EQ(var_x->maybe_assigned(), i::kMaybeAssigned);
 }
@@ -2979,20 +3416,23 @@ TEST(InnerAssignment) {
 
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
-          printf("%s\n", program.start());
-          v8::Local<v8::Value> v = CompileRun(program.start());
+          printf("%s\n", program.begin());
+          v8::Local<v8::Value> v = CompileRun(program.begin());
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-          i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+          i::Handle<i::SharedFunctionInfo> shared =
+              i::handle(f->shared(), isolate);
+          info =
+              std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
           CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
         } else {
           i::Handle<i::String> source =
-              factory->InternalizeUtf8String(program.start());
+              factory->InternalizeUtf8String(program.begin());
           source->PrintOn(stdout);
           printf("\n");
           i::Handle<i::Script> script = factory->NewScript(source);
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+          info =
+              std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, script));
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
@@ -3008,17 +3448,12 @@ TEST(InnerAssignment) {
         DCHECK(scope->is_function_scope());
         const i::AstRawString* var_name =
             info->ast_value_factory()->GetOneByteString("x");
-        i::Variable* var = scope->Lookup(var_name);
+        i::Variable* var = scope->LookupForTesting(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK_NOT_NULL(var);
-        CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
-        if (i::FLAG_lazy_inner_functions) {
-          CHECK(is_maybe_assigned == expected ||
-                (is_maybe_assigned && inners[j].allow_error_in_inner_function));
-        } else {
-          CHECK_EQ(is_maybe_assigned, expected);
-        }
+        CHECK(is_maybe_assigned == expected ||
+              (is_maybe_assigned && inners[j].allow_error_in_inner_function));
       }
     }
   }
@@ -3092,12 +3527,12 @@ TEST(MaybeAssignedParameters) {
                                     Utf8LengthHelper(suffix) + 1);
       i::SNPrintF(program, "%s%s", source, suffix);
       std::unique_ptr<i::ParseInfo> info;
-      printf("%s\n", program.start());
-      v8::Local<v8::Value> v = CompileRun(program.start());
+      printf("%s\n", program.begin());
+      v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
+      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
       CHECK(i::Compiler::Analyze(info.get()));
@@ -3109,7 +3544,7 @@ TEST(MaybeAssignedParameters) {
       CHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info->ast_value_factory()->GetOneByteString("arg");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK(var->is_used() || !assigned);
       bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
       CHECK_EQ(is_maybe_assigned, assigned);
@@ -3134,7 +3569,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   i::Handle<i::Script> script = factory->NewScript(string);
 
   std::unique_ptr<i::ParseInfo> info;
-  info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+  info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(isolate, script));
   info->set_module(module);
   info->set_allow_lazy_parsing(allow_lazy_parsing);
 
@@ -3153,11 +3588,11 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
     scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
         info->ast_value_factory()->GetOneByteString(variable);
-    var = scope->Lookup(var_name);
+    var = scope->LookupForTesting(var_name);
   }
 
   CHECK_NOT_NULL(var);
-  CHECK(var->is_used());
+  CHECK_IMPLIES(input.assigned, var->is_used());
   STATIC_ASSERT(true == i::kMaybeAssigned);
   CHECK_EQ(input.assigned, var->maybe_assigned() == i::kMaybeAssigned);
 }
@@ -3181,272 +3616,470 @@ TEST(MaybeAssignedInsideLoop) {
   std::vector<unsigned> top;  // Can't use {} in initializers below.
 
   Input module_and_script_tests[] = {
-      {1, "for (j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (j=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (j=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (j=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for (j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for (j=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for (j=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for (j=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for (j=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (j=x; j<10; ++j) { let foo; foo = j }", {0}},
+      {true, "for (j=x; j<10; ++j) { let foo; [foo] = [j] }", {0}},
+      {true, "for (j=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (j=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (j=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for ({j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for ({j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for ({j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for ({j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for ({j}=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for ({j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for ({j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for ({j}=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for ({j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for ({j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for ({j}=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for ({j}=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for ({j}=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for ({j}=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for ({j}=x; j<10; ++j) { let foo; foo = j }", {0}},
+      {true, "for ({j}=x; j<10; ++j) { let foo; [foo] = [j] }", {0}},
+      {true, "for ({j}=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (var j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (var j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (var j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (var j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (var j=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (var j=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (var j=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (var j=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (var j=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (var j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (var j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (var j=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for (var j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (var j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for (var j=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var j=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for (var j=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for (var j=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var j=x; j<10; ++j) { let foo; foo = j }", {0}},
+      {true, "for (var j=x; j<10; ++j) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var j=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var j=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (var j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (var j=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (var j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (var j=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (var {j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for (var {j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (var {j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (var {j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (var {j}=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (var {j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for (var {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { let foo; foo = j }", {0}},
+      {true, "for (var {j}=x; j<10; ++j) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var {j}=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (let j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (let j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0}},
-      {0, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0}},
-      {0, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j=x; j<10; ++j) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (let j=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for (let j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for (let j=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let j=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for (let j=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for (let j=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let j=x; j<10; ++j) { let foo; foo = j }", {0, 0}},
+      {true, "for (let j=x; j<10; ++j) { let foo; [foo] = [j] }", {0, 0}},
+      {true, "for (let j=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0}},
+      {false,
+       "for (let j=x; j<10; ++j) { function foo() {return j} }",
+       {0, 0, 0}},
 
-      {1, "for (let {j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { function foo(){return j} }", {0, 0, 0}},
+      {true, "for (let {j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { [[foo]=[42]] = [] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var foo; foo = j }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var foo; [foo] = [j] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { let foo; foo = j }", {0, 0}},
+      {true, "for (let {j}=x; j<10; ++j) { let foo; [foo] = [j] }", {0, 0}},
+      {true,
+       "for (let {j}=x; j<10; ++j) { let foo; [[foo]=[42]] = [] }",
+       {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0}},
+      {false,
+       "for (let {j}=x; j<10; ++j) { function foo(){return j} }",
+       {0, 0, 0}},
 
-      {1, "for (j of x) { foo = j }", top},
-      {1, "for (j of x) { [foo] = [j] }", top},
-      {1, "for (j of x) { var foo = j }", top},
-      {1, "for (j of x) { var [foo] = [j] }", top},
-      {0, "for (j of x) { let foo = j }", {1}},
-      {0, "for (j of x) { let [foo] = [j] }", {1}},
-      {0, "for (j of x) { const foo = j }", {1}},
-      {0, "for (j of x) { const [foo] = [j] }", {1}},
-      {0, "for (j of x) { function foo() {return j} }", {1}},
+      {true, "for (j of x) { foo = j }", top},
+      {true, "for (j of x) { [foo] = [j] }", top},
+      {true, "for (j of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (j of x) { var foo = j }", top},
+      {true, "for (j of x) { var [foo] = [j] }", top},
+      {true, "for (j of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (j of x) { var foo; foo = j }", top},
+      {true, "for (j of x) { var foo; [foo] = [j] }", top},
+      {true, "for (j of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (j of x) { let foo; foo = j }", {0}},
+      {true, "for (j of x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (j of x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (j of x) { let foo = j }", {0}},
+      {false, "for (j of x) { let [foo] = [j] }", {0}},
+      {false, "for (j of x) { const foo = j }", {0}},
+      {false, "for (j of x) { const [foo] = [j] }", {0}},
+      {false, "for (j of x) { function foo() {return j} }", {0}},
 
-      {1, "for ({j} of x) { foo = j }", top},
-      {1, "for ({j} of x) { [foo] = [j] }", top},
-      {1, "for ({j} of x) { var foo = j }", top},
-      {1, "for ({j} of x) { var [foo] = [j] }", top},
-      {0, "for ({j} of x) { let foo = j }", {1}},
-      {0, "for ({j} of x) { let [foo] = [j] }", {1}},
-      {0, "for ({j} of x) { const foo = j }", {1}},
-      {0, "for ({j} of x) { const [foo] = [j] }", {1}},
-      {0, "for ({j} of x) { function foo() {return j} }", {1}},
+      {true, "for ({j} of x) { foo = j }", top},
+      {true, "for ({j} of x) { [foo] = [j] }", top},
+      {true, "for ({j} of x) { [[foo]=[42]] = [] }", top},
+      {true, "for ({j} of x) { var foo = j }", top},
+      {true, "for ({j} of x) { var [foo] = [j] }", top},
+      {true, "for ({j} of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for ({j} of x) { var foo; foo = j }", top},
+      {true, "for ({j} of x) { var foo; [foo] = [j] }", top},
+      {true, "for ({j} of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for ({j} of x) { let foo; foo = j }", {0}},
+      {true, "for ({j} of x) { let foo; [foo] = [j] }", {0}},
+      {true, "for ({j} of x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for ({j} of x) { let foo = j }", {0}},
+      {false, "for ({j} of x) { let [foo] = [j] }", {0}},
+      {false, "for ({j} of x) { const foo = j }", {0}},
+      {false, "for ({j} of x) { const [foo] = [j] }", {0}},
+      {false, "for ({j} of x) { function foo() {return j} }", {0}},
 
-      {1, "for (var j of x) { foo = j }", top},
-      {1, "for (var j of x) { [foo] = [j] }", top},
-      {1, "for (var j of x) { var foo = j }", top},
-      {1, "for (var j of x) { var [foo] = [j] }", top},
-      {0, "for (var j of x) { let foo = j }", {1}},
-      {0, "for (var j of x) { let [foo] = [j] }", {1}},
-      {0, "for (var j of x) { const foo = j }", {1}},
-      {0, "for (var j of x) { const [foo] = [j] }", {1}},
-      {0, "for (var j of x) { function foo() {return j} }", {1}},
+      {true, "for (var j of x) { foo = j }", top},
+      {true, "for (var j of x) { [foo] = [j] }", top},
+      {true, "for (var j of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (var j of x) { var foo = j }", top},
+      {true, "for (var j of x) { var [foo] = [j] }", top},
+      {true, "for (var j of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var j of x) { var foo; foo = j }", top},
+      {true, "for (var j of x) { var foo; [foo] = [j] }", top},
+      {true, "for (var j of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var j of x) { let foo; foo = j }", {0}},
+      {true, "for (var j of x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var j of x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var j of x) { let foo = j }", {0}},
+      {false, "for (var j of x) { let [foo] = [j] }", {0}},
+      {false, "for (var j of x) { const foo = j }", {0}},
+      {false, "for (var j of x) { const [foo] = [j] }", {0}},
+      {false, "for (var j of x) { function foo() {return j} }", {0}},
 
-      {1, "for (var {j} of x) { foo = j }", top},
-      {1, "for (var {j} of x) { [foo] = [j] }", top},
-      {1, "for (var {j} of x) { var foo = j }", top},
-      {1, "for (var {j} of x) { var [foo] = [j] }", top},
-      {0, "for (var {j} of x) { let foo = j }", {1}},
-      {0, "for (var {j} of x) { let [foo] = [j] }", {1}},
-      {0, "for (var {j} of x) { const foo = j }", {1}},
-      {0, "for (var {j} of x) { const [foo] = [j] }", {1}},
-      {0, "for (var {j} of x) { function foo() {return j} }", {1}},
+      {true, "for (var {j} of x) { foo = j }", top},
+      {true, "for (var {j} of x) { [foo] = [j] }", top},
+      {true, "for (var {j} of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} of x) { var foo = j }", top},
+      {true, "for (var {j} of x) { var [foo] = [j] }", top},
+      {true, "for (var {j} of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} of x) { var foo; foo = j }", top},
+      {true, "for (var {j} of x) { var foo; [foo] = [j] }", top},
+      {true, "for (var {j} of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} of x) { let foo; foo = j }", {0}},
+      {true, "for (var {j} of x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var {j} of x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var {j} of x) { let foo = j }", {0}},
+      {false, "for (var {j} of x) { let [foo] = [j] }", {0}},
+      {false, "for (var {j} of x) { const foo = j }", {0}},
+      {false, "for (var {j} of x) { const [foo] = [j] }", {0}},
+      {false, "for (var {j} of x) { function foo() {return j} }", {0}},
 
-      {1, "for (let j of x) { foo = j }", top},
-      {1, "for (let j of x) { [foo] = [j] }", top},
-      {1, "for (let j of x) { var foo = j }", top},
-      {1, "for (let j of x) { var [foo] = [j] }", top},
-      {0, "for (let j of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (let j of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let j of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (let j of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let j of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (let j of x) { foo = j }", top},
+      {true, "for (let j of x) { [foo] = [j] }", top},
+      {true, "for (let j of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (let j of x) { var foo = j }", top},
+      {true, "for (let j of x) { var [foo] = [j] }", top},
+      {true, "for (let j of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let j of x) { var foo; foo = j }", top},
+      {true, "for (let j of x) { var foo; [foo] = [j] }", top},
+      {true, "for (let j of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let j of x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (let j of x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (let j of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (let j of x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let j of x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j of x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let j of x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j of x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (let {j} of x) { foo = j }", top},
-      {1, "for (let {j} of x) { [foo] = [j] }", top},
-      {1, "for (let {j} of x) { var foo = j }", top},
-      {1, "for (let {j} of x) { var [foo] = [j] }", top},
-      {0, "for (let {j} of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (let {j} of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let {j} of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (let {j} of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let {j} of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (let {j} of x) { foo = j }", top},
+      {true, "for (let {j} of x) { [foo] = [j] }", top},
+      {true, "for (let {j} of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} of x) { var foo = j }", top},
+      {true, "for (let {j} of x) { var [foo] = [j] }", top},
+      {true, "for (let {j} of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} of x) { var foo; foo = j }", top},
+      {true, "for (let {j} of x) { var foo; [foo] = [j] }", top},
+      {true, "for (let {j} of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} of x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (let {j} of x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (let {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (let {j} of x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let {j} of x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} of x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let {j} of x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} of x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const j of x) { foo = j }", top},
-      {1, "for (const j of x) { [foo] = [j] }", top},
-      {1, "for (const j of x) { var foo = j }", top},
-      {1, "for (const j of x) { var [foo] = [j] }", top},
-      {0, "for (const j of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (const j of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const j of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (const j of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const j of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (const j of x) { foo = j }", top},
+      {true, "for (const j of x) { [foo] = [j] }", top},
+      {true, "for (const j of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (const j of x) { var foo = j }", top},
+      {true, "for (const j of x) { var [foo] = [j] }", top},
+      {true, "for (const j of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (const j of x) { var foo; foo = j }", top},
+      {true, "for (const j of x) { var foo; [foo] = [j] }", top},
+      {true, "for (const j of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (const j of x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (const j of x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (const j of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (const j of x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const j of x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j of x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const j of x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j of x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const {j} of x) { foo = j }", top},
-      {1, "for (const {j} of x) { [foo] = [j] }", top},
-      {1, "for (const {j} of x) { var foo = j }", top},
-      {1, "for (const {j} of x) { var [foo] = [j] }", top},
-      {0, "for (const {j} of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (const {j} of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const {j} of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (const {j} of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const {j} of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (const {j} of x) { foo = j }", top},
+      {true, "for (const {j} of x) { [foo] = [j] }", top},
+      {true, "for (const {j} of x) { [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} of x) { var foo = j }", top},
+      {true, "for (const {j} of x) { var [foo] = [j] }", top},
+      {true, "for (const {j} of x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} of x) { var foo; foo = j }", top},
+      {true, "for (const {j} of x) { var foo; [foo] = [j] }", top},
+      {true, "for (const {j} of x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} of x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (const {j} of x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (const {j} of x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (const {j} of x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const {j} of x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} of x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const {j} of x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} of x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (j in x) { foo = j }", top},
-      {1, "for (j in x) { [foo] = [j] }", top},
-      {1, "for (j in x) { var foo = j }", top},
-      {1, "for (j in x) { var [foo] = [j] }", top},
-      {0, "for (j in x) { let foo = j }", {0}},
-      {0, "for (j in x) { let [foo] = [j] }", {0}},
-      {0, "for (j in x) { const foo = j }", {0}},
-      {0, "for (j in x) { const [foo] = [j] }", {0}},
-      {0, "for (j in x) { function foo() {return j} }", {0}},
+      {true, "for (j in x) { foo = j }", top},
+      {true, "for (j in x) { [foo] = [j] }", top},
+      {true, "for (j in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (j in x) { var foo = j }", top},
+      {true, "for (j in x) { var [foo] = [j] }", top},
+      {true, "for (j in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (j in x) { var foo; foo = j }", top},
+      {true, "for (j in x) { var foo; [foo] = [j] }", top},
+      {true, "for (j in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (j in x) { let foo; foo = j }", {0}},
+      {true, "for (j in x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (j in x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (j in x) { let foo = j }", {0}},
+      {false, "for (j in x) { let [foo] = [j] }", {0}},
+      {false, "for (j in x) { const foo = j }", {0}},
+      {false, "for (j in x) { const [foo] = [j] }", {0}},
+      {false, "for (j in x) { function foo() {return j} }", {0}},
 
-      {1, "for ({j} in x) { foo = j }", top},
-      {1, "for ({j} in x) { [foo] = [j] }", top},
-      {1, "for ({j} in x) { var foo = j }", top},
-      {1, "for ({j} in x) { var [foo] = [j] }", top},
-      {0, "for ({j} in x) { let foo = j }", {0}},
-      {0, "for ({j} in x) { let [foo] = [j] }", {0}},
-      {0, "for ({j} in x) { const foo = j }", {0}},
-      {0, "for ({j} in x) { const [foo] = [j] }", {0}},
-      {0, "for ({j} in x) { function foo() {return j} }", {0}},
+      {true, "for ({j} in x) { foo = j }", top},
+      {true, "for ({j} in x) { [foo] = [j] }", top},
+      {true, "for ({j} in x) { [[foo]=[42]] = [] }", top},
+      {true, "for ({j} in x) { var foo = j }", top},
+      {true, "for ({j} in x) { var [foo] = [j] }", top},
+      {true, "for ({j} in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for ({j} in x) { var foo; foo = j }", top},
+      {true, "for ({j} in x) { var foo; [foo] = [j] }", top},
+      {true, "for ({j} in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for ({j} in x) { let foo; foo = j }", {0}},
+      {true, "for ({j} in x) { let foo; [foo] = [j] }", {0}},
+      {true, "for ({j} in x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for ({j} in x) { let foo = j }", {0}},
+      {false, "for ({j} in x) { let [foo] = [j] }", {0}},
+      {false, "for ({j} in x) { const foo = j }", {0}},
+      {false, "for ({j} in x) { const [foo] = [j] }", {0}},
+      {false, "for ({j} in x) { function foo() {return j} }", {0}},
 
-      {1, "for (var j in x) { foo = j }", top},
-      {1, "for (var j in x) { [foo] = [j] }", top},
-      {1, "for (var j in x) { var foo = j }", top},
-      {1, "for (var j in x) { var [foo] = [j] }", top},
-      {0, "for (var j in x) { let foo = j }", {0}},
-      {0, "for (var j in x) { let [foo] = [j] }", {0}},
-      {0, "for (var j in x) { const foo = j }", {0}},
-      {0, "for (var j in x) { const [foo] = [j] }", {0}},
-      {0, "for (var j in x) { function foo() {return j} }", {0}},
+      {true, "for (var j in x) { foo = j }", top},
+      {true, "for (var j in x) { [foo] = [j] }", top},
+      {true, "for (var j in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (var j in x) { var foo = j }", top},
+      {true, "for (var j in x) { var [foo] = [j] }", top},
+      {true, "for (var j in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var j in x) { var foo; foo = j }", top},
+      {true, "for (var j in x) { var foo; [foo] = [j] }", top},
+      {true, "for (var j in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var j in x) { let foo; foo = j }", {0}},
+      {true, "for (var j in x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var j in x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var j in x) { let foo = j }", {0}},
+      {false, "for (var j in x) { let [foo] = [j] }", {0}},
+      {false, "for (var j in x) { const foo = j }", {0}},
+      {false, "for (var j in x) { const [foo] = [j] }", {0}},
+      {false, "for (var j in x) { function foo() {return j} }", {0}},
 
-      {1, "for (var {j} in x) { foo = j }", top},
-      {1, "for (var {j} in x) { [foo] = [j] }", top},
-      {1, "for (var {j} in x) { var foo = j }", top},
-      {1, "for (var {j} in x) { var [foo] = [j] }", top},
-      {0, "for (var {j} in x) { let foo = j }", {0}},
-      {0, "for (var {j} in x) { let [foo] = [j] }", {0}},
-      {0, "for (var {j} in x) { const foo = j }", {0}},
-      {0, "for (var {j} in x) { const [foo] = [j] }", {0}},
-      {0, "for (var {j} in x) { function foo() {return j} }", {0}},
+      {true, "for (var {j} in x) { foo = j }", top},
+      {true, "for (var {j} in x) { [foo] = [j] }", top},
+      {true, "for (var {j} in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} in x) { var foo = j }", top},
+      {true, "for (var {j} in x) { var [foo] = [j] }", top},
+      {true, "for (var {j} in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} in x) { var foo; foo = j }", top},
+      {true, "for (var {j} in x) { var foo; [foo] = [j] }", top},
+      {true, "for (var {j} in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (var {j} in x) { let foo; foo = j }", {0}},
+      {true, "for (var {j} in x) { let foo; [foo] = [j] }", {0}},
+      {true, "for (var {j} in x) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "for (var {j} in x) { let foo = j }", {0}},
+      {false, "for (var {j} in x) { let [foo] = [j] }", {0}},
+      {false, "for (var {j} in x) { const foo = j }", {0}},
+      {false, "for (var {j} in x) { const [foo] = [j] }", {0}},
+      {false, "for (var {j} in x) { function foo() {return j} }", {0}},
 
-      {1, "for (let j in x) { foo = j }", top},
-      {1, "for (let j in x) { [foo] = [j] }", top},
-      {1, "for (let j in x) { var foo = j }", top},
-      {1, "for (let j in x) { var [foo] = [j] }", top},
-      {0, "for (let j in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j in x) { foo = j }", top},
+      {true, "for (let j in x) { [foo] = [j] }", top},
+      {true, "for (let j in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (let j in x) { var foo = j }", top},
+      {true, "for (let j in x) { var [foo] = [j] }", top},
+      {true, "for (let j in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let j in x) { var foo; foo = j }", top},
+      {true, "for (let j in x) { var foo; [foo] = [j] }", top},
+      {true, "for (let j in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let j in x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (let j in x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (let j in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (let j in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (let {j} in x) { foo = j }", top},
-      {1, "for (let {j} in x) { [foo] = [j] }", top},
-      {1, "for (let {j} in x) { var foo = j }", top},
-      {1, "for (let {j} in x) { var [foo] = [j] }", top},
-      {0, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let {j} in x) { foo = j }", top},
+      {true, "for (let {j} in x) { [foo] = [j] }", top},
+      {true, "for (let {j} in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} in x) { var foo = j }", top},
+      {true, "for (let {j} in x) { var [foo] = [j] }", top},
+      {true, "for (let {j} in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} in x) { var foo; foo = j }", top},
+      {true, "for (let {j} in x) { var foo; [foo] = [j] }", top},
+      {true, "for (let {j} in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (let {j} in x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (let {j} in x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (let {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const j in x) { foo = j }", top},
-      {1, "for (const j in x) { [foo] = [j] }", top},
-      {1, "for (const j in x) { var foo = j }", top},
-      {1, "for (const j in x) { var [foo] = [j] }", top},
-      {0, "for (const j in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const j in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const j in x) { foo = j }", top},
+      {true, "for (const j in x) { [foo] = [j] }", top},
+      {true, "for (const j in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (const j in x) { var foo = j }", top},
+      {true, "for (const j in x) { var [foo] = [j] }", top},
+      {true, "for (const j in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (const j in x) { var foo; foo = j }", top},
+      {true, "for (const j in x) { var foo; [foo] = [j] }", top},
+      {true, "for (const j in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (const j in x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (const j in x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (const j in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (const j in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const {j} in x) { foo = j }", top},
-      {1, "for (const {j} in x) { [foo] = [j] }", top},
-      {1, "for (const {j} in x) { var foo = j }", top},
-      {1, "for (const {j} in x) { var [foo] = [j] }", top},
-      {0, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const {j} in x) { foo = j }", top},
+      {true, "for (const {j} in x) { [foo] = [j] }", top},
+      {true, "for (const {j} in x) { [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} in x) { var foo = j }", top},
+      {true, "for (const {j} in x) { var [foo] = [j] }", top},
+      {true, "for (const {j} in x) { var [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} in x) { var foo; foo = j }", top},
+      {true, "for (const {j} in x) { var foo; [foo] = [j] }", top},
+      {true, "for (const {j} in x) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "for (const {j} in x) { let foo; foo = j }", {0, 0, 0}},
+      {true, "for (const {j} in x) { let foo; [foo] = [j] }", {0, 0, 0}},
+      {true, "for (const {j} in x) { let foo; [[foo]=[42]] = [] }", {0, 0, 0}},
+      {false, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "while (j) { foo = j }", top},
-      {1, "while (j) { [foo] = [j] }", top},
-      {1, "while (j) { var foo = j }", top},
-      {1, "while (j) { var [foo] = [j] }", top},
-      {0, "while (j) { let foo = j }", {0}},
-      {0, "while (j) { let [foo] = [j] }", {0}},
-      {0, "while (j) { const foo = j }", {0}},
-      {0, "while (j) { const [foo] = [j] }", {0}},
-      {0, "while (j) { function foo() {return j} }", {0}},
+      {true, "while (j) { foo = j }", top},
+      {true, "while (j) { [foo] = [j] }", top},
+      {true, "while (j) { [[foo]=[42]] = [] }", top},
+      {true, "while (j) { var foo = j }", top},
+      {true, "while (j) { var [foo] = [j] }", top},
+      {true, "while (j) { var [[foo]=[42]] = [] }", top},
+      {true, "while (j) { var foo; foo = j }", top},
+      {true, "while (j) { var foo; [foo] = [j] }", top},
+      {true, "while (j) { var foo; [[foo]=[42]] = [] }", top},
+      {true, "while (j) { let foo; foo = j }", {0}},
+      {true, "while (j) { let foo; [foo] = [j] }", {0}},
+      {true, "while (j) { let foo; [[foo]=[42]] = [] }", {0}},
+      {false, "while (j) { let foo = j }", {0}},
+      {false, "while (j) { let [foo] = [j] }", {0}},
+      {false, "while (j) { const foo = j }", {0}},
+      {false, "while (j) { const [foo] = [j] }", {0}},
+      {false, "while (j) { function foo() {return j} }", {0}},
 
-      {1, "do { foo = j } while (j)", top},
-      {1, "do { [foo] = [j] } while (j)", top},
-      {1, "do { var foo = j } while (j)", top},
-      {1, "do { var [foo] = [j] } while (j)", top},
-      {0, "do { let foo = j } while (j)", {0}},
-      {0, "do { let [foo] = [j] } while (j)", {0}},
-      {0, "do { const foo = j } while (j)", {0}},
-      {0, "do { const [foo] = [j] } while (j)", {0}},
-      {0, "do { function foo() {return j} } while (j)", {0}},
+      {true, "do { foo = j } while (j)", top},
+      {true, "do { [foo] = [j] } while (j)", top},
+      {true, "do { [[foo]=[42]] = [] } while (j)", top},
+      {true, "do { var foo = j } while (j)", top},
+      {true, "do { var [foo] = [j] } while (j)", top},
+      {true, "do { var [[foo]=[42]] = [] } while (j)", top},
+      {true, "do { var foo; foo = j } while (j)", top},
+      {true, "do { var foo; [foo] = [j] } while (j)", top},
+      {true, "do { var foo; [[foo]=[42]] = [] } while (j)", top},
+      {true, "do { let foo; foo = j } while (j)", {0}},
+      {true, "do { let foo; [foo] = [j] } while (j)", {0}},
+      {true, "do { let foo; [[foo]=[42]] = [] } while (j)", {0}},
+      {false, "do { let foo = j } while (j)", {0}},
+      {false, "do { let [foo] = [j] } while (j)", {0}},
+      {false, "do { const foo = j } while (j)", {0}},
+      {false, "do { const [foo] = [j] } while (j)", {0}},
+      {false, "do { function foo() {return j} } while (j)", {0}},
   };
 
   Input script_only_tests[] = {
-      {1, "for (j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for ({j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (var j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (let j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (let {j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (j of x) { function foo() {return j} }", top},
-      {1, "for ({j} of x) { function foo() {return j} }", top},
-      {1, "for (var j of x) { function foo() {return j} }", top},
-      {1, "for (var {j} of x) { function foo() {return j} }", top},
-      {1, "for (let j of x) { function foo() {return j} }", top},
-      {1, "for (let {j} of x) { function foo() {return j} }", top},
-      {1, "for (const j of x) { function foo() {return j} }", top},
-      {1, "for (const {j} of x) { function foo() {return j} }", top},
-      {1, "for (j in x) { function foo() {return j} }", top},
-      {1, "for ({j} in x) { function foo() {return j} }", top},
-      {1, "for (var j in x) { function foo() {return j} }", top},
-      {1, "for (var {j} in x) { function foo() {return j} }", top},
-      {1, "for (let j in x) { function foo() {return j} }", top},
-      {1, "for (let {j} in x) { function foo() {return j} }", top},
-      {1, "for (const j in x) { function foo() {return j} }", top},
-      {1, "for (const {j} in x) { function foo() {return j} }", top},
-      {1, "while (j) { function foo() {return j} }", top},
-      {1, "do { function foo() {return j} } while (j)", top},
+      {true, "for (j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for ({j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (var j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (let j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (let {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (j of x) { function foo() {return j} }", top},
+      {true, "for ({j} of x) { function foo() {return j} }", top},
+      {true, "for (var j of x) { function foo() {return j} }", top},
+      {true, "for (var {j} of x) { function foo() {return j} }", top},
+      {true, "for (let j of x) { function foo() {return j} }", top},
+      {true, "for (let {j} of x) { function foo() {return j} }", top},
+      {true, "for (const j of x) { function foo() {return j} }", top},
+      {true, "for (const {j} of x) { function foo() {return j} }", top},
+      {true, "for (j in x) { function foo() {return j} }", top},
+      {true, "for ({j} in x) { function foo() {return j} }", top},
+      {true, "for (var j in x) { function foo() {return j} }", top},
+      {true, "for (var {j} in x) { function foo() {return j} }", top},
+      {true, "for (let j in x) { function foo() {return j} }", top},
+      {true, "for (let {j} in x) { function foo() {return j} }", top},
+      {true, "for (const j in x) { function foo() {return j} }", top},
+      {true, "for (const {j} in x) { function foo() {return j} }", top},
+      {true, "while (j) { function foo() {return j} }", top},
+      {true, "do { function foo() {return j} } while (j)", top},
   };
 
   for (unsigned i = 0; i < arraysize(module_and_script_tests); ++i) {
@@ -3546,13 +4179,13 @@ namespace {
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
                                    i::Handle<i::JSObject> m, const char* name) {
   i::AstValueFactory avf(zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
       i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
   i::DeclarationScope* script_scope =
       new (zone) i::DeclarationScope(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      zone, f->context()->scope_info(), script_scope, &avf,
+      isolate, zone, f->context().scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   return s;
 }
@@ -3580,7 +4213,7 @@ TEST(AsmModuleFlag) {
 
   // The asm.js module should be marked as such.
   i::Scope* s = DeserializeFunctionScope(isolate, &zone, m, "f");
-  CHECK(s->IsAsmModule() && s->AsDeclarationScope()->asm_module());
+  CHECK(s->IsAsmModule() && s->AsDeclarationScope()->is_asm_module());
 }
 
 
@@ -3655,24 +4288,9 @@ TEST(LineOrParagraphSeparatorAsLineTerminator) {
 }
 
 TEST(LineOrParagraphSeparatorInStringLiteral) {
-  // Tests that both preparsing and parsing treat U+2028 LINE SEPARATOR and
-  // U+2029 PARAGRAPH SEPARATOR as line terminators within string literals
-  // when the "subsume JSON" flag is disabled.
-  v8::internal::FLAG_harmony_subsume_json = false;
-  const char* context_data[][2] = {
-      {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};
-  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
-                                  "\x31\xE2\x80\xA9\x32",  // 1<U+2029>2
-                                  nullptr};
-
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-TEST(LineOrParagraphSeparatorInStringLiteralHarmony) {
   // Tests that both preparsing and parsing don't treat U+2028 LINE SEPARATOR
-  // and U+2029 PARAGRAPH SEPARATOR as line terminators within string literals
-  // when the "subsume JSON" flag is enabled.
-  v8::internal::FLAG_harmony_subsume_json = true;
+  // and U+2029 PARAGRAPH SEPARATOR as line terminators within string literals.
+  // https://github.com/tc39/proposal-json-superset
   const char* context_data[][2] = {
       {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};
   const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
@@ -4083,10 +4701,10 @@ TEST(ImportExpressionSuccess) {
   // context.
   // For example, a top level "import(" is parsed as an
   // import declaration. The parser parses the import token correctly
-  // and then shows an "Unexpected token (" error message. The
+  // and then shows an "Unexpected token '('" error message. The
   // preparser does not understand the import keyword (this test is
   // run without kAllowHarmonyDynamicImport flag), so this results in
-  // an "Unexpected token import" error.
+  // an "Unexpected token 'import'" error.
   RunParserSyncTest(context_data, data, kError);
   RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
                           nullptr, 0, true, true);
@@ -4154,7 +4772,7 @@ TEST(ImportExpressionErrors) {
     // as an import declaration. The parser parses the import token
     // correctly and then shows an "Unexpected end of input" error
     // message because of the '{'. The preparser shows an "Unexpected
-    // token {" because it's not a valid token in a CallExpression.
+    // token '{'" because it's not a valid token in a CallExpression.
     RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                             arraysize(flags), nullptr, 0, true, true);
   }
@@ -4169,6 +4787,39 @@ TEST(ImportExpressionErrors) {
 
     const char* data[] = {
       "import('x')",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+
+    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                      arraysize(flags));
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                            arraysize(flags));
+  }
+
+  // Import statements as arrow function params and destructuring targets.
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"(", ") => {}"},
+      {"(a, ", ") => {}"},
+      {"(1, ", ") => {}"},
+      {"let f = ", " => {}"},
+      {"[", "] = [1];"},
+      {"{", "} = {'a': 1};"},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(foo)",
+      "import(1)",
+      "import(y=x)",
+      "import(import(x))",
+      "import(x).then()",
       nullptr
     };
 
@@ -4576,6 +5227,8 @@ TEST(StaticClassFieldsNoErrors) {
     "static 'a' = 0;",
     "static 'a';",
 
+    "static c = [c] = c",
+
     // ASI
     "static a = 0\n",
     "static a = 0\n b",
@@ -4619,15 +5272,7 @@ TEST(StaticClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  // Without the static flag, all of these are errors
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(ClassFieldsNoErrors) {
@@ -4665,6 +5310,8 @@ TEST(ClassFieldsNoErrors) {
     "0;",
     "'a' = 0;",
     "'a';",
+
+    "c = [c] = c",
 
     // ASI
     "a = 0\n",
@@ -4709,14 +5356,253 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
 
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
+TEST(PrivateMethodsNoErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#a() { }",
+    "get #a() { }",
+    "set #a(foo) { }",
+    "*#a() { }",
+    "async #a() { }",
+    "async *#a() { }",
+
+    "#a() { } #b() {}",
+    "get #a() { } set #a(foo) {}",
+    "get #a() { } get #b() {} set #a(foo) {}",
+    "get #a() { } get #b() {} set #a(foo) {} set #b(foo) {}",
+    "set #a(foo) { } set #b(foo) {}",
+    "get #a() { } get #b() {}",
+
+    "#a() { } static a() {}",
+    "#a() { } a() {}",
+    "#a() { } a() {} static a() {}",
+    "get #a() { } get a() {} static get a() {}",
+    "set #a(foo) { } set a(foo) {} static set a(foo) {}",
+
+    "#a() { } get #b() {}",
+    "#a() { } async #b() {}",
+    "#a() { } async *#b() {}",
+
+    // With arguments
+    "#a(...args) { }",
+    "#a(a = 1) { }",
+    "get #a() { }",
+    "set #a(a = (...args) => {}) { }",
+
+    // Misc edge cases
+    "#get() {}",
+    "#set() {}",
+    "#yield() {}",
+    "#await() {}",
+    "#async() {}",
+    "#static() {}",
+    "#arguments() {}",
+    "get #yield() {}",
+    "get #await() {}",
+    "get #async() {}",
+    "get #get() {}",
+    "get #static() {}",
+    "get #arguments() {}",
+    "set #yield(test) {}",
+    "set #async(test) {}",
+    "set #await(test) {}",
+    "set #set(test) {}",
+    "set #static(test) {}",
+    "set #arguments(test) {}",
+    "async #yield() {}",
+    "async #async() {}",
+    "async #await() {}",
+    "async #get() {}",
+    "async #set() {}",
+    "async #static() {}",
+    "async #arguments() {}",
+    "*#async() {}",
+    "*#await() {}",
+    "*#yield() {}",
+    "*#get() {}",
+    "*#set() {}",
+    "*#static() {}",
+    "*#arguments() {}",
+    "async *#yield() {}",
+    "async *#async() {}",
+    "async *#await() {}",
+    "async *#get() {}",
+    "async *#set() {}",
+    "async *#static() {}",
+    "async *#arguments() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+                    private_methods, arraysize(private_methods));
+}
+
+TEST(PrivateMethodsAndFieldsNoErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax in combination with fields
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#b;#a() { }",
+    "#b;get #a() { }",
+    "#b;set #a(foo) { }",
+    "#b;*#a() { }",
+    "#b;async #a() { }",
+    "#b;async *#a() { }",
+    "#b = 1;#a() { }",
+    "#b = 1;get #a() { }",
+    "#b = 1;set #a(foo) { }",
+    "#b = 1;*#a() { }",
+    "#b = 1;async #a() { }",
+    "#b = 1;async *#a() { }",
+
+    // With public fields
+    "a;#a() { }",
+    "a;get #a() { }",
+    "a;set #a(foo) { }",
+    "a;*#a() { }",
+    "a;async #a() { }",
+    "a;async *#a() { }",
+    "a = 1;#a() { }",
+    "a = 1;get #a() { }",
+    "a = 1;set #a(foo) { }",
+    "a = 1;*#a() { }",
+    "a = 1;async #a() { }",
+    "a = 1;async *#a() { }",
+
+    // ASI
+    "#a = 0\n #b(){}",
+    "#a\n *#b(){}",
+    "#a = 0\n get #b(){}",
+    "#a\n *#b(){}",
+
+    "b = 0\n #b(){}",
+    "b\n *#b(){}",
+    "b = 0\n get #b(){}",
+    "b\n *#b(){}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods_and_fields[] = {
+      kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods_and_fields,
+                    arraysize(private_methods_and_fields));
+}
+
+TEST(PrivateMethodsErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax in combination with fields
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "#a() : 0",
+    "#a() =",
+    "#a() => {}",
+    "#a => {}",
+    "*#a() = 0",
+    "*#a() => 0",
+    "*#a() => {}",
+    "get #a()[]",
+    "yield #a()[]",
+    "yield #a => {}",
+    "async #a() = 0",
+    "async #a => {}",
+    "#a(arguments) {}",
+    "set #a(arguments) {}",
+
+    "#['a']() { }",
+    "get #['a']() { }",
+    "set #['a'](foo) { }",
+    "*#['a']() { }",
+    "async #['a']() { }",
+    "async *#['a]() { }",
+
+    // TODO(joyee): check duplicate accessors
+
+    "#a\n#",
+    "#a() c",
+    "#a() #",
+    "#a(arg) c",
+    "#a(arg) #",
+    "#a(arg) #c",
+    "#a#",
+    "#a#b",
+    "#a#b(){}",
+    "#[test](){}",
+
+    "async *#constructor() {}",
+    "*#constructor() {}",
+    "async #constructor() {}",
+    "set #constructor(test) {}",
+    "#constructor() {}",
+    "get #constructor() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that private members do not parse outside class bodies
+TEST(PrivateMembersInNonClassNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"", ""},
+                                   {"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {"function() {", "}"},
+                                   {"() => {", "}"},
+                                   {"class C { test() {", "} }"},
+                                   {"const {", "} = {}"},
+                                   {"({", "} = {})"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "#a = 1",
+    "#a = () => {}",
+    "#a",
+    "#a() { }",
+    "get #a() { }",
+    "set #a(foo) { }",
+    "*#a() { }",
+    "async #a() { }",
+    "async *#a() { }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
 }
 
 TEST(PrivateClassFieldsNoErrors) {
@@ -4779,11 +5665,7 @@ TEST(PrivateClassFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_fields, arraysize(private_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(StaticClassFieldsErrors) {
@@ -4819,6 +5701,8 @@ TEST(StaticClassFieldsErrors) {
     "static a b",
     "static a = 0 b",
 
+    "static c = [1] = [c]",
+
     // ASI requires that the next token is not part of any legal production
     "static a = 0\n *b(){}",
     "static a = 0\n ['b'](){}",
@@ -4826,14 +5710,7 @@ TEST(StaticClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(ClassFieldsErrors) {
@@ -4867,6 +5744,8 @@ TEST(ClassFieldsErrors) {
     "a b",
     "a = 0 b",
 
+    "c = [1] = [c]",
+
     // ASI requires that the next token is not part of any legal production
     "a = 0\n *b(){}",
     "a = 0\n ['b'](){}",
@@ -4875,14 +5754,7 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(PrivateClassFieldsErrors) {
@@ -4902,6 +5774,10 @@ TEST(PrivateClassFieldsErrors) {
     "#yield a",
     "#async a = 0",
     "#async a",
+
+    "#a; #a",
+    "#a = 1; #a",
+    "#a; #a = 1;",
 
     "#constructor",
     "#constructor = function() {}",
@@ -4956,13 +5832,9 @@ TEST(PrivateClassFieldsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
-TEST(PrivateStaticClassFieldsErrors) {
+TEST(PrivateStaticClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
   const char* context_data[][2] = {{"(class {", "});"},
@@ -4983,35 +5855,9 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #a; b(){}",
     "static #a; *b(){}",
     "static #a; ['b'](){}",
-    "static #['a'] = 0;",
-    "static #['a'] = 0; b",
-    "static #['a'] = 0; #b",
-    "static #['a'] = 0; b(){}",
-    "static #['a'] = 0; *b(){}",
-    "static #['a'] = 0; ['b'](){}",
-    "static #['a'];",
-    "static #['a']; b;",
-    "static #['a']; #b;",
-    "static #['a']; b(){}",
-    "static #['a']; *b(){}",
-    "static #['a']; ['b'](){}",
 
-    "static #0 = 0;",
-    "static #0;",
-    "static #'a' = 0;",
-    "static #'a';",
-
-    "static # a = 0",
-    "static #a() { }",
-    "static get #a() { }",
-    "static #get a() { }",
-    "static set #a() { }",
-    "static #set a() { }",
-    "static *#a() { }",
-    "static #*a() { }",
-    "static async #a() { }",
-    "static async *#a() { }",
-    "static async #*a() { }",
+    "#prototype",
+    "#prototype = function() {}",
 
     // ASI
     "static #a = 0\n",
@@ -5024,16 +5870,6 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #a\n b(){}",
     "static #a\n *b(){}",
     "static #a\n ['b'](){}",
-    "static #['a'] = 0\n",
-    "static #['a'] = 0\n b",
-    "static #['a'] = 0\n #b",
-    "static #['a'] = 0\n b(){}",
-    "static #['a']\n",
-    "static #['a']\n b\n",
-    "static #['a']\n #b\n",
-    "static #['a']\n b(){}",
-    "static #['a']\n *b(){}",
-    "static #['a']\n ['b'](){}",
 
     "static #a = function t() { arguments; }",
     "static #a = () => function t() { arguments; }",
@@ -5060,24 +5896,113 @@ TEST(PrivateStaticClassFieldsErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
-                                                    kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    public_static_fields, arraysize(public_static_fields));
-
-  static const ParserFlag private_static_fields[] = {
-      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
-      kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_static_fields, arraysize(private_static_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr);
 }
 
-TEST(PrivateNameNoErrors) {
+TEST(PrivateStaticClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "static #['a'] = 0;",
+    "static #['a'] = 0; b",
+    "static #['a'] = 0; #b",
+    "static #['a'] = 0; b(){}",
+    "static #['a'] = 0; *b(){}",
+    "static #['a'] = 0; ['b'](){}",
+    "static #['a'];",
+    "static #['a']; b;",
+    "static #['a']; #b;",
+    "static #['a']; b(){}",
+    "static #['a']; *b(){}",
+    "static #['a']; ['b'](){}",
+
+    "static #0 = 0;",
+    "static #0;",
+    "static #'a' = 0;",
+    "static #'a';",
+
+    "static # a = 0",
+    "static #get a() { }",
+    "static #set a() { }",
+    "static #*a() { }",
+    "static async #*a() { }",
+
+    "#a = arguments",
+    "#a = () => arguments",
+    "#a = () => { arguments }",
+    "#a = arguments[0]",
+    "#a = delete arguments[0]",
+    "#a = f(arguments)",
+    "#a = () => () => arguments",
+
+    "#a; static #a",
+    "static #a; #a",
+
+    // TODO(joyee): support static private methods
+    "static #a() { }",
+    "static get #a() { }",
+    "static set #a() { }",
+    "static *#a() { }",
+    "static async #a() { }",
+    "static async *#a() { }",
+
+    // ASI
+    "static #['a'] = 0\n",
+    "static #['a'] = 0\n b",
+    "static #['a'] = 0\n #b",
+    "static #['a'] = 0\n b(){}",
+    "static #['a']\n",
+    "static #['a']\n b\n",
+    "static #['a']\n #b\n",
+    "static #['a']\n b(){}",
+    "static #['a']\n *b(){}",
+    "static #['a']\n ['b'](){}",
+
+    // ASI requires a linebreak
+    "static #a b",
+    "static #a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "static #a = 0\n *b(){}",
+    "static #a = 0\n ['b'](){}",
+
+    "static #a : 0",
+    "static #a =",
+    "static #*a = 0",
+    "static #*a",
+    "static #get a",
+    "static #yield a",
+    "static #async a = 0",
+    "static #async a",
+    "static # a = 0",
+
+    "#constructor",
+    "#constructor = function() {}",
+
+    "foo() { delete this.#a }",
+    "foo() { delete this.x.#a }",
+    "foo() { delete this.x().#a }",
+
+    "foo() { delete f.#a }",
+    "foo() { delete f.x.#a }",
+    "foo() { delete f.x().#a }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+}
+
+TEST(PrivateNameResolutionErrors) {
   // clang-format off
   const char* context_data[][2] = {
-      {"", ""},
+      {"class X { bar() { ", " } }"},
       {"\"use strict\";", ""},
       {nullptr, nullptr}
   };
@@ -5119,16 +6044,15 @@ TEST(PrivateNameNoErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(PrivateNameErrors) {
   // clang-format off
   const char* context_data[][2] = {
       {"", ""},
+      {"function t() { ", " }"},
+      {"var t => { ", " }"},
+      {"var t = { [ ", " ] }"},
       {"\"use strict\";", ""},
       {nullptr, nullptr}
   };
@@ -5168,10 +6092,6 @@ TEST(PrivateNameErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(ClassExpressionErrors) {
@@ -5183,8 +6103,6 @@ TEST(ClassExpressionErrors) {
       "class name extends",
       "class extends",
       "class {",
-      "class { m }",
-      "class { m; n }",
       "class { m: 1 }",
       "class { m(); n() }",
       "class { get m }",
@@ -5207,8 +6125,6 @@ TEST(ClassDeclarationErrors) {
       "class name extends",
       "class extends",
       "class name {",
-      "class name { m }",
-      "class name { m; n }",
       "class name { m: 1 }",
       "class name { m(); n() }",
       "class name { get x }",
@@ -5582,6 +6498,34 @@ TEST(ForOfMultipleDeclarationsError) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ForInOfLetExpression) {
+  const char* sloppy_context_data[][2] = {
+      {"", ""}, {"function foo(){", "}"}, {nullptr, nullptr}};
+
+  const char* strict_context_data[][2] = {
+      {"'use strict';", ""},
+      {"function foo(){ 'use strict';", "}"},
+      {nullptr, nullptr}};
+
+  const char* async_context_data[][2] = {
+      {"async function foo(){", "}"},
+      {"async function foo(){ 'use strict';", "}"},
+      {nullptr, nullptr}};
+
+  const char* for_let_in[] = {"for (let.x in {}) {}", nullptr};
+
+  const char* for_let_of[] = {"for (let.x of []) {}", nullptr};
+
+  const char* for_await_let_of[] = {"for await (let.x of []) {}", nullptr};
+
+  // The only place `let.x` is legal as a left-hand side expression
+  // is in sloppy mode in a for-in loop.
+  RunParserSyncTest(sloppy_context_data, for_let_in, kSuccess);
+  RunParserSyncTest(strict_context_data, for_let_in, kError);
+  RunParserSyncTest(sloppy_context_data, for_let_of, kError);
+  RunParserSyncTest(strict_context_data, for_let_of, kError);
+  RunParserSyncTest(async_context_data, for_await_let_of, kError);
+}
 
 TEST(ForInNoDeclarationsError) {
   const char* context_data[][2] = {{"", ""},
@@ -6145,11 +7089,11 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       info.set_module();
       if (!i::parsing::ParseProgram(&info, isolate)) {
         i::Handle<i::JSObject> exception_handle(
-            i::JSObject::cast(isolate->pending_exception()));
+            i::JSObject::cast(isolate->pending_exception()), isolate);
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
             i::JSReceiver::GetProperty(isolate, exception_handle, "message")
                 .ToHandleChecked());
@@ -6168,13 +7112,48 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
       CHECK(!i::parsing::ParseProgram(&info, isolate));
       isolate->clear_pending_exception();
     }
   }
 }
 
+TEST(NamespaceExportParsing) {
+  // clang-format off
+  const char* kSources[] = {
+      "export * as arguments from 'bar'",
+      "export * as await from 'bar'",
+      "export * as default from 'bar'",
+      "export * as enum from 'bar'",
+      "export * as foo from 'bar'",
+      "export * as for from 'bar'",
+      "export * as let from 'bar'",
+      "export * as static from 'bar'",
+      "export * as yield from 'bar'",
+  };
+  // clang-format on
+
+  i::FLAG_harmony_namespace_exports = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kSources[i]);
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::ParseInfo info(isolate, script);
+    info.set_module();
+    CHECK(i::parsing::ParseProgram(&info, isolate));
+  }
+}
 
 TEST(ImportExportParsingErrors) {
   // clang-format off
@@ -6240,6 +7219,13 @@ TEST(ImportExportParsingErrors) {
       "import * as x, * as y from 'm.js';",
       "import {x}, {y} from 'm.js';",
       "import * as x, {y} from 'm.js';",
+
+      "export *;",
+      "export * as;",
+      "export * as foo;",
+      "export * as foo from;",
+      "export * as foo from ';",
+      "export * as ,foo from 'bar'",
   };
   // clang-format on
 
@@ -6258,7 +7244,7 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
@@ -6294,7 +7280,7 @@ TEST(ModuleTopLevelFunctionDecl) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
@@ -6438,7 +7424,7 @@ TEST(EnumReserved) {
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
 
-static void CheckEntry(const i::ModuleDescriptor::Entry* entry,
+static void CheckEntry(const i::SourceTextModuleDescriptor::Entry* entry,
                        const char* export_name, const char* local_name,
                        const char* import_name, int module_request) {
   CHECK_NOT_NULL(entry);
@@ -6491,7 +7477,7 @@ TEST(ModuleParsingInternals) {
       "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info, isolate));
   CHECK(i::Compiler::Analyze(&info));
@@ -6501,98 +7487,92 @@ TEST(ModuleParsingInternals) {
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());
   CHECK(module_scope->is_module_scope());
-  const i::ModuleDescriptor::Entry* entry;
+  const i::SourceTextModuleDescriptor::Entry* entry;
   i::Declaration::List* declarations = module_scope->declarations();
   CHECK_EQ(13, declarations->LengthForTest());
 
-  CHECK(declarations->AtForTest(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
-  CHECK(declarations->AtForTest(0)->proxy()->var()->mode() == i::LET);
-  CHECK(declarations->AtForTest(0)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(0)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(0)->var()->raw_name()->IsOneByteEqualTo("x"));
+  CHECK(declarations->AtForTest(0)->var()->mode() == i::VariableMode::kLet);
+  CHECK(declarations->AtForTest(0)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(0)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
-  CHECK(declarations->AtForTest(1)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(1)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(1)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(1)->var()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(declarations->AtForTest(1)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(1)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(1)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
-  CHECK(declarations->AtForTest(2)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(2)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(2)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(2)->var()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(declarations->AtForTest(2)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(2)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(2)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
-  CHECK(declarations->AtForTest(3)->proxy()->var()->mode() == i::VAR);
-  CHECK(!declarations->AtForTest(3)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(3)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(3)->var()->raw_name()->IsOneByteEqualTo("foo"));
+  CHECK(declarations->AtForTest(3)->var()->mode() == i::VariableMode::kVar);
+  CHECK(!declarations->AtForTest(3)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(3)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
-  CHECK(declarations->AtForTest(4)->proxy()->var()->mode() == i::LET);
-  CHECK(!declarations->AtForTest(4)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(4)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(4)->var()->raw_name()->IsOneByteEqualTo("goo"));
+  CHECK(declarations->AtForTest(4)->var()->mode() == i::VariableMode::kLet);
+  CHECK(!declarations->AtForTest(4)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(4)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
-  CHECK(declarations->AtForTest(5)->proxy()->var()->mode() == i::LET);
-  CHECK(declarations->AtForTest(5)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(5)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(5)->var()->raw_name()->IsOneByteEqualTo("hoo"));
+  CHECK(declarations->AtForTest(5)->var()->mode() == i::VariableMode::kLet);
+  CHECK(declarations->AtForTest(5)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(5)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
-  CHECK(declarations->AtForTest(6)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(6)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(6)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(6)->var()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(declarations->AtForTest(6)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(6)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(6)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(7)->proxy()->raw_name()->IsOneByteEqualTo(
-      "*default*"));
-  CHECK(declarations->AtForTest(7)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(7)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(7)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(7)->var()->raw_name()->IsOneByteEqualTo(
+      ".default"));
+  CHECK(declarations->AtForTest(7)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(7)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(7)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(8)->proxy()->raw_name()->IsOneByteEqualTo(
+  CHECK(declarations->AtForTest(8)->var()->raw_name()->IsOneByteEqualTo(
       "nonexport"));
-  CHECK(!declarations->AtForTest(8)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(8)->proxy()->var()->location() ==
+  CHECK(!declarations->AtForTest(8)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(8)->var()->location() ==
         i::VariableLocation::LOCAL);
 
-  CHECK(
-      declarations->AtForTest(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));
-  CHECK(declarations->AtForTest(9)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(9)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(9)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(9)->var()->raw_name()->IsOneByteEqualTo("mm"));
+  CHECK(declarations->AtForTest(9)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(9)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(9)->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->AtForTest(10)->var()->raw_name()->IsOneByteEqualTo("aa"));
+  CHECK(declarations->AtForTest(10)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(10)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(10)->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
-      declarations->AtForTest(10)->proxy()->raw_name()->IsOneByteEqualTo("aa"));
-  CHECK(declarations->AtForTest(10)->proxy()->var()->mode() == i::CONST);
-  CHECK(declarations->AtForTest(10)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(10)->proxy()->var()->location() ==
+      declarations->AtForTest(11)->var()->raw_name()->IsOneByteEqualTo("loo"));
+  CHECK(declarations->AtForTest(11)->var()->mode() == i::VariableMode::kConst);
+  CHECK(!declarations->AtForTest(11)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(11)->var()->location() !=
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(11)->proxy()->raw_name()->IsOneByteEqualTo(
-      "loo"));
-  CHECK(declarations->AtForTest(11)->proxy()->var()->mode() == i::CONST);
-  CHECK(!declarations->AtForTest(11)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(11)->proxy()->var()->location() !=
+  CHECK(
+      declarations->AtForTest(12)->var()->raw_name()->IsOneByteEqualTo("foob"));
+  CHECK(declarations->AtForTest(12)->var()->mode() == i::VariableMode::kConst);
+  CHECK(!declarations->AtForTest(12)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(12)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(12)->proxy()->raw_name()->IsOneByteEqualTo(
-      "foob"));
-  CHECK(declarations->AtForTest(12)->proxy()->var()->mode() == i::CONST);
-  CHECK(!declarations->AtForTest(12)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(12)->proxy()->var()->location() ==
-        i::VariableLocation::MODULE);
-
-  i::ModuleDescriptor* descriptor = module_scope->module();
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
 
   CHECK_EQ(5u, descriptor->module_requests().size());
@@ -6625,31 +7605,31 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(8u, descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(3)->proxy()->raw_name())
+              .find(declarations->AtForTest(3)->var()->raw_name())
               ->second;
   CheckEntry(entry, "foo", "foo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(4)->proxy()->raw_name())
+              .find(declarations->AtForTest(4)->var()->raw_name())
               ->second;
   CheckEntry(entry, "goo", "goo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(5)->proxy()->raw_name())
+              .find(declarations->AtForTest(5)->var()->raw_name())
               ->second;
   CheckEntry(entry, "hoo", "hoo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(6)->proxy()->raw_name())
+              .find(declarations->AtForTest(6)->var()->raw_name())
               ->second;
   CheckEntry(entry, "joo", "joo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(7)->proxy()->raw_name())
+              .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
-  CheckEntry(entry, "default", "*default*", nullptr, -1);
+  CheckEntry(entry, "default", ".default", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(12)->proxy()->raw_name())
+              .find(declarations->AtForTest(12)->var()->raw_name())
               ->second;
   CheckEntry(entry, "foob", "foob", nullptr, -1);
   // TODO(neis): The next lines are terrible. Find a better way.
-  auto name_x = declarations->AtForTest(0)->proxy()->raw_name();
+  auto name_x = declarations->AtForTest(0)->var()->raw_name();
   CHECK_EQ(2u, descriptor->regular_exports().count(name_x));
   auto it = descriptor->regular_exports().equal_range(name_x).first;
   entry = it->second;
@@ -6670,19 +7650,19 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(4u, descriptor->regular_imports().size());
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(1)->proxy()->raw_name())
+              .find(declarations->AtForTest(1)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "z", "q", 0);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(2)->proxy()->raw_name())
+              .find(declarations->AtForTest(2)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "n", "default", 1);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(9)->proxy()->raw_name())
+              .find(declarations->AtForTest(9)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "mm", "m", 0);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(10)->proxy()->raw_name())
+              .find(declarations->AtForTest(10)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "aa", "aa", 0);
 }
@@ -6740,7 +7720,7 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
   i::parsing::ParseProgram(&info, isolate);
   CHECK_NOT_NULL(info.literal());
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
@@ -8076,6 +9056,8 @@ TEST(ImportMetaFailure) {
     {"({", "} = {1})"},
     {"var {", " = 1} = 1"},
     {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
     {nullptr}
   };
 
@@ -8338,11 +9320,10 @@ TEST(EscapedKeywords) {
     "class C { st\\u0061tic *bar() {} }",
     "class C { st\\u0061tic get bar() {} }",
     "class C { st\\u0061tic set bar() {} }",
-
-    // TODO(adamk): These should not be errors in sloppy mode.
-    "(y\\u0069eld);",
-    "var y\\u0069eld = 1;",
-    "var { y\\u0069eld } = {};",
+    "(async ()=>{\\u0061wait 100})()",
+    "({\\u0067et get(){}})",
+    "({\\u0073et set(){}})",
+    "(async ()=>{var \\u0061wait = 100})()",
     nullptr
   };
   // clang-format on
@@ -8356,6 +9337,9 @@ TEST(EscapedKeywords) {
     "var l\\u0065t = 1;",
     "l\\u0065t = 1;",
     "(l\\u0065t === 1);",
+    "(y\\u0069eld);",
+    "var y\\u0069eld = 1;",
+    "var { y\\u0069eld } = {};",
     nullptr
   };
   // clang-format on
@@ -8636,6 +9620,14 @@ TEST(AsyncAwait) {
 
     "function* g() { var f = async(yield); }",
     "function* g() { var f = async(x = yield); }",
+
+    // v8:7817 assert that `await` is still allowed in the body of an arrow fn
+    // within formal parameters
+    "async(a = a => { var await = 1; return 1; }) => a()",
+    "async(a = await => 1); async(a) => 1",
+    "(async(a = await => 1), async(a) => 1)",
+    "async(a = await => 1, b = async() => 1);",
+
     nullptr
   };
   // clang-format on
@@ -8782,6 +9774,12 @@ TEST(AsyncAwaitErrors) {
     "async(...a = b) => b",
     "async(...a,) => b",
     "async(...a, b) => b",
+
+    // v8:7817 assert that `await` is an invalid identifier in arrow formal
+    // parameters nested within an async arrow function
+    "async(a = await => 1) => a",
+    "async(a = (await) => 1) => a",
+    "async(a = (...await) => 1) => a",
     nullptr
   };
 
@@ -9233,7 +10231,6 @@ TEST(ArgumentsRedeclaration) {
 // Test that lazily parsed inner functions don't result in overly pessimistic
 // context allocations.
 TEST(NoPessimisticContextAllocation) {
-  i::FLAG_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -9497,12 +10494,12 @@ TEST(NoPessimisticContextAllocation) {
           "%s", suffix);
 
       i::Handle<i::String> source =
-          factory->InternalizeUtf8String(program.start());
+          factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
 
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::ParseInfo info(isolate, script);
 
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Compiler::Analyze(&info));
@@ -9514,7 +10511,7 @@ TEST(NoPessimisticContextAllocation) {
       DCHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info.ast_value_factory()->GetOneByteString("my_var");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK_EQ(inners[i].ctxt_allocate,
                i::ScopeTestHelper::MustAllocateInContext(var));
     }
@@ -10055,21 +11052,20 @@ TEST(LexicalLoopVariable) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
-  typedef std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>
-      TestCB;
+  using TestCB =
+      std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>;
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::ParseInfo info(isolate, script);
 
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
     CHECK(i::DeclarationScope::Analyze(&info));
-    i::DeclarationScope::AllocateScopeInfos(&info, isolate,
-                                            i::AnalyzeMode::kRegular);
+    i::DeclarationScope::AllocateScopeInfos(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();
@@ -10238,27 +11234,15 @@ TEST(LexicalLoopVariable) {
   }
 }
 
-TEST(PrivateNamesSyntaxError) {
+TEST(PrivateNamesSyntaxErrorEarly) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
 
-  auto test = [isolate](const char* program, bool is_lazy) {
-    i::Factory* const factory = isolate->factory();
-    i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
 
-    info.set_allow_lazy_parsing(is_lazy);
-    i::FLAG_harmony_private_fields = true;
-    CHECK(i::parsing::ParseProgram(&info, isolate));
-    CHECK(i::Rewriter::Rewrite(&info));
-    CHECK(!i::DeclarationScope::Analyze(&info));
-    return info.pending_error_handler()->has_pending_error();
-  };
-
-  const char* data[] = {
+  const char* statement_data[] = {
       "class A {"
       "  foo() { return this.#bar; }"
       "}",
@@ -10318,25 +11302,76 @@ TEST(PrivateNamesSyntaxError) {
       "function t(){"
       "  return class { getA() { return this.#foo; } }"
       "}",
+
+      nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(HashbangSyntax) {
+  const char* context_data[][2] = {
+      {"#!\n", ""},
+      {"#!---IGNORED---\n", ""},
+      {"#!---IGNORED---\r", ""},
+      {"#!---IGNORED---\xE2\x80\xA8", ""},  // <U+2028>
+      {"#!---IGNORED---\xE2\x80\xA9", ""},  // <U+2029>
+      {nullptr, nullptr}};
+
+  const char* data[] = {"function\nFN\n(\n)\n {\n}\nFN();", nullptr};
+
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                    nullptr, 0, true);
+}
+
+TEST(HashbangSyntaxErrors) {
+  const char* file_context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* other_context_data[][2] = {{"/**/", ""},
+                                         {"//---\n", ""},
+                                         {";", ""},
+                                         {"function fn() {", "}"},
+                                         {"function* fn() {", "}"},
+                                         {"async function fn() {", "}"},
+                                         {"async function* fn() {", "}"},
+                                         {"() => {", "}"},
+                                         {"() => ", ""},
+                                         {"function fn(a = ", ") {}"},
+                                         {"function* fn(a = ", ") {}"},
+                                         {"async function fn(a = ", ") {}"},
+                                         {"async function* fn(a = ", ") {}"},
+                                         {"(a = ", ") => {}"},
+                                         {"(a = ", ") => a"},
+                                         {"class k {", "}"},
+                                         {"[", "]"},
+                                         {"{", "}"},
+                                         {"({", "})"},
+                                         {nullptr, nullptr}};
+
+  const char* invalid_hashbang_data[] = {// Encoded characters are not allowed
+                                         "#\\u0021\n"
+                                         "#\\u{21}\n",
+                                         "#\\x21\n",
+                                         "#\\041\n",
+                                         "\\u0023!\n",
+                                         "\\u{23}!\n",
+                                         "\\x23!\n",
+                                         "\\043!\n",
+                                         "\\u0023\\u0021\n",
+
+                                         "\n#!---IGNORED---\n",
+                                         " #!---IGNORED---\n",
+                                         nullptr};
+  const char* hashbang_data[] = {"#!\n", "#!---IGNORED---\n", nullptr};
+
+  auto SyntaxErrorTest = [](const char* context_data[][2], const char* data[]) {
+    RunParserSyncTest(context_data, data, kError);
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                      nullptr, 0, true);
   };
 
-  // TODO(gsathya): The preparser does not track unresolved
-  // variables in top level function which fails this test.
-  // https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  const char* parser_data[] = {
-      "function t() {"
-      "  return this.#foo;"
-      "}",
-  };
-
-  for (const char* source : data) {
-    CHECK(test(source, true));
-    CHECK(test(source, false));
-  }
-
-  for (const char* source : parser_data) {
-    CHECK(test(source, false));
-  }
+  SyntaxErrorTest(file_context_data, invalid_hashbang_data);
+  SyntaxErrorTest(other_context_data, invalid_hashbang_data);
+  SyntaxErrorTest(other_context_data, hashbang_data);
 }
 
 }  // namespace test_parsing

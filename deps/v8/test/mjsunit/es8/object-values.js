@@ -121,20 +121,7 @@ function TestOrderWithDuplicates() {
     }
   });
 
-  assertEquals([1, 1, 123, 123], Object.values(P));
-  assertEquals([
-    "[[OwnPropertyKeys]]",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")",
-  ], log);
+  assertThrows(() => Object.values(P), TypeError);
 }
 TestOrderWithDuplicates();
 

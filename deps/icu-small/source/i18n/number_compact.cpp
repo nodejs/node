@@ -3,14 +3,15 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
-#include "resource.h"
-#include "number_compact.h"
 #include "unicode/ustring.h"
 #include "unicode/ures.h"
 #include "cstring.h"
 #include "charstr.h"
+#include "resource.h"
+#include "number_compact.h"
+#include "number_microprops.h"
 #include "uresimp.h"
 
 using namespace icu;
@@ -259,7 +260,7 @@ void CompactHandler::precomputeAllModifiers(MutablePatternModifier &buildReferen
         ParsedPatternInfo patternInfo;
         PatternParser::parseToPatternInfo(UnicodeString(patternString), patternInfo, status);
         if (U_FAILURE(status)) { return; }
-        buildReference.setPatternInfo(&patternInfo);
+        buildReference.setPatternInfo(&patternInfo, UNUM_COMPACT_FIELD);
         info.mod = buildReference.createImmutable(status);
         if (U_FAILURE(status)) { return; }
         info.patternString = patternString;
@@ -272,18 +273,18 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
     if (U_FAILURE(status)) { return; }
 
     // Treat zero as if it had magnitude 0
-    int magnitude;
+    int32_t magnitude;
     if (quantity.isZero()) {
         magnitude = 0;
-        micros.rounding.apply(quantity, status);
+        micros.rounder.apply(quantity, status);
     } else {
         // TODO: Revisit chooseMultiplierAndApply
-        int multiplier = micros.rounding.chooseMultiplierAndApply(quantity, data, status);
+        int32_t multiplier = micros.rounder.chooseMultiplierAndApply(quantity, data, status);
         magnitude = quantity.isZero() ? 0 : quantity.getMagnitude();
         magnitude -= multiplier;
     }
 
-    StandardPlural::Form plural = quantity.getStandardPlural(rules);
+    StandardPlural::Form plural = utils::getStandardPlural(rules, quantity);
     const UChar *patternString = data.getPattern(magnitude, plural);
     if (patternString == nullptr) {
         // Use the default (non-compact) modifier.
@@ -296,7 +297,7 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         for (; i < precomputedModsLength; i++) {
             const CompactModInfo &info = precomputedMods[i];
             if (u_strcmp(patternString, info.patternString) == 0) {
-                info.mod->applyToMicros(micros, quantity);
+                info.mod->applyToMicros(micros, quantity, status);
                 break;
             }
         }
@@ -309,11 +310,11 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
         ParsedPatternInfo &patternInfo = const_cast<CompactHandler *>(this)->unsafePatternInfo;
         PatternParser::parseToPatternInfo(UnicodeString(patternString), patternInfo, status);
         static_cast<MutablePatternModifier*>(const_cast<Modifier*>(micros.modMiddle))
-            ->setPatternInfo(&patternInfo);
+            ->setPatternInfo(&patternInfo, UNUM_COMPACT_FIELD);
     }
 
     // We already performed rounding. Do not perform it again.
-    micros.rounding = Rounder::constructPassThrough();
+    micros.rounder = RoundingImpl::passThrough();
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

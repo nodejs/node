@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,6 +45,7 @@
 #  include <openssl/x509.h>
 #  include <openssl/x509v3.h>
 #  include <openssl/safestack.h>
+#  include <openssl/ocsperr.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -92,7 +93,6 @@ typedef struct ocsp_resp_bytes_st OCSP_RESPBYTES;
 #  define V_OCSP_RESPID_KEY  1
 
 DEFINE_STACK_OF(OCSP_RESPID)
-DECLARE_ASN1_FUNCTIONS(OCSP_RESPID)
 
 typedef struct ocsp_revoked_info_st OCSP_REVOKEDINFO;
 
@@ -120,18 +120,20 @@ typedef struct ocsp_service_locator_st OCSP_SERVICELOC;
 #  define d2i_OCSP_RESPONSE_bio(bp,p) ASN1_d2i_bio_of(OCSP_RESPONSE,OCSP_RESPONSE_new,d2i_OCSP_RESPONSE,bp,p)
 
 #  define PEM_read_bio_OCSP_REQUEST(bp,x,cb) (OCSP_REQUEST *)PEM_ASN1_read_bio( \
-     (char *(*)())d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST,bp,(char **)x,cb,NULL)
+     (char *(*)())d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST, \
+     bp,(char **)(x),cb,NULL)
 
-#   define PEM_read_bio_OCSP_RESPONSE(bp,x,cb)(OCSP_RESPONSE *)PEM_ASN1_read_bio(\
-     (char *(*)())d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE,bp,(char **)x,cb,NULL)
+#  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb)(OCSP_RESPONSE *)PEM_ASN1_read_bio(\
+     (char *(*)())d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE, \
+     bp,(char **)(x),cb,NULL)
 
 #  define PEM_write_bio_OCSP_REQUEST(bp,o) \
     PEM_ASN1_write_bio((int (*)())i2d_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST,\
-                        bp,(char *)o, NULL,NULL,0,NULL,NULL)
+                        bp,(char *)(o), NULL,NULL,0,NULL,NULL)
 
 #  define PEM_write_bio_OCSP_RESPONSE(bp,o) \
     PEM_ASN1_write_bio((int (*)())i2d_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE,\
-                        bp,(char *)o, NULL,NULL,0,NULL,NULL)
+                        bp,(char *)(o), NULL,NULL,0,NULL,NULL)
 
 #  define i2d_OCSP_RESPONSE_bio(bp,o) ASN1_i2d_bio_of(OCSP_RESPONSE,i2d_OCSP_RESPONSE,bp,o)
 
@@ -159,8 +161,6 @@ int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
 int OCSP_REQ_CTX_nbio_d2i(OCSP_REQ_CTX *rctx, ASN1_VALUE **pval,
                           const ASN1_ITEM *it);
 BIO *OCSP_REQ_CTX_get0_mem_bio(OCSP_REQ_CTX *rctx);
-int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
-                     ASN1_VALUE *val);
 int OCSP_REQ_CTX_http(OCSP_REQ_CTX *rctx, const char *op, const char *path);
 int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
 int OCSP_REQ_CTX_add1_header(OCSP_REQ_CTX *rctx,
@@ -194,6 +194,8 @@ int OCSP_response_status(OCSP_RESPONSE *resp);
 OCSP_BASICRESP *OCSP_response_get1_basic(OCSP_RESPONSE *resp);
 
 const ASN1_OCTET_STRING *OCSP_resp_get0_signature(const OCSP_BASICRESP *bs);
+const X509_ALGOR *OCSP_resp_get0_tbs_sigalg(const OCSP_BASICRESP *bs);
+const OCSP_RESPDATA *OCSP_resp_get0_respdata(const OCSP_BASICRESP *bs);
 int OCSP_resp_get0_signer(OCSP_BASICRESP *bs, X509 **signer,
                           STACK_OF(X509) *extra_certs);
 
@@ -204,6 +206,9 @@ const STACK_OF(X509) *OCSP_resp_get0_certs(const OCSP_BASICRESP *bs);
 int OCSP_resp_get0_id(const OCSP_BASICRESP *bs,
                       const ASN1_OCTET_STRING **pid,
                       const X509_NAME **pname);
+int OCSP_resp_get1_id(const OCSP_BASICRESP *bs,
+                      ASN1_OCTET_STRING **pid,
+                      X509_NAME **pname);
 
 int OCSP_resp_find(OCSP_BASICRESP *bs, OCSP_CERTID *id, int last);
 int OCSP_single_get0_status(OCSP_SINGLERESP *single, int *reason,
@@ -224,8 +229,8 @@ int OCSP_request_verify(OCSP_REQUEST *req, STACK_OF(X509) *certs,
 int OCSP_parse_url(const char *url, char **phost, char **pport, char **ppath,
                    int *pssl);
 
-int OCSP_id_issuer_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
-int OCSP_id_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
+int OCSP_id_issuer_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
+int OCSP_id_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
 
 int OCSP_request_onereq_count(OCSP_REQUEST *req);
 OCSP_ONEREQ *OCSP_request_onereq_get0(OCSP_REQUEST *req, int i);
@@ -245,6 +250,9 @@ int OCSP_basic_add1_cert(OCSP_BASICRESP *resp, X509 *cert);
 int OCSP_basic_sign(OCSP_BASICRESP *brsp,
                     X509 *signer, EVP_PKEY *key, const EVP_MD *dgst,
                     STACK_OF(X509) *certs, unsigned long flags);
+int OCSP_basic_sign_ctx(OCSP_BASICRESP *brsp,
+                        X509 *signer, EVP_MD_CTX *ctx,
+                        STACK_OF(X509) *certs, unsigned long flags);
 int OCSP_RESPID_set_by_name(OCSP_RESPID *respid, X509 *cert);
 int OCSP_RESPID_set_by_key(OCSP_RESPID *respid, X509 *cert);
 int OCSP_RESPID_match(OCSP_RESPID *respid, X509 *cert);
@@ -336,60 +344,6 @@ int OCSP_RESPONSE_print(BIO *bp, OCSP_RESPONSE *o, unsigned long flags);
 int OCSP_basic_verify(OCSP_BASICRESP *bs, STACK_OF(X509) *certs,
                       X509_STORE *st, unsigned long flags);
 
-/* BEGIN ERROR CODES */
-/*
- * The following lines are auto generated by the script mkerr.pl. Any changes
- * made after this point may be overwritten when the script is next run.
- */
-
-int ERR_load_OCSP_strings(void);
-
-/* Error codes for the OCSP functions. */
-
-/* Function codes. */
-# define OCSP_F_D2I_OCSP_NONCE                            102
-# define OCSP_F_OCSP_BASIC_ADD1_STATUS                    103
-# define OCSP_F_OCSP_BASIC_SIGN                           104
-# define OCSP_F_OCSP_BASIC_VERIFY                         105
-# define OCSP_F_OCSP_CERT_ID_NEW                          101
-# define OCSP_F_OCSP_CHECK_DELEGATED                      106
-# define OCSP_F_OCSP_CHECK_IDS                            107
-# define OCSP_F_OCSP_CHECK_ISSUER                         108
-# define OCSP_F_OCSP_CHECK_VALIDITY                       115
-# define OCSP_F_OCSP_MATCH_ISSUERID                       109
-# define OCSP_F_OCSP_PARSE_URL                            114
-# define OCSP_F_OCSP_REQUEST_SIGN                         110
-# define OCSP_F_OCSP_REQUEST_VERIFY                       116
-# define OCSP_F_OCSP_RESPONSE_GET1_BASIC                  111
-# define OCSP_F_PARSE_HTTP_LINE1                          118
-
-/* Reason codes. */
-# define OCSP_R_CERTIFICATE_VERIFY_ERROR                  101
-# define OCSP_R_DIGEST_ERR                                102
-# define OCSP_R_ERROR_IN_NEXTUPDATE_FIELD                 122
-# define OCSP_R_ERROR_IN_THISUPDATE_FIELD                 123
-# define OCSP_R_ERROR_PARSING_URL                         121
-# define OCSP_R_MISSING_OCSPSIGNING_USAGE                 103
-# define OCSP_R_NEXTUPDATE_BEFORE_THISUPDATE              124
-# define OCSP_R_NOT_BASIC_RESPONSE                        104
-# define OCSP_R_NO_CERTIFICATES_IN_CHAIN                  105
-# define OCSP_R_NO_RESPONSE_DATA                          108
-# define OCSP_R_NO_REVOKED_TIME                           109
-# define OCSP_R_NO_SIGNER_KEY                             130
-# define OCSP_R_PRIVATE_KEY_DOES_NOT_MATCH_CERTIFICATE    110
-# define OCSP_R_REQUEST_NOT_SIGNED                        128
-# define OCSP_R_RESPONSE_CONTAINS_NO_REVOCATION_DATA      111
-# define OCSP_R_ROOT_CA_NOT_TRUSTED                       112
-# define OCSP_R_SERVER_RESPONSE_ERROR                     114
-# define OCSP_R_SERVER_RESPONSE_PARSE_ERROR               115
-# define OCSP_R_SIGNATURE_FAILURE                         117
-# define OCSP_R_SIGNER_CERTIFICATE_NOT_FOUND              118
-# define OCSP_R_STATUS_EXPIRED                            125
-# define OCSP_R_STATUS_NOT_YET_VALID                      126
-# define OCSP_R_STATUS_TOO_OLD                            127
-# define OCSP_R_UNKNOWN_MESSAGE_DIGEST                    119
-# define OCSP_R_UNKNOWN_NID                               120
-# define OCSP_R_UNSUPPORTED_REQUESTORNAME_TYPE            129
 
 #  ifdef  __cplusplus
 }

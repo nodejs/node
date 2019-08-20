@@ -38,7 +38,7 @@ int uv_uptime(double* uptime) {
 int uv_resident_set_memory(size_t* rss) {
   /* FIXME: read /proc/meminfo? */
   *rss = 0;
-  return UV_ENOSYS;
+  return 0;
 }
 
 int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
@@ -51,4 +51,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   (void)cpu_infos;
   (void)count;
+}
+
+uint64_t uv_get_constrained_memory(void) {
+  return 0;  /* Memory constraints are unknown. */
 }

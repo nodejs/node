@@ -27,43 +27,36 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This is a utility for converting JavaScript source code into C-style
-# char arrays. It is used for embedded JavaScript code in the V8
-# library.
-
+"""
+This is a utility for converting JavaScript source code into uint16_t[],
+that are used for embedding JavaScript code into the Node.js binary.
+"""
+import argparse
 import os
 import re
-import sys
-import string
-
-
-def ToCArray(elements, step=10):
-  slices = (elements[i:i+step] for i in xrange(0, len(elements), step))
-  slices = map(lambda s: ','.join(str(x) for x in s), slices)
-  return ',\n'.join(slices)
-
-
-def ToCString(contents):
-  return ToCArray(map(ord, contents), step=20)
-
+import functools
+import codecs
 
 def ReadFile(filename):
-  file = open(filename, "rt")
-  try:
-    lines = file.read()
-  finally:
-    file.close()
-  return lines
+  if is_verbose:
+    print(filename)
+  with codecs.open(filename, "r", "utf-8") as f:
+    lines = f.read()
+    return lines
 
 
-def ReadLines(filename):
+def ReadMacroFiles(filenames):
+  """
+
+  :rtype: List(str)
+  """
   result = []
-  for line in open(filename, "rt"):
-    if '#' in line:
-      line = line[:line.index('#')]
-    line = line.strip()
-    if len(line) > 0:
-      result.append(line)
+  for filename in filenames:
+    with open(filename, "rt") as f:
+      # strip python-like comments and whitespace padding
+      lines = [line.split('#')[0].strip() for line in f]
+      # filter empty lines
+      result.extend(filter(bool, lines))
   return result
 
 
@@ -76,6 +69,7 @@ def ExpandConstants(lines, constants):
 def ExpandMacros(lines, macros):
   def expander(s):
     return ExpandMacros(s, macros)
+
   for name, macro in macros.items():
     name_pattern = re.compile("\\b%s\\(" % name)
     pattern_match = name_pattern.search(lines, 0)
@@ -88,13 +82,15 @@ def ExpandMacros(lines, macros):
       last_match = end
       arg_index = [0]  # Wrap state into array, to work around Python "scoping"
       mapping = {}
-      def add_arg(str):
+
+      def add_arg(s):
         # Remember to expand recursively in the arguments
         if arg_index[0] >= len(macro.args):
           return
-        replacement = expander(str.strip())
+        replacement = expander(s.strip())
         mapping[macro.args[arg_index[0]]] = replacement
         arg_index[0] += 1
+
       while end < len(lines) and height > 0:
         # We don't count commas at higher nesting levels.
         if lines[end] == ',' and height == 1:
@@ -106,10 +102,11 @@ def ExpandMacros(lines, macros):
           height = height - 1
         end = end + 1
       # Remember to add the last match.
-      add_arg(lines[last_match:end-1])
-      if arg_index[0] < len(macro.args) -1:
+      add_arg(lines[last_match:end - 1])
+      if arg_index[0] < len(macro.args) - 1:
         lineno = lines.count(os.linesep, 0, start) + 1
-        raise Exception('line %s: Too few arguments for macro "%s"' % (lineno, name))
+        raise Exception(
+          'line %s: Too few arguments for macro "%s"' % (lineno, name))
       result = macro.expand(mapping)
       # Replace the occurrence of the macro with the expansion
       lines = lines[:start] + result + lines[end:]
@@ -121,34 +118,39 @@ class TextMacro:
   def __init__(self, args, body):
     self.args = args
     self.body = body
+
   def expand(self, mapping):
     result = self.body
     for key, value in mapping.items():
-        result = result.replace(key, value)
+      result = result.replace(key, value)
     return result
+
 
 class PythonMacro:
   def __init__(self, args, fun):
     self.args = args
     self.fun = fun
+
   def expand(self, mapping):
     args = []
     for arg in self.args:
       args.append(mapping[arg])
     return str(self.fun(*args))
 
+
 CONST_PATTERN = re.compile('^const\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile('^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 PYTHON_MACRO_PATTERN = re.compile('^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
-def ReadMacros(lines):
-  constants = { }
-  macros = { }
+
+def ReadMacros(macro_files):
+  lines = ReadMacroFiles(macro_files)
+  constants = {}
+  macros = {}
   for line in lines:
-    hash = line.find('#')
-    if hash != -1: line = line[:hash]
-    line = line.strip()
-    if len(line) is 0: continue
+    line = line.split('#')[0].strip()
+    if len(line) == 0:
+      continue
     const_match = CONST_PATTERN.match(line)
     if const_match:
       name = const_match.group(1)
@@ -158,175 +160,194 @@ def ReadMacros(lines):
       macro_match = MACRO_PATTERN.match(line)
       if macro_match:
         name = macro_match.group(1)
-        args = map(string.strip, macro_match.group(2).split(','))
+        args = [p.strip() for p in macro_match.group(2).split(',')]
         body = macro_match.group(3).strip()
         macros[name] = TextMacro(args, body)
       else:
         python_match = PYTHON_MACRO_PATTERN.match(line)
         if python_match:
           name = python_match.group(1)
-          args = map(string.strip, python_match.group(2).split(','))
+          args = [p.strip() for p in macro_match.group(2).split(',')]
           body = python_match.group(3).strip()
           fun = eval("lambda " + ",".join(args) + ': ' + body)
           macros[name] = PythonMacro(args, fun)
         else:
           raise Exception("Illegal line: " + line)
-  return (constants, macros)
+  return constants, macros
 
 
 TEMPLATE = """
-#include "node.h"
-#include "node_javascript.h"
-#include "v8.h"
-#include "env.h"
 #include "env-inl.h"
+#include "node_native_module.h"
+#include "node_internals.h"
 
 namespace node {{
 
-{definitions}
+namespace native_module {{
 
-v8::Local<v8::String> LoadersBootstrapperSource(Environment* env) {{
-  return internal_bootstrap_loaders_value.ToStringChecked(env->isolate());
+{0}
+
+void NativeModuleLoader::LoadJavaScriptSource() {{
+  {1}
 }}
 
-v8::Local<v8::String> NodeBootstrapperSource(Environment* env) {{
-  return internal_bootstrap_node_value.ToStringChecked(env->isolate());
+UnionBytes NativeModuleLoader::GetConfig() {{
+  return UnionBytes(config_raw, {2});  // config.gypi
 }}
 
-void DefineJavaScript(Environment* env, v8::Local<v8::Object> target) {{
-  {initializers}
-}}
+}}  // namespace native_module
 
 }}  // namespace node
 """
 
 ONE_BYTE_STRING = """
-static const uint8_t raw_{var}[] = {{ {data} }};
-static struct : public v8::String::ExternalOneByteStringResource {{
-  const char* data() const override {{
-    return reinterpret_cast<const char*>(raw_{var});
-  }}
-  size_t length() const override {{ return arraysize(raw_{var}); }}
-  void Dispose() override {{ /* Default calls `delete this`. */ }}
-  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
-    return v8::String::NewExternalOneByte(isolate, this).ToLocalChecked();
-  }}
-}} {var};
+static const uint8_t {0}[] = {{
+{1}
+}};
 """
 
 TWO_BYTE_STRING = """
-static const uint16_t raw_{var}[] = {{ {data} }};
-static struct : public v8::String::ExternalStringResource {{
-  const uint16_t* data() const override {{ return raw_{var}; }}
-  size_t length() const override {{ return arraysize(raw_{var}); }}
-  void Dispose() override {{ /* Default calls `delete this`. */ }}
-  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
-    return v8::String::NewExternalTwoByte(isolate, this).ToLocalChecked();
-  }}
-}} {var};
+static const uint16_t {0}[] = {{
+{1}
+}};
 """
 
-INITIALIZER = """\
-CHECK(target->Set(env->context(),
-                  {key}.ToStringChecked(env->isolate()),
-                  {value}.ToStringChecked(env->isolate())).FromJust());
-"""
+INITIALIZER = 'source_.emplace("{0}", UnionBytes{{{1}, {2}}});'
 
-DEPRECATED_DEPS = """\
-'use strict';
-process.emitWarning(
-  'Requiring Node.js-bundled \\'{module}\\' module is deprecated. Please ' +
-  'install the necessary module locally.', 'DeprecationWarning', 'DEP0084');
-module.exports = require('internal/deps/{module}');
-"""
+CONFIG_GYPI_ID = 'config_raw'
 
+SLUGGER_RE =re.compile('[.\-/]')
 
-def Render(var, data):
-  # Treat non-ASCII as UTF-8 and convert it to UTF-16.
-  if any(ord(c) > 127 for c in data):
+is_verbose = False
+
+def GetDefinition(var, source, step=30):
+  template = ONE_BYTE_STRING
+  code_points = [ord(c) for c in source]
+  if any(c > 127 for c in code_points):
     template = TWO_BYTE_STRING
-    data = map(ord, data.decode('utf-8').encode('utf-16be'))
-    data = [data[i] * 256 + data[i+1] for i in xrange(0, len(data), 2)]
-    data = ToCArray(data)
-  else:
-    template = ONE_BYTE_STRING
-    data = ToCString(data)
-  return template.format(var=var, data=data)
+    # Treat non-ASCII as UTF-8 and encode as UTF-16 Little Endian.
+    encoded_source = bytearray(source, 'utf-16le')
+    code_points = [
+      encoded_source[i] + (encoded_source[i + 1] * 256)
+      for i in range(0, len(encoded_source), 2)
+    ]
+
+  # For easier debugging, align to the common 3 char for code-points.
+  elements_s = ['%3s' % x for x in code_points]
+  # Put no more then `step` code-points in a line.
+  slices = [elements_s[i:i + step] for i in range(0, len(elements_s), step)]
+  lines = [','.join(s) for s in slices]
+  array_content = ',\n'.join(lines)
+  definition = template.format(var, array_content)
+
+  return definition, len(code_points)
 
 
-def JS2C(source, target):
-  modules = []
-  consts = {}
-  macros = {}
-  macro_lines = []
+def AddModule(filename, consts, macros, definitions, initializers):
+  code = ReadFile(filename)
+  code = ExpandConstants(code, consts)
+  code = ExpandMacros(code, macros)
+  name = NormalizeFileName(filename)
+  slug = SLUGGER_RE.sub('_', name)
+  var = slug + '_raw'
+  definition, size = GetDefinition(var, code)
+  initializer = INITIALIZER.format(name, var, size)
+  definitions.append(definition)
+  initializers.append(initializer)
 
-  for s in source:
-    if (os.path.split(str(s))[1]).endswith('macros.py'):
-      macro_lines.extend(ReadLines(str(s)))
-    else:
-      modules.append(s)
+def NormalizeFileName(filename):
+  split = filename.split(os.path.sep)
+  if split[0] == 'deps':
+    split = ['internal'] + split
+  else:  # `lib/**/*.js` so drop the 'lib' part
+    split = split[1:]
+  if len(split):
+    filename = '/'.join(split)
+  return os.path.splitext(filename)[0]
 
+
+def JS2C(source_files, target):
   # Process input from all *macro.py files
-  (consts, macros) = ReadMacros(macro_lines)
+  consts, macros = ReadMacros(source_files['.py'])
 
   # Build source code lines
   definitions = []
   initializers = []
 
-  for name in modules:
-    lines = ReadFile(str(name))
-    lines = ExpandConstants(lines, consts)
-    lines = ExpandMacros(lines, macros)
+  for filename in source_files['.js']:
+    AddModule(filename, consts, macros, definitions, initializers)
 
-    deprecated_deps = None
-
-    # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
-    # so don't assume there is always a slash in the file path.
-    if '/' in name or '\\' in name:
-      split = re.split('/|\\\\', name)
-      if split[0] == 'deps':
-        if split[1] == 'node-inspect' or split[1] == 'v8':
-          deprecated_deps = split[1:]
-        split = ['internal'] + split
-      else:
-        split = split[1:]
-      name = '/'.join(split)
-
-    # if its a gypi file we're going to want it as json
-    # later on anyway, so get it out of the way now
-    if name.endswith(".gypi"):
-      lines = re.sub(r'#.*?\n', '', lines)
-      lines = re.sub(r'\'', '"', lines)
-    name = name.split('.', 1)[0]
-    var = name.replace('-', '_').replace('/', '_')
-    key = '%s_key' % var
-    value = '%s_value' % var
-
-    definitions.append(Render(key, name))
-    definitions.append(Render(value, lines))
-    initializers.append(INITIALIZER.format(key=key, value=value))
-
-    if deprecated_deps is not None:
-      name = '/'.join(deprecated_deps)
-      name = name.split('.', 1)[0]
-      var = name.replace('-', '_').replace('/', '_')
-      key = '%s_key' % var
-      value = '%s_value' % var
-
-      definitions.append(Render(key, name))
-      definitions.append(Render(value, DEPRECATED_DEPS.format(module=name)))
-      initializers.append(INITIALIZER.format(key=key, value=value))
+  config_def, config_size = handle_config_gypi(source_files['config.gypi'])
+  definitions.append(config_def)
 
   # Emit result
-  output = open(str(target[0]), "w")
-  output.write(TEMPLATE.format(definitions=''.join(definitions),
-                               initializers=''.join(initializers)))
-  output.close()
+  definitions = ''.join(definitions)
+  initializers = '\n  '.join(initializers)
+  out = TEMPLATE.format(definitions, initializers, config_size)
+  write_if_chaged(out, target)
+
+
+def handle_config_gypi(config_filename):
+  # if its a gypi file we're going to want it as json
+  # later on anyway, so get it out of the way now
+  config = ReadFile(config_filename)
+  config = jsonify(config)
+  config_def, config_size = GetDefinition(CONFIG_GYPI_ID, config)
+  return config_def, config_size
+
+
+def jsonify(config):
+  # 1. string comments
+  config = re.sub(r'#.*?\n', '', config)
+  # 3. normalize string literals from ' into "
+  config = re.sub('\'', '"', config)
+  # 2. turn pseudo-booleans strings into Booleans
+  config = re.sub('"true"', 'true', config)
+  config = re.sub('"false"', 'false', config)
+  return config
+
+
+def write_if_chaged(content, target):
+  if os.path.exists(target):
+    with open(target, 'rt') as existing:
+      old_content = existing.read()
+  else:
+    old_content = ''
+  if old_content == content:
+    return
+  with open(target, "wt") as output:
+    output.write(content)
+
+
+def SourceFileByExt(files_by_ext, filename):
+  """
+  :type files_by_ext: dict
+  :type filename: str
+  :rtype: dict
+  """
+  ext = os.path.splitext(filename)[-1]
+  files_by_ext.setdefault(ext, []).append(filename)
+  return files_by_ext
 
 def main():
-  natives = sys.argv[1]
-  source_files = sys.argv[2:]
-  JS2C(source_files, [natives])
+  parser = argparse.ArgumentParser(
+    description='Convert code files into `uint16_t[]`s',
+    fromfile_prefix_chars='@'
+  )
+  parser.add_argument('--target', help='output file')
+  parser.add_argument('--verbose', action='store_true', help='output file')
+  parser.add_argument('sources', nargs='*', help='input files')
+  options = parser.parse_args()
+  global is_verbose
+  is_verbose = options.verbose
+  source_files = functools.reduce(SourceFileByExt, options.sources, {})
+  # Should have exactly 3 types: `.js`, `.py`, and `.gypi`
+  assert len(source_files) == 3
+  # Currently config.gypi is the only `.gypi` file allowed
+  assert source_files['.gypi'] == ['config.gypi']
+  source_files['config.gypi'] = source_files.pop('.gypi')[0]
+  JS2C(source_files, options.target)
+
 
 if __name__ == "__main__":
   main()

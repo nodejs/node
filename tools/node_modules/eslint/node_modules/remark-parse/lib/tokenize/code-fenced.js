@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:code-fenced
- * @fileoverview Tokenise fenced code.
- */
-
 'use strict';
 
 var trim = require('trim-trailing-lines');
@@ -21,7 +13,6 @@ var C_TICK = '`';
 var MIN_FENCE_COUNT = 3;
 var CODE_INDENT_COUNT = 4;
 
-/* Tokenise fenced code. */
 function fencedCode(eat, value, silent) {
   var self = this;
   var settings = self.options;

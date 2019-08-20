@@ -38,18 +38,25 @@ if(WIN32)
 endif()
 
 # Public shared library
-add_library(nghttp2 SHARED ${NGHTTP2_SOURCES} ${NGHTTP2_RES})
-set_target_properties(nghttp2 PROPERTIES
-  COMPILE_FLAGS "${WARNCFLAGS}"
-  VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
-  C_VISIBILITY_PRESET hidden
-)
-target_include_directories(nghttp2 INTERFACE
+if(ENABLE_SHARED_LIB)
+  add_library(nghttp2 SHARED ${NGHTTP2_SOURCES} ${NGHTTP2_RES})
+  set_target_properties(nghttp2 PROPERTIES
+    COMPILE_FLAGS "${WARNCFLAGS}"
+    VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+    C_VISIBILITY_PRESET hidden
+  )
+  target_include_directories(nghttp2 INTERFACE
     "${CMAKE_CURRENT_BINARY_DIR}/includes"
     "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-    )
+  )
 
-if(HAVE_CUNIT)
+  install(TARGETS nghttp2
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+endif()
+
+if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
   # Static library (for unittests because of symbol visibility)
   add_library(nghttp2_static STATIC ${NGHTTP2_SOURCES})
   set_target_properties(nghttp2_static PROPERTIES
@@ -58,10 +65,12 @@ if(HAVE_CUNIT)
     ARCHIVE_OUTPUT_NAME nghttp2
   )
   target_compile_definitions(nghttp2_static PUBLIC "-DNGHTTP2_STATICLIB")
+  if(ENABLE_STATIC_LIB)
+    install(TARGETS nghttp2_static
+      DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+  endif()
 endif()
 
-install(TARGETS nghttp2
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libnghttp2.pc"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

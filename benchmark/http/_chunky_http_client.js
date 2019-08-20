@@ -16,7 +16,7 @@ function main({ len, n }) {
   const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
   // An odd number could result in a better length dispersion.
-  for (var i = 7; i <= 7 * 7 * 7; i *= 7)
+  for (let i = 7; i <= 7 * 7 * 7; i *= 7)
     headers.push('o'.repeat(i));
 
   function WriteHTTPHeaders(channel, has_keep_alive, extra_header_count) {
@@ -31,7 +31,7 @@ function main({ len, n }) {
               'Chrome/39.0.2171.71 Safari/537.36');
     todo.push('Accept-Encoding: gzip, deflate, sdch');
     todo.push('Accept-Language: en-US,en;q=0.8');
-    for (var i = 0; i < extra_header_count; i++) {
+    for (let i = 0; i < extra_header_count; i++) {
       // Utilize first three powers of a small integer for an odd cycle and
       // because the fourth power of some integers overloads the server.
       todo.push(`X-Header-${i}: ${headers[i % 3]}`);
@@ -41,7 +41,7 @@ function main({ len, n }) {
     todo = todo.join('\r\n');
     // Using odd numbers in many places may increase length coverage.
     const chunksize = 37;
-    for (i = 0; i < todo.length; i += chunksize) {
+    for (let i = 0; i < todo.length; i += chunksize) {
       const cur = todo.slice(i, i + chunksize);
       channel.write(cur);
     }
@@ -54,11 +54,11 @@ function main({ len, n }) {
   const add = 11;
   var count = 0;
   const PIPE = process.env.PIPE_NAME;
-  var socket = net.connect(PIPE, function() {
+  const socket = net.connect(PIPE, () => {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
     socket.setEncoding('utf8');
-    socket.on('data', function(d) {
+    socket.on('data', (d) => {
       var did = false;
       var pattern = 'HTTP/1.1 200 OK\r\n';
       if ((d.length === pattern.length && d === pattern) ||
@@ -84,11 +84,11 @@ function main({ len, n }) {
         }
       }
     });
-    socket.on('close', function() {
+    socket.on('close', () => {
       console.log('Connection closed');
     });
 
-    socket.on('error', function() {
+    socket.on('error', () => {
       throw new Error('Connection error');
     });
   });

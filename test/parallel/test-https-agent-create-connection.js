@@ -59,7 +59,7 @@ function createServer() {
   }));
 }
 
-// use port and option connect
+// Use port and option connect
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {
@@ -74,7 +74,7 @@ function createServer() {
   }));
 }
 
-// use port and host and option connect
+// Use port and host and option connect
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {
@@ -89,7 +89,7 @@ function createServer() {
   }));
 }
 
-// use port and host and option does not have agentKey
+// Use port and host and option does not have agentKey
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {
@@ -103,7 +103,7 @@ function createServer() {
   }));
 }
 
-// options is null
+// `options` is null
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {
@@ -118,7 +118,7 @@ function createServer() {
   }));
 }
 
-// options is undefined
+// `options` is undefined
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {

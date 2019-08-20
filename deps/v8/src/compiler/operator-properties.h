@@ -6,7 +6,7 @@
 #define V8_COMPILER_OPERATOR_PROPERTIES_H_
 
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +21,8 @@ class V8_EXPORT_PRIVATE OperatorProperties final {
   static int GetContextInputCount(const Operator* op) {
     return HasContextInput(op) ? 1 : 0;
   }
+
+  static bool NeedsExactContext(const Operator* op);
 
   static bool HasFrameStateInput(const Operator* op);
   static int GetFrameStateInputCount(const Operator* op) {

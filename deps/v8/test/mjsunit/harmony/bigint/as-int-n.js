@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint
-
 // BigInt.asIntN
 {
   assertEquals(2, BigInt.asIntN.length);
@@ -147,6 +145,10 @@
   assertEquals(-4n, BigInt.asIntN(3, "12"));
   assertEquals(0x123456789abcdefn,
                BigInt.asIntN(64, 0xabcdef0123456789abcdefn));
+}{
+  // Regression test for crbug.com/v8/8426.
+  assertEquals(-0x8000000000000000n,
+               BigInt.asIntN(64, -0x8000000000000000n));
 }
 
 // BigInt.asUintN
@@ -295,4 +297,8 @@
 }{
   assertThrows(() => BigInt.asUintN(3, 12), TypeError);
   assertEquals(4n, BigInt.asUintN(3, "12"));
+}{
+  // crbug.com/936506
+  assertEquals(1n, BigInt.asUintN(15, 0x100000001n));
+  assertEquals(1n, BigInt.asUintN(15, 0x10000000000000001n));
 }

@@ -10,11 +10,12 @@
 #include <unordered_map>
 
 #include "include/v8.h"
-#include "src/api.h"
-#include "src/handles-inl.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/utils.h"
+#include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/utils/utils.h"
 
 #include "test/cctest/cctest.h"
 
@@ -30,13 +31,13 @@ void GetTopLevelFunctionInfo(
   // Get the v8::internal::Script object from the API v8::Script.
   // The API object 'wraps' the compiled top-level function, not the i::Script.
   Handle<JSFunction> toplevel_fn = v8::Utils::OpenHandle(*script);
-  Handle<Script> i_script =
-      handle(Script::cast(toplevel_fn->shared()->script()));
-  SharedFunctionInfo::ScriptIterator iterator(i_script);
+  SharedFunctionInfo::ScriptIterator iterator(
+      toplevel_fn->GetIsolate(), Script::cast(toplevel_fn->shared().script()));
 
-  while (SharedFunctionInfo* shared = iterator.Next()) {
-    std::unique_ptr<char[]> name = String::cast(shared->name())->ToCString();
-    is_compiled->insert(std::make_pair(name.get(), shared->is_compiled()));
+  for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
+       shared = iterator.Next()) {
+    std::unique_ptr<char[]> name = String::cast(shared.Name()).ToCString();
+    is_compiled->insert(std::make_pair(name.get(), shared.is_compiled()));
   }
 }
 

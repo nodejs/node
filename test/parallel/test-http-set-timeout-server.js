@@ -58,7 +58,7 @@ test(function serverTimeout(cb) {
 
 test(function serverRequestTimeout(cb) {
   const server = http.createServer(common.mustCall((req, res) => {
-    // just do nothing, we should get a timeout event.
+    // Just do nothing, we should get a timeout event.
     const s = req.setTimeout(50, common.mustCall((socket) => {
       socket.destroy();
       server.close();
@@ -79,7 +79,7 @@ test(function serverRequestTimeout(cb) {
 
 test(function serverResponseTimeout(cb) {
   const server = http.createServer(common.mustCall((req, res) => {
-    // just do nothing, we should get a timeout event.
+    // Just do nothing, we should get a timeout event.
     const s = res.setTimeout(50, common.mustCall((socket) => {
       socket.destroy();
       server.close();
@@ -96,7 +96,7 @@ test(function serverResponseTimeout(cb) {
 
 test(function serverRequestNotTimeoutAfterEnd(cb) {
   const server = http.createServer(common.mustCall((req, res) => {
-    // just do nothing, we should get a timeout event.
+    // Just do nothing, we should get a timeout event.
     const s = req.setTimeout(50, common.mustNotCall());
     assert.ok(s instanceof http.IncomingMessage);
     res.on('timeout', common.mustCall());

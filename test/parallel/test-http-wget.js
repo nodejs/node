@@ -25,7 +25,7 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 
-// wget sends an HTTP/1.0 request with Connection: Keep-Alive
+// `wget` sends an HTTP/1.0 request with Connection: Keep-Alive
 //
 // Sending back a chunked response to an HTTP/1.0 client would be wrong,
 // so what has to happen in this case is that the connection is closed
@@ -40,7 +40,7 @@ const http = require('http');
 // content-length is not provided, that the connection is in fact
 // closed.
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello ');
   res.write('world\n');
@@ -48,30 +48,30 @@ const server = http.createServer(function(req, res) {
 });
 server.listen(0);
 
-server.on('listening', common.mustCall(function() {
-  const c = net.createConnection(this.address().port);
+server.on('listening', common.mustCall(() => {
+  const c = net.createConnection(server.address().port);
   let server_response = '';
 
   c.setEncoding('utf8');
 
-  c.on('connect', function() {
+  c.on('connect', () => {
     c.write('GET / HTTP/1.0\r\n' +
             'Connection: Keep-Alive\r\n\r\n');
   });
 
-  c.on('data', function(chunk) {
+  c.on('data', (chunk) => {
     console.log(chunk);
     server_response += chunk;
   });
 
-  c.on('end', common.mustCall(function() {
+  c.on('end', common.mustCall(() => {
     const m = server_response.split('\r\n\r\n');
     assert.strictEqual(m[1], 'hello world\n');
     console.log('got end');
     c.end();
   }));
 
-  c.on('close', common.mustCall(function() {
+  c.on('close', common.mustCall(() => {
     console.log('got close');
     server.close();
   }));

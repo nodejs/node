@@ -1,4 +1,4 @@
-// test UDP send/recv throughput with the "old" offset/length API
+// Test UDP send/recv throughput with the "old" offset/length API
 'use strict';
 
 const common = require('../common.js');
@@ -29,11 +29,11 @@ function main({ dur, len, num, type }) {
     }
   }
 
-  socket.on('listening', function() {
+  socket.on('listening', () => {
     bench.start();
     onsend();
 
-    setTimeout(function() {
+    setTimeout(() => {
       const bytes = (type === 'send' ? sent : received) * chunk.length;
       const gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
@@ -41,7 +41,7 @@ function main({ dur, len, num, type }) {
     }, dur * 1000);
   });
 
-  socket.on('message', function() {
+  socket.on('message', () => {
     received++;
   });
 

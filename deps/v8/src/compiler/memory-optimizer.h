@@ -10,6 +10,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -23,7 +26,7 @@ class Operator;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
+using NodeId = uint32_t;
 
 // Lowers all simplified memory access and allocation related nodes (i.e.
 // Allocate, LoadField, StoreField and friends) to machine operators.
@@ -31,8 +34,13 @@ typedef uint32_t NodeId;
 // implicitly.
 class MemoryOptimizer final {
  public:
-  MemoryOptimizer(JSGraph* jsgraph, Zone* zone, LoadPoisoning load_poisoning);
-  ~MemoryOptimizer() {}
+  enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
+
+  MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
+                  PoisoningMitigationLevel poisoning_level,
+                  AllocationFolding allocation_folding,
+                  const char* function_debug_name, TickCounter* tick_counter);
+  ~MemoryOptimizer() = default;
 
   void Optimize();
 
@@ -41,21 +49,23 @@ class MemoryOptimizer final {
   // together.
   class AllocationGroup final : public ZoneObject {
    public:
-    AllocationGroup(Node* node, PretenureFlag pretenure, Zone* zone);
-    AllocationGroup(Node* node, PretenureFlag pretenure, Node* size,
+    AllocationGroup(Node* node, AllocationType allocation, Zone* zone);
+    AllocationGroup(Node* node, AllocationType allocation, Node* size,
                     Zone* zone);
-    ~AllocationGroup() {}
+    ~AllocationGroup() = default;
 
     void Add(Node* object);
     bool Contains(Node* object) const;
-    bool IsNewSpaceAllocation() const { return pretenure() == NOT_TENURED; }
+    bool IsYoungGenerationAllocation() const {
+      return allocation() == AllocationType::kYoung;
+    }
 
-    PretenureFlag pretenure() const { return pretenure_; }
+    AllocationType allocation() const { return allocation_; }
     Node* size() const { return size_; }
 
    private:
     ZoneSet<NodeId> node_ids_;
-    PretenureFlag const pretenure_;
+    AllocationType const allocation_;
     Node* const size_;
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationGroup);
@@ -70,33 +80,33 @@ class MemoryOptimizer final {
     static AllocationState const* Closed(AllocationGroup* group, Zone* zone) {
       return new (zone) AllocationState(group);
     }
-    static AllocationState const* Open(AllocationGroup* group, int size,
+    static AllocationState const* Open(AllocationGroup* group, intptr_t size,
                                        Node* top, Zone* zone) {
       return new (zone) AllocationState(group, size, top);
     }
 
-    bool IsNewSpaceAllocation() const;
+    bool IsYoungGenerationAllocation() const;
 
     AllocationGroup* group() const { return group_; }
     Node* top() const { return top_; }
-    int size() const { return size_; }
+    intptr_t size() const { return size_; }
 
    private:
     AllocationState();
     explicit AllocationState(AllocationGroup* group);
-    AllocationState(AllocationGroup* group, int size, Node* top);
+    AllocationState(AllocationGroup* group, intptr_t size, Node* top);
 
     AllocationGroup* const group_;
     // The upper bound of the combined allocated object size on the current path
     // (max int if allocation folding is impossible on this path).
-    int const size_;
+    intptr_t const size_;
     Node* const top_;
 
     DISALLOW_COPY_AND_ASSIGN(AllocationState);
   };
 
   // An array of allocation states used to collect states on merges.
-  typedef ZoneVector<AllocationState const*> AllocationStates;
+  using AllocationStates = ZoneVector<AllocationState const*>;
 
   // We thread through tokens to represent the current state on a given effect
   // path through the graph.
@@ -109,14 +119,18 @@ class MemoryOptimizer final {
   void VisitAllocateRaw(Node*, AllocationState const*);
   void VisitCall(Node*, AllocationState const*);
   void VisitCallWithCallerSavedRegisters(Node*, AllocationState const*);
+  void VisitLoadFromObject(Node*, AllocationState const*);
   void VisitLoadElement(Node*, AllocationState const*);
   void VisitLoadField(Node*, AllocationState const*);
+  void VisitStoreToObject(Node*, AllocationState const*);
   void VisitStoreElement(Node*, AllocationState const*);
   void VisitStoreField(Node*, AllocationState const*);
+  void VisitStore(Node*, AllocationState const*);
   void VisitOtherEffect(Node*, AllocationState const*);
 
   Node* ComputeIndex(ElementAccess const&, Node*);
-  WriteBarrierKind ComputeWriteBarrierKind(Node* object,
+  WriteBarrierKind ComputeWriteBarrierKind(Node* node, Node* object,
+                                           Node* value,
                                            AllocationState const* state,
                                            WriteBarrierKind);
 
@@ -125,6 +139,8 @@ class MemoryOptimizer final {
   void EnqueueMerge(Node*, int, AllocationState const*);
   void EnqueueUses(Node*, AllocationState const*);
   void EnqueueUse(Node*, int, AllocationState const*);
+
+  bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
 
   AllocationState const* empty_state() const { return empty_state_; }
   Graph* graph() const;
@@ -142,7 +158,10 @@ class MemoryOptimizer final {
   ZoneQueue<Token> tokens_;
   Zone* const zone_;
   GraphAssembler graph_assembler_;
-  LoadPoisoning load_poisoning_;
+  PoisoningMitigationLevel poisoning_level_;
+  AllocationFolding allocation_folding_;
+  const char* function_debug_name_;
+  TickCounter* const tick_counter_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);
 };

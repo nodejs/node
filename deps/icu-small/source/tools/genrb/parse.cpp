@@ -1018,6 +1018,11 @@ addCollation(ParseState* state, TableResource  *result, const char *collationTyp
             icu::CollationInfo::printReorderRanges(
                     *t->data, t->settings->reorderCodes, t->settings->reorderCodesLength);
         }
+#if 0  // debugging output
+    } else {
+        printf("%s~%s collation tailoring part sizes:\n", state->filename, collationType);
+        icu::CollationInfo::printSizes(totalSize, indexes);
+#endif
     }
     struct SResource *collationBin = bin_open(state->bundle, "%%CollationBin", totalSize, dest, NULL, NULL, status);
     result->add(collationBin, line, *status);
@@ -1995,6 +2000,8 @@ parse(UCHARBUF *buf, const char *inputDir, const char *outputDir, const char *fi
 
     if (state.bundle == NULL || U_FAILURE(*status))
     {
+        delete state.bundle;
+
         return NULL;
     }
 

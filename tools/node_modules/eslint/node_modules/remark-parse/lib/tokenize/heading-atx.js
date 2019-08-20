@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:heading-atx
- * @fileoverview Tokenise an ATX-style heading.
- */
-
 'use strict';
 
 module.exports = atxHeading;
@@ -17,7 +9,6 @@ var C_HASH = '#';
 
 var MAX_ATX_COUNT = 6;
 
-/* Tokenise an ATX-style heading. */
 function atxHeading(eat, value, silent) {
   var self = this;
   var settings = self.options;

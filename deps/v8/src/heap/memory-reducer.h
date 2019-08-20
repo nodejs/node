@@ -7,11 +7,15 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
+
+namespace heap {
+class HeapTester;
+}  // namespace heap
 
 class Heap;
 
@@ -110,11 +114,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     bool can_start_incremental_gc;
   };
 
-  explicit MemoryReducer(Heap* heap)
-      : heap_(heap),
-        state_(kDone, 0, 0.0, 0.0, 0),
-        js_calls_counter_(0),
-        js_calls_sample_time_ms_(0.0) {}
+  explicit MemoryReducer(Heap* heap);
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
   void NotifyPossibleGarbage(const Event& event);
@@ -123,7 +123,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   // the incoming event.
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
-  void ScheduleTimer(double time_ms, double delay_ms);
+  void ScheduleTimer(double delay_ms);
   void TearDown();
   static const int kLongDelayMs;
   static const int kShortDelayMs;
@@ -159,12 +159,13 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static bool WatchdogGC(const State& state, const Event& event);
 
   Heap* heap_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   State state_;
   unsigned int js_calls_counter_;
   double js_calls_sample_time_ms_;
 
   // Used in cctest.
-  friend class HeapTester;
+  friend class heap::HeapTester;
   DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
 

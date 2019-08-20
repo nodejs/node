@@ -5,13 +5,13 @@
 #ifndef V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 #define V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 
-#include "src/allocation.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
-#include "src/globals.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -98,10 +98,16 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   };
 
   // Backup/restore register file to/from a fixed array of the correct length.
-  compiler::Node* ExportRegisterFile(compiler::Node* array,
-                                     const RegListNodePair& registers);
-  compiler::Node* ImportRegisterFile(compiler::Node* array,
-                                     const RegListNodePair& registers);
+  // There is an asymmetry between suspend/export and resume/import.
+  // - Suspend copies arguments and registers to the generator.
+  // - Resume copies only the registers from the generator, the arguments
+  //   are copied by the ResumeGenerator trampoline.
+  compiler::Node* ExportParametersAndRegisterFile(
+      TNode<FixedArray> array, const RegListNodePair& registers,
+      TNode<Int32T> formal_parameter_count);
+  compiler::Node* ImportRegisterFile(TNode<FixedArray> array,
+                                     const RegListNodePair& registers,
+                                     TNode<Int32T> formal_parameter_count);
 
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);
@@ -138,8 +144,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
-  // Load the FeedbackVector for the current function.
-  compiler::Node* LoadFeedbackVector();
+  // Load the FeedbackVector for the current function. The retuned node could be
+  // undefined.
+  compiler::TNode<HeapObject> LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
@@ -156,7 +163,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // |feedback_vector| at |slot_id|, and the call counts in
   // the |feedback_vector| at |slot_id+1|.
   void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
-                           compiler::Node* feedback_vector,
+                           compiler::Node* maybe_feedback_vector,
                            compiler::Node* slot_id);
 
   // Call JSFunction or Callable |function| with |args| arguments, possibly
@@ -230,7 +237,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void UpdateInterruptBudgetOnReturn();
 
   // Returns the OSR nesting level from the bytecode header.
-  compiler::Node* LoadOSRNestingLevel();
+  compiler::Node* LoadOsrNestingLevel();
 
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();
@@ -248,7 +255,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
-  void AbortIfRegisterCountInvalid(compiler::Node* register_file,
+  void AbortIfRegisterCountInvalid(compiler::Node* parameters_and_registers,
+                                   compiler::Node* formal_parameter_count,
                                    compiler::Node* register_count);
 
   // Dispatch to frame dropper trampoline if necessary.
@@ -262,9 +270,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   static bool TargetSupportsUnalignedAccess();
 
   void ToNumberOrNumeric(Object::Conversion mode);
-
-  // Lazily deserializes the current bytecode's handler and tail-calls into it.
-  void DeserializeLazyAndDispatch();
 
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
@@ -288,11 +293,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* NextRegister(compiler::Node* reg_index);
   compiler::Node* LoadRegister(Node* reg_index);
   void StoreRegister(compiler::Node* value, compiler::Node* reg_index);
-
-  // Poison |value| on speculative paths.
-  compiler::Node* PoisonOnSpeculationTagged(Node* value);
-  compiler::Node* PoisonOnSpeculationWord(Node* value);
-  compiler::Node* PoisonOnSpeculationInt32(Node* value);
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
@@ -321,37 +321,51 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // The |result_type| determines the size and signedness.  of the
   // value read. This method should only be used on architectures that
   // do not support unaligned memory accesses.
-  compiler::Node* BytecodeOperandReadUnalignedUnpoisoned(
-      int relative_offset, MachineType result_type);
+  compiler::Node* BytecodeOperandReadUnaligned(
+      int relative_offset, MachineType result_type,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
-  // Returns zero- or sign-extended to word32 value of the operand. Values are
-  // not poisoned on speculation - should be used with care.
-  compiler::Node* BytecodeOperandUnsignedByteUnpoisoned(int operand_index);
-  compiler::Node* BytecodeOperandSignedByteUnpoisoned(int operand_index);
-  compiler::Node* BytecodeOperandUnsignedShortUnpoisoned(int operand_index);
-  compiler::Node* BytecodeOperandSignedShortUnpoisoned(int operand_index);
-  compiler::Node* BytecodeOperandUnsignedQuadUnpoisoned(int operand_index);
-  compiler::Node* BytecodeOperandSignedQuadUnpoisoned(int operand_index);
-  compiler::Node* BytecodeSignedOperandUnpoisoned(int operand_index,
-                                                  OperandSize operand_size);
-  compiler::Node* BytecodeUnsignedOperandUnpoisoned(int operand_index,
-                                                    OperandSize operand_size);
+  // Returns zero- or sign-extended to word32 value of the operand.
+  compiler::Node* BytecodeOperandUnsignedByte(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeOperandSignedByte(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeOperandUnsignedShort(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeOperandSignedShort(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeOperandUnsignedQuad(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeOperandSignedQuad(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns zero- or sign-extended to word32 value of the operand of
   // given size.
-  compiler::Node* BytecodeSignedOperand(int operand_index,
-                                        OperandSize operand_size);
-  compiler::Node* BytecodeUnsignedOperand(int operand_index,
-                                          OperandSize operand_size);
+  compiler::Node* BytecodeSignedOperand(
+      int operand_index, OperandSize operand_size,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  compiler::Node* BytecodeUnsignedOperand(
+      int operand_index, OperandSize operand_size,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns the word-size sign-extended register index for bytecode operand
   // |operand_index| in the current bytecode. Value is not poisoned on
   // speculation since the value loaded from the register is poisoned instead.
-  compiler::Node* BytecodeOperandRegUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandReg(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns the word zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode for use when loading a .
-  compiler::Node* BytecodeOperandConstantPoolIdxUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandConstantPoolIdx(
+      int operand_index,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the
@@ -413,9 +427,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-
-  Node* speculation_poison_;
-
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;
 

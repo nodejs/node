@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:locate:emphasis
- * @fileoverview Locate italics / emphasis.
- */
-
 'use strict';
 
 module.exports = locate;

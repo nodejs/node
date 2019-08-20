@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file
 
-// Flags: --allow-natives-syntax --enable-inspector
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -12,19 +12,16 @@ eval("var something1 = 25; "
 
 function foo() {  return ChooseAnimal() }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals("Cat", foo());
-    %OptimizeFunctionOnNextCall(foo);
+%OptimizeFunctionOnNextCall(foo);
 
 foo();
 
-var script = Debug.findScript(ChooseAnimal);
+var new_source =
+    Debug.scriptSource(ChooseAnimal).replace('Cat', "Cap' + 'y' + 'bara");
+print('new source: ' + new_source);
 
-var orig_animal = "Cat";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + 'y' + 'bara";
-
-var change_log = new Array();
-
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+%LiveEditPatchScript(ChooseAnimal, new_source);
 
 assertEquals("Capybara", foo());

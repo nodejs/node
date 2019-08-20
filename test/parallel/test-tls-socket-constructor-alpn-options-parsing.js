@@ -13,17 +13,12 @@ new tls.TLSSocket(null, {
   ALPNProtocols: ['http/1.1'],
 });
 
-if (!process.features.tls_alpn)
-  common.skip('node compiled without ALPN feature of OpenSSL');
-
 const assert = require('assert');
 const net = require('net');
 const fixtures = require('../common/fixtures');
 
 const key = fixtures.readKey('agent1-key.pem');
 const cert = fixtures.readKey('agent1-cert.pem');
-
-const protocols = [];
 
 const server = net.createServer(common.mustCall((s) => {
   const tlsSocket = new tls.TLSSocket(s, {
@@ -35,10 +30,9 @@ const server = net.createServer(common.mustCall((s) => {
   });
 
   tlsSocket.on('secure', common.mustCall(() => {
-    protocols.push({
-      alpnProtocol: tlsSocket.alpnProtocol,
-    });
+    assert.strictEqual(tlsSocket.alpnProtocol, 'http/1.1');
     tlsSocket.end();
+    server.close();
   }));
 }));
 
@@ -49,13 +43,7 @@ server.listen(0, common.mustCall(() => {
     ALPNProtocols: ['h2', 'http/1.1']
   };
 
-  tls.connect(alpnOpts, function() {
+  tls.connect(alpnOpts, common.mustCall(function() {
     this.end();
-
-    server.close();
-
-    assert.deepStrictEqual(protocols, [
-      { alpnProtocol: 'http/1.1' },
-    ]);
-  });
+  }));
 }));

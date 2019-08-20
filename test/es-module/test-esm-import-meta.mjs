@@ -1,6 +1,5 @@
 // Flags: --experimental-modules
-
-import '../common';
+import '../common/index.mjs';
 import assert from 'assert';
 
 assert.strictEqual(Object.getPrototypeOf(import.meta), null);

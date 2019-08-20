@@ -129,6 +129,17 @@ class ZoneSet : public std::set<K, Compare, ZoneAllocator<K>> {
                                                ZoneAllocator<K>(zone)) {}
 };
 
+// A wrapper subclass for std::multiset to make it easy to construct one that
+// uses a zone allocator.
+template <typename K, typename Compare = std::less<K>>
+class ZoneMultiset : public std::multiset<K, Compare, ZoneAllocator<K>> {
+ public:
+  // Constructs an empty set.
+  explicit ZoneMultiset(Zone* zone)
+      : std::multiset<K, Compare, ZoneAllocator<K>>(Compare(),
+                                                    ZoneAllocator<K>(zone)) {}
+};
+
 // A wrapper subclass for std::map to make it easy to construct one that uses
 // a zone allocator.
 template <typename K, typename V, typename Compare = std::less<K>>
@@ -150,10 +161,10 @@ class ZoneUnorderedMap
                                 ZoneAllocator<std::pair<const K, V>>> {
  public:
   // Constructs an empty map.
-  explicit ZoneUnorderedMap(Zone* zone)
+  explicit ZoneUnorderedMap(Zone* zone, size_t bucket_count = 100)
       : std::unordered_map<K, V, Hash, KeyEqual,
                            ZoneAllocator<std::pair<const K, V>>>(
-            100, Hash(), KeyEqual(),
+            bucket_count, Hash(), KeyEqual(),
             ZoneAllocator<std::pair<const K, V>>(zone)) {}
 };
 
@@ -184,8 +195,8 @@ class ZoneMultimap
 };
 
 // Typedefs to shorten commonly used vectors.
-typedef ZoneVector<bool> BoolVector;
-typedef ZoneVector<int> IntVector;
+using BoolVector = ZoneVector<bool>;
+using IntVector = ZoneVector<int>;
 
 }  // namespace internal
 }  // namespace v8

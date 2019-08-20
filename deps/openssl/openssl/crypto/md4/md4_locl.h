@@ -39,9 +39,9 @@ void md4_block_data_order(MD4_CTX *c, const void *p, size_t num);
 */
 
 /*
- * As pointed out by Wei Dai <weidai@eskimo.com>, the above can be simplified
- * to the code below.  Wei attributes these optimizations to Peter Gutmann's
- * SHS code, and he attributes it to Rich Schroeppel.
+ * As pointed out by Wei Dai, the above can be simplified to the code
+ * below.  Wei attributes these optimizations to Peter Gutmann's SHS code,
+ * and he attributes it to Rich Schroeppel.
  */
 #define F(b,c,d)        ((((c) ^ (d)) & (b)) ^ (d))
 #define G(b,c,d)        (((b) & (c)) | ((b) & (d)) | ((c) & (d)))

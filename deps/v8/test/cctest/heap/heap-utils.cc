@@ -4,21 +4,24 @@
 
 #include "test/cctest/heap/heap-utils.h"
 
-#include "src/factory.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
-#include "src/isolate.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
 namespace heap {
 
+void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
+
+void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
+
 void SealCurrentObjects(Heap* heap) {
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          GarbageCollectionReason::kTesting);
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          GarbageCollectionReason::kTesting);
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
@@ -27,7 +30,8 @@ void SealCurrentObjects(Heap* heap) {
 }
 
 int FixedArrayLenFromSize(int size) {
-  return (size - FixedArray::kHeaderSize) / kPointerSize;
+  return Min((size - FixedArray::kHeaderSize) / kTaggedSize,
+             FixedArray::kMaxRegularLength);
 }
 
 std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
@@ -37,37 +41,46 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
-  CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
   Handle<FixedArray> array;
-  for (int allocated = 0; allocated != (Page::kAllocatableMemory - remainder);
-       allocated += array->Size()) {
-    if (allocated == (Page::kAllocatableMemory - kArraySize)) {
-      array = isolate->factory()->NewFixedArray(
-          heap::FixedArrayLenFromSize(kArraySize - remainder), TENURED);
-      CHECK_EQ(kArraySize - remainder, array->Size());
+  int allocated = 0;
+  do {
+    if (allocated + kArraySize * 2 >
+        static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) {
+      int size =
+          kArraySize * 2 -
+          ((allocated + kArraySize * 2) -
+           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) -
+          remainder;
+      int last_array_len = heap::FixedArrayLenFromSize(size);
+      array = isolate->factory()->NewFixedArray(last_array_len,
+                                                AllocationType::kOld);
+      CHECK_EQ(size, array->Size());
+      allocated += array->Size() + remainder;
     } else {
-      array = isolate->factory()->NewFixedArray(kArrayLen, TENURED);
+      array =
+          isolate->factory()->NewFixedArray(kArrayLen, AllocationType::kOld);
+      allocated += array->Size();
       CHECK_EQ(kArraySize, array->Size());
     }
     if (handles.empty()) {
       // Check that allocations started on a new page.
-      CHECK_EQ(array->address(),
-               Page::FromAddress(array->address())->area_start());
+      CHECK_EQ(array->address(), Page::FromHeapObject(*array)->area_start());
     }
     handles.push_back(array);
-  }
+  } while (allocated <
+           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()));
   return handles;
 }
 
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
-                                              PretenureFlag tenure,
+                                              AllocationType allocation,
                                               int object_size) {
   std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   int allocate_memory;
   int length;
   int free_memory = padding_size;
-  if (tenure == i::TENURED) {
+  if (allocation == i::AllocationType::kOld) {
     heap->old_space()->FreeLinearAllocationArea();
     int overall_free_memory = static_cast<int>(heap->old_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
@@ -86,7 +99,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       length = FixedArrayLenFromSize(allocate_memory);
       if (length <= 0) {
         // Not enough room to create another fixed array. Let's create a filler.
-        if (free_memory > (2 * kPointerSize)) {
+        if (free_memory > (2 * kTaggedSize)) {
           heap->CreateFillerObjectAt(
               *heap->old_space()->allocation_top_address(), free_memory,
               ClearRecordedSlots::kNo);
@@ -94,10 +107,12 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
         break;
       }
     }
-    handles.push_back(isolate->factory()->NewFixedArray(length, tenure));
-    CHECK((tenure == NOT_TENURED && heap->InNewSpace(*handles.back())) ||
-          (tenure == TENURED && heap->InOldSpace(*handles.back())));
-    free_memory -= allocate_memory;
+    handles.push_back(isolate->factory()->NewFixedArray(length, allocation));
+    CHECK((allocation == AllocationType::kYoung &&
+           heap->new_space()->Contains(*handles.back())) ||
+          (allocation == AllocationType::kOld &&
+           heap->InOldSpace(*handles.back())));
+    free_memory -= handles.back()->Size();
   }
   return handles;
 }
@@ -110,8 +125,8 @@ void AllocateAllButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
-  std::vector<Handle<FixedArray>> handles =
-      heap::CreatePadding(space->heap(), new_linear_size, i::NOT_TENURED);
+  std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
+      space->heap(), new_linear_size, i::AllocationType::kYoung);
   if (out_handles != nullptr)
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
 }
@@ -127,8 +142,8 @@ bool FillUpOnePage(v8::internal::NewSpace* space,
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   if (space_remaining == 0) return false;
-  std::vector<Handle<FixedArray>> handles =
-      heap::CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);
+  std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
+      space->heap(), space_remaining, i::AllocationType::kYoung);
   if (out_handles != nullptr)
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
   return true;
@@ -142,6 +157,7 @@ void SimulateFullSpace(v8::internal::NewSpace* space,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
+  const double kStepSizeInMs = 100;
   CHECK(FLAG_incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -160,8 +176,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  i::StepOrigin::kV8);
+    marking->V8Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                    i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -197,6 +213,7 @@ void ForceEvacuationCandidate(Page* page) {
   CHECK(FLAG_manual_evacuation_candidates_selection);
   page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   PagedSpace* space = static_cast<PagedSpace*>(page->owner());
+  DCHECK_NOT_NULL(space);
   Address top = space->top();
   Address limit = space->limit();
   if (top < limit && Page::FromAllocationAreaAddress(top) == page) {

@@ -26,7 +26,7 @@ class LoadEliminationTest : public TypedGraphTest {
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), nullptr, simplified(), nullptr) {
   }
-  ~LoadEliminationTest() override {}
+  ~LoadEliminationTest() override = default;
 
  protected:
   JSGraph* jsgraph() { return &jsgraph_; }
@@ -42,7 +42,7 @@ TEST_F(LoadEliminationTest, LoadElementAndLoadElement) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* index = Parameter(Type::UnsignedSmall(), 1);
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -68,7 +68,7 @@ TEST_F(LoadEliminationTest, StoreElementAndLoadElement) {
   Node* control = graph()->start();
   Node* index = Parameter(Type::UnsignedSmall(), 1);
   Node* value = Parameter(Type::Any(), 2);
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -95,7 +95,7 @@ TEST_F(LoadEliminationTest, StoreElementAndStoreFieldAndLoadElement) {
   Node* control = graph()->start();
   Node* index = Parameter(Type::UnsignedSmall(), 1);
   Node* value = Parameter(Type::Any(), 2);
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -125,7 +125,7 @@ TEST_F(LoadEliminationTest, LoadFieldAndLoadField) {
   Node* object = Parameter(Type::Any(), 0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,         kPointerSize,
+  FieldAccess const access = {kTaggedBase,         kTaggedSize,
                               MaybeHandle<Name>(), MaybeHandle<Map>(),
                               Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
@@ -152,7 +152,7 @@ TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
   Node* value = Parameter(Type::Any(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess access = {kTaggedBase,         kPointerSize,
+  FieldAccess access = {kTaggedBase,         kTaggedSize,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
                         Type::Any(),         MachineType::AnyTagged(),
                         kNoWriteBarrier};
@@ -180,16 +180,16 @@ TEST_F(LoadEliminationTest, StoreFieldAndKillFields) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
 
-  FieldAccess access1 = {kTaggedBase,         kPointerSize,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Any(),         MachineType::AnyTagged(),
-                        kNoWriteBarrier};
+  FieldAccess access1 = {kTaggedBase,         kTaggedSize,
+                         MaybeHandle<Name>(), MaybeHandle<Map>(),
+                         Type::Any(),         MachineType::AnyTagged(),
+                         kNoWriteBarrier};
 
   // Offset that out of field cache size.
-  FieldAccess access2 = {kTaggedBase,         2048 * kPointerSize,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Any(),         MachineType::AnyTagged(),
-                        kNoWriteBarrier};
+  FieldAccess access2 = {kTaggedBase,         2048 * kTaggedSize,
+                         MaybeHandle<Name>(), MaybeHandle<Map>(),
+                         Type::Any(),         MachineType::AnyTagged(),
+                         kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
   LoadElimination load_elimination(&editor, jsgraph(), zone());
@@ -220,7 +220,7 @@ TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
   Node* index = Parameter(Type::UnsignedSmall(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess access = {kTaggedBase,         kPointerSize,
+  FieldAccess access = {kTaggedBase,         kTaggedSize,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
                         Type::Any(),         MachineType::AnyTagged(),
                         kNoWriteBarrier};
@@ -253,7 +253,7 @@ TEST_F(LoadEliminationTest, LoadElementOnTrueBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -288,7 +288,7 @@ TEST_F(LoadEliminationTest, LoadElementOnFalseBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -322,7 +322,7 @@ TEST_F(LoadEliminationTest, LoadFieldOnFalseBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,         kPointerSize,
+  FieldAccess const access = {kTaggedBase,         kTaggedSize,
                               MaybeHandle<Name>(), MaybeHandle<Map>(),
                               Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
@@ -358,7 +358,7 @@ TEST_F(LoadEliminationTest, LoadFieldOnTrueBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,         kPointerSize,
+  FieldAccess const access = {kTaggedBase,         kTaggedSize,
                               MaybeHandle<Name>(), MaybeHandle<Map>(),
                               Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
@@ -394,7 +394,7 @@ TEST_F(LoadEliminationTest, LoadFieldWithTypeMismatch) {
   Node* value = Parameter(Type::Signed32(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,         kPointerSize,
+  FieldAccess const access = {kTaggedBase,         kTaggedSize,
                               MaybeHandle<Name>(), MaybeHandle<Map>(),
                               Type::Unsigned31(),  MachineType::AnyTagged(),
                               kNoWriteBarrier};
@@ -410,9 +410,10 @@ TEST_F(LoadEliminationTest, LoadFieldWithTypeMismatch) {
 
   Node* load = graph()->NewNode(simplified()->LoadField(access), object, effect,
                                 control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, IsTypeGuard(value, _), _, _));
   Reduction r = load_elimination.Reduce(load);
   ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(load, r.replacement());
+  EXPECT_THAT(r.replacement(), IsTypeGuard(value, _));
 }
 
 TEST_F(LoadEliminationTest, LoadElementWithTypeMismatch) {
@@ -421,7 +422,7 @@ TEST_F(LoadEliminationTest, LoadElementWithTypeMismatch) {
   Node* value = Parameter(Type::Signed32(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Unsigned31(),
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Unsigned31(),
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -445,7 +446,7 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
   Node* value1 = Parameter(Type::Signed32(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,         kPointerSize,
+  FieldAccess const access = {kTaggedBase,         kTaggedSize,
                               MaybeHandle<Name>(), MaybeHandle<Map>(),
                               Type::Signed32(),    MachineType::AnyTagged(),
                               kNoWriteBarrier};
@@ -459,9 +460,9 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   load_elimination.Reduce(effect);
 
-  Node* object0 = effect =
-      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                       jsgraph()->Constant(16), effect, control);
+  Node* object0 = effect = graph()->NewNode(
+      simplified()->Allocate(Type::Any(), AllocationType::kYoung),
+      jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 
   Node* region0 = effect =
@@ -472,9 +473,9 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   load_elimination.Reduce(effect);
 
-  Node* object1 = effect =
-      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                       jsgraph()->Constant(16), effect, control);
+  Node* object1 = effect = graph()->NewNode(
+      simplified()->Allocate(Type::Any(), AllocationType::kYoung),
+      jsgraph()->Constant(16), effect, control);
   load_elimination.Reduce(effect);
 
   Node* region1 = effect =

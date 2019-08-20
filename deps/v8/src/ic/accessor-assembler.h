@@ -5,7 +5,7 @@
 #ifndef V8_IC_ACCESSOR_ASSEMBLER_H_
 #define V8_IC_ACCESSOR_ASSEMBLER_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -16,26 +16,37 @@ class CodeAssemblerState;
 
 class ExitPoint;
 
-class AccessorAssembler : public CodeStubAssembler {
+class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  public:
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
+  template <class T>
+  using TNode = compiler::TNode<T>;
+  template <class T>
+  using SloppyTNode = compiler::SloppyTNode<T>;
 
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
   void GenerateLoadIC();
+  void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
-  void GenerateLoadField();
   void GenerateLoadICTrampoline();
+  void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
-  void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
+  void GenerateKeyedLoadICTrampoline();
+  void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
+  void GenerateCloneObjectIC();
+  void GenerateCloneObjectIC_Slow();
+  void GenerateKeyedHasIC();
+  void GenerateKeyedHasIC_Megamorphic();
+  void GenerateKeyedHasIC_PolymorphicName();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
@@ -43,8 +54,10 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
 
+  void GenerateStoreInArrayLiteralIC();
+
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
-                         Label* if_handler, Variable* var_handler,
+                         Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
 
   Node* StubCachePrimaryOffsetForTesting(Node* name, Node* map) {
@@ -55,24 +68,78 @@ class AccessorAssembler : public CodeStubAssembler {
   }
 
   struct LoadICParameters {
-    LoadICParameters(Node* context, Node* receiver, Node* name, Node* slot,
-                     Node* vector, Node* holder = nullptr)
-        : context(context),
-          receiver(receiver),
-          name(name),
-          slot(slot),
-          vector(vector),
-          holder(holder ? holder : receiver) {}
+    LoadICParameters(TNode<Context> context, Node* receiver, Node* name,
+                     Node* slot, Node* vector, Node* holder = nullptr)
+        : context_(context),
+          receiver_(receiver),
+          name_(name),
+          slot_(slot),
+          vector_(vector),
+          holder_(holder ? holder : receiver) {}
 
-    Node* context;
-    Node* receiver;
-    Node* name;
-    Node* slot;
-    Node* vector;
-    Node* holder;
+    LoadICParameters(const LoadICParameters* p, Node* unique_name)
+        : context_(p->context_),
+          receiver_(p->receiver_),
+          name_(unique_name),
+          slot_(p->slot_),
+          vector_(p->vector_),
+          holder_(p->holder_) {}
+
+    TNode<Context> context() const { return context_; }
+    Node* receiver() const { return receiver_; }
+    Node* name() const { return name_; }
+    Node* slot() const { return slot_; }
+    Node* vector() const { return vector_; }
+    Node* holder() const { return holder_; }
+
+   private:
+    TNode<Context> context_;
+    Node* receiver_;
+    Node* name_;
+    Node* slot_;
+    Node* vector_;
+    Node* holder_;
   };
 
-  void LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
+  struct LazyLoadICParameters {
+    LazyLoadICParameters(LazyNode<Context> context, Node* receiver,
+                         LazyNode<Object> name, Node* slot, Node* vector,
+                         Node* holder = nullptr)
+        : context_(context),
+          receiver_(receiver),
+          name_(name),
+          slot_(slot),
+          vector_(vector),
+          holder_(holder ? holder : receiver) {}
+
+    explicit LazyLoadICParameters(const LoadICParameters* p)
+        : receiver_(p->receiver()),
+          slot_(p->slot()),
+          vector_(p->vector()),
+          holder_(p->holder()) {
+      TNode<Context> p_context = p->context();
+      context_ = [=] { return p_context; };
+      TNode<Object> p_name = TNode<Object>::UncheckedCast(p->name());
+      name_ = [=] { return p_name; };
+    }
+
+    TNode<Context> context() const { return context_(); }
+    Node* receiver() const { return receiver_; }
+    Node* name() const { return name_(); }
+    Node* slot() const { return slot_; }
+    Node* vector() const { return vector_; }
+    Node* holder() const { return holder_; }
+
+   private:
+    LazyNode<Context> context_;
+    Node* receiver_;
+    LazyNode<Object> name_;
+    Node* slot_;
+    Node* vector_;
+    Node* holder_;
+  };
+
+  void LoadGlobalIC(Node* vector, Node* slot,
                     const LazyNode<Context>& lazy_context,
                     const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
                     ExitPoint* exit_point,
@@ -80,30 +147,56 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
   // construction on common paths.
-  void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
+  void LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
+                              ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  Node* LoadHandlerDataField(Node* handler, int data_index);
+  TNode<MaybeObject> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                          int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
-                      Node* slot, Node* vector)
+    StoreICParameters(TNode<Context> context, Node* receiver, Node* name,
+                      SloppyTNode<Object> value, Node* slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
-          value(value) {}
-    Node* value;
+          value_(value) {}
+
+    SloppyTNode<Object> value() const { return value_; }
+
+   private:
+    SloppyTNode<Object> value_;
   };
 
+  enum class LoadAccessMode { kLoad, kHas };
   enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
-      ElementSupport support_elements = kOnlyProperties);
+      const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
+      ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
+  enum StoreTransitionMapFlags {
+    kCheckPrototypeValidity = 1 << 0,
+    kValidateTransitionHandler = 1 << 1,
+    kStoreTransitionMapFlagsMask =
+        kCheckPrototypeValidity | kValidateTransitionHandler,
+  };
+  void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
+                                             TNode<Map> transition_map,
+                                             Label* miss,
+                                             StoreTransitionMapFlags flags);
+
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
-  void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
+  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield3 = nullptr);
 
-  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
+  void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
+                                         Node* descriptors,
+                                         Node* descriptor_name_index,
+                                         Node* details, Node* value,
+                                         Label* slow,
+                                         bool do_transitioning_store);
+
+  void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
+                      Node* representation, Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -112,50 +205,71 @@ class AccessorAssembler : public CodeStubAssembler {
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
   void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
-                         Node* feedback, Variable* var_handler,
-                         Label* if_handler, Label* miss, ExitPoint* exit_point);
+                         TNode<HeapObject> feedback,
+                         TVariable<MaybeObject>* var_handler, Label* if_handler,
+                         Label* miss, ExitPoint* exit_point);
 
-  Node* LoadDescriptorValue(Node* map, Node* descriptor);
+  TNode<Object> LoadDescriptorValue(TNode<Map> map,
+                                    TNode<IntPtrT> descriptor_entry);
+  TNode<MaybeObject> LoadDescriptorValueOrFieldType(
+      TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 
-  void KeyedLoadIC(const LoadICParameters* p);
+  void KeyedLoadIC(const LoadICParameters* p, LoadAccessMode access_mode);
   void KeyedLoadICGeneric(const LoadICParameters* p);
-  void KeyedLoadICPolymorphicName(const LoadICParameters* p);
+  void KeyedLoadICPolymorphicName(const LoadICParameters* p,
+                                  LoadAccessMode access_mode);
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
+  void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  Node* TryMonomorphicCase(Node* slot, Node* vector, Node* receiver_map,
-                           Label* if_handler, Variable* var_handler,
-                           Label* if_miss);
-  void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
-                             Label* if_handler, Variable* var_handler,
-                             Label* if_miss, int min_feedback_capacity);
+  TNode<MaybeObject> TryMonomorphicCase(Node* slot, Node* vector,
+                                        Node* receiver_map, Label* if_handler,
+                                        TVariable<MaybeObject>* var_handler,
+                                        Label* if_miss);
+  void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
+                             Label* if_handler,
+                             TVariable<MaybeObject>* var_handler,
+                             Label* if_miss);
 
   // LoadIC implementation.
-  enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
-      const LoadICParameters* p, Node* handler, Label* miss,
+      const LazyLoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
-      ElementSupport support_elements = kOnlyProperties);
+      ElementSupport support_elements = kOnlyProperties,
+      LoadAccessMode access_mode = LoadAccessMode::kLoad);
 
-  void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
-                                  Node* smi_handler, Node* handler, Label* miss,
+  void HandleLoadICSmiHandlerCase(const LazyLoadICParameters* p, Node* holder,
+                                  SloppyTNode<Smi> smi_handler,
+                                  SloppyTNode<Object> handler, Label* miss,
                                   ExitPoint* exit_point,
                                   OnNonExistent on_nonexistent,
-                                  ElementSupport support_elements);
+                                  ElementSupport support_elements,
+                                  LoadAccessMode access_mode);
 
-  void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
+  void HandleLoadICProtoHandler(const LazyLoadICParameters* p, Node* handler,
                                 Variable* var_holder, Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
-                                ExitPoint* exit_point, ICMode ic_mode);
+                                ExitPoint* exit_point, ICMode ic_mode,
+                                LoadAccessMode access_mode);
+
+  void HandleLoadCallbackProperty(const LazyLoadICParameters* p,
+                                  TNode<JSObject> holder,
+                                  TNode<WordT> handler_word,
+                                  ExitPoint* exit_point);
+
+  void HandleLoadAccessor(const LazyLoadICParameters* p,
+                          TNode<CallHandlerInfo> call_handler_info,
+                          TNode<WordT> handler_word, TNode<DataHandler> handler,
+                          TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
 
   void HandleLoadField(Node* holder, Node* handler_word,
                        Variable* var_double_value, Label* rebox_double,
@@ -163,6 +277,18 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void EmitAccessCheck(Node* expected_native_context, Node* context,
                        Node* receiver, Label* can_access, Label* miss);
+
+  void HandleLoadICSmiHandlerLoadNamedCase(
+      const LazyLoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
+      TNode<WordT> handler_word, Label* rebox_double,
+      Variable* var_double_value, SloppyTNode<Object> handler, Label* miss,
+      ExitPoint* exit_point, OnNonExistent on_nonexistent,
+      ElementSupport support_elements);
+
+  void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
+                                          Node* holder,
+                                          TNode<IntPtrT> handler_kind,
+                                          Label* miss, ExitPoint* exit_point);
 
   // LoadGlobalIC implementation.
 
@@ -181,19 +307,17 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // StoreIC implementation.
 
-  void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ICMode ic_mode,
+  void HandleStoreICProtoHandler(const StoreICParameters* p,
+                                 TNode<StoreHandler> handler, Label* miss,
+                                 ICMode ic_mode,
                                  ElementSupport support_elements);
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
-                                   Node* value, Node* transition, Label* miss);
-  // If |transition| is nullptr then the normal field store is generated or
-  // transitioning store otherwise.
+                                   Node* value, Label* miss);
   void HandleStoreFieldAndReturn(Node* handler_word, Node* holder,
                                  Representation representation, Node* value,
-                                 Node* transition, Label* miss);
+                                 Label* miss);
 
+  void CheckPrototypeValidityCell(Node* maybe_validity_cell, Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
                                        Node* handler_word);
 
@@ -206,19 +330,20 @@ class AccessorAssembler : public CodeStubAssembler {
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(Node* receiver, Node* receiver_map,
-                          Node* instance_type, Node* index, Label* slow);
+                          SloppyTNode<Int32T> instance_type, Node* index,
+                          Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                           Node* instance_type, const LoadICParameters* p,
-                           Label* slow,
+                           SloppyTNode<Int32T> instance_type,
+                           const LoadICParameters* p, Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
 
-  typedef std::function<void(Node* code_handler)> OnCodeHandler;
-  typedef std::function<void(Node* properties, Node* name_index)>
-      OnFoundOnReceiver;
+  using OnCodeHandler = std::function<void(Node* code_handler)>;
+  using OnFoundOnReceiver =
+      std::function<void(Node* properties, Node* name_index)>;
 
   template <typename ICHandler, typename ICParameters>
   Node* HandleProtoHandler(const ICParameters* p, Node* handler,
@@ -226,28 +351,31 @@ class AccessorAssembler : public CodeStubAssembler {
                            const OnFoundOnReceiver& on_found_on_receiver,
                            Label* miss, ICMode ic_mode);
 
-  Node* GetLanguageMode(Node* vector, Node* slot);
-
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
-                             Representation representation, Node* transition,
-                             Node* value, Label* bailout);
+                             Representation representation, Node* value,
+                             Label* bailout);
 
-  // Extends properties backing store by JSObject::kFieldsAdded elements.
-  void ExtendPropertiesBackingStore(Node* object, Node* handler_word);
+  // Extends properties backing store by JSObject::kFieldsAdded elements,
+  // returns updated properties backing store.
+  Node* ExtendPropertiesBackingStore(Node* object, Node* index);
 
   void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
                        Representation representation, Node* value,
-                       bool transition_to_field, Label* bailout);
+                       Label* bailout);
 
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
-  void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
-                       Node* key, Node* is_jsarray_condition, Label* if_hole,
-                       Label* rebox_double, Variable* var_double_value,
+  void EmitElementLoad(Node* object, Node* elements_kind,
+                       SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
-                       Label* miss, ExitPoint* exit_point);
-  void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
+                       Label* miss, ExitPoint* exit_point,
+                       LoadAccessMode access_mode = LoadAccessMode::kLoad);
+  void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
+                                    Label* miss);
+  TNode<BoolT> IsPropertyDetailsConst(Node* details);
 
   // Stub cache access helpers.
 
@@ -260,7 +388,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               Node* entry_offset, Node* name, Node* map,
-                              Label* if_handler, Variable* var_handler,
+                              Label* if_handler,
+                              TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
 };
 
@@ -269,16 +398,26 @@ class AccessorAssembler : public CodeStubAssembler {
 // and then jump to an exit label.
 class ExitPoint {
  private:
-  typedef compiler::Node Node;
-  typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
-  typedef compiler::CodeAssemblerVariable CodeAssemblerVariable;
+  using Node = compiler::Node;
+  using CodeAssemblerLabel = compiler::CodeAssemblerLabel;
+  using CodeAssemblerVariable = compiler::CodeAssemblerVariable;
 
  public:
+  using IndirectReturnHandler = std::function<void(Node* result)>;
+
   explicit ExitPoint(CodeStubAssembler* assembler)
-      : ExitPoint(assembler, nullptr, nullptr) {}
+      : ExitPoint(assembler, nullptr) {}
+
+  ExitPoint(CodeStubAssembler* assembler,
+            const IndirectReturnHandler& indirect_return_handler)
+      : asm_(assembler), indirect_return_handler_(indirect_return_handler) {}
+
   ExitPoint(CodeStubAssembler* assembler, CodeAssemblerLabel* out,
             CodeAssemblerVariable* var_result)
-      : out_(out), var_result_(var_result), asm_(assembler) {
+      : ExitPoint(assembler, [=](Node* result) {
+          var_result->Bind(result);
+          assembler->Goto(out);
+        }) {
     DCHECK_EQ(out != nullptr, var_result != nullptr);
   }
 
@@ -288,7 +427,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallRuntime(function, context, args...);
     } else {
-      IndirectReturn(asm_->CallRuntime(function, context, args...));
+      indirect_return_handler_(asm_->CallRuntime(function, context, args...));
     }
   }
 
@@ -297,7 +436,7 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(callable, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(callable, context, args...));
+      indirect_return_handler_(asm_->CallStub(callable, context, args...));
     }
   }
 
@@ -307,7 +446,8 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->TailCallStub(descriptor, target, context, args...);
     } else {
-      IndirectReturn(asm_->CallStub(descriptor, target, context, args...));
+      indirect_return_handler_(
+          asm_->CallStub(descriptor, target, context, args...));
     }
   }
 
@@ -315,21 +455,15 @@ class ExitPoint {
     if (IsDirect()) {
       asm_->Return(result);
     } else {
-      IndirectReturn(result);
+      indirect_return_handler_(result);
     }
   }
 
-  bool IsDirect() const { return out_ == nullptr; }
+  bool IsDirect() const { return !indirect_return_handler_; }
 
  private:
-  void IndirectReturn(Node* const result) {
-    var_result_->Bind(result);
-    asm_->Goto(out_);
-  }
-
-  CodeAssemblerLabel* const out_;
-  CodeAssemblerVariable* const var_result_;
   CodeStubAssembler* const asm_;
+  IndirectReturnHandler indirect_return_handler_;
 };
 
 }  // namespace internal

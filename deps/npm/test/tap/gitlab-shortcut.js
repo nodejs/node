@@ -10,7 +10,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'gitlab-shortcut')
+var pkg = common.pkg
 
 var json = {
   name: 'gitlab-shortcut',
@@ -45,7 +45,7 @@ test('gitlab-shortcut', function (t) {
   })
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'

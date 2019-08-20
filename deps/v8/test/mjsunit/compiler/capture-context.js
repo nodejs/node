@@ -12,5 +12,6 @@ var foo = (function() {
 
 var baz = (function (s) { return foo(s) });
 
+%PrepareFunctionForOptimization(baz);
 %OptimizeFunctionOnNextCall(baz);
 assertEquals(42 + 12, baz(12));

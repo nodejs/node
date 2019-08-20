@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow `new` operators with the `Symbol` object",
             category: "ECMAScript 6",

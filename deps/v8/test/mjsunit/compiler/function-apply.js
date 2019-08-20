@@ -10,6 +10,7 @@
   function bar() { return this; }
   function foo() { return bar.apply(this, null); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(42, foo.call(42));
   assertEquals(42, foo.call(42));
   %OptimizeFunctionOnNextCall(foo);
@@ -20,6 +21,7 @@
   function bar() { return this; }
   function foo() { return bar.apply(this, undefined); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(42, foo.call(42));
   assertEquals(42, foo.call(42));
   %OptimizeFunctionOnNextCall(foo);
@@ -37,6 +39,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -52,6 +55,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -64,6 +68,7 @@
   function bar() { return this; }
   function foo() { return bar.apply(); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo());
   assertEquals(undefined, foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -74,6 +79,7 @@
   function bar() { return this; }
   function foo() { return bar.apply(this); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(42, foo.call(42));
   assertEquals(42, foo.call(42));
   %OptimizeFunctionOnNextCall(foo);
@@ -84,6 +90,7 @@
   function bar() { return this; }
   function foo() { return bar.apply(this, arguments, this); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(42, foo.call(42));
   assertEquals(42, foo.call(42));
   %OptimizeFunctionOnNextCall(foo);
@@ -100,6 +107,7 @@
     return Function.prototype.apply.call(undefined, this, dummy);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);
@@ -114,6 +122,7 @@
     return Function.prototype.apply.call(null, this, dummy);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);
@@ -128,6 +137,7 @@
     return Function.prototype.apply.call(null, this, dummy);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertThrows(foo, TypeError);
   assertThrows(foo, TypeError);
   %OptimizeFunctionOnNextCall(foo);

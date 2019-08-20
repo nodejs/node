@@ -1,8 +1,8 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const util = require('util');
-require('../common');
 
 function findInGraph(graph, type, n) {
   let found = 0;
@@ -14,32 +14,43 @@ function findInGraph(graph, type, n) {
 }
 
 function pruneTickObjects(activities) {
-  // remove one TickObject on each pass until none is left anymore
+  // Remove one TickObject on each pass until none is left anymore
   // not super efficient, but simplest especially to handle
   // multiple TickObjects in a row
-  let foundTickObject = true;
+  const tickObject = {
+    found: true,
+    index: null,
+    data: null
+  };
 
-  while (foundTickObject) {
-    foundTickObject = false;
-    let tickObjectIdx = -1;
+  if (!Array.isArray(activities))
+    return activities;
+
+  while (tickObject.found) {
     for (let i = 0; i < activities.length; i++) {
-      if (activities[i].type !== 'TickObject') continue;
-      tickObjectIdx = i;
-      break;
+      if (activities[i].type === 'TickObject') {
+        tickObject.index = i;
+        break;
+      } else if (i + 1 >= activities.length) {
+        tickObject.found = false;
+      }
     }
 
-    if (tickObjectIdx >= 0) {
-      foundTickObject = true;
-
-      // point all triggerAsyncIds that point to the tickObject
+    if (tickObject.found) {
+      // Point all triggerAsyncIds that point to the tickObject
       // to its triggerAsyncId and finally remove it from the activities
-      const tickObject = activities[tickObjectIdx];
-      const newTriggerId = tickObject.triggerAsyncId;
-      const oldTriggerId = tickObject.uid;
+      tickObject.data = activities[tickObject.index];
+      const triggerId = {
+        new: tickObject.data.triggerAsyncId,
+        old: tickObject.data.uid
+      };
+
       activities.forEach(function repointTriggerId(x) {
-        if (x.triggerAsyncId === oldTriggerId) x.triggerAsyncId = newTriggerId;
+        if (x.triggerAsyncId === triggerId.old)
+          x.triggerAsyncId = triggerId.new;
       });
-      activities.splice(tickObjectIdx, 1);
+
+      activities.splice(tickObject.index, 1);
     }
   }
   return activities;
@@ -48,7 +59,7 @@ function pruneTickObjects(activities) {
 module.exports = function verifyGraph(hooks, graph) {
   pruneTickObjects(hooks);
 
-  // map actual ids to standin ids defined in the graph
+  // Map actual ids to standin ids defined in the graph
   const idtouid = {};
   const uidtoid = {};
   const typeSeen = {};
@@ -87,6 +98,19 @@ module.exports = function verifyGraph(hooks, graph) {
     );
   }
   assert.strictEqual(errors.length, 0);
+
+  // Verify that all expected types are present (but more/others are allowed)
+  const expTypes = Object.create(null);
+  for (let i = 0; i < graph.length; i++) {
+    if (expTypes[graph[i].type] == null) expTypes[graph[i].type] = 0;
+    expTypes[graph[i].type]++;
+  }
+
+  for (const type in expTypes) {
+    assert.ok(typeSeen[type] >= expTypes[type],
+              `Type '${type}': expecting: ${expTypes[type]} ` +
+              `found: ${typeSeen[type]}`);
+  }
 };
 
 //

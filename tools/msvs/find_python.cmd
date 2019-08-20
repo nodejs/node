@@ -2,7 +2,7 @@
 echo Looking for Python 2.x
 SETLOCAL
 :: If python.exe is in %Path%, just validate
-FOR /F "delims=" %%a IN ('where python 2^> NUL') DO (
+FOR /F "delims=" %%a IN ('where python.exe 2^> NUL') DO (
   SET need_path=0
   SET p=%%~dpa
   IF NOT ERRORLEVEL 1 GOTO :validate
@@ -26,7 +26,7 @@ EXIT /B
 
 :: Query registry sub-tree for InstallPath
 :find-key
-FOR /F "delims=" %%a IN ('REG QUERY %1 /s 2> NUL ^| findstr "2." ^| findstr InstallPath') DO IF NOT ERRORLEVEL 1 CALL :find-path %%a
+FOR /F "delims=" %%a IN ('REG QUERY %1 /s 2^> NUL ^| findstr "2." ^| findstr InstallPath') DO IF NOT ERRORLEVEL 1 CALL :find-path %%a
 EXIT /B
 
 :: Parse the value of %1 as the path for python.exe

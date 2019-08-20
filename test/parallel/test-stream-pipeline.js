@@ -1,15 +1,10 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 const { Stream, Writable, Readable, Transform, pipeline } = require('stream');
 const assert = require('assert');
 const http = require('http');
-const http2 = require('http2');
 const { promisify } = require('util');
-
-common.crashOnUnhandledRejection();
 
 {
   let finished = false;
@@ -60,7 +55,7 @@ common.crashOnUnhandledRejection();
   }, /ERR_MISSING_ARGS/);
   assert.throws(() => {
     pipeline();
-  }, /ERR_MISSING_ARGS/);
+  }, /ERR_INVALID_CALLBACK/);
 }
 
 {
@@ -142,7 +137,7 @@ common.crashOnUnhandledRejection();
       }
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -167,17 +162,22 @@ common.crashOnUnhandledRejection();
 
 {
   const server = http.createServer((req, res) => {
+    let sent = false;
     const rs = new Readable({
       read() {
+        if (sent) {
+          return;
+        }
+        sent = true;
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
-        // prevents fd leaks by destroying http pipelines
+        // Prevents fd leaks by destroying http pipelines
         cb();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -197,8 +197,12 @@ common.crashOnUnhandledRejection();
 
 {
   const server = http.createServer((req, res) => {
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       },
       destroy: common.mustCall((err, cb) => {
@@ -206,7 +210,7 @@ common.crashOnUnhandledRejection();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   let cnt = 10;
@@ -244,8 +248,12 @@ common.crashOnUnhandledRejection();
       port: server.address().port
     });
 
+    let sent = 0;
     const rs = new Readable({
       read() {
+        if (sent++ > 10) {
+          return;
+        }
         rs.push('hello');
       }
     });
@@ -260,41 +268,6 @@ common.crashOnUnhandledRejection();
         cnt--;
         if (cnt === 0) rs.destroy();
       });
-    });
-  });
-}
-
-{
-  const server = http2.createServer((req, res) => {
-    pipeline(req, res, common.mustCall());
-  });
-
-  server.listen(0, () => {
-    const url = `http://localhost:${server.address().port}`;
-    const client = http2.connect(url);
-    const req = client.request({ ':method': 'POST' });
-
-    const rs = new Readable({
-      read() {
-        rs.push('hello');
-      }
-    });
-
-    pipeline(rs, req, common.mustCall((err) => {
-      // TODO: this is working around an http2 bug
-      // where the client keeps the event loop going
-      // (replacing the rs.destroy() with req.end()
-      // exits it so seems to be a destroy bug there
-      client.unref();
-
-      server.close();
-      client.close();
-    }));
-
-    let cnt = 10;
-    req.on('data', (data) => {
-      cnt--;
-      if (cnt === 0) rs.destroy();
     });
   });
 }
@@ -480,4 +453,27 @@ common.crashOnUnhandledRejection();
   }
 
   run();
+}
+
+{
+  const read = new Readable({
+    read() {}
+  });
+
+  const transform = new Transform({
+    transform(data, enc, cb) {
+      cb(new Error('kaboom'));
+    }
+  });
+
+  const write = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  assert.throws(
+    () => pipeline(read, transform, write),
+    { code: 'ERR_INVALID_CALLBACK' }
+  );
 }

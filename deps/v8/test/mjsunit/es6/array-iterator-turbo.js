@@ -101,6 +101,7 @@ let tests = {
       let { array, expected, array2, expected2 } = tests[key];
 
       // Warmup:
+      %PrepareFunctionForOptimization(fn);
       fn(array);
       fn(array);
       %OptimizeFunctionOnNextCall(fn);
@@ -203,6 +204,7 @@ let tests = {
       };
 
       // Warmup
+      %PrepareFunctionForOptimization(sum);
       sum(array);
       sum(array);
       %OptimizeFunctionOnNextCall(sum);
@@ -217,7 +219,7 @@ let tests = {
 
       // Throw when detached
       let clone = new array.constructor(array);
-      %ArrayBufferNeuter(clone.buffer);
+      %ArrayBufferDetach(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
 
       // Clear the slate for the next iteration.

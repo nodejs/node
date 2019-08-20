@@ -1,0 +1,140 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace string {
+  // ES6 #sec-string.prototype.tostring
+  transitioning javascript builtin
+  StringPrototypeToString(js-implicit context: Context)(receiver: Object):
+      Object {
+    return ToThisValue(receiver, kString, 'String.prototype.toString');
+  }
+
+  // ES6 #sec-string.prototype.valueof
+  transitioning javascript builtin
+  StringPrototypeValueOf(js-implicit context: Context)(receiver: Object):
+      Object {
+    return ToThisValue(receiver, kString, 'String.prototype.valueOf');
+  }
+
+  extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
+      String, intptr, intptr, constexpr UnicodeEncoding): int32;
+  extern macro StringFromSingleUTF16EncodedCodePoint(int32): String;
+
+  // This function assumes StringPrimitiveWithNoCustomIteration is true.
+  transitioning builtin StringToList(implicit context: Context)(string: String):
+      JSArray {
+    const kind = PACKED_ELEMENTS;
+    const stringLength: intptr = string.length_intptr;
+
+    const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+    const array: JSArray = AllocateJSArray(
+        kind, map, stringLength, SmiTag(stringLength),
+        kAllowLargeObjectAllocation);
+    const elements = UnsafeCast<FixedArray>(array.elements);
+    const encoding = UTF16;
+    let arrayLength: Smi = 0;
+    let i: intptr = 0;
+    while (i < stringLength) {
+      const ch: int32 = LoadSurrogatePairAt(string, stringLength, i, encoding);
+      const value: String = StringFromSingleUTF16EncodedCodePoint(ch);
+      elements[arrayLength] = value;
+      // Increment and continue the loop.
+      i = i + value.length_intptr;
+      arrayLength++;
+    }
+    assert(arrayLength >= 0);
+    assert(SmiTag(stringLength) >= arrayLength);
+    array.length = arrayLength;
+
+    return array;
+  }
+
+  transitioning macro GenerateStringAt(implicit context: Context)(
+      receiver: Object, position: Object,
+      methodName: constexpr string): never labels
+  IfInBounds(String, intptr, intptr), IfOutOfBounds {
+    // Check that {receiver} is coercible to Object and convert it to a String.
+    const string: String = ToThisString(receiver, methodName);
+    // Convert the {position} to a Smi and check that it's in bounds of
+    // the {string}.
+    const indexNumber: Number =
+        ToInteger_Inline(context, position, kTruncateMinusZero);
+    if (TaggedIsNotSmi(indexNumber)) goto IfOutOfBounds;
+    const index: intptr = SmiUntag(UnsafeCast<Smi>(indexNumber));
+    const length: intptr = string.length_intptr;
+    if (Convert<uintptr>(index) >= Convert<uintptr>(length)) goto IfOutOfBounds;
+    goto IfInBounds(string, index, length);
+  }
+
+  // ES6 #sec-string.prototype.charat
+  transitioning javascript builtin StringPrototypeCharAt(
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
+    try {
+      GenerateStringAt(receiver, position, 'String.prototype.charAt')
+          otherwise IfInBounds, IfOutOfBounds;
+    }
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
+      const code: int32 = StringCharCodeAt(string, index);
+      return StringFromSingleCharCode(code);
+    }
+    label IfOutOfBounds {
+      return kEmptyString;
+    }
+  }
+
+  // ES6 #sec-string.prototype.charcodeat
+  transitioning javascript builtin StringPrototypeCharCodeAt(
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
+    try {
+      GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
+          otherwise IfInBounds, IfOutOfBounds;
+    }
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
+      const code: int32 = StringCharCodeAt(string, index);
+      return Convert<Smi>(code);
+    }
+    label IfOutOfBounds {
+      return kNaN;
+    }
+  }
+
+  // ES6 #sec-string.prototype.codepointat
+  transitioning javascript builtin StringPrototypeCodePointAt(
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
+    try {
+      GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
+          otherwise IfInBounds, IfOutOfBounds;
+    }
+    label IfInBounds(string: String, index: intptr, length: intptr) {
+      // This is always a call to a builtin from Javascript, so we need to
+      // produce UTF32.
+      const code: int32 = LoadSurrogatePairAt(string, length, index, UTF32);
+      return Convert<Smi>(code);
+    }
+    label IfOutOfBounds {
+      return Undefined;
+    }
+  }
+
+  // ES6 String.prototype.concat(...args)
+  // ES6 #sec-string.prototype.concat
+  transitioning javascript builtin StringPrototypeConcat(
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
+    // Check that {receiver} is coercible to Object and convert it to a String.
+    let string: String = ToThisString(receiver, 'String.prototype.concat');
+
+    // Concatenate all the arguments passed to this builtin.
+    const length: intptr = Convert<intptr>(arguments.length);
+    for (let i: intptr = 0; i < length; i++) {
+      const temp: String = ToString_Inline(context, arguments[i]);
+      string = string + temp;
+    }
+    return string;
+  }
+}

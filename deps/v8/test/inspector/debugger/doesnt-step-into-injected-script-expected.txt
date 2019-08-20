@@ -8,8 +8,8 @@ paused at:
 
 
 paused at:
-(function boo() { setTimeout(() => 239, 0); debugger; })()#
-
+(function boo() { setTimeout(() => 239, 0); debugger; })()
+#
 
 paused at:
 (function boo() { setTimeout(() => #239, 0); debugger; })()

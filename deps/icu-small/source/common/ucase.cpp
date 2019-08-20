@@ -138,6 +138,11 @@ ucase_tolower(UChar32 c) {
     } else {
         const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
         uint16_t excWord=*pe++;
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(HAS_SLOT(excWord, UCASE_EXC_LOWER)) {
             GET_SLOT_VALUE(excWord, UCASE_EXC_LOWER, pe, c);
         }
@@ -155,6 +160,11 @@ ucase_toupper(UChar32 c) {
     } else {
         const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
         uint16_t excWord=*pe++;
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_GET_TYPE(props)==UCASE_LOWER) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(HAS_SLOT(excWord, UCASE_EXC_UPPER)) {
             GET_SLOT_VALUE(excWord, UCASE_EXC_UPPER, pe, c);
         }
@@ -172,6 +182,11 @@ ucase_totitle(UChar32 c) {
     } else {
         const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
         uint16_t excWord=*pe++;
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_GET_TYPE(props)==UCASE_LOWER) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         int32_t idx;
         if(HAS_SLOT(excWord, UCASE_EXC_TITLE)) {
             idx=UCASE_EXC_TITLE;
@@ -253,6 +268,12 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
                 GET_SLOT_VALUE(excWord, idx, pe, c);
                 sa->add(sa->set, c);
             }
+        }
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA)) {
+            pe=pe0;
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            sa->add(sa->set, (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta);
         }
 
         /* get the closure string pointer & length */
@@ -590,7 +611,12 @@ ucase_isSoftDotted(UChar32 c) {
 U_CAPI UBool U_EXPORT2
 ucase_isCaseSensitive(UChar32 c) {
     uint16_t props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
-    return (UBool)((props&UCASE_SENSITIVE)!=0);
+    if(!UCASE_HAS_EXCEPTION(props)) {
+        return (UBool)((props&UCASE_SENSITIVE)!=0);
+    } else {
+        const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
+        return (UBool)((*pe&UCASE_EXC_SENSITIVE)!=0);
+    }
 }
 
 /* string casing ------------------------------------------------------------ */
@@ -1140,6 +1166,11 @@ ucase_toFullLower(UChar32 c,
             }
         }
 
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(HAS_SLOT(excWord, UCASE_EXC_LOWER)) {
             GET_SLOT_VALUE(excWord, UCASE_EXC_LOWER, pe2, result);
         }
@@ -1229,6 +1260,11 @@ toUpperOrTitle(UChar32 c,
             }
         }
 
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_GET_TYPE(props)==UCASE_LOWER) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(!upperNotTitle && HAS_SLOT(excWord, UCASE_EXC_TITLE)) {
             idx=UCASE_EXC_TITLE;
         } else if(HAS_SLOT(excWord, UCASE_EXC_UPPER)) {
@@ -1334,6 +1370,14 @@ ucase_fold(UChar32 c, uint32_t options) {
                 }
             }
         }
+        if((excWord&UCASE_EXC_NO_SIMPLE_CASE_FOLDING)!=0) {
+            return c;
+        }
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(HAS_SLOT(excWord, UCASE_EXC_FOLD)) {
             idx=UCASE_EXC_FOLD;
         } else if(HAS_SLOT(excWord, UCASE_EXC_LOWER)) {
@@ -1421,6 +1465,14 @@ ucase_toFullFolding(UChar32 c,
             }
         }
 
+        if((excWord&UCASE_EXC_NO_SIMPLE_CASE_FOLDING)!=0) {
+            return ~c;
+        }
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA) && UCASE_IS_UPPER_OR_TITLE(props)) {
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe2, delta);
+            return (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+        }
         if(HAS_SLOT(excWord, UCASE_EXC_FOLD)) {
             idx=UCASE_EXC_FOLD;
         } else if(HAS_SLOT(excWord, UCASE_EXC_LOWER)) {

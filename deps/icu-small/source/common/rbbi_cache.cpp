@@ -74,9 +74,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::following(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    U_ASSERT(FALSE);
-    fPositionInCache = -1;
-    return FALSE;
+    UPRV_UNREACHABLE;
 }
 
 
@@ -116,9 +114,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::preceding(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    U_ASSERT(FALSE);
-    fPositionInCache = -1;
-    return FALSE;
+    UPRV_UNREACHABLE;
 }
 
 void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPos, int32_t endPos,
@@ -354,14 +350,31 @@ UBool RuleBasedBreakIterator::BreakCache::populateNear(int32_t position, UErrorC
     if ((position < fBoundaries[fStartBufIdx] - 15) || position > (fBoundaries[fEndBufIdx] + 15)) {
         int32_t aBoundary = 0;
         int32_t ruleStatusIndex = 0;
-        // TODO: check for position == length of text. Although may still need to back up to get rule status.
         if (position > 20) {
-            int32_t backupPos = fBI->handlePrevious(position);
-            fBI->fPosition = backupPos;
-            aBoundary = fBI->handleNext();                // Ignore dictionary, just finding a rule based boundary.
-            ruleStatusIndex = fBI->fRuleStatusIndex;
+            int32_t backupPos = fBI->handleSafePrevious(position);
+
+            if (backupPos > 0) {
+                // Advance to the boundary following the backup position.
+                // There is a complication: the safe reverse rules identify pairs of code points
+                // that are safe. If advancing from the safe point moves forwards by less than
+                // two code points, we need to advance one more time to ensure that the boundary
+                // is good, including a correct rules status value.
+                //
+                fBI->fPosition = backupPos;
+                aBoundary = fBI->handleNext();
+                if (aBoundary <= backupPos + 4) {
+                    // +4 is a quick test for possibly having advanced only one codepoint.
+                    // Four being the length of the longest potential code point, a supplementary in UTF-8
+                    utext_setNativeIndex(&fBI->fText, aBoundary);
+                    if (backupPos == utext_getPreviousNativeIndex(&fBI->fText)) {
+                        // The initial handleNext() only advanced by a single code point. Go again.
+                        aBoundary = fBI->handleNext();   // Safe rules identify safe pairs.
+                    }
+                }
+                ruleStatusIndex = fBI->fRuleStatusIndex;
+            }
         }
-        reset(aBoundary, ruleStatusIndex);               // Reset cache to hold aBoundary as a single starting point.
+        reset(aBoundary, ruleStatusIndex);        // Reset cache to hold aBoundary as a single starting point.
     }
 
     // Fill in boundaries between existing cache content and the new requested position.
@@ -371,8 +384,7 @@ UBool RuleBasedBreakIterator::BreakCache::populateNear(int32_t position, UErrorC
         // Add following position(s) to the cache.
         while (fBoundaries[fEndBufIdx] < position) {
             if (!populateFollowing()) {
-                U_ASSERT(false);
-                return false;
+                UPRV_UNREACHABLE;
             }
         }
         fBufIdx = fEndBufIdx;                      // Set iterator position to the end of the buffer.
@@ -485,16 +497,30 @@ UBool RuleBasedBreakIterator::BreakCache::populatePreceding(UErrorCode &status) 
         if (backupPosition <= 0) {
             backupPosition = 0;
         } else {
-            backupPosition = fBI->handlePrevious(backupPosition);
+            backupPosition = fBI->handleSafePrevious(backupPosition);
         }
         if (backupPosition == UBRK_DONE || backupPosition == 0) {
             position = 0;
             positionStatusIdx = 0;
         } else {
-            fBI->fPosition = backupPosition;  // TODO: pass starting position in a clearer way.
+            // Advance to the boundary following the backup position.
+            // There is a complication: the safe reverse rules identify pairs of code points
+            // that are safe. If advancing from the safe point moves forwards by less than
+            // two code points, we need to advance one more time to ensure that the boundary
+            // is good, including a correct rules status value.
+            //
+            fBI->fPosition = backupPosition;
             position = fBI->handleNext();
+            if (position <= backupPosition + 4) {
+                // +4 is a quick test for possibly having advanced only one codepoint.
+                // Four being the length of the longest potential code point, a supplementary in UTF-8
+                utext_setNativeIndex(&fBI->fText, position);
+                if (backupPosition == utext_getPreviousNativeIndex(&fBI->fText)) {
+                    // The initial handleNext() only advanced by a single code point. Go again.
+                    position = fBI->handleNext();   // Safe rules identify safe pairs.
+                }
+            };
             positionStatusIdx = fBI->fRuleStatusIndex;
-
         }
     } while (position >= fromPosition);
 
@@ -572,7 +598,7 @@ void RuleBasedBreakIterator::BreakCache::addFollowing(int32_t position, int32_t 
         fStartBufIdx = modChunkSize(fStartBufIdx + 6);    // TODO: experiment. Probably revert to 1.
     }
     fBoundaries[nextIdx] = position;
-    fStatuses[nextIdx] = ruleStatusIdx;
+    fStatuses[nextIdx] = static_cast<uint16_t>(ruleStatusIdx);
     fEndBufIdx = nextIdx;
     if (update == UpdateCachePosition) {
         // Set current position to the newly added boundary.
@@ -600,7 +626,7 @@ bool RuleBasedBreakIterator::BreakCache::addPreceding(int32_t position, int32_t 
         fEndBufIdx = modChunkSize(fEndBufIdx - 1);
     }
     fBoundaries[nextIdx] = position;
-    fStatuses[nextIdx] = ruleStatusIdx;
+    fStatuses[nextIdx] = static_cast<uint16_t>(ruleStatusIdx);
     fStartBufIdx = nextIdx;
     if (update == UpdateCachePosition) {
         fBufIdx = nextIdx;

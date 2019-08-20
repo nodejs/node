@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,10 +11,6 @@
 #define HEADER_CHACHA_H
 
 #include <stddef.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * ChaCha20_ctr32 encrypts |len| bytes from |inp| with the given key and
@@ -43,7 +39,4 @@ void ChaCha20_ctr32(unsigned char *out, const unsigned char *inp,
 #define CHACHA_CTR_SIZE		16
 #define CHACHA_BLK_SIZE		64
 
-#ifdef __cplusplus
-}
-#endif
 #endif

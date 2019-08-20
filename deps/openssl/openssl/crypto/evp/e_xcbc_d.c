@@ -46,7 +46,7 @@ static const EVP_CIPHER d_xcbc_cipher = {
 
 const EVP_CIPHER *EVP_desx_cbc(void)
 {
-    return (&d_xcbc_cipher);
+    return &d_xcbc_cipher;
 }
 
 static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,

@@ -48,13 +48,16 @@ function h2(a, b) {
 
 var o = {x: 2};
 
+%PrepareFunctionForOptimization(h1);
 assertEquals(4, h1(o, o));
 assertEquals(4, h1(o, o));
-assertEquals(4, h2(o, o));
-assertEquals(4, h2(o, o));
 %OptimizeFunctionOnNextCall(h1);
-%OptimizeFunctionOnNextCall(h2);
 assertEquals(4, h1(o, o));
+
+%PrepareFunctionForOptimization(h2);
+assertEquals(4, h2(o, o));
+assertEquals(4, h2(o, o));
+%OptimizeFunctionOnNextCall(h2);
 assertEquals(4, h2(o, o));
 
 var u = {y:0, x:1};

@@ -1,0 +1,280 @@
+{
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
+  "name": "JSTests",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Collections",
+      "path": ["Collections"],
+      "main": "run.js",
+      "resources": [
+        "common.js",
+        "map.js",
+        "run.js",
+        "set.js",
+        "weakmap.js",
+        "weakset.js"
+      ],
+      "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Map-Smi"},
+        {"name": "Map-String"},
+        {"name": "Map-Object"},
+        {"name": "Map-Object-Set-Get-Large"},
+        {"name": "Map-Double"},
+        {"name": "Map-Iteration"},
+        {"name": "Map-Iterator"},
+        {"name": "Set-Smi"},
+        {"name": "Set-String"},
+        {"name": "Set-Object"},
+        {"name": "Set-Double"},
+        {"name": "Set-Iteration"},
+        {"name": "Set-Iterator"},
+        {"name": "WeakMap"},
+        {"name": "WeakMap-Constructor"},
+        {"name": "WeakMapSetGet-Large"},
+        {"name": "WeakMapSet-Huge"},
+        {"name": "WeakSet"},
+        {"name": "WeakSet-Constructor"}
+      ]
+    },
+    {
+      "name": "BigInt",
+      "path": ["BigInt"],
+      "main": "run.js",
+      "resources": [
+        "bigint-util.js",
+        "test-config.js",
+        "to-boolean.js",
+        "add.js",
+        "as-uint-n.js"
+      ],
+      "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
+      "tests": [
+        { "name": "BigInt-ToBoolean" },
+        { "name": "BigInt-BooleanConstructor" },
+        { "name": "BigInt-NewBooleanConstructor" },
+        { "name": "Add-TypeError" },
+        { "name": "Add-Zero" },
+        { "name": "Add-SameSign-32" },
+        { "name": "Add-DifferentSign-32" },
+        { "name": "Add-SameSign-64" },
+        { "name": "Add-DifferentSign-64" },
+        { "name": "Add-SameSign-128" },
+        { "name": "Add-DifferentSign-128" },
+        { "name": "Add-SameSign-256" },
+        { "name": "Add-DifferentSign-256" },
+        { "name": "Add-SameSign-512" },
+        { "name": "Add-DifferentSign-512" },
+        { "name": "Add-SameSign-1024" },
+        { "name": "Add-DifferentSign-1024" },
+        { "name": "Add-SameSign-2048" },
+        { "name": "Add-DifferentSign-2048" },
+        { "name": "Add-SameSign-4096" },
+        { "name": "Add-DifferentSign-4096" },
+        { "name": "Add-SameSign-8192" },
+        { "name": "Add-DifferentSign-8192" },
+        { "name": "Add-Random" },
+        { "name": "AsUint64-32" },
+        { "name": "AsUint64-64" },
+        { "name": "AsUint64-128" },
+        { "name": "AsUint64-256" },
+        { "name": "AsUint32-32" },
+        { "name": "AsUint32-64" },
+        { "name": "AsUint32-128" },
+        { "name": "AsUint32-256" },
+        { "name": "AsUint8-32" },
+        { "name": "AsUint8-64" },
+        { "name": "AsUint8-128" },
+        { "name": "AsUint8-256" }
+    ]
+    },
+    {
+      "name": "BigInt-Jitless",
+      "path": ["BigInt"],
+      "main": "run.js",
+      "resources": [
+        "to-boolean.js"
+      ],
+      "flags": ["--jitless"],
+      "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
+      "tests": [
+        { "name": "BigInt-ToBoolean" },
+        { "name": "BigInt-BooleanConstructor" },
+        { "name": "BigInt-NewBooleanConstructor" }
+      ]
+    },
+    {
+      "name": "TypedArrays",
+      "path": ["TypedArrays"],
+      "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "CopyWithin",
+          "main": "run.js",
+          "resources": ["copywithin.js"],
+          "test_flags": ["copywithin"]
+        },
+        {
+          "name": "Constructor",
+          "main": "run.js",
+          "resources": ["constructor.js"],
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "ConstructWithBuffer",
+          "main": "run.js",
+          "resources": ["construct-buffer.js"],
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructArrayLike",
+          "main": "run.js",
+          "resources": ["construct-arraylike.js"],
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructByTypedArray",
+          "main": "run.js",
+          "resources": ["construct-typedarray.js"],
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructBySameTypedArray",
+          "main": "run.js",
+          "resources": ["construct-same-typedarray.js"],
+          "test_flags": ["construct-same-typedarray"]
+        },
+        {
+          "name": "ConstructAllTypedArrays",
+          "main": "run.js",
+          "resources": ["construct-all-typedarrays.js"],
+          "test_flags": ["construct-all-typedarrays"]
+        },
+        {
+          "name": "FilterNoSpecies",
+          "main": "run.js",
+          "resources": ["filter-nospecies.js"],
+          "test_flags": ["filter-nospecies"],
+          "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Uint8Array"},
+            {"name": "Uint16Array"},
+            {"name": "Uint32Array"},
+            {"name": "Float32Array"},
+            {"name": "Float64Array"}
+          ]
+        },
+        {
+          "name": "JoinBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-bigint.js"],
+          "test_flags": ["join-bigint"]
+        },
+        {
+          "name": "JoinFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-float.js"],
+          "test_flags": ["join-float"]
+        },
+        {
+          "name": "JoinIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-int.js"],
+          "test_flags": ["join-int"]
+        },
+        {
+          "name": "JoinWithSeparatorBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-bigint.js"],
+          "test_flags": ["join-sep-bigint"]
+        },
+        {
+          "name": "JoinWithSeparatorFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-float.js"],
+          "test_flags": ["join-sep-float"]
+        },
+        {
+          "name": "JoinWithSeparatorIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-int.js"],
+          "test_flags": ["join-sep-int"]
+        },
+        {
+          "name": "SetFromArrayLike",
+          "main": "run.js",
+          "resources": ["set-from-arraylike.js"],
+          "test_flags": ["set-from-arraylike"]
+        },
+        {
+          "name": "SetFromDifferentType",
+          "main": "run.js",
+          "resources": ["set-from-different-type.js"],
+          "test_flags": ["set-from-different-type"]
+        },
+        {
+          "name": "SetFromSameType",
+          "main": "run.js",
+          "resources": ["set-from-same-type.js"],
+          "test_flags": ["set-from-same-type"]
+        },
+        {
+          "name": "SliceNoSpecies",
+          "main": "run.js",
+          "resources": ["slice-nospecies.js"],
+          "test_flags": ["slice-nospecies"]
+        },
+        {
+          "name": "SortIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-int.js"],
+          "test_flags": ["sort-int"]
+        },
+        {
+          "name": "SortBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-bigint.js"],
+          "test_flags": ["sort-bigint"]
+        },
+        {
+          "name": "SortFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-float.js"],
+          "test_flags": ["sort-float"]
+        },
+        {
+          "name": "SortCustomCompareFnIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-cmpfn-int.js"],
+          "test_flags": ["sort-cmpfn-int"]
+        },
+        {
+          "name": "SortCustomCompareFnBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-cmpfn-bigint.js"],
+          "test_flags": ["sort-cmpfn-bigint"]
+        },
+        {
+          "name": "SortCustomCompareFnFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "sort.js", "sort-cmpfn-float.js"],
+          "test_flags": ["sort-cmpfn-float"]
+        },
+        {
+          "name": "SubarrayNoSpecies",
+          "main": "run.js",
+          "resources": ["subarray-nospecies.js"],
+          "test_flags": ["subarray-nospecies"]
+        }
+      ]
+    }
+  ]
+}

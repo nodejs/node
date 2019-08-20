@@ -14,8 +14,8 @@ namespace {
 
 class GCIdleTimeHandlerTest : public ::testing::Test {
  public:
-  GCIdleTimeHandlerTest() {}
-  virtual ~GCIdleTimeHandlerTest() {}
+  GCIdleTimeHandlerTest() = default;
+  ~GCIdleTimeHandlerTest() override = default;
 
   GCIdleTimeHandler* handler() { return &handler_; }
 
@@ -31,7 +31,6 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   static const size_t kSizeOfObjects = 100 * MB;
   static const size_t kMarkCompactSpeed = 200 * KB;
   static const size_t kMarkingSpeed = 200 * KB;
-  static const int kMaxNotifications = 100;
 
  private:
   GCIdleTimeHandler handler_;
@@ -95,8 +94,8 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -108,8 +107,8 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
       GCIdleTimeHandler::kHighContextDisposalRate - 1;
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_FULL_GC, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kFullGC,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -120,8 +119,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
   heap_state.contexts_disposal_rate = 1.0;
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_FULL_GC, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kFullGC,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -133,8 +132,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
       GCIdleTimeHandler::kHighContextDisposalRate;
   size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kIncrementalStep,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -146,8 +145,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
       GCIdleTimeHandler::kHighContextDisposalRate;
   size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kIncrementalStep,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeHeap) {
@@ -158,16 +157,16 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeHeap) {
   heap_state.incremental_marking_stopped = true;
   heap_state.size_of_objects = 101 * MB;
   double idle_time_ms = 0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
   if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   double idle_time_ms = 10;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kIncrementalStep,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -177,8 +176,8 @@ TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
   heap_state.incremental_marking_stopped = true;
   size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -187,8 +186,8 @@ TEST_F(GCIdleTimeHandlerTest, DoNotStartIncrementalMarking) {
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -197,32 +196,11 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop) {
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
   heap_state.incremental_marking_stopped = false;
-  action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
-  if (!handler()->Enabled()) return;
-  GCIdleTimeHeapState heap_state = DefaultHeapState();
-  for (int i = 0; i < kMaxNotifications; i++) {
-    GCIdleTimeAction action = handler()->Compute(0, heap_state);
-    EXPECT_EQ(DO_NOTHING, action.type);
-  }
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
-  if (!handler()->Enabled()) return;
-  GCIdleTimeHeapState heap_state = DefaultHeapState();
-  heap_state.incremental_marking_stopped = true;
-  for (int i = 0; i < kMaxNotifications; i++) {
-    GCIdleTimeAction action = handler()->Compute(10, heap_state);
-    EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
-  }
+  EXPECT_EQ(GCIdleTimeAction::kIncrementalStep,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 
@@ -235,9 +213,9 @@ TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
   // Simulate incremental marking stopped and not eligible to start.
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
-  // We should return DONE if we cannot start incremental marking.
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
+  // We should return kDone if we cannot start incremental marking.
+  EXPECT_EQ(GCIdleTimeAction::kDone,
+            handler()->Compute(idle_time_ms, heap_state));
 }
 
 }  // namespace internal

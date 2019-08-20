@@ -12,7 +12,7 @@ const spawnSync = require('child_process').spawnSync;
 
 let result;
 
-// create a subst drive
+// Create a subst drive
 const driveLetters = 'ABCDEFGHIJKLMNOPQRSTUWXYZ';
 let drive;
 let i;
@@ -25,7 +25,7 @@ for (i = 0; i < driveLetters.length; ++i) {
 if (i === driveLetters.length)
   common.skip('Cannot create subst drive');
 
-// schedule cleanup (and check if all callbacks where called)
+// Schedule cleanup (and check if all callbacks where called)
 process.on('exit', function() {
   spawnSync('subst', ['/d', drive]);
 });

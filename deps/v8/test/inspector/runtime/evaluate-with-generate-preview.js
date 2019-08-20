@@ -61,8 +61,11 @@ Object.defineProperty(parentObj, 'propNotNamedProto', {
   get: deterministicNativeFunction,
   set: function() {}
 });
+inspector.allowAccessorFormatting(parentObj);
 var objInheritsGetterProperty = {__proto__: parentObj};
 inspector.allowAccessorFormatting(objInheritsGetterProperty);
+
+var arrayWithLongValues = ["a".repeat(101), 2n**401n];
 `);
 
 contextGroup.setupInjectedScriptEnvironment();
@@ -141,6 +144,13 @@ InspectorTest.runTestSuite([
   function testObjWithArrayAsProto(next)
   {
     Protocol.Runtime.evaluate({ "expression": "Object.create([1,2])", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testArrayWithLongValues(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "arrayWithLongValues", "generatePreview": true })
         .then(result => InspectorTest.logMessage(result.result.result.preview))
         .then(next);
   }

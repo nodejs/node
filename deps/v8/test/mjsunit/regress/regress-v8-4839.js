@@ -4,59 +4,71 @@
 
 // Flags: --allow-natives-syntax
 
-function dummy() { }
+function dummy() {}
 
 (function InlinedFunctionTestContext() {
-  var f = function() { }
+  var f = function() {};
 
   function g() {
-   var s = "hey";
-   dummy();  // Force a deopt point.
-   if (f()) return s;
-  }
-
+    var s = 'hey';
+    dummy();  // Force a deopt point.
+    if (f()) return s;
+  };
+  %PrepareFunctionForOptimization(g);
   g();
   g();
   g();
   %OptimizeFunctionOnNextCall(g);
-  f = function() { return true; }
+  f = function() {
+    return true;
+  };
   assertEquals("hey", g());
 })();
 
 (function InlinedConstructorReturnTestContext() {
-  function c() { return 1; }
-
-  var f = function() { return !(new c());  }
-
-  function g() {
-   var s = "hey";
-   dummy();  // Force a deopt point.
-   if (f()) return s;
+  function c() {
+    return 1;
   }
 
+  var f = function() {
+    return !new c();
+  };
+
+  function g() {
+    var s = 'hey';
+    dummy();  // Force a deopt point.
+    if (f()) return s;
+  };
+  %PrepareFunctionForOptimization(g);
   g();
   g();
   g();
   %OptimizeFunctionOnNextCall(g);
-  f = function() { return true; }
+  f = function() {
+    return true;
+  };
   assertEquals("hey", g());
 })();
 
 (function InlinedConstructorNoReturnTestContext() {
-  function c() { }
+  function c() {}
 
-  var f = function() { return !(new c());  }
+  var f = function() {
+    return !new c();
+  };
 
   function g() {
-   var s = "hey";
-   dummy();  // Force a deopt point.
-   if (f()) return s;
-  }
-
+    var s = 'hey';
+    dummy();  // Force a deopt point.
+    if (f()) return s;
+  };
+  %PrepareFunctionForOptimization(g);
   g();
   g();
   g();
   %OptimizeFunctionOnNextCall(g);
-  f = function() { return true; }
+  f = function() {
+    return true;
+  };
   assertEquals("hey", g());
 })();

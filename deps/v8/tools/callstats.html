@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!--
 Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
@@ -5,7 +6,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 -->
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <title>V8 Runtime Stats Komparator</title>
   <style>
     body {
       font-family: arial;
@@ -228,8 +230,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       display: none;
     }
   </style>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  <script type="text/javascript">
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
     "use strict"
     google.charts.load('current', {packages: ['corechart']});
 
@@ -957,7 +959,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
     }
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     // Helpers
@@ -1058,7 +1060,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     // EventHandlers
@@ -1305,7 +1307,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       window.open(url,'_blank');
     }
   </script>
-  <script type="text/javascript">
+  <script>
   "use strict"
     // =========================================================================
     class Versions {
@@ -1507,6 +1509,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.groups = [
           this.total,
           Group.groups.get('ic').entry(),
+          Group.groups.get('optimize-background').entry(),
           Group.groups.get('optimize').entry(),
           Group.groups.get('compile-background').entry(),
           Group.groups.get('compile').entry(),
@@ -1715,14 +1718,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB'));
     Group.add('ic', new Group('IC', /.*IC_.*/, "#3366CC"));
+    Group.add('optimize-background', new Group('Optimize-Background',
+        /(.*OptimizeConcurrent.*)|RecompileConcurrent.*/, "#702000"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
     Group.add('compile-background', new Group('Compile-Background',
-        /(.*CompileBackground.*)/, "#b9a720"));
+        /(.*CompileBackground.*)/, "#b08000"));
     Group.add('compile', new Group('Compile',
         /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
     Group.add('parse-background',
-        new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
+        new Group('Parse-Background', /.*ParseBackground.*/, "#c05000"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
     Group.add('callback', new Group('Blink C++', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));

@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 #ifndef __NUMBER_LONGNAMES_H__
 #define __NUMBER_LONGNAMES_H__
 
@@ -14,19 +14,27 @@
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
 
-class LongNameHandler : public MicroPropsGenerator, public UMemory {
+class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public UMemory {
   public:
-    static LongNameHandler
+    static UnicodeString getUnitDisplayName(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        UErrorCode& status);
+
+    static LongNameHandler*
     forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency, const PluralRules *rules,
                          const MicroPropsGenerator *parent, UErrorCode &status);
 
-    static LongNameHandler
+    static LongNameHandler*
     forMeasureUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
                    const UNumberUnitWidth &width, const PluralRules *rules,
                    const MicroPropsGenerator *parent, UErrorCode &status);
 
     void
     processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
+
+    const Modifier* getModifier(int8_t signum, StandardPlural::Form plural) const U_OVERRIDE;
 
   private:
     SimpleModifier fModifiers[StandardPlural::Form::COUNT];
@@ -36,15 +44,14 @@ class LongNameHandler : public MicroPropsGenerator, public UMemory {
     LongNameHandler(const PluralRules *rules, const MicroPropsGenerator *parent)
             : rules(rules), parent(parent) {}
 
-    static LongNameHandler
+    static LongNameHandler*
     forCompoundUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
                     const UNumberUnitWidth &width, const PluralRules *rules,
                     const MicroPropsGenerator *parent, UErrorCode &status);
 
-    static void simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field,
-                                         SimpleModifier *output, UErrorCode &status);
-    static void multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
-                                         Field field, SimpleModifier *output, UErrorCode &status);
+    void simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field, UErrorCode &status);
+    void multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
+                                       Field field, UErrorCode &status);
 };
 
 }  // namespace impl

@@ -23,8 +23,8 @@ function doCheck(arg, check) {
     }).on('error', common.mustNotCall());
 }
 
-// test the default unmodified version
+// Test the default unmodified version
 doCheck([], defaultCoreList);
 
-// test the command line switch by itself
+// Test the command line switch by itself
 doCheck(['--tls-cipher-list=ABC'], 'ABC');

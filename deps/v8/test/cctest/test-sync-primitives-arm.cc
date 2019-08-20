@@ -25,15 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
 
-#include "src/assembler-inl.h"
-#include "src/disassembler.h"
-#include "src/factory.h"
-#include "src/macro-assembler.h"
-#include "src/simulator.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
+#include "src/heap/factory.h"
 
 namespace v8 {
 namespace internal {
@@ -292,7 +292,7 @@ class MemoryAccessThread : public v8::base::Thread {
     Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
     {
       v8::Isolate::Scope scope(isolate_);
-      v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+      v8::base::MutexGuard lock_guard(&mutex_);
       while (!is_finished_) {
         while (!(has_request_ || is_finished_)) {
           has_request_cv_.Wait(&mutex_);
@@ -313,7 +313,7 @@ class MemoryAccessThread : public v8::base::Thread {
 
   void NextAndWait(TestData* test_data, MemoryAccess access) {
     DCHECK(!has_request_);
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     test_data_ = test_data;
     access_ = access;
     has_request_ = true;
@@ -325,7 +325,7 @@ class MemoryAccessThread : public v8::base::Thread {
   }
 
   void Finish() {
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+    v8::base::MutexGuard lock_guard(&mutex_);
     is_finished_ = true;
     has_request_cv_.NotifyOne();
   }

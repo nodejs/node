@@ -10,6 +10,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(0, push0([]));
   assertEquals(1, push0([1]));
   %OptimizeFunctionOnNextCall(push0);
@@ -19,6 +20,7 @@
     return a.push(1);
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(1, push1([]));
   assertEquals(2, push1([1]));
   %OptimizeFunctionOnNextCall(push1);
@@ -28,6 +30,7 @@
     return a.push(1, 2);
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(2, push2([]));
   assertEquals(3, push2([1]));
   %OptimizeFunctionOnNextCall(push2);
@@ -37,6 +40,7 @@
     return a.push(1, 2, 3);
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(3, push3([]));
   assertEquals(4, push3([1]));
   %OptimizeFunctionOnNextCall(push3);
@@ -49,6 +53,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(1, push0(new Array(1)));
   assertEquals(2, push0(new Array(2)));
   %OptimizeFunctionOnNextCall(push0);
@@ -58,6 +63,7 @@
     return a.push(1);
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(2, push1(new Array(1)));
   assertEquals(3, push1(new Array(2)));
   %OptimizeFunctionOnNextCall(push1);
@@ -67,6 +73,7 @@
     return a.push(1, 2);
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(3, push2(new Array(1)));
   assertEquals(4, push2(new Array(2)));
   %OptimizeFunctionOnNextCall(push2);
@@ -76,6 +83,7 @@
     return a.push(1, 2, 3);
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(4, push3(new Array(1)));
   assertEquals(5, push3(new Array(2)));
   %OptimizeFunctionOnNextCall(push3);
@@ -88,6 +96,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(1, push0([1.1]));
   assertEquals(2, push0([1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push0);
@@ -97,6 +106,7 @@
     return a.push(1.1);
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(2, push1([1.1]));
   assertEquals(3, push1([1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push1);
@@ -106,6 +116,7 @@
     return a.push(1.1, 2.2);
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(3, push2([1.1]));
   assertEquals(4, push2([1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push2);
@@ -115,6 +126,7 @@
     return a.push(1.1, 2.2, 3.3);
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(4, push3([1.1]));
   assertEquals(5, push3([1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push3);
@@ -127,6 +139,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(2, push0([, 1.1]));
   assertEquals(3, push0([, 1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push0);
@@ -136,6 +149,7 @@
     return a.push(1.1);
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(3, push1([, 1.1]));
   assertEquals(4, push1([, 1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push1);
@@ -145,6 +159,7 @@
     return a.push(1.1, 2.2);
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(4, push2([, 1.1]));
   assertEquals(5, push2([, 1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push2);
@@ -154,6 +169,7 @@
     return a.push(1.1, 2.2, 3.3);
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(5, push3([, 1.1]));
   assertEquals(6, push3([, 1.1, 2.2]));
   %OptimizeFunctionOnNextCall(push3);
@@ -166,6 +182,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(1, push0(['1']));
   assertEquals(2, push0(['1', '2']));
   %OptimizeFunctionOnNextCall(push0);
@@ -175,6 +192,7 @@
     return a.push('1');
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(2, push1(['1']));
   assertEquals(3, push1(['1', '2']));
   %OptimizeFunctionOnNextCall(push1);
@@ -184,6 +202,7 @@
     return a.push('1', '2');
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(3, push2(['1']));
   assertEquals(4, push2(['1', '2']));
   %OptimizeFunctionOnNextCall(push2);
@@ -193,6 +212,7 @@
     return a.push('1', '2', '3');
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(4, push3(['1']));
   assertEquals(5, push3(['1', '2']));
   %OptimizeFunctionOnNextCall(push3);
@@ -205,6 +225,7 @@
     return a.push();
   }
 
+  %PrepareFunctionForOptimization(push0);
   assertEquals(2, push0([, '1']));
   assertEquals(3, push0([, '1', '2']));
   %OptimizeFunctionOnNextCall(push0);
@@ -214,6 +235,7 @@
     return a.push('1');
   }
 
+  %PrepareFunctionForOptimization(push1);
   assertEquals(3, push1([, '1']));
   assertEquals(4, push1([, '1', '2']));
   %OptimizeFunctionOnNextCall(push1);
@@ -223,6 +245,7 @@
     return a.push('1', '2');
   }
 
+  %PrepareFunctionForOptimization(push2);
   assertEquals(4, push2([, '1']));
   assertEquals(5, push2([, '1', '2']));
   %OptimizeFunctionOnNextCall(push2);
@@ -232,6 +255,7 @@
     return a.push('1', '2', '3');
   }
 
+  %PrepareFunctionForOptimization(push3);
   assertEquals(5, push3([, '1']));
   assertEquals(6, push3([, '1', '2']));
   %OptimizeFunctionOnNextCall(push3);

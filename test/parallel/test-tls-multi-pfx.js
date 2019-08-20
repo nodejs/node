@@ -10,10 +10,10 @@ const fixtures = require('../common/fixtures');
 const options = {
   pfx: [
     {
-      buf: fixtures.readKey('agent1-pfx.pem'),
+      buf: fixtures.readKey('agent1.pfx'),
       passphrase: 'sample'
     },
-    fixtures.readKey('ec-pfx.pem')
+    fixtures.readKey('ec.pfx')
   ]
 };
 
@@ -42,9 +42,9 @@ const server = tls.createServer(options, function(conn) {
 process.on('exit', function() {
   assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: 'TLSv1.2'
   }, {
     name: 'ECDHE-RSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: 'TLSv1.2'
   }]);
 });

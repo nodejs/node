@@ -26,7 +26,7 @@
 #define NGHTTP2_SESSION_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include <nghttp2/nghttp2.h>
@@ -61,7 +61,8 @@ typedef enum {
  */
 typedef enum {
   NGHTTP2_TYPEMASK_NONE = 0,
-  NGHTTP2_TYPEMASK_ALTSVC = 1 << 0
+  NGHTTP2_TYPEMASK_ALTSVC = 1 << 0,
+  NGHTTP2_TYPEMASK_ORIGIN = 1 << 1
 } nghttp2_typemask;
 
 typedef enum {
@@ -96,7 +97,7 @@ typedef struct {
    response frames are stacked up, which leads to memory exhaustion.
    The value selected here is arbitrary, but safe value and if we have
    these frames in this number, it is considered suspicious. */
-#define NGHTTP2_MAX_OBQ_FLOOD_ITEM 10000
+#define NGHTTP2_DEFAULT_MAX_OBQ_FLOOD_ITEM 1000
 
 /* The default value of maximum number of concurrent streams. */
 #define NGHTTP2_DEFAULT_MAX_CONCURRENT_STREAMS 0xffffffffu
@@ -121,6 +122,7 @@ typedef enum {
   NGHTTP2_IB_IGN_DATA,
   NGHTTP2_IB_IGN_ALL,
   NGHTTP2_IB_READ_ALTSVC_PAYLOAD,
+  NGHTTP2_IB_READ_ORIGIN_PAYLOAD,
   NGHTTP2_IB_READ_EXTENSION_PAYLOAD
 } nghttp2_inbound_state;
 
@@ -162,6 +164,7 @@ typedef struct {
   uint32_t initial_window_size;
   uint32_t max_frame_size;
   uint32_t max_header_list_size;
+  uint32_t enable_connect_protocol;
 } nghttp2_settings_storage;
 
 typedef enum {
@@ -206,9 +209,6 @@ struct nghttp2_session {
   nghttp2_session_callbacks callbacks;
   /* Memory allocator */
   nghttp2_mem mem;
-  /* Base value when we schedule next DATA frame write.  This is
-     updated when one frame was written. */
-  uint64_t last_cycle;
   void *user_data;
   /* Points to the latest incoming closed stream.  NULL if there is no
      closed stream.  Only used when session is initialized as
@@ -258,8 +258,12 @@ struct nghttp2_session {
   size_t num_idle_streams;
   /* The number of bytes allocated for nvbuf */
   size_t nvbuflen;
-  /* Counter for detecting flooding in outbound queue */
+  /* Counter for detecting flooding in outbound queue.  If it exceeds
+     max_outbound_ack, session will be closed. */
   size_t obq_flood_counter_;
+  /* The maximum number of outgoing SETTINGS ACK and PING ACK in
+     outbound queue. */
+  size_t max_outbound_ack;
   /* The maximum length of header block to send.  Calculated by the
      same way as nghttp2_hd_deflate_bound() does. */
   size_t max_send_header_block_length;
@@ -301,8 +305,10 @@ struct nghttp2_session {
      increased/decreased by submitting WINDOW_UPDATE. See
      nghttp2_submit_window_update(). */
   int32_t local_window_size;
-  /* Settings value received from the remote endpoint. We just use ID
-     as index. The index = 0 is unused. */
+  /* This flag is used to indicate that the local endpoint received initial
+     SETTINGS frame from the remote endpoint. */
+  uint8_t remote_settings_received;
+  /* Settings value received from the remote endpoint. */
   nghttp2_settings_storage remote_settings;
   /* Settings value of the local endpoint. */
   nghttp2_settings_storage local_settings;
@@ -317,6 +323,9 @@ struct nghttp2_session {
   /* Unacked local ENABLE_PUSH value.  We use this to refuse
      PUSH_PROMISE before SETTINGS ACK is received. */
   uint8_t pending_enable_push;
+  /* Unacked local ENABLE_CONNECT_PROTOCOL value.  We use this to
+     accept :protocol header field before SETTINGS_ACK is received. */
+  uint8_t pending_enable_connect_protocol;
   /* Nonzero if the session is server side. */
   uint8_t server;
   /* Flags indicating GOAWAY is sent and/or received. The flags are
@@ -698,7 +707,7 @@ int nghttp2_session_on_push_promise_received(nghttp2_session *session,
  * NGHTTP2_ERR_NOMEM
  *     Out of memory.
  * NGHTTP2_ERR_CALLBACK_FAILURE
- *   The callback function failed.
+ *     The callback function failed.
  * NGHTTP2_ERR_FLOODED
  *     There are too many items in outbound queue, and this is most
  *     likely caused by misbehaviour of peer.
@@ -716,7 +725,7 @@ int nghttp2_session_on_ping_received(nghttp2_session *session,
  * NGHTTP2_ERR_NOMEM
  *     Out of memory.
  * NGHTTP2_ERR_CALLBACK_FAILURE
- *   The callback function failed.
+ *     The callback function failed.
  */
 int nghttp2_session_on_goaway_received(nghttp2_session *session,
                                        nghttp2_frame *frame);
@@ -731,7 +740,7 @@ int nghttp2_session_on_goaway_received(nghttp2_session *session,
  * NGHTTP2_ERR_NOMEM
  *     Out of memory.
  * NGHTTP2_ERR_CALLBACK_FAILURE
- *   The callback function failed.
+ *     The callback function failed.
  */
 int nghttp2_session_on_window_update_received(nghttp2_session *session,
                                               nghttp2_frame *frame);
@@ -744,9 +753,22 @@ int nghttp2_session_on_window_update_received(nghttp2_session *session,
  * negative error codes:
  *
  * NGHTTP2_ERR_CALLBACK_FAILURE
- *   The callback function failed.
+ *     The callback function failed.
  */
 int nghttp2_session_on_altsvc_received(nghttp2_session *session,
+                                       nghttp2_frame *frame);
+
+/*
+ * Called when ORIGIN is received, assuming |frame| is properly
+ * initialized.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGHTTP2_ERR_CALLBACK_FAILURE
+ *     The callback function failed.
+ */
+int nghttp2_session_on_origin_received(nghttp2_session *session,
                                        nghttp2_frame *frame);
 
 /*
@@ -759,7 +781,7 @@ int nghttp2_session_on_altsvc_received(nghttp2_session *session,
  * NGHTTP2_ERR_NOMEM
  *     Out of memory.
  * NGHTTP2_ERR_CALLBACK_FAILURE
- *   The callback function failed.
+ *     The callback function failed.
  */
 int nghttp2_session_on_data_received(nghttp2_session *session,
                                      nghttp2_frame *frame);

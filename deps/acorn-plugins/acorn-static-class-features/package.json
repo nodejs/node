@@ -1,0 +1,68 @@
+{
+  "_from": "acorn-static-class-features",
+  "_id": "acorn-static-class-features@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-46IooHSRsvgSi+t36Wx9iPfF9BKFKVDcAWELXVqvKHmZogSCk11iUCi2FiZmLeTaM0hlJ3EYDyYiVmHRUGPzWA==",
+  "_location": "/acorn-static-class-features",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "acorn-static-class-features",
+    "name": "acorn-static-class-features",
+    "escapedName": "acorn-static-class-features",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/acorn-static-class-features/-/acorn-static-class-features-0.2.0.tgz",
+  "_shasum": "8a12b0b280b2e067e268fdbb14116a5b02affd71",
+  "_spec": "acorn-static-class-features",
+  "_where": "/home/ruben/repos/node/node",
+  "bugs": {
+    "url": "https://github.com/acornjs/acorn-static-class-features/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Adrian Heine",
+      "email": "mail@adrianheine.de"
+    }
+  ],
+  "dependencies": {
+    "acorn-private-class-elements": "^0.1.0"
+  },
+  "deprecated": false,
+  "description": "Support for static class features in acorn",
+  "devDependencies": {
+    "acorn": "^6.1.0",
+    "eslint": "^5.13.0",
+    "eslint-plugin-node": "^8.0.1",
+    "mocha": "^5.2.0",
+    "test262": "git+https://github.com/tc39/test262.git#33a306d1026b72227eb50a918db19ada16f12b3d",
+    "test262-parser-runner": "^0.5.0"
+  },
+  "engines": {
+    "node": ">=4.8.2"
+  },
+  "homepage": "https://github.com/acornjs/acorn-static-class-features",
+  "license": "MIT",
+  "name": "acorn-static-class-features",
+  "peerDependencies": {
+    "acorn": "^6.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acornjs/acorn-static-class-features.git"
+  },
+  "scripts": {
+    "lint": "eslint -c .eslintrc.json .",
+    "test": "mocha",
+    "test:test262": "node run_test262.js"
+  },
+  "version": "0.2.0"
+}

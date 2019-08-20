@@ -21,7 +21,16 @@ v8_executable("mkgrokdump") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
+  ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "mkgrokdump.status",
+    "testcfg.py",
+    "../../tools/v8heapconst.py",
   ]
 }

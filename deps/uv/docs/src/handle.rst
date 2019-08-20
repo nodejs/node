@@ -101,6 +101,14 @@ Public members
 API
 ---
 
+.. c:function:: UV_HANDLE_TYPE_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the handle types. `iter_macro` is invoked with two
+    arguments: the name of the `uv_handle_type` element without the
+    `UV_` prefix, and the name of the corresponding structure type
+    without the `uv_` prefix and `_t` suffix.
+
 .. c:function:: int uv_is_active(const uv_handle_t* handle)
 
     Returns non-zero if the handle is active, zero if it's inactive. What
@@ -132,6 +140,8 @@ API
 
     Request handle to be closed. `close_cb` will be called asynchronously after
     this call. This MUST be called on each handle before memory is released.
+    Moreover, the memory can only be released in `close_cb` or after it has
+    returned.
 
     Handles that wrap file descriptors are closed immediately but
     `close_cb` will still be deferred to the next iteration of the event loop.

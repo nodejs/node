@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -18,31 +18,32 @@ class Isolate;
 // step and posts another task until the marking is completed.
 class IncrementalMarkingJob {
  public:
-  class Task : public CancelableTask {
-   public:
-    explicit Task(Isolate* isolate, IncrementalMarkingJob* job)
-        : CancelableTask(isolate), isolate_(isolate), job_(job) {}
-    static void Step(Heap* heap);
-    // CancelableTask overrides.
-    void RunInternal() override;
+  enum class TaskType { kNormal, kDelayed };
 
-    Isolate* isolate() { return isolate_; }
-
-   private:
-    Isolate* isolate_;
-    IncrementalMarkingJob* job_;
-  };
-
-  IncrementalMarkingJob() : task_pending_(false) {}
-
-  bool TaskPending() { return task_pending_; }
+  IncrementalMarkingJob() V8_NOEXCEPT = default;
 
   void Start(Heap* heap);
 
-  void ScheduleTask(Heap* heap);
+  void ScheduleTask(Heap* heap, TaskType task_type = TaskType::kNormal);
 
  private:
-  bool task_pending_;
+  class Task;
+  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
+
+  bool IsTaskPending(TaskType task_type) {
+    return task_type == TaskType::kNormal ? normal_task_pending_
+                                          : delayed_task_pending_;
+  }
+  void SetTaskPending(TaskType task_type, bool value) {
+    if (task_type == TaskType::kNormal) {
+      normal_task_pending_ = value;
+    } else {
+      delayed_task_pending_ = value;
+    }
+  }
+
+  bool normal_task_pending_ = false;
+  bool delayed_task_pending_ = false;
 };
 }  // namespace internal
 }  // namespace v8

@@ -47,7 +47,7 @@ const multipleAllowed = [
   // not a special case, just making sure it's parsed correctly
   'X-Forwarded-For',
 
-  // make sure that unspecified headers is treated as multiple
+  // Make sure that unspecified headers is treated as multiple
   'Some-Random-Header',
   'X-Some-Random-Header',
 ];
@@ -65,7 +65,7 @@ const multipleForbidden = [
   'Location',
   'Max-Forwards',
 
-  // special case, tested differently
+  // Special case, tested differently
   // 'Content-Length',
 ];
 

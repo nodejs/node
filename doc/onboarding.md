@@ -38,7 +38,12 @@ onboarding session.
     apply.whitespace fix`
   * Always continue to PR from your own GitHub fork
     * Branches in the `nodejs/node` repository are only for release lines
-  * See [Updating Node.js from Upstream][]
+  * Add the canonical nodejs repository as `upstream` remote:
+    * `git remote add upstream git://github.com/nodejs/node.git`
+  * To update from `upstream`:
+    * `git checkout master`
+    * `git remote update -p` OR `git fetch --all`
+    * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
   * Make a new branch for each PR you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify Collaborators.
@@ -84,17 +89,12 @@ onboarding session.
     so that we know what parts of the code base the pull request modifies. It is
     not perfect, of course. Feel free to apply relevant labels and remove
     irrelevant labels from pull requests and issues.
-  * Use the `tsc-review` label if a topic is controversial or isn't coming to a
-    conclusion after an extended time.
   * `semver-{minor,major}`:
     * If a change has the remote *chance* of breaking something, use the
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the `author-ready` label for PRs where:
-    * the CI has been started (not necessarily finished),
-    * no outstanding review comments exist and
-    * at least one collaborator approved the PR.
+  * Please add the [`author-ready`][] label for PRs, if applicable.
 
 * See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
@@ -124,7 +124,7 @@ onboarding session.
 * Be aware: Your opinion carries a lot of weight!
 * Nits (requests for small changes that are not essential) are fine, but try to
   avoid stalling the pull request.
-  * Note that they are nits when you comment: `Nit: change foo() to bar().`
+  * Identify them as nits when you comment: `Nit: change foo() to bar().`
   * If they are stalling the pull request, fix them yourself on merge.
 * Insofar as possible, issues should be identified by tools rather than human
   reviewers. If you are leaving comments about issues that could be identified
@@ -133,13 +133,12 @@ onboarding session.
   * There is a minimum waiting time which we try to respect for non-trivial
     changes so that people who may have important input in such a distributed
     project are able to respond.
-  * For non-trivial changes, leave the pull request open for at least 48 hours
-    (72 hours on a weekend).
+  * For non-trivial changes, leave the pull request open for at least 48 hours.
   * If a pull request is abandoned, check if they'd mind if you took it over
     (especially if it just has nits left).
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
-    a pull request using Github’s approval interface
+    a pull request using GitHub’s approval interface
   * Some people like to comment `LGTM` (“Looks Good To Me”)
   * You have the authority to approve any other collaborator’s work.
   * You cannot approve your own pull requests.
@@ -180,9 +179,7 @@ onboarding session.
       request containing the code you wish to test. For example, if the URL for
       the pull request is `https://github.com/nodejs/node/issues/7006`, then put
       `7006` in the `PR_ID`.
-    * The remaining elements on the form are typically unchanged with the
-      exception of `POST_STATUS_TO_PR`. Check that if you want a CI status
-      indicator to be automatically inserted into the PR.
+    * The remaining elements on the form are typically unchanged.
   * If you need help with something CI-related:
     * Use #node-dev (IRC) to talk to other Collaborators.
     * Use #node-build (IRC) to talk to the Build WG members who maintain the CI
@@ -194,7 +191,7 @@ onboarding session.
 
 See the Collaborator Guide: [Landing Pull Requests][].
 
-Note that commits in one PR that belong to one logical change should
+Commits in one PR that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
 needs to be pointed out separately during the onboarding.
 
@@ -203,18 +200,17 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a PR adding yourself to the README
 
 * Example:
-  [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0][]
+  https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
   * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0
     -1`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Label your pull request with the `doc` subsystem label.
+* Label your pull request with the `doc`, `notable-change`, and `fast-track`
+  labels.
 * Run CI on the PR. Because the PR does not affect any code, use the
-  `node-test-pull-request-lite` CI task. Alternatively, use the usual
-  `node-test-pull-request` CI task and cancel it after the linter and one other
-  subtask have passed.
-* After one or two approvals, land the PR (PRs of this type do not need to wait
-  for 48/72 hours to land).
+  `node-test-pull-request-lite-pipeline` CI task.
+* After two Collaborator approvals for the change and two Collaborator approvals
+  for fast-tracking, land the PR.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
   * [`node-core-utils`][] automates the generation of metadata and the landing
@@ -243,14 +239,13 @@ needs to be pointed out separately during the onboarding.
   the [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
-[`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
+[`author-ready`]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#author-ready-pull-requests
+[`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
-[https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
-[Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: ../COLLABORATOR_GUIDE.md#who-to-cc-in-the-issue-tracker

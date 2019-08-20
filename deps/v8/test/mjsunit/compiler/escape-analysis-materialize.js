@@ -10,6 +10,7 @@
     %_DeoptimizeNow();
     return a.length;
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(3, f());
   assertEquals(3, f());
   %OptimizeFunctionOnNextCall(f);
@@ -22,6 +23,7 @@
     %_DeoptimizeNow();
     return fun.length;
   }
+  %PrepareFunctionForOptimization(g);
   assertEquals(2, g());
   assertEquals(2, g());
   %OptimizeFunctionOnNextCall(g);

@@ -339,7 +339,8 @@ BytesTrieBuilder::indexOfElementWithNextUnit(int32_t i, int32_t byteIndex, UChar
 
 BytesTrieBuilder::BTLinearMatchNode::BTLinearMatchNode(const char *bytes, int32_t len, Node *nextNode)
         : LinearMatchNode(len, nextNode), s(bytes) {
-    hash=hash*37+ustr_hashCharsN(bytes, len);
+    hash=static_cast<int32_t>(
+        static_cast<uint32_t>(hash)*37u + static_cast<uint32_t>(ustr_hashCharsN(bytes, len)));
 }
 
 UBool

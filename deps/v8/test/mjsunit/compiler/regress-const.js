@@ -41,15 +41,20 @@ function g() {
   return x;
 }
 
+%PrepareFunctionForOptimization(f);
 for (var i = 0; i < 5; i++) {
   f();
-  g();
 }
-
 %OptimizeFunctionOnNextCall(f);
-%OptimizeFunctionOnNextCall(g);
 
 assertEquals(1, f());
+
+%PrepareFunctionForOptimization(g);
+for (var i = 0; i < 5; i++) {
+  g();
+}
+%OptimizeFunctionOnNextCall(g);
+
 assertEquals(42, g());
 
 
@@ -58,6 +63,8 @@ function h(a, b) {
   const X = 42;
   return r + X;
 }
+
+%PrepareFunctionForOptimization(h);
 
 for (var i = 0; i < 5; i++) h(1,2);
 

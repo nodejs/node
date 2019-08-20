@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var debug = false;
@@ -36,8 +35,6 @@ function GlobalImportedInitTest(pad) {
   print("GlobaleImportedInitTest(" + pad + ")...");
   var builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
-
-  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
 
   var g = builder.addImportedGlobal("mod", "offset", kWasmI32);
 

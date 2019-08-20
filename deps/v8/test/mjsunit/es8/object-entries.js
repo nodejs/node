@@ -144,29 +144,11 @@ function TestOrderWithDuplicates(withWarmup) {
   });
 
   if (withWarmup) {
-    for (const key in P) {}
+    for (const key in O) {};
+    try { for (const key in P) {} } catch {};
   }
-  log = [];
 
-  assertEquals([
-    ["a", 1],
-    ["a", 1],
-    ["456", 123],
-    ["456", 123]
-  ], Object.entries(P));
-  assertEquals([
-    "[[OwnPropertyKeys]]",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"a\")",
-    "[[Get]](\"a\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"HIDDEN\")",
-    "[[GetOwnProperty]](\"456\")",
-    "[[Get]](\"456\")"
-  ], log);
+  assertThrows(() => Object.entries(P), TypeError);
 }
 TestOrderWithDuplicates();
 TestOrderWithDuplicates(true);
@@ -210,6 +192,24 @@ function TestPropertyFilter(withWarmup) {
 TestPropertyFilter();
 TestPropertyFilter(true);
 
+function TestPropertyFilter2(withWarmup) {
+  var object = { };
+  Object.defineProperty(object, "prop1", { value: 10 });
+  Object.defineProperty(object, "prop2", { value: 20 });
+  object.prop3 = 30;
+
+  if (withWarmup) {
+    for (const key in object) {}
+  }
+
+  values = Object.entries(object);
+  assertEquals(1, values.length);
+  assertEquals([
+    [ "prop3", 30 ],
+  ], values);
+}
+TestPropertyFilter2();
+TestPropertyFilter2(true);
 
 function TestWithProxy(withWarmup) {
   var obj1 = {prop1:10};

@@ -8,23 +8,22 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/utils.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class Isolate;
-class BuiltinSerializer;
 class PartialSerializer;
 class StartupSerializer;
 
 // Wrapper around reservation sizes and the serialization payload.
-class SnapshotData : public SerializedData {
+class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
  public:
   // Used when producing.
-  template <class AllocatorT>
-  explicit SnapshotData(const Serializer<AllocatorT>* serializer);
+  explicit SnapshotData(const Serializer* serializer);
 
   // Used when consuming.
   explicit SnapshotData(const Vector<const byte> snapshot)
@@ -52,33 +51,6 @@ class SnapshotData : public SerializedData {
   static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
 };
 
-class BuiltinSnapshotData final : public SnapshotData {
- public:
-  // Used when producing.
-  // This simply forwards to the SnapshotData constructor.
-  // The BuiltinSerializer appends the builtin offset table to the payload.
-  explicit BuiltinSnapshotData(const BuiltinSerializer* serializer);
-
-  // Used when consuming.
-  explicit BuiltinSnapshotData(const Vector<const byte> snapshot)
-      : SnapshotData(snapshot) {
-  }
-
-  // Returns the serialized payload without the builtin offsets table.
-  Vector<const byte> Payload() const override;
-
-  // Returns only the builtin offsets table.
-  Vector<const uint32_t> BuiltinOffsets() const;
-
- private:
-  // In addition to the format specified in SnapshotData, BuiltinsSnapshotData
-  // includes a list of builtin at the end of the serialized payload:
-  //
-  // ...
-  // ... serialized payload
-  // ... list of builtins offsets
-};
-
 class Snapshot : public AllStatic {
  public:
   // ---------------- Deserialization ----------------
@@ -93,18 +65,6 @@ class Snapshot : public AllStatic {
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
-  // Deserializes a single given builtin code object. Intended to be called at
-  // runtime after the isolate (and the builtins table) has been fully
-  // initialized.
-  static Code* DeserializeBuiltin(Isolate* isolate, int builtin_id);
-  static void EnsureAllBuiltinsAreDeserialized(Isolate* isolate);
-
-  // Deserializes a single given handler code object. Intended to be called at
-  // runtime after the isolate has been fully initialized.
-  static Code* DeserializeHandler(Isolate* isolate,
-                                  interpreter::Bytecode bytecode,
-                                  interpreter::OperandScale operand_scale);
-
   // ---------------- Helper methods ----------------
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
@@ -113,11 +73,13 @@ class Snapshot : public AllStatic {
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
 
+  V8_EXPORT_PRIVATE static bool VerifyChecksum(const v8::StartupData* data);
+
   // ---------------- Serialization ----------------
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
-      const BuiltinSnapshotData* builtin_snapshot,
+      const SnapshotData* read_only_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
 
@@ -125,21 +87,24 @@ class Snapshot : public AllStatic {
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
 #endif  // DEBUG
 
+  static bool ExtractRehashability(const v8::StartupData* data);
+
  private:
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
-  static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
-  static Vector<const byte> ExtractBuiltinData(const v8::StartupData* data);
+  static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
                                                uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
-    return ReadLittleEndianValue<uint32_t>(data->data + offset);
+    return base::ReadLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data->data) + offset);
   }
   static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
-    WriteLittleEndianValue(data + offset, value);
+    base::WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset,
+                                 value);
   }
 
   static void CheckVersion(const v8::StartupData* data);
@@ -147,14 +112,16 @@ class Snapshot : public AllStatic {
   // Snapshot blob layout:
   // [0] number of contexts N
   // [1] rehashability
-  // [2] (128 bytes) version string
-  // [3] offset to builtins
-  // [4] offset to context 0
-  // [5] offset to context 1
+  // [2] checksum part A
+  // [3] checksum part B
+  // [4] (128 bytes) version string
+  // [5] offset to readonly
+  // [6] offset to context 0
+  // [7] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
-  // ... builtin snapshot data
+  // ... read-only snapshot data
   // ... context 0 snapshot data
   // ... context 1 snapshot data
 
@@ -162,16 +129,28 @@ class Snapshot : public AllStatic {
   // TODO(yangguo): generalize rehashing, and remove this flag.
   static const uint32_t kRehashabilityOffset =
       kNumberOfContextsOffset + kUInt32Size;
-  static const uint32_t kVersionStringOffset =
+  static const uint32_t kChecksumPartAOffset =
       kRehashabilityOffset + kUInt32Size;
+  static const uint32_t kChecksumPartBOffset =
+      kChecksumPartAOffset + kUInt32Size;
+  static const uint32_t kVersionStringOffset =
+      kChecksumPartBOffset + kUInt32Size;
   static const uint32_t kVersionStringLength = 64;
-  static const uint32_t kBuiltinOffsetOffset =
+  static const uint32_t kReadOnlyOffsetOffset =
       kVersionStringOffset + kVersionStringLength;
   static const uint32_t kFirstContextOffsetOffset =
-      kBuiltinOffsetOffset + kUInt32Size;
+      kReadOnlyOffsetOffset + kUInt32Size;
+
+  static Vector<const byte> ChecksummedContent(const v8::StartupData* data) {
+    const uint32_t kChecksumStart = kVersionStringOffset;
+    return Vector<const byte>(
+        reinterpret_cast<const byte*>(data->data + kChecksumStart),
+        data->raw_size - kChecksumStart);
+  }
 
   static uint32_t StartupSnapshotOffset(int num_contexts) {
-    return kFirstContextOffsetOffset + num_contexts * kInt32Size;
+    return POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
+                              num_contexts * kInt32Size);
   }
 
   static uint32_t ContextSnapshotOffsetOffset(int index) {
@@ -180,6 +159,17 @@ class Snapshot : public AllStatic {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
+
+// Convenience wrapper around snapshot data blob creation used e.g. by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source, v8::Isolate* isolate = nullptr);
+
+// Convenience wrapper around snapshot data blob warmup used e.g. by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE v8::StartupData WarmUpSnapshotDataBlobInternal(
+    v8::StartupData cold_snapshot_blob, const char* warmup_source);
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 void SetSnapshotFromFile(StartupData* snapshot_blob);

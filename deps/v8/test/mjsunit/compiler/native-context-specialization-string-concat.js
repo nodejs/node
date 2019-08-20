@@ -27,6 +27,7 @@ function test(arg) {
   d = '"' + foo + arg + bar + '"';
 }
 
+%PrepareFunctionForOptimization(test);
 test('boo');
 %OptimizeFunctionOnNextCall(test);
 test('baa');

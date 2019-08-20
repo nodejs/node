@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@ NON_EMPTY_TRANSLATION_UNIT
 #else
 
 # include "apps.h"
+# include "progs.h"
 # include <string.h>
 # include <openssl/err.h>
 # include <openssl/pem.h>
@@ -32,10 +33,11 @@ typedef enum OPTION_choice {
     OPT_ENGINE, OPT_IN, OPT_OUT, OPT_ASN1PARSE, OPT_HEXDUMP,
     OPT_RAW, OPT_OAEP, OPT_SSL, OPT_PKCS, OPT_X931,
     OPT_SIGN, OPT_VERIFY, OPT_REV, OPT_ENCRYPT, OPT_DECRYPT,
-    OPT_PUBIN, OPT_CERTIN, OPT_INKEY, OPT_PASSIN, OPT_KEYFORM
+    OPT_PUBIN, OPT_CERTIN, OPT_INKEY, OPT_PASSIN, OPT_KEYFORM,
+    OPT_R_ENUM
 } OPTION_CHOICE;
 
-OPTIONS rsautl_options[] = {
+const OPTIONS rsautl_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"in", OPT_IN, '<', "Input file"},
     {"out", OPT_OUT, '>', "Output file"},
@@ -57,6 +59,7 @@ OPTIONS rsautl_options[] = {
     {"encrypt", OPT_ENCRYPT, '-', "Encrypt with public key"},
     {"decrypt", OPT_DECRYPT, '-', "Decrypt with private key"},
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
+    OPT_R_OPTIONS,
 # ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
 # endif
@@ -153,6 +156,10 @@ int rsautl_main(int argc, char **argv)
         case OPT_PASSIN:
             passinarg = opt_arg();
             break;
+        case OPT_R_CASES:
+            if (!opt_rand(o))
+                goto end;
+            break;
         }
     }
     argc = opt_num_rest();
@@ -168,9 +175,6 @@ int rsautl_main(int argc, char **argv)
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
-
-/* FIXME: seed PRNG only if needed */
-    app_RAND_load_file(NULL, 0);
 
     switch (key_type) {
     case KEY_PRIVKEY:
@@ -190,14 +194,13 @@ int rsautl_main(int argc, char **argv)
         break;
     }
 
-    if (!pkey) {
+    if (pkey == NULL)
         return 1;
-    }
 
     rsa = EVP_PKEY_get1_RSA(pkey);
     EVP_PKEY_free(pkey);
 
-    if (!rsa) {
+    if (rsa == NULL) {
         BIO_printf(bio_err, "Error getting RSA key\n");
         ERR_print_errors(bio_err);
         goto end;
@@ -261,10 +264,11 @@ int rsautl_main(int argc, char **argv)
         if (!ASN1_parse_dump(out, rsa_out, rsa_outlen, 1, -1)) {
             ERR_print_errors(bio_err);
         }
-    } else if (hexdump)
+    } else if (hexdump) {
         BIO_dump(out, (char *)rsa_out, rsa_outlen);
-    else
+    } else {
         BIO_write(out, rsa_out, rsa_outlen);
+    }
  end:
     RSA_free(rsa);
     release_engine(e);

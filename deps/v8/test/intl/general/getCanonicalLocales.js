@@ -2,24 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var locales = ['en-US', 'fr'];
-var result = Intl.getCanonicalLocales(locales);
-var len = result.length
+// Ignore the first tag when checking for duplicate subtags.
+assertDoesNotThrow(() => Intl.getCanonicalLocales("foobar-foobar"));
 
-// TODO(jshin): Remove the following when
-// https://github.com/tc39/test262/issues/745 is resolved and
-// test262 in v8 is updated.
+// Ignore duplicate subtags in different namespaces; eg, 'a' vs 'u'.
+assertDoesNotThrow(() => Intl.getCanonicalLocales("en-a-ca-Chinese-u-ca-Chinese"));
+// Ignore duplicate subtags in U-extension as well. Only the first count.
+// See RFC 6067 for details.
+assertDoesNotThrow(() => Intl.getCanonicalLocales("en-u-ca-gregory-ca-chinese"));
+assertEquals("en-u-ca-gregory", Intl.getCanonicalLocales("en-u-ca-gregory-ca-chinese")[0]);
 
-assertEquals(Object.getPrototypeOf(result), Array.prototype);
-assertEquals(result.constructor, Array);
-
-for (var key in result) {
-  var desc = Object.getOwnPropertyDescriptor(result, key);
-  assertTrue(desc.writable);
-  assertTrue(desc.configurable);
-  assertTrue(desc.enumerable);
-}
-
-var desc = Object.getOwnPropertyDescriptor(result, 'length');
-assertTrue(desc.writable);
-assertEquals(result.push('de'), desc.value + 1);
+// Check duplicate subtags (after the first tag) are detected.
+assertThrows(() => Intl.getCanonicalLocales("en-foobar-foobar"), RangeError);

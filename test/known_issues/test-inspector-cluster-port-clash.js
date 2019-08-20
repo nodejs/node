@@ -13,7 +13,7 @@ const assert = require('assert');
 
 // This following check should be replaced by common.skipIfInspectorDisabled()
 // if moved out of the known_issues directory.
-if (process.config.variables.v8_enable_inspector === 0) {
+if (!process.features.inspector) {
   // When the V8 inspector is disabled, using either --without-inspector or
   // --without-ssl, this test will not fail which it is expected to do.
   // The following fail will allow this test to be skipped by failing it.
@@ -23,15 +23,13 @@ if (process.config.variables.v8_enable_inspector === 0) {
 const cluster = require('cluster');
 const net = require('net');
 
-common.crashOnUnhandledRejection();
-
 const ports = [process.debugPort];
 const clashPort = process.debugPort + 2;
 function serialFork() {
   return new Promise((res) => {
     const worker = cluster.fork();
     worker.on('error', (err) => assert.fail(err));
-    // no common.mustCall since 1 out of 3 should fail
+    // No common.mustCall since 1 out of 3 should fail.
     worker.on('online', () => {
       worker.on('message', common.mustCall((message) => {
         ports.push(message.debugPort);
@@ -43,7 +41,7 @@ function serialFork() {
       if (code === 12) {
         return assert.fail(`worker ${worker.id} failed to bind port`);
       }
-      assert.strictEqual(0, code);
+      assert.strictEqual(code, 0);
     }));
     worker.on('disconnect', common.mustCall(res));
   });
@@ -52,10 +50,10 @@ function serialFork() {
 if (cluster.isMaster) {
   cluster.on('online', common.mustCall((worker) => worker.send('dbgport'), 2));
 
-  // block one of the ports with a listening socket
+  // Block one of the ports with a listening socket.
   const server = net.createServer();
   server.listen(clashPort, common.localhostIPv4, common.mustCall(() => {
-    // try to fork 3 workers No.2 should fail
+    // Try to fork 3 workers. No.2 should fail.
     Promise.all([serialFork(), serialFork(), serialFork()])
       .then(common.mustNotCall())
       .catch((err) => console.error(err));

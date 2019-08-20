@@ -11,10 +11,8 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
-#include "src/cancelable-task.h"
-#include "src/counters.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 
@@ -36,9 +34,6 @@ class Isolate;
 //
 // Items need to be marked as finished after processing them. Task and Item
 // ownership is transferred to the job.
-//
-// Each parallel (non-main thread) task will report the time between the job
-// being created and it being scheduled to |gc_parallel_task_latency_histogram|.
 class V8_EXPORT_PRIVATE ItemParallelJob {
  public:
   class Task;
@@ -49,17 +44,18 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     virtual ~Item() = default;
 
     // Marks an item as being finished.
-    void MarkFinished() { CHECK(state_.TrySetValue(kProcessing, kFinished)); }
+    void MarkFinished() { CHECK_EQ(kProcessing, state_.exchange(kFinished)); }
 
    private:
-    enum ProcessingState { kAvailable, kProcessing, kFinished };
+    enum ProcessingState : uintptr_t { kAvailable, kProcessing, kFinished };
 
     bool TryMarkingAsProcessing() {
-      return state_.TrySetValue(kAvailable, kProcessing);
+      ProcessingState available = kAvailable;
+      return state_.compare_exchange_strong(available, kProcessing);
     }
-    bool IsFinished() { return state_.Value() == kFinished; }
+    bool IsFinished() { return state_ == kFinished; }
 
-    base::AtomicValue<ProcessingState> state_{kAvailable};
+    std::atomic<ProcessingState> state_{kAvailable};
 
     friend class ItemParallelJob;
     friend class ItemParallelJob::Task;
@@ -69,10 +65,11 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
 
   class V8_EXPORT_PRIVATE Task : public CancelableTask {
    public:
+    enum class Runner { kForeground, kBackground };
     explicit Task(Isolate* isolate);
-    virtual ~Task();
+    ~Task() override = default;
 
-    virtual void RunInParallel() = 0;
+    virtual void RunInParallel(Runner runner) = 0;
 
    protected:
     // Retrieves a new item that needs to be processed. Returns |nullptr| if
@@ -100,22 +97,18 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     // Sets up state required before invoking Run(). If
     // |start_index is >= items_.size()|, this task will not process work items
     // (some jobs have more tasks than work items in order to parallelize post-
-    // processing, e.g. scavenging). If |gc_parallel_task_latency_histogram| is
-    // provided, it will be used to report histograms on the latency between
-    // posting the task and it being scheduled.
-    void SetupInternal(
-        base::Semaphore* on_finish, std::vector<Item*>* items,
-        size_t start_index,
-        base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram);
-
+    // processing, e.g. scavenging).
+    void SetupInternal(base::Semaphore* on_finish, std::vector<Item*>* items,
+                       size_t start_index);
+    void WillRunOnForeground();
     // We don't allow overriding this method any further.
     void RunInternal() final;
 
     std::vector<Item*>* items_ = nullptr;
     size_t cur_index_ = 0;
     size_t items_considered_ = 0;
+    Runner runner_ = Runner::kBackground;
     base::Semaphore* on_finish_ = nullptr;
-    base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram_;
 
     DISALLOW_COPY_AND_ASSIGN(Task);
   };
@@ -126,7 +119,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   ~ItemParallelJob();
 
   // Adds a task to the job. Transfers ownership to the job.
-  void AddTask(Task* task) { tasks_.push_back(task); }
+  void AddTask(Task* task) { tasks_.push_back(std::unique_ptr<Task>(task)); }
 
   // Adds an item to the job. Transfers ownership to the job.
   void AddItem(Item* item) { items_.push_back(item); }
@@ -134,15 +127,15 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   int NumberOfItems() const { return static_cast<int>(items_.size()); }
   int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
 
-  // Runs this job. Reporting metrics in a thread-safe manner to
-  // |async_counters|.
-  void Run(std::shared_ptr<Counters> async_counters);
+  // Runs this job.
+  void Run();
 
  private:
   std::vector<Item*> items_;
-  std::vector<Task*> tasks_;
+  std::vector<std::unique_ptr<Task>> tasks_;
   CancelableTaskManager* cancelable_task_manager_;
   base::Semaphore* pending_tasks_;
+
   DISALLOW_COPY_AND_ASSIGN(ItemParallelJob);
 };
 

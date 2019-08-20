@@ -32,6 +32,7 @@
 
 #include <vector>
 
+#include "src/base/platform/mutex.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
@@ -43,6 +44,8 @@
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+
+#include "include/v8-platform.h"
 
 namespace v8_inspector {
 
@@ -58,11 +61,14 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_debugger(new V8Debugger(isolate, this)),
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
-      m_lastContextId(0) {
+      m_lastContextId(0),
+      m_isolateId(v8::debug::GetNextRandomInt64(m_isolate)) {
+  v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
 }
 
 V8InspectorImpl::~V8InspectorImpl() {
+  v8::debug::SetInspector(m_isolate, nullptr);
   v8::debug::SetConsoleDelegate(m_isolate, nullptr);
 }
 
@@ -84,6 +90,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
   v8::MicrotasksScope microtasksScope(m_isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
+  v8::Isolate::SafeForTerminationScope allowTermination(m_isolate);
   return unboundScript->BindToCurrentContext()->Run(context);
 }
 
@@ -181,6 +188,11 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
+v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
+  InspectedContext* context = getContext(contextId);
+  return context ? context->context() : v8::MaybeLocal<v8::Context>();
+}
+
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   int contextId = ++m_lastContextId;
   InspectedContext* context = new InspectedContext(this, info, contextId);
@@ -199,6 +211,7 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   (*contextById)[contextId].reset(context);
   forEachSession(
       info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
+        session->runtimeAgent()->addBindings(context);
         session->runtimeAgent()->reportExecutionContextCreated(context);
       });
 }
@@ -228,27 +241,20 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
+  std::vector<int> contextIdsToClear;
+  forEachContext(contextGroupId,
+                 [&contextIdsToClear](InspectedContext* context) {
+                   contextIdsToClear.push_back(context->contextId());
+                 });
+  m_debugger->wasmTranslation()->Clear(m_isolate, contextIdsToClear);
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
   m_contexts.erase(contextGroupId);
-  m_debugger->wasmTranslation()->Clear();
 }
 
-void V8InspectorImpl::idleStarted() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleStarted()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
 
-void V8InspectorImpl::idleFinished() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleFinished()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleFinished() { m_isolate->SetIdle(false); }
 
 unsigned V8InspectorImpl::exceptionThrown(
     v8::Local<v8::Context> context, const StringView& message,
@@ -352,7 +358,8 @@ V8Console* V8InspectorImpl::console() {
 }
 
 void V8InspectorImpl::forEachContext(
-    int contextGroupId, std::function<void(InspectedContext*)> callback) {
+    int contextGroupId,
+    const std::function<void(InspectedContext*)>& callback) {
   auto it = m_contexts.find(contextGroupId);
   if (it == m_contexts.end()) return;
   std::vector<int> ids;
@@ -369,7 +376,8 @@ void V8InspectorImpl::forEachContext(
 }
 
 void V8InspectorImpl::forEachSession(
-    int contextGroupId, std::function<void(V8InspectorSessionImpl*)> callback) {
+    int contextGroupId,
+    const std::function<void(V8InspectorSessionImpl*)>& callback) {
   auto it = m_sessions.find(contextGroupId);
   if (it == m_sessions.end()) return;
   std::vector<int> ids;
@@ -383,6 +391,56 @@ void V8InspectorImpl::forEachSession(
     auto sessionIt = it->second.find(sessionId);
     if (sessionIt != it->second.end()) callback(sessionIt->second);
   }
+}
+
+V8InspectorImpl::EvaluateScope::EvaluateScope(
+    const InjectedScript::Scope& scope)
+    : m_scope(scope),
+      m_isolate(scope.inspector()->isolate()),
+      m_safeForTerminationScope(m_isolate) {}
+
+struct V8InspectorImpl::EvaluateScope::CancelToken {
+  v8::base::Mutex m_mutex;
+  bool m_canceled = false;
+};
+
+V8InspectorImpl::EvaluateScope::~EvaluateScope() {
+  if (m_scope.tryCatch().HasTerminated()) {
+    m_scope.inspector()->debugger()->reportTermination();
+  }
+  if (m_cancelToken) {
+    v8::base::MutexGuard lock(&m_cancelToken->m_mutex);
+    m_cancelToken->m_canceled = true;
+    m_isolate->CancelTerminateExecution();
+  }
+}
+
+class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
+ public:
+  TerminateTask(v8::Isolate* isolate, std::shared_ptr<CancelToken> token)
+      : m_isolate(isolate), m_token(std::move(token)) {}
+
+  void Run() override {
+    // CancelToken contains m_canceled bool which may be changed from main
+    // thread, so lock mutex first.
+    v8::base::MutexGuard lock(&m_token->m_mutex);
+    if (m_token->m_canceled) return;
+    m_isolate->TerminateExecution();
+  }
+
+ private:
+  v8::Isolate* m_isolate;
+  std::shared_ptr<CancelToken> m_token;
+};
+
+protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
+  if (m_isolate->IsExecutionTerminating()) {
+    return protocol::Response::Error("Execution was terminated");
+  }
+  m_cancelToken.reset(new CancelToken());
+  v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+      v8::base::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
+  return protocol::Response::OK();
 }
 
 }  // namespace v8_inspector

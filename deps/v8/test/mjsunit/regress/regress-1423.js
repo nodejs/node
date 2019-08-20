@@ -32,8 +32,8 @@
 
 function f0() {
   return f1('literal', true);
-}
-
+};
+%PrepareFunctionForOptimization(f0);
 function f1(x, y) {
   return f2(x, y);
 }

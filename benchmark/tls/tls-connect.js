@@ -1,6 +1,5 @@
 'use strict';
-const fs = require('fs');
-const path = require('path');
+const fixtures = require('../../test/common/fixtures');
 const tls = require('tls');
 
 const common = require('../common.js');
@@ -18,11 +17,10 @@ var running = true;
 function main(conf) {
   dur = conf.dur;
   concurrency = conf.concurrency;
-  const cert_dir = path.resolve(__dirname, '../../test/fixtures');
   const options = {
-    key: fs.readFileSync(`${cert_dir}/test_key.pem`),
-    cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
-    ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
+    key: fixtures.readKey('rsa_private.pem'),
+    cert: fixtures.readKey('rsa_cert.crt'),
+    ca: fixtures.readKey('rsa_ca.crt'),
     ciphers: 'AES256-GCM-SHA384'
   };
 
@@ -46,9 +44,9 @@ function makeConnection() {
     port: common.PORT,
     rejectUnauthorized: false
   };
-  var conn = tls.connect(options, function() {
+  const conn = tls.connect(options, () => {
     clientConn++;
-    conn.on('error', function(er) {
+    conn.on('error', (er) => {
       console.error('client error', er);
       throw er;
     });
@@ -59,7 +57,7 @@ function makeConnection() {
 
 function done() {
   running = false;
-  // it's only an established connection if they both saw it.
+  // It's only an established connection if they both saw it.
   // because we destroy the server somewhat abruptly, these
   // don't always match.  Generally, serverConn will be
   // the smaller number, but take the min just to be sure.

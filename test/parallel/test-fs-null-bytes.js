@@ -59,6 +59,7 @@ check(fs.chmod, fs.chmodSync, 'foo\u0000bar', '0644');
 check(fs.chown, fs.chownSync, 'foo\u0000bar', 12, 34);
 check(fs.copyFile, fs.copyFileSync, 'foo\u0000bar', 'abc');
 check(fs.copyFile, fs.copyFileSync, 'abc', 'foo\u0000bar');
+check(fs.lchown, fs.lchownSync, 'foo\u0000bar', 12, 34);
 check(fs.link, fs.linkSync, 'foo\u0000bar', 'foobar');
 check(fs.link, fs.linkSync, 'foobar', 'foo\u0000bar');
 check(fs.lstat, fs.lstatSync, 'foo\u0000bar');
@@ -92,6 +93,7 @@ check(fs.chmod, fs.chmodSync, fileUrl, '0644');
 check(fs.chown, fs.chownSync, fileUrl, 12, 34);
 check(fs.copyFile, fs.copyFileSync, fileUrl, 'abc');
 check(fs.copyFile, fs.copyFileSync, 'abc', fileUrl);
+check(fs.lchown, fs.lchownSync, fileUrl, 12, 34);
 check(fs.link, fs.linkSync, fileUrl, 'foobar');
 check(fs.link, fs.linkSync, 'foobar', fileUrl);
 check(fs.lstat, fs.lstatSync, fileUrl);
@@ -122,6 +124,7 @@ check(fs.chmod, fs.chmodSync, fileUrl2, '0644');
 check(fs.chown, fs.chownSync, fileUrl2, 12, 34);
 check(fs.copyFile, fs.copyFileSync, fileUrl2, 'abc');
 check(fs.copyFile, fs.copyFileSync, 'abc', fileUrl2);
+check(fs.lchown, fs.lchownSync, fileUrl2, 12, 34);
 check(fs.link, fs.linkSync, fileUrl2, 'foobar');
 check(fs.link, fs.linkSync, 'foobar', fileUrl2);
 check(fs.lstat, fs.lstatSync, fileUrl2);
@@ -145,8 +148,8 @@ check(null, fs.watch, fileUrl2, assert.fail);
 check(null, fs.watchFile, fileUrl2, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
 
-// an 'error' for exists means that it doesn't exist.
-// one of many reasons why this file is the absolute worst.
+// An 'error' for exists means that it doesn't exist.
+// One of many reasons why this file is the absolute worst.
 fs.exists('foo\u0000bar', common.mustCall((exists) => {
   assert(!exists);
 }));

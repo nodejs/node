@@ -71,7 +71,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* write the BOM if necessary */
     if(cnv->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xfe, (char)0xff };
+        static const char bom[]={ (char)0xfeu, (char)0xffu };
         ucnv_fromUWriteBytes(cnv,
                              bom, 2,
                              &pArgs->target, pArgs->targetLimit,
@@ -672,7 +672,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* write the BOM if necessary */
     if(cnv->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xff, (char)0xfe };
+        static const char bom[]={ (char)0xffu, (char)0xfeu };
         ucnv_fromUWriteBytes(cnv,
                              bom, 2,
                              &pArgs->target, pArgs->targetLimit,

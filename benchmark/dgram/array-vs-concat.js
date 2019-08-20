@@ -1,4 +1,4 @@
-// test UDP send throughput with the multi buffer API against Buffer.concat
+// Test UDP send throughput with the multi buffer API against Buffer.concat
 'use strict';
 
 const common = require('../common.js');
@@ -43,11 +43,11 @@ function main({ dur, len, num, type, chunks }) {
     }
   }
 
-  socket.on('listening', function() {
+  socket.on('listening', () => {
     bench.start();
     onsend();
 
-    setTimeout(function() {
+    setTimeout(() => {
       const bytes = sent * len;
       const gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);

@@ -89,7 +89,7 @@ if (cluster.isMaster) {
         assert.strictEqual(typeof port3, 'number');
         process.send('success');
       });
-  // an error is expected only in the second worker
+  // An error is expected only in the second worker
   const socket3OnError =
     !isSecondWorker ?
       common.mustNotCall() :

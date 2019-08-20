@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include <stdio.h>
+#include <cstdio>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <VersionHelpers.h>
 #include <WinError.h>
 
-int wmain(int argc, wchar_t *wargv[]) {
+int wmain(int argc, wchar_t* wargv[]) {
   if (!IsWindows7OrGreater()) {
     fprintf(stderr, "This application is only supported on Windows 7, "
                     "Windows Server 2008 R2, or higher.");
@@ -88,10 +88,12 @@ extern char** environ;
 #endif
 
 namespace node {
-  extern bool linux_at_secure;
+namespace per_process {
+extern bool linux_at_secure;
+}  // namespace per_process
 }  // namespace node
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 #if defined(__POSIX__) && defined(NODE_SHARED_MODE)
   // In node::PlatformInit(), we squash all signal handlers for non-shared lib
   // build. In order to run test cases against shared lib build, we also need
@@ -112,7 +114,7 @@ int main(int argc, char *argv[]) {
   Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
   for (; auxv->a_type != AT_NULL; auxv++) {
     if (auxv->a_type == AT_SECURE) {
-      node::linux_at_secure = auxv->a_un.a_val;
+      node::per_process::linux_at_secure = auxv->a_un.a_val;
       break;
     }
   }

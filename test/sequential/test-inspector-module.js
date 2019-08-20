@@ -5,6 +5,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const { Session } = require('inspector');
+const { inspect } = require('util');
 
 const session = new Session();
 
@@ -46,22 +47,23 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
   );
 });
 
+[1, 'a', {}, [], true, Infinity].forEach((i) => {
+  common.expectsError(
+    () => session.post('test', {}, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: `Callback must be a function. Received ${inspect(i)}`
+    }
+  );
+});
+
 common.expectsError(
   () => session.connect(),
   {
     code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
     type: Error,
     message: 'The inspector session is already connected'
-  }
-);
-
-const session2 = new Session();
-common.expectsError(
-  () => session2.connect(),
-  {
-    code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
-    type: Error,
-    message: 'Another inspector session is already connected'
   }
 );
 

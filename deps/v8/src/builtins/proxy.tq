@@ -1,0 +1,57 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+  extern macro ProxiesCodeStubAssembler::AllocateProxy(
+      implicit context: Context)(JSReceiver, JSReceiver): JSProxy;
+
+  macro IsRevokedProxy(implicit context: Context)(o: JSReceiver): bool {
+    const proxy: JSProxy = Cast<JSProxy>(o) otherwise return false;
+    Cast<JSReceiver>(proxy.handler) otherwise return true;
+    return false;
+  }
+
+  extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
+      implicit context:
+          Context)(JSReceiver, JSProxy, Name, Object, constexpr int31);
+
+  extern transitioning macro ProxiesCodeStubAssembler::CheckDeleteTrapResult(
+      implicit context: Context)(JSReceiver, JSProxy, Name);
+
+  extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
+      implicit context: Context)(JSReceiver, JSProxy, Name);
+
+  const kProxyNonObject: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyNonObject';
+  const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
+  const kProxyRevoked: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyRevoked';
+  const kProxyTrapReturnedFalsishFor: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyTrapReturnedFalsishFor';
+  const kProxyPrivate: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyPrivate';
+  const kProxyIsExtensibleInconsistent: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyIsExtensibleInconsistent';
+  const kProxyPreventExtensionsExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyPreventExtensionsExtensible';
+  const kProxyTrapReturnedFalsish: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyTrapReturnedFalsish';
+  const kProxyGetPrototypeOfInvalid: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyGetPrototypeOfInvalid';
+  const kProxyGetPrototypeOfNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyGetPrototypeOfNonExtensible';
+  const kProxySetPrototypeOfNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxySetPrototypeOfNonExtensible';
+  const kProxyDeletePropertyNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyDeletePropertyNonExtensible';
+
+  const kProxyGet: constexpr int31
+  generates 'JSProxy::AccessKind::kGet';
+  const kProxySet: constexpr int31
+  generates 'JSProxy::AccessKind::kSet';
+}

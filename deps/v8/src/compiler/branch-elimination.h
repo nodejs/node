@@ -6,10 +6,10 @@
 #define V8_COMPILER_BRANCH_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/functional-list.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-aux-data.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -72,6 +72,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Node* dead() const { return dead_; }
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
 
   JSGraph* const jsgraph_;

@@ -34,7 +34,7 @@ function Setup() {
   b = function b(p) { return p; };
   a = function a(p) { return p; };
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }
 
 function Basic() {
@@ -48,5 +48,5 @@ function Basic() {
    .then(c)
    .then(b)
    .then(a);
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 }

@@ -1,5 +1,5 @@
 "use strict";
-var Buffer = require("buffer").Buffer;
+var Buffer = require("safer-buffer").Buffer;
 
 // Export Node.js internal encodings.
 
@@ -33,7 +33,7 @@ function InternalCodec(codecOptions, iconv) {
         this.encoder = InternalEncoderCesu8;
 
         // Add decoder for versions of Node not supporting CESU-8
-        if (new Buffer('eda0bdedb2a9', 'hex').toString() !== '💩') {
+        if (Buffer.from('eda0bdedb2a9', 'hex').toString() !== '💩') {
             this.decoder = InternalDecoderCesu8;
             this.defaultCharUnicode = iconv.defaultCharUnicode;
         }
@@ -67,7 +67,7 @@ function InternalEncoder(options, codec) {
 }
 
 InternalEncoder.prototype.write = function(str) {
-    return new Buffer(str, this.enc);
+    return Buffer.from(str, this.enc);
 }
 
 InternalEncoder.prototype.end = function() {
@@ -87,11 +87,11 @@ InternalEncoderBase64.prototype.write = function(str) {
     this.prevStr = str.slice(completeQuads);
     str = str.slice(0, completeQuads);
 
-    return new Buffer(str, "base64");
+    return Buffer.from(str, "base64");
 }
 
 InternalEncoderBase64.prototype.end = function() {
-    return new Buffer(this.prevStr, "base64");
+    return Buffer.from(this.prevStr, "base64");
 }
 
 
@@ -102,7 +102,7 @@ function InternalEncoderCesu8(options, codec) {
 }
 
 InternalEncoderCesu8.prototype.write = function(str) {
-    var buf = new Buffer(str.length * 3), bufIdx = 0;
+    var buf = Buffer.alloc(str.length * 3), bufIdx = 0;
     for (var i = 0; i < str.length; i++) {
         var charCode = str.charCodeAt(i);
         // Naive implementation, but it works because CESU-8 is especially easy

@@ -16,3 +16,4 @@ prefix message
 
 [$system==freebsd]
 
+[$system==aix]

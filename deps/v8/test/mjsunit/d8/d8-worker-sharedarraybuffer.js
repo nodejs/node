@@ -45,7 +45,7 @@ if (this.Worker) {
         Atomics.store(ta, 0, 100);
       };`;
 
-    var w = new Worker(workerScript);
+    var w = new Worker(workerScript, {type: 'string'});
 
     var sab = new SharedArrayBuffer(16);
     var ta = new Uint32Array(sab);
@@ -84,7 +84,7 @@ if (this.Worker) {
     var id;
     var workers = [];
     for (id = 0; id < 4; ++id) {
-      workers[id] = new Worker(workerScript);
+      workers[id] = new Worker(workerScript, {type: 'string'});
       workers[id].postMessage({sab: sab, id: id});
     }
 

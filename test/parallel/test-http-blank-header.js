@@ -26,13 +26,13 @@ const http = require('http');
 const net = require('net');
 
 const server = http.createServer(common.mustCall((req, res) => {
-  assert.strictEqual('GET', req.method);
-  assert.strictEqual('/blah', req.url);
-  assert.deepStrictEqual({
+  assert.strictEqual(req.method, 'GET');
+  assert.strictEqual(req.url, '/blah');
+  assert.deepStrictEqual(req.headers, {
     host: 'example.org:443',
     origin: 'http://example.org',
     cookie: ''
-  }, req.headers);
+  });
 }));
 
 
@@ -52,7 +52,9 @@ server.listen(0, common.mustCall(() => {
     received += data.toString();
   }));
   c.on('end', common.mustCall(() => {
-    assert.strictEqual('HTTP/1.1 400 Bad Request\r\n\r\n', received);
+    assert.strictEqual(received,
+                       'HTTP/1.1 400 Bad Request\r\n' +
+                       'Connection: close\r\n\r\n');
     c.end();
   }));
   c.on('close', common.mustCall(() => server.close()));

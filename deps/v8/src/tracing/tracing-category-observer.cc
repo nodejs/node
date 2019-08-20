@@ -5,9 +5,9 @@
 #include "src/tracing/tracing-category-observer.h"
 
 #include "src/base/atomic-utils.h"
-#include "src/flags.h"
+#include "src/init/v8.h"
+#include "src/logging/counters.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace tracing {
@@ -16,20 +16,13 @@ TracingCategoryObserver* TracingCategoryObserver::instance_ = nullptr;
 
 void TracingCategoryObserver::SetUp() {
   TracingCategoryObserver::instance_ = new TracingCategoryObserver();
-  v8::internal::V8::GetCurrentPlatform()
-      ->GetTracingController()
-      ->AddTraceStateObserver(TracingCategoryObserver::instance_);
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));
-  TRACE_EVENT_WARMUP_CATEGORY(
-      TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"));
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"));
-  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"));
+  i::V8::GetCurrentPlatform()->GetTracingController()->AddTraceStateObserver(
+      TracingCategoryObserver::instance_);
 }
 
 void TracingCategoryObserver::TearDown() {
-  v8::internal::V8::GetCurrentPlatform()
-      ->GetTracingController()
-      ->RemoveTraceStateObserver(TracingCategoryObserver::instance_);
+  i::V8::GetCurrentPlatform()->GetTracingController()->RemoveTraceStateObserver(
+      TracingCategoryObserver::instance_);
   delete TracingCategoryObserver::instance_;
 }
 
@@ -38,36 +31,45 @@ void TracingCategoryObserver::OnTraceEnabled() {
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"), &enabled);
   if (enabled) {
-    base::AsAtomic32::Relaxed_Store(
-        &v8::internal::FLAG_runtime_stats,
-        (v8::internal::FLAG_runtime_stats | ENABLED_BY_TRACING));
+    i::TracingFlags::runtime_stats.fetch_or(ENABLED_BY_TRACING,
+                                            std::memory_order_relaxed);
   }
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"), &enabled);
   if (enabled) {
-    base::AsAtomic32::Relaxed_Store(
-        &v8::internal::FLAG_runtime_stats,
-        v8::internal::FLAG_runtime_stats | ENABLED_BY_SAMPLING);
+    i::TracingFlags::runtime_stats.fetch_or(ENABLED_BY_SAMPLING,
+                                            std::memory_order_relaxed);
+  }
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                                     &enabled);
+  if (enabled) {
+    i::TracingFlags::gc.fetch_or(ENABLED_BY_TRACING, std::memory_order_relaxed);
   }
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
                                      &enabled);
   if (enabled) {
-    v8::internal::FLAG_gc_stats |= ENABLED_BY_TRACING;
+    i::TracingFlags::gc_stats.fetch_or(ENABLED_BY_TRACING,
+                                       std::memory_order_relaxed);
   }
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"),
                                      &enabled);
   if (enabled) {
-    v8::internal::FLAG_ic_stats |= ENABLED_BY_TRACING;
+    i::TracingFlags::ic_stats.fetch_or(ENABLED_BY_TRACING,
+                                       std::memory_order_relaxed);
   }
 }
 
 void TracingCategoryObserver::OnTraceDisabled() {
-  base::AsAtomic32::Relaxed_Store(
-      &v8::internal::FLAG_runtime_stats,
-      v8::internal::FLAG_runtime_stats &
-          ~(ENABLED_BY_TRACING | ENABLED_BY_SAMPLING));
-  v8::internal::FLAG_gc_stats &= ~ENABLED_BY_TRACING;
-  v8::internal::FLAG_ic_stats &= ~ENABLED_BY_TRACING;
+  i::TracingFlags::runtime_stats.fetch_and(
+      ~(ENABLED_BY_TRACING | ENABLED_BY_SAMPLING), std::memory_order_relaxed);
+
+  i::TracingFlags::gc.fetch_and(~ENABLED_BY_TRACING, std::memory_order_relaxed);
+
+  i::TracingFlags::gc_stats.fetch_and(~ENABLED_BY_TRACING,
+                                      std::memory_order_relaxed);
+
+  i::TracingFlags::ic_stats.fetch_and(~ENABLED_BY_TRACING,
+                                      std::memory_order_relaxed);
 }
 
 }  // namespace tracing

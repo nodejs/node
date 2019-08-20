@@ -6,7 +6,7 @@ bn_mul_words, bn_mul_add_words, bn_sqr_words, bn_div_words,
 bn_add_words, bn_sub_words, bn_mul_comba4, bn_mul_comba8,
 bn_sqr_comba4, bn_sqr_comba8, bn_cmp_words, bn_mul_normal,
 bn_mul_low_normal, bn_mul_recursive, bn_mul_part_recursive,
-bn_mul_low_recursive, bn_mul_high, bn_sqr_normal, bn_sqr_recursive,
+bn_mul_low_recursive, bn_sqr_normal, bn_sqr_recursive,
 bn_expand, bn_wexpand, bn_expand2, bn_fix_top, bn_check_top,
 bn_print, bn_dump, bn_set_max, bn_set_high, bn_set_low - BIGNUM
 library internal functions
@@ -40,8 +40,6 @@ library internal functions
  void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b,
    int n, int tna, int tnb, BN_ULONG *tmp);
  void bn_mul_low_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b,
-   int n2, BN_ULONG *tmp);
- void bn_mul_high(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, BN_ULONG *l,
    int n2, BN_ULONG *tmp);
 
  void bn_sqr_normal(BN_ULONG *r, BN_ULONG *a, int n, BN_ULONG *tmp);
@@ -177,10 +175,6 @@ B<n>+B<tnb> and the 4*B<n> word arrays B<r> and B<tmp>.
 bn_mul_low_recursive(B<r>, B<a>, B<b>, B<n2>, B<tmp>) operates on the
 B<n2> word arrays B<r> and B<tmp> and the B<n2>/2 word arrays B<a>
 and B<b>.
-
-bn_mul_high(B<r>, B<a>, B<b>, B<l>, B<n2>, B<tmp>) operates on the
-B<n2> word arrays B<r>, B<a>, B<b> and B<l> (?) and the 3*B<n2> word
-array B<tmp>.
 
 BN_mul() calls bn_mul_normal(), or an optimized implementation if the
 factors have the same size: bn_mul_comba8() is used if they are 8

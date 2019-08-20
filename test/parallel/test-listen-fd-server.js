@@ -44,7 +44,7 @@ process.on('exit', function() {
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
 test(function(child, port) {
-  // now make sure that we can request to the child, then kill it.
+  // Now make sure that we can request to the subprocess, then kill it.
   http.get({
     server: 'localhost',
     port: port,
@@ -74,7 +74,7 @@ function child() {
     process.exit(0);
   });
 
-  // start a server on fd=3
+  // Start a server on fd=3
   http.createServer(function(req, res) {
     console.error('request on child');
     console.error('%s %s', req.method, req.url, req.headers);

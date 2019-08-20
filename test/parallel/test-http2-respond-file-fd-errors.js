@@ -10,8 +10,7 @@ const fs = require('fs');
 const optionsWithTypeError = {
   offset: 'number',
   length: 'number',
-  statCheck: 'function',
-  getTrailers: 'function'
+  statCheck: 'function'
 };
 
 const types = {
@@ -30,7 +29,7 @@ const fd = fs.openSync(fname, 'r');
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
-  // should throw if fd isn't a number
+  // Should throw if fd isn't a number
   Object.keys(types).forEach((type) => {
     if (type === 'number') {
       return;

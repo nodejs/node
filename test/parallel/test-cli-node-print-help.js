@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -7,6 +8,8 @@ const common = require('../common');
 
 const assert = require('assert');
 const { exec } = require('child_process');
+const { internalBinding } = require('internal/test/binding');
+const { fipsMode } = internalBinding('config');
 let stdOut;
 
 
@@ -19,22 +22,18 @@ function startPrintHelpTest() {
 }
 
 function validateNodePrintHelp() {
-  const config = process.config;
   const HAVE_OPENSSL = common.hasCrypto;
-  const NODE_FIPS_MODE = common.hasFipsCrypto;
   const NODE_HAVE_I18N_SUPPORT = common.hasIntl;
-  const HAVE_INSPECTOR = config.variables.v8_enable_inspector === 1;
+  const HAVE_INSPECTOR = process.features.inspector;
 
   const cliHelpOptions = [
     { compileConstant: HAVE_OPENSSL,
-      flags: [ '--openssl-config=file', '--tls-cipher-list=val',
+      flags: [ '--openssl-config=...', '--tls-cipher-list=...',
                '--use-bundled-ca', '--use-openssl-ca' ] },
-    { compileConstant: NODE_FIPS_MODE,
+    { compileConstant: fipsMode,
       flags: [ '--enable-fips', '--force-fips' ] },
     { compileConstant: NODE_HAVE_I18N_SUPPORT,
-      flags: [ '--experimental-modules', '--experimental-vm-modules',
-               '--icu-data-dir=dir', '--preserve-symlinks',
-               'NODE_ICU_DATA', 'NODE_PRESERVE_SYMLINKS' ] },
+      flags: [ '--icu-data-dir=...', 'NODE_ICU_DATA' ] },
     { compileConstant: HAVE_INSPECTOR,
       flags: [ '--inspect-brk[=[host:]port]', '--inspect-port=[host:]port',
                '--inspect[=[host:]port]' ] },
@@ -46,11 +45,13 @@ function validateNodePrintHelp() {
 function testForSubstring(options) {
   if (options.compileConstant) {
     options.flags.forEach((flag) => {
-      assert.strictEqual(stdOut.indexOf(flag) !== -1, true);
+      assert.strictEqual(stdOut.indexOf(flag) !== -1, true,
+                         `Missing flag ${flag} in ${stdOut}`);
     });
   } else {
     options.flags.forEach((flag) => {
-      assert.strictEqual(stdOut.indexOf(flag), -1);
+      assert.strictEqual(stdOut.indexOf(flag), -1,
+                         `Unexpected flag ${flag} in ${stdOut}`);
     });
   }
 }

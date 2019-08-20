@@ -1,29 +1,6 @@
 // Copyright 2010 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
 
@@ -74,56 +51,6 @@ function TestNumberSort() {
 }
 
 TestNumberSort();
-
-function TestSmiLexicographicCompare() {
-
-  assertFalse(%_IsSmi(2147483648), 'Update test for >32 bit Smi');
-
-  // Collect a list of interesting Smis.
-  var seen = {};
-  var smis = [];
-  function add(x) {
-    if (x | 0 == x) {
-      x = x | 0;  // Canonicalizes to Smi if 32-bit signed and fits in Smi.
-    }
-    if (%_IsSmi(x) && !seen[x]) {
-      seen[x] = 1;
-      smis.push(x);
-    }
-  }
-  function addSigned(x) {
-    add(x);
-    add(-x);
-  }
-
-  var BIGGER_THAN_ANY_SMI = 10 * 1000 * 1000 * 1000;
-  for (var xb = 1; xb <= BIGGER_THAN_ANY_SMI; xb *= 10) {
-    for (var xf = 0; xf <= 9; xf++) {
-      for (var xo = -1; xo <= 1; xo++) {
-        addSigned(xb * xf + xo);
-      }
-    }
-  }
-
-  for (var yb = 1; yb <= BIGGER_THAN_ANY_SMI; yb *= 2) {
-    for (var yo = -2; yo <= 2; yo++) {
-      addSigned(yb + yo);
-    }
-  }
-
-  for (var i = 0; i < smis.length; i++) {
-    for (var j = 0; j < smis.length; j++) {
-      var x = smis[i];
-      var y = smis[j];
-      var lex = %SmiLexicographicCompare(x, y);
-      var expected = (x == y) ? 0 : ((x + "") < (y + "") ? -1 : 1);
-      assertEquals(lex, expected, x + " < " + y);
-    }
-  }
-}
-
-TestSmiLexicographicCompare();
-
 
 // Test lexicographical string sorting.
 function TestStringSort() {
@@ -200,9 +127,8 @@ function TestSparseNonArraySorting(length) {
   assertFalse(4 in obj, "objsort non-existing retained");
 }
 
+TestSparseNonArraySorting(1000);
 TestSparseNonArraySorting(5000);
-TestSparseNonArraySorting(500000);
-TestSparseNonArraySorting(Math.pow(2, 31) + 1);
 
 
 function TestArrayLongerLength(length) {
@@ -220,8 +146,7 @@ function TestArrayLongerLength(length) {
 TestArrayLongerLength(4);
 TestArrayLongerLength(10);
 TestArrayLongerLength(1000);
-TestArrayLongerLength(500000);
-TestArrayLongerLength(Math.pow(2,32) - 1);
+TestArrayLongerLength(5000);
 
 
 function TestNonArrayLongerLength(length) {
@@ -239,8 +164,7 @@ function TestNonArrayLongerLength(length) {
 TestNonArrayLongerLength(4);
 TestNonArrayLongerLength(10);
 TestNonArrayLongerLength(1000);
-TestNonArrayLongerLength(500000);
-TestNonArrayLongerLength(Math.pow(2,32) - 1);
+TestNonArrayLongerLength(5000);
 
 
 function TestNonArrayWithAccessors() {
@@ -281,7 +205,7 @@ function TestInheritedElementSort(depth) {
   // expected (inherited) object: [undef1,...undefdepth,hole,1,...,depth,0,hole]
 
   Array.prototype.sort.call(obj, function(a,b) { return (b < a) - (a < b); });
-  // expected result: [0,1,...,depth,undef1,...,undefdepth,undef,hole]
+  // expected result: [0,1,...,depth,undef1,...,undefdepth,hole]
   var name = "SortInherit("+depth+")-";
 
   assertEquals(length, obj.length, name+"length");
@@ -289,11 +213,12 @@ function TestInheritedElementSort(depth) {
     assertTrue(obj.hasOwnProperty(i), name + "hasvalue" + i);
     assertEquals(i, obj[i], name + "value" + i);
   }
-  for (var i = depth + 1; i <= depth * 2 + 1; i++) {
+  for (var i = depth + 1; i < depth * 2 + 1; i++) {
     assertEquals(undefined, obj[i], name + "undefined" + i);
     assertTrue(obj.hasOwnProperty(i), name + "hasundefined" + i);
   }
-  assertTrue(!obj.hasOwnProperty(depth * 2 + 2), name + "hashole");
+  assertFalse(obj.hasOwnProperty(depth * 2 + 1), name + "hashole")
+  assertFalse(obj.hasOwnProperty(depth * 2 + 2), name + "hashole");
 }
 
 TestInheritedElementSort(5);
@@ -321,9 +246,8 @@ function TestSparseInheritedElementSort(scale) {
     assertEquals(i, y[i], name + "value" + i);
   }
   for (var i = 10; i < length; i++) {
-    assertEquals(x.hasOwnProperty(i), y.hasOwnProperty(i),
-                 name + "hasundef" + i);
-    assertEquals(undefined, y[i], name+"undefined"+i);
+    assertFalse(y.hasOwnProperty(i), name + "noundef" + i);
+
     if (x.hasOwnProperty(i)) {
       assertTrue(0 == i % (2 * scale), name + "new_x" + i);
     }
@@ -376,14 +300,14 @@ function TestSpecialCasesInheritedElementSort() {
   assertFalse(sorted.length in x, name + "haspost2");
   assertTrue(x.hasOwnProperty(10), name + "hasundefined10");
   assertEquals(undefined, x[10], name + "undefined10");
-  assertTrue(x.hasOwnProperty(100), name + "hasundefined100");
-  assertEquals(undefined, x[100], name + "undefined100");
-  assertTrue(x.hasOwnProperty(1000), name + "hasundefined1000");
-  assertEquals(undefined, x[1000], name + "undefined1000");
-  assertTrue(x.hasOwnProperty(2000), name + "hasundefined2000");
-  assertEquals(undefined, x[2000], name + "undefined2000");
-  assertTrue(x.hasOwnProperty(8000), name + "hasundefined8000");
-  assertEquals(undefined, x[8000], name + "undefined8000");
+  assertFalse(x.hasOwnProperty(100), name + "hasno100");
+  assertEquals("b2", x[100], "inherits100");
+  assertFalse(x.hasOwnProperty(1000), name + "hasno1000");
+  assertEquals("c2", x[1000], "inherits1000");
+  assertFalse(x.hasOwnProperty(2000), name + "hasno2000");
+  assertEquals(undefined, x[2000], "inherits2000");
+  assertFalse(x.hasOwnProperty(8000), name + "hasno8000");
+  assertEquals("d2", x[8000], "inherits8000");
   assertFalse(x.hasOwnProperty(12000), name + "has12000");
   assertEquals("XX", x[12000], name + "XX12000");
 }
@@ -584,3 +508,243 @@ TestSortOnTypedArray();
 assertThrows(() => {
   Array.prototype.sort.call(undefined);
 }, TypeError);
+
+// This test ensures that RemoveArrayHoles does not shadow indices in the
+// prototype chain. There are multiple code paths, we force both and check that
+// they have the same behavior.
+function TestPrototypeHoles() {
+  function test(forceGenericFallback) {
+    let proto2 = {
+      7: 27,
+    };
+
+    let proto1 = {
+      __proto__: proto2,
+      8: 18,
+      9: 19,
+    };
+
+    let xs = {
+      __proto__: proto1,
+      length: 10,
+      7: 7,
+      8: 8,
+      9: 9,
+    };
+
+    if (forceGenericFallback) {
+      Object.defineProperty(xs, "6", {
+        get: () => this.foo,
+        set: (val) => this.foo = val
+      });
+    }
+    xs[6] = 6;
+
+    Array.prototype.sort.call(xs, (a, b) => a - b);
+
+    assertEquals(10, xs.length);
+    assertEquals(6, xs[0]);
+    assertEquals(7, xs[1]);
+    assertEquals(8, xs[2]);
+    assertEquals(9, xs[3]);
+
+    // Index 7,8,9 will get the prototype values.
+    assertFalse(xs.hasOwnProperty(7));
+    assertEquals(27, xs[7]);
+
+    assertFalse(xs.hasOwnProperty(8));
+    assertEquals(18, xs[8]);
+
+    assertFalse(xs.hasOwnProperty(9));
+    assertEquals(19, xs[9]);
+  }
+
+  test(false);
+  // Expect a TypeError when trying to delete the accessor.
+  assertThrows(() => test(true), TypeError);
+}
+TestPrototypeHoles();
+
+// The following test ensures that [[Delete]] is called and it throws.
+function TestArrayWithAccessorThrowsOnDelete() {
+  let array = [5, 4, 1, /*hole*/, /*hole*/];
+
+  Object.defineProperty(array, '4', {
+    get: () => array.foo,
+    set: (val) => array.foo = val
+  });
+  assertThrows(() => array.sort((a, b) => a - b), TypeError);
+}
+TestArrayWithAccessorThrowsOnDelete();
+
+// The following test ensures that elements on the prototype are also copied
+// for JSArrays and not only JSObjects.
+function TestArrayPrototypeHasElements() {
+  let array = [1, 2, 3, 4, 5];
+  for (let i = 0; i < array.length; i++) {
+    delete array[i];
+    Object.prototype[i] = 42;
+  }
+
+  let comparator_called = false;
+  array.sort(function (a, b) {
+    if (a === 42 || b === 42) {
+      comparator_called = true;
+    }
+    return a - b;
+  });
+
+  assertTrue(comparator_called);
+}
+TestArrayPrototypeHasElements();
+
+// The following Tests make sure that there is no crash when the element kind
+// or the array length changes. Since comparison functions like this are not
+// consistent, we do not have to make sure that the array is actually sorted
+//
+// The assertions for the element kinds are not there to ensure that a specific
+// action causes a specific element kind change, but rather that we have most
+// of the transitions covered.
+
+function cmp_smaller(a, b) {
+  if (a < b) return -1;
+  if (b < a) return 1;
+  return 0;
+}
+
+function create_cmpfn(transformfn) {
+  let cmp_count = 0;
+  return (a, b) => {
+    ++cmp_count;
+    if (cmp_count == 2) {
+      transformfn();
+    }
+
+    return cmp_smaller(a, b);
+  }
+}
+
+function HasPackedSmi(xs) {
+  return %HasFastPackedElements(xs) && %HasSmiElements(xs);
+}
+
+function HasPackedDouble(xs) {
+  return %HasFastPackedElements(xs) && %HasDoubleElements(xs);
+}
+
+function HasPackedObject(xs) {
+  return %HasFastPackedElements(xs) && %HasObjectElements(xs);
+}
+
+function HasHoleySmi(xs) {
+  return %HasHoleyElements(xs) && %HasSmiElements(xs);
+}
+
+function HasHoleyDouble(xs) {
+  return %HasHoleyElements(xs) && %HasDoubleElements(xs);
+}
+
+function HasHoleyObject(xs) {
+  return %HasHoleyElements(xs) && %HasObjectElements(xs);
+}
+
+function TestSortCmpPackedSmiToPackedDouble() {
+  let xs = [2,1,4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs[0] += 0.1));
+  assertTrue(HasPackedDouble(xs));
+}
+TestSortCmpPackedSmiToPackedDouble();
+
+function TestSortCmpPackedDoubleToPackedElement() {
+  let xs = [2.1, 1.2, 4.4];
+
+  assertTrue(HasPackedDouble(xs));
+  xs.sort(create_cmpfn(() => xs[0] = 'a'));
+  assertTrue(HasPackedObject(xs));
+}
+TestSortCmpPackedDoubleToPackedElement();
+
+function TestSortCmpPackedElementToDictionary() {
+  let xs = ['a', 'b', 'c'];
+
+  assertTrue(HasPackedObject(xs));
+  xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'd'));
+  assertTrue(%HasDictionaryElements(xs));
+}
+TestSortCmpPackedElementToDictionary();
+
+function TestSortCmpHoleySmiToHoleyDouble() {
+  let xs = [2, 1, 4];
+  xs[5] = 42;
+
+  assertTrue(HasHoleySmi(xs));
+  xs.sort(create_cmpfn(() => xs[0] += 0.1));
+  assertTrue(HasHoleyDouble(xs));
+}
+TestSortCmpHoleySmiToHoleyDouble();
+
+function TestSortCmpHoleyDoubleToHoleyElement() {
+  let xs = [2.1, 1.2, 4];
+  xs[5] = 42;
+
+  assertTrue(HasHoleyDouble(xs));
+  xs.sort(create_cmpfn(() => xs[0] = 'a'));
+  assertTrue(HasHoleyObject(xs));
+}
+TestSortCmpHoleyDoubleToHoleyElement();
+
+function TestSortCmpHoleyElementToDictionary() {
+  let xs = ['b', 'a', 'd'];
+  xs[5] = '42';
+
+  assertTrue(HasHoleyObject(xs));
+  xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'e'));
+  assertTrue(%HasDictionaryElements(xs));
+}
+TestSortCmpHoleyElementToDictionary();
+
+function TestSortCmpPackedSmiToHoleySmi() {
+  let xs = [2, 1, 4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs[10] = 42));
+  assertTrue(HasHoleySmi(xs));
+}
+TestSortCmpPackedSmiToHoleySmi();
+
+function TestSortCmpPackedDoubleToHoleyDouble() {
+  let xs = [2.1, 1.2, 4];
+
+  assertTrue(HasPackedDouble(xs));
+  xs.sort(create_cmpfn(() => xs[10] = 42));
+  assertTrue(HasHoleyDouble(xs));
+}
+TestSortCmpPackedDoubleToHoleyDouble();
+
+function TestSortCmpPackedObjectToHoleyObject() {
+  let xs = ['b', 'a', 'd'];
+
+  assertTrue(HasPackedObject(xs));
+  xs.sort(create_cmpfn(() => xs[10] = '42'));
+  assertTrue(HasHoleyObject(xs));
+}
+TestSortCmpPackedObjectToHoleyObject();
+
+function TestSortCmpPackedChangesLength() {
+  let xs = [2, 1, 4];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs.length *= 2));
+  assertTrue(HasHoleySmi(xs));
+}
+TestSortCmpPackedChangesLength();
+
+function TestSortCmpPackedSetLengthToZero() {
+  let xs = [2, 1, 4, 3];
+
+  assertTrue(HasPackedSmi(xs));
+  xs.sort(create_cmpfn(() => xs.length = 0));
+  assertTrue(HasPackedSmi(xs));
+}

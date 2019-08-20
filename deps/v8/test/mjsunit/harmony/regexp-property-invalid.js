@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-property
-
 assertThrows("/\p{Block=ASCII}+/u");
 assertThrows("/\p{Block=ASCII}+/u");
 assertThrows("/\p{Block=Basic_Latin}+/u");
@@ -36,3 +34,5 @@ assertThrows("/\\p{In}/u");
 assertThrows("/\\pI/u");
 assertThrows("/\\p{I}/u");
 assertThrows("/\\p{CJK}/u");
+
+assertThrows("/\\p{}/u");

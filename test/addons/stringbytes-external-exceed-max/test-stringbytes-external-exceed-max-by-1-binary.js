@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 'use strict';
 
 const common = require('../../common');
@@ -10,7 +11,7 @@ const assert = require('assert');
 
 // v8 fails silently if string length > v8::String::kMaxLength
 // v8::String::kMaxLength defined in v8.h
-const kStringMaxLength = process.binding('buffer').kStringMaxLength;
+const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;
 
 let buf;
 try {
@@ -35,10 +36,13 @@ common.expectsError(function() {
   type: Error
 });
 
+// FIXME: Free the memory early to avoid OOM.
+// REF: https://github.com/nodejs/reliability/issues/12#issuecomment-412619655
+global.gc();
 let maxString = buf.toString('latin1', 1);
 assert.strictEqual(maxString.length, kStringMaxLength);
-// Free the memory early instead of at the end of the next assignment
 maxString = undefined;
+global.gc();
 
 maxString = buf.toString('latin1', 0, kStringMaxLength);
 assert.strictEqual(maxString.length, kStringMaxLength);

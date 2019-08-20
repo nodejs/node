@@ -9,8 +9,8 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 const sslcontext = tls.createSecureContext({
-  cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  cert: fixtures.readKey('rsa_cert.crt'),
+  key: fixtures.readKey('rsa_private.pem')
 });
 
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
@@ -19,7 +19,7 @@ const pair = tls.createSecurePair(sslcontext, true, false, false, {
   })
 });
 
-// captured traffic from browser's request to https://www.google.com
+// Captured traffic from browser's request to https://www.google.com
 const sslHello = fixtures.readSync('google_ssl_hello.bin');
 
 pair.encrypted.write(sslHello);

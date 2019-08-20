@@ -7,11 +7,9 @@
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/factory.h"
-#include "src/isolate-inl.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/execution/isolate-inl.h"
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
@@ -39,15 +37,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
   i::wasm::testing::SetupIsolateForWasmModule(i_isolate);
+  i::wasm::ModuleWireBytes wire_bytes(data, data + size);
 
   i::HandleScope scope(i_isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "wasm fuzzer");
-  i::MaybeHandle<i::WasmModuleObject> maybe_object =
-      i_isolate->wasm_engine()->SyncCompile(
-          i_isolate, &thrower, i::wasm::ModuleWireBytes(data, data + size));
   i::Handle<i::WasmModuleObject> module_object;
-  if (maybe_object.ToHandle(&module_object)) {
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  bool compiles =
+      i_isolate->wasm_engine()
+          ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
+          .ToHandle(&module_object);
+
+  if (i::FLAG_wasm_fuzzer_gen_test) {
+    i::wasm::fuzzer::GenerateTestCase(i_isolate, wire_bytes, compiles);
+  }
+
+  if (compiles) {
     i::wasm::fuzzer::InterpretAndExecuteModule(i_isolate, module_object);
   }
+
+  // Pump the message loop and run micro tasks, e.g. GC finalization tasks.
+  support->PumpMessageLoop(v8::platform::MessageLoopBehavior::kDoNotWait);
+  isolate->RunMicrotasks();
   return 0;
 }

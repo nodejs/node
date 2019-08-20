@@ -33,6 +33,7 @@ const content = Buffer.alloc(writeSize, 0x44);
 const filepath = path.join(tmpdir.path, 'http2-large-write.tmp');
 fs.writeFileSync(filepath, content, 'binary');
 const fd = fs.openSync(filepath, 'r');
+process.on('beforeExit', () => fs.closeSync(fd));
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
@@ -48,7 +49,7 @@ server.on('stream', common.mustCall((stream) => {
 }));
 server.setTimeout(serverTimeout);
 server.on('timeout', () => {
-  assert.strictEqual(didReceiveData, false, 'Should not timeout');
+  assert.ok(!didReceiveData, 'Should not timeout');
 });
 
 server.listen(0, common.mustCall(() => {

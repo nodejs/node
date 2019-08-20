@@ -8,7 +8,7 @@ const backslashRE = /\\/g;
 
 const joinTests = [
   [ [path.posix.join, path.win32.join],
-    // arguments                     result
+    // Arguments                     result
     [[['.', 'x/b', '..', '/b/c.js'], 'x/b/c.js'],
      [[], '.'],
      [['/.', 'x/b', '..', '/b/c.js'], '/x/b/c.js'],
@@ -64,7 +64,7 @@ const joinTests = [
 joinTests.push([
   path.win32.join,
   joinTests[0][1].slice(0).concat(
-    [// arguments                     result
+    [// Arguments                     result
       // UNC path expected
       [['//foo/bar'], '\\\\foo\\bar\\'],
       [['\\/foo/bar'], '\\\\foo\\bar\\'],
@@ -90,7 +90,7 @@ joinTests.push([
       [['//', 'foo/bar'], '\\foo\\bar'],
       [['//', '/foo/bar'], '\\foo\\bar'],
       [['\\\\', '/', '/foo/bar'], '\\foo\\bar'],
-      [['//'], '/'],
+      [['//'], '\\'],
       // No UNC path expected (share name missing - questionable).
       [['//foo'], '\\foo'],
       [['//foo/'], '\\foo\\'],
@@ -131,11 +131,12 @@ joinTests.forEach((test) => {
       } else {
         os = 'posix';
       }
-      const message =
-        `path.${os}.join(${test[0].map(JSON.stringify).join(',')})\n  expect=${
+      if (actual !== expected && actualAlt !== expected) {
+        const delimiter = test[0].map(JSON.stringify).join(',');
+        const message = `path.${os}.join(${delimiter})\n  expect=${
           JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
-      if (actual !== expected && actualAlt !== expected)
         failures.push(`\n${message}`);
+      }
     });
   });
 });

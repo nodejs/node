@@ -3,8 +3,8 @@ const common = require('../common');
 
 const bench = common.createBenchmark(main, {
   encoding: ['utf8', 'base64', 'buffer'],
-  len: [1, 2, 4, 16, 64, 256], // x16
-  n: [5e6]
+  len: [2, 16, 256], // x16
+  n: [4e6]
 });
 
 // 16 chars each
@@ -12,7 +12,7 @@ const chars = [
   'hello brendan!!!', // 1 byte
   'ΰαβγδεζηθικλμνξο', // 2 bytes
   '挰挱挲挳挴挵挶挷挸挹挺挻挼挽挾挿', // 3 bytes
-  '𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕𠴕𠵼𠵿𠸎𠸏𠹷𠺝𠺢' // 4 bytes
+  '𠜎𠜱𠝹𠱓𠱸𠲖𠳏𠳕𠴕𠵼𠵿𠸎𠸏𠹷𠺝𠺢', // 4 bytes
 ];
 
 function main({ n, len, encoding }) {
@@ -33,13 +33,11 @@ function main({ n, len, encoding }) {
     }
 
     // Check the result to ensure it is *properly* optimized
-    results = strings.map(function(val) {
-      return Buffer.byteLength(val, encoding);
-    });
+    results = strings.map((val) => Buffer.byteLength(val, encoding));
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     const index = n % strings.length;
     // Go!
     const r = Buffer.byteLength(strings[index], encoding);

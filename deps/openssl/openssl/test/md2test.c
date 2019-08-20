@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,19 +7,12 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "../e_os.h"
+#include "internal/nelem.h"
+#include "testutil.h"
 
-#ifdef OPENSSL_NO_MD2
-int main(int argc, char *argv[])
-{
-    printf("No MD2 support\n");
-    return (0);
-}
-#else
+#ifndef OPENSSL_NO_MD2
 # include <openssl/evp.h>
 # include <openssl/md2.h>
 
@@ -35,7 +28,6 @@ static char *test[] = {
     "abcdefghijklmnopqrstuvwxyz",
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
-    NULL,
 };
 
 static char *ret[] = {
@@ -48,45 +40,28 @@ static char *ret[] = {
     "d5976f79d83d3a0dc9806c3c66f3efd8",
 };
 
-static char *pt(unsigned char *md);
-int main(int argc, char *argv[])
+static int test_md2(int n)
 {
-    int i, err = 0;
-    char **P, **R;
-    char *p;
+    char buf[80];
     unsigned char md[MD2_DIGEST_LENGTH];
-
-    P = test;
-    R = ret;
-    i = 1;
-    while (*P != NULL) {
-        if (!EVP_Digest((unsigned char *)*P, strlen(*P), md, NULL, EVP_md2(),
-                        NULL)) {
-            printf("EVP Digest error.\n");
-            EXIT(1);
-        }
-        p = pt(md);
-        if (strcmp(p, *R) != 0) {
-            printf("error calculating MD2 on '%s'\n", *P);
-            printf("got %s instead of %s\n", p, *R);
-            err++;
-        } else
-            printf("test %d ok\n", i);
-        i++;
-        R++;
-        P++;
-    }
-    EXIT(err);
-    return err;
-}
-
-static char *pt(unsigned char *md)
-{
     int i;
-    static char buf[80];
+
+    if (!TEST_true(EVP_Digest((unsigned char *)test[n], strlen(test[n]),
+                                 md, NULL, EVP_md2(), NULL)))
+        return 0;
 
     for (i = 0; i < MD2_DIGEST_LENGTH; i++)
         sprintf(&(buf[i * 2]), "%02x", md[i]);
-    return (buf);
+    if (!TEST_str_eq(buf, ret[n]))
+        return 0;
+    return 1;
 }
 #endif
+
+int setup_tests(void)
+{
+#ifndef OPENSSL_NO_MD2
+    ADD_ALL_TESTS(test_md2, OSSL_NELEM(test));
+#endif
+    return 1;
+}

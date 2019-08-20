@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce the consistent use of either `function` declarations or expressions",
             category: "Stylistic Issues",
@@ -25,18 +27,24 @@ module.exports = {
                 type: "object",
                 properties: {
                     allowArrowFunctions: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            expression: "Expected a function expression.",
+            declaration: "Expected a function declaration."
+        }
     },
 
     create(context) {
 
         const style = context.options[0],
-            allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions === true,
+            allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions,
             enforceDeclarations = (style === "declaration"),
             stack = [];
 
@@ -45,7 +53,7 @@ module.exports = {
                 stack.push(false);
 
                 if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
-                    context.report({ node, message: "Expected a function expression." });
+                    context.report({ node, messageId: "expression" });
                 }
             },
             "FunctionDeclaration:exit"() {
@@ -56,7 +64,7 @@ module.exports = {
                 stack.push(false);
 
                 if (enforceDeclarations && node.parent.type === "VariableDeclarator") {
-                    context.report({ node: node.parent, message: "Expected a function declaration." });
+                    context.report({ node: node.parent, messageId: "declaration" });
                 }
             },
             "FunctionExpression:exit"() {
@@ -79,7 +87,7 @@ module.exports = {
                 const hasThisExpr = stack.pop();
 
                 if (enforceDeclarations && !hasThisExpr && node.parent.type === "VariableDeclarator") {
-                    context.report({ node: node.parent, message: "Expected a function declaration." });
+                    context.report({ node: node.parent, messageId: "declaration" });
                 }
             };
         }

@@ -5,8 +5,8 @@
 #include "src/ast/variables.h"
 
 #include "src/ast/scopes.h"
-#include "src/globals.h"
-#include "src/objects-inl.h"
+#include "src/common/globals.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,7 @@ Variable::Variable(Variable* other)
 bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDynamicVariableMode(mode()) || mode() == VAR) &&
+  return (IsDynamicVariableMode(mode()) || mode() == VariableMode::kVar) &&
          scope_ != nullptr && scope_->is_script_scope();
 }
 

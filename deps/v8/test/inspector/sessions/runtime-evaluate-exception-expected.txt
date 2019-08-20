@@ -19,7 +19,7 @@ From session 1
                 callFrames : [
                     [0] : {
                         columnNumber : 19
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -48,7 +48,7 @@ From session 2
                 callFrames : [
                     [0] : {
                         columnNumber : 19
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -78,7 +78,7 @@ From session 1
                 callFrames : [
                     [0] : {
                         columnNumber : 19
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -107,7 +107,7 @@ From session 2
                 callFrames : [
                     [0] : {
                         columnNumber : 19
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -137,7 +137,7 @@ From session 1
                 callFrames : [
                     [0] : {
                         columnNumber : 40
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -166,7 +166,7 @@ From session 2
                 callFrames : [
                     [0] : {
                         columnNumber : 40
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -215,7 +215,7 @@ From session 1
                 callFrames : [
                     [0] : {
                         columnNumber : 40
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 
@@ -244,7 +244,7 @@ From session 2
                 callFrames : [
                     [0] : {
                         columnNumber : 40
-                        functionName : setTimeout
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
                         url : 

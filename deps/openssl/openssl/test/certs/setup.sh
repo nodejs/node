@@ -241,13 +241,28 @@ NC="$NC excluded;DNS:bad.ok.good.com"
 NC=$NC ./mkcert.sh genca "Test NC sub CA" ncca3-key ncca3-cert \
         ncca1-key ncca1-cert
 
-# all subjectAltNames allowed by CA1.
+# all subjectAltNames allowed by CA1.  Some CNs are not!
 
 ./mkcert.sh req alt1-key "O = Good NC Test Certificate 1" \
-    "1.CN=www.good.org" "2.CN=Joe Bloggs" "3.CN=any.good.com" | \
+    "1.CN=www.example.net" "2.CN=Joe Bloggs" | \
     ./mkcert.sh geneealt alt1-key alt1-cert ncca1-key ncca1-cert \
     "DNS.1 = www.good.org" "DNS.2 = any.good.com" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
+    "IP = 127.0.0.1" "IP = 192.168.0.1"
+
+# all DNS-like CNs allowed by CA1, no DNS SANs.
+
+./mkcert.sh req goodcn1-key "O = Good NC Test Certificate 1" \
+    "1.CN=www.good.org" "2.CN=any.good.com" \
+    "3.CN=not..dns" "4.CN=not@dns" "5.CN=not-.dns" "6.CN=not.dns." | \
+    ./mkcert.sh geneealt goodcn1-key goodcn1-cert ncca1-key ncca1-cert \
+    "IP = 127.0.0.1" "IP = 192.168.0.1"
+
+# Some DNS-like CNs not permitted by CA1, no DNS SANs.
+
+./mkcert.sh req badcn1-key "O = Good NC Test Certificate 1" \
+    "1.CN=www.good.org" "3.CN=bad.net" | \
+    ./mkcert.sh geneealt badcn1-key badcn1-cert ncca1-key ncca1-cert \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
 
 # no subjectAltNames excluded by CA2.
@@ -293,19 +308,17 @@ NC=$NC ./mkcert.sh genca "Test NC sub CA" ncca3-key ncca3-cert \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.2"
 
-# all subject alt names OK but subject CN not allowed by CA1.
+# No DNS-ID SANs and subject CN not allowed by CA1.
 ./mkcert.sh req badalt6-key "O = Bad NC Test Certificate 6" \
     "1.CN=other.good.org" "2.CN=Joe Bloggs" "3.CN=any.good.com" | \
     ./mkcert.sh geneealt badalt6-key badalt6-cert ncca1-key ncca1-cert \
-    "DNS.1 = www.good.org" "DNS.2 = any.good.com" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
 
-# all subject alt names OK but subject CN not allowed by CA1, BMPSTRING
+# No DNS-ID SANS and subject CN not allowed by CA1, BMPSTRING
 REQMASK=MASK:0x800 ./mkcert.sh req badalt7-key "O = Bad NC Test Certificate 7" \
     "1.CN=other.good.org" "2.CN=Joe Bloggs" "3.CN=any.good.com" | \
     ./mkcert.sh geneealt badalt7-key badalt7-cert ncca1-key ncca1-cert \
-    "DNS.1 = www.good.org" "DNS.2 = any.good.com" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
 
@@ -344,3 +357,15 @@ REQMASK=MASK:0x800 ./mkcert.sh req badalt7-key "O = Bad NC Test Certificate 7" \
     "DNS.1 = www.ok.good.com" "DNS.2 = bad.ok.good.com" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
+
+# RSA-PSS signatures
+# SHA1
+./mkcert.sh genee PSS-SHA1 ee-key ee-pss-sha1-cert ca-key ca-cert \
+    -sha1 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
+# SHA256
+./mkcert.sh genee PSS-SHA256 ee-key ee-pss-sha256-cert ca-key ca-cert \
+    -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:digest
+
+OPENSSL_KEYALG=ec OPENSSL_KEYBITS=brainpoolP256r1 ./mkcert.sh genee \
+    "Server ECDSA brainpoolP256r1 cert" server-ecdsa-brainpoolP256r1-key \
+    server-ecdsa-brainpoolP256r1-cert rootkey rootcert

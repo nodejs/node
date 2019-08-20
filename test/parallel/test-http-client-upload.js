@@ -25,7 +25,7 @@ const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  assert.strictEqual('POST', req.method);
+  assert.strictEqual(req.method, 'POST');
   req.setEncoding('utf8');
 
   let sent_body = '';
@@ -36,7 +36,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   });
 
   req.on('end', common.mustCall(function() {
-    assert.strictEqual('1\n2\n3\n', sent_body);
+    assert.strictEqual(sent_body, '1\n2\n3\n');
     console.log('request complete from server');
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('hello\n');

@@ -26,13 +26,14 @@ expression: Object(Symbol(42))
 {
     name : [[PrimitiveValue]]
     type : symbol
-    valuePreview : {
-        description : Symbol
-        overflow : false
-        properties : [
-        ]
-        type : object
-    }
+    value : Symbol(42)
+}
+
+expression: Object(BigInt(2))
+{
+    name : [[PrimitiveValue]]
+    type : bigint
+    value : 2n
 }
 
 
@@ -165,27 +166,39 @@ expression: (new Map([[1,2]])).entries()
     }
 ]
 
-expression: (new Set([[1,2]])).entries()
+expression: (new Set([1,2])).entries()
 [[Entries]]:
 [
     [0] : {
-        value : {
-            description : Array(2)
+        key : {
+            description : 1
             overflow : false
             properties : [
-                [0] : {
-                    name : 0
-                    type : number
-                    value : 1
-                }
-                [1] : {
-                    name : 1
-                    type : number
-                    value : 2
-                }
             ]
-            subtype : array
-            type : object
+            type : number
+        }
+        value : {
+            description : 1
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+    }
+    [1] : {
+        key : {
+            description : 2
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+        value : {
+            description : 2
+            overflow : false
+            properties : [
+            ]
+            type : number
         }
     }
 ]
@@ -246,3 +259,39 @@ expression: Promise.resolve(42)
     value : 42
 }
 
+Running test: privateNames
+expression: new class { #foo = 1; #bar = 2; baz = 3;}
+{
+    name : #foo
+    type : number
+    value : 1
+}
+{
+    name : #bar
+    type : number
+    value : 2
+}
+{
+    name : baz
+    type : number
+    value : 3
+}
+
+expression: new class extends class { #baz = 3; } { #foo = 1; #bar = 2; }
+{
+    name : #baz
+    type : number
+    value : 3
+}
+{
+    name : #foo
+    type : number
+    value : 1
+}
+{
+    name : #bar
+    type : number
+    value : 2
+}
+
+expression: new class extends class { constructor() { return new Proxy({}, {}); } } { #foo = 1; #bar = 2; }

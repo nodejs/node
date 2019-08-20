@@ -1,0 +1,4 @@
+RuntimeError: unreachable
+    at test-module (wasm-function[0]:0x22)
+    at *%(basename)s:{NUMBER}:27
+    at test/mjsunit/mjsunit.js:*

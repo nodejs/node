@@ -5,8 +5,8 @@
 #ifndef V8_WASM_MODULE_RUNNER_H_
 #define V8_WASM_MODULE_RUNNER_H_
 
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -19,11 +19,14 @@ namespace internal {
 template <typename T>
 class Handle;
 
+template <typename T>
+class MaybeHandle;
+
 namespace wasm {
 namespace testing {
 
 // Decodes the given encoded module.
-std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
+std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
@@ -54,17 +57,57 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end);
 
+// Decode and compile the given module with no imports.
+MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes);
+
 // Decode, compile, and instantiate the given module with no imports.
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
 
+class WasmInterpretationResult {
+ public:
+  static WasmInterpretationResult Stopped() { return {kStopped, 0, false}; }
+  static WasmInterpretationResult Trapped(bool possible_nondeterminism) {
+    return {kTrapped, 0, possible_nondeterminism};
+  }
+  static WasmInterpretationResult Finished(int32_t result,
+                                           bool possible_nondeterminism) {
+    return {kFinished, result, possible_nondeterminism};
+  }
+
+  bool stopped() const { return status_ == kStopped; }
+  bool trapped() const { return status_ == kTrapped; }
+  bool finished() const { return status_ == kFinished; }
+
+  int32_t result() const {
+    DCHECK_EQ(status_, kFinished);
+    return result_;
+  }
+
+  bool possible_nondeterminism() const { return possible_nondeterminism_; }
+
+ private:
+  enum Status { kFinished, kTrapped, kStopped };
+
+  const Status status_;
+  const int32_t result_;
+  const bool possible_nondeterminism_;
+
+  WasmInterpretationResult(Status status, int32_t result,
+                           bool possible_nondeterminism)
+      : status_(status),
+        result_(result),
+        possible_nondeterminism_(possible_nondeterminism) {}
+};
+
 // Interprets the given module, starting at the function specified by
 // {function_index}. The return type of the function has to be int32. The module
 // should not have any imports or exports
-int32_t InterpretWasmModule(Isolate* isolate,
-                            Handle<WasmInstanceObject> instance,
-                            ErrorThrower* thrower, int32_t function_index,
-                            WasmValue* args, bool* possible_nondeterminism);
+WasmInterpretationResult InterpretWasmModule(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    int32_t function_index, WasmValue* args);
 
 // Runs the module instance with arguments.
 int32_t RunWasmModuleForTesting(Isolate* isolate,

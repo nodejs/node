@@ -13,6 +13,17 @@ Running test: testArguments
     }
 }
 
+Running test: testUnserializableArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : true|true|true|true|bigint
+        }
+    }
+}
+
 Running test: testComplexArguments
 {
     id : <messageId>
@@ -32,7 +43,7 @@ Running test: testSyntaxErrorInFunction
             columnNumber : 2
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token }
+                description : SyntaxError: Unexpected token '}'
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -44,7 +55,7 @@ Running test: testSyntaxErrorInFunction
         }
         result : {
             className : SyntaxError
-            description : SyntaxError: Unexpected token }
+            description : SyntaxError: Unexpected token '}'
             objectId : <objectId>
             subtype : error
             type : object

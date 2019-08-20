@@ -8,16 +8,16 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
 #include "src/base/ring-buffer.h"
-#include "src/counters.h"
-#include "src/globals.h"
-#include "src/heap-symbols.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/init/heap-symbols.h"
+#include "src/logging/counters.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
 
-typedef std::pair<uint64_t, double> BytesAndDuration;
+using BytesAndDuration = std::pair<uint64_t, double>;
 
 inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
   return std::make_pair(bytes, duration);
@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE GCTracer {
           NUMBER_OF_SCOPES,
 
       FIRST_INCREMENTAL_SCOPE = MC_INCREMENTAL,
-      LAST_INCREMENTAL_SCOPE = MC_INCREMENTAL_EXTERNAL_PROLOGUE,
+      LAST_INCREMENTAL_SCOPE = MC_INCREMENTAL_SWEEPING,
       FIRST_SCOPE = MC_INCREMENTAL,
       NUMBER_OF_INCREMENTAL_SCOPES =
           LAST_INCREMENTAL_SCOPE - FIRST_INCREMENTAL_SCOPE + 1,
@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       LAST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_UNMAPPER,
       FIRST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_EVACUATE_COPY,
       LAST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_SWEEPING,
+      FIRST_TOP_MC_SCOPE = MC_CLEAR,
+      LAST_TOP_MC_SCOPE = MC_SWEEP,
       FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MC_BACKGROUND_EVACUATE_COPY,
       LAST_MINOR_GC_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL
     };
@@ -177,11 +179,11 @@ class V8_EXPORT_PRIVATE GCTracer {
     // after the current GC.
     size_t end_holes_size;
 
-    // Size of new space objects in constructor.
-    size_t new_space_object_size;
+    // Size of young objects in constructor.
+    size_t young_object_size;
 
-    // Size of survived new space objects in destructor.
-    size_t survived_new_space_object_size;
+    // Size of survived young objects in destructor.
+    size_t survived_young_object_size;
 
     // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     size_t incremental_marking_bytes;
@@ -198,6 +200,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   };
 
   static const int kThroughputTimeFrameMs = 5000;
+  static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
+
+  static double CombineSpeedsInBytesPerMillisecond(double default_speed,
+                                                   double optional_speed);
 
   static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
 
@@ -210,12 +216,15 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
+  void NotifySweepingCompleted();
+
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
 
   // Sample and accumulate bytes allocated since the last GC.
   void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
-                        size_t old_generation_counter_bytes);
+                        size_t old_generation_counter_bytes,
+                        size_t embedder_counter_bytes);
 
   // Log the accumulated new space allocation bytes.
   void AddAllocation(double current_ms);
@@ -230,8 +239,12 @@ class V8_EXPORT_PRIVATE GCTracer {
   void AddIncrementalMarkingStep(double duration, size_t bytes);
 
   // Compute the average incremental marking speed in bytes/millisecond.
-  // Returns 0 if no events have been recorded.
+  // Returns a conservative value if no events have been recorded.
   double IncrementalMarkingSpeedInBytesPerMillisecond() const;
+
+  // Compute the average embedder speed in bytes/millisecond.
+  // Returns a conservative value if no events have been recorded.
+  double EmbedderSpeedInBytesPerMillisecond() const;
 
   // Compute the average scavenge speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
@@ -266,6 +279,12 @@ class V8_EXPORT_PRIVATE GCTracer {
   double OldGenerationAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
 
+  // Allocation throughput in the embedder in bytes/millisecond in the
+  // last time_ms milliseconds. Reported through v8::EmbedderHeapTracer.
+  // Returns 0 if no allocation events have been recorded.
+  double EmbedderAllocationThroughputInBytesPerMillisecond(
+      double time_ms = 0) const;
+
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
@@ -280,6 +299,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
   double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
+
+  // Allocation throughput in the embedder in bytes/milliseconds in the last
+  // kThroughputTimeFrameMs seconds. Reported through v8::EmbedderHeapTracer.
+  // Returns 0 if no allocation events have been recorded.
+  double CurrentEmbedderAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -300,6 +324,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifyIncrementalMarkingStart();
 
+  // Returns average mutator utilization with respect to mark-compact
+  // garbage collections. This ignores scavenger.
+  double AverageMarkCompactMutatorUtilization() const;
+  double CurrentMarkCompactMutatorUtilization() const;
+
   V8_INLINE void AddScopeSample(Scope::ScopeId scope, double duration) {
     DCHECK(scope < Scope::NUMBER_OF_SCOPES);
     if (scope >= Scope::FIRST_INCREMENTAL_SCOPE &&
@@ -314,20 +343,29 @@ class V8_EXPORT_PRIVATE GCTracer {
   void AddBackgroundScopeSample(BackgroundScope::ScopeId scope, double duration,
                                 RuntimeCallCounter* runtime_call_counter);
 
+  void RecordGCPhasesHistograms(TimedHistogram* gc_timer);
+
+  void RecordEmbedderSpeed(size_t bytes, double duration);
+
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
   FRIEND_TEST(GCTracerTest, BackgroundMinorMCScope);
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
+  FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
-  FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughputWithProvidedTime);
-  FRIEND_TEST(GCTracerTest, OldGenerationAllocationThroughputWithProvidedTime);
+  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime);
   FRIEND_TEST(GCTracerTest, RegularScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, MutatorUtilization);
+  FRIEND_TEST(GCTracerTest, RecordGCSumHistograms);
+  FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
+  FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 
   struct BackgroundCounter {
     double total_duration_ms;
@@ -344,6 +382,13 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ResetForTesting();
   void ResetIncrementalMarkingCounters();
   void RecordIncrementalMarkingSpeed(size_t bytes, double duration);
+  void RecordMutatorUtilization(double mark_compactor_end_time,
+                                double mark_compactor_duration);
+
+  // Overall time spent in mark compact within a given GC cycle. Exact
+  // accounting of events within a GC is not necessary which is why the
+  // recording takes place at the end of the atomic pause.
+  void RecordGCSumCounters(double atomic_pause_duration);
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -394,6 +439,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double recorded_incremental_marking_speed_;
 
+  double recorded_embedder_speed_ = 0.0;
+
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
   IncrementalMarkingInfos
@@ -404,16 +451,24 @@ class V8_EXPORT_PRIVATE GCTracer {
   double allocation_time_ms_;
   size_t new_space_allocation_counter_bytes_;
   size_t old_generation_allocation_counter_bytes_;
+  size_t embedder_allocation_counter_bytes_;
 
   // Accumulated duration and allocated bytes since the last GC.
   double allocation_duration_since_gc_;
   size_t new_space_allocation_in_bytes_since_gc_;
   size_t old_generation_allocation_in_bytes_since_gc_;
+  size_t embedder_allocation_in_bytes_since_gc_;
 
   double combined_mark_compact_speed_cache_;
 
   // Counts how many tracers were started without stopping.
   int start_counter_;
+
+  // Used for computing average mutator utilization.
+  double average_mutator_duration_;
+  double average_mark_compact_duration_;
+  double current_mark_compact_mutator_utilization_;
+  double previous_mark_compact_end_time_;
 
   base::RingBuffer<BytesAndDuration> recorded_minor_gcs_total_;
   base::RingBuffer<BytesAndDuration> recorded_minor_gcs_survived_;
@@ -422,6 +477,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<BytesAndDuration> recorded_mark_compacts_;
   base::RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
   base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
+  base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
   base::RingBuffer<double> recorded_context_disposal_times_;
   base::RingBuffer<double> recorded_survival_ratios_;
 

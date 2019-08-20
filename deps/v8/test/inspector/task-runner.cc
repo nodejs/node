@@ -41,7 +41,8 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
       ready_semaphore_(ready_semaphore),
       data_(nullptr),
       process_queue_semaphore_(0),
-      nested_loop_count_(0) {
+      nested_loop_count_(0),
+      is_terminated_(0) {
   Start();
 }
 
@@ -56,7 +57,7 @@ void TaskRunner::Run() {
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number && !is_terminated_.Value()) {
+  while (nested_loop_count_ == loop_number && !is_terminated_) {
     TaskRunner::Task* task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
@@ -88,13 +89,13 @@ void TaskRunner::Append(Task* task) {
 }
 
 void TaskRunner::Terminate() {
-  is_terminated_.Increment(1);
+  is_terminated_++;
   process_queue_semaphore_.Signal();
 }
 
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
-    if (is_terminated_.Value()) return nullptr;
+    if (is_terminated_) return nullptr;
     if (only_protocol) {
       Task* task = nullptr;
       if (queue_.Dequeue(&task)) {

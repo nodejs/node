@@ -32,14 +32,15 @@
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
 
 #include "uv.h"
-#include "tree.h"
+#include "uv/tree.h"
 #include "queue.h"
+#include "strscpy.h"
 
 #if EDOM > 0
 # define UV__ERR(x) (-(x))
@@ -59,22 +60,68 @@ extern int snprintf(char*, size_t, const char*, ...);
 #define STATIC_ASSERT(expr)                                                   \
   void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
 
-#ifndef _WIN32
+/* Handle flags. Some flags are specific to Windows or UNIX. */
 enum {
-  UV__SIGNAL_ONE_SHOT = 0x80000,  /* On signal reception remove sighandler */
-  UV__HANDLE_INTERNAL = 0x8000,
-  UV__HANDLE_ACTIVE   = 0x4000,
-  UV__HANDLE_REF      = 0x2000,
-  UV__HANDLE_CLOSING  = 0 /* no-op on unix */
+  /* Used by all handles. */
+  UV_HANDLE_CLOSING                     = 0x00000001,
+  UV_HANDLE_CLOSED                      = 0x00000002,
+  UV_HANDLE_ACTIVE                      = 0x00000004,
+  UV_HANDLE_REF                         = 0x00000008,
+  UV_HANDLE_INTERNAL                    = 0x00000010,
+  UV_HANDLE_ENDGAME_QUEUED              = 0x00000020,
+
+  /* Used by streams. */
+  UV_HANDLE_LISTENING                   = 0x00000040,
+  UV_HANDLE_CONNECTION                  = 0x00000080,
+  UV_HANDLE_SHUTTING                    = 0x00000100,
+  UV_HANDLE_SHUT                        = 0x00000200,
+  UV_HANDLE_READ_PARTIAL                = 0x00000400,
+  UV_HANDLE_READ_EOF                    = 0x00000800,
+
+  /* Used by streams and UDP handles. */
+  UV_HANDLE_READING                     = 0x00001000,
+  UV_HANDLE_BOUND                       = 0x00002000,
+  UV_HANDLE_READABLE                    = 0x00004000,
+  UV_HANDLE_WRITABLE                    = 0x00008000,
+  UV_HANDLE_READ_PENDING                = 0x00010000,
+  UV_HANDLE_SYNC_BYPASS_IOCP            = 0x00020000,
+  UV_HANDLE_ZERO_READ                   = 0x00040000,
+  UV_HANDLE_EMULATE_IOCP                = 0x00080000,
+  UV_HANDLE_BLOCKING_WRITES             = 0x00100000,
+  UV_HANDLE_CANCELLATION_PENDING        = 0x00200000,
+
+  /* Used by uv_tcp_t and uv_udp_t handles */
+  UV_HANDLE_IPV6                        = 0x00400000,
+
+  /* Only used by uv_tcp_t handles. */
+  UV_HANDLE_TCP_NODELAY                 = 0x01000000,
+  UV_HANDLE_TCP_KEEPALIVE               = 0x02000000,
+  UV_HANDLE_TCP_SINGLE_ACCEPT           = 0x04000000,
+  UV_HANDLE_TCP_ACCEPT_STATE_CHANGING   = 0x08000000,
+  UV_HANDLE_TCP_SOCKET_CLOSED           = 0x10000000,
+  UV_HANDLE_SHARED_TCP_SOCKET           = 0x20000000,
+
+  /* Only used by uv_udp_t handles. */
+  UV_HANDLE_UDP_PROCESSING              = 0x01000000,
+  UV_HANDLE_UDP_CONNECTED               = 0x02000000,
+
+  /* Only used by uv_pipe_t handles. */
+  UV_HANDLE_NON_OVERLAPPED_PIPE         = 0x01000000,
+  UV_HANDLE_PIPESERVER                  = 0x02000000,
+
+  /* Only used by uv_tty_t handles. */
+  UV_HANDLE_TTY_READABLE                = 0x01000000,
+  UV_HANDLE_TTY_RAW                     = 0x02000000,
+  UV_HANDLE_TTY_SAVED_POSITION          = 0x04000000,
+  UV_HANDLE_TTY_SAVED_ATTRIBUTES        = 0x08000000,
+
+  /* Only used by uv_signal_t handles. */
+  UV_SIGNAL_ONE_SHOT_DISPATCHED         = 0x01000000,
+  UV_SIGNAL_ONE_SHOT                    = 0x02000000,
+
+  /* Only used by uv_poll_t handles. */
+  UV_HANDLE_POLL_SLOW                   = 0x01000000
 };
-#else
-# define UV__SIGNAL_ONE_SHOT_DISPATCHED   0x200
-# define UV__SIGNAL_ONE_SHOT              0x100
-# define UV__HANDLE_INTERNAL              0x80
-# define UV__HANDLE_ACTIVE                0x40
-# define UV__HANDLE_REF                   0x20
-# define UV__HANDLE_CLOSING               0x01
-#endif
 
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
 
@@ -95,6 +142,14 @@ int uv__udp_bind(uv_udp_t* handle,
                  const struct sockaddr* addr,
                  unsigned int  addrlen,
                  unsigned int flags);
+
+int uv__udp_connect(uv_udp_t* handle,
+                    const struct sockaddr* addr,
+                    unsigned int addrlen);
+
+int uv__udp_disconnect(uv_udp_t* handle);
+
+int uv__udp_is_connected(uv_udp_t* handle);
 
 int uv__udp_send(uv_udp_send_t* req,
                  uv_udp_t* handle,
@@ -119,8 +174,15 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 int uv__getaddrinfo_translate_error(int sys_err);    /* EAI_* error. */
 
+enum uv__work_kind {
+  UV__WORK_CPU,
+  UV__WORK_FAST_IO,
+  UV__WORK_SLOW_IO
+};
+
 void uv__work_submit(uv_loop_t* loop,
                      struct uv__work *w,
+                     enum uv__work_kind kind,
                      void (*work)(struct uv__work *w),
                      void (*done)(struct uv__work *w, int status));
 
@@ -131,6 +193,12 @@ size_t uv__count_bufs(const uv_buf_t bufs[], unsigned int nbufs);
 int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value);
 
 void uv__fs_scandir_cleanup(uv_fs_t* req);
+void uv__fs_readdir_cleanup(uv_fs_t* req);
+uv_dirent_type_t uv__fs_get_dirent_type(uv__dirent_t* dent);
+
+int uv__next_timeout(const uv_loop_t* loop);
+void uv__run_timers(uv_loop_t* loop);
+void uv__timer_close(uv_timer_t* handle);
 
 #define uv__has_active_reqs(loop)                                             \
   ((loop)->active_reqs.count > 0)
@@ -164,49 +232,47 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
   while (0)
 
 #define uv__is_active(h)                                                      \
-  (((h)->flags & UV__HANDLE_ACTIVE) != 0)
+  (((h)->flags & UV_HANDLE_ACTIVE) != 0)
 
 #define uv__is_closing(h)                                                     \
-  (((h)->flags & (UV_CLOSING |  UV_CLOSED)) != 0)
+  (((h)->flags & (UV_HANDLE_CLOSING | UV_HANDLE_CLOSED)) != 0)
 
 #define uv__handle_start(h)                                                   \
   do {                                                                        \
-    assert(((h)->flags & UV__HANDLE_CLOSING) == 0);                           \
-    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) break;                         \
-    (h)->flags |= UV__HANDLE_ACTIVE;                                          \
-    if (((h)->flags & UV__HANDLE_REF) != 0) uv__active_handle_add(h);         \
+    if (((h)->flags & UV_HANDLE_ACTIVE) != 0) break;                          \
+    (h)->flags |= UV_HANDLE_ACTIVE;                                           \
+    if (((h)->flags & UV_HANDLE_REF) != 0) uv__active_handle_add(h);          \
   }                                                                           \
   while (0)
 
 #define uv__handle_stop(h)                                                    \
   do {                                                                        \
-    assert(((h)->flags & UV__HANDLE_CLOSING) == 0);                           \
-    if (((h)->flags & UV__HANDLE_ACTIVE) == 0) break;                         \
-    (h)->flags &= ~UV__HANDLE_ACTIVE;                                         \
-    if (((h)->flags & UV__HANDLE_REF) != 0) uv__active_handle_rm(h);          \
+    if (((h)->flags & UV_HANDLE_ACTIVE) == 0) break;                          \
+    (h)->flags &= ~UV_HANDLE_ACTIVE;                                          \
+    if (((h)->flags & UV_HANDLE_REF) != 0) uv__active_handle_rm(h);           \
   }                                                                           \
   while (0)
 
 #define uv__handle_ref(h)                                                     \
   do {                                                                        \
-    if (((h)->flags & UV__HANDLE_REF) != 0) break;                            \
-    (h)->flags |= UV__HANDLE_REF;                                             \
-    if (((h)->flags & UV__HANDLE_CLOSING) != 0) break;                        \
-    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) uv__active_handle_add(h);      \
+    if (((h)->flags & UV_HANDLE_REF) != 0) break;                             \
+    (h)->flags |= UV_HANDLE_REF;                                              \
+    if (((h)->flags & UV_HANDLE_CLOSING) != 0) break;                         \
+    if (((h)->flags & UV_HANDLE_ACTIVE) != 0) uv__active_handle_add(h);       \
   }                                                                           \
   while (0)
 
 #define uv__handle_unref(h)                                                   \
   do {                                                                        \
-    if (((h)->flags & UV__HANDLE_REF) == 0) break;                            \
-    (h)->flags &= ~UV__HANDLE_REF;                                            \
-    if (((h)->flags & UV__HANDLE_CLOSING) != 0) break;                        \
-    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) uv__active_handle_rm(h);       \
+    if (((h)->flags & UV_HANDLE_REF) == 0) break;                             \
+    (h)->flags &= ~UV_HANDLE_REF;                                             \
+    if (((h)->flags & UV_HANDLE_CLOSING) != 0) break;                         \
+    if (((h)->flags & UV_HANDLE_ACTIVE) != 0) uv__active_handle_rm(h);        \
   }                                                                           \
   while (0)
 
 #define uv__has_ref(h)                                                        \
-  (((h)->flags & UV__HANDLE_REF) != 0)
+  (((h)->flags & UV_HANDLE_REF) != 0)
 
 #if defined(_WIN32)
 # define uv__handle_platform_init(h) ((h)->u.fd = -1)
@@ -218,7 +284,7 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
   do {                                                                        \
     (h)->loop = (loop_);                                                      \
     (h)->type = (type_);                                                      \
-    (h)->flags = UV__HANDLE_REF;  /* Ref the loop when active. */             \
+    (h)->flags = UV_HANDLE_REF;  /* Ref the loop when active. */              \
     QUEUE_INSERT_TAIL(&(loop_)->handle_queue, &(h)->handle_queue);            \
     uv__handle_platform_init(h);                                              \
   }                                                                           \

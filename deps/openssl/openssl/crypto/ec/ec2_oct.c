@@ -1,25 +1,11 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- *
- * The Elliptic Curve Public-Key Crypto Library (ECC Code) included
- * herein is developed by SUN MICROSYSTEMS, INC., and is contributed
- * to the OpenSSL project.
- *
- * The ECC Code is licensed pursuant to the OpenSSL open source
- * license provided below.
- *
- * The software is originally written by Sheueling Chang Shantz and
- * Douglas Stebila of Sun Microsystems Laboratories.
- *
  */
 
 #include <openssl/err.h>
@@ -108,7 +94,7 @@ int ec_GF2m_simple_set_compressed_coordinates(const EC_GROUP *group,
         }
     }
 
-    if (!EC_POINT_set_affine_coordinates_GF2m(group, point, x, y, ctx))
+    if (!EC_POINT_set_affine_coordinates(group, point, x, y, ctx))
         goto err;
 
     ret = 1;
@@ -180,7 +166,7 @@ size_t ec_GF2m_simple_point2oct(const EC_GROUP *group, const EC_POINT *point,
         if (yxi == NULL)
             goto err;
 
-        if (!EC_POINT_get_affine_coordinates_GF2m(group, point, x, y, ctx))
+        if (!EC_POINT_get_affine_coordinates(group, point, x, y, ctx))
             goto err;
 
         buf[0] = form;
@@ -251,7 +237,7 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
                              BN_CTX *ctx)
 {
     point_conversion_form_t form;
-    int y_bit;
+    int y_bit, m;
     BN_CTX *new_ctx = NULL;
     BIGNUM *x, *y, *yxi;
     size_t field_len, enc_len;
@@ -284,7 +270,8 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
         return EC_POINT_set_to_infinity(group, point);
     }
 
-    field_len = (EC_GROUP_get_degree(group) + 7) / 8;
+    m = EC_GROUP_get_degree(group);
+    field_len = (m + 7) / 8;
     enc_len =
         (form ==
          POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2 * field_len;
@@ -309,19 +296,18 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
 
     if (!BN_bin2bn(buf + 1, field_len, x))
         goto err;
-    if (BN_ucmp(x, group->field) >= 0) {
+    if (BN_num_bits(x) > m) {
         ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
         goto err;
     }
 
     if (form == POINT_CONVERSION_COMPRESSED) {
-        if (!EC_POINT_set_compressed_coordinates_GF2m
-            (group, point, x, y_bit, ctx))
+        if (!EC_POINT_set_compressed_coordinates(group, point, x, y_bit, ctx))
             goto err;
     } else {
         if (!BN_bin2bn(buf + 1 + field_len, field_len, y))
             goto err;
-        if (BN_ucmp(y, group->field) >= 0) {
+        if (BN_num_bits(y) > m) {
             ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
             goto err;
         }
@@ -335,10 +321,10 @@ int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
         }
 
         /*
-         * EC_POINT_set_affine_coordinates_GF2m is responsible for checking that
+         * EC_POINT_set_affine_coordinates is responsible for checking that
          * the point is on the curve.
          */
-        if (!EC_POINT_set_affine_coordinates_GF2m(group, point, x, y, ctx))
+        if (!EC_POINT_set_affine_coordinates(group, point, x, y, ctx))
             goto err;
     }
 

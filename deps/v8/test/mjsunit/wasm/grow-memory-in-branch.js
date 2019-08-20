@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --stress-compaction
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var initialMemoryPages = 1;
@@ -27,8 +26,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if branch
 // affect the result of current_memory when the branch is merged.
-(function TestGrowMemoryInIfBranchNoElse() {
-  print('TestGrowMemoryInIfBranchNoElse ...');
+(function TestMemoryGrowInIfBranchNoElse() {
+  print('TestMemoryGrowInIfBranchNoElse ...');
   let deltaPages = 4;
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_i)
@@ -36,7 +35,7 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
         kExprEnd,
         kExprMemorySize, kMemoryZero            // get the memory size
@@ -51,8 +50,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if branch are
 // retained when the branch is merged even when an else branch exists.
-(function TestGrowMemoryInIfBranchWithElse() {
-  print('TestGrowMemoryInIfBranchWithElse ...');
+(function TestMemoryGrowInIfBranchWithElse() {
+  print('TestMemoryGrowInIfBranchWithElse ...');
   let index = 0;
   let oldValue = 21;
   let newValue = 42;
@@ -63,7 +62,7 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
         kExprElse,
           kExprI32Const, index,                 // put index on stack
@@ -86,8 +85,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an else branch
 // affect the result of current_memory when the branch is merged.
-(function TestGrowMemoryInElseBranch() {
-  print('TestGrowMemoryInElseBranch ...');
+(function TestMemoryGrowInElseBranch() {
+  print('TestMemoryGrowInElseBranch ...');
   let index = 0;
   let oldValue = 21;
   let newValue = 42;
@@ -102,7 +101,7 @@ function generateBuilder() {
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
         kExprEnd,
         kExprMemorySize, kMemoryZero            // get the memory size
@@ -121,8 +120,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if/else
 // branch affect the result of current_memory when the branches are merged.
-(function TestGrowMemoryInBothIfAndElse() {
-  print('TestGrowMemoryInBothIfAndElse ...');
+(function TestMemoryGrowInBothIfAndElse() {
+  print('TestMemoryGrowInBothIfAndElse ...');
   let deltaPagesIf = 1;
   let deltaPagesElse = 2;
   let builder = generateBuilder();
@@ -131,11 +130,11 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
         kExprElse,
           kExprI32Const, deltaPagesElse,        // put deltaPagesElse on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
         kExprEnd,
         kExprMemorySize, kMemoryZero            // get the memory size
@@ -152,8 +151,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if branch are
 // retained when the branch is merged.
-(function TestGrowMemoryAndStoreInIfBranchNoElse() {
-  print('TestGrowMemoryAndStoreInIfBranchNoElse ...');
+(function TestMemoryGrowAndStoreInIfBranchNoElse() {
+  print('TestMemoryGrowAndStoreInIfBranchNoElse ...');
   let index = 2 * kPageSize - 4;
   let value = 42;
   let deltaPages = 1;
@@ -163,7 +162,7 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
           kExprGetLocal, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
@@ -184,8 +183,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if branch are
 // retained when the branch is merged even when  an else branch exists.
-(function TestGrowMemoryAndStoreInIfBranchWithElse() {
-  print('TestGrowMemoryAndStoreInIfBranchWithElse ...');
+(function TestMemoryGrowAndStoreInIfBranchWithElse() {
+  print('TestMemoryGrowAndStoreInIfBranchWithElse ...');
   let index = 2 * kPageSize - 4;
   let value = 42;
   let deltaPages = 1;
@@ -195,7 +194,7 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
           kExprGetLocal, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
@@ -219,8 +218,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an else branch are
 // retained when the branch is merged.
-(function TestGrowMemoryAndStoreInElseBranch() {
-  print('TestGrowMemoryAndStoreInElseBranch ...');
+(function TestMemoryGrowAndStoreInElseBranch() {
+  print('TestMemoryGrowAndStoreInElseBranch ...');
   let index = 2 * kPageSize - 4;
   let value = 42;
   let deltaPages = 1;
@@ -234,7 +233,7 @@ function generateBuilder() {
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
           kExprI32Const, deltaPages,            // put deltaPages on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
           kExprGetLocal, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
@@ -254,8 +253,8 @@ function generateBuilder() {
 
 // This test verifies that the effects of growing memory in an if/else branch
 // are retained when the branch is merged.
-(function TestGrowMemoryAndStoreInBothIfAndElse() {
-  print('TestGrowMemoryAndStoreInBothIfAndElse ...');
+(function TestMemoryGrowAndStoreInBothIfAndElse() {
+  print('TestMemoryGrowAndStoreInBothIfAndElse ...');
   let index = 0;
   let valueIf = 21;
   let valueElse = 42;
@@ -267,14 +266,14 @@ function generateBuilder() {
         kExprGetLocal, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
           kExprGetLocal, 1,                     // get index parameter
           kExprI32Const, valueIf,               // put valueIf on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
           kExprI32Const, deltaPagesElse,        // put deltaPagesElse on stack
-          kExprGrowMemory, kMemoryZero,         // grow memory
+          kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
           kExprGetLocal, 1,                     // get index parameter
           kExprI32Const, valueElse,             // put valueElse on stack

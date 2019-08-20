@@ -30,7 +30,7 @@
 Debug = debug.Debug
 
 var listenerComplete = false;
-var exception = false;
+var exceptionThrown = false;
 
 var testingConstructCall = false;
 
@@ -118,10 +118,11 @@ function listener(event, exec_state, event_data, data) {
       listenerComplete = true;
     }
   } catch (e) {
-    exception = e.toString() + e.stack;
+    exceptionThrown = true;
   };
 };
 
+%PrepareFunctionForOptimization(f);
 for (var i = 0; i < 4; i++) f(expected.length - 1, 11, 12);
 %OptimizeFunctionOnNextCall(f);
 f(expected.length - 1, 11, 12);
@@ -172,7 +173,7 @@ new f(expected.length - 1, 11, 12);
 new f(expected.length - 1, 11, 12, 0);
 
 // Make sure that the debug event listener was invoked.
-assertFalse(exception, "exception in listener " + exception)
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listenerComplete);
 
 // Throw away type information for next run.

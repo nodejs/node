@@ -25,8 +25,8 @@ server.on('stream', (stream) => {
   // Get first known bad file descriptor.
   try {
     while (fs.fstatSync(++fd));
-  } catch (e) {
-    // do nothing; we now have an invalid fd
+  } catch {
+    // Do nothing; we now have an invalid fd
   }
 
   stream.respondWithFD(fd);

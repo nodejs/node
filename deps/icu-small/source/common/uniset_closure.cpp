@@ -31,10 +31,6 @@
 #include "util.h"
 #include "uvector.h"
 
-// initial storage. Must be >= 0
-// *** same as in uniset.cpp ! ***
-#define START_EXTRA 16
-
 U_NAMESPACE_BEGIN
 
 // TODO memory debugging provided inside uniset.cpp
@@ -49,42 +45,16 @@ U_NAMESPACE_BEGIN
 UnicodeSet::UnicodeSet(const UnicodeString& pattern,
                        uint32_t options,
                        const SymbolTable* symbols,
-                       UErrorCode& status) :
-    len(0), capacity(START_EXTRA), list(0), bmpSet(0), buffer(0),
-    bufferCapacity(0), patLen(0), pat(NULL), strings(NULL), stringSpan(NULL),
-    fFlags(0)
-{
-    if(U_SUCCESS(status)){
-        list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
-        /* test for NULL */
-        if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }else{
-            allocateStrings(status);
-            applyPattern(pattern, options, symbols, status);
-        }
-    }
+                       UErrorCode& status) {
+    applyPattern(pattern, options, symbols, status);
     _dbgct(this);
 }
 
 UnicodeSet::UnicodeSet(const UnicodeString& pattern, ParsePosition& pos,
                        uint32_t options,
                        const SymbolTable* symbols,
-                       UErrorCode& status) :
-    len(0), capacity(START_EXTRA), list(0), bmpSet(0), buffer(0),
-    bufferCapacity(0), patLen(0), pat(NULL), strings(NULL), stringSpan(NULL),
-    fFlags(0)
-{
-    if(U_SUCCESS(status)){
-        list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
-        /* test for NULL */
-        if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }else{
-            allocateStrings(status);
-            applyPattern(pattern, pos, options, symbols, status);
-        }
-    }
+                       UErrorCode& status) {
+    applyPattern(pattern, pos, options, symbols, status);
     _dbgct(this);
 }
 
@@ -199,7 +169,7 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
             // start with input set to guarantee inclusion
             // USET_CASE: remove strings because the strings will actually be reduced (folded);
             //            therefore, start with no strings and add only those needed
-            if (attribute & USET_CASE_INSENSITIVE) {
+            if ((attribute & USET_CASE_INSENSITIVE) && foldSet.hasStrings()) {
                 foldSet.strings->removeAllElements();
             }
 
@@ -234,7 +204,7 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
                     }
                 }
             }
-            if (strings != NULL && strings->size() > 0) {
+            if (hasStrings()) {
                 if (attribute & USET_CASE_INSENSITIVE) {
                     for (int32_t j=0; j<strings->size(); ++j) {
                         str = *(const UnicodeString *) strings->elementAt(j);

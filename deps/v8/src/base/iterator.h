@@ -13,11 +13,11 @@ namespace base {
 template <class Category, class Type, class Diff = std::ptrdiff_t,
           class Pointer = Type*, class Reference = Type&>
 struct iterator {
-  typedef Category iterator_category;
-  typedef Type value_type;
-  typedef Diff difference_type;
-  typedef Pointer pointer;
-  typedef Reference reference;
+  using iterator_category = Category;
+  using value_type = Type;
+  using difference_type = Diff;
+  using pointer = Pointer;
+  using reference = Reference;
 };
 
 // The intention of the base::iterator_range class is to encapsulate two
@@ -27,13 +27,13 @@ struct iterator {
 template <typename ForwardIterator>
 class iterator_range {
  public:
-  typedef ForwardIterator iterator;
-  typedef ForwardIterator const_iterator;
-  typedef typename std::iterator_traits<iterator>::pointer pointer;
-  typedef typename std::iterator_traits<iterator>::reference reference;
-  typedef typename std::iterator_traits<iterator>::value_type value_type;
-  typedef
-      typename std::iterator_traits<iterator>::difference_type difference_type;
+  using iterator = ForwardIterator;
+  using const_iterator = ForwardIterator;
+  using pointer = typename std::iterator_traits<iterator>::pointer;
+  using reference = typename std::iterator_traits<iterator>::reference;
+  using value_type = typename std::iterator_traits<iterator>::value_type;
+  using difference_type =
+      typename std::iterator_traits<iterator>::difference_type;
 
   iterator_range() : begin_(), end_() {}
   template <typename ForwardIterator1, typename ForwardIterator2>

@@ -34,20 +34,26 @@ function getCredentialsByURI (uri) {
     return c
   }
 
+  if (this.get(nerfed + ':-authtoken')) {
+    c.token = this.get(nerfed + ':-authtoken')
+    // the bearer token is enough, don't confuse things
+    return c
+  }
+
   // Handle the old-style _auth=<base64> style for the default
   // registry, if set.
   var authDef = this.get('_auth')
   var userDef = this.get('username')
   var passDef = this.get('_password')
   if (authDef && !(userDef && passDef)) {
-    authDef = new Buffer(authDef, 'base64').toString()
+    authDef = Buffer.from(authDef, 'base64').toString()
     authDef = authDef.split(':')
     userDef = authDef.shift()
     passDef = authDef.join(':')
   }
 
   if (this.get(nerfed + ':_password')) {
-    c.password = new Buffer(this.get(nerfed + ':_password'), 'base64').toString('utf8')
+    c.password = Buffer.from(this.get(nerfed + ':_password'), 'base64').toString('utf8')
   } else if (nerfed === defnerf && passDef) {
     c.password = passDef
   }
@@ -65,7 +71,7 @@ function getCredentialsByURI (uri) {
   }
 
   if (c.username && c.password) {
-    c.auth = new Buffer(c.username + ':' + c.password).toString('base64')
+    c.auth = Buffer.from(c.username + ':' + c.password).toString('base64')
   }
 
   return c

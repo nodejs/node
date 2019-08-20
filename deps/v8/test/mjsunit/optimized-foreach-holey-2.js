@@ -21,7 +21,8 @@
       result += v;
     };
     b.forEach(sum);
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

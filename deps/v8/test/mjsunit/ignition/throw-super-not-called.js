@@ -16,10 +16,14 @@ class B extends A {
 }
 
 test = new B(1);
+assertThrows(() => {new B(0)}, ReferenceError);
+
+%PrepareFunctionForOptimization(B);
+test = new B(1);
 test = new B(1);
 %OptimizeFunctionOnNextCall(B);
 test = new B(1);
 assertOptimized(B);
 // Check that hole checks are handled correctly in optimized code.
-assertThrowsEquals(() => {new B(0)}, ReferenceError());
+assertThrows(() => {new B(0)}, ReferenceError);
 assertOptimized(B);

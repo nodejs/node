@@ -95,16 +95,14 @@ child.exec(`${nodejs} --print "os.platform()"`,
            }));
 
 // Module path resolve bug regression test.
-const cwd = process.cwd();
-process.chdir(path.resolve(__dirname, '../../'));
 child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
+           { cwd: path.resolve(__dirname, '../../') },
            common.mustCall((err, stdout, stderr) => {
              assert.strictEqual(err.code, 42);
              assert.strictEqual(
                stdout, 'Loaded as a module, exiting with status code 42.\n');
              assert.strictEqual(stderr, '');
            }));
-process.chdir(cwd);
 
 // Missing argument should not crash.
 child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {
@@ -231,3 +229,57 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
     assert.strictEqual(err, null);
   }));
 });
+
+// ESModule eval tests
+
+
+// Assert that "42\n" is written to stdout on module eval.
+const execOptions = '--experimental-modules --input-type module';
+child.exec(
+  `${nodejs} ${execOptions} --eval "console.log(42)"`,
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '42\n');
+  }));
+
+// Assert that "42\n" is written to stdout with print option.
+child.exec(
+  `${nodejs} ${execOptions} --print --eval "42"`,
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '42\n');
+  }));
+
+// Assert that error is written to stderr on invalid input.
+child.exec(
+  `${nodejs} ${execOptions} --eval "!!!!"`,
+  common.mustCall((err, stdout, stderr) => {
+    assert.ok(err);
+    assert.strictEqual(stdout, '');
+    assert.ok(stderr.indexOf('SyntaxError: Unexpected end of input') > 0);
+  }));
+
+// Assert that require is undefined in ESM support
+child.exec(
+  `${nodejs} ${execOptions} --eval "console.log(typeof require);"`,
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'undefined\n');
+  }));
+
+// Assert that import.meta is defined in ESM
+child.exec(
+  `${nodejs} ${execOptions} --eval "console.log(typeof import.meta);"`,
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'object\n');
+  }));
+
+// Assert that packages can be imported cwd-relative with --eval
+child.exec(
+  `${nodejs} ${execOptions} ` +
+  '--eval "import \'./test/fixtures/es-modules/mjs-file.mjs\'"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));

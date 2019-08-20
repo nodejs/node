@@ -1,7 +1,7 @@
 #include "base64.h"
 
-#include <stddef.h>
-#include <string.h>
+#include <cstddef>
+#include <cstring>
 
 #include "gtest/gtest.h"
 

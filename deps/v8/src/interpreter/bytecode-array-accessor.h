@@ -5,11 +5,13 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_ACCESSOR_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_ACCESSOR_H_
 
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/base/optional.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -42,7 +44,7 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
     void UpdateAndAdvanceToValid();
 
     const BytecodeArrayAccessor* accessor_;
-    Handle<Object> current_;
+    Smi current_;
     int index_;
     int table_offset_;
     int table_end_;
@@ -63,20 +65,41 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
   int case_value_base_;
 };
 
+class V8_EXPORT_PRIVATE AbstractBytecodeArray {
+ public:
+  virtual int length() const = 0;
+  virtual int parameter_count() const = 0;
+  virtual uint8_t get(int index) const = 0;
+  virtual void set(int index, uint8_t value) = 0;
+  virtual Address GetFirstBytecodeAddress() const = 0;
+
+  virtual Handle<Object> GetConstantAtIndex(int index,
+                                            Isolate* isolate) const = 0;
+  virtual bool IsConstantAtIndexSmi(int index) const = 0;
+  virtual Smi GetConstantAtIndexAsSmi(int index) const = 0;
+
+  virtual ~AbstractBytecodeArray() = default;
+};
+
 class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
  public:
+  BytecodeArrayAccessor(std::unique_ptr<AbstractBytecodeArray> bytecode_array,
+                        int initial_offset);
+
   BytecodeArrayAccessor(Handle<BytecodeArray> bytecode_array,
                         int initial_offset);
 
   void SetOffset(int offset);
+
+  void ApplyDebugBreak();
 
   Bytecode current_bytecode() const;
   int current_bytecode_size() const;
   int current_offset() const { return bytecode_offset_; }
   OperandScale current_operand_scale() const { return operand_scale_; }
   int current_prefix_offset() const { return prefix_offset_; }
-  const Handle<BytecodeArray>& bytecode_array() const {
-    return bytecode_array_;
+  AbstractBytecodeArray* bytecode_array() const {
+    return bytecode_array_.get();
   }
 
   uint32_t GetFlagOperand(int operand_index) const;
@@ -90,8 +113,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
-  Handle<Object> GetConstantAtIndex(int offset) const;
-  Handle<Object> GetConstantForIndexOperand(int operand_index) const;
+  Handle<Object> GetConstantAtIndex(int offset, Isolate* isolate) const;
+  bool IsConstantAtIndexSmi(int offset) const;
+  Smi GetConstantAtIndexAsSmi(int offset) const;
+  Handle<Object> GetConstantForIndexOperand(int operand_index,
+                                            Isolate* isolate) const;
 
   // Returns the absolute offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or
@@ -119,7 +145,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
 
   void UpdateOperandScale();
 
-  Handle<BytecodeArray> bytecode_array_;
+  std::unique_ptr<AbstractBytecodeArray> bytecode_array_;
   int bytecode_offset_;
   OperandScale operand_scale_;
   int prefix_offset_;

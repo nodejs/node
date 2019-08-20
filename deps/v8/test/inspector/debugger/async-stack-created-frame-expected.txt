@@ -80,11 +80,11 @@ thenableJob2 (test.js:64:57)
 
 Running test: testSetTimeouts
 foo1 (test.js:10:2)
-setTimeout (test.js:72:25)
+(anonymous) (test.js:72:25)
 -- setTimeout --
-setTimeout (test.js:72:6)
+(anonymous) (test.js:72:6)
 -- setTimeout --
-setTimeout (test.js:71:4)
+(anonymous) (test.js:71:4)
 -- setTimeout --
 setTimeouts (test.js:70:2)
 (anonymous) (expr.js:0:0)

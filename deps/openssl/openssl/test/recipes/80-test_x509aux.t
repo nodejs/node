@@ -19,7 +19,7 @@ plan skip_all => "test_dane uses ec which is not supported by this OpenSSL build
 
 plan tests => 1;                # The number of tests being performed
 
-ok(run(test(["x509aux",
+ok(run(test(["x509aux", 
                 srctop_file("test", "certs", "roots.pem"),
                 srctop_file("test", "certs", "root+anyEKU.pem"),
                 srctop_file("test", "certs", "root-anyEKU.pem"),

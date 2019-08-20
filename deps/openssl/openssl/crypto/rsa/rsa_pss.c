@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,6 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char H_[EVP_MAX_MD_SIZE];
 
-
     if (ctx == NULL)
         goto err;
 
@@ -55,13 +54,12 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
      * Negative sLen has special meanings:
      *      -1      sLen == hLen
      *      -2      salt length is autorecovered from signature
+     *      -3      salt length is maximized
      *      -N      reserved
      */
-    if (sLen == -1)
+    if (sLen == RSA_PSS_SALTLEN_DIGEST) {
         sLen = hLen;
-    else if (sLen == -2)
-        sLen = -2;
-    else if (sLen < -2) {
+    } else if (sLen < RSA_PSS_SALTLEN_MAX) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
@@ -80,7 +78,9 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_DATA_TOO_LARGE);
         goto err;
     }
-    if (sLen > emLen - hLen - 2) { /* sLen can be small negative */
+    if (sLen == RSA_PSS_SALTLEN_MAX) {
+        sLen = emLen - hLen - 2;
+    } else if (sLen > emLen - hLen - 2) { /* sLen can be small negative */
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_DATA_TOO_LARGE);
         goto err;
     }
@@ -106,7 +106,7 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_RECOVERY_FAILED);
         goto err;
     }
-    if (sLen >= 0 && (maskedDBLen - i) != sLen) {
+    if (sLen != RSA_PSS_SALTLEN_AUTO && (maskedDBLen - i) != sLen) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
@@ -123,8 +123,9 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
     if (memcmp(H_, H, hLen)) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_BAD_SIGNATURE);
         ret = 0;
-    } else
+    } else {
         ret = 1;
+    }
 
  err:
     OPENSSL_free(DB);
@@ -162,13 +163,14 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
      * Negative sLen has special meanings:
      *      -1      sLen == hLen
      *      -2      salt length is maximized
+     *      -3      same as above (on signing)
      *      -N      reserved
      */
-    if (sLen == -1)
+    if (sLen == RSA_PSS_SALTLEN_DIGEST) {
         sLen = hLen;
-    else if (sLen == -2)
-        sLen = -2;
-    else if (sLen < -2) {
+    } else if (sLen == RSA_PSS_SALTLEN_MAX_SIGN) {
+        sLen = RSA_PSS_SALTLEN_MAX;
+    } else if (sLen < RSA_PSS_SALTLEN_MAX) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
@@ -184,7 +186,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
                RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
         goto err;
     }
-    if (sLen == -2) {
+    if (sLen == RSA_PSS_SALTLEN_MAX) {
         sLen = emLen - hLen - 2;
     } else if (sLen > emLen - hLen - 2) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1,
@@ -242,7 +244,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
 
  err:
     EVP_MD_CTX_free(ctx);
-    OPENSSL_free(salt);
+    OPENSSL_clear_free(salt, (size_t)sLen); /* salt != NULL implies sLen > 0 */
 
     return ret;
 

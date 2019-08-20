@@ -12,6 +12,7 @@ function __f_17(__v_16, base) {
   __v_16[base + 1] = 1;
   __v_16[base + 4] = base + 4;
 }
+%PrepareFunctionForOptimization(__f_17);
 __f_17(__v_16, true);
 __f_17(__v_16, 14);
 %OptimizeFunctionOnNextCall(__f_17);

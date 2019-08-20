@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
-#include <internal/evp_int.h>
+#include "internal/evp_int.h"
 #include <openssl/pkcs12.h>
 #include <openssl/objects.h>
 
@@ -77,6 +77,16 @@ void openssl_add_all_ciphers_int(void)
     EVP_add_cipher(EVP_seed_cbc());
     EVP_add_cipher_alias(SN_seed_cbc, "SEED");
     EVP_add_cipher_alias(SN_seed_cbc, "seed");
+#endif
+
+#ifndef OPENSSL_NO_SM4
+    EVP_add_cipher(EVP_sm4_ecb());
+    EVP_add_cipher(EVP_sm4_cbc());
+    EVP_add_cipher(EVP_sm4_cfb());
+    EVP_add_cipher(EVP_sm4_ofb());
+    EVP_add_cipher(EVP_sm4_ctr());
+    EVP_add_cipher_alias(SN_sm4_cbc, "SM4");
+    EVP_add_cipher_alias(SN_sm4_cbc, "sm4");
 #endif
 
 #ifndef OPENSSL_NO_RC2
@@ -180,6 +190,42 @@ void openssl_add_all_ciphers_int(void)
     EVP_add_cipher(EVP_aes_256_cbc_hmac_sha1());
     EVP_add_cipher(EVP_aes_128_cbc_hmac_sha256());
     EVP_add_cipher(EVP_aes_256_cbc_hmac_sha256());
+
+#ifndef OPENSSL_NO_ARIA
+    EVP_add_cipher(EVP_aria_128_ecb());
+    EVP_add_cipher(EVP_aria_128_cbc());
+    EVP_add_cipher(EVP_aria_128_cfb());
+    EVP_add_cipher(EVP_aria_128_cfb1());
+    EVP_add_cipher(EVP_aria_128_cfb8());
+    EVP_add_cipher(EVP_aria_128_ctr());
+    EVP_add_cipher(EVP_aria_128_ofb());
+    EVP_add_cipher(EVP_aria_128_gcm());
+    EVP_add_cipher(EVP_aria_128_ccm());
+    EVP_add_cipher_alias(SN_aria_128_cbc, "ARIA128");
+    EVP_add_cipher_alias(SN_aria_128_cbc, "aria128");
+    EVP_add_cipher(EVP_aria_192_ecb());
+    EVP_add_cipher(EVP_aria_192_cbc());
+    EVP_add_cipher(EVP_aria_192_cfb());
+    EVP_add_cipher(EVP_aria_192_cfb1());
+    EVP_add_cipher(EVP_aria_192_cfb8());
+    EVP_add_cipher(EVP_aria_192_ctr());
+    EVP_add_cipher(EVP_aria_192_ofb());
+    EVP_add_cipher(EVP_aria_192_gcm());
+    EVP_add_cipher(EVP_aria_192_ccm());
+    EVP_add_cipher_alias(SN_aria_192_cbc, "ARIA192");
+    EVP_add_cipher_alias(SN_aria_192_cbc, "aria192");
+    EVP_add_cipher(EVP_aria_256_ecb());
+    EVP_add_cipher(EVP_aria_256_cbc());
+    EVP_add_cipher(EVP_aria_256_cfb());
+    EVP_add_cipher(EVP_aria_256_cfb1());
+    EVP_add_cipher(EVP_aria_256_cfb8());
+    EVP_add_cipher(EVP_aria_256_ctr());
+    EVP_add_cipher(EVP_aria_256_ofb());
+    EVP_add_cipher(EVP_aria_256_gcm());
+    EVP_add_cipher(EVP_aria_256_ccm());
+    EVP_add_cipher_alias(SN_aria_256_cbc, "ARIA256");
+    EVP_add_cipher_alias(SN_aria_256_cbc, "aria256");
+#endif
 
 #ifndef OPENSSL_NO_CAMELLIA
     EVP_add_cipher(EVP_camellia_128_ecb());

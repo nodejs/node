@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_ZONE_SEGMENT_H_
 #define V8_ZONE_ZONE_SEGMENT_H_
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 // Segments represent chunks of memory: They have starting address
 // (encoded in the this pointer) and a size in bytes. Segments are
@@ -15,20 +15,24 @@
 namespace v8 {
 namespace internal {
 
-//  Forward declaration
+// Forward declarations.
+class AccountingAllocator;
 class Zone;
 
 class Segment {
  public:
-  void Initialize(size_t size) { size_ = size; }
-
   Zone* zone() const { return zone_; }
   void set_zone(Zone* const zone) { zone_ = zone; }
 
   Segment* next() const { return next_; }
   void set_next(Segment* const next) { next_ = next; }
 
-  size_t size() const { return size_; }
+  // {total_size} returns the allocated size including the bookkeeping bytes of
+  // the {Segment}.
+  size_t total_size() const { return size_; }
+
+  // {capacity} returns the number of storage bytes in this {Segment}, i.e.
+  // {end() - start()}.
   size_t capacity() const { return size_ - sizeof(Segment); }
 
   Address start() const { return address(sizeof(Segment)); }
@@ -40,18 +44,26 @@ class Segment {
   void ZapHeader();
 
  private:
+  // Segments are only created by the AccountingAllocator.
+  friend class AccountingAllocator;
+
+  explicit Segment(size_t size) : size_(size) {}
+
 #ifdef DEBUG
   // Constant byte value used for zapping dead memory in debug mode.
   static const unsigned char kZapDeadByte = 0xcd;
 #endif
 
   // Computes the address of the nth byte in this segment.
-  Address address(size_t n) const { return Address(this) + n; }
+  Address address(size_t n) const {
+    return reinterpret_cast<Address>(this) + n;
+  }
 
-  Zone* zone_;
-  Segment* next_;
-  size_t size_;
+  Zone* zone_ = nullptr;
+  Segment* next_ = nullptr;
+  const size_t size_;
 };
+
 }  // namespace internal
 }  // namespace v8
 

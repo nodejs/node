@@ -112,7 +112,7 @@ $_key="16*$SZ+3*8(%rsp)";
 $_ivp="16*$SZ+4*8(%rsp)";
 $_ctx="16*$SZ+5*8(%rsp)";
 $_in0="16*$SZ+6*8(%rsp)";
-$_rsp="16*$SZ+7*8(%rsp)";
+$_rsp="`16*$SZ+7*8`(%rsp)";
 $framesz=16*$SZ+8*8;
 
 $code=<<___;
@@ -342,15 +342,23 @@ $code.=<<___;
 .type	${func}_xop,\@function,6
 .align	64
 ${func}_xop:
+.cfi_startproc
 .Lxop_shortcut:
 	mov	`($win64?56:8)`(%rsp),$in0	# load 7th parameter
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	sub	\$`$framesz+$win64*16*10`,%rsp
 	and	\$-64,%rsp		# align stack frame
 
@@ -366,7 +374,8 @@ ${func}_xop:
 	mov	$ivp,$_ivp
 	mov	$ctx,$_ctx
 	mov	$in0,$_in0
-	mov	%r11,$_rsp
+	mov	%rax,$_rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,`$framesz+16*0`(%rsp)
@@ -604,6 +613,7 @@ $code.=<<___;
 
 	mov	$_ivp,$ivp
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	$iv,($ivp)		# output IV
 	vzeroall
 ___
@@ -620,15 +630,23 @@ $code.=<<___ if ($win64);
 	movaps	`$framesz+16*9`(%rsp),%xmm15
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_xop:
 	ret
+.cfi_endproc
 .size	${func}_xop,.-${func}_xop
 ___
 ######################################################################
@@ -640,15 +658,23 @@ $code.=<<___;
 .type	${func}_avx,\@function,6
 .align	64
 ${func}_avx:
+.cfi_startproc
 .Lavx_shortcut:
 	mov	`($win64?56:8)`(%rsp),$in0	# load 7th parameter
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	sub	\$`$framesz+$win64*16*10`,%rsp
 	and	\$-64,%rsp		# align stack frame
 
@@ -664,7 +690,8 @@ ${func}_avx:
 	mov	$ivp,$_ivp
 	mov	$ctx,$_ctx
 	mov	$in0,$_in0
-	mov	%r11,$_rsp
+	mov	%rax,$_rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,`$framesz+16*0`(%rsp)
@@ -855,6 +882,7 @@ $code.=<<___;
 
 	mov	$_ivp,$ivp
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	$iv,($ivp)		# output IV
 	vzeroall
 ___
@@ -871,15 +899,23 @@ $code.=<<___ if ($win64);
 	movaps	`$framesz+16*9`(%rsp),%xmm15
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	ret
+.cfi_endproc
 .size	${func}_avx,.-${func}_avx
 ___
 
@@ -887,7 +923,7 @@ if ($avx>1) {{
 ######################################################################
 # AVX2+BMI code path
 #
-my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp 
+my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp
 my $PUSH8=8*2*$SZ;
 use integer;
 
@@ -936,15 +972,23 @@ $code.=<<___;
 .type	${func}_avx2,\@function,6
 .align	64
 ${func}_avx2:
+.cfi_startproc
 .Lavx2_shortcut:
 	mov	`($win64?56:8)`(%rsp),$in0	# load 7th parameter
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	sub	\$`2*$SZ*$rounds+8*8+$win64*16*10`,%rsp
 	and	\$-256*$SZ,%rsp		# align stack frame
 	add	\$`2*$SZ*($rounds-8)`,%rsp
@@ -961,7 +1005,8 @@ ${func}_avx2:
 	mov	$ivp,$_ivp
 	mov	$ctx,$_ctx
 	mov	$in0,$_in0
-	mov	%r11,$_rsp
+	mov	%rax,$_rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,`$framesz+16*0`(%rsp)
@@ -1192,6 +1237,7 @@ $code.=<<___;
 	lea	($Tbl),%rsp
 	mov	$_ivp,$ivp
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vmovdqu	$iv,($ivp)		# output IV
 	vzeroall
 ___
@@ -1208,15 +1254,23 @@ $code.=<<___ if ($win64);
 	movaps	`$framesz+16*9`(%rsp),%xmm15
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	ret
+.cfi_endproc
 .size	${func}_avx2,.-${func}_avx2
 ___
 }}
@@ -1573,7 +1627,6 @@ ___
 $code.=<<___;
 	mov	%rax,%rsi		# put aside Rsp
 	mov	16*$SZ+7*8(%rax),%rax	# pull $_rsp
-	lea	48(%rax),%rax
 
 	mov	-8(%rax),%rbx
 	mov	-16(%rax),%rbp

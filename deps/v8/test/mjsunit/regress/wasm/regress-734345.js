@@ -4,7 +4,6 @@
 
 // Flags: --expose-gc
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 builder1 = new WasmModuleBuilder();

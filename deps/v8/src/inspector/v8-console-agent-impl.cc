@@ -24,7 +24,7 @@ V8ConsoleAgentImpl::V8ConsoleAgentImpl(
       m_frontend(frontendChannel),
       m_enabled(false) {}
 
-V8ConsoleAgentImpl::~V8ConsoleAgentImpl() {}
+V8ConsoleAgentImpl::~V8ConsoleAgentImpl() = default;
 
 Response V8ConsoleAgentImpl::enable() {
   if (m_enabled) return Response::OK();

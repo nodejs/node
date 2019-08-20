@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include "src/objects.h"
 #include "src/objects/code.h"
+#include "src/objects/objects.h"
 
 // These instance types do not exist for actual use but are merely introduced
 // for object stats tracing. In contrast to Code and FixedArray sub types
@@ -14,59 +14,75 @@
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.
-#define VIRTUAL_INSTANCE_TYPE_LIST(V)       \
-  CODE_KIND_LIST(V)                         \
-  V(BOILERPLATE_ELEMENTS_TYPE)              \
-  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)        \
-  V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)   \
-  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)      \
-  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)      \
-  V(CODE_STUBS_TABLE_TYPE)                  \
-  V(COW_ARRAY_TYPE)                         \
-  V(DEOPTIMIZATION_DATA_TYPE)               \
-  V(DEPENDENT_CODE_TYPE)                    \
-  V(ELEMENTS_TYPE)                          \
-  V(EMBEDDED_OBJECT_TYPE)                   \
-  V(ENUM_CACHE_TYPE)                        \
-  V(ENUM_INDICES_CACHE_TYPE)                \
-  V(FEEDBACK_METADATA_TYPE)                 \
-  V(FEEDBACK_VECTOR_ENTRY_TYPE)             \
-  V(FEEDBACK_VECTOR_HEADER_TYPE)            \
-  V(FEEDBACK_VECTOR_SLOT_CALL_TYPE)         \
-  V(FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE)  \
-  V(FEEDBACK_VECTOR_SLOT_ENUM_TYPE)         \
-  V(FEEDBACK_VECTOR_SLOT_LOAD_TYPE)         \
-  V(FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE)  \
-  V(FEEDBACK_VECTOR_SLOT_OTHER_TYPE)        \
-  V(FEEDBACK_VECTOR_SLOT_STORE_TYPE)        \
-  V(FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE) \
-  V(FUNCTION_CONTEXT_TYPE)                  \
-  V(FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE)    \
-  V(GLOBAL_ELEMENTS_TYPE)                   \
-  V(GLOBAL_PROPERTIES_TYPE)                 \
-  V(JS_ARRAY_BOILERPLATE_TYPE)              \
-  V(JS_COLLETION_TABLE_TYPE)                \
-  V(JS_OBJECT_BOILERPLATE_TYPE)             \
-  V(NATIVE_CONTEXT_TYPE)                    \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)    \
-  V(NUMBER_STRING_CACHE_TYPE)               \
-  V(OBJECT_PROPERTY_DICTIONARY_TYPE)        \
-  V(OBJECT_TO_CODE_TYPE)                    \
-  V(OPTIMIZED_CODE_LITERALS_TYPE)           \
-  V(OTHER_CONTEXT_TYPE)                     \
-  V(PROTOTYPE_USERS_TYPE)                   \
-  V(REGEXP_MULTIPLE_CACHE_TYPE)             \
-  V(RETAINED_MAPS_TYPE)                     \
-  V(SCRIPT_LIST_TYPE)                       \
-  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)      \
-  V(SCRIPT_SOURCE_EXTERNAL_TYPE)            \
-  V(SCRIPT_SOURCE_NON_EXTERNAL_TYPE)        \
-  V(SERIALIZED_OBJECTS_TYPE)                \
-  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)     \
-  V(STRING_SPLIT_CACHE_TYPE)                \
-  V(STRING_TABLE_TYPE)                      \
-  V(UNCOMPILED_JS_FUNCTION_TYPE)            \
-  V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)   \
+#define VIRTUAL_INSTANCE_TYPE_LIST(V)            \
+  CODE_KIND_LIST(V)                              \
+  V(ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE) \
+  V(ARRAY_DICTIONARY_ELEMENTS_TYPE)              \
+  V(ARRAY_ELEMENTS_TYPE)                         \
+  V(BOILERPLATE_ELEMENTS_TYPE)                   \
+  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)             \
+  V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)        \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)           \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)           \
+  V(COW_ARRAY_TYPE)                              \
+  V(DEOPTIMIZATION_DATA_TYPE)                    \
+  V(DEPENDENT_CODE_TYPE)                         \
+  V(DEPRECATED_DESCRIPTOR_ARRAY_TYPE)            \
+  V(EMBEDDED_OBJECT_TYPE)                        \
+  V(ENUM_KEYS_CACHE_TYPE)                        \
+  V(ENUM_INDICES_CACHE_TYPE)                     \
+  V(FEEDBACK_VECTOR_ENTRY_TYPE)                  \
+  V(FEEDBACK_VECTOR_HEADER_TYPE)                 \
+  V(FEEDBACK_VECTOR_SLOT_CALL_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE)       \
+  V(FEEDBACK_VECTOR_SLOT_ENUM_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE)       \
+  V(FEEDBACK_VECTOR_SLOT_OTHER_TYPE)             \
+  V(FEEDBACK_VECTOR_SLOT_STORE_TYPE)             \
+  V(FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE)      \
+  V(FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE)         \
+  V(GLOBAL_ELEMENTS_TYPE)                        \
+  V(GLOBAL_PROPERTIES_TYPE)                      \
+  V(JS_ARRAY_BOILERPLATE_TYPE)                   \
+  V(JS_COLLECTION_TABLE_TYPE)                    \
+  V(JS_OBJECT_BOILERPLATE_TYPE)                  \
+  V(JS_UNCOMPILED_FUNCTION_TYPE)                 \
+  V(MAP_ABANDONED_PROTOTYPE_TYPE)                \
+  V(MAP_DEPRECATED_TYPE)                         \
+  V(MAP_DICTIONARY_TYPE)                         \
+  V(MAP_PROTOTYPE_DICTIONARY_TYPE)               \
+  V(MAP_PROTOTYPE_TYPE)                          \
+  V(MAP_STABLE_TYPE)                             \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)         \
+  V(NUMBER_STRING_CACHE_TYPE)                    \
+  V(OBJECT_DICTIONARY_ELEMENTS_TYPE)             \
+  V(OBJECT_ELEMENTS_TYPE)                        \
+  V(OBJECT_PROPERTY_ARRAY_TYPE)                  \
+  V(OBJECT_PROPERTY_DICTIONARY_TYPE)             \
+  V(OBJECT_TO_CODE_TYPE)                         \
+  V(OPTIMIZED_CODE_LITERALS_TYPE)                \
+  V(OTHER_CONTEXT_TYPE)                          \
+  V(PROTOTYPE_DESCRIPTOR_ARRAY_TYPE)             \
+  V(PROTOTYPE_PROPERTY_ARRAY_TYPE)               \
+  V(PROTOTYPE_PROPERTY_DICTIONARY_TYPE)          \
+  V(PROTOTYPE_USERS_TYPE)                        \
+  V(REGEXP_MULTIPLE_CACHE_TYPE)                  \
+  V(RELOC_INFO_TYPE)                             \
+  V(RETAINED_MAPS_TYPE)                          \
+  V(SCRIPT_LIST_TYPE)                            \
+  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)           \
+  V(SCRIPT_SOURCE_EXTERNAL_ONE_BYTE_TYPE)        \
+  V(SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE)        \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE)    \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE)    \
+  V(SERIALIZED_OBJECTS_TYPE)                     \
+  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)          \
+  V(STRING_SPLIT_CACHE_TYPE)                     \
+  V(STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE)      \
+  V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
+  V(SOURCE_POSITION_TABLE_TYPE)                  \
+  V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)        \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
@@ -103,7 +119,8 @@ class ObjectStats {
   void Dump(std::stringstream& stream);
 
   void CheckpointObjectStats();
-  void RecordObjectStats(InstanceType type, size_t size);
+  void RecordObjectStats(InstanceType type, size_t size,
+                         size_t over_allocated = kNoOverAllocation);
   void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
                                 size_t over_allocated);
 
@@ -147,6 +164,13 @@ class ObjectStats {
   // Detailed histograms by InstanceType.
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
+
+  size_t tagged_fields_count_;
+  size_t embedder_fields_count_;
+  size_t unboxed_double_fields_count_;
+  size_t raw_fields_count_;
+
+  friend class ObjectStatsCollectorImpl;
 };
 
 class ObjectStatsCollector {

@@ -17,6 +17,9 @@ Commands:
 For each command, you can try ./runtime-call-stats.py help command.
 '''
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import json
 import os
@@ -33,6 +36,9 @@ import scipy.stats
 from math import sqrt
 
 
+MAX_NOF_RETRIES = 5
+
+
 # Run benchmarks.
 
 def print_command(cmd_args):
@@ -43,7 +49,7 @@ def print_command(cmd_args):
     elif ' ' in arg:
       arg = "'{}'".format(arg)
     return arg
-  print " ".join(map(fix_for_printing, cmd_args))
+  print(" ".join(map(fix_for_printing, cmd_args)))
 
 
 def start_replay_server(args, sites, discard_output=True):
@@ -63,15 +69,15 @@ def start_replay_server(args, sites, discard_output=True):
       "--inject_scripts=deterministic.js,{}".format(injection),
       args.replay_wpr,
   ]
-  print "=" * 80
+  print("=" * 80)
   print_command(cmd_args)
   if discard_output:
     with open(os.devnull, 'w') as null:
       server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
   else:
       server = subprocess.Popen(cmd_args)
-  print "RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid)
-  print "=" * 80
+  print("RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid))
+  print("=" * 80)
   return {'process': server, 'injection': injection}
 
 
@@ -82,7 +88,7 @@ def stop_replay_server(server):
 
 
 def generate_injection(f, sites, refreshes=0):
-  print >> f, """\
+  print("""\
 (function() {
   var s = window.sessionStorage.getItem("refreshCounter");
   var refreshTotal = """, refreshes, """;
@@ -124,7 +130,7 @@ def generate_injection(f, sites, refreshes=0):
   var sites =
     """, json.dumps(sites), """;
   onLoad(window.location.href);
-})();"""
+})();""", file=f)
 
 def get_chrome_flags(js_flags, user_data_dir, arg_delimiter=""):
   return [
@@ -137,6 +143,8 @@ def get_chrome_flags(js_flags, user_data_dir, arg_delimiter=""):
       "--no-first-run",
       "--user-data-dir={}{}{}".format(arg_delimiter, user_data_dir,
                                       arg_delimiter),
+      "--data-path={}{}{}".format(arg_delimiter,
+          os.path.join(user_data_dir, 'content-shell-data'), arg_delimiter),
     ]
 
 def get_chrome_replay_flags(args, arg_delimiter=""):
@@ -156,9 +164,9 @@ def get_chrome_replay_flags(args, arg_delimiter=""):
     ]
 
 def run_site(site, domain, args, timeout=None):
-  print "="*80
-  print "RUNNING DOMAIN %s" % domain
-  print "="*80
+  print("="*80)
+  print("RUNNING DOMAIN %s" % domain)
+  print("="*80)
   result_template = "{domain}#{count}.txt" if args.repeat else "{domain}.txt"
   count = 0
   if timeout is None: timeout = args.timeout
@@ -177,7 +185,7 @@ def run_site(site, domain, args, timeout=None):
           user_data_dir = args.user_data_dir
         else:
           user_data_dir = tempfile.mkdtemp(prefix="chr_")
-        js_flags = "--runtime-call-stats --noconcurrent-recompilation"
+        js_flags = "--runtime-call-stats"
         if args.replay_wpr: js_flags += " --allow-natives-syntax"
         if args.js_flags: js_flags += " " + args.js_flags
         chrome_flags = get_chrome_flags(js_flags, user_data_dir)
@@ -191,9 +199,9 @@ def run_site(site, domain, args, timeout=None):
             "timeout", str(timeout),
             args.with_chrome
         ] + chrome_flags + [ site ]
-        print "- " * 40
+        print("- " * 40)
         print_command(cmd_args)
-        print "- " * 40
+        print("- " * 40)
         with open(result, "wt") as f:
           with open(args.log_stderr or os.devnull, 'at') as err:
             status = subprocess.call(cmd_args, stdout=f, stderr=err)
@@ -207,13 +215,17 @@ def run_site(site, domain, args, timeout=None):
         if os.path.isfile(result) and os.path.getsize(result) > 0:
           if args.print_url:
             with open(result, "at") as f:
-              print >> f
-              print >> f, "URL: {}".format(site)
+              print(file=f)
+              print("URL: {}".format(site), file=f)
           retries_since_good_run = 0
           break
-        if retries_since_good_run < 6:
-          timeout += 2 ** retries_since_good_run
-          retries_since_good_run += 1
+        if retries_since_good_run > MAX_NOF_RETRIES:
+          # Abort after too many retries, no point in ever increasing the
+          # timeout.
+          print("TOO MANY EMPTY RESULTS ABORTING RUN")
+          return
+        timeout += 2 ** retries_since_good_run
+        retries_since_good_run += 1
         print("EMPTY RESULT, REPEATING RUN ({})".format(
             retries_since_good_run));
       finally:
@@ -233,6 +245,8 @@ def read_sites_file(args):
           if item['timeout'] > args.timeout: item['timeout'] = args.timeout
           sites.append(item)
     except ValueError:
+      args.error("Warning: Could not read sites file as JSON, falling back to "
+                 "primitive file")
       with open(args.sites_file, "rt") as f:
         for line in f:
           line = line.strip()
@@ -283,7 +297,7 @@ def do_run(args):
     # Run them.
     for site, domain, count, timeout in L:
       if count is not None: domain = "{}%{}".format(domain, count)
-      print(site, domain, timeout)
+      print((site, domain, timeout))
       run_site(site, domain, args, timeout)
   finally:
     if replay_server:
@@ -342,11 +356,22 @@ def statistics(data):
            'stddev': stddev, 'min': low, 'max': high, 'ci': ci }
 
 
+def add_category_total(entries, groups, category_prefix):
+  group_data = { 'time': 0, 'count': 0 }
+  for group_name, regexp in groups:
+    if not group_name.startswith('Group-' + category_prefix): continue
+    group_data['time'] += entries[group_name]['time']
+    group_data['count'] += entries[group_name]['count']
+  entries['Group-' + category_prefix + '-Total'] = group_data
+
+
 def read_stats(path, domain, args):
   groups = [];
   if args.aggregate:
     groups = [
         ('Group-IC', re.compile(".*IC_.*")),
+        ('Group-OptimizeBackground',
+         re.compile(".*OptimizeConcurrent.*|RecompileConcurrent.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
         ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),
@@ -398,20 +423,10 @@ def read_stats(path, domain, args):
       group_data['time'] += entries[group_name]['time']
       group_data['count'] += entries[group_name]['count']
     entries['Group-Total-V8'] = group_data
-    # Calculate the Parse-Total group
-    group_data = { 'time': 0, 'count': 0 }
-    for group_name, regexp in groups:
-      if not group_name.startswith('Group-Parse'): continue
-      group_data['time'] += entries[group_name]['time']
-      group_data['count'] += entries[group_name]['count']
-    entries['Group-Parse-Total'] = group_data
-    # Calculate the Compile-Total group
-    group_data = { 'time': 0, 'count': 0 }
-    for group_name, regexp in groups:
-      if not group_name.startswith('Group-Compile'): continue
-      group_data['time'] += entries[group_name]['time']
-      group_data['count'] += entries[group_name]['count']
-    entries['Group-Compile-Total'] = group_data
+    # Calculate the Parse-Total, Compile-Total and Optimize-Total groups
+    add_category_total(entries, groups, 'Parse')
+    add_category_total(entries, groups, 'Compile')
+    add_category_total(entries, groups, 'Optimize')
     # Append the sums as single entries to domain.
     for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
@@ -447,11 +462,11 @@ def print_stats(S, args):
     def stats(s, units=""):
       conf = "{:0.1f}({:0.2f}%)".format(s['ci']['abs'], s['ci']['perc'])
       return "{:8.1f}{} +/- {:15s}".format(s['average'], units, conf)
-    print "{:>50s}  {}  {}".format(
+    print("{:>50s}  {}  {}".format(
       key,
       stats(value['time_stat'], units="ms"),
       stats(value['count_stat'])
-    )
+    ))
   # Print and calculate partial sums, if necessary.
   for i in range(low, high):
     print_entry(*L[i])
@@ -467,7 +482,7 @@ def print_stats(S, args):
         partial['count_list'][j] += v
   # Print totals, if necessary.
   if args.totals:
-    print '-' * 80
+    print('-' * 80)
     if args.limit != 0 and not args.aggregate:
       partial['time_stat'] = statistics(partial['time_list'])
       partial['count_stat'] = statistics(partial['count_list'])
@@ -488,9 +503,9 @@ def do_stats(args):
     create_total_page_stats(domains, args)
   for i, domain in enumerate(sorted(domains)):
     if len(domains) > 1:
-      if i > 0: print
-      print "{}:".format(domain)
-      print '=' * 80
+      if i > 0: print()
+      print("{}:".format(domain))
+      print('=' * 80)
     domain_stats = domains[domain]
     for key in domain_stats:
       domain_stats[key]['time_stat'] = \
@@ -530,10 +545,9 @@ def create_total_page_stats(domains, args):
   # Add a new "Total" page containing the summed up metrics.
   domains['Total'] = total
 
+# Generate Raw JSON file.
 
-# Generate JSON file.
-
-def do_json(args):
+def _read_logs(args):
   versions = {}
   for path in args.logdirs:
     if os.path.isdir(path):
@@ -547,6 +561,36 @@ def do_json(args):
             if domain not in versions[version]: versions[version][domain] = {}
             read_stats(os.path.join(root, filename),
                        versions[version][domain], args)
+
+  return versions
+
+def do_raw_json(args):
+  versions = _read_logs(args)
+
+  for version, domains in versions.items():
+    if args.aggregate:
+      create_total_page_stats(domains, args)
+    for domain, entries in domains.items():
+      raw_entries = []
+      for name, value in entries.items():
+        # We don't want the calculated sum in the JSON file.
+        if name == "Sum": continue
+        raw_entries.append({
+          'name': name,
+          'duration': value['time_list'],
+          'count': value['count_list'],
+        })
+
+      domains[domain] = raw_entries
+
+  print(json.dumps(versions, separators=(',', ':')))
+
+
+# Generate JSON file.
+
+def do_json(args):
+  versions = _read_logs(args)
+
   for version, domains in versions.items():
     if args.aggregate:
       create_total_page_stats(domains, args)
@@ -563,7 +607,7 @@ def do_json(args):
           entry.append(round(s['ci']['perc'], 2))
         stats.append(entry)
       domains[domain] = stats
-  print json.dumps(versions, separators=(',', ':'))
+  print(json.dumps(versions, separators=(',', ':')))
 
 
 # Help.
@@ -644,7 +688,7 @@ def main():
         "-l", "--log-stderr", type=str, metavar="<path>",
         help="specify where chrome's stderr should go (default: /dev/null)")
     subparser.add_argument(
-        "sites", type=str, metavar="<URL>", nargs="*",
+        "--sites", type=str, metavar="<URL>", nargs="*",
         help="specify benchmark website")
   add_replay_args(subparsers["run"])
 
@@ -687,6 +731,20 @@ def main():
       "logdirs", type=str, metavar="<logdir>", nargs="*",
       help="specify directories with log files to parse")
   subparsers["json"].add_argument(
+      "--aggregate", dest="aggregate", action="store_true", default=False,
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
+      "Additionally creates a Total page with all entries.")
+
+  # Command: raw-json.
+  subparsers["raw-json"] = subparser_adder.add_parser(
+      "raw-json", help="Collect raw results from 'run' command into" \
+          "a single json file.")
+  subparsers["raw-json"].set_defaults(
+      func=do_raw_json, error=subparsers["json"].error)
+  subparsers["raw-json"].add_argument(
+      "logdirs", type=str, metavar="<logdir>", nargs="*",
+      help="specify directories with log files to parse")
+  subparsers["raw-json"].add_argument(
       "--aggregate", dest="aggregate", action="store_true", default=False,
       help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
       "Additionally creates a Total page with all entries.")

@@ -1,17 +1,22 @@
-'use strict';
 // Flags: --expose-internals
+'use strict';
 
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 const { SystemError } = require('internal/errors');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const {
+  UV_EBADF,
+  UV_EINVAL,
+  UV_ENOTSOCK
+} = internalBinding('uv');
 
 function getExpectedError(type) {
   const code = common.isWindows ? 'ENOTSOCK' : 'EBADF';
   const message = common.isWindows ?
     'socket operation on non-socket' : 'bad file descriptor';
-  const errno = common.isWindows ? uv.UV_ENOTSOCK : uv.UV_EBADF;
+  const errno = common.isWindows ? UV_ENOTSOCK : UV_EBADF;
   const syscall = `uv_${type}_buffer_size`;
   const suffix = common.isWindows ?
     'ENOTSOCK (socket operation on non-socket)' : 'EBADF (bad file descriptor)';
@@ -105,7 +110,7 @@ function getExpectedError(type) {
   const info = {
     code: 'EINVAL',
     message: 'invalid argument',
-    errno: uv.UV_EINVAL,
+    errno: UV_EINVAL,
     syscall: 'uv_recv_buffer_size'
   };
   const errorObj = {
@@ -128,7 +133,7 @@ function getExpectedError(type) {
   const info = {
     code: 'EINVAL',
     message: 'invalid argument',
-    errno: uv.UV_EINVAL,
+    errno: UV_EINVAL,
     syscall: 'uv_send_buffer_size'
   };
   const errorObj = {

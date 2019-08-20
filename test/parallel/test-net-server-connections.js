@@ -32,7 +32,7 @@ const expectedWarning = 'Server.connections property is deprecated. ' +
 
 common.expectWarning('DeprecationWarning', expectedWarning, 'DEP0020');
 
-// test that server.connections property is no longer enumerable now that it
+// Test that server.connections property is no longer enumerable now that it
 // has been marked as deprecated
 assert.strictEqual(Object.keys(server).includes('connections'), false);
 

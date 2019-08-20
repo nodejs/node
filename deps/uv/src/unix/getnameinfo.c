@@ -109,6 +109,7 @@ int uv_getnameinfo(uv_loop_t* loop,
   if (getnameinfo_cb) {
     uv__work_submit(loop,
                     &req->work_req,
+                    UV__WORK_SLOW_IO,
                     uv__getnameinfo_work,
                     uv__getnameinfo_done);
     return 0;

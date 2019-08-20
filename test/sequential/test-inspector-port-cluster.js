@@ -1,8 +1,9 @@
 'use strict';
 
+// Flags: --expose-internals
+
 const common = require('../common');
 
-common.crashOnUnhandledRejection();
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
@@ -206,7 +207,7 @@ function testRunnerMain() {
 }
 function masterProcessMain() {
   const workers = JSON.parse(process.env.workers);
-  const clusterSettings = JSON.parse(process.env.clusterSettings);
+  const clusterSettings = JSON.parse(process.env.clusterSettings) || {};
   const badPortError = { type: RangeError, code: 'ERR_SOCKET_BAD_PORT' };
   let debugPort = process.debugPort;
 
@@ -225,77 +226,80 @@ function masterProcessMain() {
       params.expectedHost = worker.expectedHost;
     }
 
-    if (clusterSettings) {
-      if (clusterSettings.inspectPort === 'addTwo') {
-        clusterSettings.inspectPort = common.mustCall(
-          () => { return debugPort += 2; },
-          workers.length
-        );
-      } else if (clusterSettings.inspectPort === 'string') {
-        clusterSettings.inspectPort = 'string';
-        cluster.setupMaster(clusterSettings);
+    clusterSettings.execArgv = clusterSettings.execArgv ?
+      clusterSettings.execArgv.concat(['--expose-internals']) :
+      process.execArgv.concat(['--expose-internals']);
 
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      } else if (clusterSettings.inspectPort === 'null') {
-        clusterSettings.inspectPort = null;
-        cluster.setupMaster(clusterSettings);
-
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      } else if (clusterSettings.inspectPort === 'bignumber') {
-        clusterSettings.inspectPort = 1293812;
-        cluster.setupMaster(clusterSettings);
-
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      } else if (clusterSettings.inspectPort === 'negativenumber') {
-        clusterSettings.inspectPort = -9776;
-        cluster.setupMaster(clusterSettings);
-
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      } else if (clusterSettings.inspectPort === 'bignumberfunc') {
-        clusterSettings.inspectPort = common.mustCall(
-          () => 123121,
-          workers.length
-        );
-
-        cluster.setupMaster(clusterSettings);
-
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      } else if (clusterSettings.inspectPort === 'strfunc') {
-        clusterSettings.inspectPort = common.mustCall(
-          () => 'invalidPort',
-          workers.length
-        );
-
-        cluster.setupMaster(clusterSettings);
-
-        common.expectsError(() => {
-          cluster.fork(params).on('exit', common.mustCall(checkExitCode));
-        }, badPortError);
-
-        return;
-      }
+    if (clusterSettings.inspectPort === 'addTwo') {
+      clusterSettings.inspectPort = common.mustCall(
+        () => { return debugPort += 2; },
+        workers.length
+      );
+    } else if (clusterSettings.inspectPort === 'string') {
+      clusterSettings.inspectPort = 'string';
       cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
+    } else if (clusterSettings.inspectPort === 'null') {
+      clusterSettings.inspectPort = null;
+      cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
+    } else if (clusterSettings.inspectPort === 'bignumber') {
+      clusterSettings.inspectPort = 1293812;
+      cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
+    } else if (clusterSettings.inspectPort === 'negativenumber') {
+      clusterSettings.inspectPort = -9776;
+      cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
+    } else if (clusterSettings.inspectPort === 'bignumberfunc') {
+      clusterSettings.inspectPort = common.mustCall(
+        () => 123121,
+        workers.length
+      );
+
+      cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
+    } else if (clusterSettings.inspectPort === 'strfunc') {
+      clusterSettings.inspectPort = common.mustCall(
+        () => 'invalidPort',
+        workers.length
+      );
+
+      cluster.setupMaster(clusterSettings);
+
+      common.expectsError(() => {
+        cluster.fork(params).on('exit', common.mustCall(checkExitCode));
+      }, badPortError);
+
+      return;
     }
+
+    cluster.setupMaster(clusterSettings);
 
     cluster.fork(params).on('exit', common.mustCall(checkExitCode));
   }
@@ -303,7 +307,8 @@ function masterProcessMain() {
 
 function workerProcessMain() {
   const { expectedPort, expectedInitialPort, expectedHost } = process.env;
-  const debugOptions = process.binding('config').debugOptions;
+  const debugOptions =
+    require('internal/options').getOptionValue('--inspect-port');
 
   if ('expectedPort' in process.env) {
     assert.strictEqual(process.debugPort, +expectedPort);
@@ -328,7 +333,7 @@ function spawnMaster({ execArgv, workers, clusterSettings = {} }) {
         clusterSettings: JSON.stringify(clusterSettings),
         testProcess: true
       }),
-      execArgv
+      execArgv: execArgv.concat(['--expose-internals'])
     }).on('exit', common.mustCall((code, signal) => {
       checkExitCode(code, signal);
       resolve();

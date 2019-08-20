@@ -4,11 +4,11 @@
 
 #include "test/unittests/compiler/code-assembler-unittest.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node.h"
-#include "src/interface-descriptors.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
@@ -19,8 +19,9 @@ namespace internal {
 namespace compiler {
 
 CodeAssemblerTestState::CodeAssemblerTestState(CodeAssemblerTest* test)
-    : CodeAssemblerState(test->isolate(), test->zone(),
-                         VoidDescriptor(test->isolate()), Code::STUB, "test") {}
+    : CodeAssemblerState(test->isolate(), test->zone(), VoidDescriptor{},
+                         Code::STUB, "test",
+                         PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 TARGET_TEST_F(CodeAssemblerTest, IntPtrAdd) {
   CodeAssemblerTestState state(this);
@@ -122,6 +123,44 @@ TARGET_TEST_F(CodeAssemblerTest, IntPtrMul) {
     Node* b = m.Parameter(0);
     Node* c = m.IntPtrMul(a, b);
     EXPECT_THAT(c, IsWordShl(b, IsIntPtrConstant(3)));
+  }
+}
+
+TARGET_TEST_F(CodeAssemblerTest, IntPtrDiv) {
+  CodeAssemblerTestState state(this);
+  CodeAssemblerForTest m(&state);
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(100);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrDiv(Matcher<Node*>(a), Matcher<Node*>(b)));
+  }
+  // x / 1  => x
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(1);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, a);
+  }
+  // CONST_a / CONST_b  => CONST_c
+  {
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(5);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrConstant(20));
+  }
+  {
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(5);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsIntPtrConstant(20));
+  }
+  // x / 2^CONST  => x >> CONST
+  {
+    TNode<IntPtrT> a = m.UncheckedCast<IntPtrT>(m.Parameter(0));
+    TNode<IntPtrT> b = m.IntPtrConstant(1 << 3);
+    TNode<IntPtrT> div = m.IntPtrDiv(a, b);
+    EXPECT_THAT(div, IsWordSar(Matcher<Node*>(a), IsIntPtrConstant(3)));
   }
 }
 

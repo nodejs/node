@@ -1,11 +1,11 @@
 'use strict';
-// test unzipping a gzip file that has trailing garbage
+// Test unzipping a gzip file that has trailing garbage
 
 const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-// should ignore trailing null-bytes
+// Should ignore trailing null-bytes
 let data = Buffer.concat([
   zlib.gzipSync('abc'),
   zlib.gzipSync('def'),
@@ -23,7 +23,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   );
 }));
 
-// if the trailing garbage happens to look like a gzip header, it should
+// If the trailing garbage happens to look like a gzip header, it should
 // throw an error.
 data = Buffer.concat([
   zlib.gzipSync('abc'),

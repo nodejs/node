@@ -50,5 +50,5 @@ e.emit('numArgs', null, null, null, null, null);
 e.emit('foo', null, null, null, null);
 
 process.on('exit', function() {
-  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 4, 4], num_args_emitted);
+  assert.deepStrictEqual(num_args_emitted, [0, 1, 2, 3, 4, 5, 4, 4]);
 });

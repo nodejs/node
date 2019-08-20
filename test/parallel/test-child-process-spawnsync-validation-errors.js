@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
-const signals = process.binding('constants').os.signals;
+const signals = require('os').constants.signals;
 const rootUser = common.isWindows ? false : process.getuid() === 0;
 
 const invalidArgTypeError = common.expectsError(

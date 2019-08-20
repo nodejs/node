@@ -21,13 +21,13 @@ if __name__ == '__main__':
     elif option.startswith('-X'): excludes += option[2:].split(',')
     elif option.startswith('-B'): bases += option[2:].split(',')
 
-  excludes = map(re.compile, excludes)
+  excludes = [re.compile(exclude) for exclude in excludes]
   exported = []
 
   for filename in filenames:
     for line in open(filename).readlines():
       name, _, _, meta, _ = re.split('\s+', line)
-      if any(map(lambda p: p.match(name), excludes)): continue
+      if any(p.match(name) for p in excludes): continue
       meta = meta.split(':')
       assert meta[0] in ('EXIST', 'NOEXIST')
       assert meta[2] in ('FUNCTION', 'VARIABLE')

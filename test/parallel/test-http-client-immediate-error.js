@@ -8,7 +8,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const http = require('http');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const { UV_ENETUNREACH } = internalBinding('uv');
 const {
   newAsyncId,
   symbols: { async_id_symbol }
@@ -21,7 +22,7 @@ agent.createConnection = common.mustCall((cfg) => {
   // Fake the handle so we can enforce returning an immediate error
   sock._handle = {
     connect: common.mustCall((req, addr, port) => {
-      return uv.UV_ENETUNREACH;
+      return UV_ENETUNREACH;
     }),
     readStart() {},
     close() {}

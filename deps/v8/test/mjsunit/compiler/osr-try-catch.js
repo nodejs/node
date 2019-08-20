@@ -16,9 +16,11 @@ function SingleLoop() {
     catch(e) {}
     for (var b = 0; b < 1; b++) {
       %OptimizeOsr();
+      %PrepareFunctionForOptimization(SingleLoop);
     }
   }
 }
+%PrepareFunctionForOptimization(SingleLoop);
 
 
 // These function could also fail if the exception handlers are not updated at
@@ -36,8 +38,10 @@ function EmptyBody() {
 
     if (a == 1) break;
     a++;
+    %PrepareFunctionForOptimization(EmptyBody);
   }
 }
+%PrepareFunctionForOptimization(EmptyBody);
 
 function NestedLoops() {
   for (var a = 0; a < 2; a++) {
@@ -50,8 +54,10 @@ function NestedLoops() {
       if (b == 1) break;
       b++;
     }
+    %PrepareFunctionForOptimization(NestedLoops);
   }
 }
+%PrepareFunctionForOptimization(NestedLoops);
 
 
 SingleLoop();

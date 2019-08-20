@@ -16,6 +16,8 @@
 # include "./archs/VC-WIN32/no-asm/include/openssl/opensslconf.h"
 #elif defined(_WIN32) && defined(_M_X64)
 # include "./archs/VC-WIN64A/no-asm/include/openssl/opensslconf.h"
+#elif defined(_WIN32) && defined(_M_ARM64)
+# include "./archs/VC-WIN64-ARM/no-asm/include/openssl/opensslconf.h"
 #elif (defined(__FreeBSD__) || defined(__OpenBSD__)) && defined(__i386__)
 # include "./archs/BSD-x86/no-asm/include/openssl/opensslconf.h"
 #elif (defined(__FreeBSD__) || defined(__OpenBSD__)) && defined(__x86_64__)
@@ -38,6 +40,8 @@
 # include "./archs/linux64-s390x/no-asm/include/openssl/opensslconf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390__)
 # include "./archs/linux32-s390x/no-asm/include/openssl/opensslconf.h"
+#elif defined(OPENSSL_LINUX) && defined(__mips64) && defined(__MIPSEL__)
+# include "./archs/linux64-mips64/no-asm/include/openssl/opensslconf.h"
 #else
 # include "./archs/linux-elf/no-asm/include/openssl/opensslconf.h"
 #endif

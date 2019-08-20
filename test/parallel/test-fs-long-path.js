@@ -30,7 +30,7 @@ const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 
-// make a path that will be at least 260 chars long.
+// Make a path that will be at least 260 chars long.
 const fileNameLen = Math.max(260 - tmpdir.path.length - 1, 1);
 const fileName = path.join(tmpdir.path, 'x'.repeat(fileNameLen));
 const fullPath = path.resolve(fileName);
@@ -49,7 +49,3 @@ fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
     assert.ifError(err);
   }));
 }));
-
-process.on('exit', function() {
-  fs.unlinkSync(fullPath);
-});

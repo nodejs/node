@@ -34,7 +34,9 @@ class DebugSymbolsTest : public EnvironmentTestFixture {};
 
 class TestHandleWrap : public node::HandleWrap {
  public:
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TestHandleWrap)
+  SET_SELF_SIZE(TestHandleWrap)
 
   TestHandleWrap(node::Environment* env,
                  v8::Local<v8::Object> object,
@@ -42,18 +44,20 @@ class TestHandleWrap : public node::HandleWrap {
       : node::HandleWrap(env,
                          object,
                          reinterpret_cast<uv_handle_t*>(handle),
-                         node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                         node::AsyncWrap::PROVIDER_TCPWRAP) {}
 };
 
 
 class TestReqWrap : public node::ReqWrap<uv_req_t> {
  public:
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(TestReqWrap)
+  SET_SELF_SIZE(TestReqWrap)
 
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
                                 object,
-                                node::AsyncWrap::PROVIDER_TIMERWRAP) {}
+                                node::AsyncWrap::PROVIDER_FSREQCALLBACK) {}
 };
 
 TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
@@ -67,13 +71,27 @@ TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {
             NODE_OFF_EXTSTR_DATA);
 }
 
+class DummyBaseObject : public node::BaseObject {
+ public:
+  DummyBaseObject(node::Environment* env, v8::Local<v8::Object> obj) :
+    BaseObject(env, obj) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DummyBaseObject)
+  SET_SELF_SIZE(DummyBaseObject)
+};
+
 TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env{handle_scope, argv};
 
-  v8::Local<v8::Object> object = v8::Object::New(isolate_);
-  node::BaseObject obj(*env, object);
+  v8::Local<v8::ObjectTemplate> obj_templ = v8::ObjectTemplate::New(isolate_);
+  obj_templ->SetInternalFieldCount(1);
+
+  v8::Local<v8::Object> object =
+      obj_templ->NewInstance(env.context()).ToLocalChecked();
+  DummyBaseObject obj(*env, object);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());
   auto calculated = reinterpret_cast<uintptr_t>(&obj) +
@@ -116,8 +134,10 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  v8::Local<v8::Object> object =
-      obj_template->GetFunction()->NewInstance(env.context()).ToLocalChecked();
+  v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
+                                     .ToLocalChecked()
+                                     ->NewInstance(env.context())
+                                     .ToLocalChecked();
   TestHandleWrap obj(*env, object, &handle);
 
   auto queue = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
@@ -143,8 +163,10 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
 
-  v8::Local<v8::Object> object =
-      obj_template->GetFunction()->NewInstance(env.context()).ToLocalChecked();
+  v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
+                                     .ToLocalChecked()
+                                     ->NewInstance(env.context())
+                                     .ToLocalChecked();
   TestReqWrap obj(*env, object);
 
   // NOTE (mmarchini): Workaround to fix failing tests on ARM64 machines with

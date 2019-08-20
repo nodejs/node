@@ -3,8 +3,8 @@ const common = require('../common.js');
 const querystring = require('querystring');
 
 const bench = common.createBenchmark(main, {
-  type: ['noencode', 'encodemany', 'encodelast'],
-  n: [1e7],
+  type: ['noencode', 'encodemany', 'encodelast', 'array'],
+  n: [1e6],
 });
 
 function main({ type, n }) {
@@ -23,6 +23,11 @@ function main({ type, n }) {
       foo: 'bar',
       baz: 'quux',
       xyzzy: 'thu\u00AC'
+    },
+    array: {
+      foo: [],
+      baz: ['bar'],
+      xyzzy: ['bar', 'quux', 'thud']
     }
   };
   const input = inputs[type];

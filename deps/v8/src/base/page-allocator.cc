@@ -24,11 +24,9 @@ STATIC_ASSERT_ENUM(PageAllocator::kReadExecute,
 
 #undef STATIC_ASSERT_ENUM
 
-size_t PageAllocator::AllocatePageSize() {
-  return base::OS::AllocatePageSize();
-}
-
-size_t PageAllocator::CommitPageSize() { return base::OS::CommitPageSize(); }
+PageAllocator::PageAllocator()
+    : allocate_page_size_(base::OS::AllocatePageSize()),
+      commit_page_size_(base::OS::CommitPageSize()) {}
 
 void PageAllocator::SetRandomMmapSeed(int64_t seed) {
   base::OS::SetRandomMmapSeed(seed);
@@ -58,6 +56,10 @@ bool PageAllocator::SetPermissions(void* address, size_t size,
                                    PageAllocator::Permission access) {
   return base::OS::SetPermissions(
       address, size, static_cast<base::OS::MemoryPermission>(access));
+}
+
+bool PageAllocator::DiscardSystemPages(void* address, size_t size) {
+  return base::OS::DiscardSystemPages(address, size);
 }
 
 }  // namespace base

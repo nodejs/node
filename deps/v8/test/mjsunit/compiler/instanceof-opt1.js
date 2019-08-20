@@ -12,6 +12,7 @@ var Foo = {
 // OrdinaryHasInstance call inside Function.prototype[@@hasInstance].
 function foo() { return 1 instanceof Foo; }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(false, foo());
 assertEquals(false, foo());
 %OptimizeFunctionOnNextCall(foo);

@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -27,7 +30,7 @@ class PrepareBranchRevision(Step):
     self["push_hash"] = (self._options.revision or
                          self.GitLog(n=1, format="%H", branch="origin/master"))
     assert self["push_hash"]
-    print "Release revision %s" % self["push_hash"]
+    print("Release revision %s" % self["push_hash"])
 
 
 class IncrementVersion(Step):
@@ -138,7 +141,7 @@ class PushBranchRef(Step):
   def RunStep(self):
     cmd = "push origin %s:refs/heads/%s" % (self["push_hash"], self["version"])
     if self._options.dry_run:
-      print "Dry run. Command:\ngit %s" % cmd
+      print("Dry run. Command:\ngit %s" % cmd)
     else:
       self.Git(cmd)
 
@@ -207,8 +210,7 @@ class CommitBranch(Step):
     self["commit_title"] = text.splitlines()[0]
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
-    self.GitCommit(file_name = self.Config("COMMITMSG_FILE"))
-    os.remove(self.Config("COMMITMSG_FILE"))
+    self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
@@ -217,17 +219,19 @@ class LandBranch(Step):
 
   def RunStep(self):
     if self._options.dry_run:
-      print "Dry run - upload CL."
+      print("Dry run - upload CL.")
     else:
-      self.GitUpload(author=self._options.author,
-                     force=True,
+      self.GitUpload(force=True,
                      bypass_hooks=True,
-                     private=True)
+                     no_autocc=True,
+                     message_file=self.Config("COMMITMSG_FILE"))
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
-      print "Dry run. Command:\ngit %s" % cmd
+      print("Dry run. Command:\ngit %s" % cmd)
     else:
       self.Git(cmd)
+
+    os.remove(self.Config("COMMITMSG_FILE"))
 
 
 class TagRevision(Step):
@@ -269,7 +273,7 @@ class CreateRelease(ScriptsBase):
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.author or not options.reviewer:
-      print "Reviewer (-r) and author (-a) are required."
+      print("Reviewer (-r) and author (-a) are required.")
       return False
     return True
 

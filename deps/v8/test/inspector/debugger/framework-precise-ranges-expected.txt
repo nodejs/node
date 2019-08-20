@@ -13,10 +13,6 @@ Running test: testFooNotBlackboxed
     result : {
     }
 }
-foo (test.js:8:12)
-testFunction (test.js:15:2)
-(anonymous) (expr.js:0:0)
-
 foo (test.js:9:2)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
@@ -32,9 +28,6 @@ Running test: testFooBlackboxed
     result : {
     }
 }
-testFunction (test.js:14:21)
-(anonymous) (expr.js:0:0)
-
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
 
@@ -58,10 +51,6 @@ Running test: testBooPartiallyBlackboxed1
     result : {
     }
 }
-foo (test.js:8:12)
-testFunction (test.js:15:2)
-(anonymous) (expr.js:0:0)
-
 foo (test.js:9:2)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
@@ -87,10 +76,6 @@ Running test: testBooPartiallyBlackboxed2
     result : {
     }
 }
-foo (test.js:8:12)
-testFunction (test.js:15:2)
-(anonymous) (expr.js:0:0)
-
 foo (test.js:9:2)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)
@@ -116,10 +101,6 @@ Running test: testBooPartiallyBlackboxed3
     result : {
     }
 }
-foo (test.js:8:12)
-testFunction (test.js:15:2)
-(anonymous) (expr.js:0:0)
-
 foo (test.js:9:2)
 testFunction (test.js:15:2)
 (anonymous) (expr.js:0:0)

@@ -25,6 +25,7 @@ var o = { toString : function() {
   return "1";
 } };
 
+%PrepareFunctionForOptimization(f);
 counter = 0;
 assertEquals(1, f(deopt, o));
 assertEquals(2, counter);
@@ -34,6 +35,7 @@ counter = 0;
 assertEquals(-1, f(o, deopt));
 assertEquals(2, counter);
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 counter = 0;
 assertEquals(0, f(deopt, deopt));

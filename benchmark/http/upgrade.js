@@ -19,16 +19,16 @@ const resData = 'HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                 '\r\n\r\n';
 
 function main({ n }) {
-  var server = require('../fixtures/simple-http-server.js')
+  const server = require('../fixtures/simple-http-server.js')
     .listen(common.PORT)
-    .on('listening', function() {
+    .on('listening', () => {
       bench.start();
-      doBench(server.address(), n, function() {
+      doBench(server.address(), n, () => {
         bench.end(n);
         server.close();
       });
     })
-    .on('upgrade', function(req, socket, upgradeHead) {
+    .on('upgrade', (req, socket, upgradeHead) => {
       socket.resume();
       socket.write(resData);
       socket.end();
@@ -45,7 +45,7 @@ function doBench(address, count, done) {
   conn.write(reqData);
   conn.resume();
 
-  conn.on('end', function() {
+  conn.on('end', () => {
     doBench(address, count - 1, done);
   });
 }

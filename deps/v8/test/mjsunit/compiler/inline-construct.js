@@ -35,6 +35,7 @@ function TestInlinedConstructor(constructor, closure) {
   var noDeopt = { deopt:0 };
   var forceDeopt = { /*empty*/ };
 
+  %PrepareFunctionForOptimization(closure);
   result = closure(constructor, 11, noDeopt, counter);
   assertEquals(11, result);
   assertEquals(1, counter.value);
@@ -119,6 +120,7 @@ function f_too_many(a, b, c) {
   var obj = new c_too_many(a, b, c);
   return obj.x;
 }
+%PrepareFunctionForOptimization(f_too_many);
 assertEquals(23, f_too_many(11, 12, 1));
 assertEquals(42, f_too_many(23, 19, 1));
 %OptimizeFunctionOnNextCall(f_too_many);
@@ -135,6 +137,7 @@ function f_too_few(a) {
   var obj = new c_too_few(a);
   return obj.x;
 }
+%PrepareFunctionForOptimization(f_too_few);
 assertEquals(12, f_too_few(11));
 assertEquals(24, f_too_few(23));
 %OptimizeFunctionOnNextCall(f_too_few);

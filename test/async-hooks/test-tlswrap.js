@@ -8,20 +8,24 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
 const hooks = initHooks();
 hooks.enable();
 
+// TODO(@sam-github) assumes server handshake completes before client, true for
+// 1.2, not for 1.3. Might need a rewrite for TLS1.3.
+tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
+
 //
 // Creating server and listening on port
 //
 const server = tls
   .createServer({
-    cert: fixtures.readSync('test_cert.pem'),
-    key: fixtures.readSync('test_key.pem')
+    cert: fixtures.readKey('rsa_cert.crt'),
+    key: fixtures.readKey('rsa_private.pem')
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))
@@ -52,6 +56,7 @@ function onsecureConnection() {
   //
   const as = hooks.activitiesOfTypes('TLSWRAP');
   assert.strictEqual(as.length, 2);
+  // TODO(@sam-github) This happens after onsecureConnect, with TLS1.3.
   client = as[1];
   assert.strictEqual(client.type, 'TLSWRAP');
   assert.strictEqual(typeof client.uid, 'number');
@@ -78,7 +83,7 @@ function onsecureConnect() {
   //
   // Destroying client socket
   //
-  this.destroy();
+  this.destroy();  // This destroys client before server handshakes, with TLS1.3
   checkInvocations(svr, { init: 1, before: 2, after: 1 },
                    'server: when destroying client');
   checkInvocations(client, { init: 1, before: 2, after: 2 },

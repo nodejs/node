@@ -11,8 +11,12 @@ inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 inline void Initialize(v8::Local<v8::Object> binding) {
   auto isolate = binding->GetIsolate();
-  binding->Set(v8::String::NewFromUtf8(isolate, "Class"),
-               v8::FunctionTemplate::New(isolate, NewClass)->GetFunction());
+  auto context = isolate->GetCurrentContext();
+  binding->Set(context, v8::String::NewFromUtf8(
+        isolate, "Class", v8::NewStringType::kNormal).ToLocalChecked(),
+               v8::FunctionTemplate::New(isolate, NewClass)
+                   ->GetFunction(context)
+                   .ToLocalChecked()).FromJust();
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

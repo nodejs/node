@@ -20,66 +20,116 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "uv.h"
-#include "node.h"
-#include "node_internals.h"
 #include "env-inl.h"
+#include "node.h"
+#include "node_process.h"
 
 namespace node {
+
+namespace per_process {
+struct UVError {
+  int value;
+  const char* name;
+  const char* message;
+};
+
+// We only expand the macro once here to reduce the amount of code
+// generated.
+static const struct UVError uv_errors_map[] = {
+#define V(name, message) {UV_##name, #name, message},
+    UV_ERRNO_MAP(V)
+#undef V
+};
+}  // namespace per_process
+
 namespace {
 
 using v8::Array;
 using v8::Context;
+using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Map;
 using v8::Object;
+using v8::PropertyAttribute;
+using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
-
-// TODO(joyeecheung): deprecate this function in favor of
-// lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int err = args[0]->Int32Value();
+  if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
+    if (ProcessEmitDeprecationWarning(
+        env,
+        "Directly calling process.binding('uv').errname(<val>) is being"
+        " deprecated. "
+        "Please make sure to use util.getSystemErrorName() instead.",
+        "DEP0119").IsNothing())
+    return;
+  }
+  int err;
+  if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
-
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
-  Environment* env = Environment::GetCurrent(context);
+void GetErrMap(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)->GetFunction());
-
-#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
-  UV_ERRNO_MAP(V)
-#undef V
+  Local<Context> context = env->context();
 
   Local<Map> err_map = Map::New(isolate);
 
-#define V(name, msg) do {                                                     \
-  Local<Array> arr = Array::New(isolate, 2);                                  \
-  arr->Set(0, OneByteString(isolate, #name));                                 \
-  arr->Set(1, OneByteString(isolate, msg));                                   \
-  err_map->Set(context,                                                       \
-               Integer::New(isolate, UV_##name),                              \
-               arr).ToLocalChecked();                                         \
-} while (0);
-  UV_ERRNO_MAP(V)
-#undef V
+  size_t errors_len = arraysize(per_process::uv_errors_map);
+  for (size_t i = 0; i < errors_len; ++i) {
+    const auto& error = per_process::uv_errors_map[i];
+    Local<Value> arr[] = {OneByteString(isolate, error.name),
+                          OneByteString(isolate, error.message)};
+    if (err_map
+            ->Set(context,
+                  Integer::New(isolate, error.value),
+                  Array::New(isolate, arr, arraysize(arr)))
+            .IsEmpty()) {
+      return;
+    }
+  }
 
-  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
-              err_map).FromJust();
+  args.GetReturnValue().Set(err_map);
+}
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(isolate, "errname"),
+              env->NewFunctionTemplate(ErrName)
+                  ->GetFunction(env->context())
+                  .ToLocalChecked()).Check();
+
+  // TODO(joyeecheung): This should be deprecated in user land in favor of
+  // `util.getSystemErrorName(err)`.
+  PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
+  size_t errors_len = arraysize(per_process::uv_errors_map);
+  const std::string prefix = "UV_";
+  for (size_t i = 0; i < errors_len; ++i) {
+    const auto& error = per_process::uv_errors_map[i];
+    const std::string prefixed_name = prefix + error.name;
+    Local<String> name = OneByteString(isolate, prefixed_name.c_str());
+    Local<Integer> value = Integer::New(isolate, error.value);
+    target->DefineOwnProperty(context, name, value, attributes).Check();
+  }
+
+  env->SetMethod(target, "getErrorMap", GetErrMap);
 }
 
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)

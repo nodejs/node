@@ -5,72 +5,16 @@
 #ifndef V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 #define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
-#include "src/code-stub-assembler.h"
-#include "src/contexts.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/objects/promise.h"
 
 namespace v8 {
 namespace internal {
 
-typedef compiler::CodeAssemblerState CodeAssemblerState;
+using CodeAssemblerState = compiler::CodeAssemblerState;
 
-class PromiseBuiltinsAssembler : public CodeStubAssembler {
+class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
-  enum PromiseResolvingFunctionContextSlot {
-    // The promise which resolve/reject callbacks fulfill. If this is
-    // undefined, then we've already visited this callback and it
-    // should be a no-op.
-    kPromiseSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Whether to trigger a debug event or not. Used in catch
-    // prediction.
-    kDebugEventSlot,
-    kPromiseContextLength,
-  };
-
- protected:
-  enum PromiseAllResolveElementContextSlots {
-    // Index into the values array, or -1 if the callback was already called
-    kPromiseAllResolveElementIndexSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Remaining elements count (mutable HeapNumber)
-    kPromiseAllResolveElementRemainingElementsSlot,
-
-    // Promise capability from Promise.all
-    kPromiseAllResolveElementCapabilitySlot,
-
-    // Values array from Promise.all
-    kPromiseAllResolveElementValuesArraySlot,
-
-    kPromiseAllResolveElementLength
-  };
-
- public:
-  enum FunctionContextSlot {
-    kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
-
-    kCapabilitiesContextLength,
-  };
-
-  // This is used by the Promise.prototype.finally builtin to store
-  // onFinally callback and the Promise constructor.
-  // TODO(gsathya): For native promises we can create a variant of
-  // this without extra space for the constructor to save memory.
-  enum PromiseFinallyContextSlot {
-    kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
-    kConstructorSlot,
-
-    kPromiseFinallyContextLength,
-  };
-
-  // This is used by the ThenFinally and CatchFinally builtins to
-  // store the value to return or reason to throw.
-  enum PromiseValueThunkOrReasonContextSlot {
-    kValueSlot = Context::MIN_CONTEXT_SLOTS,
-
-    kPromiseValueThunkOrReasonContextLength,
-  };
-
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
   // These allocate and initialize a promise with pending state and
@@ -88,28 +32,44 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
                                 Node* result);
 
-  Node* AllocatePromiseReaction(Node* next, Node* payload,
+  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
 
-  Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
-                                       Node* context, Node* argument,
-                                       Node* handler, Node* payload);
+  Node* AllocatePromiseReactionJobTask(RootIndex map_root_index, Node* context,
+                                       Node* argument, Node* handler,
+                                       Node* promise_or_capability);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
-                                       Node* handler, Node* payload);
+                                       Node* handler,
+                                       Node* promise_or_capability);
   Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
                                               Node* then, Node* thenable,
                                               Node* context);
 
-  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
-      Node* promise, Node* native_context, Node* promise_context);
+  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(Node* promise,
+                                                          Node* debug_event,
+                                                          Node* native_context);
 
   Node* PromiseHasHandler(Node* promise);
+
+  // Creates the context used by all Promise.all resolve element closures,
+  // together with the values array. Since all closures for a single Promise.all
+  // call use the same context, we need to store the indices for the individual
+  // closures somewhere else (we put them into the identity hash field of the
+  // closures), and we also need to have a separate marker for when the closure
+  // was called already (we slap the native context onto the closure in that
+  // case to mark it's done).
+  Node* CreatePromiseAllResolveElementContext(Node* promise_capability,
+                                              Node* native_context);
+  TNode<JSFunction> CreatePromiseAllResolveElementFunction(Node* context,
+                                                           TNode<Smi> index,
+                                                           Node* native_context,
+                                                           int slot_index);
 
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
                                                Node* native_context);
 
-  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
-                                                    Node* promise_capability);
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* promise_capability,
+                                                    Node* native_context);
 
  protected:
   void PromiseInit(Node* promise);
@@ -125,6 +85,17 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* TriggerPromiseReactions(Node* context, Node* promise, Node* result,
                                 PromiseReaction::Type type);
+
+  // We can skip the "resolve" lookup on {constructor} if it's the (initial)
+  // Promise constructor and the Promise.resolve() protector is intact, as
+  // that guards the lookup path for the "resolve" property on the %Promise%
+  // intrinsic object.
+  void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
+                                               Node* constructor,
+                                               Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
+                                                Node* constructor,
+                                                Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
@@ -142,6 +113,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
+  // If resolve is Undefined, we use the builtin %PromiseResolve%
+  // intrinsic, otherwise we use the given resolve function.
+  Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
+                    Node* value, Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
@@ -156,12 +131,17 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          const IteratorRecord& record, Label* if_exception,
-                          Variable* var_exception);
+  using PromiseAllResolvingElementFunction =
+      std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
+                                  TNode<NativeContext> native_context,
+                                  TNode<PromiseCapability> capability)>;
 
-  Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
-  Node* DecrementSmiCell(Node* cell);
+  Node* PerformPromiseAll(
+      Node* context, Node* constructor, Node* capability,
+      const TorqueStructIteratorRecord& record,
+      const PromiseAllResolvingElementFunction& create_resolve_element_function,
+      const PromiseAllResolvingElementFunction& create_reject_element_function,
+      Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);
@@ -176,12 +156,28 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* PromiseStatus(Node* promise);
 
   void PromiseReactionJob(Node* context, Node* argument, Node* handler,
-                          Node* payload, PromiseReaction::Type type);
+                          Node* promise_or_capability,
+                          PromiseReaction::Type type);
 
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 
   Node* AllocateJSPromise(Node* context);
+
+  void ExtractHandlerContext(Node* handler, Variable* var_context);
+  void Generate_PromiseAll(
+      TNode<Context> context, TNode<Object> receiver, TNode<Object> iterable,
+      const PromiseAllResolvingElementFunction& create_resolve_element_function,
+      const PromiseAllResolvingElementFunction& create_reject_element_function);
+
+  using CreatePromiseAllResolveElementFunctionValue =
+      std::function<TNode<Object>(TNode<Context> context,
+                                  TNode<NativeContext> native_context,
+                                  TNode<Object> value)>;
+
+  void Generate_PromiseAllResolveElementClosure(
+      TNode<Context> context, TNode<Object> value, TNode<JSFunction> function,
+      const CreatePromiseAllResolveElementFunctionValue& callback);
 };
 
 }  // namespace internal

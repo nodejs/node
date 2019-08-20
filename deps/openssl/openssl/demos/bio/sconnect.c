@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,17 +18,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
 #define HOSTPORT "localhost:4433"
 #define CAFILE "root.pem"
 
-extern int errno;
-
-int main(argc, argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
     const char *hostport = HOSTPORT;
     const char *CAfile = CAFILE;
@@ -39,7 +36,7 @@ char *argv[];
     SSL_CTX *ssl_ctx = NULL;
     SSL *ssl;
     BIO *ssl_bio;
-    int i, len, off, ret = 1;
+    int i, len, off, ret = EXIT_FAILURE;
 
     if (argc > 1)
         hostport = argv[1];
@@ -115,17 +112,18 @@ char *argv[];
         fwrite(buf, 1, i, stdout);
     }
 
-    ret = 1;
+    ret = EXIT_SUCCESS;
     goto done;
 
  err:
     if (ERR_peek_error() == 0) { /* system call error */
         fprintf(stderr, "errno=%d ", errno);
         perror("error");
-    } else
+    } else {
         ERR_print_errors_fp(stderr);
+    }
  done:
     BIO_free_all(out);
     SSL_CTX_free(ssl_ctx);
-    return (ret == 1);
+    return ret;
 }

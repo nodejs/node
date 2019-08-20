@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-// skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
+// Skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
 if (common.inFreeBSDJail)
   common.skip('In a FreeBSD jail');
 

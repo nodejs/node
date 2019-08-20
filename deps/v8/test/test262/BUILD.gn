@@ -2,33 +2,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("../../gni/isolate.gni")
+group("v8_test262") {
+  testonly = true
 
-if (v8_test_isolation_mode != "noop") {
-  action("archive_test262") {
-    visibility = [ ":*" ]
-
-    script = "archive.py"
-
-    inputs = [
-      "list.py",
-    ]
-
-    sources = exec_script("list.py", [], "list lines")
-
-    outputs = [
-      "$target_gen_dir/test262_archiving.stamp",
-    ]
-
-    args = rebase_path(outputs, root_build_dir)
-  }
-}
-
-v8_isolate_run("test262") {
-  deps = [
-    ":archive_test262",
-    "../..:d8_run",
+  data_deps = [
+    "../..:d8",
+    "../../tools:v8_testrunner",
   ]
 
-  isolate = "test262.isolate"
+  data = [
+    "data/",
+    "detachArrayBuffer.js",
+    "harness/",
+    "harness-adapt.js",
+    "harness-adapt-donotevaluate.js",
+    "harness-agent.js",
+    "test262.status",
+    "testcfg.py",
+    "local-tests/",
+  ]
 }

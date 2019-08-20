@@ -4,7 +4,7 @@
 
 #include "src/ic/binary-op-assembler.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -58,34 +58,26 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
     {
       Comment("perform smi operation");
-      // Try fast Smi addition first.
-      Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(lhs),
-                                         BitcastTaggedToWord(rhs));
-      Node* overflow = Projection(1, pair);
-
-      // Check if the Smi additon overflowed.
       // If rhs is known to be an Smi we want to fast path Smi operation. This
       // is for AddSmi operation. For the normal Add operation, we want to fast
       // path both Smi and Number operations, so this path should not be marked
       // as Deferred.
       Label if_overflow(this,
-                        rhs_is_smi ? Label::kDeferred : Label::kNonDeferred),
-          if_notoverflow(this);
-      Branch(overflow, &if_overflow, &if_notoverflow);
+                        rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+      TNode<Smi> smi_result = TrySmiAdd(CAST(lhs), CAST(rhs), &if_overflow);
+      // Not overflowed.
+      {
+        var_type_feedback.Bind(
+            SmiConstant(BinaryOperationFeedback::kSignedSmall));
+        var_result.Bind(smi_result);
+        Goto(&end);
+      }
 
       BIND(&if_overflow);
       {
         var_fadd_lhs.Bind(SmiToFloat64(lhs));
         var_fadd_rhs.Bind(SmiToFloat64(rhs));
         Goto(&do_fadd);
-      }
-
-      BIND(&if_notoverflow);
-      {
-        var_type_feedback.Bind(
-            SmiConstant(BinaryOperationFeedback::kSignedSmall));
-        var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
-        Goto(&end);
       }
     }
   }
@@ -170,9 +162,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
                 &call_with_any_feedback);
 
       var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kString));
-      Callable callable =
-          CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-      var_result.Bind(CallStub(callable, context, lhs, rhs));
+      var_result.Bind(
+          CallBuiltin(Builtins::kStringAdd_CheckNone, context, lhs, rhs));
 
       Goto(&end);
     }
@@ -185,16 +176,28 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     Node* rhs_instance_type = LoadInstanceType(rhs);
     Node* rhs_is_oddball = InstanceTypeEqual(rhs_instance_type, ODDBALL_TYPE);
     GotoIf(rhs_is_oddball, &call_with_oddball_feedback);
-    Branch(IsBigIntInstanceType(rhs_instance_type), &bigint,
-           &call_with_any_feedback);
+    Goto(&call_with_any_feedback);
   }
 
   BIND(&bigint);
   {
+    // Both {lhs} and {rhs} are of BigInt type.
+    Label bigint_too_big(this);
+    var_result.Bind(
+        CallBuiltin(Builtins::kBigIntAddNoThrow, context, lhs, rhs));
+    // Check for sentinel that signals BigIntTooBig exception.
+    GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
+
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(Operation::kAdd)));
     Goto(&end);
+
+    BIND(&bigint_too_big);
+    {
+      // Update feedback to prevent deopt loop.
+      UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                     feedback_vector, slot_id);
+      ThrowRangeError(context, MessageTemplate::kBigIntTooBig);
+    }
   }
 
   BIND(&call_with_oddball_feedback);
@@ -372,8 +375,12 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&if_bigint);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(op)));
+    if (op == Operation::kAdd) {
+      var_result.Bind(CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs));
+    } else {
+      var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
+                                  SmiConstant(op)));
+    }
     Goto(&end);
   }
 
@@ -416,34 +423,22 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
                                                        Node* feedback_vector,
                                                        bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    VARIABLE(var_result, MachineRepresentation::kTagged);
-    // Try a fast Smi subtraction first.
-    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(lhs),
-                                       BitcastTaggedToWord(rhs));
-    Node* overflow = Projection(1, pair);
-
-    // Check if the Smi subtraction overflowed.
-    Label if_notoverflow(this), end(this);
+    Label end(this);
+    TVARIABLE(Number, var_result);
     // If rhs is known to be an Smi (for SubSmi) we want to fast path Smi
     // operation. For the normal Sub operation, we want to fast path both
     // Smi and Number operations, so this path should not be marked as Deferred.
     Label if_overflow(this,
                       rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
-    Branch(overflow, &if_overflow, &if_notoverflow);
-
-    BIND(&if_notoverflow);
-    {
-      var_type_feedback->Bind(
-          SmiConstant(BinaryOperationFeedback::kSignedSmall));
-      var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
-      Goto(&end);
-    }
+    var_result = TrySmiSub(CAST(lhs), CAST(rhs), &if_overflow);
+    var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    Goto(&end);
 
     BIND(&if_overflow);
     {
       var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
       Node* value = Float64Sub(SmiToFloat64(lhs), SmiToFloat64(rhs));
-      var_result.Bind(AllocateHeapNumberWithValue(value));
+      var_result = AllocateHeapNumberWithValue(value);
       Goto(&end);
     }
 
@@ -463,7 +458,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
                                                        Node* feedback_vector,
                                                        bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    Node* result = SmiMul(lhs, rhs);
+    TNode<Number> result = SmiMul(CAST(lhs), CAST(rhs));
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber));
@@ -487,7 +482,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
     // Smi and Number operations, so this path should not be marked as Deferred.
     Label bailout(this, rhs_is_smi ? Label::kDeferred : Label::kNonDeferred),
         end(this);
-    var_result.Bind(TrySmiDiv(lhs, rhs, &bailout));
+    var_result.Bind(TrySmiDiv(CAST(lhs), CAST(rhs), &bailout));
     var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
     Goto(&end);
 
@@ -515,7 +510,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     Node* context, Node* dividend, Node* divisor, Node* slot_id,
     Node* feedback_vector, bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    Node* result = SmiMod(lhs, rhs);
+    TNode<Number> result = SmiMod(CAST(lhs), CAST(rhs));
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
         BinaryOperationFeedback::kNumber));

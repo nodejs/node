@@ -717,7 +717,7 @@ UBool RegexMatcher::find(UErrorCode &status) {
             if  (findProgressInterrupt(startPos, status))
                 return FALSE;
         }
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
 
     case START_START:
         // Matches are only possible at the start of the input string
@@ -765,7 +765,7 @@ UBool RegexMatcher::find(UErrorCode &status) {
                     return FALSE;
             }
         }
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
 
     case START_STRING:
     case START_CHAR:
@@ -797,11 +797,11 @@ UBool RegexMatcher::find(UErrorCode &status) {
                     return FALSE;
            }
         }
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
 
     case START_LINE:
         {
-            UChar32  c;
+            UChar32 ch;
             if (startPos == fAnchorStart) {
                 MatchAt(startPos, FALSE, status);
                 if (U_FAILURE(status)) {
@@ -811,17 +811,17 @@ UBool RegexMatcher::find(UErrorCode &status) {
                     return TRUE;
                 }
                 UTEXT_SETNATIVEINDEX(fInputText, startPos);
-                c = UTEXT_NEXT32(fInputText);
+                ch = UTEXT_NEXT32(fInputText);
                 startPos = UTEXT_GETNATIVEINDEX(fInputText);
             } else {
                 UTEXT_SETNATIVEINDEX(fInputText, startPos);
-                c = UTEXT_PREVIOUS32(fInputText);
+                ch = UTEXT_PREVIOUS32(fInputText);
                 UTEXT_SETNATIVEINDEX(fInputText, startPos);
             }
 
             if (fPattern->fFlags & UREGEX_UNIX_LINES) {
                 for (;;) {
-                    if (c == 0x0a) {
+                    if (ch == 0x0a) {
                             MatchAt(startPos, FALSE, status);
                             if (U_FAILURE(status)) {
                                 return FALSE;
@@ -836,7 +836,7 @@ UBool RegexMatcher::find(UErrorCode &status) {
                         fHitEnd = TRUE;
                         return FALSE;
                     }
-                    c = UTEXT_NEXT32(fInputText);
+                    ch = UTEXT_NEXT32(fInputText);
                     startPos = UTEXT_GETNATIVEINDEX(fInputText);
                     // Note that it's perfectly OK for a pattern to have a zero-length
                     //   match at the end of a string, so we must make sure that the loop
@@ -846,8 +846,8 @@ UBool RegexMatcher::find(UErrorCode &status) {
                 }
             } else {
                 for (;;) {
-                    if (isLineTerminator(c)) {
-                        if (c == 0x0d && startPos < fActiveLimit && UTEXT_CURRENT32(fInputText) == 0x0a) {
+                    if (isLineTerminator(ch)) {
+                        if (ch == 0x0d && startPos < fActiveLimit && UTEXT_CURRENT32(fInputText) == 0x0a) {
                             (void)UTEXT_NEXT32(fInputText);
                             startPos = UTEXT_GETNATIVEINDEX(fInputText);
                         }
@@ -865,7 +865,7 @@ UBool RegexMatcher::find(UErrorCode &status) {
                         fHitEnd = TRUE;
                         return FALSE;
                     }
-                    c = UTEXT_NEXT32(fInputText);
+                    ch = UTEXT_NEXT32(fInputText);
                     startPos = UTEXT_GETNATIVEINDEX(fInputText);
                     // Note that it's perfectly OK for a pattern to have a zero-length
                     //   match at the end of a string, so we must make sure that the loop
@@ -877,11 +877,10 @@ UBool RegexMatcher::find(UErrorCode &status) {
         }
 
     default:
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
     }
 
-    U_ASSERT(FALSE);
-    return FALSE;
+    UPRV_UNREACHABLE;
 }
 
 
@@ -992,7 +991,7 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
             if  (findProgressInterrupt(startPos, status))
                 return FALSE;
         }
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
 
     case START_START:
         // Matches are only possible at the start of the input string
@@ -1034,7 +1033,7 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
                 return FALSE;
         }
     }
-        U_ASSERT(FALSE);
+    UPRV_UNREACHABLE;
 
     case START_STRING:
     case START_CHAR:
@@ -1063,11 +1062,11 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
                 return FALSE;
         }
     }
-    U_ASSERT(FALSE);
+    UPRV_UNREACHABLE;
 
     case START_LINE:
     {
-        UChar32  c;
+        UChar32 ch;
         if (startPos == fAnchorStart) {
             MatchChunkAt(startPos, FALSE, status);
             if (U_FAILURE(status)) {
@@ -1081,8 +1080,8 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
 
         if (fPattern->fFlags & UREGEX_UNIX_LINES) {
             for (;;) {
-                c = inputBuf[startPos-1];
-                if (c == 0x0a) {
+                ch = inputBuf[startPos-1];
+                if (ch == 0x0a) {
                     MatchChunkAt(startPos, FALSE, status);
                     if (U_FAILURE(status)) {
                         return FALSE;
@@ -1105,9 +1104,9 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
             }
         } else {
             for (;;) {
-                c = inputBuf[startPos-1];
-                if (isLineTerminator(c)) {
-                    if (c == 0x0d && startPos < fActiveLimit && inputBuf[startPos] == 0x0a) {
+                ch = inputBuf[startPos-1];
+                if (isLineTerminator(ch)) {
+                    if (ch == 0x0d && startPos < fActiveLimit && inputBuf[startPos] == 0x0a) {
                         startPos++;
                     }
                     MatchChunkAt(startPos, FALSE, status);
@@ -1134,11 +1133,10 @@ UBool RegexMatcher::findUsingChunk(UErrorCode &status) {
     }
 
     default:
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
     }
 
-    U_ASSERT(FALSE);
-    return FALSE;
+    UPRV_UNREACHABLE;
 }
 
 
@@ -2774,7 +2772,7 @@ void RegexMatcher::MatchAt(int64_t startIdx, UBool toEnd, UErrorCode &status) {
     int64_t             *pat           = fPattern->fCompiledPat->getBuffer();
 
     const UChar         *litText       = fPattern->fLiteralText.getBuffer();
-    UVector             *sets          = fPattern->fSets;
+    UVector             *fSets         = fPattern->fSets;
 
     fFrameSize = fPattern->fFrameSize;
     REStackFrame        *fp            = resetStack();
@@ -3376,7 +3374,7 @@ GC_Done:
 
                 // There is input left.  Pick up one char and test it for set membership.
                 UChar32 c = UTEXT_NEXT32(fInputText);
-                U_ASSERT(opValue > 0 && opValue < sets->size());
+                U_ASSERT(opValue > 0 && opValue < fSets->size());
                 if (c<256) {
                     Regex8BitSet *s8 = &fPattern->fSets8[opValue];
                     if (s8->contains(c)) {
@@ -3384,7 +3382,7 @@ GC_Done:
                         break;
                     }
                 } else {
-                    UnicodeSet *s = (UnicodeSet *)sets->elementAt(opValue);
+                    UnicodeSet *s = (UnicodeSet *)fSets->elementAt(opValue);
                     if (s->contains(c)) {
                         // The character is in the set.  A Match.
                         fp->fInputIdx = UTEXT_GETNATIVEINDEX(fInputText);
@@ -3671,9 +3669,9 @@ GC_Done:
                 if (newFP == (int64_t *)fp) {
                     break;
                 }
-                int32_t i;
-                for (i=0; i<fFrameSize; i++) {
-                    newFP[i] = ((int64_t *)fp)[i];
+                int32_t j;
+                for (j=0; j<fFrameSize; j++) {
+                    newFP[j] = ((int64_t *)fp)[j];
                 }
                 fp = (REStackFrame *)newFP;
                 fStack->setSize(newStackSize);
@@ -3830,9 +3828,9 @@ GC_Done:
                     //   This makes the capture groups from within the look-ahead
                     //   expression available.
                     int64_t *newFP = fStack->getBuffer() + newStackSize - fFrameSize;
-                    int32_t i;
-                    for (i=0; i<fFrameSize; i++) {
-                        newFP[i] = ((int64_t *)fp)[i];
+                    int32_t j;
+                    for (j=0; j<fFrameSize; j++) {
+                        newFP[j] = ((int64_t *)fp)[j];
                     }
                     fp = (REStackFrame *)newFP;
                     fStack->setSize(newStackSize);
@@ -4123,9 +4121,9 @@ GC_Done:
             //   This op scans through all matching input.
             //   The following LOOP_C op emulates stack unwinding if the following pattern fails.
             {
-                U_ASSERT(opValue > 0 && opValue < sets->size());
+                U_ASSERT(opValue > 0 && opValue < fSets->size());
                 Regex8BitSet *s8 = &fPattern->fSets8[opValue];
-                UnicodeSet   *s  = (UnicodeSet *)sets->elementAt(opValue);
+                UnicodeSet   *s  = (UnicodeSet *)fSets->elementAt(opValue);
 
                 // Loop through input, until either the input is exhausted or
                 //   we reach a character that is not a member of the set.
@@ -4278,7 +4276,7 @@ GC_Done:
         default:
             // Trouble.  The compiled pattern contains an entry with an
             //           unrecognized type tag.
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
 
         if (U_FAILURE(status)) {
@@ -4350,7 +4348,7 @@ void RegexMatcher::MatchChunkAt(int32_t startIdx, UBool toEnd, UErrorCode &statu
     int64_t             *pat           = fPattern->fCompiledPat->getBuffer();
 
     const UChar         *litText       = fPattern->fLiteralText.getBuffer();
-    UVector             *sets          = fPattern->fSets;
+    UVector             *fSets         = fPattern->fSets;
 
     const UChar         *inputBuf      = fInputText->chunkContents;
 
@@ -4928,7 +4926,7 @@ GC_Done:
                     break;
                 }
 
-                U_ASSERT(opValue > 0 && opValue < sets->size());
+                U_ASSERT(opValue > 0 && opValue < fSets->size());
 
                 // There is input left.  Pick up one char and test it for set membership.
                 UChar32  c;
@@ -4940,7 +4938,7 @@ GC_Done:
                         break;
                     }
                 } else {
-                    UnicodeSet *s = (UnicodeSet *)sets->elementAt(opValue);
+                    UnicodeSet *s = (UnicodeSet *)fSets->elementAt(opValue);
                     if (s->contains(c)) {
                         // The character is in the set.  A Match.
                         break;
@@ -5214,9 +5212,9 @@ GC_Done:
                 if (newFP == (int64_t *)fp) {
                     break;
                 }
-                int32_t i;
-                for (i=0; i<fFrameSize; i++) {
-                    newFP[i] = ((int64_t *)fp)[i];
+                int32_t j;
+                for (j=0; j<fFrameSize; j++) {
+                    newFP[j] = ((int64_t *)fp)[j];
                 }
                 fp = (REStackFrame *)newFP;
                 fStack->setSize(newStackSize);
@@ -5361,9 +5359,9 @@ GC_Done:
                     //   This makes the capture groups from within the look-ahead
                     //   expression available.
                     int64_t *newFP = fStack->getBuffer() + newStackSize - fFrameSize;
-                    int32_t i;
-                    for (i=0; i<fFrameSize; i++) {
-                        newFP[i] = ((int64_t *)fp)[i];
+                    int32_t j;
+                    for (j=0; j<fFrameSize; j++) {
+                        newFP[j] = ((int64_t *)fp)[j];
                     }
                     fp = (REStackFrame *)newFP;
                     fStack->setSize(newStackSize);
@@ -5623,9 +5621,9 @@ GC_Done:
             //   This op scans through all matching input.
             //   The following LOOP_C op emulates stack unwinding if the following pattern fails.
             {
-                U_ASSERT(opValue > 0 && opValue < sets->size());
+                U_ASSERT(opValue > 0 && opValue < fSets->size());
                 Regex8BitSet *s8 = &fPattern->fSets8[opValue];
-                UnicodeSet   *s  = (UnicodeSet *)sets->elementAt(opValue);
+                UnicodeSet   *s  = (UnicodeSet *)fSets->elementAt(opValue);
 
                 // Loop through input, until either the input is exhausted or
                 //   we reach a character that is not a member of the set.
@@ -5778,7 +5776,7 @@ GC_Done:
         default:
             // Trouble.  The compiled pattern contains an entry with an
             //           unrecognized type tag.
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
 
         if (U_FAILURE(status)) {

@@ -3,7 +3,7 @@ npm-version(1) -- Bump a package version
 
 ## SYNOPSIS
 
-    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
+    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]
 
     'npm [-v | --version]' to print npm version
     'npm view <pkg> version' to view a package's published version
@@ -12,7 +12,7 @@ npm-version(1) -- Bump a package version
 ## DESCRIPTION
 
 Run this in a package directory to bump the version and write the new
-data back to `package.json` and, if present, `npm-shrinkwrap.json`.
+data back to `package.json`, `package-lock.json`, and, if present, `npm-shrinkwrap.json`.
 
 The `newversion` argument should be a valid semver string, a
 valid second argument to [semver.inc](https://github.com/npm/node-semver#functions) (one of `patch`, `minor`, `major`,

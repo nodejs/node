@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,12 +10,8 @@
 #ifndef HEADER_HMAC_LCL_H
 # define HEADER_HMAC_LCL_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-#if 0                            /* emacs indentation fix */
-}
-#endif
+/* The current largest case is for SHA3-224 */
+#define HMAC_MAX_MD_CBLOCK_SIZE     144
 
 struct hmac_ctx_st {
     const EVP_MD *md;
@@ -23,11 +19,7 @@ struct hmac_ctx_st {
     EVP_MD_CTX *i_ctx;
     EVP_MD_CTX *o_ctx;
     unsigned int key_length;
-    unsigned char key[HMAC_MAX_MD_CBLOCK];
+    unsigned char key[HMAC_MAX_MD_CBLOCK_SIZE];
 };
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif

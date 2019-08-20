@@ -22,7 +22,7 @@
 (function() {
   const fs = require('fs');
   if (fs.readFile) {
-    require('util').print('fs loaded successfully');
+    process.stdout.write('fs loaded successfully');
   }
 })();
 

@@ -30,6 +30,8 @@ static jmethodID android_cm_active_net_mid = NULL;
 static jmethodID android_cm_link_props_mid = NULL;
 /* LinkProperties.getDnsServers */
 static jmethodID android_lp_dns_servers_mid = NULL;
+/* LinkProperties.getDomains */
+static jmethodID android_lp_domains_mid = NULL;
 /* List.size */
 static jmethodID android_list_size_mid = NULL;
 /* List.get */
@@ -139,6 +141,12 @@ int ares_library_init_android(jobject connectivity_manager)
   if (android_lp_dns_servers_mid == NULL)
     goto cleanup;
 
+  /* getDomains in API 21. */
+  android_lp_domains_mid = jni_get_method_id(env, obj_cls, "getDomains",
+                                                 "()Ljava/lang/String;");
+  if (android_lp_domains_mid == NULL)
+    goto cleanup;
+
   (*env)->DeleteLocalRef(env, obj_cls);
   obj_cls = jni_get_class(env, "java/util/List");
   if (obj_cls == NULL)
@@ -173,6 +181,7 @@ cleanup:
   android_cm_active_net_mid = NULL;
   android_cm_link_props_mid = NULL;
   android_lp_dns_servers_mid = NULL;
+  android_lp_domains_mid = NULL;
   android_list_size_mid = NULL;
   android_list_get_mid = NULL;
   android_ia_host_addr_mid = NULL;
@@ -213,6 +222,7 @@ void ares_library_cleanup_android(void)
   android_cm_active_net_mid = NULL;
   android_cm_link_props_mid = NULL;
   android_lp_dns_servers_mid = NULL;
+  android_lp_domains_mid = NULL;
   android_list_size_mid = NULL;
   android_list_get_mid = NULL;
   android_ia_host_addr_mid = NULL;
@@ -340,6 +350,95 @@ done:
   if (need_detatch)
     (*android_jvm)->DetachCurrentThread(android_jvm);
   return dns_list;
+}
+
+char *ares_get_android_search_domains_list(void)
+{
+  JNIEnv *env = NULL;
+  jobject active_network = NULL;
+  jobject link_properties = NULL;
+  jstring domains = NULL;
+  const char *domain;
+  int res;
+  size_t i;
+  size_t cnt = 0;
+  char *domain_list = NULL;
+  int need_detatch = 0;
+
+  if (android_jvm == NULL || android_connectivity_manager == NULL)
+  {
+    return NULL;
+  }
+
+  if (android_cm_active_net_mid == NULL || android_cm_link_props_mid == NULL ||
+      android_lp_domains_mid == NULL)
+  {
+    return NULL;
+  }
+
+  res = (*android_jvm)->GetEnv(android_jvm, (void **)&env, JNI_VERSION_1_6);
+  if (res == JNI_EDETACHED)
+  {
+    env = NULL;
+    res = (*android_jvm)->AttachCurrentThread(android_jvm, &env, NULL);
+    need_detatch = 1;
+  }
+  if (res != JNI_OK || env == NULL)
+    goto done;
+
+  /* JNI below is equivalent to this Java code.
+     import android.content.Context;
+     import android.net.ConnectivityManager;
+     import android.net.LinkProperties;
+
+     ConnectivityManager cm = (ConnectivityManager)this.getApplicationContext()
+       .getSystemService(Context.CONNECTIVITY_SERVICE);
+     Network an = cm.getActiveNetwork();
+     LinkProperties lp = cm.getLinkProperties(an);
+	 String domains = lp.getDomains();
+     for (String domain: domains.split(",")) {
+       String d = domain;
+     }
+
+     Note: The JNI ConnectivityManager object and all method IDs were previously
+           initialized in ares_library_init_android.
+   */
+
+  active_network = (*env)->CallObjectMethod(env, android_connectivity_manager,
+                                            android_cm_active_net_mid);
+  if (active_network == NULL)
+    goto done;
+
+  link_properties =
+      (*env)->CallObjectMethod(env, android_connectivity_manager,
+                               android_cm_link_props_mid, active_network);
+  if (link_properties == NULL)
+    goto done;
+
+  /* Get the domains. It is a common separated list of domains to search. */
+  domains = (*env)->CallObjectMethod(env, link_properties,
+                                         android_lp_domains_mid);
+  if (domains == NULL)
+    goto done;
+
+  /* Split on , */
+  domain = (*env)->GetStringUTFChars(env, domains, 0);
+  domain_list = ares_strdup(domain);
+  (*env)->ReleaseStringUTFChars(env, domains, domain);
+  (*env)->DeleteLocalRef(env, domains);
+
+done:
+  if ((*env)->ExceptionOccurred(env))
+    (*env)->ExceptionClear(env);
+
+  if (link_properties != NULL)
+    (*env)->DeleteLocalRef(env, link_properties);
+  if (active_network != NULL)
+    (*env)->DeleteLocalRef(env, active_network);
+
+  if (need_detatch)
+    (*android_jvm)->DetachCurrentThread(android_jvm);
+  return domain_list;
 }
 #else
 /* warning: ISO C forbids an empty translation unit */

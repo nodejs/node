@@ -42,6 +42,7 @@ F.__proto__ = null;
 (function() {
   function foo(o) { return o instanceof A; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(a));
   assertTrue(foo(a));
   assertTrue(foo(new A()));
@@ -59,6 +60,7 @@ F.__proto__ = null;
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(a));
   assertTrue(foo(a));
   assertTrue(foo(new A()));
@@ -72,6 +74,7 @@ F.__proto__ = null;
 (function() {
   function foo(o) { return o instanceof B; }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(a));
   assertFalse(foo(a));
   assertFalse(foo(new A()));
@@ -83,6 +86,7 @@ F.__proto__ = null;
 (function() {
   function foo(o) { return o instanceof C; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(a));
   assertTrue(foo(a));
   assertTrue(foo(new A()));
@@ -94,6 +98,7 @@ F.__proto__ = null;
 (function() {
   function foo(o) { return o instanceof D; }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(a));
   assertTrue(foo(a));
   assertFalse(foo(new A()));
@@ -111,6 +116,7 @@ F.__proto__ = null;
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(a));
   assertTrue(foo(new A()));
   %OptimizeFunctionOnNextCall(foo);
@@ -123,6 +129,7 @@ F.__proto__ = null;
     return o instanceof F;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(a));
   assertFalse(foo(new A()));
   assertTrue(foo(new F()));
@@ -138,6 +145,7 @@ F.__proto__ = null;
     return a instanceof A;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -155,6 +163,7 @@ F.__proto__ = null;
   makeFoo();
   const foo = makeFoo();
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo(new B));
   assertFalse(foo(new A));
   %OptimizeFunctionOnNextCall(foo);

@@ -9,7 +9,7 @@ var counter = 188;
 function gen(w) {  // defeat compiler cache.
  var num = counter++;
   var Z = [ "", "", "", ];
-  Z[w] = "%OptimizeOsr()";
+  Z[w] = "%OptimizeOsr(); %PrepareFunctionForOptimization(f" + num + ")";
   var src =
     "function f" + num + "(a,b,c) {" +
     "  var x = 0;" +
@@ -26,6 +26,7 @@ function gen(w) {  // defeat compiler cache.
 function check(x,a,b,c) {
   for (var i = 0; i < 3; i++) {
     var f = gen(i);
+    %PrepareFunctionForOptimization(f);
     assertEquals(x, f(a, b, c));
   }
 }

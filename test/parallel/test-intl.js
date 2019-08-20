@@ -22,8 +22,9 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { execFile } = require('child_process');
 
-// does node think that i18n was enabled?
+// Does node think that i18n was enabled?
 let enablei18n = process.config.variables.v8_enable_i18n_support;
 if (enablei18n === undefined) {
   enablei18n = 0;
@@ -99,20 +100,51 @@ if (!common.hasIntl) {
     assert.strictEqual(localeString, '1/1/1970, 12:00:00 AM');
   }
   // number format
-  const numberFormat = new Intl.NumberFormat(['en']).format(12345.67890);
-  assert.strictEqual(numberFormat, '12,345.679');
+  {
+    const numberFormat = new Intl.NumberFormat(['en']).format(12345.67890);
+    assert.strictEqual(numberFormat, '12,345.679');
+  }
+  // Significant Digits
+  {
+    const loc = ['en-US'];
+    const opts = { maximumSignificantDigits: 4 };
+    const num = 10.001;
+    const numberFormat = new Intl.NumberFormat(loc, opts).format(num);
+    assert.strictEqual(numberFormat, '10');
+  }
 
   const collOpts = { sensitivity: 'base', ignorePunctuation: true };
   const coll = new Intl.Collator(['en'], collOpts);
 
-  assert.strictEqual(coll.compare('blackbird', 'black-bird'), 0,
-                     'ignore punctuation failed');
-  assert.strictEqual(coll.compare('blackbird', 'red-bird'), -1,
-                     'compare less failed');
-  assert.strictEqual(coll.compare('bluebird', 'blackbird'), 1,
-                     'compare greater failed');
-  assert.strictEqual(coll.compare('Bluebird', 'bluebird'), 0,
-                     'ignore case failed');
-  assert.strictEqual(coll.compare('\ufb03', 'ffi'), 0,
-                     'ffi ligature (contraction) failed');
+  // Ignore punctuation
+  assert.strictEqual(coll.compare('blackbird', 'black-bird'), 0);
+  // Compare less
+  assert.strictEqual(coll.compare('blackbird', 'red-bird'), -1);
+  // Compare greater
+  assert.strictEqual(coll.compare('bluebird', 'blackbird'), 1);
+  // Ignore case
+  assert.strictEqual(coll.compare('Bluebird', 'bluebird'), 0);
+  // `ffi` ligature (contraction)
+  assert.strictEqual(coll.compare('\ufb03', 'ffi'), 0);
+
+  {
+    // Regression test for https://github.com/nodejs/node/issues/27379
+    const env = { ...process.env, LC_ALL: 'ja' };
+    execFile(
+      process.execPath, ['-p', 'new Date().toLocaleString()'],
+      { env },
+      common.mustCall((e) => assert.ifError(e))
+    );
+  }
+
+  {
+    // Regression test for https://github.com/nodejs/node/issues/27418
+    const env = { ...process.env, LC_ALL: 'fr@EURO' };
+    execFile(
+      process.execPath,
+      ['-p', 'new Intl.NumberFormat().resolvedOptions().locale'],
+      { env },
+      common.mustCall((e) => assert.ifError(e))
+    );
+  }
 }

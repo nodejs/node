@@ -1,33 +1,58 @@
-// Copyright 2017 the V8 project authors. All rights reserved.
+// Copyright 2018 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-new BenchmarkSuite('Sort', [1000], [
-  new Benchmark('Sort', false, false, 0,
-                sortLarge, sortLargeSetup, sortLargeTearDown),
-]);
+load('base.js');
 
-var size = 3000;
-var initialLargeFloat64Array = new Array(size);
-for (var i = 0; i < size; ++i) {
-  initialLargeFloat64Array[i] = Math.random();
-}
-initialLargeFloat64Array = new Float64Array(initialLargeFloat64Array);
-var largeFloat64Array;
-
-function sortLarge() {
-  largeFloat64Array.sort();
+function CreateBenchmarks(constructors, comparefns = []) {
+  var benchmarks = [];
+  for (let constructor of constructors) {
+    benchmarks.push(new Benchmark('Sort' + constructor.name, false, false, 0,
+                                  CreateSortFn(comparefns),
+                                  CreateSetupFn(constructor.ctor), TearDown));
+  }
+  return benchmarks;
 }
 
-function sortLargeSetup() {
-  largeFloat64Array = new Float64Array(initialLargeFloat64Array);
+const kArraySize = 3000;
+const initialLargeArray = new Array(kArraySize);
+for (let i = 0; i < kArraySize; ++i) {
+  initialLargeArray[i] = Math.random() * kArraySize;
 }
 
-function sortLargeTearDown() {
-  for (var i = 0; i < size - 1; ++i) {
-    if (largeFloat64Array[i] > largeFloat64Array[i+1]) {
-      throw new TypeError("Unexpected result!\n" + largeFloat64Array);
+let array_to_sort = [];
+
+function CreateSetupFn(constructor) {
+  return () => {
+    if (constructor == BigUint64Array || constructor == BigInt64Array) {
+      array_to_sort = constructor.from(initialLargeArray,
+                                       x => BigInt(Math.floor(x)));
+    } else {
+      array_to_sort = new constructor(initialLargeArray);
     }
   }
-  largeFloat64Array = void 0;
 }
+
+function CreateSortFn(comparefns) {
+  if (comparefns.length == 0) {
+      return () => array_to_sort.sort();
+  }
+
+  return () => {
+    for (let cmpfn of comparefns) {
+      array_to_sort.sort(cmpfn);
+    }
+  }
+}
+
+function TearDown() {
+  array_to_sort = void 0;
+}
+
+function cmp_smaller(a, b) {
+  if (a < b) return -1;
+  if (b < a) return 1;
+  return 0;
+}
+
+function cmp_greater(a, b) { cmp_smaller(b, a); }

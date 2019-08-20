@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include "e_os.h"
 
 #define BLAKE2S_BLOCKBYTES    64
 #define BLAKE2S_OUTBYTES      32

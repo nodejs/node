@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow spacing between template tags and their literals",
             category: "Stylistic Issues",
@@ -22,7 +24,11 @@ module.exports = {
 
         schema: [
             { enum: ["always", "never"] }
-        ]
+        ],
+        messages: {
+            unexpected: "Unexpected space between template tag and template literal.",
+            missing: "Missing space between template tag and template literal."
+        }
     },
 
     create(context) {
@@ -44,7 +50,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: tagToken.loc.start,
-                    message: "Unexpected space between template tag and template literal.",
+                    messageId: "unexpected",
                     fix(fixer) {
                         const comments = sourceCode.getCommentsBefore(node.quasi);
 
@@ -63,7 +69,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: tagToken.loc.start,
-                    message: "Missing space between template tag and template literal.",
+                    messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextAfter(tagToken, " ");
                     }

@@ -6,9 +6,9 @@
 #define V8_COMPILER_COMPILER_SOURCE_POSITION_TABLE_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/source-position.h"
+#include "src/common/globals.h"
 #include "src/compiler/node-aux-data.h"
-#include "src/globals.h"
-#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
     current_position_ = pos;
   }
 
-  void Print(std::ostream& os) const;
+  void PrintJson(std::ostream& os) const;
 
  private:
   class Decorator;

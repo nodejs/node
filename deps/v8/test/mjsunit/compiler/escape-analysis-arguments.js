@@ -52,6 +52,7 @@
     assertEquals(5, r.y.z);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -81,6 +82,7 @@
     assertEquals(3, r.i.y.z);
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
   f();
@@ -113,9 +115,12 @@
     assertEquals(3, l.y.z)
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
 })();
@@ -147,10 +152,13 @@
     assertEquals(3, l.y.z)
   }
 
+  %PrepareFunctionForOptimization(f);
   %NeverOptimizeFunction(i);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
 })();
@@ -179,9 +187,67 @@
     assertEquals(7, k.t.u)
   }
 
+  %PrepareFunctionForOptimization(f);
   f(); f(); f();
   %OptimizeFunctionOnNextCall(f);
-  f(); f();
+  f();
+  %PrepareFunctionForOptimization(f);
+  f();
   %OptimizeFunctionOnNextCall(f);
   f(); f();
+})();
+
+// Test variable index access to strict arguments
+// with up to 2 elements.
+(function testArgumentsVariableIndexStrict() {
+  function g() {
+    "use strict";
+    var s = 0;
+    for (var i = 0; i < arguments.length; ++i) s += arguments[i];
+    return s;
+  }
+
+  function f(x, y) {
+    // (a) arguments[i] is dead code since arguments.length is 0.
+    const a = g();
+    // (b) arguments[i] always yields the first element.
+    const b = g(x);
+    // (c) arguments[i] can yield either x or y.
+    const c = g(x, y);
+    return a + b + c;
+  }
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(4, f(1, 2));
+  assertEquals(5, f(2, 1));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(4, f(1, 2));
+  assertEquals(5, f(2, 1));
+})();
+
+// Test variable index access to sloppy arguments
+// with up to 2 elements.
+(function testArgumentsVariableIndexSloppy() {
+  function g() {
+    var s = 0;
+    for (var i = 0; i < arguments.length; ++i) s += arguments[i];
+    return s;
+  }
+
+  function f(x, y) {
+    // (a) arguments[i] is dead code since arguments.length is 0.
+    const a = g();
+    // (b) arguments[i] always yields the first element.
+    const b = g(x);
+    // (c) arguments[i] can yield either x or y.
+    const c = g(x, y);
+    return a + b + c;
+  }
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(4, f(1, 2));
+  assertEquals(5, f(2, 1));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(4, f(1, 2));
+  assertEquals(5, f(2, 1));
 })();

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// simulate `cat readfile.js | node readfile.js`
+// Simulate `cat readfile.js | node readfile.js`
 
 if (common.isWindows || common.isAIX)
   common.skip(`No /dev/stdin on ${process.platform}.`);
@@ -26,13 +26,13 @@ const exec = require('child_process').exec;
 const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
-exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
-  assert.ifError(err);
-  assert.strictEqual(stdout, dataExpected);
-  assert.strictEqual(stderr, '');
-  console.log('ok');
-});
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-});
+exec(
+  cmd,
+  { maxBuffer: 1000000 },
+  common.mustCall(function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, dataExpected);
+    assert.strictEqual(stderr, '');
+    console.log('ok');
+  })
+);

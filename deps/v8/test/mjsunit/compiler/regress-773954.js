@@ -13,6 +13,7 @@ function f(o) {
   return 5 + o.x++;
 }
 
+%PrepareFunctionForOptimization(f);
 try {
   f(a);
   f(b);

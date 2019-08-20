@@ -8,9 +8,9 @@ if (cluster.isMaster) {
   cluster.fork();
   cluster.on('listening', common.mustCall(function(worker, address) {
     const port = address.port;
-    // ensure that the port is not 0 or null
+    // Ensure that the port is not 0 or null
     assert(port);
-    // ensure that the port is numerical
+    // Ensure that the port is numerical
     assert.strictEqual(typeof port, 'number');
     worker.kill();
   }));

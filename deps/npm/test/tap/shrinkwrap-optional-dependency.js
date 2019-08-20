@@ -8,9 +8,9 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var npm = npm = require('../../')
+var npm = require('../../')
 
-var pkg = path.resolve(__dirname, 'shrinkwrap-optional-dependency')
+var pkg = common.pkg
 
 test('shrinkwrap does not fail on missing optional dependency', function (t) {
   t.plan(1)
@@ -89,7 +89,7 @@ function setup (cb) {
   process.chdir(pkg)
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     registry: common.registry
   }
   npm.load(opts, cb)

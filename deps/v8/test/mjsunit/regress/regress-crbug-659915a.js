@@ -17,6 +17,7 @@ function h(a) {
 
 function boom() { return g(1) }
 
+%PrepareFunctionForOptimization(boom);
 assertEquals(1, h(1));
 assertEquals(2, boom());
 assertEquals(3, boom());

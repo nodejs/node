@@ -40,7 +40,7 @@ const server = http.createServer(function(req, res) {
   dom.on('error', function(er) {
     serverCaught++;
     console.log('horray! got a server error', er);
-    // try to send a 500.  If that fails, oh well.
+    // Try to send a 500.  If that fails, oh well.
     res.writeHead(500, { 'content-type': 'text/plain' });
     res.end(er.stack || er.message || 'Unknown error');
   });
@@ -50,7 +50,7 @@ const server = http.createServer(function(req, res) {
     // if you request 'baz', then it'll throw a JSON circular ref error.
     const data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
 
-    // this line will throw if you pick an unknown key
+    // This line will throw if you pick an unknown key
     assert.notStrictEqual(data, undefined);
 
     res.writeHead(200);

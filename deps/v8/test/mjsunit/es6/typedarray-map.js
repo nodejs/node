@@ -37,7 +37,7 @@ function TestTypedArrayMap(constructor) {
     new DetachingArray(5).map(function(v,i,a){
       print(i);
       if (i == 1) {
-        %ArrayBufferNeuter(target.buffer);
+        %ArrayBufferDetach(target.buffer);
       }
     })
   }, TypeError);

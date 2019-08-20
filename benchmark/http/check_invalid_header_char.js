@@ -18,7 +18,7 @@ const groupedInputs = {
     'sessionid=; Path=/', 'text/html; charset=utf-8',
     'text/html; charset=utf-8', '10', 'W/"a-eda64de5"', 'OK', 'Express',
     'Express', 'X-HTTP-Method-Override', 'sessionid=; Path=/',
-    'application/json'
+    'application/json',
   ],
 
   // Put it here so the benchmark result lines will not be super long.
@@ -45,7 +45,7 @@ const inputs = [
   // Invalid
   '中文呢', // unicode
   'foo\nbar',
-  '\x7F'
+  '\x7F',
 ];
 
 const bench = common.createBenchmark(main, {
@@ -61,7 +61,7 @@ function main({ n, input }) {
 
   const len = inputs.length;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     _checkInvalidHeaderChar(inputs[i % len]);
   }
   bench.end(n);

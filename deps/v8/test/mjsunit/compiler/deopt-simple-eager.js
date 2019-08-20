@@ -10,6 +10,7 @@ function f(o) {
   return o.x;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(f({x : 2}), 2);
 assertEquals(f({x : 2}), 2);
 %OptimizeFunctionOnNextCall(f);

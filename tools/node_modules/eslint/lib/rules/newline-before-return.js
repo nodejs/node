@@ -11,16 +11,23 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require an empty line before `return` statements",
             category: "Stylistic Issues",
             recommended: false,
-            replacedBy: ["padding-line-between-statements"],
             url: "https://eslint.org/docs/rules/newline-before-return"
         },
+
         fixable: "whitespace",
         schema: [],
-        deprecated: true
+        messages: {
+            expected: "Expected newline before return statement."
+        },
+
+        deprecated: true,
+        replacedBy: ["padding-line-between-statements"]
     },
 
     create(context) {
@@ -33,7 +40,7 @@ module.exports = {
         /**
          * Tests whether node is preceded by supplied tokens
          * @param {ASTNode} node - node to check
-         * @param {array} testTokens - array of tokens to test against
+         * @param {Array} testTokens - array of tokens to test against
          * @returns {boolean} Whether or not the node is preceded by one of the supplied tokens
          * @private
          */
@@ -193,7 +200,7 @@ module.exports = {
                 if (!isFirstNode(node) && !hasNewlineBefore(node)) {
                     context.report({
                         node,
-                        message: "Expected newline before return statement.",
+                        messageId: "expected",
                         fix(fixer) {
                             if (canFix(node)) {
                                 const tokenBefore = sourceCode.getTokenBefore(node);

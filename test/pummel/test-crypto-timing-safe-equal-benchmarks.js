@@ -6,21 +6,24 @@ if (!common.hasCrypto)
 if (!common.enoughTestMem)
   common.skip('memory-intensive test');
 
-const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const crypto = require('crypto');
 
-const BENCHMARK_FUNC_PATH =
-  `${fixtures.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
-function runOneBenchmark(...args) {
-  const benchmarkFunc = require(BENCHMARK_FUNC_PATH);
-  const result = benchmarkFunc(...args);
+function runOneBenchmark(compareFunc, firstBufFill, secondBufFill, bufSize) {
+  return eval(`
+      const firstBuffer = Buffer.alloc(bufSize, firstBufFill);
+      const secondBuffer = Buffer.alloc(bufSize, secondBufFill);
 
-  // Don't let the comparison function get cached. This avoid a timing
-  // inconsistency due to V8 optimization where the function would take
-  // less time when called with a specific set of parameters.
-  delete require.cache[require.resolve(BENCHMARK_FUNC_PATH)];
-  return result;
+      const startTime = process.hrtime();
+      const result = compareFunc(firstBuffer, secondBuffer);
+      const endTime = process.hrtime(startTime);
+
+      // Ensure that the result of the function call gets used, so it doesn't
+      // get discarded due to engine optimizations.
+      assert.strictEqual(result, firstBufFill === secondBufFill);
+
+      endTime[0] * 1e9 + endTime[1];
+    `);
 }
 
 function getTValue(compareFunc) {

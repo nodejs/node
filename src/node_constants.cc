@@ -19,41 +19,42 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "env-inl.h"
 #include "node_constants.h"
 #include "node_internals.h"
+#include "util-inl.h"
 
 #include "zlib.h"
 
-#include <errno.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
+
 #include <fcntl.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <limits>
+
 
 #if HAVE_OPENSSL
-# include <openssl/ec.h>
-# include <openssl/ssl.h>
-# ifndef OPENSSL_NO_ENGINE
-#  include <openssl/engine.h>
-# endif  // !OPENSSL_NO_ENGINE
-#endif
+#include <openssl/ec.h>
+#include <openssl/ssl.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif  // !OPENSSL_NO_ENGINE
+#endif  // HAVE_OPENSSL
 
 #if defined(__POSIX__)
 #include <dlfcn.h>
 #endif
 
+#include <cerrno>
+#include <csignal>
+#include <limits>
+
 namespace node {
 
 using v8::Local;
 using v8::Object;
-
-#if HAVE_OPENSSL
-const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-#endif
 
 namespace {
 
@@ -758,7 +759,45 @@ void DefineSignalConstants(Local<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Local<Object> target) {
+void DefinePriorityConstants(Local<Object> target) {
+#ifdef UV_PRIORITY_LOW
+# define PRIORITY_LOW UV_PRIORITY_LOW
+  NODE_DEFINE_CONSTANT(target, PRIORITY_LOW);
+# undef PRIORITY_LOW
+#endif
+
+#ifdef UV_PRIORITY_BELOW_NORMAL
+# define PRIORITY_BELOW_NORMAL UV_PRIORITY_BELOW_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_BELOW_NORMAL);
+# undef PRIORITY_BELOW_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_NORMAL
+# define PRIORITY_NORMAL UV_PRIORITY_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_NORMAL);
+# undef PRIORITY_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_ABOVE_NORMAL
+# define PRIORITY_ABOVE_NORMAL UV_PRIORITY_ABOVE_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_ABOVE_NORMAL);
+# undef PRIORITY_ABOVE_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_HIGH
+# define PRIORITY_HIGH UV_PRIORITY_HIGH
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGH);
+# undef PRIORITY_HIGH
+#endif
+
+#ifdef UV_PRIORITY_HIGHEST
+# define PRIORITY_HIGHEST UV_PRIORITY_HIGHEST
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGHEST);
+# undef PRIORITY_HIGHEST
+#endif
+}
+
+void DefineCryptoConstants(Local<Object> target) {
 #ifdef OPENSSL_VERSION_NUMBER
     NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
 #endif
@@ -1004,6 +1043,28 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_AUTO);
 #endif
 
+#ifdef DEFAULT_CIPHER_LIST_CORE
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+#endif
+
+#ifdef TLS1_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
+#endif
+
+#ifdef TLS1_1_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
+#endif
+
+#ifdef TLS1_2_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
+#endif
+
+#ifdef TLS1_3_VERSION
+  NODE_DEFINE_CONSTANT(target, TLS1_3_VERSION);
+#endif
+
 #if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
@@ -1011,6 +1072,12 @@ void DefineOpenSSLConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+
+  NODE_DEFINE_STRING_CONSTANT(
+      target,
+      "defaultCipherList",
+      per_process::cli_options->tls_cipher_list.c_str());
+
 #endif
 }
 
@@ -1021,6 +1088,16 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
   NODE_DEFINE_CONSTANT(target, O_RDWR);
+
+  // file types from readdir
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_UNKNOWN);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_FILE);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_DIR);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_LINK);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_FIFO);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_SOCKET);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_CHAR);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_BLOCK);
 
   NODE_DEFINE_CONSTANT(target, S_IFMT);
   NODE_DEFINE_CONSTANT(target, S_IFREG);
@@ -1162,81 +1239,27 @@ void DefineSystemConstants(Local<Object> target) {
 #ifdef X_OK
   NODE_DEFINE_CONSTANT(target, X_OK);
 #endif
-}
 
-void DefineCryptoConstants(Local<Object> target) {
-#if HAVE_OPENSSL
-  NODE_DEFINE_STRING_CONSTANT(target,
-                              "defaultCoreCipherList",
-                              DEFAULT_CIPHER_LIST_CORE);
-  NODE_DEFINE_STRING_CONSTANT(target,
-                              "defaultCipherList",
-                              default_cipher_list);
+#ifdef UV_FS_COPYFILE_EXCL
+# define COPYFILE_EXCL UV_FS_COPYFILE_EXCL
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_EXCL);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_EXCL);
+# undef COPYFILE_EXCL
 #endif
-  NODE_DEFINE_CONSTANT(target, INT_MAX);
-}
 
-void DefineZlibConstants(Local<Object> target) {
-  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
-  NODE_DEFINE_CONSTANT(target, Z_FINISH);
-  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+#ifdef UV_FS_COPYFILE_FICLONE
+# define COPYFILE_FICLONE UV_FS_COPYFILE_FICLONE
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE);
+# undef COPYFILE_FICLONE
+#endif
 
-  // return/error codes
-  NODE_DEFINE_CONSTANT(target, Z_OK);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
-  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
-  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
-  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
-  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
-
-  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
-  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
-  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
-  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
-  NODE_DEFINE_CONSTANT(target, Z_RLE);
-  NODE_DEFINE_CONSTANT(target, Z_FIXED);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
-  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
-
-  enum node_zlib_mode {
-    NONE,
-    DEFLATE,
-    INFLATE,
-    GZIP,
-    GUNZIP,
-    DEFLATERAW,
-    INFLATERAW,
-    UNZIP
-  };
-
-  NODE_DEFINE_CONSTANT(target, DEFLATE);
-  NODE_DEFINE_CONSTANT(target, INFLATE);
-  NODE_DEFINE_CONSTANT(target, GZIP);
-  NODE_DEFINE_CONSTANT(target, GUNZIP);
-  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
-  NODE_DEFINE_CONSTANT(target, INFLATERAW);
-  NODE_DEFINE_CONSTANT(target, UNZIP);
-
-  NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
-  NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
-  NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
-  NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
-  NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
-  NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
-  NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
-  NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
-  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+#ifdef UV_FS_COPYFILE_FICLONE_FORCE
+# define COPYFILE_FICLONE_FORCE UV_FS_COPYFILE_FICLONE_FORCE
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE_FORCE);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE_FORCE);
+# undef COPYFILE_FICLONE_FORCE
+#endif
 }
 
 void DefineDLOpenConstants(Local<Object> target) {
@@ -1261,6 +1284,35 @@ void DefineDLOpenConstants(Local<Object> target) {
 #endif
 }
 
+void DefineTraceConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_COMPLETE);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_INSTANT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_STEP_INTO);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_STEP_PAST);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_INSTANT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_STEP);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_METADATA);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_COUNTER);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_SAMPLE);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_CREATE_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_SNAPSHOT_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_DELETE_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MEMORY_DUMP);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MARK);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_CLOCK_SYNC);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ENTER_CONTEXT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LEAVE_CONTEXT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LINK_IDS);
+}
+
 }  // anonymous namespace
 
 void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
@@ -1278,6 +1330,10 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   CHECK(sig_constants->SetPrototype(env->context(),
                                     Null(env->isolate())).FromJust());
 
+  Local<Object> priority_constants = Object::New(isolate);
+  CHECK(priority_constants->SetPrototype(env->context(),
+                                         Null(env->isolate())).FromJust());
+
   Local<Object> fs_constants = Object::New(isolate);
   CHECK(fs_constants->SetPrototype(env->context(),
                                    Null(env->isolate())).FromJust());
@@ -1294,28 +1350,50 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   CHECK(dlopen_constants->SetPrototype(env->context(),
                                        Null(env->isolate())).FromJust());
 
+  Local<Object> trace_constants = Object::New(isolate);
+  CHECK(trace_constants->SetPrototype(env->context(),
+                                      Null(env->isolate())).FromJust());
+
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
+  DefinePriorityConstants(priority_constants);
   DefineSystemConstants(fs_constants);
-  DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
   DefineDLOpenConstants(dlopen_constants);
+  DefineTraceConstants(trace_constants);
 
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
-  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_EXCL);
-  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE);
-  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE_FORCE);
 
-  os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
-  os_constants->Set(OneByteString(isolate, "errno"), err_constants);
-  os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
-  target->Set(OneByteString(isolate, "os"), os_constants);
-  target->Set(OneByteString(isolate, "fs"), fs_constants);
-  target->Set(OneByteString(isolate, "crypto"), crypto_constants);
-  target->Set(OneByteString(isolate, "zlib"), zlib_constants);
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "dlopen"),
+                    dlopen_constants).Check();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "errno"),
+                    err_constants).Check();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "signals"),
+                    sig_constants).Check();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "priority"),
+                    priority_constants).Check();
+  target->Set(env->context(),
+              OneByteString(isolate, "os"),
+              os_constants).Check();
+  target->Set(env->context(),
+              OneByteString(isolate, "fs"),
+              fs_constants).Check();
+  target->Set(env->context(),
+              OneByteString(isolate, "crypto"),
+              crypto_constants).Check();
+  target->Set(env->context(),
+              OneByteString(isolate, "zlib"),
+              zlib_constants).Check();
+  target->Set(env->context(),
+              OneByteString(isolate, "trace"),
+              trace_constants).Check();
 }
 
 }  // namespace node

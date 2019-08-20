@@ -42,7 +42,7 @@ Makefile.in
 /android-toolchain
 
 /out/
-/build/gyp
+/build/
 
 /test/.libs/
 /test/run-tests
@@ -51,6 +51,7 @@ Makefile.in
 /test/run-benchmarks
 /test/run-benchmarks.exe
 /test/run-benchmarks.dSYM
+test_file_*
 
 *.sln
 *.sln.cache

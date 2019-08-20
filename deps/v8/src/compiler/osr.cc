@@ -4,23 +4,21 @@
 
 #include "src/compiler/osr.h"
 
-#include "src/compilation-info.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-OsrHelper::OsrHelper(CompilationInfo* info)
-    : parameter_count_(
-          info->shared_info()->bytecode_array()->parameter_count()),
-      stack_slot_count_(
-          InterpreterFrameConstants::RegisterStackSlotCount(
-              info->shared_info()->bytecode_array()->register_count()) +
-          InterpreterFrameConstants::kExtraSlotCount) {}
+OsrHelper::OsrHelper(OptimizedCompilationInfo* info)
+    : parameter_count_(info->bytecode_array()->parameter_count()),
+      stack_slot_count_(InterpreterFrameConstants::RegisterStackSlotCount(
+                            info->bytecode_array()->register_count()) +
+                        InterpreterFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving

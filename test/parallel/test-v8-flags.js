@@ -13,6 +13,6 @@ assert(vm.runInThisContext('%_IsSmi(43)'));
 
 v8.setFlagsFromString('--noallow_natives_syntax');
 assert.throws(function() { eval('%_IsSmi(44)'); },
-              /^SyntaxError: Unexpected token %$/);
+              /^SyntaxError: Unexpected token '%'$/);
 assert.throws(function() { vm.runInThisContext('%_IsSmi(45)'); },
-              /^SyntaxError: Unexpected token %$/);
+              /^SyntaxError: Unexpected token '%'$/);

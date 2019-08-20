@@ -35,14 +35,17 @@ server.on('session', common.mustCall((session) => {
 server.listen(0, common.mustCall(() => {
   const url = `http://localhost:${server.address().port}`;
   http2.connect(url)
-    // An ECONNRESET error may occur depending on the platform (due largely
-    // to differences in the timing of socket closing). Do not wrap this in
-    // a common must call.
-    .on('error', () => {})
+    .on('error', common.expectsError({
+      code: 'ERR_HTTP2_SESSION_ERROR',
+      message: 'Session closed with error code 2',
+    }))
     .on('close', () => {
       server.removeAllListeners('error');
       http2.connect(url)
-        .on('error', () => {})
+        .on('error', common.expectsError({
+          code: 'ERR_HTTP2_SESSION_ERROR',
+          message: 'Session closed with error code 2',
+        }))
         .on('close', () => server.close());
     });
 }));

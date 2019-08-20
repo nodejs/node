@@ -56,13 +56,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
-// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
-// useful in situations where static_cast<A>(x) would do too much.
-template <class A>
-A implicit_cast(A x) {
-  return x;
-}
-
 // Helper to determine how to pass values: Pass scalars and arrays by value,
 // others by const reference (even if it was a non-const ref before; this is
 // disallowed by the style guide anyway).
@@ -79,20 +72,13 @@ struct pass_value_or_ref {
                                          decay_t, const decay_t&>::type;
 };
 
+// Uses expression SFINAE to detect whether using operator<< would work.
+template <typename T, typename = void>
+struct has_output_operator : std::false_type {};
 template <typename T>
-struct has_output_operator {
-  // This template is only instantiable if U provides operator<< with ostream.
-  // Its return type is uint8_t.
-  template <typename U>
-  static auto __check_operator(U u)
-      -> decltype(*(std::ostream*)nullptr << *u, uint8_t{0});
-  // This is a fallback implementation, returning uint16_t. If the template
-  // above is instantiable, is has precedence over this varargs function.
-  static uint16_t __check_operator(...);
-
-  using ptr_t = typename std::add_pointer<T>::type;
-  static constexpr bool value = sizeof(__check_operator(ptr_t{nullptr})) == 1;
-};
+struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
+                                            << std::declval<T>()))>
+    : std::true_type {};
 
 namespace detail {
 
@@ -127,6 +113,16 @@ constexpr auto fold(Func func, Ts&&... more) ->
   return detail::fold_helper<Func, Ts...>::fold(func,
                                                 std::forward<Ts>(more)...);
 }
+
+// {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
+template <typename... Ts>
+struct is_same : public std::false_type {};
+template <>
+struct is_same<> : public std::true_type {};
+template <typename T>
+struct is_same<T> : public std::true_type {};
+template <typename T, typename... Ts>
+struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
 
 }  // namespace base
 }  // namespace v8

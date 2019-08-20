@@ -15,15 +15,6 @@ function f(a) {
   return sum;
 }
 
-var a = new Array(10000);
-for (var i = 0; i < 10000; i++) {
-  a[i] = (i * 999) % 77;
-}
-
-for (var i = 0; i < 3; i++) {
-  assertEquals(480270, f(wrap(a)));
-}
-
 function wrap(array) {
   var iterable = {};
   var i = 0;
@@ -33,3 +24,28 @@ function wrap(array) {
   iterable[Symbol.iterator] = function() { return { next:next }; };
   return iterable;
 }
+
+function test(a) {
+  for (var i = 0; i < 10000; i++) {
+    a[i] = (i * 999) % 77;
+  }
+
+  for (var i = 0; i < 3; i++) {
+    assertEquals(480270, f(wrap(a)));
+  }
+}
+
+var a = new Array(10000);
+test(a);
+
+// Non-extensible
+var b =  Object.preventExtensions(a);
+test(b);
+
+// Sealed
+var c =  Object.seal(a);
+test(c);
+
+// Frozen
+var d =  Object.freeze(a);
+test(d);

@@ -18,5 +18,4 @@ async function runTests() {
   node.kill();
 }
 
-common.crashOnUnhandledRejection();
 runTests();

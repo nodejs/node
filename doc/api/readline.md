@@ -90,7 +90,7 @@ The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
 * The `input` stream is not paused and receives the `'SIGCONT'` event. (See
-  events [`'SIGTSTP'`][] and [`'SIGCONT'`][])
+  events [`'SIGTSTP'`][] and [`'SIGCONT'`][].)
 
 The listener function is called without passing any arguments.
 
@@ -194,6 +194,9 @@ added: v0.1.98
 The `rl.close()` method closes the `readline.Interface` instance and
 relinquishes control over the `input` and `output` streams. When called,
 the `'close'` event will be emitted.
+
+Calling `rl.close()` does not immediately stop other events (including `'line'`)
+from being emitted by the `readline.Interface` instance.
 
 ### rl.pause()
 <!-- YAML
@@ -303,12 +306,53 @@ rl.write('Delete this!');
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-The `rl.write()` method will write the data to the `readline` Interface's
+The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
-## readline.clearLine(stream, dir)
+### rl\[Symbol.asyncIterator\]()
+<!-- YAML
+added: v11.4.0
+changes:
+  - version: v11.14.0
+    pr-url: https://github.com/nodejs/node/pull/26989
+    description: Symbol.asyncIterator support is no longer experimental.
+-->
+
+* Returns: {AsyncIterator}
+
+Create an `AsyncIterator` object that iterates through each line in the input
+stream as a string. This method allows asynchronous iteration of
+`readline.Interface` objects through `for await...of` loops.
+
+Errors in the input stream are not forwarded.
+
+If the loop is terminated with `break`, `throw`, or `return`,
+[`rl.close()`][] will be called. In other words, iterating over a
+`readline.Interface` will always consume the input stream fully.
+
+Performance is not on par with the traditional `'line'` event API. Use `'line'`
+instead for performance-sensitive applications.
+
+```js
+async function processLineByLine() {
+  const rl = readline.createInterface({
+    // ...
+  });
+
+  for await (const line of rl) {
+    // Each line in the readline input will be successively available here as
+    // `line`.
+  }
+}
+```
+
+## readline.clearLine(stream, dir[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v12.7.0
+    pr-url: https://github.com/nodejs/node/pull/28674
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
@@ -316,17 +360,28 @@ added: v0.7.7
   * `-1` - to the left from cursor
   * `1` - to the right from cursor
   * `0` - the entire line
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
 
-
-## readline.clearScreenDown(stream)
+## readline.clearScreenDown(stream[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v12.7.0
+    pr-url: https://github.com/nodejs/node/pull/28641
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.clearScreenDown()` method clears the given [TTY][] stream from
 the current position of the cursor down.
@@ -373,6 +428,11 @@ changes:
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
+  * `escapeCodeTimeout` {number} The duration `readline` will wait for a
+    character (when reading an ambiguous key sequence in milliseconds one that
+    can both form a complete key sequence using the input read so far and can
+    take additional input to complete a longer key sequence).
+    **Default:** `500`.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
@@ -402,9 +462,9 @@ a `'resize'` event on the `output` if or when the columns ever change
 ### Use of the `completer` Function
 
 The `completer` function takes the current line entered by the user
-as an argument, and returns an Array with 2 entries:
+as an argument, and returns an `Array` with 2 entries:
 
-* An Array with matching entries for the completion.
+* An `Array` with matching entries for the completion.
 * The substring that was used for the matching.
 
 For instance: `[[substr1, substr2, ...], originalsubstring]`.
@@ -413,7 +473,7 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 function completer(line) {
   const completions = '.help .error .exit .quit .q'.split(' ');
   const hits = completions.filter((c) => c.startsWith(line));
-  // show all completions if none found
+  // Show all completions if none found
   return [hits.length ? hits : completions, line];
 }
 ```
@@ -427,14 +487,22 @@ function completer(linePartial, callback) {
 }
 ```
 
-## readline.cursorTo(stream, x, y)
+## readline.cursorTo(stream, x[, y][, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v12.7.0
+    pr-url: https://github.com/nodejs/node/pull/28674
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
 * `x` {number}
 * `y` {number}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.cursorTo()` method moves cursor to the specified position in a
 given [TTY][] `stream`.
@@ -448,7 +516,7 @@ added: v0.7.7
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
-`stream` to begin emitting `'keypress'` events corresponding to received input.
+stream to begin emitting `'keypress'` events corresponding to received input.
 
 Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
@@ -465,18 +533,25 @@ if (process.stdin.isTTY)
   process.stdin.setRawMode(true);
 ```
 
-## readline.moveCursor(stream, dx, dy)
+## readline.moveCursor(stream, dx, dy[, callback])
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v12.7.0
+    pr-url: https://github.com/nodejs/node/pull/28674
+    description: The stream's write() callback and return value are exposed.
 -->
 
 * `stream` {stream.Writable}
 * `dx` {number}
 * `dy` {number}
+* `callback` {Function} Invoked once the operation completes.
+* Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
+  the `'drain'` event to be emitted before continuing to write additional data;
+  otherwise `true`.
 
 The `readline.moveCursor()` method moves the cursor *relative* to its current
 position in a given [TTY][] `stream`.
-
 
 ## Example: Tiny CLI
 
@@ -511,13 +586,38 @@ rl.on('line', (line) => {
 
 ## Example: Read File Stream Line-by-Line
 
-A common use case for `readline` is to consume input from a filesystem
-[Readable][] stream one line at a time, as illustrated in the following
-example:
+A common use case for `readline` is to consume an input file one line at a
+time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as
+well as a `for await...of` loop:
 
 ```js
-const readline = require('readline');
 const fs = require('fs');
+const readline = require('readline');
+
+async function processLineByLine() {
+  const fileStream = fs.createReadStream('input.txt');
+
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  });
+  // Note: we use the crlfDelay option to recognize all instances of CR LF
+  // ('\r\n') in input.txt as a single line break.
+
+  for await (const line of rl) {
+    // Each line in input.txt will be successively available here as `line`.
+    console.log(`Line from file: ${line}`);
+  }
+}
+
+processLineByLine();
+```
+
+Alternatively, one could use the [`'line'`][] event:
+
+```js
+const fs = require('fs');
+const readline = require('readline');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
@@ -529,10 +629,41 @@ rl.on('line', (line) => {
 });
 ```
 
+Currently, `for await...of` loop can be a bit slower. If `async` / `await`
+flow and speed are both essential, a mixed approach can be applied:
+
+```js
+const { once } = require('events');
+const { createReadStream } = require('fs');
+const { createInterface } = require('readline');
+
+(async function processLineByLine() {
+  try {
+    const rl = createInterface({
+      input: createReadStream('big-file.txt'),
+      crlfDelay: Infinity
+    });
+
+    rl.on('line', (line) => {
+      // Process the line.
+    });
+
+    await once(rl, 'close');
+
+    console.log('File processed.');
+  } catch (err) {
+    console.error(err);
+  }
+})();
+```
+
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
+[`'line'`]: #readline_event_line
+[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
+[`rl.close()`]: #readline_rl_close
 [Readable]: stream.html#stream_readable_streams
 [TTY]: tty.html
 [Writable]: stream.html#stream_writable_streams

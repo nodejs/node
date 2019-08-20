@@ -53,9 +53,12 @@ void AfterAsync(uv_work_t* r) {
     // This should be changed to an empty handle.
     assert(!ret.IsEmpty());
   } else {
-    callback->Call(global, 2, argv);
+    callback->Call(isolate->GetCurrentContext(),
+                   global, 2, argv).ToLocalChecked();
   }
 
+  // None of the following operations should allocate handles into this scope.
+  v8::SealHandleScope seal_handle_scope(isolate);
   // cleanup
   node::EmitAsyncDestroy(isolate, req->context);
   req->callback.Reset();
@@ -73,7 +76,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   async_req* req = new async_req;
   req->req.data = req;
 
-  req->input = args[0]->IntegerValue();
+  req->input = args[0].As<v8::Integer>()->Value();
   req->output = 0;
   req->isolate = isolate;
   req->context = node::EmitAsyncInit(isolate, v8::Object::New(isolate), "test");

@@ -50,6 +50,7 @@
 #define UPRV_LENGTHOF(array) (int32_t)(sizeof(array)/sizeof((array)[0]))
 #define uprv_memset(buffer, mark, size) U_STANDARD_CPP_NAMESPACE memset(buffer, mark, size)
 #define uprv_memcmp(buffer1, buffer2, size) U_STANDARD_CPP_NAMESPACE memcmp(buffer1, buffer2,size)
+#define uprv_memchr(ptr, value, num) U_STANDARD_CPP_NAMESPACE memchr(ptr, value, num)
 
 U_CAPI void * U_EXPORT2
 uprv_malloc(size_t s) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR(1);
@@ -122,6 +123,9 @@ uprv_deleteUObject(void *obj);
 
 #ifdef __cplusplus
 
+#include <utility>
+#include "unicode/uobject.h"
+
 U_NAMESPACE_BEGIN
 
 /**
@@ -161,18 +165,7 @@ public:
      * @return *this
      */
     LocalMemory<T> &operator=(LocalMemory<T> &&src) U_NOEXCEPT {
-        return moveFrom(src);
-    }
-    /**
-     * Move assignment, leaves src with isNull().
-     * The behavior is undefined if *this and src are the same object.
-     *
-     * Can be called explicitly, does not need C++11 support.
-     * @param src source smart pointer
-     * @return *this
-     */
-    LocalMemory<T> &moveFrom(LocalMemory<T> &src) U_NOEXCEPT {
-        delete[] LocalPointerBase<T>::ptr;
+        uprv_free(LocalPointerBase<T>::ptr);
         LocalPointerBase<T>::ptr=src.ptr;
         src.ptr=NULL;
         return *this;
@@ -279,10 +272,21 @@ inline T *LocalMemory<T>::allocateInsteadAndCopy(int32_t newCapacity, int32_t le
  *
  * Unlike LocalMemory and LocalArray, this class never adopts
  * (takes ownership of) another array.
+ *
+ * WARNING: MaybeStackArray only works with primitive (plain-old data) types.
+ * It does NOT know how to call a destructor! If you work with classes with
+ * destructors, consider LocalArray in localpointer.h or MemoryPool.
  */
 template<typename T, int32_t stackCapacity>
 class MaybeStackArray {
 public:
+    // No heap allocation. Use only on the stack.
+    static void* U_EXPORT2 operator new(size_t) U_NOEXCEPT = delete;
+    static void* U_EXPORT2 operator new[](size_t) U_NOEXCEPT = delete;
+#if U_HAVE_PLACEMENT_NEW
+    static void* U_EXPORT2 operator new(size_t, void*) U_NOEXCEPT = delete;
+#endif
+
     /**
      * Default constructor initializes with internal T[stackCapacity] buffer.
      */
@@ -294,11 +298,19 @@ public:
      */
     MaybeStackArray(int32_t newCapacity) : MaybeStackArray() {
         if (capacity < newCapacity) { resize(newCapacity); }
-    };
+    }
     /**
      * Destructor deletes the array (if owned).
      */
     ~MaybeStackArray() { releaseArray(); }
+    /**
+     * Move constructor: transfers ownership or copies the stack array.
+     */
+    MaybeStackArray(MaybeStackArray<T, stackCapacity> &&src) U_NOEXCEPT;
+    /**
+     * Move assignment: transfers ownership or copies the stack array.
+     */
+    MaybeStackArray<T, stackCapacity> &operator=(MaybeStackArray<T, stackCapacity> &&src) U_NOEXCEPT;
     /**
      * Returns the array capacity (number of T items).
      * @return array capacity
@@ -376,27 +388,46 @@ private:
             uprv_free(ptr);
         }
     }
+    void resetToStackArray() {
+        ptr=stackArray;
+        capacity=stackCapacity;
+        needToRelease=FALSE;
+    }
     /* No comparison operators with other MaybeStackArray's. */
     bool operator==(const MaybeStackArray & /*other*/) {return FALSE;}
     bool operator!=(const MaybeStackArray & /*other*/) {return TRUE;}
     /* No ownership transfer: No copy constructor, no assignment operator. */
     MaybeStackArray(const MaybeStackArray & /*other*/) {}
     void operator=(const MaybeStackArray & /*other*/) {}
-
-    // No heap allocation. Use only on the stack.
-    //   (Declaring these functions private triggers a cascade of problems:
-    //      MSVC insists on exporting an instantiation of MaybeStackArray, which
-    //      requires that all functions be defined.
-    //      An empty implementation of new() is rejected, it must return a value.
-    //      Returning NULL is rejected by gcc for operator new.
-    //      The expedient thing is just not to override operator new.
-    //      While relatively pointless, heap allocated instances will function.
-    // static void * U_EXPORT2 operator new(size_t size);
-    // static void * U_EXPORT2 operator new[](size_t size);
-#if U_HAVE_PLACEMENT_NEW
-    // static void * U_EXPORT2 operator new(size_t, void *ptr);
-#endif
 };
+
+template<typename T, int32_t stackCapacity>
+icu::MaybeStackArray<T, stackCapacity>::MaybeStackArray(
+        MaybeStackArray <T, stackCapacity>&& src) U_NOEXCEPT
+        : ptr(src.ptr), capacity(src.capacity), needToRelease(src.needToRelease) {
+    if (src.ptr == src.stackArray) {
+        ptr = stackArray;
+        uprv_memcpy(stackArray, src.stackArray, sizeof(T) * src.capacity);
+    } else {
+        src.resetToStackArray();  // take ownership away from src
+    }
+}
+
+template<typename T, int32_t stackCapacity>
+inline MaybeStackArray <T, stackCapacity>&
+MaybeStackArray<T, stackCapacity>::operator=(MaybeStackArray <T, stackCapacity>&& src) U_NOEXCEPT {
+    releaseArray();  // in case this instance had its own memory allocated
+    capacity = src.capacity;
+    needToRelease = src.needToRelease;
+    if (src.ptr == src.stackArray) {
+        ptr = stackArray;
+        uprv_memcpy(stackArray, src.stackArray, sizeof(T) * src.capacity);
+    } else {
+        ptr = src.ptr;
+        src.resetToStackArray();  // take ownership away from src
+    }
+    return *this;
+}
 
 template<typename T, int32_t stackCapacity>
 inline T *MaybeStackArray<T, stackCapacity>::resize(int32_t newCapacity, int32_t length) {
@@ -447,9 +478,7 @@ inline T *MaybeStackArray<T, stackCapacity>::orphanOrClone(int32_t length, int32
         uprv_memcpy(p, ptr, (size_t)length*sizeof(T));
     }
     resultCapacity=length;
-    ptr=stackArray;
-    capacity=stackCapacity;
-    needToRelease=FALSE;
+    resetToStackArray();
     return p;
 }
 
@@ -466,6 +495,13 @@ inline T *MaybeStackArray<T, stackCapacity>::orphanOrClone(int32_t length, int32
 template<typename H, typename T, int32_t stackCapacity>
 class MaybeStackHeaderAndArray {
 public:
+    // No heap allocation. Use only on the stack.
+    static void* U_EXPORT2 operator new(size_t) U_NOEXCEPT = delete;
+    static void* U_EXPORT2 operator new[](size_t) U_NOEXCEPT = delete;
+#if U_HAVE_PLACEMENT_NEW
+    static void* U_EXPORT2 operator new(size_t, void*) U_NOEXCEPT = delete;
+#endif
+
     /**
      * Default constructor initializes with internal H+T[stackCapacity] buffer.
      */
@@ -562,15 +598,6 @@ private:
     /* No ownership transfer: No copy constructor, no assignment operator. */
     MaybeStackHeaderAndArray(const MaybeStackHeaderAndArray & /*other*/) {}
     void operator=(const MaybeStackHeaderAndArray & /*other*/) {}
-
-    // No heap allocation. Use only on the stack.
-    //   (Declaring these functions private triggers a cascade of problems;
-    //    see the MaybeStackArray class for details.)
-    // static void * U_EXPORT2 operator new(size_t size);
-    // static void * U_EXPORT2 operator new[](size_t size);
-#if U_HAVE_PLACEMENT_NEW
-    // static void * U_EXPORT2 operator new(size_t, void *ptr);
-#endif
 };
 
 template<typename H, typename T, int32_t stackCapacity>
@@ -631,6 +658,78 @@ inline H *MaybeStackHeaderAndArray<H, T, stackCapacity>::orphanOrClone(int32_t l
     needToRelease=FALSE;
     return p;
 }
+
+/**
+ * A simple memory management class that creates new heap allocated objects (of
+ * any class that has a public constructor), keeps track of them and eventually
+ * deletes them all in its own destructor.
+ *
+ * A typical use-case would be code like this:
+ *
+ *     MemoryPool<MyType> pool;
+ *
+ *     MyType* o1 = pool.create();
+ *     if (o1 != nullptr) {
+ *         foo(o1);
+ *     }
+ *
+ *     MyType* o2 = pool.create(1, 2, 3);
+ *     if (o2 != nullptr) {
+ *         bar(o2);
+ *     }
+ *
+ *     // MemoryPool will take care of deleting the MyType objects.
+ *
+ * It doesn't do anything more than that, and is intentionally kept minimalist.
+ */
+template<typename T, int32_t stackCapacity = 8>
+class MemoryPool : public UMemory {
+public:
+    MemoryPool() : count(0), pool() {}
+
+    ~MemoryPool() {
+        for (int32_t i = 0; i < count; ++i) {
+            delete pool[i];
+        }
+    }
+
+    MemoryPool(const MemoryPool&) = delete;
+    MemoryPool& operator=(const MemoryPool&) = delete;
+
+    MemoryPool(MemoryPool&& other) U_NOEXCEPT : count(other.count),
+                                                pool(std::move(other.pool)) {
+        other.count = 0;
+    }
+
+    MemoryPool& operator=(MemoryPool&& other) U_NOEXCEPT {
+        count = other.count;
+        pool = std::move(other.pool);
+        other.count = 0;
+        return *this;
+    }
+
+    /**
+     * Creates a new object of typename T, by forwarding any and all arguments
+     * to the typename T constructor.
+     *
+     * @param args Arguments to be forwarded to the typename T constructor.
+     * @return A pointer to the newly created object, or nullptr on error.
+     */
+    template<typename... Args>
+    T* create(Args&&... args) {
+        int32_t capacity = pool.getCapacity();
+        if (count == capacity &&
+            pool.resize(capacity == stackCapacity ? 4 * capacity : 2 * capacity,
+                        capacity) == nullptr) {
+            return nullptr;
+        }
+        return pool[count++] = new T(std::forward<Args>(args)...);
+    }
+
+private:
+    int32_t count;
+    MaybeStackArray<T*, stackCapacity> pool;
+};
 
 U_NAMESPACE_END
 

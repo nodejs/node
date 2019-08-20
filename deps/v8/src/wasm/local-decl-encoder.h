@@ -5,7 +5,7 @@
 #ifndef V8_WASM_LOCAL_DECL_ENCODER_H_
 #define V8_WASM_LOCAL_DECL_ENCODER_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"

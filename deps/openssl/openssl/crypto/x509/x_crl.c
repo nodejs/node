@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -158,6 +158,18 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     int idx;
 
     switch (operation) {
+    case ASN1_OP_D2I_PRE:
+        if (crl->meth->crl_free) {
+            if (!crl->meth->crl_free(crl))
+                return 0;
+        }
+        AUTHORITY_KEYID_free(crl->akid);
+        ISSUING_DIST_POINT_free(crl->idp);
+        ASN1_INTEGER_free(crl->crl_number);
+        ASN1_INTEGER_free(crl->base_crl_number);
+        sk_GENERAL_NAMES_pop_free(crl->issuers, GENERAL_NAMES_free);
+        /* fall thru */
+
     case ASN1_OP_NEW_POST:
         crl->idp = NULL;
         crl->akid = NULL;
@@ -309,6 +321,7 @@ static int X509_REVOKED_cmp(const X509_REVOKED *const *a,
 int X509_CRL_add0_revoked(X509_CRL *crl, X509_REVOKED *rev)
 {
     X509_CRL_INFO *inf;
+
     inf = &crl->crl;
     if (inf->revoked == NULL)
         inf->revoked = sk_X509_REVOKED_new(X509_REVOKED_cmp);
@@ -382,8 +395,11 @@ static int def_crl_lookup(X509_CRL *crl,
                           X509_NAME *issuer)
 {
     X509_REVOKED rtmp, *rev;
-    int idx;
-    rtmp.serialNumber = *serial;
+    int idx, num;
+
+    if (crl->crl.revoked == NULL)
+        return 0;
+
     /*
      * Sort revoked into serial number order if not already sorted. Do this
      * under a lock to avoid race condition.
@@ -393,11 +409,12 @@ static int def_crl_lookup(X509_CRL *crl,
         sk_X509_REVOKED_sort(crl->crl.revoked);
         CRYPTO_THREAD_unlock(crl->lock);
     }
+    rtmp.serialNumber = *serial;
     idx = sk_X509_REVOKED_find(crl->crl.revoked, &rtmp);
     if (idx < 0)
         return 0;
     /* Need to look for matching name */
-    for (; idx < sk_X509_REVOKED_num(crl->crl.revoked); idx++) {
+    for (num = sk_X509_REVOKED_num(crl->crl.revoked); idx < num; idx++) {
         rev = sk_X509_REVOKED_value(crl->crl.revoked, idx);
         if (ASN1_INTEGER_cmp(&rev->serialNumber, serial))
             return 0;
@@ -429,10 +446,12 @@ X509_CRL_METHOD *X509_CRL_METHOD_new(int (*crl_init) (X509_CRL *crl),
                                      int (*crl_verify) (X509_CRL *crl,
                                                         EVP_PKEY *pk))
 {
-    X509_CRL_METHOD *m;
-    m = OPENSSL_malloc(sizeof(*m));
-    if (m == NULL)
+    X509_CRL_METHOD *m = OPENSSL_malloc(sizeof(*m));
+
+    if (m == NULL) {
+        X509err(X509_F_X509_CRL_METHOD_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
     m->crl_init = crl_init;
     m->crl_free = crl_free;
     m->crl_lookup = crl_lookup;

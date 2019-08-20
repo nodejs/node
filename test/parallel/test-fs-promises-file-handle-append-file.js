@@ -2,18 +2,17 @@
 
 const common = require('../common');
 
-// The following tests validate base functionality for the fs/promises
+// The following tests validate base functionality for the fs.promises
 // FileHandle.appendFile method.
 
 const fs = require('fs');
-const { open } = require('fs/promises');
+const { open } = fs.promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
-common.crashOnUnhandledRejection();
 
 async function validateAppendBuffer() {
   const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');
@@ -23,6 +22,8 @@ async function validateAppendBuffer() {
   await fileHandle.appendFile(buffer);
   const appendedFileData = fs.readFileSync(filePath);
   assert.deepStrictEqual(appendedFileData, buffer);
+
+  await fileHandle.close();
 }
 
 async function validateAppendString() {
@@ -34,6 +35,8 @@ async function validateAppendString() {
   const stringAsBuffer = Buffer.from(string, 'utf8');
   const appendedFileData = fs.readFileSync(filePath);
   assert.deepStrictEqual(appendedFileData, stringAsBuffer);
+
+  await fileHandle.close();
 }
 
 validateAppendBuffer()

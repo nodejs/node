@@ -6,9 +6,10 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -18,13 +19,13 @@ class Processor final : public AstVisitor<Processor> {
   Processor(uintptr_t stack_limit, DeclarationScope* closure_scope,
             Variable* result, AstValueFactory* ast_value_factory)
       : result_(result),
-        result_assigned_(false),
         replacement_(nullptr),
-        is_set_(false),
-        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory, ast_value_factory->zone()) {
+        factory_(ast_value_factory, ast_value_factory->zone()),
+        result_assigned_(false),
+        is_set_(false),
+        breakable_(false) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(stack_limit);
   }
@@ -32,18 +33,18 @@ class Processor final : public AstVisitor<Processor> {
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
-        result_assigned_(false),
         replacement_(nullptr),
-        is_set_(false),
-        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory, zone_) {
+        factory_(ast_value_factory, zone_),
+        result_assigned_(false),
+        is_set_(false),
+        breakable_(false) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }
 
-  void Process(ZoneList<Statement*>* statements);
+  void Process(ZonePtrList<Statement>* statements);
   bool result_assigned() const { return result_assigned_; }
 
   Zone* zone() { return zone_; }
@@ -64,23 +65,9 @@ class Processor final : public AstVisitor<Processor> {
  private:
   Variable* result_;
 
-  // We are not tracking result usage via the result_'s use
-  // counts (we leave the accurate computation to the
-  // usage analyzer). Instead we simple remember if
-  // there was ever an assignment to result_.
-  bool result_assigned_;
-
   // When visiting a node, we "return" a replacement for that node in
   // [replacement_].  In many cases this will just be the original node.
   Statement* replacement_;
-
-  // To avoid storing to .result all the time, we eliminate some of
-  // the stores by keeping track of whether or not we're sure .result
-  // will be overwritten anyway. This is a bit more tricky than what I
-  // was hoping for.
-  bool is_set_;
-
-  bool breakable_;
 
   class BreakableScope final {
    public:
@@ -108,6 +95,20 @@ class Processor final : public AstVisitor<Processor> {
   void VisitIterationStatement(IterationStatement* stmt);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+
+  // We are not tracking result usage via the result_'s use
+  // counts (we leave the accurate computation to the
+  // usage analyzer). Instead we simple remember if
+  // there was ever an assignment to result_.
+  bool result_assigned_;
+
+  // To avoid storing to .result all the time, we eliminate some of
+  // the stores by keeping track of whether or not we're sure .result
+  // will be overwritten anyway. This is a bit more tricky than what I
+  // was hoping for.
+  bool is_set_;
+
+  bool breakable_;
 };
 
 
@@ -121,8 +122,7 @@ Statement* Processor::AssignUndefinedBefore(Statement* s) {
   return b;
 }
 
-
-void Processor::Process(ZoneList<Statement*>* statements) {
+void Processor::Process(ZonePtrList<Statement>* statements) {
   // If we're in a breakable scope (named block, iteration, or switch), we walk
   // all statements. The last value producing statement before the break needs
   // to assign to .result. If we're not in a breakable scope, only the last
@@ -283,7 +283,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
   // Rewrite statements in all case clauses.
-  ZoneList<CaseClause*>* clauses = node->cases();
+  ZonePtrList<CaseClause>* clauses = node->cases();
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
@@ -338,8 +338,8 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
-void Processor::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
+void Processor::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
   replacement_ = node;
 }
 
@@ -381,7 +381,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     return true;
   }
 
-  ZoneList<Statement*>* body = function->body();
+  ZonePtrList<Statement>* body = function->body();
   DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
@@ -405,37 +405,6 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
   return true;
 }
-
-bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
-                       DoExpression* expr, AstValueFactory* factory) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
-  Block* block = expr->block();
-  DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-  DCHECK(block->scope() == nullptr ||
-         block->scope()->GetClosureScope() == closure_scope);
-  ZoneList<Statement*>* body = block->statements();
-  VariableProxy* result = expr->result();
-  Variable* result_var = result->var();
-
-  if (!body->is_empty()) {
-    Processor processor(parser, closure_scope, result_var, factory);
-    processor.Process(body);
-    if (processor.HasStackOverflow()) return false;
-
-    if (!processor.result_assigned()) {
-      AstNodeFactory* node_factory = processor.factory();
-      Expression* undef = node_factory->NewUndefinedLiteral(kNoSourcePosition);
-      Statement* completion = node_factory->NewExpressionStatement(
-          processor.SetResult(undef), expr->position());
-      body->Add(completion, factory->zone());
-    }
-  }
-  return true;
-}
-
 
 }  // namespace internal
 }  // namespace v8

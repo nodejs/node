@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/utils.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +34,7 @@ void ZoneList<T>::AddAll(const Vector<T>& other, Zone* zone) {
   if (capacity_ < result_length)
     Resize(result_length, ZoneAllocationPolicy(zone));
   if (std::is_fundamental<T>()) {
-    memcpy(data_ + length_, other.start(), sizeof(*data_) * other.length());
+    memcpy(data_ + length_, other.begin(), sizeof(*data_) * other.length());
   } else {
     for (int i = 0; i < other.length(); i++) data_[length_ + i] = other.at(i);
   }
@@ -66,7 +66,9 @@ template <typename T>
 void ZoneList<T>::Resize(int new_capacity, ZoneAllocationPolicy alloc) {
   DCHECK_LE(length_, new_capacity);
   T* new_data = NewData(new_capacity, alloc);
-  MemCopy(new_data, data_, length_ * sizeof(T));
+  if (length_ > 0) {
+    MemCopy(new_data, data_, length_ * sizeof(T));
+  }
   ZoneList<T>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;
@@ -129,17 +131,10 @@ void ZoneList<T>::Iterate(Visitor* visitor) {
 }
 
 template <typename T>
-bool ZoneList<T>::Contains(const T& elm) const {
-  for (int i = 0; i < length_; i++) {
-    if (data_[i] == elm) return true;
-  }
-  return false;
-}
-
-template <typename T>
 template <typename CompareFunction>
 void ZoneList<T>::Sort(CompareFunction cmp) {
-  ToVector().Sort(cmp, 0, length_);
+  std::sort(begin(), end(),
+            [cmp](const T& a, const T& b) { return cmp(&a, &b) < 0; });
 #ifdef DEBUG
   for (int i = 1; i < length_; i++) {
     DCHECK_LE(cmp(&data_[i - 1], &data_[i]), 0);
@@ -150,7 +145,8 @@ void ZoneList<T>::Sort(CompareFunction cmp) {
 template <typename T>
 template <typename CompareFunction>
 void ZoneList<T>::StableSort(CompareFunction cmp, size_t s, size_t l) {
-  ToVector().StableSort(cmp, s, l);
+  std::stable_sort(begin() + s, begin() + s + l,
+                   [cmp](const T& a, const T& b) { return cmp(&a, &b) < 0; });
 #ifdef DEBUG
   for (size_t i = s + 1; i < l; i++) {
     DCHECK_LE(cmp(&data_[i - 1], &data_[i]), 0);

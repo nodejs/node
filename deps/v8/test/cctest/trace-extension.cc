@@ -28,7 +28,8 @@
 #include "test/cctest/trace-extension.h"
 
 #include "include/v8-profiler.h"
-#include "src/vm-state-inl.h"
+#include "src/execution/vm-state-inl.h"
+#include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -43,29 +44,24 @@ const char* TraceExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  if (name->Equals(context, v8::String::NewFromUtf8(isolate, "trace",
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked())
-          .FromJust()) {
+  if (name->StrictEquals(
+          v8::String::NewFromUtf8(isolate, "trace", v8::NewStringType::kNormal)
+              .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::Trace);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_trace",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_trace",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSTrace);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_entry_sp",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_entry_sp",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySP);
-  } else if (name->Equals(context,
-                          v8::String::NewFromUtf8(isolate, "js_entry_sp_level2",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
-                 .FromJust()) {
+  } else if (name->StrictEquals(
+                 v8::String::NewFromUtf8(isolate, "js_entry_sp_level2",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked())) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySPLevel2);
   }
   UNREACHABLE();
@@ -78,13 +74,18 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #if defined(V8_HOST_ARCH_32_BIT)
   Address fp = *reinterpret_cast<Address*>(*args[0]);
 #elif defined(V8_HOST_ARCH_64_BIT)
-  int64_t low_bits = *reinterpret_cast<uint64_t*>(*args[0]) >> 32;
-  int64_t high_bits = *reinterpret_cast<uint64_t*>(*args[1]);
-  Address fp = reinterpret_cast<Address>(high_bits | low_bits);
+  uint64_t kSmiValueMask =
+      (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
+  uint64_t low_bits =
+      Smi(*reinterpret_cast<Address*>(*args[0])).value() & kSmiValueMask;
+  uint64_t high_bits =
+      Smi(*reinterpret_cast<Address*>(*args[1])).value() & kSmiValueMask;
+  Address fp =
+      static_cast<Address>((high_bits << (kSmiValueSize - 1)) | low_bits);
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
-  printf("Trace: %p\n", static_cast<void*>(fp));
+  printf("Trace: %p\n", reinterpret_cast<void*>(fp));
   return fp;
 }
 
@@ -97,10 +98,10 @@ void TraceExtension::InitTraceEnv(v8::TickSample* sample) {
 
 void TraceExtension::DoTrace(Address fp) {
   RegisterState regs;
-  regs.fp = fp;
+  regs.fp = reinterpret_cast<void*>(fp);
   // sp is only used to define stack high bound
-  regs.sp =
-      reinterpret_cast<Address>(trace_env.sample) - 10240;
+  regs.sp = reinterpret_cast<void*>(
+      reinterpret_cast<Address>(trace_env.sample) - 10240);
   trace_env.sample->Init(CcTest::isolate(), regs,
                          v8::TickSample::kSkipCEntryFrame, true);
 }
@@ -109,8 +110,7 @@ void TraceExtension::DoTrace(Address fp) {
 void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
-  Address address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(&TraceExtension::Trace));
+  Address address = reinterpret_cast<Address>(&TraceExtension::Trace);
   i::ExternalCallbackScope call_scope(isolate, address);
   DoTrace(GetFP(args));
 }
@@ -131,8 +131,7 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
-  Address address = reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(&TraceExtension::JSTrace));
+  Address address = reinterpret_cast<Address>(&TraceExtension::JSTrace);
   i::ExternalCallbackScope call_scope(isolate, address);
   DoTraceHideCEntryFPAddress(GetFP(args));
 }

@@ -30,11 +30,11 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "src/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -48,7 +48,7 @@ TEST(Create) {
   const int kNumSymbols = 30;
   Handle<Symbol> symbols[kNumSymbols];
 
-  OFStream os(stdout);
+  StdoutStream os;
   for (int i = 0; i < kNumSymbols; ++i) {
     symbols[i] = isolate->factory()->NewSymbol();
     CHECK(symbols[i]->IsName());
@@ -60,7 +60,7 @@ TEST(Create) {
     symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
-    symbols[i]->ObjectVerify();
+    symbols[i]->ObjectVerify(isolate);
 #endif
   }
 

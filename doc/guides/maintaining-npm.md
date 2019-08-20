@@ -1,9 +1,23 @@
 # Maintaining npm in Node.js
 
+New pull requests should be opened when a "next" version of npm has
+been released. Once the "next" version has been promoted to "latest"
+the PR should be updated as necessary.
+
+Two weeks after the "latest" release has been promoted it can land on master
+assuming no major regressions are found. There are no additional constraints
+for Semver-Major releases.
+
+The specific Node.js release streams the new version will be able to land into
+are at the discretion of the release and LTS teams.
+
+This process only covers full updates to new versions of npm. Cherry-picked
+changes can be reviewed and landed via the normal consensus seeking process.
+
 ## Step 1: Clone npm
 
 ```console
-$ git clone https://github.com/npm/npm.git
+$ git clone https://github.com/npm/cli.git npm
 $ cd npm
 ```
 
@@ -11,13 +25,14 @@ or if you already have npm cloned make sure the repo is up to date
 
 ```console
 $ git remote update -p
-$ git reset --hard origin latest
+$ git reset --hard origin/latest
 ```
 
 ## Step 2: Build release
 
 ```console
 $ git checkout vX.Y.Z
+$ make
 $ make release
 ```
 

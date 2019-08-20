@@ -107,10 +107,10 @@ transitive dependency of a non-optional dependency of the top level.
 All optional dependencies should be included even if they're uninstallable
 on the current platform.
 
-#### from *(deprecated)*
+#### from
 
 This is a record of what specifier was used to originally install this
-package.  This should not be included in new `package-lock.json` files.
+package.  This should be used only for git dependencies.
 
 #### requires
 
@@ -269,7 +269,7 @@ nothing requires it any more.
 ## Additional fields / Adding new fields
 
 Installers should ignore any field they aren't aware of.  It's not an error
-to have additional properities in the package-lock or lock file.
+to have additional properties in the package-lock or lock file.
 
 Installers that want to add new fields should either have one added via RFC
 in the npm issue tracker and an accompanying documentation PR, or should prefix

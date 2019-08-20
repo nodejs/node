@@ -42,36 +42,45 @@ function unregisterWatcher(watcher) {
   }
 }
 
-const watcher1 = fs.watch(
-  tmpdir.path,
-  { encoding: 'hex' },
-  (event, filename) => {
-    if (['e696b0e5bbbae69687e5a4b9e4bbb62e747874', null].includes(filename))
-      done(watcher1);
-  }
-);
-registerWatcher(watcher1);
+{
+  // Test that using the `encoding` option has the expected result.
+  const watcher = fs.watch(
+    tmpdir.path,
+    { encoding: 'hex' },
+    (event, filename) => {
+      if (['e696b0e5bbbae69687e5a4b9e4bbb62e747874', null].includes(filename))
+        done(watcher);
+    }
+  );
+  registerWatcher(watcher);
+}
 
-const watcher2 = fs.watch(
-  tmpdir.path,
-  (event, filename) => {
-    if ([fn, null].includes(filename))
-      done(watcher2);
-  }
-);
-registerWatcher(watcher2);
+{
+  // Test that in absence of `encoding` option has the expected result.
+  const watcher = fs.watch(
+    tmpdir.path,
+    (event, filename) => {
+      if ([fn, null].includes(filename))
+        done(watcher);
+    }
+  );
+  registerWatcher(watcher);
+}
 
-const watcher3 = fs.watch(
-  tmpdir.path,
-  { encoding: 'buffer' },
-  (event, filename) => {
-    if (filename instanceof Buffer && filename.toString('utf8') === fn)
-      done(watcher3);
-    else if (filename === null)
-      done(watcher3);
-  }
-);
-registerWatcher(watcher3);
+{
+  // Test that using the `encoding` option has the expected result.
+  const watcher = fs.watch(
+    tmpdir.path,
+    { encoding: 'buffer' },
+    (event, filename) => {
+      if (filename instanceof Buffer && filename.toString('utf8') === fn)
+        done(watcher);
+      else if (filename === null)
+        done(watcher);
+    }
+  );
+  registerWatcher(watcher);
+}
 
 const done = common.mustCall(unregisterWatcher, watchers.size);
 

@@ -32,8 +32,15 @@ class OutProc(base.OutProc):
     if len(expected_lines) != len(actual_lines):
       return True
 
+    # Try .js first, and fall back to .mjs.
+    # TODO(v8:9406): clean this up by never separating the path from
+    # the extension in the first place.
+    base_path = self._basepath + '.js'
+    if not os.path.exists(base_path):
+      base_path = self._basepath + '.mjs'
+
     env = {
-      'basename': os.path.basename(self._basepath + '.js'),
+      'basename': os.path.basename(base_path),
     }
     for (expected, actual) in itertools.izip_longest(
         expected_lines, actual_lines, fillvalue=''):

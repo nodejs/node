@@ -40,10 +40,18 @@ PASS JSON.stringify(object, returnNullFor1) is '{"0":0,"1":null,"2":2}'
 PASS JSON.stringify(array, returnNullFor1) is '[0,null,2,null]'
 PASS JSON.stringify(object, returnStringForUndefined) is '{"0":0,"1":1,"2":2,"3":"undefined value"}'
 PASS JSON.stringify(array, returnStringForUndefined) is '[0,1,2,"undefined value"]'
-PASS JSON.stringify(object, returnCycleObjectFor1) threw exception TypeError: Converting circular structure to JSON.
-PASS JSON.stringify(array, returnCycleObjectFor1) threw exception TypeError: Converting circular structure to JSON.
-PASS JSON.stringify(object, returnCycleArrayFor1) threw exception TypeError: Converting circular structure to JSON.
-PASS JSON.stringify(array, returnCycleArrayFor1) threw exception TypeError: Converting circular structure to JSON.
+PASS JSON.stringify(object, returnCycleObjectFor1) threw exception TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    --- property '1' closes the circle.
+PASS JSON.stringify(array, returnCycleObjectFor1) threw exception TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    --- property '1' closes the circle.
+PASS JSON.stringify(object, returnCycleArrayFor1) threw exception TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Array'
+    --- index 1 closes the circle.
+PASS JSON.stringify(array, returnCycleArrayFor1) threw exception TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Array'
+    --- index 1 closes the circle.
 PASS successfullyParsed is true
 
 TEST COMPLETE

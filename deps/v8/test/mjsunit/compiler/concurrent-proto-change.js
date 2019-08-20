@@ -36,6 +36,8 @@ if (!%IsConcurrentRecompilationSupported()) {
 
 function f(foo) { return foo.bar(); }
 
+%PrepareFunctionForOptimization(f);
+
 var o = {};
 o.__proto__ = { __proto__: { bar: function() { return 1; } } };
 

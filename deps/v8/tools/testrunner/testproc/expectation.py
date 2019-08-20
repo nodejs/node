@@ -21,7 +21,8 @@ class ForgiveTimeoutProc(base.TestProcProducer):
     elif statusfile.TIMEOUT not in subtest.expected_outcomes:
       subtest.expected_outcomes = (
           subtest.expected_outcomes + [statusfile.TIMEOUT])
-    self._send_test(subtest)
+
+    return self._send_test(subtest)
 
   def _result_for(self, test, subtest, result):
     self._send_result(test, result)

@@ -1,17 +1,16 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const { stripVTControlCharacters } = require('internal/readline');
+const { stripVTControlCharacters } = require('internal/readline/utils');
 const repl = require('repl');
 
-common.crashOnUnhandledRejection();
-
-// Flags: --expose-internals
+// Flags: --expose-internals --experimental-repl-await
 
 const PROMPT = 'await repl > ';
 
-class REPLStream extends common.ArrayStream {
+class REPLStream extends ArrayStream {
   constructor() {
     super();
     this.waitingForResponse = false;
@@ -119,19 +118,20 @@ async function ordinaryTests() {
     [ 'if (await true) { function bar() {}; }', 'undefined' ],
     [ 'bar', '[Function: bar]' ],
     [ 'if (await true) { class Bar {}; }', 'undefined' ],
-    [ 'Bar', 'ReferenceError: Bar is not defined', { line: 0 } ],
+    [ 'Bar', 'ReferenceError: Bar is not defined', { line: 1 } ],
     [ 'await 0; function* gen(){}', 'undefined' ],
     [ 'for (var i = 0; i < 10; ++i) { await i; }', 'undefined' ],
     [ 'i', '10' ],
     [ 'for (let j = 0; j < 5; ++j) { await j; }', 'undefined' ],
-    [ 'j', 'ReferenceError: j is not defined', { line: 0 } ],
+    [ 'j', 'ReferenceError: j is not defined', { line: 1 } ],
     [ 'gen', '[GeneratorFunction: gen]' ],
     [ 'return 42; await 5;', 'SyntaxError: Illegal return statement',
-      { line: 3 } ],
+      { line: 4 } ],
     [ 'let o = await 1, p', 'undefined' ],
     [ 'p', 'undefined' ],
     [ 'let q = 1, s = await 2', 'undefined' ],
-    [ 's', '2' ]
+    [ 's', '2' ],
+    [ 'for await (let i of [1,2,3]) console.log(i)', 'undefined', { line: 3 } ]
   ];
 
   for (const [input, expected, options = {}] of testCases) {
@@ -160,8 +160,9 @@ async function ctrlCTest() {
     { ctrl: true, name: 'c' }
   ]), [
     'await timeout(100000)\r',
-    'Thrown: Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
-      'Script execution was interrupted by `SIGINT`.',
+    'Thrown:',
+    'Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
+      'Script execution was interrupted by `SIGINT`',
     PROMPT
   ]);
 }

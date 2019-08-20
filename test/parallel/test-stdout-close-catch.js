@@ -3,6 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
 const fixtures = require('../common/fixtures');
+const { getSystemErrorName } = require('util');
 
 const testScript = fixtures.path('catch-stdout-error.js');
 
@@ -13,11 +14,6 @@ const cmd = `${JSON.stringify(process.execPath)} ` +
 
 const child = child_process.exec(cmd);
 let output = '';
-const outputExpect = {
-  code: 'EPIPE',
-  errno: 'EPIPE',
-  syscall: 'write'
-};
 
 child.stderr.on('data', function(c) {
   output += c;
@@ -27,11 +23,13 @@ child.stderr.on('data', function(c) {
 child.on('close', common.mustCall(function(code) {
   try {
     output = JSON.parse(output);
-  } catch (er) {
+  } catch {
     console.error(output);
     process.exit(1);
   }
 
-  assert.deepStrictEqual(output, outputExpect);
+  assert.strictEqual(output.code, 'EPIPE');
+  assert.strictEqual(getSystemErrorName(output.errno), 'EPIPE');
+  assert.strictEqual(output.syscall, 'write');
   console.log('ok');
 }));

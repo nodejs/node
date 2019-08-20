@@ -32,7 +32,9 @@ enum CategoryGroupEnabledFlags {
   kEnabledForETWExport_CategoryGroupEnabledFlags = 1 << 3,
 };
 
-// By default, const char* asrgument values are assumed to have long-lived scope
+// TODO(petermarshall): Remove with the old tracing implementation - Perfetto
+// copies const char* arguments by default.
+// By default, const char* argument values are assumed to have long-lived scope
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) v8::internal::tracing::TraceStringWithCopy(str)
 
@@ -47,10 +49,10 @@ enum CategoryGroupEnabledFlags {
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string.
 #define TRACE_ID_WITH_SCOPE(scope, id) \
-  trace_event_internal::TraceID::WithScope(scope, id)
+  v8::internal::tracing::TraceID::WithScope(scope, id)
 
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
-  *INTERNAL_TRACE_EVENT_UID(category_group_enabled) &                    \
+  TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED() &                        \
       (kEnabledForRecording_CategoryGroupEnabledFlags |                  \
        kEnabledForEventCallback_CategoryGroupEnabledFlags)
 
@@ -127,6 +129,9 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Relaxed_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
   v8::base::Relaxed_Store(&(var), (value))
+#define TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED()                \
+  v8::base::Relaxed_Load(reinterpret_cast<const v8::base::Atomic8*>( \
+      INTERNAL_TRACE_EVENT_UID(category_group_enabled)))
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -175,7 +180,7 @@ enum CategoryGroupEnabledFlags {
           v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId, \
           v8::internal::tracing::kNoId, flags, ##__VA_ARGS__);               \
     }                                                                        \
-  } while (0)
+  } while (false)
 
 // Implementation detail: internal macro to create static category and add begin
 // event if the category is enabled. Also adds the end event when the scope
@@ -227,7 +232,7 @@ enum CategoryGroupEnabledFlags {
           trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),         \
           v8::internal::tracing::kNoId, trace_event_flags, ##__VA_ARGS__);     \
     }                                                                          \
-  } while (0)
+  } while (false)
 
 // Adds a trace event with a given timestamp.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(phase, category_group, name, \
@@ -240,39 +245,32 @@ enum CategoryGroupEnabledFlags {
           v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId, \
           v8::internal::tracing::kNoId, flags, timestamp, ##__VA_ARGS__);    \
     }                                                                        \
-  } while (0)
+  } while (false)
 
-// Adds a trace event with a given id and timestamp. Not Implemented.
-#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP(     \
-    phase, category_group, name, id, timestamp, flags, ...) \
-  UNIMPLEMENTED()
+// Adds a trace event with a given id and timestamp.
+#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP(                        \
+    phase, category_group, name, id, timestamp, flags, ...)                    \
+  do {                                                                         \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                    \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {    \
+      unsigned int trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID;        \
+      v8::internal::tracing::TraceID trace_event_trace_id(id,                  \
+                                                          &trace_event_flags); \
+      v8::internal::tracing::AddTraceEventWithTimestamp(                       \
+          phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,       \
+          trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),         \
+          v8::internal::tracing::kNoId, trace_event_flags, timestamp,          \
+          ##__VA_ARGS__);                                                      \
+    }                                                                          \
+  } while (false)
 
-// Adds a trace event with a given id, thread_id, and timestamp. Not
-// Implemented.
+// Adds a trace event with a given id, thread_id, and timestamp. This redirects
+// to INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP as we presently do not care
+// about the thread id.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(            \
     phase, category_group, name, id, thread_id, timestamp, flags, ...) \
-  UNIMPLEMENTED()
-
-// Enter and leave a context based on the current scope.
-#define INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
-  struct INTERNAL_TRACE_EVENT_UID(ScopedContext) {                         \
-   public:                                                                 \
-    INTERNAL_TRACE_EVENT_UID(ScopedContext)(uint64_t cid) : cid_(cid) {    \
-      TRACE_EVENT_ENTER_CONTEXT(category_group, name, cid_);               \
-    }                                                                      \
-    ~INTERNAL_TRACE_EVENT_UID(ScopedContext)() {                           \
-      TRACE_EVENT_LEAVE_CONTEXT(category_group, name, cid_);               \
-    }                                                                      \
-                                                                           \
-   private:                                                                \
-    /* Local class friendly DISALLOW_COPY_AND_ASSIGN */                    \
-    INTERNAL_TRACE_EVENT_UID(ScopedContext)                                \
-    (const INTERNAL_TRACE_EVENT_UID(ScopedContext)&) {}                    \
-    void operator=(const INTERNAL_TRACE_EVENT_UID(ScopedContext)&) {}      \
-    uint64_t cid_;                                                         \
-  };                                                                       \
-  INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
-  INTERNAL_TRACE_EVENT_UID(scoped_context)(context);
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP(                      \
+      phase, category_group, name, id, timestamp, flags, ##__VA_ARGS__)
 
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
   INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
@@ -302,7 +300,7 @@ const uint64_t kNoId = 0;
 
 class TraceEventHelper {
  public:
-  static v8::TracingController* GetTracingController();
+  V8_EXPORT_PRIVATE static v8::TracingController* GetTracingController();
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -629,9 +627,11 @@ class ScopedTracer {
   ScopedTracer() : p_data_(nullptr) {}
 
   ~ScopedTracer() {
-    if (p_data_ && *data_.category_group_enabled)
+    if (p_data_ && base::Relaxed_Load(reinterpret_cast<const base::Atomic8*>(
+                       data_.category_group_enabled))) {
       TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION(
           data_.category_group_enabled, data_.name, data_.event_handle);
+    }
   }
 
   void Initialize(const uint8_t* category_group_enabled, const char* name,

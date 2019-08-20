@@ -17,18 +17,21 @@ function f(o) {
   return result;
 }
 
+%PrepareFunctionForOptimization(f);
 f(o1);
 f(o1);
 f(o1);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(1000, f(o1));
 
+%PrepareFunctionForOptimization(f);
 f(o2);
 f(o2);
 f(o2);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(1100, f(o2));
 
+%PrepareFunctionForOptimization(f);
 f(o3);
 f(o3);
 f(o3);
@@ -53,6 +56,7 @@ assertEquals(1200, f(o3));
    return g(1, o[h()]--, 10);
   }
 
+  %PrepareFunctionForOptimization(test);
   test(global);
   test(global);
   %OptimizeFunctionOnNextCall(test);
@@ -65,6 +69,7 @@ assertEquals(1200, f(o3));
    this[0, ""]--;
   }
 
+  %PrepareFunctionForOptimization(test);
   test();
   test();
   %OptimizeFunctionOnNextCall(test);

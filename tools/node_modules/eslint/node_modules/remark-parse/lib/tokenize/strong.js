@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:strong
- * @fileoverview Tokenise strong.
- */
-
 'use strict';
 
 var trim = require('trim');
@@ -18,7 +10,6 @@ strong.locator = locate;
 var C_ASTERISK = '*';
 var C_UNDERSCORE = '_';
 
-/* Tokenise strong. */
 function strong(eat, value, silent) {
   var self = this;
   var index = 0;

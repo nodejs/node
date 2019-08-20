@@ -31,6 +31,7 @@ function f3(a) {
   f2(new C().bar.call(), Object(), String);
 }
 
+%PrepareFunctionForOptimization(f3);
 f3(new Array(1));
 f3(new Array(1));
 %OptimizeFunctionOnNextCall(f3);

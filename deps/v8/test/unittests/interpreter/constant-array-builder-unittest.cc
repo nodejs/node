@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/ast/ast-value-factory.h"
-#include "src/factory.h"
-#include "src/handles-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -18,8 +19,8 @@ namespace interpreter {
 
 class ConstantArrayBuilderTest : public TestWithIsolateAndZone {
  public:
-  ConstantArrayBuilderTest() {}
-  ~ConstantArrayBuilderTest() override {}
+  ConstantArrayBuilderTest() = default;
+  ~ConstantArrayBuilderTest() override = default;
 
   static const size_t k8BitCapacity = ConstantArrayBuilder::k8BitCapacity;
   static const size_t k16BitCapacity = ConstantArrayBuilder::k16BitCapacity;
@@ -34,7 +35,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   for (size_t i = 0; i < k16BitCapacity; i++) {
     builder.Insert(i + 0.5);
   }
@@ -84,7 +85,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
   CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   static const int kNumberOfElements = 37373;
   for (int i = 0; i < kNumberOfElements; i++) {
     builder.CommitReservedEntry(builder.CreateReservedEntry(), Smi::FromInt(i));
@@ -104,7 +105,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(zone());
     AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                                isolate()->heap()->HashSeed());
+                                HashSeed(isolate()));
     for (size_t i = 0; i < reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
       CHECK_EQ(operand_size, OperandSize::kByte);
@@ -138,7 +139,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       CHECK_EQ(operand_size, OperandSize::kByte);
     }
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
-      Smi* value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
+      Smi value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
       size_t index = builder.CommitReservedEntry(OperandSize::kByte, value);
       CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
@@ -155,14 +156,14 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
 
     // Check all committed values match expected
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
-      Object* value = constant_array->get(static_cast<int>(i));
-      Smi* smi = Smi::FromInt(static_cast<int>(i));
-      CHECK(value->SameValue(smi));
+      Object value = constant_array->get(static_cast<int>(i));
+      Smi smi = Smi::FromInt(static_cast<int>(i));
+      CHECK(value.SameValue(smi));
     }
     for (size_t i = k8BitCapacity; i < 2 * k8BitCapacity + reserved; i++) {
-      Object* value = constant_array->get(static_cast<int>(i));
-      Smi* smi = Smi::FromInt(static_cast<int>(i - reserved));
-      CHECK(value->SameValue(smi));
+      Object value = constant_array->get(static_cast<int>(i));
+      Smi smi = Smi::FromInt(static_cast<int>(i - reserved));
+      CHECK(value.SameValue(smi));
     }
   }
 }
@@ -172,7 +173,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(zone());
     AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                                isolate()->heap()->HashSeed());
+                                HashSeed(isolate()));
     for (size_t i = 0; i < k8BitCapacity; i++) {
       builder.CommitReservedEntry(builder.CreateReservedEntry(),
                                   Smi::FromInt(static_cast<int>(i)));
@@ -207,8 +208,8 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
     CHECK_EQ(constant_array->length(),
              static_cast<int>(k8BitCapacity + reserved));
     for (size_t i = 0; i < k8BitCapacity + reserved; i++) {
-      Object* value = constant_array->get(static_cast<int>(i));
-      CHECK(value->SameValue(*isolate()->factory()->NewNumberFromSize(i)));
+      Object value = constant_array->get(static_cast<int>(i));
+      CHECK(value.SameValue(*isolate()->factory()->NewNumberFromSize(i)));
     }
   }
 }
@@ -217,7 +218,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK_EQ(OperandSize::kByte, operand_size);
@@ -237,11 +238,11 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(2 * k8BitCapacity));
   for (size_t i = 0; i < k8BitCapacity; i++) {
-    Object* original = constant_array->get(static_cast<int>(k8BitCapacity + i));
-    Object* duplicate = constant_array->get(static_cast<int>(i));
-    CHECK(original->SameValue(duplicate));
+    Object original = constant_array->get(static_cast<int>(k8BitCapacity + i));
+    Object duplicate = constant_array->get(static_cast<int>(i));
+    CHECK(original.SameValue(duplicate));
     Handle<Object> reference = isolate()->factory()->NewNumberFromSize(i);
-    CHECK(original->SameValue(*reference));
+    CHECK(original.SameValue(*reference));
   }
 }
 
@@ -283,7 +284,7 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
   static int k8BitCapacity = ConstantArrayBuilder::k8BitCapacity;
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   for (int i = 0; i < kNumberOfHoles; ++i) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
   }
@@ -303,20 +304,20 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), k8BitCapacity + 1);
   for (int i = kNumberOfHoles; i < k8BitCapacity; i++) {
-    CHECK(constant_array->get(i)->SameValue(
+    CHECK(constant_array->get(i).SameValue(
         *isolate()->factory()->the_hole_value()));
   }
   CHECK(!constant_array->get(kNumberOfHoles - 1)
-             ->SameValue(*isolate()->factory()->the_hole_value()));
+             .SameValue(*isolate()->factory()->the_hole_value()));
   CHECK(!constant_array->get(k8BitCapacity)
-             ->SameValue(*isolate()->factory()->the_hole_value()));
+             .SameValue(*isolate()->factory()->the_hole_value()));
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
   CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   for (int i = 0; i < 256; i++) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
   }
@@ -353,7 +354,7 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
     } else {
       expected = isolate()->factory()->the_hole_value();
     }
-    CHECK(constant_array->get(i)->SameValue(*expected));
+    CHECK(constant_array->get(i).SameValue(*expected));
   }
 }
 

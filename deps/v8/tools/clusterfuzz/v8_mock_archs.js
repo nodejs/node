@@ -15,15 +15,10 @@
   var mock = function(arrayType) {
     var handler = {
       construct: function(target, args) {
-        var arrayLength = args[0]
-        if (args.length > 0 &&
-            Number.isInteger(args[0]) &&
-            args[0] > 1048576) {
-          args[0] = 1048576
-        } else if (args.length > 2 &&
-                   Number.isInteger(args[2]) &&
-                   args[2] > 1048576) {
-          args[2] = 1048576
+        for (let i = 0; i < args.length; i++) {
+          if (typeof args[i] != "object") {
+            args[i] = Math.min(1048576, args[i]);
+          }
         }
         return new (
             Function.prototype.bind.apply(arrayType, [null].concat(args)));
@@ -40,6 +35,8 @@
   Uint16Array = mock(Uint16Array);
   Int32Array = mock(Int32Array);
   Uint32Array = mock(Uint32Array);
+  BigInt64Array = mock(BigInt64Array);
+  BigUint64Array = mock(BigUint64Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
@@ -54,6 +51,8 @@
     Uint16Array,
     Int32Array,
     Uint32Array,
+    BigInt64Array,
+    BigUint64Array,
     Float32Array,
     Float64Array,
   ];

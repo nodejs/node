@@ -19,7 +19,7 @@ class RerunProc(base.TestProcProducer):
     self._rerun_total_left = rerun_max_total
 
   def _next_test(self, test):
-    self._send_next_subtest(test)
+    return self._send_next_subtest(test)
 
   def _result_for(self, test, subtest, result):
     # First result
@@ -52,7 +52,7 @@ class RerunProc(base.TestProcProducer):
 
   def _send_next_subtest(self, test, run=0):
     subtest = self._create_subtest(test, str(run + 1), keep_output=(run != 0))
-    self._send_test(subtest)
+    return self._send_test(subtest)
 
   def _finalize_test(self, test):
     del self._rerun[test.procid]

@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_C_SIGNATURE_H_
 #define V8_COMPILER_C_SIGNATURE_H_
 
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
 
 namespace v8 {
 namespace internal {
@@ -29,8 +29,8 @@ namespace compiler {
 
 template <typename T>
 inline constexpr MachineType MachineTypeForC() {
-  static_assert(std::is_convertible<T, Object*>::value,
-                "all non-specialized types must be convertible to Object*");
+  static_assert(std::is_convertible<T, Object>::value,
+                "all non-specialized types must be convertible to Object");
   return MachineType::AnyTagged();
 }
 
@@ -110,11 +110,11 @@ class CSignatureOf : public CSignature {
   MachineType storage_[kReturnCount + kParamCount];
 };
 
-typedef CSignatureOf<int32_t, int32_t, int32_t> CSignature_i_ii;
-typedef CSignatureOf<uint32_t, uint32_t, uint32_t> CSignature_u_uu;
-typedef CSignatureOf<float, float, float> CSignature_f_ff;
-typedef CSignatureOf<double, double, double> CSignature_d_dd;
-typedef CSignatureOf<Object*, Object*, Object*> CSignature_o_oo;
+using CSignature_i_ii = CSignatureOf<int32_t, int32_t, int32_t>;
+using CSignature_u_uu = CSignatureOf<uint32_t, uint32_t, uint32_t>;
+using CSignature_f_ff = CSignatureOf<float, float, float>;
+using CSignature_d_dd = CSignatureOf<double, double, double>;
+using CSignature_o_oo = CSignatureOf<Object, Object, Object>;
 
 }  // namespace compiler
 }  // namespace internal

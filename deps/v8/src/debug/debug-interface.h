@@ -5,11 +5,12 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
+#include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
 
+#include "src/common/globals.h"
 #include "src/debug/interface-types.h"
-#include "src/globals.h"
 
 namespace v8 {
 
@@ -20,6 +21,7 @@ struct CoverageScript;
 struct TypeProfileEntry;
 struct TypeProfileScript;
 class Coverage;
+class PostponeInterruptsScope;
 class Script;
 class TypeProfile;
 }  // namespace internal
@@ -29,51 +31,16 @@ namespace debug {
 void SetContextId(Local<Context> context, int id);
 int GetContextId(Local<Context> context);
 
-/**
- * Debugger is running in its own context which is entered while debugger
- * messages are being dispatched. This is an explicit getter for this
- * debugger context. Note that the content of the debugger context is subject
- * to change. The Context exists only when the debugger is active, i.e. at
- * least one DebugEventListener or MessageHandler is set.
- */
-Local<Context> GetDebugContext(Isolate* isolate);
+void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
+v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
-/**
- * Run a JavaScript function in the debugger.
- * \param fun the function to call
- * \param data passed as second argument to the function
- * With this call the debugger is entered and the function specified is called
- * with the execution state as the first argument. This makes it possible to
- * get access to information otherwise not available during normal JavaScript
- * execution e.g. details on stack frames. Receiver of the function call will
- * be the debugger context global object, however this is a subject to change.
- * The following example shows a JavaScript function which when passed to
- * v8::Debug::Call will return the current line of JavaScript execution.
- *
- * \code
- *   function frame_source_line(exec_state) {
- *     return exec_state.frame(0).sourceLine();
- *   }
- * \endcode
- */
-// TODO(dcarney): data arg should be a MaybeLocal
-MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
-                       Local<Value> data = Local<Value>());
-
-/**
- * Enable/disable LiveEdit functionality for the given Isolate
- * (default Isolate if not provided). V8 will abort if LiveEdit is
- * unexpectedly used. LiveEdit is enabled by default.
- */
-V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
-
-// Schedule a debugger break to happen when JavaScript code is run
-// in the given isolate.
-void DebugBreak(Isolate* isolate);
+// Schedule a debugger break to happen when function is called inside given
+// isolate.
+V8_EXPORT_PRIVATE void SetBreakOnNextFunctionCall(Isolate* isolate);
 
 // Remove scheduled debugger break in given isolate if it has not
 // happened yet.
-void CancelDebugBreak(Isolate* isolate);
+V8_EXPORT_PRIVATE void ClearBreakOnNextFunctionCall(Isolate* isolate);
 
 /**
  * Returns array of internal properties specific to the value type. Result has
@@ -81,6 +48,20 @@ void CancelDebugBreak(Isolate* isolate);
  * will be allocated in the current context.
  */
 MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
+
+/**
+ * Returns array of private fields specific to the value type. Result has
+ * the following format: [<name>, <value>,...,<name>, <value>]. Result array
+ * will be allocated in the current context.
+ */
+V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateFields(Local<Context> context,
+                                                     Local<Object> value);
+
+/**
+ * Forwards to v8::Object::CreationContext, but with special handling for
+ * JSGlobalProxy objects.
+ */
+Local<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
@@ -108,19 +89,32 @@ enum StepAction {
 
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
-void BreakRightNow(Isolate* isolate);
+V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
 
 bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 
-/**
- * Out-of-memory callback function.
- * The function is invoked when the heap size is close to the hard limit.
- *
- * \param data the parameter provided during callback installation.
- */
-typedef void (*OutOfMemoryCallback)(void* data);
-void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
-                            void* data);
+class Script;
+
+struct LiveEditResult {
+  enum Status {
+    OK,
+    COMPILE_ERROR,
+    BLOCKED_BY_RUNNING_GENERATOR,
+    BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME,
+    BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME,
+    BLOCKED_BY_ACTIVE_FUNCTION,
+    BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME,
+    FRAME_RESTART_IS_NOT_SUPPORTED
+  };
+  Status status = OK;
+  bool stack_changed = false;
+  // Available only for OK.
+  v8::Local<v8::debug::Script> script;
+  // Fields below are available only for COMPILE_ERROR.
+  v8::Local<v8::String> message;
+  int line_number = -1;
+  int column_number = -1;
+};
 
 /**
  * Native wrapper around v8::internal::Script object.
@@ -150,9 +144,10 @@ class V8_EXPORT_PRIVATE Script {
   int GetSourceOffset(const debug::Location& location) const;
   v8::debug::Location GetSourceLocation(int offset) const;
   bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
-                       bool* stack_changed) const;
+                       LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
+  bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
 };
 
 // Specialization for wasm Scripts.
@@ -166,30 +161,32 @@ class WasmScript : public Script {
   std::pair<int, int> GetFunctionRange(int function_index) const;
 
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
+  uint32_t GetFunctionHash(int function_index);
 };
 
-void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
+V8_EXPORT_PRIVATE void GetLoadedScripts(
+    Isolate* isolate,
+    PersistentValueVector<Script>& scripts);  // NOLINT(runtime/references)
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
+enum ExceptionType { kException, kPromiseRejection };
+
 class DebugDelegate {
  public:
-  virtual ~DebugDelegate() {}
-  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
-                                    bool is_blackboxed) {}
+  virtual ~DebugDelegate() = default;
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
-      v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
+      v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
-                               v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
-                               v8::Local<v8::Value> promise, bool is_uncaught) {
-  }
+                               v8::Local<v8::Value> promise, bool is_uncaught,
+                               ExceptionType exception_type) {}
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {
@@ -197,24 +194,24 @@ class DebugDelegate {
   }
 };
 
-void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
+V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
+                                        DebugDelegate* listener);
+
+class AsyncEventDelegate {
+ public:
+  virtual ~AsyncEventDelegate() = default;
+  virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
+                                  bool is_blackboxed) = 0;
+};
+
+void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
 
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
 
-v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
-                                         v8::Local<v8::Value> value,
-                                         bool* is_key_value);
-
-enum Builtin {
-  kObjectKeys,
-  kObjectGetPrototypeOf,
-  kObjectGetOwnPropertyDescriptor,
-  kObjectGetOwnPropertyNames,
-  kObjectGetOwnPropertySymbols,
-};
+enum Builtin { kStringToLowerCase };
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
@@ -245,25 +242,6 @@ class GeneratorObject {
 class V8_EXPORT_PRIVATE Coverage {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Coverage);
-
-  enum Mode {
-    // Make use of existing information in feedback vectors on the heap.
-    // Only return a yes/no result. Optimization and GC are not affected.
-    // Collecting best effort coverage does not reset counters.
-    kBestEffort,
-    // Disable optimization and prevent feedback vectors from being garbage
-    // collected in order to preserve precise invocation counts. Collecting
-    // precise count coverage resets counters to get incremental updates.
-    kPreciseCount,
-    // We are only interested in a yes/no result for the function. Optimization
-    // and GC can be allowed once a function has been invoked. Collecting
-    // precise binary coverage resets counters for incremental updates.
-    kPreciseBinary,
-    // Similar to the precise coverage modes but provides coverage at a
-    // lower granularity. Design doc: goo.gl/lA2swZ.
-    kBlockCount,
-    kBlockBinary,
-  };
 
   // Forward declarations.
   class ScriptData;
@@ -331,7 +309,7 @@ class V8_EXPORT_PRIVATE Coverage {
   static Coverage CollectPrecise(Isolate* isolate);
   static Coverage CollectBestEffort(Isolate* isolate);
 
-  static void SelectMode(Isolate* isolate, Mode mode);
+  static void SelectMode(Isolate* isolate, CoverageMode mode);
 
   size_t ScriptCount() const;
   ScriptData GetScriptData(size_t i) const;
@@ -350,10 +328,6 @@ class V8_EXPORT_PRIVATE TypeProfile {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeProfile);
 
-  enum Mode {
-    kNone,
-    kCollect,
-  };
   class ScriptData;  // Forward declaration.
 
   class V8_EXPORT_PRIVATE Entry {
@@ -393,7 +367,7 @@ class V8_EXPORT_PRIVATE TypeProfile {
 
   static TypeProfile Collect(Isolate* isolate);
 
-  static void SelectMode(Isolate* isolate, Mode mode);
+  static void SelectMode(Isolate* isolate, TypeProfileMode mode);
 
   size_t ScriptCount() const;
   ScriptData GetScriptData(size_t i) const;
@@ -405,7 +379,7 @@ class V8_EXPORT_PRIVATE TypeProfile {
   std::shared_ptr<i::TypeProfile> type_profile_;
 };
 
-class ScopeIterator {
+class V8_EXPORT_PRIVATE ScopeIterator {
  public:
   static std::unique_ptr<ScopeIterator> CreateForFunction(
       v8::Isolate* isolate, v8::Local<v8::Function> func);
@@ -431,7 +405,9 @@ class ScopeIterator {
   virtual void Advance() = 0;
   virtual ScopeType GetType() = 0;
   virtual v8::Local<v8::Object> GetObject() = 0;
-  virtual v8::Local<v8::Function> GetFunction() = 0;
+  virtual v8::Local<v8::Value> GetFunctionDebugName() = 0;
+  virtual int GetScriptId() = 0;
+  virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
 
@@ -442,7 +418,7 @@ class ScopeIterator {
   DISALLOW_COPY_AND_ASSIGN(ScopeIterator);
 };
 
-class StackTraceIterator {
+class V8_EXPORT_PRIVATE StackTraceIterator {
  public:
   static std::unique_ptr<StackTraceIterator> Create(Isolate* isolate,
                                                     int index = 0);
@@ -455,7 +431,7 @@ class StackTraceIterator {
   virtual int GetContextId() const = 0;
   virtual v8::MaybeLocal<v8::Value> GetReceiver() const = 0;
   virtual v8::Local<v8::Value> GetReturnValue() const = 0;
-  virtual v8::Local<v8::String> GetFunctionName() const = 0;
+  virtual v8::Local<v8::String> GetFunctionDebugName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;
   virtual debug::Location GetSourceLocation() const = 0;
   virtual v8::Local<v8::Function> GetFunction() const = 0;
@@ -487,19 +463,78 @@ void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 enum class NativeAccessorType {
   None = 0,
   HasGetter = 1 << 0,
-  HasSetter = 1 << 1,
-  IsBuiltin = 1 << 2
+  HasSetter = 1 << 1
 };
-
-int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
-                                v8::Local<v8::Object> object,
-                                v8::Local<v8::Name> name);
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
-v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
-                                         v8::Local<v8::String> source);
+V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
+    v8::Isolate* isolate, v8::Local<v8::String> source,
+    bool throw_on_side_effect);
 
+int GetDebuggingId(v8::Local<v8::Function> function);
+
+bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                           v8::Local<v8::String> condition, BreakpointId* id);
+
+v8::Platform* GetCurrentPlatform();
+
+class PostponeInterruptsScope {
+ public:
+  explicit PostponeInterruptsScope(v8::Isolate* isolate);
+  ~PostponeInterruptsScope();
+
+ private:
+  std::unique_ptr<i::PostponeInterruptsScope> scope_;
+};
+
+class WeakMap : public v8::Object {
+ public:
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key,
+      v8::Local<v8::Value> value);
+
+  V8_EXPORT_PRIVATE static Local<WeakMap> New(v8::Isolate* isolate);
+  V8_INLINE static WeakMap* Cast(Value* obj);
+
+ private:
+  WeakMap();
+};
+
+struct PropertyDescriptor {
+  bool enumerable : 1;
+  bool has_enumerable : 1;
+  bool configurable : 1;
+  bool has_configurable : 1;
+  bool writable : 1;
+  bool has_writable : 1;
+  v8::Local<v8::Value> value;
+  v8::Local<v8::Value> get;
+  v8::Local<v8::Value> set;
+};
+
+class PropertyIterator {
+ public:
+  static std::unique_ptr<PropertyIterator> Create(v8::Local<v8::Object> object);
+
+  virtual ~PropertyIterator() = default;
+
+  virtual bool Done() const = 0;
+  virtual void Advance() = 0;
+
+  virtual v8::Local<v8::Name> name() const = 0;
+
+  virtual bool is_native_accessor() = 0;
+  virtual bool has_native_getter() = 0;
+  virtual bool has_native_setter() = 0;
+  virtual Maybe<PropertyAttribute> attributes() = 0;
+  virtual Maybe<PropertyDescriptor> descriptor() = 0;
+
+  virtual bool is_own() = 0;
+  virtual bool is_array_index() = 0;
+};
 }  // namespace debug
 }  // namespace v8
 

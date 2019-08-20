@@ -37,8 +37,9 @@ static void CheckSlowSample(const std::vector<uint64_t>& sample, uint64_t max,
   }
 }
 
-static void TestNextSample(RandomNumberGenerator& rng, uint64_t max,
-                           size_t size, bool slow = false) {
+static void TestNextSample(
+    RandomNumberGenerator& rng,  // NOLINT(runtime/references)
+    uint64_t max, size_t size, bool slow = false) {
   std::vector<uint64_t> sample =
       slow ? rng.NextSampleSlow(max, size) : rng.NextSample(max, size);
 
@@ -244,9 +245,9 @@ TEST_P(RandomNumberGeneratorTest, NextSampleSlowExcludedMax2) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(RandomSeeds, RandomNumberGeneratorTest,
-                        ::testing::Values(INT_MIN, -1, 0, 1, 42, 100,
-                                          1234567890, 987654321, INT_MAX));
+INSTANTIATE_TEST_SUITE_P(RandomSeeds, RandomNumberGeneratorTest,
+                         ::testing::Values(INT_MIN, -1, 0, 1, 42, 100,
+                                           1234567890, 987654321, INT_MAX));
 
 }  // namespace base
 }  // namespace v8

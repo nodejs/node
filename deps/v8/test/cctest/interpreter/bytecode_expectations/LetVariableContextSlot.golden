@@ -9,16 +9,14 @@ wrap: yes
 snippet: "
   let x = 10; function f1() {return x;}
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 15
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
-                B(PushContext), R(1),
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
@@ -26,7 +24,7 @@ bytecodes: [
   /*   72 S> */ B(Return),
 ]
 constant pool: [
-  SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -35,16 +33,14 @@ handlers: [
 snippet: "
   let x = 10; function f1() {return x;} return x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 16
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
-                B(PushContext), R(1),
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
@@ -52,7 +48,7 @@ bytecodes: [
   /*   81 S> */ B(Return),
 ]
 constant pool: [
-  SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -61,29 +57,27 @@ handlers: [
 snippet: "
   let x = (x = 20); function f1() {return x;}
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 25
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
-                B(PushContext), R(1),
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(20),
-                B(Star), R(2),
+                B(Star), R(1),
                 B(LdaCurrentContextSlot), U8(4),
   /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(1),
-                B(Ldar), R(2),
+                B(Ldar), R(1),
                 B(StaCurrentContextSlot), U8(4),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaUndefined),
   /*   78 S> */ B(Return),
 ]
 constant pool: [
-  SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
@@ -93,16 +87,14 @@ handlers: [
 snippet: "
   let x = 10; x = 20; function f1() {return x;}
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 19
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
-                B(PushContext), R(1),
+                B(CreateFunctionContext), U8(0), U8(1),
+                B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(10),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
@@ -112,7 +104,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
 ]

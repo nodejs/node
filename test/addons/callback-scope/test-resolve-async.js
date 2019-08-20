@@ -4,9 +4,9 @@ const common = require('../../common');
 const assert = require('assert');
 const { testResolveAsync } = require(`./build/${common.buildType}/binding`);
 
-common.crashOnUnhandledRejection();
+// Checks that resolving promises from C++ works.
 
 let called = false;
 testResolveAsync().then(() => { called = true; });
 
-setTimeout(() => { assert(called); }, common.platformTimeout(50));
+process.on('beforeExit', () => { assert(called); });

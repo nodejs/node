@@ -22,6 +22,7 @@ function f(x) {
   return Number.isNaN(+x);
 }
 
+%PrepareFunctionForOptimization(f);
 test(f);
 test(f);
 %OptimizeFunctionOnNextCall(f);

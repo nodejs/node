@@ -9,11 +9,11 @@ var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 
-var root = path.resolve(__dirname, 'ignore-install-link')
+var root = common.pkg
 var pkg = path.resolve(root, 'pkg')
 var dep = path.resolve(root, 'dep')
 var target = path.resolve(pkg, 'node_modules', 'dep')
-var cache = path.resolve(root, 'cache')
+var cache = common.cache
 var globalPath = path.resolve(root, 'global')
 
 var pkgj = {

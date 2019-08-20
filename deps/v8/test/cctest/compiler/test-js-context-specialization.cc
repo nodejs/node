@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/factory.h"
-#include "src/objects-inl.h"
-#include "src/property.h"
+#include "src/compiler/simplified-operator.h"
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -22,15 +24,18 @@ namespace compiler {
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
-      : graph_(new (main_zone()) Graph(main_zone())),
+      : canonical_(main_isolate()),
+        graph_(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
-        reducer_(main_zone(), graph()),
-        spec_(&reducer_, jsgraph(), context, MaybeHandle<JSFunction>()) {}
+        reducer_(main_zone(), graph(), &tick_counter_),
+        js_heap_broker_(main_isolate(), main_zone(), FLAG_trace_heap_broker),
+        spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
+              MaybeHandle<JSFunction>()) {}
 
   JSContextSpecialization* spec() { return &spec_; }
   Factory* factory() { return main_isolate()->factory(); }
@@ -48,6 +53,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
                                         size_t expected_new_depth);
 
  private:
+  TickCounter tick_counter_;
+  CanonicalHandleScope canonical_;
   Graph* graph_;
   CommonOperatorBuilder common_;
   JSOperatorBuilder javascript_;
@@ -55,6 +62,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
   GraphReducer reducer_;
+  JSHeapBroker js_heap_broker_;
   JSContextSpecialization spec_;
 };
 
@@ -70,16 +78,16 @@ void ContextSpecializationTester::CheckChangesToValue(
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
     Node* node, Handle<Context> expected_new_context_object,
     size_t expected_new_depth) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  ContextAccess access = ContextAccessOf(node->op());
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
 
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(IrOpcode::kHeapConstant, new_context->opcode());
   HeapObjectMatcher match(new_context);
-  CHECK_EQ(*match.Value(), *expected_new_context_object);
+  CHECK_EQ(Context::cast(*match.Value()), *expected_new_context_object);
 
-  ContextAccess new_access = OpParameter<ContextAccess>(r.replacement());
+  ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
   CHECK_EQ(new_access.index(), access.index());
   CHECK_EQ(new_access.immutable(), access.immutable());
@@ -87,14 +95,14 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
 
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
     Node* node, Node* expected_new_context, size_t expected_new_depth) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  ContextAccess access = ContextAccessOf(node->op());
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
 
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(new_context, expected_new_context);
 
-  ContextAccess new_access = OpParameter<ContextAccess>(r.replacement());
+  ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
   CHECK_EQ(new_access.index(), access.index());
   CHECK_EQ(new_access.immutable(), access.immutable());
@@ -148,8 +156,8 @@ TEST(ReduceJSLoadContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
-    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
+    CHECK_EQ(*native, Context::cast(*match.Value()));
+    ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());
@@ -178,15 +186,15 @@ TEST(ReduceJSLoadContext1) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -248,9 +256,9 @@ TEST(ReduceJSLoadContext2) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Handle<HeapObject> slot_value0 = t.factory()->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
@@ -262,10 +270,10 @@ TEST(ReduceJSLoadContext2) {
   context_object1->set(slot_index, *slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(context_object1);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -339,15 +347,16 @@ TEST(ReduceJSLoadContext3) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()),
+                          handle_zone_scope.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* load = t.graph()->NewNode(
@@ -452,8 +461,8 @@ TEST(ReduceJSStoreContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
-    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
+    CHECK_EQ(*native, Context::cast(*match.Value()));
+    ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());
@@ -465,15 +474,15 @@ TEST(ReduceJSStoreContext1) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =
@@ -509,9 +518,9 @@ TEST(ReduceJSStoreContext2) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()), t.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Handle<HeapObject> slot_value0 = t.factory()->InternalizeUtf8String("0");
   Handle<HeapObject> slot_value1 = t.factory()->InternalizeUtf8String("1");
@@ -523,10 +532,10 @@ TEST(ReduceJSStoreContext2) {
   context_object1->set(slot_index, *slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(context_object1);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =
@@ -574,15 +583,16 @@ TEST(ReduceJSStoreContext3) {
 
   Node* start = t.graph()->NewNode(t.common()->Start(2));
   t.graph()->SetStart(start);
-  Node* undefined = t.jsgraph()->Constant(t.factory()->undefined_value());
+  Handle<ScopeInfo> empty(ScopeInfo::Empty(t.main_isolate()),
+                          handle_zone_scope.main_isolate());
   const i::compiler::Operator* create_function_context =
-      t.javascript()->CreateFunctionContext(42, FUNCTION_SCOPE);
+      t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
   Node* context0 = t.graph()->NewNode(t.common()->Parameter(0), start);
-  Node* context1 = t.graph()->NewNode(create_function_context, undefined,
-                                      context0, start, start);
-  Node* context2 = t.graph()->NewNode(create_function_context, undefined,
-                                      context1, start, start);
+  Node* context1 =
+      t.graph()->NewNode(create_function_context, context0, start, start);
+  Node* context2 =
+      t.graph()->NewNode(create_function_context, context1, start, start);
 
   {
     Node* store =

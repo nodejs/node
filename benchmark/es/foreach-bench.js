@@ -12,19 +12,18 @@ function useFor(n, items, count) {
   bench.start();
   for (var i = 0; i < n; i++) {
     for (var j = 0; j < count; j++) {
-      /* eslint-disable no-unused-vars */
+      // eslint-disable-next-line no-unused-vars
       const item = items[j];
-      /* esline-enable no-unused-vars */
     }
   }
   bench.end(n);
 }
 
 function useForOf(n, items) {
-  var item;
   bench.start();
   for (var i = 0; i < n; i++) {
-    for (item of items) {}
+    // eslint-disable-next-line no-unused-vars
+    for (const item of items) {}
   }
   bench.end(n);
 }
@@ -33,9 +32,8 @@ function useForIn(n, items) {
   bench.start();
   for (var i = 0; i < n; i++) {
     for (var j in items) {
-      /* eslint-disable no-unused-vars */
+      // eslint-disable-next-line no-unused-vars
       const item = items[j];
-      /* esline-enable no-unused-vars */
     }
   }
   bench.end(n);

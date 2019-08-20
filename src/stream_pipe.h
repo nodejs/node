@@ -10,7 +10,7 @@ namespace node {
 class StreamPipe : public AsyncWrap {
  public:
   StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
-  ~StreamPipe();
+  ~StreamPipe() override;
 
   void Unpipe();
 
@@ -18,19 +18,22 @@ class StreamPipe : public AsyncWrap {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unpipe(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(StreamPipe)
+  SET_SELF_SIZE(StreamPipe)
 
  private:
-  StreamBase* source();
-  StreamBase* sink();
+  inline StreamBase* source();
+  inline StreamBase* sink();
 
-  void ShutdownWritable();
-  void FlushToWritable();
+  inline void ShutdownWritable();
 
   bool is_reading_ = false;
   bool is_writing_ = false;
   bool is_eof_ = false;
   bool is_closed_ = true;
+  bool sink_destroyed_ = false;
+  bool source_destroyed_ = false;
 
   // Set a default value so that when we’re coming from Start(), we know
   // that we don’t want to read just yet.
@@ -38,7 +41,7 @@ class StreamPipe : public AsyncWrap {
   // `OnStreamWantsWrite()` support.
   size_t wanted_data_ = 0;
 
-  void ProcessData(size_t nread, const uv_buf_t& buf);
+  void ProcessData(size_t nread, AllocatedBuffer&& buf);
 
   class ReadableListener : public StreamListener {
    public:

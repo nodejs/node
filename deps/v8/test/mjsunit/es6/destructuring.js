@@ -1190,3 +1190,13 @@
   assertEquals(undefined, eval('try {throw {foo: 1, bar: 2}} catch({foo}) {}'));
   assertEquals(undefined, eval('try {throw [1, 2, 3]} catch([x]) {}'));
 })();
+
+// Property access as declaration target.
+assertThrows("let [o.x=1]=[]", SyntaxError);
+assertThrows("let {x:o.f=1}={x:1}", SyntaxError);
+assertThrows("(o.f=1)=>0", SyntaxError);
+
+// Invalidly parenthesized declaration targets.
+assertThrows("for (({x}) of [{x:1}]) {}", SyntaxError);
+assertThrows("for (var ({x}) of [{x:1}]) {}", SyntaxError);
+assertThrows("for await (({x}) of [{x:1}]) {}", SyntaxError);

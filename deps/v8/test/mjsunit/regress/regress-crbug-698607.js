@@ -6,16 +6,16 @@
 
 function assertSame(expected, found) {
   if (found === expected) {
-  } else if ((expected !== expected) && (found !== found)) {
+  } else if (expected !== expected && found !== found) {
   }
 }
 
 function foo() {
-  var x = {var: 0.5};
+  var x = {var : 0.5};
   assertSame(x, x.val);
   return () => x;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo(1);
 foo(1);
 %OptimizeFunctionOnNextCall(foo);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
@@ -26,7 +27,7 @@ typedef enum OPTION_choice {
     OPT_NOOUT, OPT_NAMEOPT, OPT_MD
 } OPTION_CHOICE;
 
-OPTIONS crl_options[] = {
+const OPTIONS crl_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"inform", OPT_INFORM, 'F', "Input format; default PEM"},
     {"in", OPT_IN, '<', "Input file - default stdin"},
@@ -69,8 +70,6 @@ int crl_main(int argc, char **argv)
     X509_OBJECT *xobj = NULL;
     EVP_PKEY *pkey;
     const EVP_MD *digest = EVP_sha1();
-    unsigned long nmflag = 0;
-    char nmflag_set = 0;
     char *infile = NULL, *outfile = NULL, *crldiff = NULL, *keyfile = NULL;
     const char *CAfile = NULL, *CApath = NULL, *prog;
     OPTION_CHOICE o;
@@ -169,8 +168,7 @@ int crl_main(int argc, char **argv)
             badsig = 1;
             break;
         case OPT_NAMEOPT:
-            nmflag_set = 1;
-            if (!set_name_ex(&nmflag, opt_arg()))
+            if (!set_nameopt(opt_arg()))
                 goto opthelp;
             break;
         case OPT_MD:
@@ -181,9 +179,6 @@ int crl_main(int argc, char **argv)
     argc = opt_num_rest();
     if (argc != 0)
         goto opthelp;
-
-    if (!nmflag_set)
-        nmflag = XN_FLAG_ONELINE;
 
     x = load_crl(infile, informat);
     if (x == NULL)
@@ -260,7 +255,7 @@ int crl_main(int argc, char **argv)
         for (i = 1; i <= num; i++) {
             if (issuer == i) {
                 print_name(bio_out, "issuer=", X509_CRL_get_issuer(x),
-                           nmflag);
+                           get_nameopt());
             }
             if (crlnumber == i) {
                 ASN1_INTEGER *crlnum;
@@ -319,7 +314,7 @@ int crl_main(int argc, char **argv)
         goto end;
 
     if (text)
-        X509_CRL_print(out, x);
+        X509_CRL_print_ex(out, x, get_nameopt());
 
     if (noout) {
         ret = 0;
@@ -343,5 +338,5 @@ int crl_main(int argc, char **argv)
     X509_CRL_free(x);
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
-    return (ret);
+    return ret;
 }

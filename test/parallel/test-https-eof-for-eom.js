@@ -75,7 +75,7 @@ server.listen(0, common.mustCall(function() {
     server.close();
     console.log('3) Client got response headers.');
 
-    assert.strictEqual('gws', res.headers.server);
+    assert.strictEqual(res.headers.server, 'gws');
 
     res.setEncoding('utf8');
     res.on('data', function(s) {
@@ -84,7 +84,7 @@ server.listen(0, common.mustCall(function() {
 
     res.on('end', common.mustCall(function() {
       console.log('5) Client got "end" event.');
-      assert.strictEqual('hello world\nhello world\n', bodyBuffer);
+      assert.strictEqual(bodyBuffer, 'hello world\nhello world\n');
     }));
   }));
 }));

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/api.h"
-#include "src/objects-inl.h"
+#include "src/api/api.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -97,6 +97,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   caller_context->Global()->Set(caller_context, object_key, object).ToChecked();
   const char script[] =
       "function f() { object.property; object.property = 0; } "
+      "%PrepareFunctionForOptimization(f); "
       "f(); f(); "
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
@@ -154,6 +155,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
   caller_context->Global()->Set(caller_context, object_key, object).ToChecked();
   const char script[] =
       "function f() { object.property; object.property = 0; } "
+      "%PrepareFunctionForOptimization(f);"
       "f(); f(); "
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
@@ -209,6 +211,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       .ToChecked();
   const char script[] =
       "function f() { Interface.property; Interface.property = 0; } "
+      "%PrepareFunctionForOptimization(f);"
       "f(); f(); "
       "%OptimizeFunctionOnNextCall(f); "
       "f();";

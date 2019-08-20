@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -98,7 +98,7 @@ sub unrolledloopbody {
 for ($i=0;$i<4;$i++) {
 $code.=<<___;
 	ldo	1($XX[0]),$XX[1]
-	`sprintf("$LDX	%$TY(%$key),%$dat1") if ($i>0)`	
+	`sprintf("$LDX	%$TY(%$key),%$dat1") if ($i>0)`
 	and	$mask,$XX[1],$XX[1]
 	$LDX	$YY($key),$TY
 	$MKX	$YY,$key,$ix
@@ -166,7 +166,7 @@ RC4
 	ldo	`2*$SZ`($key),$key
 
 	ldi	0xff,$mask
-	ldi	3,$dat0		
+	ldi	3,$dat0
 
 	ldo	1($XX[0]),$XX[0]	; warm up loop
 	and	$mask,$XX[0],$XX[0]
@@ -313,9 +313,21 @@ L\$opts
 	.STRINGZ "rc4(4x,`$SZ==1?"char":"int"`)"
 	.STRINGZ "RC4 for PA-RISC, CRYPTOGAMS by <appro\@openssl.org>"
 ___
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/cmpib,\*/comib,/gm	if ($SIZE_T==4);
-$code =~ s/\bbv\b/bve/gm	if ($SIZE_T==8);
 
-print $code;
+if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+	=~ /GNU assembler/) {
+    $gnuas = 1;
+}
+
+foreach(split("\n",$code)) {
+	s/\`([^\`]*)\`/eval $1/ge;
+
+	s/(\.LEVEL\s+2\.0)W/$1w/	if ($gnuas && $SIZE_T==8);
+	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
+	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
+	s/cmpib,\*/comib,/		if ($SIZE_T==4);
+	s/\bbv\b/bve/			if ($SIZE_T==8);
+
+	print $_,"\n";
+}
 close STDOUT;

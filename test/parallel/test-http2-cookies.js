@@ -14,7 +14,7 @@ const setCookie = [
   'e=f'
 ];
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall(onStream));
 
 function onStream(stream, headers, flags) {
@@ -48,8 +48,7 @@ server.on('listening', common.mustCall(() => {
 
   req.on('response', common.mustCall((headers) => {
     assert(Array.isArray(headers['set-cookie']));
-    assert.deepStrictEqual(headers['set-cookie'], setCookie,
-                           'set-cookie header does not match');
+    assert.deepStrictEqual(headers['set-cookie'], setCookie);
   }));
 
   req.on('end', common.mustCall(() => {

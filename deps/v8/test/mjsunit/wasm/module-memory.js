@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kMemSize = 65536;
@@ -160,13 +159,15 @@ function testOOBThrows() {
     assertEquals(0, write());
   }
 
-
+  // Note that this test might be run concurrently in multiple Isolates, which
+  // makes an exact comparison of the expected trap count unreliable. But is is
+  // still possible to check the lower bound for the expected trap count.
   for (offset = 65534; offset < 66536; offset++) {
     const trap_count = %GetWasmRecoveredTrapCount();
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
     if (%IsWasmTrapHandlerEnabled()) {
-      assertEquals(trap_count + 2, %GetWasmRecoveredTrapCount());
+      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
     }
   }
 }
@@ -174,22 +175,25 @@ function testOOBThrows() {
 testOOBThrows();
 
 function testAddressSpaceLimit() {
-  // 1TiB, see wasm-memory.h
-  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024;
-  const kAddressSpacePerMemory = 8 * 1024 * 1024 * 1024;
+  // 1TiB + 4 GiB, see wasm-memory.h
+  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024
+                         + 4 * 1024 * 1024 * 1024;
+  const kAddressSpacePerMemory = 10 * 1024 * 1024 * 1024;
 
+  let last_memory;
   try {
     let memories = [];
     let address_space = 0;
     while (address_space <= kMaxAddressSpace + 1) {
-      memories.push(new WebAssembly.Memory({initial: 1}));
+      last_memory = new WebAssembly.Memory({initial: 1})
+      memories.push(last_memory);
       address_space += kAddressSpacePerMemory;
     }
   } catch (e) {
     assertTrue(e instanceof RangeError);
     return;
   }
-  failWithMessage("allocated too much memory");
+  assertUnreachable("should have reached the address space limit");
 }
 
 if(%IsWasmTrapHandlerEnabled()) {

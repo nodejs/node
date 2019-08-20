@@ -37,11 +37,16 @@ function f(e, x) {
     // and 'e' binds to the exception.
     function write_0(v) { e = v }
     function write_1(v) { x = v }
+    // Make sure write_0 and write_1 are 'used' so that they are visible to the
+    // debugger.
+    write_0, write_1;
     debugger;
     assertEquals("foo", e);  // overwritten by the debugger
   }
   assertEquals("argument", e);  // debugger did not overwrite
   function write_2(v) { e = v }
+  // Make sure write_2 is 'used' so that it is visible to the debugger.
+  write_2;
   debugger;
   assertEquals("bar", e);
   assertEquals("modified", x);

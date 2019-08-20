@@ -26,10 +26,8 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-assert.strictEqual(typeof global.gc, 'function',
-                   'Run this test with --expose-gc');
-
-common.globalCheck = false;
+if (typeof global.gc !== 'function')
+  assert.fail('Run this test with --expose-gc');
 
 // Run a string
 const result = vm.runInNewContext('\'passed\';');
@@ -74,22 +72,29 @@ global.gc();
 fn();
 // Should not crash
 
-{
-  // Verify that providing a custom filename as a string argument works.
+const filename = 'test_file.vm';
+for (const arg of [filename, { filename }]) {
+  // Verify that providing a custom filename works.
   const code = 'throw new Error("foo");';
-  const file = 'test_file.vm';
 
   assert.throws(() => {
-    vm.runInNewContext(code, {}, file);
+    vm.runInNewContext(code, {}, arg);
   }, (err) => {
     const lines = err.stack.split('\n');
 
-    assert.strictEqual(lines[0].trim(), `${file}:1`);
+    assert.strictEqual(lines[0].trim(), `${filename}:1`);
     assert.strictEqual(lines[1].trim(), code);
     // Skip lines[2] and lines[3]. They're just a ^ and blank line.
     assert.strictEqual(lines[4].trim(), 'Error: foo');
-    assert.strictEqual(lines[5].trim(), `at ${file}:1:7`);
+    assert.strictEqual(lines[5].trim(), `at ${filename}:1:7`);
     // The rest of the stack is uninteresting.
     return true;
   });
 }
+
+common.allowGlobals(
+  global.hello,
+  global.code,
+  global.foo,
+  global.obj
+);

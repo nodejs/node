@@ -1,10 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 
 const assert = require('assert');
-const async_wrap = process.binding('async_wrap');
+const { internalBinding } = require('internal/test/binding');
+const async_wrap = internalBinding('async_wrap');
 const { kTotals } = async_wrap.constants;
 const inspector = require('inspector');
 

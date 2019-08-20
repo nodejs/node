@@ -9,8 +9,8 @@
 #include <string>
 
 #include "src/base/platform/elapsed-timer.h"
-#include "src/compilation-statistics.h"
 #include "src/compiler/zone-stats.h"
+#include "src/diagnostics/compilation-statistics.h"
 
 namespace v8 {
 namespace internal {
@@ -20,8 +20,8 @@ class PhaseScope;
 
 class PipelineStatistics : public Malloced {
  public:
-  PipelineStatistics(CompilationInfo* info, Isolate* isolate,
-                     ZoneStats* zone_stats);
+  PipelineStatistics(OptimizedCompilationInfo* info,
+                     CompilationStatistics* turbo_stats, ZoneStats* zone_stats);
   ~PipelineStatistics();
 
   void BeginPhaseKind(const char* phase_kind_name);
@@ -56,7 +56,6 @@ class PipelineStatistics : public Malloced {
   void BeginPhase(const char* name);
   void EndPhase();
 
-  Isolate* isolate_;
   Zone* outer_zone_;
   ZoneStats* zone_stats_;
   CompilationStatistics* compilation_stats_;

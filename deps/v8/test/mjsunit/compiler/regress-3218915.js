@@ -42,6 +42,7 @@ function observe(x, y) { try {} finally {} return x; }
 function test(x) { return observe(this, ((0, side_effect()), x + 1)); }
 
 // Run test enough times to get it optimized.
+%PrepareFunctionForOptimization(test);
 for (var i = 0; i < 5; ++i) test(0);
 %OptimizeFunctionOnNextCall(test);
 test(0);

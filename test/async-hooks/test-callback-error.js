@@ -19,7 +19,7 @@ switch (arg) {
       onbefore: common.mustCall(() => { throw new Error(arg); })
     }).enable();
     const resource = new async_hooks.AsyncResource(`${arg}_type`);
-    resource.emitBefore();
+    resource.runInAsyncScope(() => {});
     return;
 
   case 'test_callback_abort':
@@ -30,7 +30,7 @@ switch (arg) {
     return;
 }
 
-// this part should run only for the master test
+// This part should run only for the master test
 assert.ok(!arg);
 {
   // console.log should stay until this test's flakiness is solved
@@ -58,10 +58,6 @@ assert.ok(!arg);
 {
   console.log('start case 3');
   console.time('end case 3');
-  // Timeout is set because this case is known to be problematic, so stderr is
-  // logged for further analysis.
-  // Ref: https://github.com/nodejs/node/issues/13527
-  // Ref: https://github.com/nodejs/node/pull/13559
   const opts = {
     execArgv: ['--abort-on-uncaught-exception'],
     silent: true
@@ -78,21 +74,13 @@ assert.ok(!arg);
     stderr += data;
   });
 
-  const tO = setTimeout(() => {
-    console.log(stderr);
-    child.kill('SIGKILL');
-    process.exit(1);
-  }, 15 * 1000);
-  tO.unref();
-
   child.on('close', (code, signal) => {
-    clearTimeout(tO);
     if (common.isWindows) {
       assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
     } else {
       assert.strictEqual(code, null);
-      // most posix systems will show 'SIGABRT', but alpine34 does not
+      // Most posix systems will show 'SIGABRT', but alpine34 does not
       if (signal !== 'SIGABRT') {
         console.log(`parent received signal ${signal}\nchild's stderr:`);
         console.log(stderr);

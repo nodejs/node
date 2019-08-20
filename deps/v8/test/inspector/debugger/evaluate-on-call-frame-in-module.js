@@ -14,11 +14,14 @@ export function foo1() {
   let g1 = 2;
   debugger;
   return a1 + b1 + c1 + g1;
-}`;
+};
+export default 42;
+`;
 
 var module2 = `
 import { foo1 } from 'module1';
 let a2 = 20;
+export * as mod1 from 'module1';
 export let b2 = 21;
 export function foo2() {
   let c2 = 22;

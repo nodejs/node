@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable no-use-before-define */
 var test = require('tap').test
 var sortActions = require('../../lib/install/diff-trees.js').sortActions
 var top = {

@@ -3,7 +3,7 @@
 var url = require('url')
 var qs = require('qs')
 var caseless = require('caseless')
-var uuid = require('uuid')
+var uuid = require('uuid/v4')
 var oauth = require('oauth-sign')
 var crypto = require('crypto')
 var Buffer = require('safe-buffer').Buffer
@@ -71,7 +71,7 @@ OAuth.prototype.buildBodyHash = function (_oauth, body) {
   shasum.update(body || '')
   var sha1 = shasum.digest('hex')
 
-  return Buffer.from(sha1).toString('base64')
+  return Buffer.from(sha1, 'hex').toString('base64')
 }
 
 OAuth.prototype.concatParams = function (oa, sep, wrap) {

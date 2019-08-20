@@ -37,7 +37,7 @@ var options = {
 };
 
 var req = https.request(options, function(res) {
-  assert.strictEqual(200, res.statusCode);
+  assert.strictEqual(res.statusCode, 200);
   gotResponse = true;
   console.error('DONE');
   res.resume();

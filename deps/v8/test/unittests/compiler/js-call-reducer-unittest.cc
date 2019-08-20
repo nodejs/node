@@ -4,13 +4,14 @@
 
 #include <cctype>
 
-#include "src/compilation-dependencies.h"
+#include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/factory.h"
-#include "src/feedback-vector.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
+#include "src/objects/feedback-vector.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
@@ -21,8 +22,10 @@ namespace compiler {
 class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
-  ~JSCallReducerTest() override {}
+      : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {
+    broker()->SerializeStandardObjects();
+  }
+  ~JSCallReducerTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {
@@ -31,38 +34,34 @@ class JSCallReducerTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, JSCallReducer::kNoFlags,
-                          native_context(), &deps_);
+    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
+                          JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);
   }
 
   JSOperatorBuilder* javascript() { return &javascript_; }
 
-  static void SetUpTestCase() {
-    old_flag_lazy_ = i::FLAG_lazy_deserialization;
-    old_flag_lazy_handler_ = i::FLAG_lazy_handler_deserialization;
-    i::FLAG_lazy_deserialization = false;
-    i::FLAG_lazy_handler_deserialization = false;
-    TypedGraphTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    TypedGraphTest::TearDownTestCase();
-    i::FLAG_lazy_deserialization = old_flag_lazy_;
-    i::FLAG_lazy_handler_deserialization = old_flag_lazy_handler_;
+  Node* GlobalFunction(const char* name) {
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        Object::GetProperty(
+            isolate(), isolate()->global_object(),
+            isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return HeapConstant(f);
   }
 
   Node* MathFunction(const std::string& name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Math"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
+            isolate(), m,
+            isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -70,12 +69,25 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* StringFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("String"))
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return HeapConstant(f);
+  }
+
+  Node* NumberFunction(const char* name) {
+    Handle<Object> m =
+        JSObject::GetProperty(
+            isolate(), isolate()->global_object(),
+            isolate()->factory()->NewStringFromAsciiChecked("Number"))
+            .ToHandleChecked();
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        Object::GetProperty(
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -92,11 +104,16 @@ class JSCallReducerTest : public TypedGraphTest {
     spec.AddCallICSlot();
     Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate(), &spec);
     Handle<SharedFunctionInfo> shared =
-        isolate()->factory()->NewSharedFunctionInfo(
-            isolate()->factory()->empty_string(), MaybeHandle<Code>(), false);
-    shared->set_feedback_metadata(*metadata);
-    Handle<FeedbackVector> vector = FeedbackVector::New(isolate(), shared);
-    VectorSlotPair feedback(vector, FeedbackSlot(0));
+        isolate()->factory()->NewSharedFunctionInfoForBuiltin(
+            isolate()->factory()->empty_string(), Builtins::kIllegal);
+    // Set the raw feedback metadata to circumvent checks that we are not
+    // overwriting existing metadata.
+    shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+        ClosureFeedbackCellArray::New(isolate(), shared);
+    Handle<FeedbackVector> vector =
+        FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
+    VectorSlotPair feedback(vector, FeedbackSlot(0), UNINITIALIZED);
     return javascript()->Call(arity, CallFrequency(), feedback,
                               ConvertReceiverMode::kAny,
                               SpeculationMode::kAllowSpeculation);
@@ -105,13 +122,11 @@ class JSCallReducerTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
-
-  static bool old_flag_lazy_;
-  static bool old_flag_lazy_handler_;
 };
 
 TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -127,8 +142,10 @@ TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
 }
 
 TEST_F(JSCallReducerTest, PromiseConstructorSubclass) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
-  Node* new_target = HeapConstant(handle(native_context()->array_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
+  Node* new_target =
+      HeapConstant(handle(native_context()->array_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -145,7 +162,8 @@ TEST_F(JSCallReducerTest, PromiseConstructorSubclass) {
 }
 
 TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -168,7 +186,8 @@ TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
 // Exactly the same as PromiseConstructorBasic which expects a reduction,
 // except that we invalidate the protector cell.
 TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
-  Node* promise = HeapConstant(handle(native_context()->promise_function()));
+  Node* promise =
+      HeapConstant(handle(native_context()->promise_function(), isolate()));
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
@@ -185,9 +204,6 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
 
   ASSERT_FALSE(r.Changed());
 }
-
-bool JSCallReducerTest::old_flag_lazy_;
-bool JSCallReducerTest::old_flag_lazy_handler_;
 
 // -----------------------------------------------------------------------------
 // Math unaries
@@ -407,7 +423,7 @@ TEST_F(JSCallReducerTest, MathMaxWithTwoArguments) {
 // -----------------------------------------------------------------------------
 // String.fromCharCode
 
-TEST_F(JSCallReducerTest, StringFromCharCodeWithNumber) {
+TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithNumber) {
   Node* function = StringFunction("fromCharCode");
 
   Node* effect = graph()->start();
@@ -420,10 +436,11 @@ TEST_F(JSCallReducerTest, StringFromCharCodeWithNumber) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsStringFromCharCode(IsSpeculativeToNumber(p0)));
+  EXPECT_THAT(r.replacement(),
+              IsStringFromSingleCharCode(IsSpeculativeToNumber(p0)));
 }
 
-TEST_F(JSCallReducerTest, StringFromCharCodeWithPlainPrimitive) {
+TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithPlainPrimitive) {
   Node* function = StringFunction("fromCharCode");
 
   Node* effect = graph()->start();
@@ -436,7 +453,145 @@ TEST_F(JSCallReducerTest, StringFromCharCodeWithPlainPrimitive) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsStringFromCharCode(IsSpeculativeToNumber(p0)));
+  EXPECT_THAT(r.replacement(),
+              IsStringFromSingleCharCode(IsSpeculativeToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Number.isFinite
+
+TEST_F(JSCallReducerTest, NumberIsFinite) {
+  Node* function = NumberFunction("isFinite");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
+                                context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsObjectIsFiniteNumber(p0));
+}
+
+// -----------------------------------------------------------------------------
+// Number.isInteger
+
+TEST_F(JSCallReducerTest, NumberIsIntegerWithNumber) {
+  Node* function = NumberFunction("isInteger");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call =
+      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+                       context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsObjectIsInteger(p0));
+}
+
+// -----------------------------------------------------------------------------
+// Number.isNaN
+
+TEST_F(JSCallReducerTest, NumberIsNaNWithNumber) {
+  Node* function = NumberFunction("isNaN");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call =
+      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+                       context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsObjectIsNaN(p0));
+}
+
+// -----------------------------------------------------------------------------
+// Number.isSafeInteger
+
+TEST_F(JSCallReducerTest, NumberIsSafeIntegerWithIntegral32) {
+  Node* function = NumberFunction("isSafeInteger");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call =
+      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+                       context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsObjectIsSafeInteger(p0));
+}
+
+// -----------------------------------------------------------------------------
+// isFinite
+
+TEST_F(JSCallReducerTest, GlobalIsFiniteWithNumber) {
+  Node* function = GlobalFunction("isFinite");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
+                                context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberIsFinite(IsSpeculativeToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// isNaN
+
+TEST_F(JSCallReducerTest, GlobalIsNaN) {
+  Node* function = GlobalFunction("isNaN");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
+                                context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberIsNaN(IsSpeculativeToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Number.parseInt
+
+TEST_F(JSCallReducerTest, NumberParseInt) {
+  Node* function = NumberFunction("parseInt");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* p1 = Parameter(Type::Any(), 1);
+  Node* call = graph()->NewNode(Call(4), function, UndefinedConstant(), p0, p1,
+                                context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsJSParseInt(p0, p1));
 }
 
 }  // namespace compiler

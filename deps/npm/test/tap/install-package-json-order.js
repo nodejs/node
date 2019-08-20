@@ -5,10 +5,11 @@ var mkdirp = require('mkdirp')
 var spawn = require('child_process').spawn
 var npm = require.resolve('../../bin/npm-cli.js')
 var node = process.execPath
-var pkg = path.resolve(__dirname, 'install-package-json-order')
+const common = require('../common-tap.js')
+var pkg = common.pkg
 var workdir = path.join(pkg, 'workdir')
 var tmp = path.join(pkg, 'tmp')
-var cache = path.join(pkg, 'cache')
+var cache = common.cache
 var fs = require('fs')
 var osenv = require('osenv')
 

@@ -7,11 +7,11 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var opts = { cwd: __dirname }
-var pkg = path.resolve(__dirname, 'adduser-legacy-auth')
+var opts = { cwd: common.pkg }
+var pkg = common.pkg
 var outfile = path.resolve(pkg, '_npmrc')
 
-var contents = '_auth=' + new Buffer('u:x').toString('base64') + '\n' +
+var contents = '_auth=' + Buffer.from('u:x').toString('base64') + '\n' +
                'registry=https://nonexistent.lvh.me/registry\n' +
                'email=u@p.me\n'
 
@@ -25,8 +25,11 @@ function mocks (server) {
   server.filteringRequestBody(function (r) {
     if (r.match(/"_id":"org\.couchdb\.user:u"/)) {
       return 'auth'
+    } else {
+      return 'invalid'
     }
   })
+  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:u', 'auth')
     .reply(409, { error: 'user exists' })
   server.get('/-/user/org.couchdb.user:u?write=true')
@@ -35,10 +38,11 @@ function mocks (server) {
     '/-/user/org.couchdb.user:u/-rev/3-deadcafebabebeef',
     'auth',
     { authorization: 'Basic dTpw' }
-    ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
+  ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
 }
 
 test('setup', function (t) {
+  rimraf.sync(pkg)
   mkdirp(pkg, function (er) {
     t.ifError(er, pkg + ' made successfully')
 
@@ -62,8 +66,8 @@ test('npm login', function (t) {
       opts,
       function (err, code, stdout, stderr) {
         if (err) throw err
-        t.is(code, 0, 'exited OK')
         t.is(stderr, '', 'no error output')
+        t.is(code, 0, 'exited OK')
         var config = fs.readFileSync(outfile, 'utf8')
         t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
         s.close()

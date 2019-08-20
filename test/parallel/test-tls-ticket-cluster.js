@@ -40,14 +40,17 @@ if (cluster.isMaster) {
   let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting', workerPort);
+    console.error('[master] connecting', workerPort, 'session?', !!lastSession);
     const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
-    }, function() {
-      lastSession = c.getSession();
+    }, () => {
       c.end();
-
+    }).on('close', () => {
+      // Wait for close to shoot off another connection. We don't want to shoot
+      // until a new session is allocated, if one will be. The new session is
+      // not guaranteed on secureConnect (it depends on TLS1.2 vs TLS1.3), but
+      // it is guaranteed to happen before the connection is closed.
       if (++reqCount === expectedReqCount) {
         Object.keys(cluster.workers).forEach(function(id) {
           cluster.workers[id].send('die');
@@ -55,12 +58,17 @@ if (cluster.isMaster) {
       } else {
         shoot();
       }
+    }).once('session', (session) => {
+      assert(!lastSession);
+      lastSession = session;
     });
+
+    c.resume(); // See close_notify comment in server
   }
 
   function fork() {
     const worker = cluster.fork();
-    worker.on('message', function({ msg, port }) {
+    worker.on('message', ({ msg, port }) => {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
@@ -71,7 +79,7 @@ if (cluster.isMaster) {
       }
     });
 
-    worker.on('exit', function() {
+    worker.on('exit', () => {
       console.error('[master] worker died');
     });
   }
@@ -79,28 +87,31 @@ if (cluster.isMaster) {
     fork();
   }
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.strictEqual(reqCount, expectedReqCount);
     assert.strictEqual(reusedCount + 1, reqCount);
   });
   return;
 }
 
-const key = fixtures.readSync('agent.key');
-const cert = fixtures.readSync('agent.crt');
+const key = fixtures.readKey('rsa_private.pem');
+const cert = fixtures.readKey('rsa_cert.crt');
 
 const options = { key, cert };
 
-const server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, (c) => {
+  console.error('[worker] connection reused?', c.isSessionReused());
   if (c.isSessionReused()) {
     process.send({ msg: 'reused' });
   } else {
     process.send({ msg: 'not-reused' });
   }
-  c.end();
+  // Used to just .end(), but that means client gets close_notify before
+  // NewSessionTicket. Send data until that problem is solved.
+  c.end('x');
 });
 
-server.listen(0, function() {
+server.listen(0, () => {
   const { port } = server.address();
   process.send({
     msg: 'listening',
@@ -111,7 +122,7 @@ server.listen(0, function() {
 process.on('message', function listener(msg) {
   console.error('[worker] got %j', msg);
   if (msg === 'die') {
-    server.close(function() {
+    server.close(() => {
       console.error('[worker] server close');
 
       process.exit();
@@ -119,6 +130,6 @@ process.on('message', function listener(msg) {
   }
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   console.error('[worker] exit');
 });

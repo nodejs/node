@@ -1,7 +1,10 @@
 #ifndef SRC_NODE_PERF_COMMON_H_
 #define SRC_NODE_PERF_COMMON_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -15,7 +18,6 @@ namespace performance {
 
 // These occur before the environment is created. Cache them
 // here and add them to the milestones when the env is init'd.
-extern uint64_t performance_node_start;
 extern uint64_t performance_v8_start;
 
 #define NODE_PERFORMANCE_MILESTONES(V)                                        \
@@ -24,15 +26,8 @@ extern uint64_t performance_v8_start;
   V(V8_START, "v8Start")                                                      \
   V(LOOP_START, "loopStart")                                                  \
   V(LOOP_EXIT, "loopExit")                                                    \
-  V(BOOTSTRAP_COMPLETE, "bootstrapComplete")                                  \
-  V(THIRD_PARTY_MAIN_START, "thirdPartyMainStart")                            \
-  V(THIRD_PARTY_MAIN_END, "thirdPartyMainEnd")                                \
-  V(CLUSTER_SETUP_START, "clusterSetupStart")                                 \
-  V(CLUSTER_SETUP_END, "clusterSetupEnd")                                     \
-  V(MODULE_LOAD_START, "moduleLoadStart")                                     \
-  V(MODULE_LOAD_END, "moduleLoadEnd")                                         \
-  V(PRELOAD_MODULE_LOAD_START, "preloadModulesLoadStart")                     \
-  V(PRELOAD_MODULE_LOAD_END, "preloadModulesLoadEnd")
+  V(BOOTSTRAP_COMPLETE, "bootstrapComplete")
+
 
 #define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
   V(NODE, "node")                                                             \
@@ -40,7 +35,8 @@ extern uint64_t performance_v8_start;
   V(MEASURE, "measure")                                                       \
   V(GC, "gc")                                                                 \
   V(FUNCTION, "function")                                                     \
-  V(HTTP2, "http2")
+  V(HTTP2, "http2")                                                           \
+  V(HTTP, "http")
 
 enum PerformanceMilestone {
 #define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,
@@ -76,9 +72,11 @@ class performance_state {
       milestones[i] = -1.;
   }
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> root;
-  AliasedBuffer<double, v8::Float64Array> milestones;
-  AliasedBuffer<uint32_t, v8::Uint32Array> observers;
+  AliasedUint8Array root;
+  AliasedFloat64Array milestones;
+  AliasedUint32Array observers;
+
+  uint64_t performance_last_gc_start_mark = 0;
 
   void Mark(enum PerformanceMilestone milestone,
             uint64_t ts = PERFORMANCE_NOW());
@@ -93,5 +91,7 @@ class performance_state {
 
 }  // namespace performance
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_PERF_COMMON_H_

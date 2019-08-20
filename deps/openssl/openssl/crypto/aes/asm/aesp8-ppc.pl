@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -40,6 +40,8 @@
 #		CBC en-/decrypt	CTR	XTS
 # POWER8[le]	3.96/0.72	0.74	1.1
 # POWER8[be]	3.75/0.65	0.66	1.0
+# POWER9[le]	4.02/0.86	0.84	1.05
+# POWER9[be]	3.99/0.78	0.79	0.97
 
 $flavour = shift;
 
@@ -1827,7 +1829,7 @@ Lctr32_enc8x_three:
 	stvx_u		$out1,$x10,$out
 	stvx_u		$out2,$x20,$out
 	addi		$out,$out,0x30
-	b		Lcbc_dec8x_done
+	b		Lctr32_enc8x_done
 
 .align	5
 Lctr32_enc8x_two:
@@ -1839,7 +1841,7 @@ Lctr32_enc8x_two:
 	stvx_u		$out0,$x00,$out
 	stvx_u		$out1,$x10,$out
 	addi		$out,$out,0x20
-	b		Lcbc_dec8x_done
+	b		Lctr32_enc8x_done
 
 .align	5
 Lctr32_enc8x_one:
@@ -3773,7 +3775,7 @@ foreach(split("\n",$code)) {
 	    if ($flavour =~ /le$/o) {
 		SWITCH: for($conv)  {
 		    /\?inv/ && do   { @bytes=map($_^0xf,@bytes); last; };
-		    /\?rev/ && do   { @bytes=reverse(@bytes);    last; }; 
+		    /\?rev/ && do   { @bytes=reverse(@bytes);    last; };
 		}
 	    }
 

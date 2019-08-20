@@ -29,49 +29,38 @@ const crypto = require('crypto');
 const { Certificate } = crypto;
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 // Test Certificates
-const spkacValid = fixtures.readSync('spkac.valid');
-const spkacFail = fixtures.readSync('spkac.fail');
-const spkacPem = fixtures.readSync('spkac.pem');
+const spkacValid = fixtures.readKey('rsa_spkac.spkac');
+const spkacChallenge = 'this-is-a-challenge';
+const spkacFail = fixtures.readKey('rsa_spkac_invalid.spkac');
+const spkacPublicPem = fixtures.readKey('rsa_public.pem');
 
-{
-  // Test instance methods
-  const certificate = new Certificate();
+function checkMethods(certificate) {
 
   assert.strictEqual(certificate.verifySpkac(spkacValid), true);
   assert.strictEqual(certificate.verifySpkac(spkacFail), false);
 
   assert.strictEqual(
     stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
-    stripLineEndings(spkacPem.toString('utf8'))
+    stripLineEndings(spkacPublicPem.toString('utf8'))
   );
   assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
 
   assert.strictEqual(
     certificate.exportChallenge(spkacValid).toString('utf8'),
-    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
+    spkacChallenge
   );
   assert.strictEqual(certificate.exportChallenge(spkacFail), '');
 }
 
 {
+  // Test instance methods
+  checkMethods(new Certificate());
+}
+
+{
   // Test static methods
-  assert.strictEqual(Certificate.verifySpkac(spkacValid), true);
-  assert.strictEqual(Certificate.verifySpkac(spkacFail), false);
-
-  assert.strictEqual(
-    stripLineEndings(Certificate.exportPublicKey(spkacValid).toString('utf8')),
-    stripLineEndings(spkacPem.toString('utf8'))
-  );
-  assert.strictEqual(Certificate.exportPublicKey(spkacFail), '');
-
-  assert.strictEqual(
-    Certificate.exportChallenge(spkacValid).toString('utf8'),
-    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
-  );
-  assert.strictEqual(Certificate.exportChallenge(spkacFail), '');
+  checkMethods(Certificate);
 }
 
 function stripLineEndings(obj) {

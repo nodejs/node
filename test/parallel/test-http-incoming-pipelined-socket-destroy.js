@@ -45,7 +45,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
         server.emit('requestDone');
       });
 
-    // in one case, actually send a response in 2 chunks
+    // In one case, actually send a response in 2 chunks
     case '/3':
       res.write('hello ');
       return setImmediate(function() {
@@ -78,7 +78,7 @@ server.listen(0, common.mustCall(function() {
     countdown.dec();
   });
 
-  // immediately write the pipelined requests.
+  // Immediately write the pipelined requests.
   // Some of these will not have a socket to destroy!
   client.write(generator(seeds));
 }));

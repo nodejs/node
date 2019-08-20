@@ -239,9 +239,9 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
 
   flags = 0;
   if (container->flags & UV_WRITABLE_PIPE)
-    flags |= UV_STREAM_READABLE;
+    flags |= UV_HANDLE_READABLE;
   if (container->flags & UV_READABLE_PIPE)
-    flags |= UV_STREAM_WRITABLE;
+    flags |= UV_HANDLE_WRITABLE;
 
   return uv__stream_open(container->data.stream, pipefds[0], flags);
 }
@@ -249,7 +249,7 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
 
 static void uv__process_close_stream(uv_stdio_container_t* container) {
   if (!(container->flags & UV_CREATE_PIPE)) return;
-  uv__stream_close((uv_stream_t*)container->data.stream);
+  uv__stream_close(container->data.stream);
 }
 
 
@@ -315,7 +315,7 @@ static void uv__process_child_init(const uv_process_options_t* options,
         use_fd = open("/dev/null", fd == 0 ? O_RDONLY : O_RDWR);
         close_fd = use_fd;
 
-        if (use_fd == -1) {
+        if (use_fd < 0) {
           uv__write_int(error_fd, UV__ERR(errno));
           _exit(127);
         }
@@ -385,6 +385,11 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (n == SIGKILL || n == SIGSTOP)
       continue;  /* Can't be changed. */
 
+#if defined(__HAIKU__)
+    if (n == SIGKILLTHR)
+      continue;  /* Can't be changed. */
+#endif
+
     if (SIG_ERR != signal(n, SIG_DFL))
       continue;
 
@@ -431,6 +436,8 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_SETGID |
                               UV_PROCESS_SETUID |
                               UV_PROCESS_WINDOWS_HIDE |
+                              UV_PROCESS_WINDOWS_HIDE_CONSOLE |
+                              UV_PROCESS_WINDOWS_HIDE_GUI |
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);

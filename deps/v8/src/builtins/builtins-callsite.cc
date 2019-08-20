@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean.
+#include "src/logging/counters.h"
 #include "src/objects/frame-array-inl.h"
-#include "src/string-builder.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/stack-frame-info.h"
 
 namespace v8 {
 namespace internal {
@@ -26,9 +26,9 @@ namespace internal {
 
 namespace {
 
-Object* PositiveNumberOrNull(int value, Isolate* isolate) {
+Object PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
-  return isolate->heap()->null_value();
+  return ReadOnlyRoots(isolate).null_value();
 }
 
 Handle<FrameArray> GetFrameArray(Isolate* isolate, Handle<JSObject> object) {
@@ -76,7 +76,10 @@ BUILTIN(CallSitePrototypeGetFunction) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
+
+  isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
+
   return *frame->GetFunction();
 }
 
@@ -112,6 +115,14 @@ BUILTIN(CallSitePrototypeGetPosition) {
   return Smi::FromInt(it.Frame()->GetPosition());
 }
 
+BUILTIN(CallSitePrototypeGetPromiseIndex) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "getPromiseIndex");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetPromiseIndex(), isolate);
+}
+
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getScriptNameOrSourceUrl");
@@ -127,7 +138,10 @@ BUILTIN(CallSitePrototypeGetThis) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
+
+  isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
+
   return *frame->GetReceiver();
 }
 
@@ -137,6 +151,14 @@ BUILTIN(CallSitePrototypeGetTypeName) {
   FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
                         GetFrameIndex(isolate, recv));
   return *it.Frame()->GetTypeName();
+}
+
+BUILTIN(CallSitePrototypeIsAsync) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "isAsync");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsAsync());
 }
 
 BUILTIN(CallSitePrototypeIsConstructor) {
@@ -163,6 +185,14 @@ BUILTIN(CallSitePrototypeIsNative) {
   return isolate->heap()->ToBoolean(it.Frame()->IsNative());
 }
 
+BUILTIN(CallSitePrototypeIsPromiseAll) {
+  HandleScope scope(isolate);
+  CHECK_CALLSITE(recv, "isPromiseAll");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsPromiseAll());
+}
+
 BUILTIN(CallSitePrototypeIsToplevel) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isToplevel");
@@ -174,9 +204,9 @@ BUILTIN(CallSitePrototypeIsToplevel) {
 BUILTIN(CallSitePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "toString");
-  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
-                        GetFrameIndex(isolate, recv));
-  RETURN_RESULT_OR_FAILURE(isolate, it.Frame()->ToString());
+  Handle<StackTraceFrame> frame = isolate->factory()->NewStackTraceFrame(
+      GetFrameArray(isolate, recv), GetFrameIndex(isolate, recv));
+  RETURN_RESULT_OR_FAILURE(isolate, SerializeStackTraceFrame(isolate, frame));
 }
 
 #undef CHECK_CALLSITE

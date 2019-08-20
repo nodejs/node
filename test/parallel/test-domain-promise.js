@@ -5,8 +5,6 @@ const domain = require('domain');
 const fs = require('fs');
 const vm = require('vm');
 
-common.crashOnUnhandledRejection();
-
 {
   const d = domain.create();
 
@@ -52,7 +50,6 @@ common.crashOnUnhandledRejection();
   d2.run(common.mustCall(() => {
     p.then(common.mustCall((v) => {
       assert.strictEqual(process.domain, d2);
-      assert.strictEqual(p.domain, d1);
     }));
   }));
 }
@@ -66,9 +63,8 @@ common.crashOnUnhandledRejection();
   }));
 
   d2.run(common.mustCall(() => {
-    p.then(p.domain.bind(common.mustCall((v) => {
+    p.then(d1.bind(common.mustCall((v) => {
       assert.strictEqual(process.domain, d1);
-      assert.strictEqual(p.domain, d1);
     })));
   }));
 }
@@ -85,7 +81,6 @@ common.crashOnUnhandledRejection();
     d2.run(common.mustCall(() => {
       p.then(common.mustCall((v) => {
         assert.strictEqual(process.domain, d2);
-        assert.strictEqual(p.domain, d1);
       }));
     }));
   }));
@@ -102,7 +97,6 @@ common.crashOnUnhandledRejection();
   d2.run(common.mustCall(() => {
     p.catch(common.mustCall((v) => {
       assert.strictEqual(process.domain, d2);
-      assert.strictEqual(p.domain, d1);
     }));
   }));
 }

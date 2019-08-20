@@ -8,8 +8,8 @@ var unixFormatPath = require('../../lib/utils/unix-format-path.js')
 var File = Tacks.File
 var Dir = Tacks.Dir
 
-var testdir = path.resolve(__dirname, path.basename(__filename, '.js'))
-var cachedir = path.resolve(testdir, 'cache')
+var testdir = common.pkg
+var cachedir = common.cache
 var config = ['--cache=' + cachedir, '--loglevel=error']
 
 var shrinkwrap = {
@@ -20,8 +20,7 @@ var shrinkwrap = {
       version: 'file:' + unixFormatPath(path.join('mods', 'mod2')),
       dependencies: {
         mod1: {
-          version: 'file:' + unixFormatPath(path.join('mods', 'mod1')),
-          bundled: true
+          version: 'file:' + unixFormatPath(path.join('mods', 'mod1'))
         }
       }
     }

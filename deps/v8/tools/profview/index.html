@@ -22,7 +22,7 @@ found in the LICENSE file. -->
   Chrome V8 profiling log processor
 </h3>
 
-<input type="file" id="fileinput" />
+<input type="file" id="fileinput" /><div id="source-status"></div>
 <br>
 <hr>
 
@@ -59,6 +59,10 @@ found in the LICENSE file. -->
   </table>
   <div>
     Current code object: <span id="timeline-currentCode"></span>
+    <button id="source-viewer-hide-button">Hide source</button>
+  </div>
+  <div>
+    <table id="source-viewer"> </table>
   </div>
 </div>
 
@@ -108,7 +112,7 @@ found in the LICENSE file. -->
 <br>
 <br>
 <br>
-Copyright the V8 Authors - Last change to this page: 2017/02/15
+Copyright the V8 Authors - Last change to this page: 2018/08/13
 </p>
 
 </body>

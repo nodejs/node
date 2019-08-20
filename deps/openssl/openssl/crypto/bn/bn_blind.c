@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -82,7 +82,6 @@ void BN_BLINDING_free(BN_BLINDING *r)
 {
     if (r == NULL)
         return;
-
     BN_free(r->A);
     BN_free(r->Ai);
     BN_free(r->e);
@@ -109,17 +108,22 @@ int BN_BLINDING_update(BN_BLINDING *b, BN_CTX *ctx)
         if (!BN_BLINDING_create_param(b, NULL, NULL, ctx, NULL, NULL))
             goto err;
     } else if (!(b->flags & BN_BLINDING_NO_UPDATE)) {
-        if (!BN_mod_mul(b->A, b->A, b->A, b->mod, ctx))
-            goto err;
-        if (!BN_mod_mul(b->Ai, b->Ai, b->Ai, b->mod, ctx))
-            goto err;
+        if (b->m_ctx != NULL) {
+            if (!bn_mul_mont_fixed_top(b->Ai, b->Ai, b->Ai, b->m_ctx, ctx)
+                || !bn_mul_mont_fixed_top(b->A, b->A, b->A, b->m_ctx, ctx))
+                goto err;
+        } else {
+            if (!BN_mod_mul(b->Ai, b->Ai, b->Ai, b->mod, ctx)
+                || !BN_mod_mul(b->A, b->A, b->A, b->mod, ctx))
+                goto err;
+        }
     }
 
     ret = 1;
  err:
     if (b->counter == BN_BLINDING_COUNTER)
         b->counter = 0;
-    return (ret);
+    return ret;
 }
 
 int BN_BLINDING_convert(BIGNUM *n, BN_BLINDING *b, BN_CTX *ctx)
@@ -135,22 +139,22 @@ int BN_BLINDING_convert_ex(BIGNUM *n, BIGNUM *r, BN_BLINDING *b, BN_CTX *ctx)
 
     if ((b->A == NULL) || (b->Ai == NULL)) {
         BNerr(BN_F_BN_BLINDING_CONVERT_EX, BN_R_NOT_INITIALIZED);
-        return (0);
+        return 0;
     }
 
     if (b->counter == -1)
         /* Fresh blinding, doesn't need updating. */
         b->counter = 0;
     else if (!BN_BLINDING_update(b, ctx))
-        return (0);
+        return 0;
 
-    if (r != NULL) {
-        if (!BN_copy(r, b->Ai))
-            ret = 0;
-    }
+    if (r != NULL && (BN_copy(r, b->Ai) == NULL))
+        return 0;
 
-    if (!BN_mod_mul(n, n, b->A, b->mod, ctx))
-        ret = 0;
+    if (b->m_ctx != NULL)
+        ret = BN_mod_mul_montgomery(n, n, b->A, b->m_ctx, ctx);
+    else
+        ret = BN_mod_mul(n, n, b->A, b->mod, ctx);
 
     return ret;
 }
@@ -167,18 +171,33 @@ int BN_BLINDING_invert_ex(BIGNUM *n, const BIGNUM *r, BN_BLINDING *b,
 
     bn_check_top(n);
 
-    if (r != NULL)
-        ret = BN_mod_mul(n, n, r, b->mod, ctx);
-    else {
-        if (b->Ai == NULL) {
-            BNerr(BN_F_BN_BLINDING_INVERT_EX, BN_R_NOT_INITIALIZED);
-            return (0);
+    if (r == NULL && (r = b->Ai) == NULL) {
+        BNerr(BN_F_BN_BLINDING_INVERT_EX, BN_R_NOT_INITIALIZED);
+        return 0;
+    }
+
+    if (b->m_ctx != NULL) {
+        /* ensure that BN_mod_mul_montgomery takes pre-defined path */
+        if (n->dmax >= r->top) {
+            size_t i, rtop = r->top, ntop = n->top;
+            BN_ULONG mask;
+
+            for (i = 0; i < rtop; i++) {
+                mask = (BN_ULONG)0 - ((i - ntop) >> (8 * sizeof(i) - 1));
+                n->d[i] &= mask;
+            }
+            mask = (BN_ULONG)0 - ((rtop - ntop) >> (8 * sizeof(ntop) - 1));
+            /* always true, if (rtop >= ntop) n->top = r->top; */
+            n->top = (int)(rtop & ~mask) | (ntop & mask);
+            n->flags |= (BN_FLG_FIXED_TOP & ~mask);
         }
-        ret = BN_mod_mul(n, n, b->Ai, b->mod, ctx);
+        ret = BN_mod_mul_montgomery(n, n, r, b->m_ctx, ctx);
+    } else {
+        ret = BN_mod_mul(n, n, r, b->mod, ctx);
     }
 
     bn_check_top(n);
-    return (ret);
+    return ret;
 }
 
 int BN_BLINDING_is_current_thread(BN_BLINDING *b)
@@ -251,30 +270,34 @@ BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
 
     do {
         int rv;
-        if (!BN_rand_range(ret->A, ret->mod))
+        if (!BN_priv_rand_range(ret->A, ret->mod))
             goto err;
-        if (!int_bn_mod_inverse(ret->Ai, ret->A, ret->mod, ctx, &rv)) {
-            /*
-             * this should almost never happen for good RSA keys
-             */
-            if (rv) {
-                if (retry_counter-- == 0) {
-                    BNerr(BN_F_BN_BLINDING_CREATE_PARAM,
-                          BN_R_TOO_MANY_ITERATIONS);
-                    goto err;
-                }
-            } else
-                goto err;
-        } else
+        if (int_bn_mod_inverse(ret->Ai, ret->A, ret->mod, ctx, &rv))
             break;
+
+        /*
+         * this should almost never happen for good RSA keys
+         */
+        if (!rv)
+            goto err;
+
+        if (retry_counter-- == 0) {
+            BNerr(BN_F_BN_BLINDING_CREATE_PARAM, BN_R_TOO_MANY_ITERATIONS);
+            goto err;
+        }
     } while (1);
 
     if (ret->bn_mod_exp != NULL && ret->m_ctx != NULL) {
-        if (!ret->bn_mod_exp
-            (ret->A, ret->A, ret->e, ret->mod, ctx, ret->m_ctx))
+        if (!ret->bn_mod_exp(ret->A, ret->A, ret->e, ret->mod, ctx, ret->m_ctx))
             goto err;
     } else {
         if (!BN_mod_exp(ret->A, ret->A, ret->e, ret->mod, ctx))
+            goto err;
+    }
+
+    if (ret->m_ctx != NULL) {
+        if (!bn_to_mont_fixed_top(ret->Ai, ret->Ai, ret->m_ctx, ctx)
+            || !bn_to_mont_fixed_top(ret->A, ret->A, ret->m_ctx, ctx))
             goto err;
     }
 

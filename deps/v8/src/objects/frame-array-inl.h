@@ -6,6 +6,8 @@
 #define V8_OBJECTS_FRAME_ARRAY_INL_H_
 
 #include "src/objects/frame-array.h"
+
+#include "src/objects/foreign-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,34 +16,40 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(FrameArray, FixedArray)
 CAST_ACCESSOR(FrameArray)
 
 #define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
-  type* FrameArray::name(int frame_ix) const {                                \
-    Object* obj =                                                             \
+  type FrameArray::name(int frame_ix) const {                                 \
+    Object obj =                                                              \
         get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
     return type::cast(obj);                                                   \
   }                                                                           \
                                                                               \
-  void FrameArray::Set##name(int frame_ix, type* value) {                     \
+  void FrameArray::Set##name(int frame_ix, type value) {                      \
     set(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset, value); \
   }
 FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
 #undef DEFINE_FRAME_ARRAY_ACCESSORS
 
 bool FrameArray::IsWasmFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
+  const int flags = Flags(frame_ix).value();
   return (flags & kIsWasmFrame) != 0;
 }
 
 bool FrameArray::IsWasmInterpretedFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
+  const int flags = Flags(frame_ix).value();
   return (flags & kIsWasmInterpretedFrame) != 0;
 }
 
 bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
+  const int flags = Flags(frame_ix).value();
   return (flags & kIsAsmJsWasmFrame) != 0;
+}
+
+bool FrameArray::IsAnyWasmFrame(int frame_ix) const {
+  return IsWasmFrame(frame_ix) || IsWasmInterpretedFrame(frame_ix) ||
+         IsAsmJsWasmFrame(frame_ix);
 }
 
 int FrameArray::FrameCount() const {

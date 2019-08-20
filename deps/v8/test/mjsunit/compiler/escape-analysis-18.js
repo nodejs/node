@@ -16,6 +16,7 @@ function foo(array) {
     return bar(array);
 }
 
+%PrepareFunctionForOptimization(foo);
 let array = [,.5,];
 foo(array);
 foo(array);

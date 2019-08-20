@@ -270,15 +270,15 @@ void RBBISetBuilder::buildTrie() {
 }
 
 
-void RBBISetBuilder::mergeCategories(int32_t left, int32_t right) {
-    U_ASSERT(left >= 1);
-    U_ASSERT(right > left);
+void RBBISetBuilder::mergeCategories(IntPair categories) {
+    U_ASSERT(categories.first >= 1);
+    U_ASSERT(categories.second > categories.first);
     for (RangeDescriptor *rd = fRangeList; rd != nullptr; rd = rd->fNext) {
         int32_t rangeNum = rd->fNum & ~DICT_BIT;
         int32_t rangeDict = rd->fNum & DICT_BIT;
-        if (rangeNum == right) {
-            rd->fNum = left | rangeDict;
-        } else if (rangeNum > right) {
+        if (rangeNum == categories.second) {
+            rd->fNum = categories.first | rangeDict;
+        } else if (rangeNum > categories.second) {
             rd->fNum--;
         }
     }

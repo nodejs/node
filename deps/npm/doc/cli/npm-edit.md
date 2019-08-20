@@ -3,12 +3,14 @@ npm-edit(1) -- Edit an installed package
 
 ## SYNOPSIS
 
-    npm edit <pkg>[@<version>]
+    npm edit <pkg>[/<subpkg>...]
 
 ## DESCRIPTION
 
-Opens the package folder in the default editor (or whatever you've
-configured as the npm `editor` config -- see `npm-config(7)`.)
+Selects a (sub)dependency in the current
+working directory and opens the package folder in the default editor
+(or whatever you've configured as the npm `editor` config -- see
+`npm-config(7)`.)
 
 After it has been edited, the package is rebuilt so as to pick up any
 changes in compiled packages.

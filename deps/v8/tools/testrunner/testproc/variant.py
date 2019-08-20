@@ -39,21 +39,22 @@ class VariantProc(base.TestProcProducer):
   def _next_test(self, test):
     gen = self._variants_gen(test)
     self._next_variant[test.procid] = gen
-    self._try_send_new_subtest(test, gen)
+    return self._try_send_new_subtest(test, gen)
 
   def _result_for(self, test, subtest, result):
     gen = self._next_variant[test.procid]
-    self._try_send_new_subtest(test, gen)
+    if not self._try_send_new_subtest(test, gen):
+      self._send_result(test, None)
 
   def _try_send_new_subtest(self, test, variants_gen):
     for variant, flags, suffix in variants_gen:
       subtest = self._create_subtest(test, '%s-%s' % (variant, suffix),
                                      variant=variant, flags=flags)
-      self._send_test(subtest)
-      return
+      if self._send_test(subtest):
+        return True
 
     del self._next_variant[test.procid]
-    self._send_result(test, None)
+    return False
 
   def _variants_gen(self, test):
     """Generator producing (variant, flags, procid suffix) tuples."""

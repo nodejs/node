@@ -34,6 +34,8 @@ const keys = crypto.randomBytes(48);
 const serverLog = [];
 const ticketLog = [];
 
+let s;
+
 let serverCount = 0;
 function createServer() {
   const id = serverCount++;
@@ -47,16 +49,37 @@ function createServer() {
     ticketKeys: keys
   }, function(c) {
     serverLog.push(id);
-    c.end();
+    // TODO(@sam-github) Triggers close_notify before NewSessionTicket bug.
+    // c.end();
+    c.end('x');
 
     counter++;
 
     // Rotate ticket keys
+    //
+    // Take especial care to account for TLS1.2 and TLS1.3 differences around
+    // when ticket keys are encrypted. In TLS1.2, they are encrypted before the
+    // handshake complete callback, but in TLS1.3, they are encrypted after.
+    // There is no callback or way for us to know when they were sent, so hook
+    // the client's reception of the keys, and use it as proof that the current
+    // keys were used, and its safe to rotate them.
+    //
+    // Rotation can occur right away if the session was reused, the keys were
+    // already decrypted or we wouldn't have a reused session.
+    function setTicketKeys(keys) {
+      if (c.isSessionReused())
+        server.setTicketKeys(keys);
+      else
+        s.once('session', () => {
+          server.setTicketKeys(keys);
+        });
+    }
     if (counter === 1) {
       previousKey = server.getTicketKeys();
-      server.setTicketKeys(crypto.randomBytes(48));
+      assert.strictEqual(previousKey.compare(keys), 0);
+      setTicketKeys(crypto.randomBytes(48));
     } else if (counter === 2) {
-      server.setTicketKeys(previousKey);
+      setTicketKeys(previousKey);
     } else if (counter === 3) {
       // Use keys from counter=2
     } else {
@@ -81,17 +104,29 @@ const shared = net.createServer(function(c) {
   });
 });
 
+// 'session' events only occur for new sessions. The first connection is new.
+// After, for each set of 3 connections, the middle connection is made when the
+// server has random keys set, so the client's ticket is silently ignored, and a
+// new ticket is sent.
+const onNewSession = common.mustCall((s, session) => {
+  assert(session);
+  assert.strictEqual(session.compare(s.getSession()), 0);
+}, 4);
+
 function start(callback) {
   let sess = null;
   let left = servers.length;
 
   function connect() {
-    const s = tls.connect(shared.address().port, {
+    s = tls.connect(shared.address().port, {
       session: sess,
       rejectUnauthorized: false
     }, function() {
-      sess = sess || s.getSession();
-      ticketLog.push(s.getTLSTicket().toString('hex'));
+      if (s.isSessionReused())
+        ticketLog.push(s.getTLSTicket().toString('hex'));
+    });
+    s.on('data', () => {
+      s.end();
     });
     s.on('close', function() {
       if (--left === 0)
@@ -99,6 +134,11 @@ function start(callback) {
       else
         connect();
     });
+    s.on('session', (session) => {
+      sess = sess || session;
+    });
+    s.once('session', (session) => onNewSession(s, session));
+    s.once('session', () => ticketLog.push(s.getTLSTicket().toString('hex')));
   }
 
   connect();

@@ -87,7 +87,7 @@ module.exports = {
     ObjectPattern: ["properties"],
     Program: ["body"],
     Property: ["key", "value"],
-    RestElement: [ "argument" ],
+    RestElement: ["argument"],
     ReturnStatement: ["argument"],
     SequenceExpression: ["expressions"],
     SpreadElement: ["argument"],
@@ -119,9 +119,5 @@ module.exports = {
     JSXOpeningElement: ["name", "attributes"],
     JSXAttribute: ["name", "value"],
     JSXText: null,
-    JSXSpreadAttribute: ["argument"],
-
-    // Experimental features
-    ExperimentalRestProperty: ["argument"],
-    ExperimentalSpreadProperty: ["argument"]
+    JSXSpreadAttribute: ["argument"]
 };

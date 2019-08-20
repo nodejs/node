@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,6 +21,7 @@ typedef int sk_cmp_fn_type(const char *const *a, const char *const *b);
 
 static STACK_OF(EVP_PKEY_METHOD) *app_pkey_methods = NULL;
 
+/* This array needs to be in order of NIDs */
 static const EVP_PKEY_METHOD *standard_methods[] = {
 #ifndef OPENSSL_NO_RSA
     &rsa_pkey_meth,
@@ -38,14 +39,34 @@ static const EVP_PKEY_METHOD *standard_methods[] = {
 #ifndef OPENSSL_NO_CMAC
     &cmac_pkey_meth,
 #endif
+#ifndef OPENSSL_NO_RSA
+    &rsa_pss_pkey_meth,
+#endif
 #ifndef OPENSSL_NO_DH
     &dhx_pkey_meth,
+#endif
+#ifndef OPENSSL_NO_SCRYPT
+    &scrypt_pkey_meth,
 #endif
     &tls1_prf_pkey_meth,
 #ifndef OPENSSL_NO_EC
     &ecx25519_pkey_meth,
+    &ecx448_pkey_meth,
 #endif
-    &hkdf_pkey_meth
+    &hkdf_pkey_meth,
+#ifndef OPENSSL_NO_POLY1305
+    &poly1305_pkey_meth,
+#endif
+#ifndef OPENSSL_NO_SIPHASH
+    &siphash_pkey_meth,
+#endif
+#ifndef OPENSSL_NO_EC
+    &ed25519_pkey_meth,
+    &ed448_pkey_meth,
+#endif
+#ifndef OPENSSL_NO_SM2
+    &sm2_pkey_meth,
+#endif
 };
 
 DECLARE_OBJ_BSEARCH_CMP_FN(const EVP_PKEY_METHOD *, const EVP_PKEY_METHOD *,
@@ -83,10 +104,11 @@ static EVP_PKEY_CTX *int_ctx_new(EVP_PKEY *pkey, ENGINE *e, int id)
 {
     EVP_PKEY_CTX *ret;
     const EVP_PKEY_METHOD *pmeth;
+
     if (id == -1) {
-        if (!pkey || !pkey->ameth)
-            return NULL;
-        id = pkey->ameth->pkey_id;
+        if (pkey == NULL)
+            return 0;
+        id = pkey->type;
     }
 #ifndef OPENSSL_NO_ENGINE
     if (e == NULL && pkey != NULL)
@@ -105,7 +127,6 @@ static EVP_PKEY_CTX *int_ctx_new(EVP_PKEY *pkey, ENGINE *e, int id)
      * If an ENGINE handled this method look it up. Otherwise use internal
      * tables.
      */
-
     if (e)
         pmeth = ENGINE_get_pkey_meth(e, id);
     else
@@ -132,7 +153,7 @@ static EVP_PKEY_CTX *int_ctx_new(EVP_PKEY *pkey, ENGINE *e, int id)
     ret->pmeth = pmeth;
     ret->operation = EVP_PKEY_OP_UNDEFINED;
     ret->pkey = pkey;
-    if (pkey)
+    if (pkey != NULL)
         EVP_PKEY_up_ref(pkey);
 
     if (pmeth->init) {
@@ -151,8 +172,10 @@ EVP_PKEY_METHOD *EVP_PKEY_meth_new(int id, int flags)
     EVP_PKEY_METHOD *pmeth;
 
     pmeth = OPENSSL_zalloc(sizeof(*pmeth));
-    if (pmeth == NULL)
+    if (pmeth == NULL) {
+        EVPerr(EVP_F_EVP_PKEY_METH_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
 
     pmeth->pkey_id = id;
     pmeth->flags = flags | EVP_PKEY_FLAG_DYNAMIC;
@@ -207,6 +230,8 @@ void EVP_PKEY_meth_copy(EVP_PKEY_METHOD *dst, const EVP_PKEY_METHOD *src)
 
     dst->ctrl = src->ctrl;
     dst->ctrl_str = src->ctrl_str;
+
+    dst->check = src->check;
 }
 
 void EVP_PKEY_meth_free(EVP_PKEY_METHOD *pmeth)
@@ -238,8 +263,10 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *pctx)
     }
 #endif
     rctx = OPENSSL_malloc(sizeof(*rctx));
-    if (rctx == NULL)
+    if (rctx == NULL) {
+        EVPerr(EVP_F_EVP_PKEY_CTX_DUP, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
 
     rctx->pmeth = pctx->pmeth;
 #ifndef OPENSSL_NO_ENGINE
@@ -273,13 +300,53 @@ int EVP_PKEY_meth_add0(const EVP_PKEY_METHOD *pmeth)
 {
     if (app_pkey_methods == NULL) {
         app_pkey_methods = sk_EVP_PKEY_METHOD_new(pmeth_cmp);
-        if (app_pkey_methods == NULL)
+        if (app_pkey_methods == NULL){
+            EVPerr(EVP_F_EVP_PKEY_METH_ADD0, ERR_R_MALLOC_FAILURE);
             return 0;
+        }
     }
-    if (!sk_EVP_PKEY_METHOD_push(app_pkey_methods, pmeth))
+    if (!sk_EVP_PKEY_METHOD_push(app_pkey_methods, pmeth)) {
+        EVPerr(EVP_F_EVP_PKEY_METH_ADD0, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
     sk_EVP_PKEY_METHOD_sort(app_pkey_methods);
     return 1;
+}
+
+void evp_app_cleanup_int(void)
+{
+    if (app_pkey_methods != NULL)
+        sk_EVP_PKEY_METHOD_pop_free(app_pkey_methods, EVP_PKEY_meth_free);
+}
+
+int EVP_PKEY_meth_remove(const EVP_PKEY_METHOD *pmeth)
+{
+    const EVP_PKEY_METHOD *ret;
+
+    ret = sk_EVP_PKEY_METHOD_delete_ptr(app_pkey_methods, pmeth);
+
+    return ret == NULL ? 0 : 1;
+}
+
+size_t EVP_PKEY_meth_get_count(void)
+{
+    size_t rv = OSSL_NELEM(standard_methods);
+
+    if (app_pkey_methods)
+        rv += sk_EVP_PKEY_METHOD_num(app_pkey_methods);
+    return rv;
+}
+
+const EVP_PKEY_METHOD *EVP_PKEY_meth_get0(size_t idx)
+{
+    if (idx < OSSL_NELEM(standard_methods))
+        return standard_methods[idx];
+    if (app_pkey_methods == NULL)
+        return NULL;
+    idx -= OSSL_NELEM(standard_methods);
+    if (idx >= (size_t)sk_EVP_PKEY_METHOD_num(app_pkey_methods))
+        return NULL;
+    return sk_EVP_PKEY_METHOD_value(app_pkey_methods, idx);
 }
 
 void EVP_PKEY_CTX_free(EVP_PKEY_CTX *ctx)
@@ -300,12 +367,17 @@ int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
                       int cmd, int p1, void *p2)
 {
     int ret;
+
     if (!ctx || !ctx->pmeth || !ctx->pmeth->ctrl) {
         EVPerr(EVP_F_EVP_PKEY_CTX_CTRL, EVP_R_COMMAND_NOT_SUPPORTED);
         return -2;
     }
     if ((keytype != -1) && (ctx->pmeth->pkey_id != keytype))
         return -1;
+
+    /* Skip the operation checks since this is called in a very early stage */
+    if (ctx->pmeth->digest_custom != NULL)
+        goto doit;
 
     if (ctx->operation == EVP_PKEY_OP_UNDEFINED) {
         EVPerr(EVP_F_EVP_PKEY_CTX_CTRL, EVP_R_NO_OPERATION_SET);
@@ -317,13 +389,19 @@ int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
         return -1;
     }
 
+ doit:
     ret = ctx->pmeth->ctrl(ctx, cmd, p1, p2);
 
     if (ret == -2)
         EVPerr(EVP_F_EVP_PKEY_CTX_CTRL, EVP_R_COMMAND_NOT_SUPPORTED);
 
     return ret;
+}
 
+int EVP_PKEY_CTX_ctrl_uint64(EVP_PKEY_CTX *ctx, int keytype, int optype,
+                             int cmd, uint64_t value)
+{
+    return EVP_PKEY_CTX_ctrl(ctx, keytype, optype, cmd, 0, &value);
 }
 
 int EVP_PKEY_CTX_ctrl_str(EVP_PKEY_CTX *ctx,
@@ -333,14 +411,9 @@ int EVP_PKEY_CTX_ctrl_str(EVP_PKEY_CTX *ctx,
         EVPerr(EVP_F_EVP_PKEY_CTX_CTRL_STR, EVP_R_COMMAND_NOT_SUPPORTED);
         return -2;
     }
-    if (strcmp(name, "digest") == 0) {
-        const EVP_MD *md;
-        if (value == NULL || (md = EVP_get_digestbyname(value)) == NULL) {
-            EVPerr(EVP_F_EVP_PKEY_CTX_CTRL_STR, EVP_R_INVALID_DIGEST);
-            return 0;
-        }
-        return EVP_PKEY_CTX_set_signature_md(ctx, md);
-    }
+    if (strcmp(name, "digest") == 0)
+        return EVP_PKEY_CTX_md(ctx, EVP_PKEY_OP_TYPE_SIG, EVP_PKEY_CTRL_MD,
+                               value);
     return ctx->pmeth->ctrl_str(ctx, name, value);
 }
 
@@ -369,6 +442,18 @@ int EVP_PKEY_CTX_hex2ctrl(EVP_PKEY_CTX *ctx, int cmd, const char *hex)
         rv = ctx->pmeth->ctrl(ctx, cmd, binlen, bin);
     OPENSSL_free(bin);
     return rv;
+}
+
+/* Pass a message digest to a ctrl */
+int EVP_PKEY_CTX_md(EVP_PKEY_CTX *ctx, int optype, int cmd, const char *md)
+{
+    const EVP_MD *m;
+
+    if (md == NULL || (m = EVP_get_digestbyname(md)) == NULL) {
+        EVPerr(EVP_F_EVP_PKEY_CTX_MD, EVP_R_INVALID_DIGEST);
+        return 0;
+    }
+    return EVP_PKEY_CTX_ctrl(ctx, -1, optype, cmd, 0, (void *)m);
 }
 
 int EVP_PKEY_CTX_get_operation(EVP_PKEY_CTX *ctx)
@@ -557,26 +642,51 @@ void EVP_PKEY_meth_set_ctrl(EVP_PKEY_METHOD *pmeth,
     pmeth->ctrl_str = ctrl_str;
 }
 
-void EVP_PKEY_meth_get_init(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_set_check(EVP_PKEY_METHOD *pmeth,
+                             int (*check) (EVP_PKEY *pkey))
+{
+    pmeth->check = check;
+}
+
+void EVP_PKEY_meth_set_public_check(EVP_PKEY_METHOD *pmeth,
+                                    int (*check) (EVP_PKEY *pkey))
+{
+    pmeth->public_check = check;
+}
+
+void EVP_PKEY_meth_set_param_check(EVP_PKEY_METHOD *pmeth,
+                                   int (*check) (EVP_PKEY *pkey))
+{
+    pmeth->param_check = check;
+}
+
+void EVP_PKEY_meth_set_digest_custom(EVP_PKEY_METHOD *pmeth,
+                                     int (*digest_custom) (EVP_PKEY_CTX *ctx,
+                                                           EVP_MD_CTX *mctx))
+{
+    pmeth->digest_custom = digest_custom;
+}
+
+void EVP_PKEY_meth_get_init(const EVP_PKEY_METHOD *pmeth,
                             int (**pinit) (EVP_PKEY_CTX *ctx))
 {
     *pinit = pmeth->init;
 }
 
-void EVP_PKEY_meth_get_copy(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_copy(const EVP_PKEY_METHOD *pmeth,
                             int (**pcopy) (EVP_PKEY_CTX *dst,
                                            EVP_PKEY_CTX *src))
 {
     *pcopy = pmeth->copy;
 }
 
-void EVP_PKEY_meth_get_cleanup(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_cleanup(const EVP_PKEY_METHOD *pmeth,
                                void (**pcleanup) (EVP_PKEY_CTX *ctx))
 {
     *pcleanup = pmeth->cleanup;
 }
 
-void EVP_PKEY_meth_get_paramgen(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_paramgen(const EVP_PKEY_METHOD *pmeth,
                                 int (**pparamgen_init) (EVP_PKEY_CTX *ctx),
                                 int (**pparamgen) (EVP_PKEY_CTX *ctx,
                                                    EVP_PKEY *pkey))
@@ -587,7 +697,7 @@ void EVP_PKEY_meth_get_paramgen(EVP_PKEY_METHOD *pmeth,
         *pparamgen = pmeth->paramgen;
 }
 
-void EVP_PKEY_meth_get_keygen(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_keygen(const EVP_PKEY_METHOD *pmeth,
                               int (**pkeygen_init) (EVP_PKEY_CTX *ctx),
                               int (**pkeygen) (EVP_PKEY_CTX *ctx,
                                                EVP_PKEY *pkey))
@@ -598,7 +708,7 @@ void EVP_PKEY_meth_get_keygen(EVP_PKEY_METHOD *pmeth,
         *pkeygen = pmeth->keygen;
 }
 
-void EVP_PKEY_meth_get_sign(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_sign(const EVP_PKEY_METHOD *pmeth,
                             int (**psign_init) (EVP_PKEY_CTX *ctx),
                             int (**psign) (EVP_PKEY_CTX *ctx,
                                            unsigned char *sig, size_t *siglen,
@@ -611,7 +721,7 @@ void EVP_PKEY_meth_get_sign(EVP_PKEY_METHOD *pmeth,
         *psign = pmeth->sign;
 }
 
-void EVP_PKEY_meth_get_verify(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_verify(const EVP_PKEY_METHOD *pmeth,
                               int (**pverify_init) (EVP_PKEY_CTX *ctx),
                               int (**pverify) (EVP_PKEY_CTX *ctx,
                                                const unsigned char *sig,
@@ -625,7 +735,7 @@ void EVP_PKEY_meth_get_verify(EVP_PKEY_METHOD *pmeth,
         *pverify = pmeth->verify;
 }
 
-void EVP_PKEY_meth_get_verify_recover(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_verify_recover(const EVP_PKEY_METHOD *pmeth,
                                       int (**pverify_recover_init) (EVP_PKEY_CTX
                                                                     *ctx),
                                       int (**pverify_recover) (EVP_PKEY_CTX
@@ -643,7 +753,7 @@ void EVP_PKEY_meth_get_verify_recover(EVP_PKEY_METHOD *pmeth,
         *pverify_recover = pmeth->verify_recover;
 }
 
-void EVP_PKEY_meth_get_signctx(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_signctx(const EVP_PKEY_METHOD *pmeth,
                                int (**psignctx_init) (EVP_PKEY_CTX *ctx,
                                                       EVP_MD_CTX *mctx),
                                int (**psignctx) (EVP_PKEY_CTX *ctx,
@@ -657,7 +767,7 @@ void EVP_PKEY_meth_get_signctx(EVP_PKEY_METHOD *pmeth,
         *psignctx = pmeth->signctx;
 }
 
-void EVP_PKEY_meth_get_verifyctx(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_verifyctx(const EVP_PKEY_METHOD *pmeth,
                                  int (**pverifyctx_init) (EVP_PKEY_CTX *ctx,
                                                           EVP_MD_CTX *mctx),
                                  int (**pverifyctx) (EVP_PKEY_CTX *ctx,
@@ -671,7 +781,7 @@ void EVP_PKEY_meth_get_verifyctx(EVP_PKEY_METHOD *pmeth,
         *pverifyctx = pmeth->verifyctx;
 }
 
-void EVP_PKEY_meth_get_encrypt(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_encrypt(const EVP_PKEY_METHOD *pmeth,
                                int (**pencrypt_init) (EVP_PKEY_CTX *ctx),
                                int (**pencryptfn) (EVP_PKEY_CTX *ctx,
                                                    unsigned char *out,
@@ -685,7 +795,7 @@ void EVP_PKEY_meth_get_encrypt(EVP_PKEY_METHOD *pmeth,
         *pencryptfn = pmeth->encrypt;
 }
 
-void EVP_PKEY_meth_get_decrypt(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_decrypt(const EVP_PKEY_METHOD *pmeth,
                                int (**pdecrypt_init) (EVP_PKEY_CTX *ctx),
                                int (**pdecrypt) (EVP_PKEY_CTX *ctx,
                                                  unsigned char *out,
@@ -699,7 +809,7 @@ void EVP_PKEY_meth_get_decrypt(EVP_PKEY_METHOD *pmeth,
         *pdecrypt = pmeth->decrypt;
 }
 
-void EVP_PKEY_meth_get_derive(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_derive(const EVP_PKEY_METHOD *pmeth,
                               int (**pderive_init) (EVP_PKEY_CTX *ctx),
                               int (**pderive) (EVP_PKEY_CTX *ctx,
                                                unsigned char *key,
@@ -711,7 +821,7 @@ void EVP_PKEY_meth_get_derive(EVP_PKEY_METHOD *pmeth,
         *pderive = pmeth->derive;
 }
 
-void EVP_PKEY_meth_get_ctrl(EVP_PKEY_METHOD *pmeth,
+void EVP_PKEY_meth_get_ctrl(const EVP_PKEY_METHOD *pmeth,
                             int (**pctrl) (EVP_PKEY_CTX *ctx, int type, int p1,
                                            void *p2),
                             int (**pctrl_str) (EVP_PKEY_CTX *ctx,
@@ -722,4 +832,33 @@ void EVP_PKEY_meth_get_ctrl(EVP_PKEY_METHOD *pmeth,
         *pctrl = pmeth->ctrl;
     if (pctrl_str)
         *pctrl_str = pmeth->ctrl_str;
+}
+
+void EVP_PKEY_meth_get_check(const EVP_PKEY_METHOD *pmeth,
+                             int (**pcheck) (EVP_PKEY *pkey))
+{
+    if (pcheck != NULL)
+        *pcheck = pmeth->check;
+}
+
+void EVP_PKEY_meth_get_public_check(const EVP_PKEY_METHOD *pmeth,
+                                    int (**pcheck) (EVP_PKEY *pkey))
+{
+    if (pcheck != NULL)
+        *pcheck = pmeth->public_check;
+}
+
+void EVP_PKEY_meth_get_param_check(const EVP_PKEY_METHOD *pmeth,
+                                   int (**pcheck) (EVP_PKEY *pkey))
+{
+    if (pcheck != NULL)
+        *pcheck = pmeth->param_check;
+}
+
+void EVP_PKEY_meth_get_digest_custom(EVP_PKEY_METHOD *pmeth,
+                                     int (**pdigest_custom) (EVP_PKEY_CTX *ctx,
+                                                             EVP_MD_CTX *mctx))
+{
+    if (pdigest_custom != NULL)
+        *pdigest_custom = pmeth->digest_custom;
 }

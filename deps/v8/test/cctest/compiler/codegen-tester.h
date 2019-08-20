@@ -5,11 +5,11 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
-#include "src/compilation-info.h"
-#include "src/compiler/instruction-selector.h"
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
@@ -39,13 +39,31 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             InstructionSelector::SupportedMachineOperatorFlags(),
             InstructionSelector::AlignmentRequirements()) {}
 
-  virtual ~RawMachineAssemblerTester() {}
+  template <typename... ParamMachTypes>
+  RawMachineAssemblerTester(Code::Kind kind, ParamMachTypes... p)
+      : HandleAndZoneScope(),
+        CallHelper<ReturnType>(
+            main_isolate(),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
+        RawMachineAssembler(
+            main_isolate(), new (main_zone()) Graph(main_zone()),
+            Linkage::GetSimplifiedCDescriptor(
+                main_zone(),
+                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
+                                p...),
+                true),
+            MachineType::PointerRepresentation(),
+            InstructionSelector::SupportedMachineOperatorFlags(),
+            InstructionSelector::AlignmentRequirements()),
+        kind_(kind) {}
 
-  void CheckNumber(double expected, Object* number) {
+  ~RawMachineAssemblerTester() override = default;
+
+  void CheckNumber(double expected, Object number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
   }
 
-  void CheckString(const char* expected, Object* string) {
+  void CheckString(const char* expected, Object string) {
     CHECK(
         this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
             string));
@@ -59,19 +77,21 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  protected:
-  virtual byte* Generate() {
+  Address Generate() override {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();
       auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(), kind_);
       code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph, schedule);
+          &info, main_isolate(), call_descriptor, graph,
+          AssemblerOptions::Default(main_isolate()), schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
 
  private:
+  Code::Kind kind_ = Code::Kind::STUB;
   MaybeHandle<Code> code_;
 };
 
@@ -94,7 +114,7 @@ class BufferedRawMachineAssemblerTester
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -111,15 +131,27 @@ class BufferedRawMachineAssemblerTester
   // Store node is provided as a parameter. By storing the return value in
   // memory it is possible to return 64 bit values.
   void Return(Node* input) {
-    Store(MachineTypeForC<ReturnType>().representation(),
-          RawMachineAssembler::Parameter(return_parameter_index_), input,
-          kNoWriteBarrier);
+    if (COMPRESS_POINTERS_BOOL && MachineTypeForC<ReturnType>().IsTagged()) {
+      // Since we are returning values via storing to off-heap location
+      // generate full-word store here.
+      Store(MachineType::PointerRepresentation(),
+            RawMachineAssembler::Parameter(return_parameter_index_),
+            BitcastTaggedToWord(input), kNoWriteBarrier);
+
+    } else {
+      Store(MachineTypeForC<ReturnType>().representation(),
+            RawMachineAssembler::Parameter(return_parameter_index_), input,
+            kNoWriteBarrier);
+    }
     RawMachineAssembler::Return(Int32Constant(1234));
   }
 
   template <typename... Params>
   ReturnType Call(Params... p) {
+    uintptr_t zap_data[] = {kZapValue, kZapValue};
     ReturnType return_value;
+    STATIC_ASSERT(sizeof(return_value) <= sizeof(zap_data));
+    MemCopy(&return_value, &zap_data, sizeof(return_value));
     CSignature::VerifyParams<Params...>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p)...,
                               reinterpret_cast<void*>(&return_value));
@@ -150,7 +182,7 @@ class BufferedRawMachineAssemblerTester<void>
     }
   }
 
-  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -184,11 +216,11 @@ template <typename CType, bool use_result_buffer>
 class BinopTester {
  public:
   explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester,
-                       MachineType rep)
+                       MachineType type)
       : T(tester),
-        param0(T->LoadFromPointer(&p0, rep)),
-        param1(T->LoadFromPointer(&p1, rep)),
-        rep(rep),
+        param0(T->LoadFromPointer(&p0, type)),
+        param1(T->LoadFromPointer(&p1, type)),
+        type(type),
         p0(static_cast<CType>(0)),
         p1(static_cast<CType>(0)),
         result(static_cast<CType>(0)) {}
@@ -210,7 +242,7 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep.representation(), T->PointerConstant(&result),
+      T->Store(type.representation(), T->PointerConstant(&result),
                T->Int32Constant(0), val, kNoWriteBarrier);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
@@ -230,7 +262,7 @@ class BinopTester {
   }
 
  protected:
-  MachineType rep;
+  MachineType type;
   CType p0;
   CType p1;
   CType result;
@@ -296,22 +328,22 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
 // and return a pointer value.
 // TODO(titzer): pick word size of pointers based on V8_TARGET.
 template <typename Type>
-class PointerBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit PointerBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::Pointer()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester, MachineType::Pointer()) {
+  }
 };
 
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
 template <typename Type>
-class TaggedBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
+class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
  public:
   explicit TaggedBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
-                                                MachineType::AnyTagged()) {}
+      : BinopTester<Type, USE_RETURN_REGISTER>(tester,
+                                               MachineType::AnyTagged()) {}
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides
@@ -393,7 +425,7 @@ class BinopGen {
  public:
   virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) = 0;
   virtual T expected(T a, T b) = 0;
-  virtual ~BinopGen() {}
+  virtual ~BinopGen() = default;
 };
 
 // A helper class to generate various combination of input shape combinations

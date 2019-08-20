@@ -11,12 +11,15 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce that class methods utilize `this`",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/class-methods-use-this"
         },
+
         schema: [{
             type: "object",
             properties: {
@@ -35,7 +38,7 @@ module.exports = {
         }
     },
     create(context) {
-        const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const config = Object.assign({}, context.options[0]);
         const exceptMethods = new Set(config.exceptMethods || []);
 
         const stack = [];

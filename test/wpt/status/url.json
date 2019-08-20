@@ -1,0 +1,15 @@
+{
+  "toascii.window.js": {
+    "requires": ["small-icu"],
+    "skip": "TODO: port from .window.js"
+  },
+  "historical.any.js": {
+    "requires": ["small-icu"]
+  },
+  "urlencoded-parser.any.js": {
+    "fail": "missing Request and Response"
+  },
+  "idlharness.any.js": {
+    "fail": "getter/setter names are wrong, etc."
+  }
+}

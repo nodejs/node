@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "December 2017" "" ""
+.TH "NPM\-SCRIPTS" "7" "July 2019" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -12,9 +12,9 @@ Run BEFORE the package is packed and published, as well as on local \fBnpm
 install\fP without any arguments\. (See below)
 .IP \(bu 2
 prepare:
-Run both BEFORE the package is packed and published, and on local \fBnpm
-install\fP without any arguments (See below)\. This is run
-AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
+Run both BEFORE the package is packed and published, on local \fBnpm
+install\fP without any arguments, and when installing git dependencies (See
+below)\. This is run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
 .IP \(bu 2
 prepublishOnly:
 Run BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\. (See
@@ -72,9 +72,8 @@ Run by the \fBnpm shrinkwrap\fP command\.
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with `npm explore
-.P
-<pkg> \-\- npm run <stage>`\.
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
 .P
@@ -170,7 +169,9 @@ The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
 for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
 package\.json file, then your package scripts would have the
 \fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
+in your code with \fBprocess\.env\.npm_package_name\fP and
+\fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .SS configuration
 .P
 Configuration parameters are put in the environment with the

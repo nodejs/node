@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -76,7 +76,7 @@
 # dsa 1024 bits 0.001346s 0.001595s    742.7    627.0
 # dsa 2048 bits 0.004745s 0.005582s    210.7    179.1
 #
-# Conclusions: 
+# Conclusions:
 # - VIA SDK leaves a *lot* of room for improvement (which this
 #   implementation successfully fills:-);
 # - 'rep montmul' gives up to >3x performance improvement depending on
@@ -91,7 +91,7 @@ require "x86asm.pl";
 $output = pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"via-mont.pl");
+&asm_init($ARGV[0]);
 
 # int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp, const BN_ULONG *np,const BN_ULONG *n0, int num);
 $func="bn_mul_mont_padlock";
@@ -213,18 +213,15 @@ $sp=&DWP(28,"esp");
 
 	&mov	("eax",&DWP(0,"esi","edx",4));	# upmost overflow bit
 	&sbb	("eax",0);
-	&and	("esi","eax");
-	&not	("eax");
-	&mov	("ebp","edi");
-	&and	("ebp","eax");
-	&or	("esi","ebp");			# tp=carry?tp:rp
 
 	&mov	("ecx","edx");			# num
-	&xor	("edx","edx");			# i=0
+	&mov	("edx",0);			# i=0
 
 &set_label("copy",8);
-	&mov	("eax",&DWP(0,"esi","edx",4));
-	&mov	(&DWP(64,"esp","edx",4),"ecx");	# zap tp
+	&mov	("ebx",&DWP(0,"esi","edx",4));
+	&mov	("eax",&DWP(0,"edi","edx",4));
+	&mov	(&DWP(0,"esi","edx",4),"ecx");	# zap tp
+	&cmovc	("eax","ebx");
 	&mov	(&DWP(0,"edi","edx",4),"eax");
 	&lea	("edx",&DWP(1,"edx"));		# i++
 	&loop	(&label("copy"));

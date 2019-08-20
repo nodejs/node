@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,7 @@
 # Denver	1.64/+50%	1.18(*)
 # X-Gene	2.13/+68%	2.27
 # Mongoose	1.77/+75%	1.12
+# Kryo		2.70/+55%	1.13
 #
 # (*)	estimate based on resources availability is less than 1.0,
 #	i.e. measured result is worse than expected, presumably binary
@@ -290,6 +291,7 @@ poly1305_blocks_neon:
 	cbz	$is_base2_26,poly1305_blocks
 
 .Lblocks_neon:
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 
@@ -858,6 +860,7 @@ poly1305_blocks_neon:
 	st1	{$ACC4}[0],[$ctx]
 
 .Lno_data_neon:
+	.inst	0xd50323bf		// autiasp
 	ldr	x29,[sp],#80
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon

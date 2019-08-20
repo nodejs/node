@@ -34,8 +34,8 @@ let invalidFd = 2;
 // Get first known bad file descriptor.
 try {
   while (fs.fstatSync(++invalidFd));
-} catch (e) {
-  // do nothing; we now have an invalid fd
+} catch {
+  // Do nothing; we now have an invalid fd
 }
 
 net.createServer(common.mustNotCall()).listen({ fd: invalidFd })

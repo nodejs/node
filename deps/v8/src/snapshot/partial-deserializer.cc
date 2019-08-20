@@ -4,8 +4,9 @@
 
 #include "src/snapshot/partial-deserializer.h"
 
-#include "src/api.h"
+#include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -31,7 +32,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
   if (!allocator()->ReserveSpace()) {
-    V8::FatalProcessOutOfMemory("PartialDeserializer");
+    V8::FatalProcessOutOfMemory(isolate, "PartialDeserializer");
   }
 
   AddAttachedObject(global_proxy);
@@ -39,10 +40,10 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
-  OldSpace* code_space = isolate->heap()->code_space();
+  CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
-  Object* root;
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
+  Object root;
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(&root));
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
@@ -54,6 +55,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   CHECK_EQ(start_address, code_space->top());
 
   if (FLAG_rehash_snapshot && can_rehash()) Rehash();
+  LogNewMapEvents();
 
   return Handle<Object>(root, isolate);
 }
@@ -71,7 +73,8 @@ void PartialDeserializer::DeserializeEmbedderFields(
     int space = code & kSpaceMask;
     DCHECK_LE(space, kNumberOfSpaces);
     DCHECK_EQ(code - space, kNewObject);
-    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
+    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(
+                             static_cast<SnapshotSpace>(space))),
                          isolate());
     int index = source()->GetInt();
     int size = source()->GetInt();

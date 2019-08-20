@@ -11,18 +11,18 @@ namespace {
 
 class DefaultPlatformEnvironment final : public ::testing::Environment {
  public:
-  DefaultPlatformEnvironment() {}
+  DefaultPlatformEnvironment() = default;
 
   void SetUp() override {
     platform_ = v8::platform::NewDefaultPlatform(
         0, v8::platform::IdleTaskSupport::kEnabled);
-    ASSERT_TRUE(platform_.get() != NULL);
+    ASSERT_TRUE(platform_.get() != nullptr);
     v8::V8::InitializePlatform(platform_.get());
     ASSERT_TRUE(v8::V8::Initialize());
   }
 
   void TearDown() override {
-    ASSERT_TRUE(platform_.get() != NULL);
+    ASSERT_TRUE(platform_.get() != nullptr);
     v8::V8::Dispose();
     v8::V8::ShutdownPlatform();
   }
@@ -42,5 +42,6 @@ int main(int argc, char** argv) {
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
+  v8::V8::InitializeICUDefaultLocation(argv[0]);
   return RUN_ALL_TESTS();
 }

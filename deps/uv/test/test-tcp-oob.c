@@ -138,4 +138,9 @@ TEST_IMPL(tcp_oob) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-#endif
+
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

@@ -8,11 +8,11 @@ var writeFileSync = require('fs').writeFileSync
 
 var common = require('../common-tap.js')
 
-var link = path.join(__dirname, 'link')
-var linkScoped = path.join(__dirname, 'link-scoped')
-var linkInstall = path.join(__dirname, 'link-install')
+var link = path.join(common.pkg, 'link')
+var linkScoped = path.join(common.pkg, 'link-scoped')
+var linkInstall = path.join(common.pkg, 'link-install')
 var linkInside = path.join(linkInstall, 'node_modules', 'inside')
-var linkRoot = path.join(__dirname, 'link-root')
+var linkRoot = path.join(common.pkg, 'link-root')
 
 var config = 'prefix = ' + linkRoot
 var configPath = path.join(link, '_npmrc')
@@ -29,7 +29,7 @@ var readJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -41,7 +41,7 @@ var readScopedJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -53,7 +53,7 @@ var installJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -65,7 +65,7 @@ var insideInstallJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'

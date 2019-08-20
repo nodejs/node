@@ -10,7 +10,9 @@ operations, as well as getaddrinfo and getnameinfo requests.
 
 Its default size is 4, but it can be changed at startup time by setting the
 ``UV_THREADPOOL_SIZE`` environment variable to any value (the absolute maximum
-is 128).
+is 1024).
+
+.. versionchanged:: 1.30.0 the maximum UV_THREADPOOL_SIZE allowed was increased from 128 to 1024.
 
 The threadpool is global and shared across all event loops. When a particular
 function makes use of the threadpool (i.e. when using :c:func:`uv_queue_work`)

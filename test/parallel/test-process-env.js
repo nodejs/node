@@ -24,14 +24,14 @@
 const common = require('../common');
 const assert = require('assert');
 
-// changes in environment should be visible to child processes
+// Changes in environment should be visible to child processes
 if (process.argv[2] === 'you-are-the-child') {
-  assert.strictEqual(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
-  assert.strictEqual('42', process.env.NODE_PROCESS_ENV);
-  assert.strictEqual('asdf', process.env.hasOwnProperty);
+  assert.strictEqual('NODE_PROCESS_ENV_DELETED' in process.env, false);
+  assert.strictEqual(process.env.NODE_PROCESS_ENV, '42');
+  assert.strictEqual(process.env.hasOwnProperty, 'asdf');
   const hasOwnProperty = Object.prototype.hasOwnProperty;
   const has = hasOwnProperty.call(process.env, 'hasOwnProperty');
-  assert.strictEqual(true, has);
+  assert.strictEqual(has, true);
   process.exit(0);
 }
 
@@ -41,34 +41,34 @@ if (process.argv[2] === 'you-are-the-child') {
   assert.strictEqual(Object.prototype.hasOwnProperty,
                      process.env.hasOwnProperty);
   const has = process.env.hasOwnProperty('hasOwnProperty');
-  assert.strictEqual(false, has);
+  assert.strictEqual(has, false);
 
   process.env.hasOwnProperty = 'asdf';
 
   process.env.NODE_PROCESS_ENV = 42;
-  assert.strictEqual('42', process.env.NODE_PROCESS_ENV);
+  assert.strictEqual(process.env.NODE_PROCESS_ENV, '42');
 
   process.env.NODE_PROCESS_ENV_DELETED = 42;
-  assert.strictEqual(true, 'NODE_PROCESS_ENV_DELETED' in process.env);
+  assert.strictEqual('NODE_PROCESS_ENV_DELETED' in process.env, true);
 
   delete process.env.NODE_PROCESS_ENV_DELETED;
-  assert.strictEqual(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
+  assert.strictEqual('NODE_PROCESS_ENV_DELETED' in process.env, false);
 
   const child = spawn(process.argv[0], [process.argv[1], 'you-are-the-child']);
   child.stdout.on('data', function(data) { console.log(data.toString()); });
   child.stderr.on('data', function(data) { console.log(data.toString()); });
   child.on('exit', function(statusCode) {
     if (statusCode !== 0) {
-      process.exit(statusCode);  // failed assertion in child process
+      process.exit(statusCode);  // Failed assertion in child process
     }
   });
 }
 
 
-// delete should return true except for non-configurable properties
+// Delete should return true except for non-configurable properties
 // https://github.com/nodejs/node/issues/7960
 delete process.env.NON_EXISTING_VARIABLE;
-assert.strictEqual(true, delete process.env.NON_EXISTING_VARIABLE);
+assert(delete process.env.NON_EXISTING_VARIABLE);
 
 /* For the moment we are not going to support setting the timezone via the
  * environment variables. The problem is that various V8 platform backends
@@ -91,6 +91,7 @@ assert.strictEqual(5, date.getHours());
 // case-sensitive on other platforms.
 process.env.TEST = 'test';
 assert.strictEqual(process.env.TEST, 'test');
+
 // Check both mixed case and lower case, to avoid any regressions that might
 // simply convert input to lower case.
 if (common.isWindows) {
@@ -99,4 +100,9 @@ if (common.isWindows) {
 } else {
   assert.strictEqual(process.env.test, undefined);
   assert.strictEqual(process.env.teST, undefined);
+}
+
+{
+  const keys = Object.keys(process.env);
+  assert.ok(keys.length > 0);
 }

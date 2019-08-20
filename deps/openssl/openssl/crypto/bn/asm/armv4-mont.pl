@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@
 # [depending on key length, less for longer keys] on ARM920T, and
 # +115-80% on Intel IXP425. This is compared to pre-bn_mul_mont code
 # base and compiler generated code with in-lined umull and even umlal
-# instructions. The latter means that this code didn't really have an 
+# instructions. The latter means that this code didn't really have an
 # "advantage" of utilizing some "secret" instruction.
 #
 # The code is interoperable with Thumb ISA and is rather compact, less
@@ -262,14 +262,15 @@ bn_mul_mont:
 	mov	$tp,sp			@ "rewind" $tp
 	sub	$rp,$rp,$aj		@ "rewind" $rp
 
-	and	$ap,$tp,$nhi
-	bic	$np,$rp,$nhi
-	orr	$ap,$ap,$np		@ ap=borrow?tp:rp
-
-.Lcopy:	ldr	$tj,[$ap],#4		@ copy or in-place refresh
+.Lcopy:	ldr	$tj,[$tp]		@ conditional copy
+	ldr	$aj,[$rp]
 	str	sp,[$tp],#4		@ zap tp
-	str	$tj,[$rp],#4
-	cmp	$tp,$num
+#ifdef	__thumb2__
+	it	cc
+#endif
+	movcc	$aj,$tj
+	str	$aj,[$rp],#4
+	teq	$tp,$num		@ preserve carry
 	bne	.Lcopy
 
 	mov	sp,$num

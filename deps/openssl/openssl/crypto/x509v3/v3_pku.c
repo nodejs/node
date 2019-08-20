@@ -17,10 +17,7 @@
 static int i2r_PKEY_USAGE_PERIOD(X509V3_EXT_METHOD *method,
                                  PKEY_USAGE_PERIOD *usage, BIO *out,
                                  int indent);
-/*
- * static PKEY_USAGE_PERIOD *v2i_PKEY_USAGE_PERIOD(X509V3_EXT_METHOD *method,
- * X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *values);
- */
+
 const X509V3_EXT_METHOD v3_pkey_usage_period = {
     NID_private_key_usage_period, 0, ASN1_ITEM_ref(PKEY_USAGE_PERIOD),
     0, 0, 0, 0,
@@ -53,13 +50,3 @@ static int i2r_PKEY_USAGE_PERIOD(X509V3_EXT_METHOD *method,
     }
     return 1;
 }
-
-/*-
-static PKEY_USAGE_PERIOD *v2i_PKEY_USAGE_PERIOD(method, ctx, values)
-X509V3_EXT_METHOD *method;
-X509V3_CTX *ctx;
-STACK_OF(CONF_VALUE) *values;
-{
-return NULL;
-}
-*/

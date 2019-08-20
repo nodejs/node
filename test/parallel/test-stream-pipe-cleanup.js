@@ -25,14 +25,14 @@
 require('../common');
 const stream = require('stream');
 const assert = require('assert');
-const util = require('util');
 
 function Writable() {
   this.writable = true;
   this.endCalls = 0;
   stream.Stream.call(this);
 }
-util.inherits(Writable, stream.Stream);
+Object.setPrototypeOf(Writable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Writable, stream.Stream);
 Writable.prototype.end = function() {
   this.endCalls++;
 };
@@ -45,13 +45,15 @@ function Readable() {
   this.readable = true;
   stream.Stream.call(this);
 }
-util.inherits(Readable, stream.Stream);
+Object.setPrototypeOf(Readable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Readable, stream.Stream);
 
 function Duplex() {
   this.readable = true;
   Writable.call(this);
 }
-util.inherits(Duplex, Writable);
+Object.setPrototypeOf(Duplex.prototype, Writable.prototype);
+Object.setPrototypeOf(Duplex, Writable);
 
 let i = 0;
 const limit = 100;
@@ -65,8 +67,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('end');
 }
-assert.strictEqual(0, r.listeners('end').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('end').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -75,8 +77,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('close');
 }
-assert.strictEqual(0, r.listeners('close').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('close').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -87,7 +89,7 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   w.emit('close');
 }
-assert.strictEqual(0, w.listeners('close').length);
+assert.strictEqual(w.listeners('close').length, 0);
 
 r = new Readable();
 w = new Writable();

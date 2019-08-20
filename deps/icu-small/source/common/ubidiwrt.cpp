@@ -40,7 +40,7 @@
  * Further assumptions for all UTFs:
  * - u_charMirror(c) needs the same number of code units as c
  */
-#if UTF_SIZE==8
+#if defined(UTF_SIZE) && UTF_SIZE==8
 # error reimplement ubidi_writeReordered() for UTF-8, see comment above
 #endif
 

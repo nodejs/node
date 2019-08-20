@@ -166,7 +166,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
                 doubleByteCharCount++;
 
                 if (commonChars != 0) {
-                    if (binarySearch(commonChars, commonCharsLen, iter.charValue) >= 0){
+                    if (binarySearch(commonChars, commonCharsLen, static_cast<uint16_t>(iter.charValue)) >= 0){
                         commonCharCount += 1;
                     }
                 }

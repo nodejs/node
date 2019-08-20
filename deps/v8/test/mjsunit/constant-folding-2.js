@@ -29,6 +29,7 @@
 // Flags: --allow-natives-syntax --nostress-opt --opt
 
 function test(f, iterations) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   // Some of the tests need to learn until they stabilize.
@@ -36,6 +37,7 @@ function test(f, iterations) {
   for (let i = 0; i < n; i++) {
     %OptimizeFunctionOnNextCall(f);
     f();
+    %PrepareFunctionForOptimization(f);
   }
   // Assert that the function finally stabilized.
   assertOptimized(f);
@@ -105,7 +107,7 @@ test(function div() {
   assertSame(-Infinity, Infinity / (-3));
   assertSame(NaN, NaN / 3);
   assertSame(-Infinity, 1 / (-0.0));
-  assertSame(Infinity, Infinity/0.0);
+  assertSame(Infinity, Infinity / 0.0);
 });
 
 test(function mathMin() {
@@ -187,8 +189,8 @@ test(function mathRound() {
 
 test(function mathFround() {
   assertTrue(isNaN(Math.fround(NaN)));
-  assertSame(Infinity, 1/Math.fround(0));
-  assertSame(-Infinity, 1/Math.fround(-0));
+  assertSame(Infinity, 1 / Math.fround(0));
+  assertSame(-Infinity, 1 / Math.fround(-0));
   assertSame(Infinity, Math.fround(Infinity));
   assertSame(-Infinity, Math.fround(-Infinity));
   assertSame(Infinity, Math.fround(1E200));
@@ -274,6 +276,24 @@ test(function stringCodePointAt() {
   assertSame(undefined, "".codePointAt());
   assertSame(undefined, "äϠ�".codePointAt(1 + 4294967295));
 }, 10);
+
+test(function stringFromCodePoint() {
+  assertEquals(String.fromCodePoint(""), "\0");
+  assertEquals(String.fromCodePoint(), "");
+  assertEquals(String.fromCodePoint(-0), "\0");
+  assertEquals(String.fromCodePoint(0), "\0");
+  assertEquals(String.fromCodePoint(0x1D306), "\uD834\uDF06");
+  assertEquals(
+    String.fromCodePoint(0x1D306, 0x61, 0x1D307),
+    "\uD834\uDF06a\uD834\uDF07");
+  assertEquals(String.fromCodePoint(0x61, 0x62, 0x1D307), "ab\uD834\uDF07");
+  assertEquals(String.fromCodePoint(false), "\0");
+  assertEquals(String.fromCodePoint(null), "\0");
+}, 5);
+
+test(function stringFromCharCode() {
+  assertEquals("！", String.fromCharCode(0x10FF01));
+}, 2);
 
 test(function int32Mod() {
   assertEquals(-0, -2147483648 % (-1));

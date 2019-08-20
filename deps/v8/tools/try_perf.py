@@ -3,41 +3,39 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import subprocess
 import sys
 
 BOTS = {
-  '--arm32': 'v8_arm32_perf_try',
+  '--chromebook': 'v8_chromebook_perf_try',
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
   '--linux64_atom': 'v8_linux64_atom_perf_try',
-  '--linux64_haswell': 'v8_linux64_haswell_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
-  '--nexus9': 'v8_nexus9_perf_try',
-  '--nexus10': 'v8_nexus10_perf_try',
+  '--nokia1': 'v8_nokia1_perf_try',
+  '--odroid32': 'v8_odroid32_perf_try',
+  '--pixel2': 'v8_pixel2_perf_try',
 }
 
-# This list will contain builder names that should be triggered on an internal
-# swarming bucket instead of internal Buildbot master.
-SWARMING_BOTS = [
-  'v8_linux64_perf_try',
-]
-
 DEFAULT_BOTS = [
-  'v8_arm32_perf_try',
+  'v8_chromebook_perf_try',
   'v8_linux32_perf_try',
-  'v8_linux64_haswell_perf_try',
-  'v8_nexus10_perf_try',
+  'v8_linux64_perf_try',
 ]
 
 PUBLIC_BENCHMARKS = [
   'arewefastyet',
+  'ares6',
+  'blazor',
+  'compile',
   'embenchen',
   'emscripten',
-  'compile',
   'jetstream',
   'jsbench',
   'jstests',
@@ -52,20 +50,10 @@ PUBLIC_BENCHMARKS = [
   'sunspider',
   'unity',
   'wasm',
+  'web-tooling-benchmark',
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-
-def _trigger_bots(bucket, bots, options):
-  cmd = ['git cl try']
-  cmd += ['-B', bucket]
-  cmd += ['-b %s' % bot for bot in bots]
-  if options.revision: cmd += ['-r %s' % options.revision]
-  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
-  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
-  if options.extra_flags:
-    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
-  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 def main():
   parser = argparse.ArgumentParser(description='')
@@ -76,17 +64,28 @@ def main():
                       help='Revision (use full hash!) to use for the try job; '
                            'default: the revision will be determined by the '
                            'try server; see its waterfall for more info')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Print debug information')
+  parser.add_argument('-c', '--confidence-level', type=float,
+                      help='Repeatedly runs each benchmark until specified '
+                      'confidence level is reached. The value is interpreted '
+                      'as the number of standard deviations from the mean that '
+                      'all values must lie within. Typical values are 1, 2 and '
+                      '3 and correspond to 68%%, 95%% and 99.7%% probability '
+                      'that the measured value is within 0.1%% of the true '
+                      'value. Larger values result in more retries and thus '
+                      'longer runtime, but also provide more reliable results.')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
         help='Add %s trybot.' % BOTS[option])
   options = parser.parse_args()
   if not options.bots:
-    print 'No trybots specified. Using default %s.' % ','.join(DEFAULT_BOTS)
+    print('No trybots specified. Using default %s.' % ','.join(DEFAULT_BOTS))
     options.bots = DEFAULT_BOTS
 
   if not options.benchmarks:
-    print 'Please specify the benchmarks to run as arguments.'
+    print('Please specify the benchmarks to run as arguments.')
     return 1
 
   for benchmark in options.benchmarks:
@@ -94,7 +93,7 @@ def main():
       print ('%s not found in our benchmark list. The respective trybot might '
             'fail, unless you run something this script isn\'t aware of. '
             'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
-      print 'Proceed anyways? [Y/n] ',
+      print('Proceed anyways? [Y/n] ', end=' ')
       answer = sys.stdin.readline().strip()
       if answer != "" and answer != "Y" and answer != "y":
         return 1
@@ -106,14 +105,20 @@ def main():
   subprocess.check_output(
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
-  buildbot_bots = [bot for bot in options.bots if bot not in SWARMING_BOTS]
-  if buildbot_bots:
-    _trigger_bots('master.internal.client.v8', buildbot_bots, options)
-
-  swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
-  if swarming_bots:
-    _trigger_bots('luci.v8-internal.try', swarming_bots, options)
-
+  cmd = ['git cl try', '-B', 'luci.v8-internal.try']
+  cmd += ['-b %s' % bot for bot in options.bots]
+  if options.revision:
+    cmd.append('-r %s' % options.revision)
+  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
+  cmd.append('-p \'testfilter=[%s]\'' % ','.join(benchmarks))
+  if options.extra_flags:
+    cmd.append('-p \'extra_flags="%s"\'' % options.extra_flags)
+  if options.confidence_level:
+    cmd.append('-p confidence_level=%f' % options.confidence_level)
+  if options.verbose:
+    cmd.append('-vv')
+    print('Running %s' % ' '.join(cmd))
+  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 if __name__ == '__main__':  # pragma: no cover
   sys.exit(main())

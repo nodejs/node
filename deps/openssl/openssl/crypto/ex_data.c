@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,7 +9,6 @@
 
 #include "internal/cryptlib_int.h"
 #include "internal/thread_once.h"
-#include <openssl/lhash.h>
 
 /*
  * Each structure type (sometimes called a class), that supports
@@ -38,7 +37,8 @@ static CRYPTO_ONCE ex_data_init = CRYPTO_ONCE_STATIC_INIT;
 
 DEFINE_RUN_ONCE_STATIC(do_ex_data_init)
 {
-    OPENSSL_init_crypto(0, NULL);
+    if (!OPENSSL_init_crypto(0, NULL))
+        return 0;
     ex_data_lock = CRYPTO_THREAD_lock_new();
     return ex_data_lock != NULL;
 }

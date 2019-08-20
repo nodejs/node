@@ -13,25 +13,19 @@ PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
 
+class TestLoader(testsuite.JSTestLoader):
+  @property
+  def excluded_files(self):
+    return {PROTOCOL_TEST_JS}
+
+  @property
+  def excluded_dirs(self):
+    return {RESOURCES_FOLDER}
+
+
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self):
-    tests = []
-    for dirname, dirs, files in os.walk(
-        os.path.join(self.root), followlinks=True):
-      for dotted in [x for x in dirs if x.startswith('.')]:
-        dirs.remove(dotted)
-      if dirname.endswith(os.path.sep + RESOURCES_FOLDER):
-        continue
-      dirs.sort()
-      files.sort()
-      for filename in files:
-        if filename.endswith(".js") and filename != PROTOCOL_TEST_JS:
-          fullpath = os.path.join(dirname, filename)
-          relpath = fullpath[len(self.root) + 1 : -3]
-          testname = relpath.replace(os.path.sep, "/")
-          test = self._create_test(testname)
-          tests.append(test)
-    return tests
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
@@ -57,6 +51,12 @@ class TestCase(testcase.TestCase):
 
   def get_shell(self):
     return 'inspector-test'
+
+  def _get_resources(self):
+    return [
+      os.path.join(
+        'test', 'inspector', 'debugger', 'resources', 'break-locations.js'),
+    ]
 
   @property
   def output_proc(self):

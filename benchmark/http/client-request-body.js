@@ -37,17 +37,17 @@ function main({ dur, len, type, method }) {
     method: 'POST'
   };
 
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     res.end();
   });
-  server.listen(options.port, options.host, function() {
+  server.listen(options.port, options.host, () => {
     setTimeout(done, dur * 1000);
     bench.start();
     pummel();
   });
 
   function pummel() {
-    const req = http.request(options, function(res) {
+    const req = http.request(options, (res) => {
       nreqs++;
       pummel();  // Line up next request.
       res.resume();

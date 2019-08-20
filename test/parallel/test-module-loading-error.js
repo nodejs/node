@@ -30,7 +30,8 @@ const errorMessagesByPlatform = {
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short'],
   aix: ['Cannot load module',
-        'Cannot run a file that does not have a valid format.']
+        'Cannot run a file that does not have a valid format.',
+        'Exec format error']
 };
 // If we don't know a priori what the error would be, we accept anything.
 const errorMessages = errorMessagesByPlatform[process.platform] || [''];
@@ -45,7 +46,7 @@ if (common.isWindows) {
   try {
     // If MUI != 'en' we'll ignore the content of the message
     localeOk = execSync(powerShellFindMUI).toString('utf8').trim() === 'en';
-  } catch (_) {
+  } catch {
     // It's only a best effort try to find the MUI
   }
 }
@@ -79,9 +80,10 @@ common.expectsError(
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
 
-common.expectsError(
+assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
   {
     code: 'MODULE_NOT_FOUND',
-    message: 'Cannot find module \'../fixtures/packages/is-dir\''
-  });
+    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
+  }
+);

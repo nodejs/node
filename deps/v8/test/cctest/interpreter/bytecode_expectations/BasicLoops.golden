@@ -692,33 +692,32 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 50
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-                B(Star), R(1),
-  /*   52 S> */ B(Ldar), R(1),
-                B(JumpIfToBooleanFalse), U8(44),
+                B(Star), R(0),
+  /*   52 S> */ B(Ldar), R(0),
+                B(JumpIfToBooleanFalse), U8(42),
   /*   45 E> */ B(StackCheck),
-                B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
                 B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(0),
+                B(Star), R(2),
   /*   73 S> */ B(LdaSmi), I8(1),
   /*   73 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Mov), R(0), R(2),
+  /*  102 S> */ B(Mov), R(2), R(1),
   /*  106 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(JumpIfToBooleanFalse), U8(6),
   /*  113 S> */ B(PopContext), R(3),
                 B(Jump), U8(10),
   /*  126 S> */ B(LdaCurrentContextSlot), U8(4),
-                B(Inc), U8(1),
+                B(Inc), U8(0),
   /*  127 E> */ B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(3),
-                B(JumpLoop), U8(43), I8(0),
+                B(JumpLoop), U8(41), I8(0),
                 B(LdaUndefined),
   /*  137 S> */ B(Return),
 ]

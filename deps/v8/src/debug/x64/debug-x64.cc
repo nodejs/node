@@ -6,11 +6,11 @@
 
 #include "src/debug/debug.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -34,12 +34,14 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Look up current function on the frame.
   // - Leave the frame.
   // - Restart the frame by calling the function.
-  __ movp(rbp, rbx);
-  __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+
+  __ movq(rbp, rbx);
+  __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
-  __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movsxlq(
+  __ LoadTaggedPointerField(
+      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movzxwq(
       rbx, FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   ParameterCount dummy(rbx);

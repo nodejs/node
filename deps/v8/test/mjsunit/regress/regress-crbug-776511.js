@@ -26,6 +26,7 @@ function __getRandomProperty(obj, seed) {
     };
     return __v_59904.filter(__v_59909);
   };
+  %PrepareFunctionForOptimization(__v_59906);
   print(__v_59906());
   __v_59904[__getRandomProperty(__v_59904, 366855)] = this, gc();
   print(__v_59906());

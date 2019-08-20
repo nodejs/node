@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const stream = require('stream');
 
-// ensure consistency between the finish event when using cork()
+// Ensure consistency between the finish event when using cork()
 // and writev and when not using them
 
 {
@@ -174,7 +174,7 @@ const stream = require('stream');
   };
   w.on('error', common.mustCall());
   w.on('finish', () => {
-    w.write("should't write in finish listener");
+    w.write("shouldn't write in finish listener");
   });
   w.end();
 }

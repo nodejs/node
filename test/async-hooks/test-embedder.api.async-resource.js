@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const async_hooks = require('async_hooks');
 const { AsyncResource } = async_hooks;
 
@@ -29,13 +29,13 @@ assert.strictEqual(
   async_hooks.executionAsyncId()
 );
 
-// create first custom event 'alcazares' with triggerAsyncId derived
+// Create first custom event 'alcazares' with triggerAsyncId derived
 // from async_hooks executionAsyncId
 const alcaTriggerId = async_hooks.executionAsyncId();
 const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
-// alcazares event was constructed and thus only has an `init` call
+// Alcazares event was constructed and thus only has an `init` call
 assert.strictEqual(alcazaresActivities.length, 1);
 const alcazares = alcazaresActivities[0];
 assert.strictEqual(alcazares.type, 'alcazares');
@@ -47,16 +47,16 @@ assert.strictEqual(typeof alcaEvent.asyncId(), 'number');
 assert.notStrictEqual(alcaEvent.asyncId(), alcaTriggerId);
 assert.strictEqual(alcaEvent.triggerAsyncId(), alcaTriggerId);
 
-alcaEvent.emitBefore();
-checkInvocations(alcazares, { init: 1, before: 1 },
-                 'alcazares emitted before');
-alcaEvent.emitAfter();
+alcaEvent.runInAsyncScope(() => {
+  checkInvocations(alcazares, { init: 1, before: 1 },
+                   'alcazares emitted before');
+});
 checkInvocations(alcazares, { init: 1, before: 1, after: 1 },
                  'alcazares emitted after');
-alcaEvent.emitBefore();
-checkInvocations(alcazares, { init: 1, before: 2, after: 1 },
-                 'alcazares emitted before again');
-alcaEvent.emitAfter();
+alcaEvent.runInAsyncScope(() => {
+  checkInvocations(alcazares, { init: 1, before: 2, after: 1 },
+                   'alcazares emitted before again');
+});
 checkInvocations(alcazares, { init: 1, before: 2, after: 2 },
                  'alcazares emitted after again');
 alcaEvent.emitDestroy();
@@ -75,15 +75,15 @@ function tick1() {
   assert.strictEqual(typeof poblado.uid, 'number');
   assert.strictEqual(poblado.triggerAsyncId, pobTriggerId);
   checkInvocations(poblado, { init: 1 }, 'poblado constructed');
-  pobEvent.emitBefore();
-  checkInvocations(poblado, { init: 1, before: 1 },
-                   'poblado emitted before');
+  pobEvent.runInAsyncScope(() => {
+    checkInvocations(poblado, { init: 1, before: 1 },
+                     'poblado emitted before');
+  });
 
-  pobEvent.emitAfter();
   checkInvocations(poblado, { init: 1, before: 1, after: 1 },
                    'poblado emitted after');
 
-  // after we disable the hooks we shouldn't receive any events anymore
+  // After we disable the hooks we shouldn't receive any events anymore
   hooks.disable();
   alcaEvent.emitDestroy();
   tick(1, common.mustCall(tick2));

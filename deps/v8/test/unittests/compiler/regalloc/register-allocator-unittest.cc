@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
-#include "test/unittests/compiler/instruction-sequence-unittest.h"
+#include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {
 namespace internal {
@@ -113,6 +113,11 @@ TEST_F(RegisterAllocatorTest, SimpleLoop) {
   // while(true) { i++ }
   StartBlock();
   auto i_reg = DefineConstant();
+  // Add a branch around the loop to ensure the end-block
+  // is connected.
+  EndBlock(Branch(Reg(DefineConstant()), 3, 1));
+
+  StartBlock();
   EndBlock();
 
   {
@@ -126,6 +131,9 @@ TEST_F(RegisterAllocatorTest, SimpleLoop) {
 
     EndLoop();
   }
+
+  StartBlock();
+  EndBlock();
 
   Allocate();
 }
@@ -187,7 +195,7 @@ TEST_F(RegisterAllocatorTest, SimpleDiamondPhi) {
 }
 
 TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
-  const int kPhis = kDefaultNRegs * 2;
+  constexpr int kPhis = Register::kNumRegisters * 2;
 
   StartBlock();
   EndBlock(Branch(Reg(DefineConstant()), 1, 2));
@@ -218,7 +226,7 @@ TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
 }
 
 TEST_F(RegisterAllocatorTest, DoubleDiamondManyRedundantPhis) {
-  const int kPhis = kDefaultNRegs * 2;
+  constexpr int kPhis = Register::kNumRegisters * 2;
 
   // First diamond.
   StartBlock();
@@ -326,16 +334,16 @@ TEST_F(RegisterAllocatorTest, SpillPhi) {
 
 TEST_F(RegisterAllocatorTest, MoveLotsOfConstants) {
   StartBlock();
-  VReg constants[kDefaultNRegs];
+  VReg constants[Register::kNumRegisters];
   for (size_t i = 0; i < arraysize(constants); ++i) {
     constants[i] = DefineConstant();
   }
-  TestOperand call_ops[kDefaultNRegs * 2];
-  for (int i = 0; i < kDefaultNRegs; ++i) {
+  TestOperand call_ops[Register::kNumRegisters * 2];
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
     call_ops[i] = Reg(constants[i], i);
   }
-  for (int i = 0; i < kDefaultNRegs; ++i) {
-    call_ops[i + kDefaultNRegs] = Slot(constants[i], i);
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    call_ops[i + Register::kNumRegisters] = Slot(constants[i], i);
   }
   EmitCall(Slot(-1), arraysize(call_ops), call_ops);
   EndBlock(Last());
@@ -488,7 +496,7 @@ TEST_F(RegisterAllocatorTest, RegressionSplitBeforeAndMove) {
   StartBlock();
 
   // Fill registers.
-  VReg values[kDefaultNRegs];
+  VReg values[Register::kNumRegisters];
   for (size_t i = 0; i < arraysize(values); ++i) {
     if (i == 0 || i == 1) continue;  // Leave a hole for c_1 to take.
     values[i] = Define(Reg(static_cast<int>(i)));
@@ -522,7 +530,7 @@ TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
 TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
   StartBlock();
   // Fill registers.
-  VReg values[kDefaultNRegs];
+  VReg values[Register::kNumRegisters];
   for (size_t i = arraysize(values); i > 0; --i) {
     values[i - 1] = Define(Reg(static_cast<int>(i - 1)));
   }
@@ -617,22 +625,18 @@ TEST_F(RegisterAllocatorTest, SingleDeferredBlockSpill) {
 
   const int var_def_index = 1;
   const int call_index = 3;
-  int expect_no_moves =
-      FLAG_turbo_preprocess_ranges ? var_def_index : call_index;
-  int expect_spill_move =
-      FLAG_turbo_preprocess_ranges ? call_index : var_def_index;
 
-  // We should have no parallel moves at the "expect_no_moves" position.
+  // We should have no parallel moves at the "var_def_index" position.
   EXPECT_EQ(
-      0, GetParallelMoveCount(expect_no_moves, Instruction::START, sequence()));
+      0, GetParallelMoveCount(var_def_index, Instruction::START, sequence()));
 
-  // The spill should be performed at the position expect_spill_move.
-  EXPECT_TRUE(IsParallelMovePresent(expect_spill_move, Instruction::START,
-                                    sequence(), Reg(0), Slot(0)));
+  // The spill should be performed at the position "call_index".
+  EXPECT_TRUE(IsParallelMovePresent(call_index, Instruction::START, sequence(),
+                                    Reg(0), Slot(0)));
 }
 
 TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
-  if (!FLAG_turbo_preprocess_ranges) return;
+  if (FLAG_turbo_control_flow_aware_allocation) return;
 
   StartBlock();  // B0
   auto var1 = EmitOI(Reg(0));
@@ -685,6 +689,67 @@ TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
             GetParallelMoveCount(start_of_b3, Instruction::START, sequence()));
 }
 
+TEST_F(RegisterAllocatorTest, ValidMultipleDeferredBlockSpills) {
+  if (!FLAG_turbo_control_flow_aware_allocation) return;
+
+  StartBlock();  // B0
+  auto var1 = EmitOI(Reg(0));
+  auto var2 = EmitOI(Reg(1));
+  auto var3 = EmitOI(Reg(2));
+  EndBlock(Branch(Reg(var1, 0), 1, 2));
+
+  StartBlock(true);  // B1
+  EmitCall(Slot(-2), Slot(var1));
+  EndBlock(Jump(5));
+
+  StartBlock();  // B2
+  EmitNop();
+  EndBlock();
+
+  StartBlock();  // B3
+  EmitNop();
+  EndBlock(Branch(Reg(var2, 0), 1, 2));
+
+  StartBlock(true);  // B4
+  EmitCall(Slot(-1), Slot(var2));
+  EndBlock(Jump(2));
+
+  StartBlock();  // B5
+  EmitNop();
+  EndBlock();
+
+  StartBlock();  // B6
+  Return(Reg(var3, 2));
+  EndBlock();
+
+  const int def_of_v2 = 2;
+  const int call_in_b1 = 4;
+  const int call_in_b4 = 10;
+  const int end_of_b1 = 5;
+  const int end_of_b4 = 11;
+  const int start_of_b6 = 14;
+
+  Allocate();
+
+  const int var3_reg = 2;
+  const int var3_slot = 2;
+
+  EXPECT_FALSE(IsParallelMovePresent(def_of_v2, Instruction::START, sequence(),
+                                     Reg(var3_reg), Slot()));
+  EXPECT_TRUE(IsParallelMovePresent(call_in_b1, Instruction::START, sequence(),
+                                    Reg(var3_reg), Slot(var3_slot)));
+  EXPECT_TRUE(IsParallelMovePresent(end_of_b1, Instruction::START, sequence(),
+                                    Slot(var3_slot), Reg()));
+
+  EXPECT_TRUE(IsParallelMovePresent(call_in_b4, Instruction::START, sequence(),
+                                    Reg(var3_reg), Slot(var3_slot)));
+  EXPECT_TRUE(IsParallelMovePresent(end_of_b4, Instruction::START, sequence(),
+                                    Slot(var3_slot), Reg()));
+
+  EXPECT_EQ(0,
+            GetParallelMoveCount(start_of_b6, Instruction::START, sequence()));
+}
+
 namespace {
 
 enum class ParameterType { kFixedSlot, kSlot, kRegister, kFixedRegister };
@@ -706,12 +771,10 @@ class SlotConstraintTest : public RegisterAllocatorTest,
   int variant() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<::testing::tuple<ParameterType, int>> B;
+  using B = ::testing::WithParamInterface<::testing::tuple<ParameterType, int>>;
 };
 
 }  // namespace
-
-#if GTEST_HAS_COMBINE
 
 TEST_P(SlotConstraintTest, SlotConstraint) {
   StartBlock();
@@ -750,19 +813,16 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   EndBlock(Last());
 
   Allocate();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RegisterAllocatorTest, SlotConstraintTest,
     ::testing::Combine(::testing::ValuesIn(kParameterTypes),
                        ::testing::Range(0, SlotConstraintTest::kMaxVariant)));
-
-#endif  // GTEST_HAS_COMBINE
 
 }  // namespace compiler
 }  // namespace internal

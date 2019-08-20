@@ -25,6 +25,8 @@ function hasTypeOfOperator(node) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow the use of undeclared variables unless mentioned in `/*global */` comments",
             category: "Variables",
@@ -37,12 +39,16 @@ module.exports = {
                 type: "object",
                 properties: {
                     typeof: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+        messages: {
+            undef: "'{{name}}' is not defined."
+        }
     },
 
     create(context) {
@@ -62,7 +68,7 @@ module.exports = {
 
                     context.report({
                         node: identifier,
-                        message: "'{{name}}' is not defined.",
+                        messageId: "undef",
                         data: identifier
                     });
                 });

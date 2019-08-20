@@ -34,7 +34,7 @@ const originalMaxLength = 1000;
 const params = createManyParams(count);
 
 // thealphanerd
-// 27def4f introduced a change to parse that would cause Inifity
+// 27def4f introduced a change to parse that would cause Infinity
 // to be passed to String.prototype.split as an argument for limit
 // In this instance split will always return an empty array
 // this test confirms that the output of parse is the expected length

@@ -5,16 +5,15 @@
 #ifndef V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_
 #define V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_
 
-#include "src/macro-assembler.h"
-#include "src/ppc/assembler-ppc.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/ppc/assembler-ppc.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-
-#ifndef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
+class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
+    : public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone, Mode mode,
                           int registers_to_save);
@@ -81,7 +80,8 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
-  static int CheckStackGuardState(Address* return_address, Code* re_code,
+  // {raw_code} is an Address because this is called via ExternalReference.
+  static int CheckStackGuardState(Address* return_address, Address raw_code,
                                   Address re_frame);
 
  private:
@@ -116,7 +116,7 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.
@@ -206,7 +206,6 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
 const RegList kRegExpCalleeSaved =
     1 << 25 | 1 << 26 | 1 << 27 | 1 << 28 | 1 << 29 | 1 << 30 | 1 << 31;
 
-#endif  // V8_INTERPRETED_REGEXP
 }  // namespace internal
 }  // namespace v8
 

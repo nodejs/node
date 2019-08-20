@@ -1,0 +1,11 @@
+[flake8]
+ignore = E111,E114,E310 # We use 2-space indentation
+exclude =
+ ./third_party/, # third-party code
+ ./build/, # third-party code
+ ./buildtools/, # third-party code
+ ./tools/swarming_client/, # third-party code
+ ./test/wasm-js/, # third-party code
+ ./test/wasm-js/data/, # third-party code
+ ./test/test262/data/, # third-party code
+ ./test/test262/harness/, # third-party code

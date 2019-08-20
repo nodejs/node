@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/string-16.h"
 
 #include "include/v8.h"
@@ -19,6 +20,8 @@ class InjectedScript;
 class InjectedScriptHost;
 class V8ContextInfo;
 class V8InspectorImpl;
+
+enum class V8InternalValueType { kNone, kEntry, kScope, kScopeList };
 
 class InspectedContext {
  public:
@@ -40,8 +43,12 @@ class InspectedContext {
   V8InspectorImpl* inspector() const { return m_inspector; }
 
   InjectedScript* getInjectedScript(int sessionId);
-  bool createInjectedScript(int sessionId);
+  InjectedScript* createInjectedScript(int sessionId);
   void discardInjectedScript(int sessionId);
+
+  bool addInternalObject(v8::Local<v8::Object> object,
+                         V8InternalValueType type);
+  V8InternalValueType getInternalType(v8::Local<v8::Object> object);
 
  private:
   friend class V8InspectorImpl;
@@ -59,6 +66,7 @@ class InspectedContext {
   std::unordered_set<int> m_reportedSessionIds;
   std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
   WeakCallbackData* m_weakCallbackData;
+  v8::Global<v8::debug::WeakMap> m_internalObjects;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 };

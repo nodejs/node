@@ -29,50 +29,28 @@ const filename = path.join(tmpdir.path, 'write.txt');
 
 tmpdir.refresh();
 
-// fs.writeSync with all parameters provided:
 {
-  const fd = fs.openSync(filename, 'w');
+  const parameters = [Buffer.from('bár'), 0, Buffer.byteLength('bár')];
 
-  let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
+  // The first time fs.writeSync is called with all parameters provided.
+  // After that, each pop in the cycle removes the final parameter. So:
+  // - The 2nd time fs.writeSync with a buffer, without the length parameter.
+  // - The 3rd time fs.writeSync with a buffer, without the offset and length
+  //   parameters.
+  while (parameters.length > 0) {
+    const fd = fs.openSync(filename, 'w');
 
-  fs.writeSync(fd, 'foo');
+    let written = fs.writeSync(fd, '');
+    assert.strictEqual(written, 0);
 
-  written = fs.writeSync(fd, Buffer.from('bár'), 0, Buffer.byteLength('bár'));
-  assert.ok(written > 3);
-  fs.closeSync(fd);
+    fs.writeSync(fd, 'foo');
 
-  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
-}
+    written = fs.writeSync(fd, ...parameters);
+    assert.ok(written > 3);
+    fs.closeSync(fd);
 
-// fs.writeSync with a buffer, without the length parameter:
-{
-  const fd = fs.openSync(filename, 'w');
+    assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
 
-  let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
-
-  fs.writeSync(fd, 'foo');
-
-  written = fs.writeSync(fd, Buffer.from('bár'), 0);
-  assert.ok(written > 3);
-  fs.closeSync(fd);
-
-  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
-}
-
-// fs.writeSync with a buffer, without the offset and length parameters:
-{
-  const fd = fs.openSync(filename, 'w');
-
-  let written = fs.writeSync(fd, '');
-  assert.strictEqual(0, written);
-
-  fs.writeSync(fd, 'foo');
-
-  written = fs.writeSync(fd, Buffer.from('bár'));
-  assert.ok(written > 3);
-  fs.closeSync(fd);
-
-  assert.strictEqual(fs.readFileSync(filename, 'utf-8'), 'foobár');
+    parameters.pop();
+  }
 }

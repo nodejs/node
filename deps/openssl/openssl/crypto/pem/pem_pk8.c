@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -124,7 +124,7 @@ EVP_PKEY *d2i_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
         klen = cb(psbuf, PEM_BUFSIZE, 0, u);
     else
         klen = PEM_def_callback(psbuf, PEM_BUFSIZE, 0, u);
-    if (klen <= 0) {
+    if (klen < 0) {
         PEMerr(PEM_F_D2I_PKCS8PRIVATEKEY_BIO, PEM_R_BAD_PASSWORD_READ);
         X509_SIG_free(p8);
         return NULL;
@@ -183,7 +183,7 @@ static int do_pk8pkey_fp(FILE *fp, EVP_PKEY *x, int isder, int nid,
 
     if ((bp = BIO_new_fp(fp, BIO_NOCLOSE)) == NULL) {
         PEMerr(PEM_F_DO_PK8PKEY_FP, ERR_R_BUF_LIB);
-        return (0);
+        return 0;
     }
     ret = do_pk8pkey(bp, x, isder, nid, enc, kstr, klen, cb, u);
     BIO_free(bp);

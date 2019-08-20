@@ -1,4 +1,4 @@
-/* eslint-disable node-core/required-modules */
+/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 const assert = require('assert');
@@ -39,7 +39,7 @@ function readDomainFromPacket(buffer, offset) {
   } else {
     // Pointer to another part of the packet.
     assert.strictEqual(length & 0xC0, 0xC0);
-    // eslint-disable-next-line
+    // eslint-disable-next-line space-infix-ops, space-unary-ops
     const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
     return {
       nread: 2,
@@ -291,12 +291,12 @@ const mockedErrorCode = 'ENOTFOUND';
 const mockedSysCall = 'getaddrinfo';
 
 function errorLookupMock(code = mockedErrorCode, syscall = mockedSysCall) {
-  return function lookupWithError(host, dnsopts, cb) {
-    const err = new Error(`${syscall} ${code} ${host}`);
+  return function lookupWithError(hostname, dnsopts, cb) {
+    const err = new Error(`${syscall} ${code} ${hostname}`);
     err.code = code;
     err.errno = code;
     err.syscall = syscall;
-    err.hostname = host;
+    err.hostname = hostname;
     cb(err);
   };
 }

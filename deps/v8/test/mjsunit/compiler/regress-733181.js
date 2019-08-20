@@ -8,6 +8,7 @@ function l(s) {
   return ("xxxxxxxxxxxxxxxxxxxxxxx" + s).toLowerCase();
 }
 
+%PrepareFunctionForOptimization(l);
 l("abcd");
 l("abcd");
 %OptimizeFunctionOnNextCall(l);
@@ -17,6 +18,7 @@ function u(s) {
   return ("xxxxxxxxxxxxxxxxxxxxxxx" + s).toUpperCase();
 }
 
+%PrepareFunctionForOptimization(u);
 u("abcd");
 u("abcd");
 %OptimizeFunctionOnNextCall(u);

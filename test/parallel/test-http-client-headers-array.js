@@ -39,7 +39,7 @@ function execute(options) {
   });
 }
 
-// should be the same except for implicit Host header on the first two
+// Should be the same except for implicit Host header on the first two
 execute({ headers: { 'x-foo': 'boom', 'cookie': 'a=1; b=2; c=3' } });
 execute({ headers: { 'x-foo': 'boom', 'cookie': [ 'a=1', 'b=2', 'c=3' ] } });
 execute({ headers: [[ 'x-foo', 'boom' ], [ 'cookie', 'a=1; b=2; c=3' ]] });

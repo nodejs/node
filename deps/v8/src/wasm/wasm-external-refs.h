@@ -2,77 +2,81 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
 #define V8_WASM_WASM_EXTERNAL_REFS_H_
+
+#include <stdint.h>
+
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-void f32_trunc_wrapper(float* param);
+V8_EXPORT_PRIVATE void f32_trunc_wrapper(Address data);
 
-void f32_floor_wrapper(float* param);
+V8_EXPORT_PRIVATE void f32_floor_wrapper(Address data);
 
-void f32_ceil_wrapper(float* param);
+V8_EXPORT_PRIVATE void f32_ceil_wrapper(Address data);
 
-void f32_nearest_int_wrapper(float* param);
+V8_EXPORT_PRIVATE void f32_nearest_int_wrapper(Address data);
 
-void f64_trunc_wrapper(double* param);
+V8_EXPORT_PRIVATE void f64_trunc_wrapper(Address data);
 
-void f64_floor_wrapper(double* param);
+V8_EXPORT_PRIVATE void f64_floor_wrapper(Address data);
 
-void f64_ceil_wrapper(double* param);
+V8_EXPORT_PRIVATE void f64_ceil_wrapper(Address data);
 
-void f64_nearest_int_wrapper(double* param);
+V8_EXPORT_PRIVATE void f64_nearest_int_wrapper(Address data);
 
-void int64_to_float32_wrapper(int64_t* input, float* output);
+V8_EXPORT_PRIVATE void int64_to_float32_wrapper(Address data);
 
-void uint64_to_float32_wrapper(uint64_t* input, float* output);
+V8_EXPORT_PRIVATE void uint64_to_float32_wrapper(Address data);
 
-void int64_to_float64_wrapper(int64_t* input, double* output);
+V8_EXPORT_PRIVATE void int64_to_float64_wrapper(Address data);
 
-void uint64_to_float64_wrapper(uint64_t* input, double* output);
+V8_EXPORT_PRIVATE void uint64_to_float64_wrapper(Address data);
 
-int32_t float32_to_int64_wrapper(float* input, int64_t* output);
+V8_EXPORT_PRIVATE int32_t float32_to_int64_wrapper(Address data);
 
-int32_t float32_to_uint64_wrapper(float* input, uint64_t* output);
+V8_EXPORT_PRIVATE int32_t float32_to_uint64_wrapper(Address data);
 
-int32_t float64_to_int64_wrapper(double* input, int64_t* output);
+V8_EXPORT_PRIVATE int32_t float64_to_int64_wrapper(Address data);
 
-int32_t float64_to_uint64_wrapper(double* input, uint64_t* output);
+V8_EXPORT_PRIVATE int32_t float64_to_uint64_wrapper(Address data);
 
-int32_t int64_div_wrapper(int64_t* dst, int64_t* src);
+V8_EXPORT_PRIVATE int32_t int64_div_wrapper(Address data);
 
-int32_t int64_mod_wrapper(int64_t* dst, int64_t* src);
+V8_EXPORT_PRIVATE int32_t int64_mod_wrapper(Address data);
 
-int32_t uint64_div_wrapper(uint64_t* dst, uint64_t* src);
+V8_EXPORT_PRIVATE int32_t uint64_div_wrapper(Address data);
 
-int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src);
+V8_EXPORT_PRIVATE int32_t uint64_mod_wrapper(Address data);
 
-uint32_t word32_ctz_wrapper(uint32_t* input);
+V8_EXPORT_PRIVATE uint32_t word32_ctz_wrapper(Address data);
 
-uint32_t word64_ctz_wrapper(uint64_t* input);
+V8_EXPORT_PRIVATE uint32_t word64_ctz_wrapper(Address data);
 
-uint32_t word32_popcnt_wrapper(uint32_t* input);
+V8_EXPORT_PRIVATE uint32_t word32_popcnt_wrapper(Address data);
 
-uint32_t word64_popcnt_wrapper(uint64_t* input);
+V8_EXPORT_PRIVATE uint32_t word64_popcnt_wrapper(Address data);
 
-uint32_t word32_rol_wrapper(uint32_t* input_p, uint32_t* shift_p);
+V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(Address data);
 
-uint32_t word32_ror_wrapper(uint32_t* input_p, uint32_t* shift_p);
+V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(Address data);
 
-void float64_pow_wrapper(double* param0, double* param1);
+V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
-void set_thread_in_wasm_flag();
-void clear_thread_in_wasm_flag();
+void memory_copy_wrapper(Address dst, Address src, uint32_t size);
 
-typedef void (*WasmTrapCallbackForTesting)();
+void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size);
 
-void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback);
+using WasmTrapCallbackForTesting = void (*)();
 
-void call_trap_callback_for_testing();
+V8_EXPORT_PRIVATE void set_trap_callback_for_testing(
+    WasmTrapCallbackForTesting callback);
+
+V8_EXPORT_PRIVATE void call_trap_callback_for_testing();
 
 }  // namespace wasm
 }  // namespace internal

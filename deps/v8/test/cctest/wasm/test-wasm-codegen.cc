@@ -47,23 +47,22 @@ bool TrueCallback(Local<v8::Context>, Local<v8::String>) { return true; }
 
 bool FalseCallback(Local<v8::Context>, Local<v8::String>) { return false; }
 
-typedef bool (*CallbackFn)(Local<v8::Context>, Local<v8::String>);
+using CallbackFn = bool (*)(Local<v8::Context>, Local<v8::String>);
 
 // Defines the Callback to use for the corresponding TestValue.
 CallbackFn Callback[kNumTestValues] = {nullptr, FalseCallback, TrueCallback};
 
 void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
   WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
-  builder->WriteTo(*buffer);
+  builder->WriteTo(buffer);
 }
 
-bool TestModule(Isolate* isolate,
-                v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes) {
+bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {
   HandleScope scope(isolate);
 
-  v8::WasmCompiledModule::CallerOwnedBuffer serialized_module(nullptr, 0);
-  MaybeLocal<v8::WasmCompiledModule> module =
-      v8::WasmCompiledModule::DeserializeOrCompile(
+  v8::MemorySpan<const uint8_t> serialized_module;
+  MaybeLocal<v8::WasmModuleObject> module =
+      v8::WasmModuleObject::DeserializeOrCompile(
           reinterpret_cast<v8::Isolate*>(isolate), serialized_module,
           wire_bytes);
   return !module.IsEmpty();
@@ -76,8 +75,7 @@ TEST(PropertiesOfCodegenCallbacks) {
   Zone zone(&allocator, ZONE_NAME);
   ZoneBuffer buffer(&zone);
   BuildTrivialModule(&zone, &buffer);
-  v8::WasmCompiledModule::CallerOwnedBuffer wire_bytes = {buffer.begin(),
-                                                          buffer.size()};
+  v8::MemorySpan<const uint8_t> wire_bytes = {buffer.begin(), buffer.size()};
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   testing::SetupIsolateForWasmModule(isolate);

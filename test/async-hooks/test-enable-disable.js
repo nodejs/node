@@ -85,9 +85,13 @@
 
 const common = require('../common');
 const assert = require('assert');
-const tick = require('./tick');
+const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
+
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different timing');
+
 // Include "Unknown"s because hook2 will not be able to identify
 // the type of the first Immediate  since it will miss its `init` invocation.
 const types = [ 'Immediate', 'Unknown' ];
@@ -257,7 +261,7 @@ function onexit() {
                    'hook2Second: when process exits');
   checkInvocations(hook3First, { init: 1, before: 1, after: 1, destroy: 1 },
                    'hook3First: when process exits');
-  // we don't see a "destroy" invocation here since hook3 disabled itself
+  // We don't see a "destroy" invocation here since hook3 disabled itself
   // during its "after" invocation
   checkInvocations(hook3Second, { init: 1, before: 1, after: 1 },
                    'hook3Second: when process exits');

@@ -46,11 +46,9 @@ function TestArrayBufferCreation() {
   assertThrows(function() { new ArrayBuffer(-10); }, RangeError);
   assertThrows(function() { new ArrayBuffer(-2.567); }, RangeError);
 
-/* TODO[dslomov]: Reenable the test
   assertThrows(function() {
     var ab1 = new ArrayBuffer(0xFFFFFFFFFFFF)
   }, RangeError);
-*/
 
   var ab = new ArrayBuffer();
   assertSame(0, ab.byteLength);
@@ -636,7 +634,7 @@ function TestTypedArraySet() {
   var detached = false;
   evilarr[1] = {
     [Symbol.toPrimitive]() {
-      %ArrayBufferNeuter(a111.buffer);
+      %ArrayBufferDetach(a111.buffer);
       detached = true;
       return 1;
     }
@@ -648,7 +646,7 @@ function TestTypedArraySet() {
   var tmp = {
     [Symbol.toPrimitive]() {
       assertUnreachable("Parameter should not be processed when " +
-                        "array.[[ViewedArrayBuffer]] is neutered.");
+                        "array.[[ViewedArrayBuffer]] is detached.");
       return 1;
     }
   };
@@ -662,7 +660,7 @@ function TestTypedArraySet() {
       let detached = false;
       const offset = {
         [Symbol.toPrimitive]() {
-          %ArrayBufferNeuter(xs.buffer);
+          %ArrayBufferDetach(xs.buffer);
           detached = true;
           return 0;
         }
@@ -677,7 +675,7 @@ function TestTypedArraySet() {
     for (const klass of typedArrayConstructors) {
       const a = new klass(2);
       for (let i = 0; i < a.length; i++) a[i] = i;
-      %ArrayBufferNeuter(a.buffer);
+      %ArrayBufferDetach(a.buffer);
 
       const b = new klass(2);
       assertThrows(() => b.set(a), TypeError);
@@ -815,10 +813,10 @@ function TestTypedArraysWithIllegalIndicesStrict() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -1022,3 +1020,29 @@ assertThrows(function LargeSourceArray() {
 
   a.set(v0);
 });
+
+function TestMapCustomSpeciesConstructor(constructor) {
+  const sample = new constructor([40, 42, 42]);
+  let result, ctorThis;
+
+  sample.constructor = {};
+  sample.constructor[Symbol.species] = function(count) {
+    result = arguments;
+    ctorThis = this;
+    return new constructor(count);
+  };
+
+  sample.map(function(v) { return v; });
+
+  assertSame(result.length, 1, "called with 1 argument");
+  assertSame(result[0], 3, "[0] is the new captured length");
+
+  assertTrue(
+    ctorThis instanceof sample.constructor[Symbol.species],
+    "`this` value in the @@species fn is an instance of the function itself"
+  );
+};
+
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestPropertyTypeChecks(typedArrayConstructors[i]);
+}

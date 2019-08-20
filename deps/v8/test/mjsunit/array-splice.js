@@ -445,3 +445,21 @@
                 "array.hasOwnProperty(Math.pow(2, 32) - 2)");
   }
 })();
+
+// Verify that fast implementations aren't confused by empty DOUBLE element arrays
+(function() {
+
+  function foo(dontAddAnything) {
+    let a = [];
+    if (dontAddAnything === undefined) {
+      a[1] = 0.5;
+    }
+    return a.splice(0, 0, 3.5);
+  }
+
+  // Learn via allocation site tracking to create double arrays in foo().
+  foo();
+  foo();
+  // force splice to copy the input array.
+  foo(true);
+})();

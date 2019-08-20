@@ -4,12 +4,14 @@
 
 #include "src/compiler/escape-analysis.h"
 
-#include "src/bootstrapper.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/zone/zone-list-inl.h"  // TODO(mstarzinger): Fix zone-handle-set.h instead!
+#include "src/handles/handles-inl.h"
+#include "src/init/bootstrapper.h"
+#include "src/objects/map-inl.h"
 
 #ifdef DEBUG
 #define TRACE(...)                                    \
@@ -70,7 +72,7 @@ class SparseSidetable {
 // necessary node revisitations happen.
 class ReduceScope {
  public:
-  typedef EffectGraphReducer::Reduction Reduction;
+  using Reduction = EffectGraphReducer::Reduction;
   explicit ReduceScope(Node* node, Reduction* reduction)
       : current_node_(node), reduction_(reduction) {}
 
@@ -95,9 +97,9 @@ class VariableTracker {
  private:
   // The state of all variables at one point in the effect chain.
   class State {
-    typedef PersistentMap<Variable, Node*> Map;
-
    public:
+    using Map = PersistentMap<Variable, Node*>;
+
     explicit State(Zone* zone) : map_(zone) {}
     Node* Get(Variable var) const {
       CHECK(var != Variable::Invalid());
@@ -152,6 +154,7 @@ class VariableTracker {
   ZoneVector<Node*> buffer_;
   EffectGraphReducer* reducer_;
   int next_variable_ = 0;
+  TickCounter* const tick_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(VariableTracker);
 };
@@ -278,12 +281,14 @@ class EscapeAnalysisTracker : public ZoneObject {
 };
 
 EffectGraphReducer::EffectGraphReducer(
-    Graph* graph, std::function<void(Node*, Reduction*)> reduce, Zone* zone)
+    Graph* graph, std::function<void(Node*, Reduction*)> reduce,
+    TickCounter* tick_counter, Zone* zone)
     : graph_(graph),
       state_(graph, kNumStates),
       revisit_(zone),
       stack_(zone),
-      reduce_(reduce) {}
+      reduce_(std::move(reduce)),
+      tick_counter_(tick_counter) {}
 
 void EffectGraphReducer::ReduceFrom(Node* node) {
   // Perform DFS and eagerly trigger revisitation as soon as possible.
@@ -292,6 +297,7 @@ void EffectGraphReducer::ReduceFrom(Node* node) {
   DCHECK(stack_.empty());
   stack_.push({node, 0});
   while (!stack_.empty()) {
+    tick_counter_->DoTick();
     Node* current = stack_.top().node;
     int& input_index = stack_.top().input_index;
     if (input_index < current->InputCount()) {
@@ -356,7 +362,8 @@ VariableTracker::VariableTracker(JSGraph* graph, EffectGraphReducer* reducer,
       graph_(graph),
       table_(zone, State(zone)),
       buffer_(zone),
-      reducer_(reducer) {}
+      reducer_(reducer),
+      tick_counter_(reducer->tick_counter()) {}
 
 VariableTracker::Scope::Scope(VariableTracker* states, Node* node,
                               Reduction* reduction)
@@ -405,6 +412,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   State first_input = table_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
   State result = first_input;
   for (std::pair<Variable, Node*> var_value : first_input) {
+    tick_counter_->DoTick();
     if (Node* value = var_value.second) {
       Variable var = var_value.first;
       TRACE("var %i:\n", var.id_);
@@ -440,10 +448,12 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
         // [old_value] cannot originate from the inputs. Thus [old_value]
         // must have been created by a previous reduction of this [effect_phi].
         for (int i = 0; i < arity; ++i) {
-          NodeProperties::ReplaceValueInput(
-              old_value, buffer_[i] ? buffer_[i] : graph_->Dead(), i);
-          // This change cannot affect the rest of the reducer, so there is no
-          // need to trigger additional revisitations.
+          Node* old_input = NodeProperties::GetValueInput(old_value, i);
+          Node* new_input = buffer_[i] ? buffer_[i] : graph_->Dead();
+          if (old_input != new_input) {
+            NodeProperties::ReplaceValueInput(old_value, new_input, i);
+            reducer_->Revisit(old_value);
+          }
         }
         result.Set(var, old_value);
       } else {
@@ -499,20 +509,24 @@ int OffsetOfFieldAccess(const Operator* op) {
   return access.offset;
 }
 
+int OffsetOfElementAt(ElementAccess const& access, int index) {
+  DCHECK_GE(index, 0);
+  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
+            kTaggedSizeLog2);
+  return access.header_size +
+         (index << ElementSizeLog2Of(access.machine_type.representation()));
+}
+
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
-  Type* index_type = NodeProperties::GetType(index_node);
-  if (!index_type->Is(Type::OrderedNumber())) return Nothing<int>();
-  double max = index_type->Max();
-  double min = index_type->Min();
+  Type index_type = NodeProperties::GetType(index_node);
+  if (!index_type.Is(Type::OrderedNumber())) return Nothing<int>();
+  double max = index_type.Max();
+  double min = index_type.Min();
   int index = static_cast<int>(min);
-  if (!(index == min && index == max)) return Nothing<int>();
-  ElementAccess access = ElementAccessOf(op);
-  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-            kPointerSizeLog2);
-  return Just(access.header_size + (index << ElementSizeLog2Of(
-                                        access.machine_type.representation())));
+  if (index < 0 || index != min || index != max) return Nothing<int>();
+  return Just(OffsetOfElementAt(ElementAccessOf(op), index));
 }
 
 Node* LowerCompareMapsWithoutLoad(Node* checked_map,
@@ -617,9 +631,63 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           OffsetOfElementsAccess(op, index).To(&offset) &&
           vobject->FieldAt(offset).To(&var) && current->Get(var).To(&value)) {
         current->SetReplacement(value);
-      } else {
-        current->SetEscaped(object);
+        break;
+      } else if (vobject && !vobject->HasEscaped()) {
+        // Compute the known length (aka the number of elements) of {object}
+        // based on the virtual object information.
+        ElementAccess const& access = ElementAccessOf(op);
+        int const length =
+            (vobject->size() - access.header_size) >>
+            ElementSizeLog2Of(access.machine_type.representation());
+        Variable var0, var1;
+        Node* value0;
+        Node* value1;
+        if (length == 1 &&
+            vobject->FieldAt(OffsetOfElementAt(access, 0)).To(&var) &&
+            current->Get(var).To(&value) &&
+            (value == nullptr ||
+             NodeProperties::GetType(value).Is(access.type))) {
+          // The {object} has no elements, and we know that the LoadElement
+          // {index} must be within bounds, thus it must always yield this
+          // one element of {object}.
+          current->SetReplacement(value);
+          break;
+        } else if (length == 2 &&
+                   vobject->FieldAt(OffsetOfElementAt(access, 0)).To(&var0) &&
+                   current->Get(var0).To(&value0) &&
+                   (value0 == nullptr ||
+                    NodeProperties::GetType(value0).Is(access.type)) &&
+                   vobject->FieldAt(OffsetOfElementAt(access, 1)).To(&var1) &&
+                   current->Get(var1).To(&value1) &&
+                   (value1 == nullptr ||
+                    NodeProperties::GetType(value1).Is(access.type))) {
+          if (value0 && value1) {
+            // The {object} has exactly two elements, so the LoadElement
+            // must return one of them (i.e. either the element at index
+            // 0 or the one at index 1). So we can turn the LoadElement
+            // into a Select operation instead (still allowing the {object}
+            // to be scalar replaced). We must however mark the elements
+            // of the {object} itself as escaping.
+            Node* check =
+                jsgraph->graph()->NewNode(jsgraph->simplified()->NumberEqual(),
+                                          index, jsgraph->ZeroConstant());
+            NodeProperties::SetType(check, Type::Boolean());
+            Node* select = jsgraph->graph()->NewNode(
+                jsgraph->common()->Select(access.machine_type.representation()),
+                check, value0, value1);
+            NodeProperties::SetType(select, access.type);
+            current->SetReplacement(select);
+            current->SetEscaped(value0);
+            current->SetEscaped(value1);
+            break;
+          } else {
+            // If the variables have no values, we have
+            // not reached the fixed-point yet.
+            break;
+          }
+        }
       }
+      current->SetEscaped(object);
       break;
     }
     case IrOpcode::kTypeGuard: {
@@ -642,21 +710,19 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       } else if (right_object && !right_object->HasEscaped()) {
         replacement = jsgraph->FalseConstant();
       }
-      if (replacement) {
-        // TODO(tebbi) This is a workaround for uninhabited types. If we
-        // replaced a value of uninhabited type with a constant, we would
-        // widen the type of the node. This could produce inconsistent
-        // types (which might confuse representation selection). We get
-        // around this by refusing to constant-fold and escape-analyze
-        // if the type is not inhabited.
-        if (!NodeProperties::GetType(left)->IsNone() &&
-            !NodeProperties::GetType(right)->IsNone()) {
-          current->SetReplacement(replacement);
-        } else {
-          current->SetEscaped(left);
-          current->SetEscaped(right);
-        }
+      // TODO(tebbi) This is a workaround for uninhabited types. If we
+      // replaced a value of uninhabited type with a constant, we would
+      // widen the type of the node. This could produce inconsistent
+      // types (which might confuse representation selection). We get
+      // around this by refusing to constant-fold and escape-analyze
+      // if the type is not inhabited.
+      if (replacement && !NodeProperties::GetType(left).IsNone() &&
+          !NodeProperties::GetType(right).IsNone()) {
+        current->SetReplacement(replacement);
+        break;
       }
+      current->SetEscaped(left);
+      current->SetEscaped(right);
       break;
     }
     case IrOpcode::kCheckMaps: {
@@ -669,10 +735,11 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
           current->Get(map_field).To(&map)) {
         if (map) {
-          Type* const map_type = NodeProperties::GetType(map);
-          if (map_type->IsHeapConstant() &&
+          Type const map_type = NodeProperties::GetType(map);
+          AllowHandleDereference handle_dereference;
+          if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  bit_cast<Handle<Map>>(map_type->AsHeapConstant()->Value()))) {
+                  Handle<Map>::cast(map_type.AsHeapConstant()->Value()))) {
             current->MarkForDeletion();
             break;
           }
@@ -695,7 +762,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&object_map)) {
         if (object_map) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(
-              object_map, CompareMapsParametersOf(op).maps(), jsgraph));
+              object_map, CompareMapsParametersOf(op), jsgraph));
           break;
         } else {
           // If the variable has no value, we have not reached the fixed-point
@@ -757,11 +824,12 @@ void EscapeAnalysis::Reduce(Node* node, Reduction* reduction) {
   ReduceNode(op, &current, jsgraph());
 }
 
-EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, Zone* zone)
+EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, TickCounter* tick_counter,
+                               Zone* zone)
     : EffectGraphReducer(
           jsgraph->graph(),
           [this](Node* node, Reduction* reduction) { Reduce(node, reduction); },
-          zone),
+          tick_counter, zone),
       tracker_(new (zone) EscapeAnalysisTracker(jsgraph, this, zone)),
       jsgraph_(jsgraph) {}
 
@@ -787,9 +855,9 @@ const VirtualObject* EscapeAnalysisResult::GetVirtualObject(Node* node) {
 VirtualObject::VirtualObject(VariableTracker* var_states, VirtualObject::Id id,
                              int size)
     : Dependable(var_states->zone()), id_(id), fields_(var_states->zone()) {
-  DCHECK_EQ(0, size % kPointerSize);
+  DCHECK(IsAligned(size, kTaggedSize));
   TRACE("Creating VirtualObject id:%d size:%d\n", id, size);
-  int num_fields = size / kPointerSize;
+  int num_fields = size / kTaggedSize;
   fields_.reserve(num_fields);
   for (int i = 0; i < num_fields; ++i) {
     fields_.push_back(var_states->NewVariable());

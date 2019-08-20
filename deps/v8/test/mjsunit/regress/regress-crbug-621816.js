@@ -9,9 +9,10 @@ function f() {
   o.a = 1;
 }
 function g() {
-  var o = { ['a']: function(){} };
+  var o = {['a']: function() {}};
   f();
-}
+};
+%PrepareFunctionForOptimization(g);
 f();
 f();
 %OptimizeFunctionOnNextCall(g);

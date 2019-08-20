@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestMultipleInstances() {
@@ -102,7 +101,7 @@ function TestExported(type, val, expected) {
   builder.addGlobal(kWasmI32);  // pad
 
   var instance = builder.instantiate();
-  assertEquals(expected, instance.exports.foo);
+  assertEquals(expected, instance.exports.foo.value);
 }
 
 TestExported(kWasmI32, 455.5, 455);
@@ -118,7 +117,9 @@ TestExported(kWasmF64, 87347.66666, 87347.66666);
   g.init = 1234;
   builder.addGlobal(kWasmI32);  // pad
 
-  assertThrows(()=> {builder.instantiate()}, WebAssembly.LinkError);
+  var instance = builder.instantiate();
+  assertTrue(instance.exports.foo instanceof WebAssembly.Global);
+  assertThrows(() => {instance.exports.foo.value}, TypeError);
 })();
 
 function TestImportedExported(type, val, expected) {
@@ -133,7 +134,7 @@ function TestImportedExported(type, val, expected) {
   builder.addGlobal(kWasmI32);  // pad
 
   var instance = builder.instantiate({ttt: {foo: val}});
-  assertEquals(expected, instance.exports.bar);
+  assertEquals(expected, instance.exports.bar.value);
 }
 
 TestImportedExported(kWasmI32, 415.5, 415);

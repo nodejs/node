@@ -5,7 +5,7 @@
 // The common functionality when building with internal or external natives.
 
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/natives.h"
 
 namespace v8 {
@@ -16,23 +16,10 @@ NativesExternalStringResource::NativesExternalStringResource(NativeType type,
     : type_(type), index_(index) {
   Vector<const char> source;
   DCHECK_LE(0, index);
-  switch (type_) {
-    case CORE:
-      DCHECK(index < Natives::GetBuiltinsCount());
-      source = Natives::GetScriptSource(index);
-      break;
-    case EXTRAS:
-      DCHECK(index < ExtraNatives::GetBuiltinsCount());
-      source = ExtraNatives::GetScriptSource(index);
-      break;
-    case EXPERIMENTAL_EXTRAS:
-      DCHECK(index < ExperimentalExtraNatives::GetBuiltinsCount());
-      source = ExperimentalExtraNatives::GetScriptSource(index);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  data_ = source.start();
+  CHECK_EQ(EXTRAS, type_);
+  DCHECK(index < ExtraNatives::GetBuiltinsCount());
+  source = ExtraNatives::GetScriptSource(index);
+  data_ = source.begin();
   length_ = source.length();
 }
 

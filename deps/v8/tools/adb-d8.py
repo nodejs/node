@@ -158,7 +158,7 @@ def Main():
   # command.
   adb = os.path.join(
     script_dir,
-    "../third_party/android_tools/sdk/platform-tools/adb"
+    "../third_party/android_sdk/public/platform-tools/adb"
   )
 
   # Read off any command line flags before build_dir (or --). Do this

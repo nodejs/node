@@ -32,9 +32,9 @@ function test(fn, code) {
 }
 
 if (common.isWindows) {
-  test(child_process.exec, 1); // exit code of cmd.exe
+  test(child_process.exec, 1); // Exit code of cmd.exe
 } else {
-  test(child_process.exec, 127); // exit code of /bin/sh
+  test(child_process.exec, 127); // Exit code of /bin/sh
 }
 
 test(child_process.execFile, 'ENOENT');

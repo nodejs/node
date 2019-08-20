@@ -43,6 +43,7 @@ function f() {
   return [result, literal];
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

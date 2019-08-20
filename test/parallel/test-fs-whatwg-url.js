@@ -42,7 +42,7 @@ common.expectsError(
 
 // pct-encoded characters in the path will be decoded and checked
 if (common.isWindows) {
-  // encoded back and forward slashes are not permitted on windows
+  // Encoded back and forward slashes are not permitted on windows
   ['%2f', '%2F', '%5c', '%5C'].forEach((i) => {
     common.expectsError(
       () => {
@@ -63,11 +63,11 @@ if (common.isWindows) {
       code: 'ERR_INVALID_ARG_VALUE',
       type: TypeError,
       message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'c:/tmp/\\u0000test\''
+               'null bytes. Received \'c:\\\\tmp\\\\\\u0000test\''
     }
   );
 } else {
-  // encoded forward slashes are not permitted on other platforms
+  // Encoded forward slashes are not permitted on other platforms
   ['%2f', '%2F'].forEach((i) => {
     common.expectsError(
       () => {

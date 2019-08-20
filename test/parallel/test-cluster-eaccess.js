@@ -38,40 +38,40 @@ if (cluster.isMaster && process.argv.length !== 3) {
   const PIPE_NAME = common.PIPE;
   const worker = cluster.fork({ PIPE_NAME });
 
-  // makes sure master is able to fork the worker
+  // Makes sure master is able to fork the worker
   cluster.on('fork', common.mustCall());
 
-  // makes sure the worker is ready
+  // Makes sure the worker is ready
   worker.on('online', common.mustCall());
 
   worker.on('message', common.mustCall(function(err) {
-    // disconnect first, so that we will not leave zombies
+    // Disconnect first, so that we will not leave zombies
     worker.disconnect();
-    assert.strictEqual('EADDRINUSE', err.code);
+    assert.strictEqual(err.code, 'EADDRINUSE');
   }));
 } else if (process.argv.length !== 3) {
   // cluster.worker
   const PIPE_NAME = process.env.PIPE_NAME;
   const cp = fork(__filename, [PIPE_NAME], { stdio: 'inherit' });
 
-  // message from the child indicates it's ready and listening
+  // Message from the child indicates it's ready and listening
   cp.on('message', common.mustCall(function() {
     const server = net.createServer().listen(PIPE_NAME, function() {
-      // message child process so that it can exit
+      // Message child process so that it can exit
       cp.send('end');
-      // inform master about the unexpected situation
+      // Inform master about the unexpected situation
       process.send('PIPE should have been in use.');
     });
 
     server.on('error', function(err) {
-      // message to child process tells it to exit
+      // Message to child process tells it to exit
       cp.send('end');
-      // propagate error to parent
+      // Propagate error to parent
       process.send(err);
     });
   }));
 } else if (process.argv.length === 3) {
-  // child process (of cluster.worker)
+  // Child process (of cluster.worker)
   const PIPE_NAME = process.argv[2];
 
   const server = net.createServer().listen(PIPE_NAME, common.mustCall(() => {

@@ -15,7 +15,7 @@
 # des_cblock (*ivec);
 # int enc;
 #
-# calls 
+# calls
 # des_encrypt((DES_LONG *)tin,schedule,DES_ENCRYPT);
 #
 
@@ -36,7 +36,7 @@ sub cbc
 	# name is the function name
 	# enc_func and dec_func and the functions to call for encrypt/decrypt
 	# swap is true if byte order needs to be reversed
-	# iv_off is parameter number for the iv 
+	# iv_off is parameter number for the iv
 	# enc_off is parameter number for the encrypt/decrypt flag
 	# p1,p2,p3 are the offsets for parameters to be passed to the
 	# underlying calls.
@@ -114,7 +114,7 @@ sub cbc
 	#############################################################
 
 	&set_label("encrypt_loop");
-	# encrypt start 
+	# encrypt start
 	# "eax" and "ebx" hold iv (or the last cipher text)
 
 	&mov("ecx",	&DWP(0,$in,"",0));	# load first 4 bytes
@@ -208,7 +208,7 @@ sub cbc
 	#############################################################
 	#############################################################
 	&set_label("decrypt",1);
-	# decrypt start 
+	# decrypt start
 	&and($count,0xfffffff8);
 	# The next 2 instructions are only for if the jz is taken
 	&mov("eax",	&DWP($data_off+8,"esp","",0));	# get iv[0]
@@ -350,7 +350,7 @@ sub cbc
 	&align(64);
 
 	&function_end_B($name);
-	
+
 	}
 
 1;

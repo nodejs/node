@@ -1,3 +1,711 @@
+2019.08.10, Version 1.31.0 (Stable), 0a6771cee4c15184c924bfe9d397bdd0c3b206ba
+
+Changes since version 1.30.1:
+
+* win,fs: don't modify global file translation mode (Javier Blazquez)
+
+* win: fix uv_os_tmpdir when env var is 260 chars (Mustafa M)
+
+* win: prevent tty event explosion machine hang (Javier Blazquez)
+
+* win: add UV_FS_O_FILEMAP (João Reis)
+
+* win, fs: mkdir return UV_EINVAL for invalid names (Bartosz Sosnowski)
+
+* github: add root warning to template (cjihrig)
+
+* win: misc fs cleanup (cjihrig)
+
+* unix,win: add uv_fs_statfs() (cjihrig)
+
+* test: avoid AF_LOCAL (Carlo Marcelo Arenas Belón)
+
+* unix,win: add ability to retrieve all env variables (Saúl Ibarra Corretgé)
+
+* Revert "darwin: speed up uv_set_process_title()" (Ben Noordhuis)
+
+* doc: add %p to valgrind log-file arg (Zach Bjornson)
+
+* doc: fix typo in basics.rst (Nan Xiao)
+
+* ibmi: support Makefile build for IBM i (Xu Meng)
+
+* OpenBSD: only get active CPU core count (Ben Davies)
+
+* test: fix gcc 8 warnings for tests (Nhan Khong)
+
+* ibmi: use correct header files (Xu Meng)
+
+* unix: clear UV_HANDLE_READING flag before callback (zyxwvu Shi)
+
+* unix: fix unused-function warning on BSD (Nhan Khong)
+
+* test: fix test runner on MinGW (Crunkle)
+
+* win: remove try-except outside MSVC (Crunkle)
+
+* win: fix uv_spawn() ENOMEM on empty env (Ben Noordhuis)
+
+
+2019.07.03, Version 1.30.1 (Stable), 1551969c84c2f546a429dac169c7fdac3e38115e
+
+Changes since version 1.30.0:
+
+* doc: fix incorrect versionchanged (cjihrig)
+
+* test: allow UV_ECONNRESET in tcp_try_write_error (cjihrig)
+
+* unix: add uv_get_constrained_memory() cygwin stub (cjihrig)
+
+* build: fix android cmake build (Ben Noordhuis)
+
+* unix: squelch -Wcast-function-type warning (Ben Noordhuis)
+
+* build: fix compile error with uClibc (zlargon)
+
+
+2019.06.28, Version 1.30.0 (Stable), 365b6f2a0eacda1ff52be8e57ab9381cfddc5dbb
+
+Changes since version 1.29.1:
+
+* darwin: fall back to F_BARRIERFSYNC (Ben Noordhuis)
+
+* darwin: add 32 bit close$NOCANCEL implementation (ken-cunningham-webuse)
+
+* build, core, unix: add support for Haiku (Leorize)
+
+* darwin,linux: more conservative minimum stack size (Ben Noordhuis)
+
+* threadpool: increase UV_THREADPOOL_SIZE limit (Vlad A)
+
+* unix: return actual error from `uv_try_write()` (Anna Henningsen)
+
+* darwin: fix build error with macos 10.10 (Ben Noordhuis)
+
+* unix: make uv_cwd() report UV_ENOBUFS (Ben Noordhuis)
+
+* unix: make uv_fs_read() fill all buffers (Ben Noordhuis)
+
+* test: give hrtime test a custom 10s timeout (Ben Noordhuis)
+
+* fs: fix uv_fs_copyfile if same src and dst (Santiago Gimeno)
+
+* build: add cmake option to skip building tests (Niels Lohmann)
+
+* doc: add link to nodejs.org (Jenil Christo)
+
+* unix: fix a comment typo in signal.c (Evgeny Ermakov)
+
+* unix: remove redundant cast in process.c (gengjiawen)
+
+* doc: fix wrong mutex function prototypes (Leo Chung)
+
+
+2019.05.22, Version 1.29.1 (Stable), d16e6094e1eb3b0b5981ef1dd7e03ec4d466944d
+
+Changes since version 1.29.0:
+
+* unix: simplify uv/posix.h include logic (cjihrig)
+
+* test: increase test timeout (cjihrig)
+
+* linux: fix sscanf() overflows reading from /proc (Ben Noordhuis)
+
+
+2019.05.16, Version 1.29.0 (Stable), 43957efd92c167b352b4c948b617ca7afbee0ed1
+
+Changes since version 1.28.0:
+
+* ibmi: read memory and CPU usage info (Xu Meng)
+
+* doc: update the cmake testing instruction (zlargon)
+
+* unix: fix race condition in uv_async_send() (Ben Noordhuis)
+
+* linux: use O_CLOEXEC instead of EPOLL_CLOEXEC (Ben Noordhuis)
+
+* doc: mark uv_async_send() as async-signal-safe (Ben Noordhuis)
+
+* linux: init st_flags and st_gen when using statx (Oscar Waddell)
+
+* linux: read free/total memory from /proc/meminfo (Ben Noordhuis)
+
+* test: test zero-sized uv_fs_sendfile() writes (Ben Noordhuis)
+
+* unix: don't assert on UV_PROCESS_WINDOWS_* flags (Ben Noordhuis)
+
+* linux: set correct mac address for IP-aliases (Santiago Gimeno)
+
+* win,util: fix null pointer dereferencing (Tobias Nießen)
+
+* unix,win: fix `uv_fs_poll_stop()` when active (Anna Henningsen)
+
+* doc: add missing uv_fs_type entries (Michele Caini)
+
+* doc: fix build with sphinx 2.x (FX Coudert)
+
+* unix: don't make statx system call on Android (George Zhao)
+
+* unix: fix clang scan-build warning (Kyle Edwards)
+
+* unix: fall back to kqueue on older macOS systems (ken-cunningham-webuse)
+
+* unix,win: add uv_get_constrained_memory() (Kelvin Jin)
+
+* darwin: fix thread cancellation fd leak (Ben Noordhuis)
+
+* linux: fix thread cancellation fd leak (Ben Noordhuis)
+
+
+2019.04.16, Version 1.28.0 (Stable), 7bf8fabfa934660ee0fe889f78e151198a1165fc
+
+Changes since version 1.27.0:
+
+* unix,win: add uv_gettimeofday() (cjihrig)
+
+* unix,win: add uv_fs_{open,read,close}dir() (cjihrig)
+
+* unix: fix uv_interface_addresses() (Andreas Rohner)
+
+* fs: remove macOS-specific copyfile(3) (Rich Trott)
+
+* fs: add test for copyfile() respecting permissions (Rich Trott)
+
+* build: partially revert 5234b1c43a (Ben Noordhuis)
+
+* zos: fix setsockopt error when using AF_UNIX (Milad Farazmand)
+
+* unix: suppress EINTR/EINPROGRESS in uv_fs_close() (Ben Noordhuis)
+
+* build: use cmake APPLE variable to detect platform (zlargon)
+
+* distcheck: remove duplicate test/ entry (Jameson Nash)
+
+* unix: remove unused cmpxchgl() function (Ben Noordhuis)
+
+* unix: support sockaddr_un in uv_udp_send() (Yury Selivanov)
+
+* unix: guard use of PTHREAD_STACK_MIN (Kamil Rytarowski)
+
+* unix,win: introduce uv_timeval64_t (cjihrig)
+
+* doc: document uv_timeval_t and uv_timeval64_t (cjihrig)
+
+
+2019.03.17, Version 1.27.0 (Stable), a4fc9a66cc35256dbc4dcd67c910174f05b6daa6
+
+Changes since version 1.26.0:
+
+* doc: describe unix signal handling better (Vladimír Čunát)
+
+* linux: use statx() to obtain file birth time (Ben Noordhuis)
+
+* src: fill sockaddr_in6.sin6_len when it's defined (Santiago Gimeno)
+
+* test: relax uv_hrtime() test assumptions (Ben Noordhuis)
+
+* build: make cmake install LICENSE only once (Thomas Karl Pietrowski)
+
+* bsd: plug uv_fs_event_start() error path fd leak (Ben Noordhuis)
+
+* unix: fix __FreeBSD_kernel__ typo (cjihrig)
+
+* doc: add note about uv_run() not being reentrant (Ben Noordhuis)
+
+* unix, win: make fs-poll close wait for resource cleanup (Anna Henningsen)
+
+* doc: fix typo in uv_thread_options_t definition (Ryan Liptak)
+
+* win: skip winsock initialization in safe mode (evgley)
+
+* unix: refactor getsockname/getpeername methods (Santiago Gimeno)
+
+* win,udp: allow to use uv_udp_open on bound sockets (Santiago Gimeno)
+
+* udp: add support for UDP connected sockets (Santiago Gimeno)
+
+* build: fix uv_test shared uv Windows cmake build (ptlomholt)
+
+* build: add android-configure scripts to EXTRA_DIST (Ben Noordhuis)
+
+* build: add missing header (cjihrig)
+
+* sunos: add perror() output prior to abort() (Andrew Paprocki)
+
+* test,sunos: disable UV_DISCONNECT handling (Andrew Paprocki)
+
+* sunos: disable __attribute__((unused)) (Andrew Paprocki)
+
+* test,sunos: use unistd.h code branch (Andrew Paprocki)
+
+* build,sunos: better handling of non-GCC compiler (Andrew Paprocki)
+
+* test,sunos: fix statement not reached warnings (Andrew Paprocki)
+
+* sunos: fix argument/prototype mismatch in atomics (Andrew Paprocki)
+
+* test,sunos: test-ipc.c lacks newline at EOF (Andrew Paprocki)
+
+* test: change spawn_stdin_stdout return to void (Andrew Paprocki)
+
+* test: remove call to floor() in test driver (Andrew Paprocki)
+
+
+2019.02.11, Version 1.26.0 (Stable), 8669d8d3e93cddb62611b267ef62a3ddb5ba3ca0
+
+Changes since version 1.25.0:
+
+* doc: fix uv_get_free_memory doc (Stephen Belanger)
+
+* unix: fix epoll cpu 100% issue (yeyuanfeng)
+
+* openbsd,tcp: special handling of EINVAL on connect (ptlomholt)
+
+* win: simplify registry closing in uv_cpu_info() (cjihrig)
+
+* src,include: define UV_MAXHOSTNAMESIZE (cjihrig)
+
+* win: return product name in uv_os_uname() version (cjihrig)
+
+* thread: allow specifying stack size for new thread (Anna Henningsen)
+
+* win: fix duplicate tty vt100 fn key (erw7)
+
+* unix: don't attempt to invalidate invalid fd (Ben Noordhuis)
+
+
+2019.01.19, Version 1.25.0 (Stable), 4a10a9d425863330af199e4b74bd688e62d945f1
+
+Changes since version 1.24.1:
+
+* Revert "win,fs: retry if uv_fs_rename fails" (Ben Noordhuis)
+
+* aix: manually trigger fs event monitoring (Gireesh Punathil)
+
+* unix: rename WRITE_RETRY_ON_ERROR macro (Ben Noordhuis)
+
+* darwin: DRY platform-specific error check (Ben Noordhuis)
+
+* unix: refactor uv__write() (Ben Noordhuis)
+
+* unix: don't send handle twice on partial write (Ben Noordhuis)
+
+* tty,win: fix Alt+key under WSL (Bartosz Sosnowski)
+
+* build: support running tests in out-of-tree builds (Jameson Nash)
+
+* fsevents: really watch files with fsevents on macos 10.7+ (Jameson Nash)
+
+* thread,mingw64: need intrin.h header for SSE2 MemoryBarrier (Jameson Nash)
+
+* win: fix sizeof-pointer-div warning (cjihrig)
+
+* unix,win: add uv_os_uname() (cjihrig)
+
+* win, tty: fix CreateFileW() return value check (Bartosz Sosnowski)
+
+* unix: enable IPv6 tests on OpenBSD (ptlomholt)
+
+* test: fix test-ipc spawn_helper exit_cb (Santiago Gimeno)
+
+* test: fix test-ipc tests (Santiago Gimeno)
+
+* unix: better handling of unsupported F_FULLFSYNC (Victor Costan)
+
+* win,test: de-flake fs_event_watch_dir_short_path (Refael Ackermann)
+
+* win: fix msvc warning (sid)
+
+* openbsd: switch to libuv's barrier implementation (ptlomholt)
+
+* unix,stream: fix zero byte writes (Santiago Gimeno)
+
+* ibmi: return EISDIR on read from directory fd (Kevin Adler)
+
+* build: wrap long lines in Makefile.am (cjihrig)
+
+
+2018.12.17, Version 1.24.1 (Stable), 274f2bd3b70847cadd9a3965577a87e666ab9ac3
+
+Changes since version 1.24.0:
+
+* test: fix platform_output test on cygwin (damon-kwok)
+
+* gitignore: ignore build/ directory (Damon Kwok)
+
+* unix: zero epoll_event before use (Ashe Connor)
+
+* darwin: use runtime check for file cloning (Ben Noordhuis)
+
+* doc: replace deprecated build command on macOS (Rick)
+
+* warnings: fix code that emits compiler warnings (Jameson Nash)
+
+* doc: clarify expected memory management strategy (Ivan Krylov)
+
+* test: add uv_inet_ntop(AF_INET) coverage (Ben Noordhuis)
+
+* unix: harden string copying, introduce strscpy() (Ben Noordhuis)
+
+* linux: get rid of strncpy() call (Ben Noordhuis)
+
+* aix: get rid of strcat() calls (Ben Noordhuis)
+
+* aix: fix data race in uv_fs_event_start() (Ben Noordhuis)
+
+* win: fs: fix `FILE_FLAG_NO_BUFFERING` for writes (Joran Dirk Greef)
+
+* build: don't link against -lpthread on Android (Michael Meier)
+
+
+2018.11.14, Version 1.24.0 (Stable), 2d427ee0083d1baf995df4ebf79a3f8890e9a3e1
+
+Changes since version 1.23.2:
+
+* unix: do not require PATH_MAX to be defined (Brad King)
+
+* win,doc: path encoding in uv_fs_XX is UTF-8 (hitesh)
+
+* unix: add missing link dependency on kFreeBSD (Svante Signell)
+
+* unix: add support for GNU/Hurd (Samuel Thibault)
+
+* test: avoid memory leak for test_output (Carlo Marcelo Arenas Belón)
+
+* zos: avoid UB with NULL pointer arithmetic (Carlo Marcelo Arenas Belón)
+
+* doc: add vtjnash to maintainers (Jameson Nash)
+
+* unix: restore skipping of phys_addr copy (cjihrig)
+
+* unix,win: make uv_interface_addresses() consistent (cjihrig)
+
+* unix: remove unnecessary linebreaks (cjihrig)
+
+* unix,win: handle zero-sized allocations uniformly (Ben Noordhuis)
+
+* unix: remove unused uv__dup() function (Ben Noordhuis)
+
+* core,bsd: refactor process_title functions (Santiago Gimeno)
+
+* win: Redefine NSIG to consider SIGWINCH (Jeremy Studer)
+
+* test: make sure that reading a directory fails (Sakthipriyan Vairamani)
+
+* win, tty: remove zero-size read callbacks (Bartosz Sosnowski)
+
+* test: fix test runner getenv async-signal-safety (Ben Noordhuis)
+
+* test: fix test runner execvp async-signal-safety (Ben Noordhuis)
+
+* test,unix: fix race in test runner (Ben Noordhuis)
+
+* unix,win: support IDNA 2008 in uv_getaddrinfo() (Ben Noordhuis)
+
+* win, tcp: avoid starving the loop (Bartosz Sosnowski)
+
+* win, dl: proper error messages on some systems (Bartosz Sosnowski)
+
+* win,fs: retry if uv_fs_rename fails (Bartosz Sosnowski)
+
+* darwin: speed up uv_set_process_title() (Ben Noordhuis)
+
+* aix: fix race in uv_get_process_title() (Gireesh Punathil)
+
+* win: support more fine-grained windows hiding (Bartosz Sosnowski)
+
+
+2018.10.09, Version 1.23.2 (Stable), 34c12788d2e7308f3ac506c0abcbf74c0d6abd20
+
+Changes since version 1.23.1:
+
+* unix: return 0 retrieving rss on cygwin (cjihrig)
+
+* unix: initialize uv_interface_address_t.phys_addr (cjihrig)
+
+* test: handle uv_os_setpriority() windows edge case (cjihrig)
+
+* tty, win: fix read stop for raw mode (Bartosz Sosnowski)
+
+* Revert "Revert "unix,fs: fix for potential partial reads/writes"" (Jameson
+  Nash)
+
+* unix,readv: always permit partial reads to return (Jameson Nash)
+
+* win,tty: fix uv_tty_close() (Bartosz Sosnowski)
+
+* doc: remove extraneous "on" (Ben Noordhuis)
+
+* unix,win: fix threadpool race condition (Anna Henningsen)
+
+* unix: rework thread barrier implementation (Ben Noordhuis)
+
+* aix: switch to libuv's own thread barrier impl (Ben Noordhuis)
+
+* unix: signal done to last thread barrier waiter (Ben Noordhuis)
+
+* test: add uv_barrier_wait serial thread test (Ali Ijaz Sheikh)
+
+* unix: optimize uv_fs_readlink() memory allocation (Ben Noordhuis)
+
+* win: remove req.c and other cleanup (Carlo Marcelo Arenas Belón)
+
+* aix: don't EISDIR on read from directory fd (Ben Noordhuis)
+
+
+2018.09.22, Version 1.23.1 (Stable), d2282b3d67821dc53c907c2155fa8c5c6ce25180
+
+Changes since version 1.23.0:
+
+* unix,win: limit concurrent DNS calls to nthreads/2 (Anna Henningsen)
+
+* doc: add addaleax to maintainers (Anna Henningsen)
+
+* doc: add missing slash in stream.rst (Emil Bay)
+
+* unix,fs: use utimes & friends for uv_fs_utime (Jeremiah Senkpiel)
+
+* unix,fs: remove linux fallback from utimesat() (Jeremiah Senkpiel)
+
+* unix,fs: remove uv__utimesat() syscall fallback (Jeremiah Senkpiel)
+
+* doc: fix argument name in tcp.rts (Emil Bay)
+
+* doc: notes on running tests, benchmarks, tools (Jamie Davis)
+
+* linux: remove epoll syscall wrappers (Ben Noordhuis)
+
+* linux: drop code path for epoll_pwait-less kernels (Ben Noordhuis)
+
+* Partially revert "win,code: remove GetQueuedCompletionStatus-based poller"
+  (Jameson Nash)
+
+* build: add compile for android arm64/x86/x86-64 (Andy Zhang)
+
+* doc: clarify that some remarks apply to windows (Bert Belder)
+
+* test: fix compiler warnings (Jamie Davis)
+
+* ibmi: return 0 from uv_resident_set_memory() (dmabupt)
+
+* win: fix uv_udp_recv_start() error translation (Ryan Liptak)
+
+* win,doc: improve uv_os_setpriority() documentation (Bartosz Sosnowski)
+
+* test: increase upper bound in condvar_5 (Jamie Davis)
+
+* win,tty: remove deadcode (Jameson Nash)
+
+* stream: autodetect direction (Jameson Nash)
+
+
+2018.08.18, Version 1.23.0 (Stable), 7ebb26225f2eaae6db22f4ef34ce76fa16ff89ec
+
+Changes since version 1.22.0:
+
+* win,pipe: restore compatibility with the old IPC framing protocol (Bert
+  Belder)
+
+* fs: add uv_open_osfhandle (Bartosz Sosnowski)
+
+* doc: update Visual C++ Build Tools URL (Michał Kozakiewicz)
+
+* unix: loop starvation on successful write complete (jBarz)
+
+* win: add uv__getnameinfo_work() error handling (A. Hauptmann)
+
+* win: return UV_ENOMEM from uv_loop_init() (cjihrig)
+
+* unix,win: add uv_os_{get,set}priority() (cjihrig)
+
+* test: fix warning in test-tcp-open (Santiago Gimeno)
+
+
+2018.07.11, Version 1.22.0 (Stable), 8568f78a777d79d35eb7d6994617267b9fb33967
+
+Changes since version 1.21.0:
+
+* unix: remove checksparse.sh (Ben Noordhuis)
+
+* win: fix mingw build error (Ben Noordhuis)
+
+* win: fix -Wunused-function warnings in thread.c (Ben Noordhuis)
+
+* unix,win: merge timers implementation (Ben Noordhuis)
+
+* win: fix pointer type in pipe.c (Ben Noordhuis)
+
+* win: fixing build for older MSVC compilers (Michael Fero)
+
+* zos: clear poll events on every iteration (jBarz)
+
+* zos: write-protect message queue (jBarz)
+
+* zos: use correct pointer type in strnlen (jBarz)
+
+* unix,win: merge handle flags (Ben Noordhuis)
+
+* doc: update Imran Iqbal's GitHub handle (cjihrig)
+
+* src: add new error apis to prevent memory leaks (Shelley Vohr)
+
+* test: make test-condvar call uv_cond_wait (Jamie Davis)
+
+* fs: change position of uv_fs_lchown (Ujjwal Sharma)
+
+
+2018.06.23, Version 1.21.0 (Stable), e4983a9b0c152932f7553ff4a9ff189d2314cdcb
+
+Changes since version 1.20.3:
+
+* unix,windows: map EFTYPE errno (cjihrig)
+
+* win: perform case insensitive PATH= comparison (cjihrig)
+
+* win, fs: uv_fs_fchmod support for -A files (Bartosz Sosnowski)
+
+* src,lib: fix comments (Tobias Nießen)
+
+* win,process: allow child pipe handles to be opened in overlapped mode (Björn
+  Linse)
+
+* src,test: fix idiosyncratic comment style (Bert Belder)
+
+* test: fs_fchmod_archive_readonly must return a value (Bert Belder)
+
+* win,pipe: fix incorrect error code returned from uv_pipe_write_impl() (Bert
+  Belder)
+
+* win,pipe: properly set uv_write_t.send_handle in uv_write2() (Bert Belder)
+
+* test: add vectored uv_write() ping-pong tests (Bert Belder)
+
+* win,pipe: support vectored uv_write() calls (Bert Belder)
+
+* win,pipe: refactor pipe read cancellation logic (Bert Belder)
+
+* test: improve output from IPC test helpers (Bert Belder)
+
+* test: add test for IPC deadlock on Windows (
+
+* win,pipe: fix IPC pipe deadlock (Bert Belder)
+
+* unix: catch some cases of watching fd twice (Ben Noordhuis)
+
+* test: use custom timeout for getaddrinfo_fail_sync (Ben Noordhuis)
+
+* Revert "win: add Windows XP support to uv_if_indextoname()" (Bert Belder)
+
+* win,thread: remove fallback uv_cond implementation (Bert Belder)
+
+* src,test: s/olny/only (cjihrig)
+
+* unix: close signal pipe fds on unload (Ben Noordhuis)
+
+* win: allow setting udp socket options before bind (cjihrig)
+
+* unix: return UV_ENOTSUP on FICLONE_FORCE failure (cjihrig)
+
+* win,pipe: remove unreferenced local variable (Bert Belder)
+
+* win,code: remove GetQueuedCompletionStatus-based poller (Bert Belder)
+
+* win: remove the remaining dynamic kernel32 imports (Bert Belder)
+
+* test: speedup process-title-threadsafe on macOS (cjihrig)
+
+* core: move all include files except uv.h to uv/ (Saúl Ibarra Corretgé)
+
+* win: move stdint-msvc2008.h to include/uv/ (Ben Noordhuis)
+
+* build: fix cygwin install (Ben Noordhuis)
+
+* build,win: remove MinGW Makefile (Saúl Ibarra Corretgé)
+
+* build: add a cmake build file (Ben Noordhuis)
+
+* build: add test suite option to cmake build (Ben Noordhuis)
+
+* unix: set errno in uv_fs_copyfile() (cjihrig)
+
+* samples: fix inconsistency in parse_opts vs usage (zyxwvu Shi)
+
+* linux: handle exclusive POLLHUP with UV_DISCONNECT (Brad King)
+
+* include: declare uv_cpu_times_s in higher scope (Peter Johnson)
+
+* doc: add uv_fs_fsync() AIX limitations (jBarz)
+
+* unix,win: add uv_fs_lchown() (Paolo Greppi)
+
+* unix: disable clang variable length array warning (Peter Johnson)
+
+* doc: document uv_pipe_t::ipc (Ed Schouten)
+
+* doc: undocument uv_req_type's UV_REQ_TYPE_PRIVATE (Ed Schouten)
+
+* doc: document UV_*_MAP() macros (Ed Schouten)
+
+* win: remove use of min() macro in pipe.c (Peter Johnson)
+
+* doc: add jbarz as maintainer (
+
+
+2018.05.08, Version 1.20.3 (Stable), 8cfd67e59195251dff793ee47c185c9d6a8f3818
+
+Changes since version 1.20.2:
+
+* win: add Windows XP support to uv_if_indextoname() (ssrlive)
+
+* win: fix `'floor' undefined` compiler warning (ssrlive)
+
+* win, pipe: stop read for overlapped pipe (Bartosz Sosnowski)
+
+* build: fix utf-8 name of copyright holder (Jérémy Lal)
+
+* zos: initialize pollfd revents (jBarz)
+
+* zos,doc: add system V message queue note (jBarz)
+
+* linux: don't use uv__nonblock_ioctl() on sparc (Ben Noordhuis)
+
+
+2018.04.23, Version 1.20.2 (Stable), c51fd3f66bbb386a1efdeba6812789f35a372d1e
+
+Changes since version 1.20.1:
+
+* zos: use custom semaphore (jBarz)
+
+* win: fix registry API error handling (Kyle Farnung)
+
+* build: add support for 64-bit AIX (Richard Lau)
+
+* aix: guard STATIC_ASSERT for glibc work around (Richard Lau)
+
+
+2018.04.19, Version 1.20.1 (Stable), 36ac2fc8edfd5ff3e9be529be1d4a3f0d5364e94
+
+Changes since version 1.20.0:
+
+* doc,fs: improve documentation (Bob Burger)
+
+* win: return a floored double from uv_uptime() (Refael Ackermann)
+
+* doc: clarify platform specific pipe naming (Thomas Versteeg)
+
+* unix: fix uv_pipe_chmod() on macOS (zzzjim)
+
+* unix: work around glibc semaphore race condition (Anna Henningsen)
+
+* tcp,openbsd: disable Unix TCP check for IPV6_ONLY (Alex Arslan)
+
+* test,openbsd: use RETURN_SKIP in UDP IPv6 tests (Alex Arslan)
+
+* test,openbsd: fix multicast test (Alex Arslan)
+
+* Revert "win, fs: use FILE_WRITE_ATTRIBUTES when opening files" (cjihrig)
+
+
 2018.04.03, Version 1.20.0 (Stable), 0012178ee2b04d9e4a2c66c27cf8891ad8325ceb
 
 Changes since version 1.19.2:

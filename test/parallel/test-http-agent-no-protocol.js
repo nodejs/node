@@ -29,7 +29,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 })).listen(0, '127.0.0.1', common.mustCall(() => {
   const opts = url.parse(`http://127.0.0.1:${server.address().port}/`);
 
-  // remove the `protocol` field… the `http` module should fall back
+  // Remove the `protocol` field… the `http` module should fall back
   // to "http:", as defined by the global, default `http.Agent` instance.
   opts.agent = new http.Agent();
   opts.agent.protocol = null;

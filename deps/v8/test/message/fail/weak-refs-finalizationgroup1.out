@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: FinalizationGroup: cleanup must be callable
+let fg = new FinalizationGroup();
+         ^
+TypeError: FinalizationGroup: cleanup must be callable
+    at new FinalizationGroup (<anonymous>)
+    at *%(basename)s:7:10

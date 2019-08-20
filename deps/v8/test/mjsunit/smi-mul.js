@@ -32,6 +32,7 @@ function mul(a, b) {
 }
 
 
+%PrepareFunctionForOptimization(mul);
 mul(-1, 2);
 mul(-1, 2);
 %OptimizeFunctionOnNextCall(mul);
@@ -47,6 +48,7 @@ function mul2(a, b) {
     return a * b;
 }
 
+%PrepareFunctionForOptimization(mul2);
 mul2(-1, 2);
 mul2(-1, 2);
 %OptimizeFunctionOnNextCall(mul2);

@@ -25,6 +25,7 @@
 #include "uv-common.h"
 
 #include <assert.h>
+#include <limits.h> /* _POSIX_PATH_MAX, PATH_MAX */
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
 #include <fcntl.h>  /* O_CLOEXEC, may be */
@@ -58,6 +59,14 @@
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <AvailabilityMacros.h>
+#endif
+
+#if defined(_POSIX_PATH_MAX)
+# define UV__PATH_MAX _POSIX_PATH_MAX
+#elif defined(PATH_MAX)
+# define UV__PATH_MAX PATH_MAX
+#else
+# define UV__PATH_MAX 8192
 #endif
 
 #if defined(__ANDROID__)
@@ -95,8 +104,7 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
  */
 #if defined(__clang__) ||                                                     \
     defined(__GNUC__) ||                                                      \
-    defined(__INTEL_COMPILER) ||                                              \
-    defined(__SUNPRO_C)
+    defined(__INTEL_COMPILER)
 # define UV_DESTRUCTOR(declaration) __attribute__((destructor)) declaration
 # define UV_UNUSED(declaration)     __attribute__((unused)) declaration
 #else
@@ -126,26 +134,6 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 #endif
 
 typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
-
-/* handle flags */
-enum {
-  UV_CLOSING              = 0x01,   /* uv_close() called but not finished. */
-  UV_CLOSED               = 0x02,   /* close(2) finished. */
-  UV_STREAM_READING       = 0x04,   /* uv_read_start() called. */
-  UV_STREAM_SHUTTING      = 0x08,   /* uv_shutdown() called but not complete. */
-  UV_STREAM_SHUT          = 0x10,   /* Write side closed. */
-  UV_STREAM_READABLE      = 0x20,   /* The stream is readable */
-  UV_STREAM_WRITABLE      = 0x40,   /* The stream is writable */
-  UV_STREAM_BLOCKING      = 0x80,   /* Synchronous writes. */
-  UV_STREAM_READ_PARTIAL  = 0x100,  /* read(2) read less than requested. */
-  UV_STREAM_READ_EOF      = 0x200,  /* read(2) read EOF. */
-  UV_TCP_NODELAY          = 0x400,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
-  UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
-  UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
-  UV_UDP_PROCESSING       = 0x20000, /* Handle is running the send callback queue. */
-  UV_HANDLE_BOUND         = 0x40000  /* Handle is bound to an address and port */
-};
 
 /* loop flags */
 enum {
@@ -185,6 +173,18 @@ struct uv__stream_queued_fds_s {
 #define uv__nonblock uv__nonblock_fcntl
 #endif
 
+/* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
+ * when O_NDELAY is not equal to O_NONBLOCK.  Case in point: linux/sparc32
+ * and linux/sparc64, where O_NDELAY is O_NONBLOCK + another bit.
+ *
+ * Libuv uses uv__nonblock_fcntl() directly sometimes so ensure that it
+ * commutes with uv__nonblock().
+ */
+#if defined(__linux__) && O_NDELAY != O_NONBLOCK
+#undef uv__nonblock
+#define uv__nonblock uv__nonblock_fcntl
+#endif
+
 /* core */
 int uv__cloexec_ioctl(int fd, int set);
 int uv__cloexec_fcntl(int fd, int set);
@@ -192,8 +192,8 @@ int uv__nonblock_ioctl(int fd, int set);
 int uv__nonblock_fcntl(int fd, int set);
 int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
+int uv__close_nocancel(int fd);
 int uv__socket(int domain, int type, int protocol);
-int uv__dup(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
@@ -207,6 +207,7 @@ int uv__io_active(const uv__io_t* w, unsigned int events);
 int uv__io_check_fd(uv_loop_t* loop, int fd);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
 int uv__io_fork(uv_loop_t* loop);
+int uv__fd_exists(uv_loop_t* loop, int fd);
 
 /* async */
 void uv__async_stop(uv_loop_t* loop);
@@ -239,10 +240,6 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay);
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 
-/* timer */
-void uv__run_timers(uv_loop_t* loop);
-int uv__next_timeout(const uv_loop_t* loop);
-
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
@@ -267,7 +264,6 @@ void uv__prepare_close(uv_prepare_t* handle);
 void uv__process_close(uv_process_t* handle);
 void uv__stream_close(uv_stream_t* handle);
 void uv__tcp_close(uv_tcp_t* handle);
-void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
 uv_handle_type uv__handle_type(int fd);
@@ -297,24 +293,6 @@ int uv__fsevents_init(uv_fs_event_t* handle);
 int uv__fsevents_close(uv_fs_event_t* handle);
 void uv__fsevents_loop_delete(uv_loop_t* loop);
 
-/* OSX < 10.7 has no file events, polyfill them */
-#ifndef MAC_OS_X_VERSION_10_7
-
-static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
-static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
-static const int kFSEventStreamEventFlagItemRemoved = 0x00000200;
-static const int kFSEventStreamEventFlagItemInodeMetaMod = 0x00000400;
-static const int kFSEventStreamEventFlagItemRenamed = 0x00000800;
-static const int kFSEventStreamEventFlagItemModified = 0x00001000;
-static const int kFSEventStreamEventFlagItemFinderInfoMod = 0x00002000;
-static const int kFSEventStreamEventFlagItemChangeOwner = 0x00004000;
-static const int kFSEventStreamEventFlagItemXattrMod = 0x00008000;
-static const int kFSEventStreamEventFlagItemIsFile = 0x00010000;
-static const int kFSEventStreamEventFlagItemIsDir = 0x00020000;
-static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
-
-#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070 */
-
 #endif /* defined(__APPLE__) */
 
 UV_UNUSED(static void uv__update_time(uv_loop_t* loop)) {
@@ -336,5 +314,12 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
 #if defined(__linux__)
 int uv__inotify_fork(uv_loop_t* loop, void* old_watchers);
 #endif
+
+typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen);
 
 #endif /* UV_UNIX_INTERNAL_H_ */

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/accessors.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
-#include "src/accessors.h"
-#include "src/counters.h"
-#include "src/messages.h"
-#include "src/objects-inl.h"
-#include "src/property-descriptor.h"
-#include "src/string-builder.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/messages.h"
+#include "src/logging/counters.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {
@@ -31,10 +31,11 @@ BUILTIN(ErrorConstructor) {
   }
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, ErrorUtils::Construct(isolate, args.target(),
-                                     Handle<Object>::cast(args.new_target()),
-                                     args.atOrUndefined(isolate, 1), mode,
-                                     caller, false));
+      isolate,
+      ErrorUtils::Construct(isolate, args.target(),
+                            Handle<Object>::cast(args.new_target()),
+                            args.atOrUndefined(isolate, 1), mode, caller,
+                            ErrorUtils::StackTraceCollection::kDetailed));
 }
 
 // static
@@ -74,7 +75,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // ES6 section 19.5.3.4 Error.prototype.toString ( )
@@ -86,8 +87,8 @@ BUILTIN(ErrorPrototypeToString) {
 
 namespace {
 
-Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
-                         Handle<JSFunction> constructor) {
+Object MakeGenericError(Isolate* isolate, BuiltinArguments args,
+                        Handle<JSFunction> constructor) {
   Handle<Object> template_index = args.atOrUndefined(isolate, 1);
   Handle<Object> arg0 = args.atOrUndefined(isolate, 2);
   Handle<Object> arg1 = args.atOrUndefined(isolate, 3);
@@ -96,9 +97,10 @@ Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
   DCHECK(template_index->IsSmi());
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, ErrorUtils::MakeGenericError(isolate, constructor,
-                                            Smi::ToInt(*template_index), arg0,
-                                            arg1, arg2, SKIP_NONE));
+      isolate, ErrorUtils::MakeGenericError(
+                   isolate, constructor,
+                   MessageTemplateFromInt(Smi::ToInt(*template_index)), arg0,
+                   arg1, arg2, SKIP_NONE));
 }
 
 }  // namespace
@@ -127,7 +129,7 @@ BUILTIN(MakeURIError) {
   HandleScope scope(isolate);
   Handle<JSFunction> constructor = isolate->uri_error_function();
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  const int template_index = MessageTemplate::kURIMalformed;
+  MessageTemplate template_index = MessageTemplate::kURIMalformed;
   RETURN_RESULT_OR_FAILURE(
       isolate,
       ErrorUtils::MakeGenericError(isolate, constructor, template_index,

@@ -2,24 +2,69 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Load this file by adding this to your ~/.lldbinit:
+# command script import <this_dir>/lldb_commands.py
+
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import lldb
 import re
 
+#####################
+# Helper functions. #
+#####################
+def current_thread(debugger):
+  return debugger.GetSelectedTarget().GetProcess().GetSelectedThread()
+
+def current_frame(debugger):
+  return current_thread(debugger).GetSelectedFrame()
+
+def no_arg_cmd(debugger, cmd):
+  current_frame(debugger).EvaluateExpression(cmd)
+  print("")
+
+def ptr_arg_cmd(debugger, name, param, cmd):
+  if not param:
+    print("'{}' requires an argument".format(name))
+    return
+  param = '(void*)({})'.format(param)
+  no_arg_cmd(debugger, cmd.format(param))
+
+#####################
+# lldb commands.    #
+#####################
+def job(debugger, param, *args):
+  """Print a v8 heap object"""
+  ptr_arg_cmd(debugger, 'job', param, "_v8_internal_Print_Object({})")
+
+def jlh(debugger, param, *args):
+  """Print v8::Local handle value"""
+  ptr_arg_cmd(debugger, 'jlh', param,
+              "_v8_internal_Print_Object(*(v8::internal::Object**)(*{}))")
+
+def jco(debugger, param, *args):
+  """Print the code object at the given pc (default: current pc)"""
+  if not param:
+    param = str(current_frame(debugger).FindRegister("pc").value)
+  ptr_arg_cmd(debugger, 'jco', param, "_v8_internal_Print_Code({})")
+
+def jld(debugger, param, *args):
+  """Print a v8 LayoutDescriptor object"""
+  ptr_arg_cmd(debugger, 'jld', param,
+              "_v8_internal_Print_LayoutDescriptor({})")
+
+def jtt(debugger, param, *args):
+  """Print the transition tree of a v8 Map"""
+  ptr_arg_cmd(debugger, 'jtt', param, "_v8_internal_Print_TransitionTree({})")
+
 def jst(debugger, *args):
   """Print the current JavaScript stack trace"""
-  target = debugger.GetSelectedTarget()
-  process = target.GetProcess()
-  thread = process.GetSelectedThread()
-  frame = thread.GetSelectedFrame()
-  frame.EvaluateExpression("_v8_internal_Print_StackTrace();")
-  print("")
+  no_arg_cmd(debugger, "_v8_internal_Print_StackTrace()")
 
 def jss(debugger, *args):
   """Skip the jitted stack on x64 to where we entered JS last"""
-  target = debugger.GetSelectedTarget()
-  process = target.GetProcess()
-  thread = process.GetSelectedThread()
-  frame = thread.GetSelectedFrame()
+  frame = current_frame(debugger)
   js_entry_sp = frame.EvaluateExpression(
       "v8::internal::Isolate::Current()->thread_local_top()->js_entry_sp_;") \
        .GetValue()
@@ -36,10 +81,7 @@ def bta(debugger, *args):
   func_name_re = re.compile("([^(<]+)(?:\(.+\))?")
   assert_re = re.compile(
       "^v8::internal::Per\w+AssertType::(\w+)_ASSERT, (false|true)>")
-  target = debugger.GetSelectedTarget()
-  process = target.GetProcess()
-  thread = process.GetSelectedThread()
-  frame = thread.GetSelectedFrame()
+  thread = current_thread(debugger)
   for frame in thread:
     functionSignature = frame.GetDisplayFunctionName()
     if functionSignature is None:
@@ -66,7 +108,8 @@ def bta(debugger, *args):
       print("%s -> %s %s (%s)\033[0m" % (
           color, prefix, match.group(2), match.group(1)))
 
-def __lldb_init_module (debugger, dict):
-  debugger.HandleCommand('command script add -f lldb_commands.jst jst')
-  debugger.HandleCommand('command script add -f lldb_commands.jss jss')
-  debugger.HandleCommand('command script add -f lldb_commands.bta bta')
+def __lldb_init_module(debugger, dict):
+  debugger.HandleCommand('settings set target.x86-disassembly-flavor intel')
+  for cmd in ('job', 'jlh', 'jco', 'jld', 'jtt', 'jst', 'jss', 'bta'):
+    debugger.HandleCommand(
+      'command script add -f lldb_commands.{} {}'.format(cmd, cmd))

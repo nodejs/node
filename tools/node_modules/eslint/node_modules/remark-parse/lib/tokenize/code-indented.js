@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:code-indented
- * @fileoverview Tokenise indented code.
- */
-
 'use strict';
 
 var repeat = require('repeat-string');

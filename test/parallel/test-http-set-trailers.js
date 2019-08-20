@@ -36,7 +36,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0);
 
 
-// first, we test an HTTP/1.0 request.
+// First, we test an HTTP/1.0 request.
 server.on('listening', function() {
   const c = net.createConnection(this.address().port);
   let res_buffer = '';
@@ -54,7 +54,10 @@ server.on('listening', function() {
 
   c.on('end', function() {
     c.end();
-    assert.ok(!/x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
+    assert.ok(
+      !/x-foo/.test(res_buffer),
+      `Trailer in HTTP/1.0 response. Response buffer: ${res_buffer}`
+    );
     outstanding_reqs--;
     if (outstanding_reqs === 0) {
       server.close();
@@ -63,7 +66,7 @@ server.on('listening', function() {
   });
 });
 
-// now, we test an HTTP/1.1 request.
+// Now, we test an HTTP/1.1 request.
 server.on('listening', function() {
   const c = net.createConnection(this.address().port);
   let res_buffer = '';
@@ -84,7 +87,7 @@ server.on('listening', function() {
       clearTimeout(tid);
       assert.ok(
         /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
-        'No trailer in HTTP/1.1 response.'
+        `No trailer in HTTP/1.1 response. Response buffer: ${res_buffer}`
       );
       if (outstanding_reqs === 0) {
         server.close();
@@ -94,7 +97,7 @@ server.on('listening', function() {
   });
 });
 
-// now, see if the client sees the trailers.
+// Now, see if the client sees the trailers.
 server.on('listening', function() {
   http.get({
     port: this.address().port,

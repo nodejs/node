@@ -4,7 +4,7 @@
 
 function CppProcessor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
   LogReader.call(this, {
-      'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
+      'shared-library': { parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }
   }, timedRange, pairwiseTimedRange);
 

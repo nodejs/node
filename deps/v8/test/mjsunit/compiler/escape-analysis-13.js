@@ -11,6 +11,7 @@ function f() {
   assertEquals("a", x.a);
   assertEquals("b", x.b);
 }
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

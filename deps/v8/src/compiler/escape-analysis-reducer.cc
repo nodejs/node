@@ -7,7 +7,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -42,9 +42,9 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
-  Type* const replacement_type = NodeProperties::GetType(replacement);
-  Type* const original_type = NodeProperties::GetType(original);
-  if (replacement_type->Is(original_type)) {
+  Type const replacement_type = NodeProperties::GetType(replacement);
+  Type const original_type = NodeProperties::GetType(original);
+  if (replacement_type.Is(original_type)) {
     RelaxEffectsAndControls(original);
     return Replace(replacement);
   }
@@ -99,7 +99,8 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kAllocate: {
+    case IrOpcode::kAllocate:
+    case IrOpcode::kTypeGuard: {
       const VirtualObject* vobject = analysis_result().GetVirtualObject(node);
       if (vobject && !vobject->HasEscaped()) {
         RelaxEffectsAndControls(node);
@@ -191,7 +192,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
       return ObjectIdNode(vobject);
     } else {
       std::vector<Node*> inputs;
-      for (int offset = 0; offset < vobject->size(); offset += kPointerSize) {
+      for (int offset = 0; offset < vobject->size(); offset += kTaggedSize) {
         Node* field =
             analysis_result().GetVirtualObjectField(vobject, offset, effect);
         CHECK_NOT_NULL(field);
@@ -228,8 +229,7 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    DCHECK_EQ(IrOpcode::kNewArgumentsElements, node->opcode());
-    int mapped_count = OpParameter<int>(node);
+    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
@@ -313,18 +313,6 @@ void EscapeAnalysisReducer::Finalize() {
       NodeProperties::SetType(arguments_elements_state, Type::OtherInternal());
       ReplaceWithValue(node, arguments_elements_state);
 
-      ElementAccess stack_access;
-      stack_access.base_is_tagged = BaseTaggedness::kUntaggedBase;
-      // Reduce base address by {kPointerSize} such that (length - index)
-      // resolves to the right position.
-      stack_access.header_size =
-          CommonFrameConstants::kFixedFrameSizeAboveFp - kPointerSize;
-      stack_access.type = Type::NonInternal();
-      stack_access.machine_type = MachineType::AnyTagged();
-      stack_access.write_barrier_kind = WriteBarrierKind::kNoWriteBarrier;
-      const Operator* load_stack_op =
-          jsgraph()->simplified()->LoadElement(stack_access);
-
       for (Node* load : loads) {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
@@ -335,10 +323,12 @@ void EscapeAnalysisReducer::Finalize() {
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
             NodeProperties::SetType(offset,
-                                    TypeCache::Get().kArgumentsLengthType);
+                                    TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
-            NodeProperties::ChangeOp(load, load_stack_op);
+            NodeProperties::ChangeOp(load,
+                                     jsgraph()->simplified()->LoadElement(
+                                         AccessBuilder::ForStackArgument()));
             break;
           }
           case IrOpcode::kLoadField: {
@@ -367,7 +357,7 @@ Node* NodeHashCache::Query(Node* node) {
 
 NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
                                         const Operator* op, int input_count,
-                                        Node** inputs, Type* type)
+                                        Node** inputs, Type type)
     : node_cache_(cache), from_(nullptr) {
   if (node_cache_->temp_nodes_.size() > 0) {
     tmp_ = node_cache_->temp_nodes_.back();

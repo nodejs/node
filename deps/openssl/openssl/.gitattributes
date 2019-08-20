@@ -1,3 +1,0 @@
-*.der binary
-/fuzz/corpora/** binary
-*.pfx binary

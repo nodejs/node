@@ -1,4 +1,5 @@
 {
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
   "name": "SixSpeed",
   "run_count": 3,
   "run_count_arm": 1,
@@ -93,7 +94,6 @@
     {
       "name": "Spread",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {
@@ -144,7 +144,6 @@
     {
       "name": "SuperSpread",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {
@@ -170,7 +169,6 @@
     {
       "name": "SpreadLiteral",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {

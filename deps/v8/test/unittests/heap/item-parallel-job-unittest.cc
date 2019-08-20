@@ -4,7 +4,7 @@
 
 #include "src/heap/item-parallel-job.h"
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -28,7 +28,7 @@ class SimpleTask : public ItemParallelJob::Task {
   SimpleTask(Isolate* isolate, bool* did_run)
       : ItemParallelJob::Task(isolate), did_run_(did_run) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     ItemParallelJob::Item* item = nullptr;
     while ((item = GetItem<ItemParallelJob::Item>()) != nullptr) {
       item->MarkFinished();
@@ -58,7 +58,7 @@ class EagerTask : public ItemParallelJob::Task {
  public:
   explicit EagerTask(Isolate* isolate) : ItemParallelJob::Task(isolate) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     SimpleItem* item = nullptr;
     while ((item = GetItem<SimpleItem>()) != nullptr) {
       item->Process();
@@ -120,7 +120,7 @@ class TaskProcessingOneItem : public ItemParallelJob::Task {
         wait_when_done_(wait_when_done),
         did_process_an_item_(did_process_an_item) {}
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     SimpleItem* item = GetItem<SimpleItem>();
 
     if (did_process_an_item_) {
@@ -151,7 +151,7 @@ class TaskForDifferentItems;
 
 class BaseItem : public ItemParallelJob::Item {
  public:
-  virtual ~BaseItem() {}
+  ~BaseItem() override = default;
   virtual void ProcessItem(TaskForDifferentItems* task) = 0;
 };
 
@@ -162,9 +162,9 @@ class TaskForDifferentItems : public ItemParallelJob::Task {
       : ItemParallelJob::Task(isolate),
         processed_a_(processed_a),
         processed_b_(processed_b) {}
-  virtual ~TaskForDifferentItems() {}
+  ~TaskForDifferentItems() override = default;
 
-  void RunInParallel() override {
+  void RunInParallel(Runner runner) override {
     BaseItem* item = nullptr;
     while ((item = GetItem<BaseItem>()) != nullptr) {
       item->ProcessItem(this);
@@ -182,13 +182,13 @@ class TaskForDifferentItems : public ItemParallelJob::Task {
 
 class ItemA : public BaseItem {
  public:
-  virtual ~ItemA() {}
+  ~ItemA() override = default;
   void ProcessItem(TaskForDifferentItems* task) override { task->ProcessA(); }
 };
 
 class ItemB : public BaseItem {
  public:
-  virtual ~ItemB() {}
+  ~ItemB() override = default;
   void ProcessItem(TaskForDifferentItems* task) override { task->ProcessB(); }
 };
 
@@ -202,7 +202,7 @@ TEST_F(ItemParallelJobTest, SimpleTaskWithNoItemsRuns) {
                       parallel_job_semaphore());
   job.AddTask(new SimpleTask(i_isolate(), &did_run));
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(did_run);
 }
 
@@ -214,7 +214,7 @@ TEST_F(ItemParallelJobTest, SimpleTaskWithSimpleItemRuns) {
 
   job.AddItem(new ItemParallelJob::Item);
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(did_run);
 }
 
@@ -244,7 +244,7 @@ TEST_F(ItemParallelJobTest, MoreTasksThanItems) {
     job.AddItem(new SimpleItem);
   }
 
-  job.Run(i_isolate()->async_counters());
+  job.Run();
 
   for (int i = 0; i < kNumTasks; i++) {
     // Only the first kNumItems tasks should have been assigned a work item.
@@ -261,7 +261,7 @@ TEST_F(ItemParallelJobTest, SingleThreadProcessing) {
   for (int i = 0; i < kItems; i++) {
     job.AddItem(new SimpleItem(&was_processed[i]));
   }
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   for (int i = 0; i < kItems; i++) {
     EXPECT_TRUE(was_processed[i]);
   }
@@ -282,7 +282,7 @@ TEST_F(ItemParallelJobTest, DistributeItemsMultipleTasks) {
     job.AddTask(
         new TaskProcessingOneItem(i_isolate(), &barrier, wait_when_done));
   }
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   for (int i = 0; i < kItemsAndTasks; i++) {
     EXPECT_TRUE(was_processed[i]);
   }
@@ -296,7 +296,7 @@ TEST_F(ItemParallelJobTest, DifferentItems) {
   job.AddItem(new ItemA());
   job.AddItem(new ItemB());
   job.AddTask(new TaskForDifferentItems(i_isolate(), &item_a, &item_b));
-  job.Run(i_isolate()->async_counters());
+  job.Run();
   EXPECT_TRUE(item_a);
   EXPECT_TRUE(item_b);
 }

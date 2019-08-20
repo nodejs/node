@@ -1,15 +1,15 @@
 // Flags: --expose-internals
 'use strict';
 
-// Tests the internal utility function that is used to prepare headers
-// to pass to the internal binding layer.
+// Tests the internal utility functions that are used to prepare headers
+// to pass to the internal binding layer and to build a header object.
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
-const { mapToHeaders } = require('internal/http2/util');
-
+const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
+const { internalBinding } = require('internal/test/binding');
 const {
   HTTP2_HEADER_STATUS,
   HTTP2_HEADER_METHOD,
@@ -88,7 +88,7 @@ const {
   HTTP2_HEADER_HOST,
   HTTP2_HEADER_KEEP_ALIVE,
   HTTP2_HEADER_PROXY_CONNECTION
-} = process.binding('http2').constants;
+} = internalBinding('http2').constants;
 
 {
   const headers = {
@@ -175,11 +175,11 @@ const {
     ':statuS': 204,
   };
 
-  common.expectsError({
+  common.expectsError(() => mapToHeaders(headers), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     type: TypeError,
     message: 'Header field ":status" must only have a single value'
-  })(mapToHeaders(headers));
+  });
 }
 
 // The following are not allowed to have multiple values
@@ -224,10 +224,10 @@ const {
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
 ].forEach((name) => {
   const msg = `Header field "${name}" must only have a single value`;
-  common.expectsError({
+  common.expectsError(() => mapToHeaders({ [name]: [1, 2, 3] }), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
-  })(mapToHeaders({ [name]: [1, 2, 3] }));
+  });
 });
 
 [
@@ -281,27 +281,67 @@ const {
   'Proxy-Connection',
   'Keep-Alive'
 ].forEach((name) => {
-  common.expectsError({
+  common.expectsError(() => mapToHeaders({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-    name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
+    name: 'TypeError',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
              `"${name.toLowerCase()}"`
-  })(mapToHeaders({ [name]: 'abc' }));
+  });
 });
 
-common.expectsError({
+common.expectsError(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-  name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
+  name: 'TypeError',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
            `"${HTTP2_HEADER_TE}"`
-})(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }));
+});
 
-common.expectsError({
-  code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-  name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
-  message: 'HTTP/1 Connection specific headers are forbidden: ' +
-           `"${HTTP2_HEADER_TE}"`
-})(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }));
+common.expectsError(
+  () => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
+    code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
+    name: 'TypeError',
+    message: 'HTTP/1 Connection specific headers are forbidden: ' +
+             `"${HTTP2_HEADER_TE}"`
+  });
 
-assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));
-assert(!(mapToHeaders({ te: ['trailers'] }) instanceof Error));
+// These should not throw
+mapToHeaders({ te: 'trailers' });
+mapToHeaders({ te: ['trailers'] });
+
+
+{
+  const rawHeaders = [
+    ':status', '200',
+    'cookie', 'foo',
+    'set-cookie', 'sc1',
+    'age', '10',
+    'x-multi', 'first'
+  ];
+  const headers = toHeaderObject(rawHeaders);
+  assert.strictEqual(headers[':status'], 200);
+  assert.strictEqual(headers.cookie, 'foo');
+  assert.deepStrictEqual(headers['set-cookie'], ['sc1']);
+  assert.strictEqual(headers.age, '10');
+  assert.strictEqual(headers['x-multi'], 'first');
+}
+
+{
+  const rawHeaders = [
+    ':status', '200',
+    ':status', '400',
+    'cookie', 'foo',
+    'cookie', 'bar',
+    'set-cookie', 'sc1',
+    'set-cookie', 'sc2',
+    'age', '10',
+    'age', '20',
+    'x-multi', 'first',
+    'x-multi', 'second'
+  ];
+  const headers = toHeaderObject(rawHeaders);
+  assert.strictEqual(headers[':status'], 200);
+  assert.strictEqual(headers.cookie, 'foo; bar');
+  assert.deepStrictEqual(headers['set-cookie'], ['sc1', 'sc2']);
+  assert.strictEqual(headers.age, '10');
+  assert.strictEqual(headers['x-multi'], 'first, second');
+}

@@ -16,7 +16,8 @@ function crash() {
   assertEquals(b, Math.max(b++, c++));
   assertEquals(c, Math.min(b++, c++));
   assertEquals(b, Math.max(b++, a++));
-}
+};
+%PrepareFunctionForOptimization(crash);
 crash();
 crash();
 %OptimizeFunctionOnNextCall(crash);

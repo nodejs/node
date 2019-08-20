@@ -69,6 +69,7 @@ function unshiftsArray(num) {
   [].unshift.call(array, num);
 }
 
+%PrepareFunctionForOptimization(unshiftsArray);
 unshiftsArray(50);
 unshiftsArray(60);
 %OptimizeFunctionOnNextCall(unshiftsArray);
@@ -93,6 +94,7 @@ function callNoArgs() {
   [].fun.call();
 }
 
+%PrepareFunctionForOptimization(callNoArgs);
 callNoArgs();
 callNoArgs();
 assertEquals(this, funRecv);
@@ -109,6 +111,7 @@ function callStrictNoArgs() {
   [].funStrict.call();
 }
 
+%PrepareFunctionForOptimization(callStrictNoArgs);
 callStrictNoArgs();
 callStrictNoArgs();
 assertEquals(undefined, funStrictRecv);
@@ -125,6 +128,7 @@ function callManyArgs() {
   [].manyArgs.call(0, 1, 2, 3, 4, 5);
 }
 
+%PrepareFunctionForOptimization(callManyArgs);
 callManyArgs();
 callManyArgs();
 %OptimizeFunctionOnNextCall(callManyArgs);
@@ -139,6 +143,7 @@ function callManyArgsSloppy() {
   [].manyArgsSloppy.call(null, 1, 2, 3, 4, 5);
 }
 
+%PrepareFunctionForOptimization(callManyArgsSloppy);
 callManyArgsSloppy();
 callManyArgsSloppy();
 %OptimizeFunctionOnNextCall(callManyArgsSloppy);
@@ -154,6 +159,7 @@ function callBuiltinIndirectly() {
   return "".charCodeAt.call(str, 3);
 }
 
+%PrepareFunctionForOptimization(callBuiltinIndirectly);
 callBuiltinIndirectly();
 callBuiltinIndirectly();
 %OptimizeFunctionOnNextCall(callBuiltinIndirectly);
@@ -174,12 +180,14 @@ function callInlined(num) {
   return callInlineableBuiltinIndirectlyWhileInlined(num);
 }
 
+%PrepareFunctionForOptimization(callInlineableBuiltinIndirectlyWhileInlined);
 callInlineableBuiltinIndirectlyWhileInlined(1);
 callInlineableBuiltinIndirectlyWhileInlined(2);
 %OptimizeFunctionOnNextCall(callInlineableBuiltinIndirectlyWhileInlined);
 callInlineableBuiltinIndirectlyWhileInlined(3);
 assertOptimized(callInlineableBuiltinIndirectlyWhileInlined);
 
+%PrepareFunctionForOptimization(callInlined);
 callInlined(1);
 callInlined(2);
 %OptimizeFunctionOnNextCall(callInlined);

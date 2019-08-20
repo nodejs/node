@@ -39,7 +39,7 @@ zlib.unzip(Buffer.concat([
   assert.strictEqual(result.toString(), abc);
 }));
 
-// files that have the "right" magic bytes for starting a new gzip member
+// Files that have the "right" magic bytes for starting a new gzip member
 // in the middle of themselves, even if they are part of a single
 // regularly compressed member
 const pmmFileZlib = fixtures.path('pseudo-multimember-gzip.z');
@@ -55,11 +55,11 @@ fs.createReadStream(pmmFileGz)
   })
   .on('data', (data) => pmmResultBuffers.push(data))
   .on('finish', common.mustCall(() => {
-    assert.deepStrictEqual(Buffer.concat(pmmResultBuffers), pmmExpected,
-                           'result should match original random garbage');
+    // Result should match original random garbage
+    assert.deepStrictEqual(Buffer.concat(pmmResultBuffers), pmmExpected);
   }));
 
-// test that the next gzip member can wrap around the input buffer boundary
+// Test that the next gzip member can wrap around the input buffer boundary
 [0, 1, 2, 3, 4, defEncoded.length].forEach((offset) => {
   const resultBuffers = [];
 
@@ -76,11 +76,11 @@ fs.createReadStream(pmmFileGz)
       );
     }));
 
-  // first write: write "abc" + the first bytes of "def"
+  // First write: write "abc" + the first bytes of "def"
   unzip.write(Buffer.concat([
     abcEncoded, defEncoded.slice(0, offset)
   ]));
 
-  // write remaining bytes of "def"
+  // Write remaining bytes of "def"
   unzip.end(defEncoded.slice(offset));
 });

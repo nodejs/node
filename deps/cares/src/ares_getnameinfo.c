@@ -440,3 +440,14 @@ STATIC_TESTABLE char *ares_striendstr(const char *s1, const char *s2)
     }
   return (char *)c1_begin;
 }
+
+int ares__is_onion_domain(const char *name)
+{
+  if (ares_striendstr(name, ".onion"))
+    return 1;
+
+  if (ares_striendstr(name, ".onion."))
+    return 1;
+
+  return 0;
+}

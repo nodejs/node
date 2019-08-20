@@ -226,14 +226,14 @@ function runClient(prefix, port, options, cb) {
   client.on('exit', function(code) {
     if (options.shouldReject) {
       assert.strictEqual(
-        true, rejected,
+        rejected, true,
         `${prefix}${options.name} NOT rejected, but should have been`);
     } else {
       assert.strictEqual(
-        false, rejected,
+        rejected, false,
         `${prefix}${options.name} rejected, but should NOT have been`);
       assert.strictEqual(
-        options.shouldAuth, authed,
+        authed, options.shouldAuth,
         `${prefix}${options.name} authed is ${authed} but should have been ${
           options.shouldAuth}`);
     }
@@ -272,6 +272,8 @@ function runTest(port, testIndex) {
   if (tcase.renegotiate) {
     serverOptions.secureOptions =
         SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+    // Renegotiation as a protocol feature was dropped after TLS1.2.
+    serverOptions.maxVersion = 'TLSv1.2';
   }
 
   let renegotiated = false;

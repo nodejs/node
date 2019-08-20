@@ -192,7 +192,7 @@ private:
     char id[4];
     UnicodeString idStr;
     int32_t code;
-    URegionType type;
+    URegionType fType;
     Region *containingRegion;
     UVector *containedRegions;
     UVector *preferredValues;

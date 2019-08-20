@@ -11,6 +11,7 @@ function CompareNegate(a,b) {
  return a < (sub|0);
 }
 
+%PrepareFunctionForOptimization(CompareNegate);
 var x = CompareNegate(1,0x80000000);
 %OptimizeFunctionOnNextCall(CompareNegate);
 CompareNegate(1,0x80000000);

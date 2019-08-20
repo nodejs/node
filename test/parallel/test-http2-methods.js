@@ -11,7 +11,7 @@ const server = h2.createServer();
 const methods = [undefined, 'GET', 'POST', 'PATCH', 'FOO', 'A B C'];
 let expected = methods.length;
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall(onStream, expected));
 
 function onStream(stream, headers, flags) {

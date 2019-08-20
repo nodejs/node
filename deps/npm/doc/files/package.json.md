@@ -11,11 +11,11 @@ settings described in `npm-config(7)`.
 
 ## name
 
-The *most* important things in your package.json are the name and version fields.
-Those are actually required, and your package won't install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.
+If you plan to publish your package, the *most* important things in your
+package.json are the name and version fields as they will be required. The name
+and version together form an identifier that is assumed to be completely unique.
+Changes to the package should come along with changes to the version. If you don't
+plan to publish your package, the name and version fields are optional.
 
 The name is what your thing is called.
 
@@ -44,11 +44,11 @@ A name can be optionally prefixed by a scope, e.g. `@myorg/mypackage`. See
 
 ## version
 
-The *most* important things in your package.json are the name and version fields.
-Those are actually required, and your package won't install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.
+If you plan to publish your package, the *most* important things in your
+package.json are the name and version fields as they will be required. The name
+and version together form an identifier that is assumed to be completely unique.
+Changes to the package should come along with changes to the version. If you don't
+plan to publish your package, the name and version fields are optional.
 
 Version must be parseable by
 [node-semver](https://github.com/isaacs/node-semver), which is bundled
@@ -69,6 +69,10 @@ discover your package as it's listed in `npm search`.
 ## homepage
 
 The url to the project homepage.
+
+Example:
+
+    "homepage": "https://github.com/owner/project#readme"
 
 ## bugs
 
@@ -102,7 +106,7 @@ Ideally you should pick one that is
 [OSI](https://opensource.org/licenses/alphabetical) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX license
-expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this:
+expression syntax version 2.0 string](https://www.npmjs.com/package/spdx), like this:
 
     { "license" : "(ISC OR GPL-3.0)" }
 
@@ -168,13 +172,15 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ## files
 
-The optional "files" field is an array of file patterns that describes
+The optional `files` field is an array of file patterns that describes
 the entries to be included when your package is installed as a
-dependency. If the files array is omitted, everything except
-automatically-excluded files will be included in your publish. If you
-name a folder in the array, then it will also include the files inside
-that folder (unless they would be ignored by another rule in this
-section.).
+dependency. File patterns follow a similar syntax to `.gitignore`, but
+reversed: including a file, directory, or glob pattern (`*`, `**/*`, and such)
+will make it so that file is included in the tarball when it's packed. Omitting
+the field will make it default to `["*"]`, which means it will include all files.
+
+Some special files and directories are also included or excluded regardless of
+whether they exist in the `files` array (see below).
 
 You can also provide a `.npmignore` file in the root of your package or
 in subdirectories, which will keep files from being included. At the
@@ -225,6 +231,12 @@ This should be a module ID relative to the root of your package folder.
 
 For most modules, it makes the most sense to have a main script and often not
 much else.
+
+## browser
+
+If your module is meant to be used client-side the browser field should be
+used instead of the main field. This is helpful to hint users that it might
+rely on primitives that aren't available in Node.js modules. (e.g. `window`)
 
 ## bin
 
@@ -354,15 +366,15 @@ command will be able to find you.
 
 Do it like this:
 
-    "repository" :
-      { "type" : "git"
-      , "url" : "https://github.com/npm/npm.git"
-      }
+    "repository": {
+      "type" : "git",
+      "url" : "https://github.com/npm/cli.git"
+    }
 
-    "repository" :
-      { "type" : "svn"
-      , "url" : "https://v8.googlecode.com/svn/trunk/"
-      }
+    "repository": {
+      "type" : "svn",
+      "url" : "https://v8.googlecode.com/svn/trunk/"
+    }
 
 The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
@@ -380,6 +392,15 @@ shortcut syntax you use for `npm install`:
     "repository": "bitbucket:user/repo"
 
     "repository": "gitlab:user/repo"
+
+If the `package.json` for your package is not in the root directory (for example
+if it is part of a monorepo), you can specify the directory in which it lives:
+
+    "repository": {
+      "type" : "git",
+      "url" : "https://github.com/facebook/react.git",
+      "directory": "packages/react-dom"
+    }
 
 ## scripts
 
@@ -478,10 +499,10 @@ specified, then `master` is used.
 
 Examples:
 
-    git+ssh://git@github.com:npm/npm.git#v1.0.27
-    git+ssh://git@github.com:npm/npm#semver:^5.0
-    git+https://isaacs@github.com/npm/npm.git
-    git://github.com/npm/npm.git#v1.0.27
+    git+ssh://git@github.com:npm/cli.git#v1.0.27
+    git+ssh://git@github.com:npm/cli#semver:^5.0
+    git+https://isaacs@github.com/npm/cli.git
+    git://github.com/npm/cli.git#v1.0.27
 
 ### GitHub URLs
 
@@ -596,7 +617,7 @@ Trying to install another plugin with a conflicting requirement will cause an
 error. For this reason, make sure your plugin requirement is as broad as
 possible, and not to lock it down to specific patch versions.
 
-Assuming the host complies with [semver](http://semver.org/), only changes in
+Assuming the host complies with [semver](https://semver.org/), only changes in
 the host package's major version will break your plugin. Thus, if you've worked
 with every 1.x version of the host package, use `"^1.0"` or `"1.x"` to express
 this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
@@ -627,7 +648,8 @@ If we define a package.json like this:
 we can obtain `awesome-web-framework-1.0.0.tgz` file by running `npm pack`.
 This file contains the dependencies `renderized` and `super-streams` which
 can be installed in a new project by executing `npm install
-awesome-web-framework-1.0.0.tgz`.
+awesome-web-framework-1.0.0.tgz`.  Note that the package names do not include
+any versions, as that information is specified in `dependencies`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
 
@@ -745,8 +767,8 @@ especially handy if you want to set the tag, registry or access, so that
 you can ensure that a given package is not tagged with "latest", published
 to the global public registry or that a scoped module is private by default.
 
-Any config values can be overridden, but of course only "tag", "registry" and
-"access" probably matter for the purposes of publishing.
+Any config values can be overridden, but only "tag", "registry" and "access"
+probably matter for the purposes of publishing.
 
 See `npm-config(7)` to see the list of config options that can be
 overridden.

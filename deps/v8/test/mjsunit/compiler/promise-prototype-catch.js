@@ -6,6 +6,7 @@
 
 (function() {
   function foo(p) { return p.catch(); }
+  %PrepareFunctionForOptimization(foo);
   foo(Promise.resolve(1));
   foo(Promise.resolve(1));
   %OptimizeFunctionOnNextCall(foo);
@@ -14,6 +15,7 @@
 
 (function() {
   function foo(p) { return p.catch(foo); }
+  %PrepareFunctionForOptimization(foo);
   foo(Promise.resolve(1));
   foo(Promise.resolve(1));
   %OptimizeFunctionOnNextCall(foo);
@@ -22,6 +24,7 @@
 
 (function() {
   function foo(p) { return p.catch(foo, undefined); }
+  %PrepareFunctionForOptimization(foo);
   foo(Promise.resolve(1));
   foo(Promise.resolve(1));
   %OptimizeFunctionOnNextCall(foo);

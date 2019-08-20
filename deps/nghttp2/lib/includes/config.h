@@ -54,7 +54,9 @@ typedef intptr_t ssize_t;
 /* #undef NOTHREADS */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
-/* #undef HAVE_ARPA_INET_H */
+#ifndef _WIN32
+# define HAVE_ARPA_INET_H 1
+#endif
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1

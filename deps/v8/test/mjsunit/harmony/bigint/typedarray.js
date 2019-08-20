@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 var intarray = new BigInt64Array(8);
 var uintarray = new BigUint64Array(8);
 
 function test(f) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();  // Make sure we test ICs.
   f();

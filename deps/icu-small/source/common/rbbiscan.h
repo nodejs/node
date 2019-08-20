@@ -54,7 +54,7 @@ public:
     struct RBBIRuleChar {
         UChar32             fChar;
         UBool               fEscaped;
-        RBBIRuleChar() : fChar(0), fEscaped(FALSE) {};
+        RBBIRuleChar() : fChar(0), fEscaped(FALSE) {}
     };
 
     RBBIRuleScanner(RBBIRuleBuilder  *rb);

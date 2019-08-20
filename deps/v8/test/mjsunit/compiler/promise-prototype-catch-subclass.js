@@ -21,6 +21,7 @@ class MyPromise extends Promise {
 
 const a = MyPromise.resolve(1);
 
+%PrepareFunctionForOptimization(foo);
 assertTrue(foo(a));
 assertTrue(foo(a));
 %OptimizeFunctionOnNextCall(foo);

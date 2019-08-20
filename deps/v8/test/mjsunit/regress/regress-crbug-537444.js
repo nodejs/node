@@ -17,8 +17,8 @@ function g(x) {
 function h(x) {
   var z = g(x, 1);
   return z + 1;
-}
-
+};
+%PrepareFunctionForOptimization(h);
 
 h(1);
 h(1);

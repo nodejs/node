@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* See test-ipc.ctx */
+/* See test-ipc.c */
 void spawn_helper(uv_pipe_t* channel,
                   uv_process_t* process,
                   const char* helper);
@@ -394,6 +394,7 @@ int run_ipc_send_recv_helper(uv_loop_t* loop, int inprocess) {
     send_recv_start();
   }
 
+  notify_parent_process();
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 

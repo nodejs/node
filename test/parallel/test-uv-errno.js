@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -7,7 +8,8 @@ const {
   _errnoException
 } = require('util');
 
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const uv = internalBinding('uv');
 const keys = Object.keys(uv);
 
 keys.forEach((key) => {
@@ -18,7 +20,7 @@ keys.forEach((key) => {
   const name = uv.errname(uv[key]);
   assert.strictEqual(getSystemErrorName(uv[key]), name);
   assert.strictEqual(err.code, name);
-  assert.strictEqual(err.code, err.errno);
+  assert.strictEqual(err.code, getSystemErrorName(err.errno));
   assert.strictEqual(err.message, `test ${name}`);
 });
 

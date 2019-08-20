@@ -4,8 +4,10 @@
 Design overview
 ===============
 
-libuv is cross-platform support library which was originally written for NodeJS. It's designed
+libuv is cross-platform support library which was originally written for `Node.js`_. It's designed
 around the event-driven asynchronous I/O model.
+
+.. _Node.js: https://nodejs.org
 
 The library provides much more than a simple abstraction over different I/O polling mechanisms:
 'handles' and 'streams' provide a high level abstraction for sockets and other entities;
@@ -126,7 +128,7 @@ so the current approach is to run blocking file I/O operations in a thread pool.
 For a thorough explanation of the cross-platform file I/O landscape, checkout
 `this post <http://blog.libtorrent.org/2012/10/asynchronous-disk-io/>`_.
 
-libuv currently uses a global thread pool on which all loops can queue work on. 3 types of
+libuv currently uses a global thread pool on which all loops can queue work. 3 types of
 operations are currently run on this pool:
 
     * File system operations

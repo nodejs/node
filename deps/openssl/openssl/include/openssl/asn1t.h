@@ -33,7 +33,7 @@ extern "C" {
 /* Macros for start and end of ASN1_ITEM definition */
 
 #  define ASN1_ITEM_start(itname) \
-        OPENSSL_GLOBAL const ASN1_ITEM itname##_it = {
+        const ASN1_ITEM itname##_it = {
 
 #  define static_ASN1_ITEM_start(itname) \
         static const ASN1_ITEM itname##_it = {
@@ -44,7 +44,7 @@ extern "C" {
 # else
 
 /* Macro to obtain ASN1_ADB pointer from a type (only used internally) */
-#  define ASN1_ADB_ptr(iptr) ((const ASN1_ADB *)(iptr()))
+#  define ASN1_ADB_ptr(iptr) ((const ASN1_ADB *)((iptr)()))
 
 /* Macros for start and end of ASN1_ITEM definition */
 
@@ -130,7 +130,7 @@ extern "C" {
                 sizeof(tname##_seq_tt) / sizeof(ASN1_TEMPLATE),\
                 NULL,\
                 sizeof(stname),\
-                #stname \
+                #tname \
         ASN1_ITEM_end(tname)
 
 # define static_ASN1_SEQUENCE_END_name(stname, tname) \
@@ -208,7 +208,7 @@ extern "C" {
                 sizeof(tname##_seq_tt) / sizeof(ASN1_TEMPLATE),\
                 &tname##_aux,\
                 sizeof(stname),\
-                #stname \
+                #tname \
         ASN1_ITEM_end(tname)
 # define static_ASN1_SEQUENCE_END_ref(stname, tname) \
         ;\
@@ -325,10 +325,10 @@ extern "C" {
 /* implicit and explicit helper macros */
 
 # define ASN1_IMP_EX(stname, field, type, tag, ex) \
-                ASN1_EX_TYPE(ASN1_TFLG_IMPLICIT | ex, tag, stname, field, type)
+         ASN1_EX_TYPE(ASN1_TFLG_IMPLICIT | (ex), tag, stname, field, type)
 
 # define ASN1_EXP_EX(stname, field, type, tag, ex) \
-                ASN1_EX_TYPE(ASN1_TFLG_EXPLICIT | ex, tag, stname, field, type)
+         ASN1_EX_TYPE(ASN1_TFLG_EXPLICIT | (ex), tag, stname, field, type)
 
 /* Any defined by macros: the field used is in the table itself */
 
@@ -531,10 +531,10 @@ struct ASN1_ADB_TABLE_st {
 # define ASN1_TFLG_TAG_MASK      (0x3 << 3)
 
 /* context specific IMPLICIT */
-# define ASN1_TFLG_IMPLICIT      ASN1_TFLG_IMPTAG|ASN1_TFLG_CONTEXT
+# define ASN1_TFLG_IMPLICIT      (ASN1_TFLG_IMPTAG|ASN1_TFLG_CONTEXT)
 
 /* context specific EXPLICIT */
-# define ASN1_TFLG_EXPLICIT      ASN1_TFLG_EXPTAG|ASN1_TFLG_CONTEXT
+# define ASN1_TFLG_EXPLICIT      (ASN1_TFLG_EXPTAG|ASN1_TFLG_CONTEXT)
 
 /*
  * If tagging is in force these determine the type of tag to use. Otherwise
@@ -906,8 +906,24 @@ DECLARE_ASN1_ITEM(ASN1_FBOOLEAN)
 DECLARE_ASN1_ITEM(ASN1_SEQUENCE)
 DECLARE_ASN1_ITEM(CBIGNUM)
 DECLARE_ASN1_ITEM(BIGNUM)
+DECLARE_ASN1_ITEM(INT32)
+DECLARE_ASN1_ITEM(ZINT32)
+DECLARE_ASN1_ITEM(UINT32)
+DECLARE_ASN1_ITEM(ZUINT32)
+DECLARE_ASN1_ITEM(INT64)
+DECLARE_ASN1_ITEM(ZINT64)
+DECLARE_ASN1_ITEM(UINT64)
+DECLARE_ASN1_ITEM(ZUINT64)
+
+# if OPENSSL_API_COMPAT < 0x10200000L
+/*
+ * LONG and ZLONG are strongly discouraged for use as stored data, as the
+ * underlying C type (long) differs in size depending on the architecture.
+ * They are designed with 32-bit longs in mind.
+ */
 DECLARE_ASN1_ITEM(LONG)
 DECLARE_ASN1_ITEM(ZLONG)
+# endif
 
 DEFINE_STACK_OF(ASN1_VALUE)
 

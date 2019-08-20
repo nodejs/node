@@ -4,8 +4,10 @@
 
 #include <cstdint>
 
-#include "src/assembler-inl.h"
-#include "src/objects-inl.h"
+#include "src/base/overflowing-math.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -30,7 +32,7 @@ class CWasmEntryArgTester {
  public:
   CWasmEntryArgTester(std::initializer_list<uint8_t> wasm_function_bytes,
                       std::function<ReturnType(Args...)> expected_fn)
-      : runner_(kExecuteTurbofan),
+      : runner_(ExecutionTier::kTurbofan),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
         sig_(runner_.template CreateSig<ReturnType, Args...>()) {
@@ -40,49 +42,33 @@ class CWasmEntryArgTester {
     Handle<WasmInstanceObject> instance(runner_.builder().instance_object());
     Handle<WasmDebugInfo> debug_info =
         WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    c_wasm_entry_fn_ = WasmDebugInfo::GetCWasmEntry(debug_info, sig_);
+    c_wasm_entry_ = WasmDebugInfo::GetCWasmEntry(debug_info, sig_);
   }
 
   template <typename... Rest>
-  void WriteToBuffer(uint8_t* buf, Rest... rest) {
+  void WriteToBuffer(CWasmArgumentsPacker* packer, Rest... rest) {
     static_assert(sizeof...(rest) == 0, "this is the base case");
   }
 
   template <typename First, typename... Rest>
-  void WriteToBuffer(uint8_t* buf, First first, Rest... rest) {
-    WriteUnalignedValue(buf, first);
-    WriteToBuffer(buf + sizeof(first), rest...);
+  void WriteToBuffer(CWasmArgumentsPacker* packer, First first, Rest... rest) {
+    packer->Push(first);
+    WriteToBuffer(packer, rest...);
   }
 
   void CheckCall(Args... args) {
-    std::vector<uint8_t> arg_buffer(sizeof...(args) * 8);
-    WriteToBuffer(arg_buffer.data(), args...);
-
-    Handle<Object> receiver = isolate_->factory()->undefined_value();
-    Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
-                              isolate_);
-    CHECK(!buffer_obj->IsHeapObject());
-    Handle<Object> call_args[]{
-        (FLAG_wasm_jit_to_native
-             ? Handle<Object>::cast(isolate_->factory()->NewForeign(
-                   wasm_code_.GetWasmCode()->instructions().start(), TENURED))
-             : Handle<Object>::cast(wasm_code_.GetCode())),
-        handle(reinterpret_cast<Object*>(wasm_code_.wasm_context()), isolate_),
-        buffer_obj};
-    static_assert(
-        arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
-        "adapt this test");
-    if (FLAG_wasm_jit_to_native) {
-      wasm_code_.GetWasmCode()->owner()->SetExecutable(true);
-    }
-    MaybeHandle<Object> return_obj = Execution::Call(
-        isolate_, c_wasm_entry_fn_, receiver, arraysize(call_args), call_args);
-    CHECK(!return_obj.is_null());
-    CHECK(return_obj.ToHandleChecked()->IsSmi());
-    CHECK_EQ(0, Smi::ToInt(*return_obj.ToHandleChecked()));
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
+    WriteToBuffer(&packer, args...);
+    Address wasm_call_target = wasm_code_->instruction_start();
+    Handle<Object> object_ref = runner_.builder().instance_object();
+    wasm_code_->native_module()->SetExecutable(true);
+    Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
+                        packer.argv());
+    CHECK(!isolate_->has_pending_exception());
+    packer.Reset();
 
     // Check the result.
-    ReturnType result = ReadUnalignedValue<ReturnType>(arg_buffer.data());
+    ReturnType result = packer.Pop<ReturnType>();
     ReturnType expected = expected_fn_(args...);
     if (std::is_floating_point<ReturnType>::value) {
       CHECK_DOUBLE_EQ(expected, result);
@@ -96,8 +82,8 @@ class CWasmEntryArgTester {
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
   FunctionSig* sig_;
-  Handle<JSFunction> c_wasm_entry_fn_;
-  WasmCodeWrapper wasm_code_;
+  Handle<Code> c_wasm_entry_;
+  WasmCode* wasm_code_;
 };
 
 }  // namespace
@@ -107,9 +93,11 @@ TEST(TestCWasmEntryArgPassing_int32) {
   CWasmEntryArgTester<int32_t, int32_t> tester(
       {// Return 2*<0> + 1.
        WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_GET_LOCAL(0)), WASM_ONE)},
-      [](int32_t a) { return 2 * a + 1; });
+      [](int32_t a) {
+        return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
+      });
 
-  FOR_INT32_INPUTS(v) { tester.CheckCall(*v); }
+  FOR_INT32_INPUTS(v) { tester.CheckCall(v); }
 }
 
 // Pass int64_t, return double.
@@ -119,7 +107,7 @@ TEST(TestCWasmEntryArgPassing_double_int64) {
        WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0))},
       [](int64_t a) { return static_cast<double>(a); });
 
-  FOR_INT64_INPUTS(v) { tester.CheckCall(*v); }
+  FOR_INT64_INPUTS(v) { tester.CheckCall(v); }
 }
 
 // Pass double, return int64_t.
@@ -129,7 +117,7 @@ TEST(TestCWasmEntryArgPassing_int64_double) {
        WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
       [](double d) { return static_cast<int64_t>(d); });
 
-  FOR_INT64_INPUTS(i) { tester.CheckCall(*i); }
+  FOR_INT64_INPUTS(i) { tester.CheckCall(i); }
 }
 
 // Pass float, return double.
@@ -141,7 +129,7 @@ TEST(TestCWasmEntryArgPassing_float_double) {
            WASM_F64(1))},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
-  FOR_FLOAT32_INPUTS(f) { tester.CheckCall(*f); }
+  FOR_FLOAT32_INPUTS(f) { tester.CheckCall(f); }
 }
 
 // Pass two doubles, return double.
@@ -152,7 +140,7 @@ TEST(TestCWasmEntryArgPassing_double_double) {
       [](double a, double b) { return a + b; });
 
   FOR_FLOAT64_INPUTS(d1) {
-    FOR_FLOAT64_INPUTS(d2) { tester.CheckCall(*d1, *d2); }
+    FOR_FLOAT64_INPUTS(d2) { tester.CheckCall(d1, d2); }
   }
 }
 

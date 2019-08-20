@@ -17,7 +17,7 @@ class RemoteObjectIdBase {
 
  protected:
   RemoteObjectIdBase();
-  ~RemoteObjectIdBase() {}
+  ~RemoteObjectIdBase() = default;
 
   std::unique_ptr<protocol::DictionaryValue> parseInjectedScriptId(
       const String16&);
@@ -28,7 +28,7 @@ class RemoteObjectIdBase {
 class RemoteObjectId final : public RemoteObjectIdBase {
  public:
   static Response parse(const String16&, std::unique_ptr<RemoteObjectId>*);
-  ~RemoteObjectId() {}
+  ~RemoteObjectId() = default;
   int id() const { return m_id; }
 
  private:
@@ -40,7 +40,7 @@ class RemoteObjectId final : public RemoteObjectIdBase {
 class RemoteCallFrameId final : public RemoteObjectIdBase {
  public:
   static Response parse(const String16&, std::unique_ptr<RemoteCallFrameId>*);
-  ~RemoteCallFrameId() {}
+  ~RemoteCallFrameId() = default;
 
   int frameOrdinal() const { return m_frameOrdinal; }
 

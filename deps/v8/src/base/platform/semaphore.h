@@ -47,14 +47,14 @@ class V8_BASE_EXPORT Semaphore final {
   // Like Wait() but returns after rel_time time has passed. If the timeout
   // happens the return value is false and the counter is unchanged. Otherwise
   // the semaphore counter is decremented and true is returned.
-  bool WaitFor(const TimeDelta& rel_time) WARN_UNUSED_RESULT;
+  bool WaitFor(const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
 
 #if V8_OS_MACOSX
-  typedef semaphore_t NativeHandle;
+  using NativeHandle = semaphore_t;
 #elif V8_OS_POSIX
-  typedef sem_t NativeHandle;
+  using NativeHandle = sem_t;
 #elif V8_OS_WIN
-  typedef HANDLE NativeHandle;
+  using NativeHandle = HANDLE;
 #endif
 
   NativeHandle& native_handle() {
@@ -90,8 +90,8 @@ struct CreateSemaphoreTrait {
 
 template <int N>
 struct LazySemaphore {
-  typedef typename LazyDynamicInstance<Semaphore, CreateSemaphoreTrait<N>,
-                                       ThreadSafeInitOnceTrait>::type type;
+  using typename LazyDynamicInstance<Semaphore, CreateSemaphoreTrait<N>,
+                                     ThreadSafeInitOnceTrait>::type;
 };
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER

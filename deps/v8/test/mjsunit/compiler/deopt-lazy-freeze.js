@@ -21,6 +21,7 @@ function setAndUseObject() {
   return obj.f;
 }
 
+%PrepareFunctionForOptimization(setAndUseObject);
 assertEquals(setAndUseObject(), 2);
 assertEquals(setAndUseObject(), 4);
 %OptimizeFunctionOnNextCall(setAndUseObject);

@@ -18,7 +18,7 @@ server.listen(0, common.mustCall(function() {
     request.on('end', common.mustCall(() => {
       assert.strictEqual(request.complete, true);
       response.on('finish', common.mustCall(function() {
-        // the following tests edge cases on request socket
+        // The following tests edge cases on request socket
         // right after finished fires but before backing
         // Http2Stream is destroyed
         assert.strictEqual(request.socket.readable, request.stream.readable);

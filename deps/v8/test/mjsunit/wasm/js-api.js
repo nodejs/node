@@ -2,18 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --allow-natives-syntax
+// Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
-
-function unexpectedSuccess() {
-  %AbortJS('unexpected success');
-}
-
-function unexpectedFail(error) {
-  %AbortJS('unexpected fail: ' + error);
-}
 
 function assertEq(val, expected) {
   assertSame(expected, val);
@@ -25,13 +16,6 @@ function assertArrayBuffer(val, expected) {
   for (var i = 0; i < expected.length; i++) {
     assertEq(expected[i], input[i]);
   }
-}
-function wasmIsSupported() {
-  return (typeof WebAssembly.Module) == 'function';
-}
-function assertErrorMessage(func, type, msg) {
-  // TODO   assertThrows(func, type, msg);
-  assertThrows(func, type);
 }
 
 let emptyModuleBinary = (() => {
@@ -147,25 +131,25 @@ let Module = WebAssembly.Module;
 assertEq(Module, moduleDesc.value);
 assertEq(Module.length, 1);
 assertEq(Module.name, 'Module');
-assertErrorMessage(
-    () => Module(), TypeError, /constructor without new is forbidden/);
-assertErrorMessage(
-    () => new Module(), TypeError, /requires more than 0 arguments/);
-assertErrorMessage(
+assertThrows(
+    () => Module(), TypeError, /must be invoked with 'new'/);
+assertThrows(
+    () => new Module(), TypeError, /Argument 0 must be a buffer source/);
+assertThrows(
     () => new Module(undefined), TypeError,
-    'first argument must be an ArrayBuffer or typed array object');
-assertErrorMessage(
+    'WebAssembly.Module(): Argument 0 must be a buffer source');
+assertThrows(
     () => new Module(1), TypeError,
-    'first argument must be an ArrayBuffer or typed array object');
-assertErrorMessage(
+    'WebAssembly.Module(): Argument 0 must be a buffer source');
+assertThrows(
     () => new Module({}), TypeError,
-    'first argument must be an ArrayBuffer or typed array object');
-assertErrorMessage(
+    'WebAssembly.Module(): Argument 0 must be a buffer source');
+assertThrows(
     () => new Module(new Uint8Array()), CompileError,
-    /failed to match magic number/);
-assertErrorMessage(
+    /BufferSource argument is empty/);
+assertThrows(
     () => new Module(new ArrayBuffer()), CompileError,
-    /failed to match magic number/);
+    /BufferSource argument is empty/);
 assertTrue(new Module(emptyModuleBinary) instanceof Module);
 assertTrue(new Module(emptyModuleBinary.buffer) instanceof Module);
 
@@ -194,20 +178,20 @@ assertEq(Object.getPrototypeOf(emptyModule), moduleProto);
 let moduleImportsDesc = Object.getOwnPropertyDescriptor(Module, 'imports');
 assertEq(typeof moduleImportsDesc.value, 'function');
 assertTrue(moduleImportsDesc.writable);
-assertFalse(moduleImportsDesc.enumerable);
+assertTrue(moduleImportsDesc.enumerable);
 assertTrue(moduleImportsDesc.configurable);
 
 // 'WebAssembly.Module.imports' method
 let moduleImports = moduleImportsDesc.value;
 assertEq(moduleImports.length, 1);
-assertErrorMessage(
-    () => moduleImports(), TypeError, /requires more than 0 arguments/);
-assertErrorMessage(
+assertThrows(
+    () => moduleImports(), TypeError, /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleImports(undefined), TypeError,
-    /first argument must be a WebAssembly.Module/);
-assertErrorMessage(
+    /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleImports({}), TypeError,
-    /first argument must be a WebAssembly.Module/);
+    /Argument 0 must be a WebAssembly.Module/);
 var arr = moduleImports(new Module(emptyModuleBinary));
 assertTrue(arr instanceof Array);
 assertEq(arr.length, 0);
@@ -241,20 +225,20 @@ assertEq(arr[3].name, 'x');
 let moduleExportsDesc = Object.getOwnPropertyDescriptor(Module, 'exports');
 assertEq(typeof moduleExportsDesc.value, 'function');
 assertTrue(moduleExportsDesc.writable);
-assertFalse(moduleExportsDesc.enumerable);
+assertTrue(moduleExportsDesc.enumerable);
 assertTrue(moduleExportsDesc.configurable);
 
 // 'WebAssembly.Module.exports' method
 let moduleExports = moduleExportsDesc.value;
 assertEq(moduleExports.length, 1);
-assertErrorMessage(
-    () => moduleExports(), TypeError, /requires more than 0 arguments/);
-assertErrorMessage(
+assertThrows(
+    () => moduleExports(), TypeError, /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleExports(undefined), TypeError,
-    /first argument must be a WebAssembly.Module/);
-assertErrorMessage(
+    /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleExports({}), TypeError,
-    /first argument must be a WebAssembly.Module/);
+    /Argument 0 must be a WebAssembly.Module/);
 var arr = moduleExports(emptyModule);
 assertTrue(arr instanceof Array);
 assertEq(arr.length, 0);
@@ -265,7 +249,7 @@ let exportingModuleBinary2 = (() => {
   builder.addFunction('foo', kSig_v_v).addBody([]).exportAs('a');
   builder.addMemory(1, 1, false);
   builder.exportMemoryAs('b');
-  builder.setFunctionTableBounds(1, 1);
+  builder.setTableBounds(1, 1);
   builder.addExportOfKind('c', kExternalTable, 0);
   var o = builder.addGlobal(kWasmI32, false).exportAs('x');
   return new Int8Array(builder.toBuffer());
@@ -286,27 +270,27 @@ assertEq(arr[3].name, 'x');
 let moduleCustomSectionsDesc =
     Object.getOwnPropertyDescriptor(Module, 'customSections');
 assertEq(typeof moduleCustomSectionsDesc.value, 'function');
-assertEq(moduleCustomSectionsDesc.writable, true);
-assertEq(moduleCustomSectionsDesc.enumerable, false);
-assertEq(moduleCustomSectionsDesc.configurable, true);
+assertTrue(moduleCustomSectionsDesc.writable);
+assertTrue(moduleCustomSectionsDesc.enumerable);
+assertTrue(moduleCustomSectionsDesc.configurable);
 
 let moduleCustomSections = moduleCustomSectionsDesc.value;
 assertEq(moduleCustomSections.length, 2);
-assertErrorMessage(
-    () => moduleCustomSections(), TypeError, /requires more than 0 arguments/);
-assertErrorMessage(
+assertThrows(
+    () => moduleCustomSections(), TypeError, /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleCustomSections(undefined), TypeError,
-    /first argument must be a WebAssembly.Module/);
-assertErrorMessage(
+    /Argument 0 must be a WebAssembly.Module/);
+assertThrows(
     () => moduleCustomSections({}), TypeError,
-    /first argument must be a WebAssembly.Module/);
+    /Argument 0 must be a WebAssembly.Module/);
 var arr = moduleCustomSections(emptyModule, 'x');
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
 
-assertErrorMessage(
+assertThrows(
     () => moduleCustomSections(1), TypeError,
-    'first argument must be a WebAssembly.Module');
+    'WebAssembly.Module.customSections(): Argument 0 must be a WebAssembly.Module');
 
 let customSectionModuleBinary2 = (() => {
   let builder = new WasmModuleBuilder();
@@ -351,24 +335,24 @@ assertEq(Instance, instanceDesc.value);
 assertEq(Instance.length, 1);
 assertEq(Instance.name, 'Instance');
 
-assertErrorMessage(
-    () => Instance(), TypeError, /constructor without new is forbidden/);
-assertErrorMessage(
+assertThrows(
+    () => Instance(), TypeError, /must be invoked with 'new'/);
+assertThrows(
     () => new Instance(1), TypeError,
-    'first argument must be a WebAssembly.Module');
-assertErrorMessage(
+    'WebAssembly.Instance(): Argument 0 must be a WebAssembly.Module');
+assertThrows(
     () => new Instance({}), TypeError,
-    'first argument must be a WebAssembly.Module');
-assertErrorMessage(
+    'WebAssembly.Instance(): Argument 0 must be a WebAssembly.Module');
+assertThrows(
     () => new Instance(emptyModule, null), TypeError,
-    'second argument must be an object');
-assertErrorMessage(() => new Instance(importingModule, null), TypeError, '');
-assertErrorMessage(
-    () => new Instance(importingModule, undefined), TypeError, '');
-assertErrorMessage(
-    () => new Instance(importingModule, {'': {g: () => {}}}), LinkError, '');
-assertErrorMessage(
-    () => new Instance(importingModule, {t: {f: () => {}}}), TypeError, '');
+    'WebAssembly.Instance(): Argument 1 must be an object');
+assertThrows(() => new Instance(importingModule, null), TypeError);
+assertThrows(
+    () => new Instance(importingModule, undefined), TypeError);
+assertThrows(
+    () => new Instance(importingModule, {'': {g: () => {}}}), LinkError);
+assertThrows(
+    () => new Instance(importingModule, {t: {f: () => {}}}), TypeError);
 
 assertTrue(new Instance(emptyModule) instanceof Instance);
 assertTrue(new Instance(emptyModule, {}) instanceof Instance);
@@ -397,7 +381,7 @@ let instanceExportsDesc =
     Object.getOwnPropertyDescriptor(instanceProto, 'exports');
 assertEq(typeof instanceExportsDesc.get, 'function');
 assertEq(instanceExportsDesc.set, undefined);
-assertFalse(instanceExportsDesc.enumerable);
+assertTrue(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
 
 exportsObj = exportingInstance.exports;
@@ -412,7 +396,7 @@ assertTrue(f instanceof Function);
 assertEq(f.length, 0);
 assertTrue('name' in f);
 assertEq(Function.prototype.call.call(f), 42);
-assertErrorMessage(() => new f(), TypeError, /is not a constructor/);
+assertThrows(() => new f(), TypeError, /is not a constructor/);
 
 // 'WebAssembly.Memory' data property
 let memoryDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Memory');
@@ -426,27 +410,27 @@ let Memory = WebAssembly.Memory;
 assertEq(Memory, memoryDesc.value);
 assertEq(Memory.length, 1);
 assertEq(Memory.name, 'Memory');
-assertErrorMessage(
-    () => Memory(), TypeError, /constructor without new is forbidden/);
-assertErrorMessage(
+assertThrows(
+    () => Memory(), TypeError, /must be invoked with 'new'/);
+assertThrows(
     () => new Memory(1), TypeError,
-    'first argument must be a memory descriptor');
-assertErrorMessage(
+    'WebAssembly.Memory(): Argument 0 must be a memory descriptor');
+assertThrows(
     () => new Memory({initial: {valueOf() { throw new Error('here') }}}), Error,
     'here');
-assertErrorMessage(
-    () => new Memory({initial: -1}), RangeError, /bad Memory initial size/);
-assertErrorMessage(
-    () => new Memory({initial: Math.pow(2, 32)}), RangeError,
-    /bad Memory initial size/);
-assertErrorMessage(
+assertThrows(
+    () => new Memory({initial: -1}), TypeError, /must be non-negative/);
+assertThrows(
+    () => new Memory({initial: Math.pow(2, 32)}), TypeError,
+    /must be in the unsigned long range/);
+assertThrows(
     () => new Memory({initial: 1, maximum: Math.pow(2, 32) / Math.pow(2, 14)}),
-    RangeError, /bad Memory maximum size/);
-assertErrorMessage(
+    RangeError, /is above the upper bound/);
+assertThrows(
     () => new Memory({initial: 2, maximum: 1}), RangeError,
-    /bad Memory maximum size/);
-assertErrorMessage(
-    () => new Memory({maximum: -1}), RangeError, /bad Memory maximum size/);
+    /is below the lower bound/);
+assertThrows(
+    () => new Memory({maximum: -1}), TypeError, /'initial' is required/);
 assertTrue(new Memory({initial: 1}) instanceof Memory);
 assertEq(new Memory({initial: 1.5}).buffer.byteLength, kPageSize);
 
@@ -473,37 +457,37 @@ assertEq(Object.getPrototypeOf(mem1), memoryProto);
 let bufferDesc = Object.getOwnPropertyDescriptor(memoryProto, 'buffer');
 assertEq(typeof bufferDesc.get, 'function');
 assertEq(bufferDesc.set, undefined);
-assertFalse(bufferDesc.enumerable);
+assertTrue(bufferDesc.enumerable);
 assertTrue(bufferDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.buffer' getter
 let bufferGetter = bufferDesc.get;
-assertErrorMessage(
-    () => bufferGetter.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => bufferGetter.call({}), TypeError, /called on incompatible Object/);
+assertThrows(
+    () => bufferGetter.call(), TypeError, /Receiver is not a WebAssembly.Memory/);
+assertThrows(
+    () => bufferGetter.call({}), TypeError, /Receiver is not a WebAssembly.Memory/);
 assertTrue(bufferGetter.call(mem1) instanceof ArrayBuffer);
 assertEq(bufferGetter.call(mem1).byteLength, kPageSize);
 
 // 'WebAssembly.Memory.prototype.grow' data property
 let memGrowDesc = Object.getOwnPropertyDescriptor(memoryProto, 'grow');
 assertEq(typeof memGrowDesc.value, 'function');
-assertFalse(memGrowDesc.enumerable);
+assertTrue(memGrowDesc.enumerable);
 assertTrue(memGrowDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.grow' method
 
 let memGrow = memGrowDesc.value;
 assertEq(memGrow.length, 1);
-assertErrorMessage(
-    () => memGrow.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => memGrow.call({}), TypeError, /called on incompatible Object/);
-assertErrorMessage(
-    () => memGrow.call(mem1, -1), RangeError, /bad Memory grow delta/);
-assertErrorMessage(
-    () => memGrow.call(mem1, Math.pow(2, 32)), RangeError,
-    /bad Memory grow delta/);
+assertThrows(
+    () => memGrow.call(), TypeError, /Receiver is not a WebAssembly.Memory/);
+assertThrows(
+    () => memGrow.call({}), TypeError, /Receiver is not a WebAssembly.Memory/);
+assertThrows(
+    () => memGrow.call(mem1, -1), TypeError, /must be non-negative/);
+assertThrows(
+    () => memGrow.call(mem1, Math.pow(2, 32)), TypeError,
+    /must be in the unsigned long range/);
 var mem = new Memory({initial: 1, maximum: 2});
 var buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
@@ -517,21 +501,21 @@ assertTrue(buf !== mem.buffer);
 assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
-assertEq(mem.grow(), 2);
+assertEq(mem.grow(0), 2);
 assertTrue(buf !== mem.buffer);
 assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
-assertErrorMessage(() => mem.grow(1), Error, /failed to grow memory/);
-assertErrorMessage(() => mem.grow(Infinity), Error, /failed to grow memory/);
-assertErrorMessage(() => mem.grow(-Infinity), Error, /failed to grow memory/);
+assertThrows(() => mem.grow(1), Error, /Maximum memory size exceeded/);
+assertThrows(() => mem.grow(Infinity), Error, /must be convertible to a valid number/);
+assertThrows(() => mem.grow(-Infinity), Error, /must be convertible to a valid number/);
 assertEq(buf, mem.buffer);
 let throwOnValueOf = {
   valueOf: function() {
     throw Error('throwOnValueOf')
   }
 };
-assertErrorMessage(() => mem.grow(throwOnValueOf), Error, /throwOnValueOf/);
+assertThrows(() => mem.grow(throwOnValueOf), Error, /throwOnValueOf/);
 assertEq(buf, mem.buffer);
 let zero_wrapper = {
   valueOf: function() {
@@ -566,41 +550,41 @@ let Table = WebAssembly.Table;
 assertEq(Table, tableDesc.value);
 assertEq(Table.length, 1);
 assertEq(Table.name, 'Table');
-assertErrorMessage(
-    () => Table(), TypeError, /constructor without new is forbidden/);
-assertErrorMessage(
-    () => new Table(1), TypeError, 'first argument must be a table descriptor');
-assertErrorMessage(
-    () => new Table({initial: 1, element: 1}), TypeError, /must be "anyfunc"/);
-assertErrorMessage(
+assertThrows(
+    () => Table(), TypeError, /must be invoked with 'new'/);
+assertThrows(
+    () => new Table(1), TypeError, 'WebAssembly.Module(): Argument 0 must be a table descriptor');
+assertThrows(
+    () => new Table({initial: 1, element: 1}), TypeError, /must be 'anyfunc'/);
+assertThrows(
     () => new Table({initial: 1, element: 'any'}), TypeError,
-    /must be "anyfunc"/);
-assertErrorMessage(
+    /must be 'anyfunc'/);
+assertThrows(
     () => new Table({initial: 1, element: {valueOf() { return 'anyfunc' }}}),
-    TypeError, /must be "anyfunc"/);
-assertErrorMessage(
+    TypeError, /must be 'anyfunc'/);
+assertThrows(
     () => new Table(
         {initial: {valueOf() { throw new Error('here') }}, element: 'anyfunc'}),
     Error, 'here');
-assertErrorMessage(
-    () => new Table({initial: -1, element: 'anyfunc'}), RangeError,
-    /bad Table initial size/);
-assertErrorMessage(
-    () => new Table({initial: Math.pow(2, 32), element: 'anyfunc'}), RangeError,
-    /bad Table initial size/);
-assertErrorMessage(
+assertThrows(
+    () => new Table({initial: -1, element: 'anyfunc'}), TypeError,
+    /must be non-negative/);
+assertThrows(
+    () => new Table({initial: Math.pow(2, 32), element: 'anyfunc'}), TypeError,
+    /must be in the unsigned long range/);
+assertThrows(
     () => new Table({initial: 2, maximum: 1, element: 'anyfunc'}), RangeError,
-    /bad Table maximum size/);
-assertErrorMessage(
+    /is below the lower bound/);
+assertThrows(
     () => new Table({initial: 2, maximum: Math.pow(2, 32), element: 'anyfunc'}),
-    RangeError, /bad Table maximum size/);
+    TypeError, /must be in the unsigned long range/);
 assertTrue(new Table({initial: 1, element: 'anyfunc'}) instanceof Table);
 assertTrue(new Table({initial: 1.5, element: 'anyfunc'}) instanceof Table);
 assertTrue(
     new Table({initial: 1, maximum: 1.5, element: 'anyfunc'}) instanceof Table);
-assertTrue(
-    new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'})
-        instanceof Table);
+assertThrows(
+    () => new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'}),
+    RangeError, /above the upper bound/);
 
 // 'WebAssembly.Table.prototype' data property
 let tableProtoDesc = Object.getOwnPropertyDescriptor(Table, 'prototype');
@@ -625,135 +609,140 @@ assertEq(Object.getPrototypeOf(tbl1), tableProto);
 let lengthDesc = Object.getOwnPropertyDescriptor(tableProto, 'length');
 assertEq(typeof lengthDesc.get, 'function');
 assertEq(lengthDesc.set, undefined);
-assertFalse(lengthDesc.enumerable);
+assertTrue(lengthDesc.enumerable);
 assertTrue(lengthDesc.configurable);
 
 // 'WebAssembly.Table.prototype.length' getter
 let lengthGetter = lengthDesc.get;
 assertEq(lengthGetter.length, 0);
-assertErrorMessage(
-    () => lengthGetter.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => lengthGetter.call({}), TypeError, /called on incompatible Object/);
+assertThrows(
+    () => lengthGetter.call(), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => lengthGetter.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
 assertEq(typeof lengthGetter.call(tbl1), 'number');
 assertEq(lengthGetter.call(tbl1), 2);
 
 // 'WebAssembly.Table.prototype.get' data property
 let getDesc = Object.getOwnPropertyDescriptor(tableProto, 'get');
 assertEq(typeof getDesc.value, 'function');
-assertFalse(getDesc.enumerable);
+assertTrue(getDesc.enumerable);
 assertTrue(getDesc.configurable);
 
 // 'WebAssembly.Table.prototype.get' method
 let get = getDesc.value;
 assertEq(get.length, 1);
-assertErrorMessage(
-    () => get.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => get.call({}), TypeError, /called on incompatible Object/);
-assertEq(get.call(tbl1), null);
+assertThrows(
+    () => get.call(), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => get.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => get.call(tbl1), TypeError, /must be convertible to a valid number/);
 assertEq(get.call(tbl1, 0), null);
 assertEq(get.call(tbl1, 0, Infinity), null);
 assertEq(get.call(tbl1, 1), null);
 assertEq(get.call(tbl1, 1.5), null);
-assertErrorMessage(() => get.call(tbl1, 2), RangeError, /bad Table get index/);
-assertErrorMessage(
-    () => get.call(tbl1, 2.5), RangeError, /bad Table get index/);
-assertErrorMessage(() => get.call(tbl1, -1), RangeError, /bad Table get index/);
-assertErrorMessage(
-    () => get.call(tbl1, Math.pow(2, 33)), RangeError, /bad Table get index/);
-assertErrorMessage(
+assertThrows(() => get.call(tbl1, 2), RangeError, /invalid index \d+ into function table/);
+assertThrows(
+    () => get.call(tbl1, 2.5), RangeError, /invalid index \d+ into function table/);
+assertThrows(() => get.call(tbl1, -1), TypeError, /must be non-negative/);
+assertThrows(
+    () => get.call(tbl1, Math.pow(2, 33)), TypeError,
+  /must be in the unsigned long range/);
+assertThrows(
     () => get.call(tbl1, {valueOf() { throw new Error('hi') }}), Error, 'hi');
 
 // 'WebAssembly.Table.prototype.set' data property
 let setDesc = Object.getOwnPropertyDescriptor(tableProto, 'set');
 assertEq(typeof setDesc.value, 'function');
-assertFalse(setDesc.enumerable);
+assertTrue(setDesc.enumerable);
 assertTrue(setDesc.configurable);
 
 // 'WebAssembly.Table.prototype.set' method
 let set = setDesc.value;
 assertEq(set.length, 2);
-assertErrorMessage(
-    () => set.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => set.call({}), TypeError, /called on incompatible Object/);
-assertErrorMessage(
-    () => set.call(tbl1, 0), TypeError, /requires more than 1 argument/);
-assertErrorMessage(
+assertThrows(
+    () => set.call(), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => set.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => set.call(tbl1, 0), TypeError, /must be null or a WebAssembly function/);
+assertThrows(
     () => set.call(tbl1, undefined), TypeError,
-    /requires more than 1 argument/);
-assertErrorMessage(
-    () => set.call(tbl1, 2, null), RangeError, /bad Table set index/);
-assertErrorMessage(
-    () => set.call(tbl1, -1, null), RangeError, /bad Table set index/);
-assertErrorMessage(
-    () => set.call(tbl1, Math.pow(2, 33), null), RangeError,
-    /bad Table set index/);
-assertErrorMessage(
-    () => set.call(tbl1, Infinity, null), RangeError, /bad Table set index/);
-assertErrorMessage(
-    () => set.call(tbl1, -Infinity, null), RangeError, /bad Table set index/);
-assertErrorMessage(
+    /must be convertible to a valid number/);
+assertThrows(
+    () => set.call(tbl1, 2, null), RangeError, /invalid index \d+ into function table/);
+assertThrows(
+    () => set.call(tbl1, -1, null), TypeError, /must be non-negative/);
+assertThrows(
+    () => set.call(tbl1, Math.pow(2, 33), null), TypeError,
+    /must be in the unsigned long range/);
+assertThrows(
+    () => set.call(tbl1, Infinity, null), TypeError,
+  /must be convertible to a valid number/);
+assertThrows(
+    () => set.call(tbl1, -Infinity, null), TypeError,
+  /must be convertible to a valid number/);
+assertThrows(
     () => set.call(tbl1, 0, undefined), TypeError,
-    /can only assign WebAssembly exported functions to Table/);
-assertErrorMessage(
+    /must be null or a WebAssembly function/);
+assertThrows(
     () => set.call(tbl1, undefined, undefined), TypeError,
-    /can only assign WebAssembly exported functions to Table/);
-assertErrorMessage(
+    /must be convertible to a valid number/);
+assertThrows(
     () => set.call(tbl1, 0, {}), TypeError,
-    /can only assign WebAssembly exported functions to Table/);
-assertErrorMessage(() => set.call(tbl1, 0, function() {
-}), TypeError, /can only assign WebAssembly exported functions to Table/);
-assertErrorMessage(
+    /must be null or a WebAssembly function/);
+assertThrows(() => set.call(tbl1, 0, function() {
+}), TypeError, /must be null or a WebAssembly function/);
+assertThrows(
     () => set.call(tbl1, 0, Math.sin), TypeError,
-    /can only assign WebAssembly exported functions to Table/);
-assertErrorMessage(
+    /must be null or a WebAssembly function/);
+assertThrows(
     () => set.call(tbl1, {valueOf() { throw Error('hai') }}, null), Error,
     'hai');
 assertEq(set.call(tbl1, 0, null), undefined);
 assertEq(set.call(tbl1, 1, null), undefined);
-assertEq(set.call(tbl1, undefined, null), undefined);
+assertThrows(
+    () => set.call(tbl1, undefined, null), TypeError,
+    /must be convertible to a valid number/);
 
 // 'WebAssembly.Table.prototype.grow' data property
 let tblGrowDesc = Object.getOwnPropertyDescriptor(tableProto, 'grow');
 assertEq(typeof tblGrowDesc.value, 'function');
-assertFalse(tblGrowDesc.enumerable);
+assertTrue(tblGrowDesc.enumerable);
 assertTrue(tblGrowDesc.configurable);
 
 // 'WebAssembly.Table.prototype.grow' method
 let tblGrow = tblGrowDesc.value;
 assertEq(tblGrow.length, 1);
-assertErrorMessage(
-    () => tblGrow.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(
-    () => tblGrow.call({}), TypeError, /called on incompatible Object/);
-assertErrorMessage(
-    () => tblGrow.call(tbl1, -1), RangeError, /bad Table grow delta/);
-assertErrorMessage(
-    () => tblGrow.call(tbl1, Math.pow(2, 32)), RangeError,
-    /bad Table grow delta/);
+assertThrows(
+    () => tblGrow.call(), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => tblGrow.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
+assertThrows(
+    () => tblGrow.call(tbl1, -1), TypeError, /must be non-negative/);
+assertThrows(
+    () => tblGrow.call(tbl1, Math.pow(2, 32)), TypeError,
+    /must be in the unsigned long range/);
 var tbl = new Table({element: 'anyfunc', initial: 1, maximum: 2});
 assertEq(tbl.length, 1);
-assertErrorMessage(
-    () => tbl.grow(Infinity), RangeError, /failed to grow table/);
-assertErrorMessage(
-    () => tbl.grow(-Infinity), RangeError, /failed to grow table/);
+assertThrows(
+    () => tbl.grow(Infinity), TypeError, /must be convertible to a valid number/);
+assertThrows(
+    () => tbl.grow(-Infinity), TypeError, /must be convertible to a valid number/);
 assertEq(tbl.grow(0), 1);
 assertEq(tbl.length, 1);
 assertEq(tbl.grow(1, 4), 1);
 assertEq(tbl.length, 2);
-assertEq(tbl.grow(), 2);
 assertEq(tbl.length, 2);
-assertErrorMessage(() => tbl.grow(1), Error, /failed to grow table/);
-assertErrorMessage(
-    () => tbl.grow(Infinity), RangeError, /failed to grow table/);
-assertErrorMessage(
-    () => tbl.grow(-Infinity), RangeError, /failed to grow table/);
+assertThrows(() => tbl.grow(1), Error, /failed to grow table by \d+/);
+assertThrows(
+    () => tbl.grow(Infinity), TypeError, /must be convertible to a valid number/);
+assertThrows(
+    () => tbl.grow(-Infinity), TypeError, /must be convertible to a valid number/);
 
 // 'WebAssembly.validate' function
-assertErrorMessage(() => WebAssembly.validate(), TypeError);
-assertErrorMessage(() => WebAssembly.validate('hi'), TypeError);
+assertThrows(() => WebAssembly.validate(), TypeError);
+assertThrows(() => WebAssembly.validate('hi'), TypeError);
 assertTrue(WebAssembly.validate(emptyModuleBinary));
 // TODO: other ways for validate to return false.
 assertFalse(WebAssembly.validate(moduleBinaryImporting2Memories));
@@ -763,7 +752,7 @@ assertFalse(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');
 assertEq(typeof compileDesc.value, 'function');
 assertTrue(compileDesc.writable);
-assertFalse(compileDesc.enumerable);
+assertTrue(compileDesc.enumerable);
 assertTrue(compileDesc.configurable);
 
 // 'WebAssembly.compile' function
@@ -772,22 +761,18 @@ assertEq(compile, compileDesc.value);
 assertEq(compile.length, 1);
 assertEq(compile.name, 'compile');
 function assertCompileError(args, err, msg) {
-  var error = null;
-  assertPromiseResult(compile(...args), unexpectedSuccess, error => {
-    assertTrue(error instanceof err);
-    // TODO  assertTrue(Boolean(error.message.match(msg)));
-  });
+  assertThrowsAsync(compile(...args), err /* TODO , msg */);
 }
 assertCompileError([], TypeError, /requires more than 0 arguments/);
 assertCompileError(
     [undefined], TypeError,
-    /first argument must be an ArrayBuffer or typed array object/);
+    /Argument 0 must be a buffer source/);
 assertCompileError(
     [1], TypeError,
-    /first argument must be an ArrayBuffer or typed array object/);
+    /Argument 0 must be a buffer source/);
 assertCompileError(
     [{}], TypeError,
-    /first argument must be an ArrayBuffer or typed array object/);
+    /Argument 0 must be a buffer source/);
 assertCompileError(
     [new Uint8Array()], CompileError, /BufferSource argument is empty/);
 assertCompileError(
@@ -809,7 +794,7 @@ let instantiateDesc =
     Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
 assertEq(typeof instantiateDesc.value, 'function');
 assertTrue(instantiateDesc.writable);
-assertFalse(instantiateDesc.enumerable);
+assertTrue(instantiateDesc.enumerable);
 assertTrue(instantiateDesc.configurable);
 
 // 'WebAssembly.instantiate' function
@@ -818,13 +803,9 @@ assertEq(instantiate, instantiateDesc.value);
 assertEq(instantiate.length, 1);
 assertEq(instantiate.name, 'instantiate');
 function assertInstantiateError(args, err, msg) {
-  var error = null;
-  assertPromiseResult(instantiate(...args), unexpectedSuccess, error => {
-    assertTrue(error instanceof err);
-    // TODO assertTrue(Boolean(error.message.match(msg)));
-  });
+  assertThrowsAsync(instantiate(...args), err /* TODO , msg */);
 }
-var scratch_memory = new WebAssembly.Memory(new ArrayBuffer(10));
+var scratch_memory = new WebAssembly.Memory({ initial: 0 });
 assertInstantiateError([], TypeError, /requires more than 0 arguments/);
 assertInstantiateError(
     [undefined], TypeError, /first argument must be a BufferSource/);
@@ -924,4 +905,11 @@ assertInstantiateSuccess(
   assertTrue(module instanceof Module);
   var instance = new WebAssembly.Instance(module);
   assertTrue(instance instanceof Instance);
+})();
+
+(function TestPassBigIntInGlobalWhenNotEnabled() {
+  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1), TypeError,
+               /Can't set the value/);
+  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
+               /Can't set the value/);
 })();

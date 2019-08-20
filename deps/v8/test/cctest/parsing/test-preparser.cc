@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast.h"
-#include "src/compiler.h"
-#include "src/objects-inl.h"
+#include "src/codegen/compiler.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data-impl.h"
+#include "src/parsing/preparse-data.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -33,14 +34,11 @@ enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 }  // namespace
 
 TEST(PreParserScopeAnalysis) {
-  i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
-  i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   LocalContext env;
 
-  struct {
+  struct Outer {
     const char* code;
     bool strict_outer;
     bool strict_test_function;
@@ -111,9 +109,6 @@ TEST(PreParserScopeAnalysis) {
         : params(p), source(s), skip(skip), precise_maybe_assigned(precise) {}
     Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
         : params(p), source(s), skip(skip), bailout(bailout) {}
-
-    Inner(const char* s, std::function<void()> p, std::function<void()> e)
-        : source(s), prologue(p), epilogue(e) {}
 
     const char* params = "";
     const char* source;
@@ -661,92 +656,62 @@ TEST(PreParserScopeAnalysis) {
       {"class MyClass extends MyBase { static m() { var var1; function foo() { "
        "var1 = 11; } } }"},
 
-      {"class X { ['bar'] = 1; }; new X;",
-       [] { i::FLAG_harmony_public_fields = true; },
-       [] { i::FLAG_harmony_public_fields = false; }},
-      {"class X { static ['foo'] = 2; }; new X;",
-       [] {
-         i::FLAG_harmony_public_fields = true;
-         i::FLAG_harmony_static_fields = true;
-       },
-       [] {
-         i::FLAG_harmony_public_fields = false;
-         i::FLAG_harmony_static_fields = false;
-       }},
-      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;",
-       [] {
-         i::FLAG_harmony_public_fields = true;
-         i::FLAG_harmony_static_fields = true;
-       },
-       [] {
-         i::FLAG_harmony_public_fields = false;
-         i::FLAG_harmony_static_fields = false;
-       }},
-      {"class X { #x = 1 }; new X;",
-       [] { i::FLAG_harmony_private_fields = true; },
-       [] { i::FLAG_harmony_private_fields = false; }},
-      {"function t() { return class { #x = 1 }; } new t();",
-       [] { i::FLAG_harmony_private_fields = true; },
-       [] { i::FLAG_harmony_private_fields = false; }},
+      {"class X { ['bar'] = 1; }; new X;"},
+      {"class X { static ['foo'] = 2; }; new X;"},
+      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;"},
+      {"class X { #x = 1 }; new X;"},
+      {"function t() { return class { #x = 1 }; } new t();"},
   };
 
-  for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
-    for (unsigned inner_ix = 0; inner_ix < arraysize(inners); ++inner_ix) {
-      if (outers[outer_ix].strict_outer &&
-          (inners[inner_ix].skip & SKIP_STRICT_OUTER)) {
+  for (unsigned i = 0; i < arraysize(outers); ++i) {
+    struct Outer outer = outers[i];
+    for (unsigned j = 0; j < arraysize(inners); ++j) {
+      struct Inner inner = inners[j];
+      if (outer.strict_outer && (inner.skip & SKIP_STRICT_OUTER)) continue;
+      if (outer.strict_test_function && (inner.skip & SKIP_STRICT_FUNCTION)) {
         continue;
       }
-      if (outers[outer_ix].strict_test_function &&
-          (inners[inner_ix].skip & SKIP_STRICT_FUNCTION)) {
-        continue;
-      }
-      if (outers[outer_ix].arrow && (inners[inner_ix].skip & SKIP_ARROW)) {
-        continue;
-      }
+      if (outer.arrow && (inner.skip & SKIP_ARROW)) continue;
 
-      const char* code = outers[outer_ix].code;
+      const char* code = outer.code;
       int code_len = Utf8LengthHelper(code);
 
-      int params_len = Utf8LengthHelper(inners[inner_ix].params);
-      int source_len = Utf8LengthHelper(inners[inner_ix].source);
+      int params_len = Utf8LengthHelper(inner.params);
+      int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      if (inners[inner_ix].prologue != nullptr) {
-        inners[inner_ix].prologue();
-      }
-
       i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, code, inners[inner_ix].params,
-                  inners[inner_ix].source);
+      i::SNPrintF(program, code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
 
       i::Handle<i::String> source =
-          factory->InternalizeUtf8String(program.start());
+          factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
 
       // Compile and run the script to get a pointer to the lazy function.
-      v8::Local<v8::Value> v = CompileRun(program.start());
+      v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
 
-      if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
-          !outers[outer_ix].strict_outer) {
-        CHECK(!shared->HasPreParsedScopeData());
+      if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
+          !outer.strict_outer) {
+        CHECK(!shared->HasUncompiledDataWithPreparseData());
         continue;
       }
 
-      CHECK(shared->HasPreParsedScopeData());
-      i::Handle<i::PreParsedScopeData> produced_data_on_heap(
-          i::PreParsedScopeData::cast(shared->preparsed_scope_data()));
+      CHECK(shared->HasUncompiledDataWithPreparseData());
+      i::Handle<i::PreparseData> produced_data_on_heap(
+          shared->uncompiled_data_with_preparse_data().preparse_data(),
+          isolate);
 
       // Parse the lazy function using the scope data.
-      i::ParseInfo using_scope_data(shared);
+      i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
-      using_scope_data.consumed_preparsed_scope_data()->SetData(
-          produced_data_on_heap);
+      using_scope_data.set_consumed_preparse_data(
+          i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.
@@ -759,7 +724,7 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::DeclarationScope::Analyze(&using_scope_data));
 
       // Parse the lazy function again eagerly to produce baseline data.
-      i::ParseInfo not_using_scope_data(shared);
+      i::ParseInfo not_using_scope_data(isolate, shared);
       not_using_scope_data.set_lazy_compile();
       CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
 
@@ -777,11 +742,7 @@ TEST(PreParserScopeAnalysis) {
       // scope data (and skipping functions), and when parsing without.
       i::ScopeTestHelper::CompareScopes(
           scope_without_skipped_functions, scope_with_skipped_functions,
-          inners[inner_ix].precise_maybe_assigned == PreciseMaybeAssigned::YES);
-
-      if (inners[inner_ix].epilogue != nullptr) {
-        inners[inner_ix].epilogue();
-      }
+          inner.precise_maybe_assigned == PreciseMaybeAssigned::YES);
     }
   }
 }
@@ -790,7 +751,6 @@ TEST(PreParserScopeAnalysis) {
 // https://bugs.chromium.org/p/chromium/issues/detail?id=753896. Should not
 // crash.
 TEST(Regress753896) {
-  i::FLAG_preparser_scope_analysis = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -799,7 +759,7 @@ TEST(Regress753896) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::ParseInfo info(isolate, script);
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.
@@ -812,15 +772,34 @@ TEST(ProducingAndConsumingByteData) {
   LocalContext env;
 
   i::Zone zone(isolate->allocator(), ZONE_NAME);
-  i::ProducedPreParsedScopeData::ByteData bytes(&zone);
+  std::vector<uint8_t> buffer;
+  i::PreparseDataBuilder::ByteData bytes;
+  bytes.Start(&buffer);
+
+  bytes.Reserve(32);
+  bytes.Reserve(32);
+  CHECK_EQ(buffer.size(), 32);
+  const int kBufferSize = 64;
+  bytes.Reserve(kBufferSize);
+  CHECK_EQ(buffer.size(), kBufferSize);
+
   // Write some data.
+#ifdef DEBUG
   bytes.WriteUint32(1983);  // This will be overwritten.
-  bytes.WriteUint32(2147483647);
+#else
+  bytes.WriteVarint32(1983);
+#endif
+  bytes.WriteVarint32(2147483647);
   bytes.WriteUint8(4);
   bytes.WriteUint8(255);
-  bytes.WriteUint32(0);
+  bytes.WriteVarint32(0);
   bytes.WriteUint8(0);
-  bytes.OverwriteFirstUint32(2017);
+#ifdef DEBUG
+  bytes.SaveCurrentSizeAtFirstUint32();
+  int saved_size = 21;
+  CHECK_EQ(buffer.size(), kBufferSize);
+  CHECK_EQ(bytes.length(), saved_size);
+#endif
   bytes.WriteUint8(100);
   // Write quarter bytes between uint8s and uint32s to verify they're stored
   // correctly.
@@ -830,35 +809,134 @@ TEST(ProducingAndConsumingByteData) {
   bytes.WriteQuarter(1);
   bytes.WriteQuarter(0);
   bytes.WriteUint8(50);
+
   bytes.WriteQuarter(0);
   bytes.WriteQuarter(1);
   bytes.WriteQuarter(2);
-  bytes.WriteUint32(50);
+  bytes.WriteQuarter(3);
+  bytes.WriteVarint32(50);
+
+  // End with a lonely quarter.
+  bytes.WriteQuarter(0);
+  bytes.WriteQuarter(1);
+  bytes.WriteQuarter(2);
+  bytes.WriteVarint32(0xff);
+
   // End with a lonely quarter.
   bytes.WriteQuarter(2);
 
-  i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
-  i::ConsumedPreParsedScopeData::ByteData bytes_for_reading;
-  i::ConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
-      &bytes_for_reading, *data_on_heap);
+  CHECK_EQ(buffer.size(), 64);
+#ifdef DEBUG
+  const int kDataSize = 42;
+#else
+  const int kDataSize = 21;
+#endif
+  CHECK_EQ(bytes.length(), kDataSize);
+  CHECK_EQ(buffer.size(), kBufferSize);
 
-  // Read the data back.
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-  CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
-  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+  // Copy buffer for sanity checks later-on.
+  std::vector<uint8_t> copied_buffer(buffer);
+
+  // Move the data from the temporary buffer into the zone for later
+  // serialization.
+  bytes.Finalize(&zone);
+  CHECK_EQ(buffer.size(), 0);
+  CHECK_EQ(copied_buffer.size(), kBufferSize);
+
+  {
+    // Serialize as a ZoneConsumedPreparseData, and read back data.
+    i::ZonePreparseData* data_in_zone = bytes.CopyToZone(&zone, 0);
+    i::ZoneConsumedPreparseData::ByteData bytes_for_reading;
+    i::ZoneVectorWrapper wrapper(data_in_zone->byte_data());
+    i::ZoneConsumedPreparseData::ByteData::ReadingScope reading_scope(
+        &bytes_for_reading, wrapper);
+
+    CHECK_EQ(wrapper.data_length(), kDataSize);
+
+    for (int i = 0; i < kDataSize; i++) {
+      CHECK_EQ(copied_buffer.at(i), wrapper.get(i));
+    }
+
+#ifdef DEBUG
+    CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
+#else
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 1983);
+#endif
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0xff);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    // We should have consumed all data at this point.
+    CHECK(!bytes_for_reading.HasRemainingBytes(1));
+  }
+
+  {
+    // Serialize as an OnHeapConsumedPreparseData, and read back data.
+    i::Handle<i::PreparseData> data_on_heap = bytes.CopyToHeap(isolate, 0);
+    CHECK_EQ(data_on_heap->data_length(), kDataSize);
+    CHECK_EQ(data_on_heap->children_length(), 0);
+    i::OnHeapConsumedPreparseData::ByteData bytes_for_reading;
+    i::OnHeapConsumedPreparseData::ByteData::ReadingScope reading_scope(
+        &bytes_for_reading, *data_on_heap);
+
+    for (int i = 0; i < kDataSize; i++) {
+      CHECK_EQ(copied_buffer[i], data_on_heap->get(i));
+    }
+
+#ifdef DEBUG
+    CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
+#else
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 1983);
+#endif
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0xff);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    // We should have consumed all data at this point.
+    CHECK(!bytes_for_reading.HasRemainingBytes(1));
+  }
 }

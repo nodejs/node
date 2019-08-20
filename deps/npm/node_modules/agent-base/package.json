@@ -1,0 +1,68 @@
+{
+  "_from": "agent-base@4",
+  "_id": "agent-base@4.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-salcGninV0nPrwpGNn4VTXBb1SOuXQBiqbrNXoeizJsHrsL6ERFM2Ne3JUSBWRE6aeNJI2ROP/WEEIDUiDe3cg==",
+  "_location": "/agent-base",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "agent-base@4",
+    "name": "agent-base",
+    "escapedName": "agent-base",
+    "rawSpec": "4",
+    "saveSpec": null,
+    "fetchSpec": "4"
+  },
+  "_requiredBy": [
+    "/http-proxy-agent",
+    "/https-proxy-agent"
+  ],
+  "_resolved": "https://registry.npmjs.org/agent-base/-/agent-base-4.3.0.tgz",
+  "_shasum": "8165f01c436009bccad0b1d122f05ed770efc6ee",
+  "_spec": "agent-base@4",
+  "_where": "/Users/isaacs/dev/npm/cli/node_modules/http-proxy-agent",
+  "author": {
+    "name": "Nathan Rajlich",
+    "email": "nathan@tootallnate.net",
+    "url": "http://n8.io/"
+  },
+  "bugs": {
+    "url": "https://github.com/TooTallNate/node-agent-base/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "es6-promisify": "^5.0.0"
+  },
+  "deprecated": false,
+  "description": "Turn a function into an `http.Agent` instance",
+  "devDependencies": {
+    "@types/es6-promisify": "^5.0.0",
+    "@types/node": "^10.5.3",
+    "mocha": "^3.4.2",
+    "ws": "^3.0.0"
+  },
+  "engines": {
+    "node": ">= 4.0.0"
+  },
+  "homepage": "https://github.com/TooTallNate/node-agent-base#readme",
+  "keywords": [
+    "http",
+    "agent",
+    "base",
+    "barebones",
+    "https"
+  ],
+  "license": "MIT",
+  "main": "./index.js",
+  "name": "agent-base",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/TooTallNate/node-agent-base.git"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec"
+  },
+  "version": "4.3.0"
+}

@@ -199,7 +199,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                         *err = U_ILLEGAL_ESCAPE_SEQUENCE;
                         args->converter->toUCallbackReason = UCNV_IRREGULAR;
                         args->converter->toUBytes[0] = UCNV_TILDE;
-                        args->converter->toUBytes[1] = mySourceChar;
+                        args->converter->toUBytes[1] = static_cast<uint8_t>(mySourceChar);
                         args->converter->toULength = 2;
                         args->target = myTarget;
                         args->source = mySource;
@@ -229,7 +229,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                         --mySource;
                     } else {
                         /* Include the current byte in the illegal sequence. */
-                        args->converter->toUBytes[1] = mySourceChar;
+                        args->converter->toUBytes[1] = static_cast<uint8_t>(mySourceChar);
                         args->converter->toULength = 2;
                     }
                     args->target = myTarget;

@@ -7,7 +7,7 @@ function checkDest(field, result, value) {
   const dest = {};
 
   const incomingMessage = new IncomingMessage(field);
-  // dest is changed by IncomingMessage._addHeaderLine
+  // Dest is changed by IncomingMessage._addHeaderLine
   if (value)
     incomingMessage._addHeaderLine(field, 'test', dest);
   incomingMessage._addHeaderLine(field, value, dest);

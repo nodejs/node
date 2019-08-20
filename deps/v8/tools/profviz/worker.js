@@ -100,7 +100,7 @@ function run(args) {
          var profile = "";
          print = function(text) { profile += text + "\n"; };
          // Dummy entries provider, as we cannot call nm.
-         var entriesProvider = new UnixCppEntriesProvider("", "");
+         var entriesProvider = new UnixCppEntriesProvider("", "", "");
          var targetRootFS = "";
          var separateIc = false;
          var callGraphSize = 5;

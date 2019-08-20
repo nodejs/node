@@ -1,4 +1,5 @@
-#include "node_internals.h"
+#include "env-inl.h"
+#include "node.h"
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -13,6 +14,7 @@ namespace {
   V(External)                                                                 \
   V(Date)                                                                     \
   V(ArgumentsObject)                                                          \
+  V(BigIntObject)                                                             \
   V(BooleanObject)                                                            \
   V(NumberObject)                                                             \
   V(StringObject)                                                             \
@@ -50,18 +52,29 @@ static void IsAnyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
 }
 
+static void IsBoxedPrimitive(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(
+    args[0]->IsNumberObject() ||
+    args[0]->IsStringObject() ||
+    args[0]->IsBooleanObject() ||
+    args[0]->IsBigIntObject() ||
+    args[0]->IsSymbolObject());
+}
+
 void InitializeTypes(Local<Object> target,
                      Local<Value> unused,
-                     Local<Context> context) {
+                     Local<Context> context,
+                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-#define V(type) env->SetMethod(target,     \
-                               "is" #type, \
-                               Is##type);
+#define V(type) env->SetMethodNoSideEffect(target,     \
+                                           "is" #type, \
+                                           Is##type);
   VALUE_METHOD_MAP(V)
 #undef V
 
-  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
+  env->SetMethodNoSideEffect(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
+  env->SetMethodNoSideEffect(target, "isBoxedPrimitive", IsBoxedPrimitive);
 }
 
 }  // anonymous namespace

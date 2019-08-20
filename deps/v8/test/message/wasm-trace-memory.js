@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-opt --expose-wasm --wasm-trace-memory --no-liftoff
+// Flags: --no-stress-opt --trace-wasm-memory --no-liftoff --no-future
+// Flags: --no-wasm-tier-up
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();

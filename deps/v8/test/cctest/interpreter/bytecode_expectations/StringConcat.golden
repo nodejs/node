@@ -181,14 +181,14 @@ bytecodes: [
                 B(Star), R(1),
   /*   80 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
-  /*   98 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(1),
-  /*   96 E> */ B(Add), R(3), U8(3),
+  /*   98 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(0),
+  /*   96 E> */ B(Add), R(3), U8(2),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*  108 E> */ B(Add), R(3), U8(4),
+  /*  108 E> */ B(Add), R(3), U8(3),
                 B(Star), R(3),
                 B(Ldar), R(1),
-  /*  112 E> */ B(Add), R(3), U8(5),
+  /*  112 E> */ B(Add), R(3), U8(4),
   /*  116 S> */ B(Return),
 ]
 constant pool: [

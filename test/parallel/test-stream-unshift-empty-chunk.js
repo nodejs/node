@@ -32,18 +32,18 @@ let nChunks = 10;
 const chunk = Buffer.alloc(10, 'x');
 
 r._read = function(n) {
-  setImmediate(function() {
+  setImmediate(() => {
     r.push(--nChunks === 0 ? null : chunk);
   });
 };
 
 let readAll = false;
 const seen = [];
-r.on('readable', function() {
+r.on('readable', () => {
   let chunk;
   while (chunk = r.read()) {
     seen.push(chunk.toString());
-    // simulate only reading a certain amount of the data,
+    // Simulate only reading a certain amount of the data,
     // and then putting the rest of the chunk back into the
     // stream, like a parser might do.  We just fill it with
     // 'y' so that it's easy to see which bits were touched,
@@ -74,7 +74,7 @@ const expect =
     'xxxxxxxxxx',
     'yyyyy' ];
 
-r.on('end', function() {
+r.on('end', () => {
   assert.deepStrictEqual(seen, expect);
   console.log('ok');
 });

@@ -28,7 +28,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS a.propertyIsEnumerable('length') is false
 PASS a.propertyIsEnumerable ('foo') is true
-PASS a.propertyIsEnumerable ('non-existant') is false
+PASS a.propertyIsEnumerable ('non-existent') is false
 PASS global.propertyIsEnumerable ('aVarDecl') is true
 PASS global.propertyIsEnumerable ('aFunctionDecl') is true
 PASS global.propertyIsEnumerable ('Math') is false

@@ -5,13 +5,17 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const {
+  hijackStderr,
+  restoreStderr
+} = require('../common/hijackstdio');
 const assert = require('assert');
 // Flags: --expose_internals
 const internalTLS = require('internal/tls');
 const tls = require('tls');
 
 const noOutput = common.mustNotCall();
-common.hijackStderr(noOutput);
+hijackStderr(noOutput);
 
 {
   const singles = 'C=US\nST=CA\nL=SF\nO=Node.js Foundation\nOU=Node.js\n' +
@@ -54,7 +58,7 @@ common.hijackStderr(noOutput);
   assert.deepStrictEqual(internalTLS.parseCertString(input), expected);
 }
 
-common.restoreStderr();
+restoreStderr();
 
 {
   common.expectWarning('DeprecationWarning',

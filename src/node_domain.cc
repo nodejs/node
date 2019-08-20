@@ -1,5 +1,5 @@
+#include "env-inl.h"
 #include "v8.h"
-#include "node_internals.h"
 
 namespace node {
 namespace domain {
@@ -22,7 +22,8 @@ void Enable(const FunctionCallbackInfo<Value>& args) {
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
-                Local<Context> context) {
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "enable", Enable);

@@ -24,39 +24,37 @@ const common = require('../common');
 const assert = require('assert');
 
 const { execFileSync, execSync, spawnSync } = require('child_process');
+const { getSystemErrorName } = require('util');
 
 const TIMER = 200;
 const SLEEP = 2000;
 
-const start = Date.now();
 const execOpts = { encoding: 'utf8', shell: true };
-let err;
-let caught = false;
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
   function() { execSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
-  'execSync did not throw the expected exception!'
+  /spawnSync bad_shell ENOENT/
 );
 assert.throws(
   function() { execFileSync('exit -1', { shell: 'bad_shell' }); },
-  /spawnSync bad_shell ENOENT/,
-  'execFileSync did not throw the expected exception!'
+  /spawnSync bad_shell ENOENT/
 );
 
-let cmd, ret;
+let caught = false;
+let ret, err;
+const start = Date.now();
 try {
-  cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
+  const cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
   ret = execSync(cmd, { timeout: TIMER });
 } catch (e) {
   caught = true;
-  assert.strictEqual(e.errno, 'ETIMEDOUT');
+  assert.strictEqual(getSystemErrorName(e.errno), 'ETIMEDOUT');
   err = e;
 } finally {
   assert.strictEqual(ret, undefined,
                      `should not have a return value, received ${ret}`);
-  assert.strictEqual(caught, true, 'execSync should throw');
+  assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
   assert(err.status > 128 || err.signal);
@@ -71,28 +69,32 @@ const msgBuf = Buffer.from(`${msg}\n`);
 
 // console.log ends every line with just '\n', even on Windows.
 
-cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
+const cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 
-ret = execSync(cmd);
+{
+  const ret = execSync(cmd);
+  assert.strictEqual(ret.length, msgBuf.length);
+  assert.deepStrictEqual(ret, msgBuf);
+}
 
-assert.strictEqual(ret.length, msgBuf.length);
-assert.deepStrictEqual(ret, msgBuf);
-
-ret = execSync(cmd, { encoding: 'utf8' });
-
-assert.strictEqual(ret, `${msg}\n`);
+{
+  const ret = execSync(cmd, { encoding: 'utf8' });
+  assert.strictEqual(ret, `${msg}\n`);
+}
 
 const args = [
   '-e',
   `console.log("${msg}");`
 ];
-ret = execFileSync(process.execPath, args);
+{
+  const ret = execFileSync(process.execPath, args);
+  assert.deepStrictEqual(ret, msgBuf);
+}
 
-assert.deepStrictEqual(ret, msgBuf);
-
-ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
-
-assert.strictEqual(ret, `${msg}\n`);
+{
+  const ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
+  assert.strictEqual(ret, `${msg}\n`);
+}
 
 // Verify that the cwd option works.
 // See https://github.com/nodejs/node-v0.x-archive/issues/7824.
@@ -135,10 +137,11 @@ assert.strictEqual(ret, `${msg}\n`);
     assert.strictEqual(err.message, msg);
     assert.strictEqual(err.status, 1);
     assert.strictEqual(typeof err.pid, 'number');
-    spawnSyncKeys.forEach((key) => {
-      if (key === 'pid') return;
-      assert.deepStrictEqual(err[key], spawnSyncResult[key]);
-    });
+    spawnSyncKeys
+      .filter((key) => key !== 'pid')
+      .forEach((key) => {
+        assert.deepStrictEqual(err[key], spawnSyncResult[key]);
+      });
     return true;
   });
 }

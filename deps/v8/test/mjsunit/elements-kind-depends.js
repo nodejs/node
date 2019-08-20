@@ -34,6 +34,7 @@ function burn() {
   a[2] = 20;
   return a;
 }
+%PrepareFunctionForOptimization(burn);
 
 function check(a) {
   assertEquals(10, a[0]);
@@ -56,6 +57,7 @@ function loop_test(x) {
     x[i] = (i+1) * 0.5;
   }
 }
+%PrepareFunctionForOptimization(loop_test);
 
 function check2(b) {
   assertEquals(0.5, b[0]);

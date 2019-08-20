@@ -46,7 +46,7 @@ server.listen(0, function() {
     port: this.address().port,
     agent: agent
   }, function(res) {
-    assert.strictEqual(1, agent.sockets[name].length);
+    assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
   });
   request.on('socket', function(s) {
@@ -63,7 +63,7 @@ server.listen(0, function() {
     port: this.address().port,
     agent: agent
   }, function(res) {
-    assert.strictEqual(1, agent.sockets[name].length);
+    assert.strictEqual(agent.sockets[name].length, 1);
     res.resume();
   });
   request.on('socket', function(s) {
@@ -80,7 +80,7 @@ server.listen(0, function() {
     agent: agent
   }, function(response) {
     response.on('end', function() {
-      assert.strictEqual(1, agent.sockets[name].length);
+      assert.strictEqual(agent.sockets[name].length, 1);
       server.close();
     });
     response.resume();
@@ -94,5 +94,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(3, connectCount);
+  assert.strictEqual(connectCount, 3);
 });

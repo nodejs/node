@@ -10,6 +10,8 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <openssl/opensslv.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -37,6 +39,9 @@ extern "C" {
 #ifndef OPENSSL_THREADS
 # define OPENSSL_THREADS
 #endif
+#ifndef OPENSSL_RAND_SEED_OS
+# define OPENSSL_RAND_SEED_OS
+#endif
 #ifndef OPENSSL_NO_AFALGENG
 # define OPENSSL_NO_AFALGENG
 #endif
@@ -52,11 +57,17 @@ extern "C" {
 #ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 # define OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 #endif
+#ifndef OPENSSL_NO_DEVCRYPTOENG
+# define OPENSSL_NO_DEVCRYPTOENG
+#endif
 #ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
 # define OPENSSL_NO_EC_NISTP_64_GCC_128
 #endif
 #ifndef OPENSSL_NO_EGD
 # define OPENSSL_NO_EGD
+#endif
+#ifndef OPENSSL_NO_EXTERNAL_TESTS
+# define OPENSSL_NO_EXTERNAL_TESTS
 #endif
 #ifndef OPENSSL_NO_FUZZ_AFL
 # define OPENSSL_NO_FUZZ_AFL
@@ -73,9 +84,6 @@ extern "C" {
 #ifndef OPENSSL_NO_SCTP
 # define OPENSSL_NO_SCTP
 #endif
-#ifndef OPENSSL_NO_SSL_TRACE
-# define OPENSSL_NO_SSL_TRACE
-#endif
 #ifndef OPENSSL_NO_SSL3
 # define OPENSSL_NO_SSL3
 #endif
@@ -90,6 +98,9 @@ extern "C" {
 #endif
 #ifndef OPENSSL_NO_WEAK_SSL_CIPHERS
 # define OPENSSL_NO_WEAK_SSL_CIPHERS
+#endif
+#ifndef OPENSSL_NO_DYNAMIC_ENGINE
+# define OPENSSL_NO_DYNAMIC_ENGINE
 #endif
 #ifndef OPENSSL_NO_AFALGENG
 # define OPENSSL_NO_AFALGENG
@@ -108,12 +119,14 @@ extern "C" {
  * still won't see them if the library has been built to disable deprecated
  * functions.
  */
-#if defined(OPENSSL_NO_DEPRECATED)
-# define DECLARE_DEPRECATED(f)
-#elif __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0)
-# define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
-#else
+#ifndef DECLARE_DEPRECATED
 # define DECLARE_DEPRECATED(f)   f;
+# ifdef __GNUC__
+#  if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0)
+#   undef DECLARE_DEPRECATED
+#   define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
+#  endif
+# endif
 #endif
 
 #ifndef OPENSSL_FILE
@@ -135,6 +148,18 @@ extern "C" {
 # define OPENSSL_API_COMPAT OPENSSL_MIN_API
 #endif
 
+/*
+ * Do not deprecate things to be deprecated in version 1.2.0 before the
+ * OpenSSL version number matches.
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10200000L
+# define DEPRECATEDIN_1_2_0(f)   f;
+#elif OPENSSL_API_COMPAT < 0x10200000L
+# define DEPRECATEDIN_1_2_0(f)   DECLARE_DEPRECATED(f)
+#else
+# define DEPRECATEDIN_1_2_0(f)
+#endif
+
 #if OPENSSL_API_COMPAT < 0x10100000L
 # define DEPRECATEDIN_1_1_0(f)   DECLARE_DEPRECATED(f)
 #else
@@ -152,8 +177,6 @@ extern "C" {
 #else
 # define DEPRECATEDIN_0_9_8(f)
 #endif
-
-
 
 /* Generate 80386 code? */
 #undef I386_ONLY

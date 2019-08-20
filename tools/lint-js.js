@@ -3,7 +3,7 @@
 const rulesDirs = ['tools/eslint-rules'];
 const extensions = ['.js', '.md'];
 // This is the maximum number of files to be linted per worker at any given time
-const maxWorkload = 40;
+const maxWorkload = 60;
 
 const cluster = require('cluster');
 const path = require('path');
@@ -25,24 +25,25 @@ if (process.argv.indexOf('-F') !== -1)
 const cli = new CLIEngine(cliOptions);
 
 if (cluster.isMaster) {
-  var numCPUs = 1;
+  let numCPUs = 1;
   const paths = [];
-  var files = null;
-  var totalPaths = 0;
-  var failures = 0;
-  var successes = 0;
-  var lastLineLen = 0;
-  var curPath = 'Starting ...';
-  var showProgress = true;
+  let files = null;
+  let totalPaths = 0;
+  let failures = 0;
+  let successes = 0;
+  let lastLineLen = 0;
+  let curPath = 'Starting ...';
+  let showProgress = true;
   const globOptions = {
-    nodir: true
+    nodir: true,
+    ignore: '**/node_modules/**/*'
   };
   const workerConfig = {};
-  var startTime;
-  var formatter;
-  var outFn;
-  var fd;
-  var i;
+  let startTime;
+  let formatter;
+  let outFn;
+  let fd;
+  let i;
 
   // Check if spreading work among all cores/cpus
   if (process.argv.indexOf('-J') !== -1)
@@ -86,9 +87,7 @@ if (cluster.isMaster) {
     outFn = function(str) {
       fs.writeSync(fd, str, 'utf8');
     };
-    process.on('exit', function() {
-      fs.closeSync(fd);
-    });
+    process.on('exit', () => { fs.closeSync(fd); });
   } else {
     outFn = function(str) {
       process.stdout.write(str);
@@ -117,20 +116,20 @@ if (cluster.isMaster) {
 
   if (showProgress) {
     // Start the progress display update timer when the first worker is ready
-    cluster.once('online', function() {
+    cluster.once('online', () => {
       startTime = process.hrtime();
       setInterval(printProgress, 1000).unref();
       printProgress();
     });
   }
 
-  cluster.on('online', function(worker) {
+  cluster.on('online', (worker) => {
     // Configure worker and give it some initial work to do
     worker.send(workerConfig);
     sendWork(worker);
   });
 
-  process.on('exit', function(code) {
+  process.on('exit', (code) => {
     if (showProgress) {
       curPath = 'Done';
       printProgress();
@@ -171,7 +170,7 @@ if (cluster.isMaster) {
       // We either just started or we have no more files to lint for the current
       // path. Find the next path that has some files to be linted.
       while (paths.length) {
-        var dir = paths.shift();
+        let dir = paths.shift();
         curPath = dir;
         const patterns = cli.resolveFileGlobPatterns([dir]);
         dir = path.resolve(patterns[0]);
@@ -190,9 +189,9 @@ if (cluster.isMaster) {
     // workers busy most of the time instead of only a minority doing most of
     // the work.
     const sliceLen = Math.min(maxWorkload, Math.ceil(files.length / numCPUs));
-    var slice;
+    let slice;
     if (sliceLen === files.length) {
-      // Micro-ptimization to avoid splicing to an empty array
+      // Micro-optimization to avoid splicing to an empty array
       slice = files;
       files = null;
     } else {
@@ -214,10 +213,10 @@ if (cluster.isMaster) {
     const secs = `${elapsed % 60}`.padStart(2, '0');
     const passed = `${successes}`.padStart(6);
     const failed = `${failures}`.padStart(6);
-    var pct = Math.ceil(((totalPaths - paths.length) / totalPaths) * 100);
-    pct = `${pct}`.padStart(3);
+    let pct = `${Math.ceil(((totalPaths - paths.length) / totalPaths) * 100)}`;
+    pct = pct.padStart(3);
 
-    var line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
+    let line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
 
     // Truncate line like cpplint does in case it gets too long
     if (line.length > 75)
@@ -231,8 +230,8 @@ if (cluster.isMaster) {
 } else {
   // Worker
 
-  var config = {};
-  process.on('message', function(files) {
+  let config = {};
+  process.on('message', (files) => {
     if (files instanceof Array) {
       // Lint some files
       const report = cli.executeOnFiles(files);
@@ -248,7 +247,7 @@ if (cluster.isMaster) {
         // Silence warnings for files with no errors while keeping the "ok"
         // status
         if (report.warningCount > 0) {
-          for (var i = 0; i < results.length; ++i) {
+          for (let i = 0; i < results.length; ++i) {
             const result = results[i];
             if (result.errorCount === 0 && result.warningCount > 0) {
               result.warningCount = 0;

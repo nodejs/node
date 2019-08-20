@@ -40,6 +40,7 @@ function f(o, a) {
   return v;
 }
 
+%PrepareFunctionForOptimization(f);
 f({y:1.4}, [1]);
 f({y:1.6}, [1]);
 %OptimizeFunctionOnNextCall(f);
@@ -59,6 +60,7 @@ function f2(o) {
 var o1 = { x: 1.5 };
 var o2 = { y: 1, x: 1 };
 
+%PrepareFunctionForOptimization(f2);
 f2(o1);
 f2(o1);
 f2(o2);

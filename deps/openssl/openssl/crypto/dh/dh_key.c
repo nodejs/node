@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -78,9 +78,14 @@ static int generate_key(DH *dh)
     int ok = 0;
     int generate_new_key = 0;
     unsigned l;
-    BN_CTX *ctx;
+    BN_CTX *ctx = NULL;
     BN_MONT_CTX *mont = NULL;
     BIGNUM *pub_key = NULL, *priv_key = NULL;
+
+    if (BN_num_bits(dh->p) > OPENSSL_DH_MAX_MODULUS_BITS) {
+        DHerr(DH_F_GENERATE_KEY, DH_R_MODULUS_TOO_LARGE);
+        return 0;
+    }
 
     ctx = BN_CTX_new();
     if (ctx == NULL)
@@ -111,14 +116,14 @@ static int generate_key(DH *dh)
     if (generate_new_key) {
         if (dh->q) {
             do {
-                if (!BN_rand_range(priv_key, dh->q))
+                if (!BN_priv_rand_range(priv_key, dh->q))
                     goto err;
             }
             while (BN_is_zero(priv_key) || BN_is_one(priv_key));
         } else {
             /* secret exponent length */
             l = dh->length ? dh->length : BN_num_bits(dh->p) - 1;
-            if (!BN_rand(priv_key, l, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
+            if (!BN_priv_rand(priv_key, l, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
                 goto err;
         }
     }
@@ -150,7 +155,7 @@ static int generate_key(DH *dh)
     if (priv_key != dh->priv_key)
         BN_free(priv_key);
     BN_CTX_free(ctx);
-    return (ok);
+    return ok;
 }
 
 static int compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
@@ -200,11 +205,9 @@ static int compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 
     ret = BN_bn2bin(tmp, key);
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
-    return (ret);
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
+    return ret;
 }
 
 static int dh_bn_mod_exp(const DH *dh, BIGNUM *r,
@@ -217,11 +220,11 @@ static int dh_bn_mod_exp(const DH *dh, BIGNUM *r,
 static int dh_init(DH *dh)
 {
     dh->flags |= DH_FLAG_CACHE_MONT_P;
-    return (1);
+    return 1;
 }
 
 static int dh_finish(DH *dh)
 {
     BN_MONT_CTX_free(dh->method_mont_p);
-    return (1);
+    return 1;
 }

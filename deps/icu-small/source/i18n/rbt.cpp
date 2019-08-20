@@ -27,7 +27,6 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RuleBasedTransliterator)
 
-static UMutex transliteratorDataMutex = U_MUTEX_INITIALIZER;
 static Replaceable *gLockedText = NULL;
 
 void RuleBasedTransliterator::_construct(const UnicodeString& rules,
@@ -253,6 +252,8 @@ RuleBasedTransliterator::handleTransliterate(Replaceable& text, UTransPosition& 
     //  Shared RBT data protected by transliteratorDataMutex.
     //
     // TODO(andy): Need a better scheme for handling this.
+
+    static UMutex transliteratorDataMutex = U_MUTEX_INITIALIZER;
     UBool needToLock;
     {
         Mutex m;

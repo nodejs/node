@@ -1,17 +1,16 @@
-#ifndef SRC_INSPECTOR_AGENT_H_
-#define SRC_INSPECTOR_AGENT_H_
+#pragma once
 
-#include <memory>
-
-#include <stddef.h>
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include "node_debug_options.h"
-#include "node_platform.h"
+#include "node_options.h"
 #include "v8.h"
+
+#include <cstddef>
+#include <memory>
 
 namespace v8_inspector {
 class StringView;
@@ -23,17 +22,23 @@ class Environment;
 struct ContextInfo;
 
 namespace inspector {
+class InspectorIo;
+class ParentInspectorHandle;
+class NodeInspectorClient;
+class WorkerManager;
+
+class InspectorSession {
+ public:
+  virtual ~InspectorSession() = default;
+  virtual void Dispatch(const v8_inspector::StringView& message) = 0;
+};
 
 class InspectorSessionDelegate {
  public:
   virtual ~InspectorSessionDelegate() = default;
-  virtual bool WaitForFrontendMessageWhilePaused() = 0;
   virtual void SendMessageToFrontend(const v8_inspector::StringView& message)
                                      = 0;
 };
-
-class InspectorIo;
-class NodeInspectorClient;
 
 class Agent {
  public:
@@ -41,19 +46,27 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(node::NodePlatform* platform, const char* path,
-             const DebugOptions& options);
+  bool Start(const std::string& path,
+             const DebugOptions& options,
+             std::shared_ptr<HostPort> host_port,
+             bool is_main);
   // Stop and destroy io_
   void Stop();
 
-  bool IsStarted() { return !!client_; }
+  bool IsListening() { return io_ != nullptr; }
+  // Returns true if the Node inspector is actually in use. It will be true
+  // if either the user explicitly opted into inspector (e.g. with the
+  // --inspect command line flag) or if inspector JS API had been used.
+  bool IsActive();
 
-  // IO thread started, and client connected
-  bool IsWaitingForConnect();
-
+  // Option is set to wait for session connection
+  bool WillWaitForConnect();
+  // Blocks till frontend connects and sends "runIfWaitingForDebugger"
+  void WaitForConnect();
+  // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
   void WaitForDisconnect();
-  void FatalException(v8::Local<v8::Value> error,
-                      v8::Local<v8::Message> message);
+  void ReportUncaughtException(v8::Local<v8::Value> error,
+                               v8::Local<v8::Message> message);
 
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
@@ -66,54 +79,62 @@ class Agent {
   void RegisterAsyncHook(v8::Isolate* isolate,
     v8::Local<v8::Function> enable_function,
     v8::Local<v8::Function> disable_function);
+  void EnableAsyncHook();
+  void DisableAsyncHook();
 
-  // These methods are called by the WS protocol and JS binding to create
-  // inspector sessions.  The inspector responds by using the delegate to send
-  // messages back.
-  void Connect(InspectorSessionDelegate* delegate);
-  void Disconnect();
-  void Dispatch(const v8_inspector::StringView& message);
-  InspectorSessionDelegate* delegate();
+  void SetParentHandle(std::unique_ptr<ParentInspectorHandle> parent_handle);
+  std::unique_ptr<ParentInspectorHandle> GetParentHandle(
+      int thread_id, const std::string& url);
 
-  void RunMessageLoop();
-  bool enabled() { return enabled_; }
+  // Called to create inspector sessions that can be used from the main thread.
+  // The inspector responds by using the delegate to send messages back.
+  std::unique_ptr<InspectorSession> Connect(
+      std::unique_ptr<InspectorSessionDelegate> delegate,
+      bool prevent_shutdown);
+
   void PauseOnNextJavascriptStatement(const std::string& reason);
 
-  InspectorIo* io() {
-    return io_.get();
-  }
+  std::string GetWsUrl() const;
 
   // Can only be called from the main thread.
-  bool StartIoThread(bool wait_for_connect);
+  bool StartIoThread();
 
   // Calls StartIoThread() from off the main thread.
   void RequestIoThreadStart();
 
-  DebugOptions& options() { return debug_options_; }
+  const DebugOptions& options() { return debug_options_; }
+  std::shared_ptr<HostPort> host_port() { return host_port_; }
   void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
-  void EnableAsyncHook();
-  void DisableAsyncHook();
+  // Interface for interacting with inspectors in worker threads
+  std::shared_ptr<WorkerManager> GetWorkerManager();
 
  private:
   void ToggleAsyncHook(v8::Isolate* isolate,
-                       const Persistent<v8::Function>& fn);
+                       const v8::Global<v8::Function>& fn);
 
   node::Environment* parent_env_;
-  std::unique_ptr<NodeInspectorClient> client_;
+  // Encapsulates majority of the Inspector functionality
+  std::shared_ptr<NodeInspectorClient> client_;
+  // Interface for transports, e.g. WebSocket server
   std::unique_ptr<InspectorIo> io_;
-  v8::Platform* platform_;
-  bool enabled_;
+  std::unique_ptr<ParentInspectorHandle> parent_handle_;
   std::string path_;
-  DebugOptions debug_options_;
 
-  bool pending_enable_async_hook_;
-  bool pending_disable_async_hook_;
-  Persistent<v8::Function> enable_async_hook_function_;
-  Persistent<v8::Function> disable_async_hook_function_;
+  // This is a copy of the debug options parsed from CLI in the Environment.
+  // Do not use the host_port in that, instead manipulate the shared host_port_
+  // pointer which is meant to store the actual host and port of the inspector
+  // server.
+  DebugOptions debug_options_;
+  std::shared_ptr<HostPort> host_port_;
+
+  bool pending_enable_async_hook_ = false;
+  bool pending_disable_async_hook_ = false;
+  v8::Global<v8::Function> enable_async_hook_function_;
+  v8::Global<v8::Function> disable_async_hook_function_;
 };
 
 }  // namespace inspector
 }  // namespace node
 
-#endif  // SRC_INSPECTOR_AGENT_H_
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

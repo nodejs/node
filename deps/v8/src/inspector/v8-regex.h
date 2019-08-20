@@ -20,7 +20,8 @@ class V8Regex {
  public:
   V8Regex(V8InspectorImpl*, const String16&, bool caseSensitive,
           bool multiline = false);
-  int match(const String16&, int startFrom = 0, int* matchLength = 0) const;
+  int match(const String16&, int startFrom = 0,
+            int* matchLength = nullptr) const;
   bool isValid() const { return !m_regex.IsEmpty(); }
   const String16& errorMessage() const { return m_errorMessage; }
 

@@ -95,7 +95,7 @@ function afterPing(result) {
       assert.ok(successRE.test(responses[6]));
       assert.ok(successRE.test(responses[7]));
       server.close();
-      // we should go to process.on('exit') from here.
+      // We should go to process.on('exit') from here.
       break;
   }
 }

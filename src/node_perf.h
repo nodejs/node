@@ -4,10 +4,10 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "node_internals.h"
 #include "node_perf_common.h"
 #include "env.h"
 #include "base_object-inl.h"
+#include "histogram-inl.h"
 
 #include "v8.h"
 #include "uv.h"
@@ -25,8 +25,6 @@ using v8::Value;
 
 extern const uint64_t timeOrigin;
 
-double GetCurrentTimeInMicroseconds();
-
 static inline const char* GetPerformanceMilestoneName(
     enum PerformanceMilestone milestone) {
   switch (milestone) {
@@ -35,7 +33,6 @@ static inline const char* GetPerformanceMilestoneName(
 #undef V
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -74,9 +71,9 @@ class PerformanceEntry {
                                        startTime_(startTime),
                                        endTime_(endTime) { }
 
-  virtual ~PerformanceEntry() { }
+  virtual ~PerformanceEntry() = default;
 
-  virtual const Local<Object> ToObject() const;
+  virtual v8::MaybeLocal<Object> ToObject() const;
 
   Environment* env() const { return env_; }
 
@@ -124,6 +121,41 @@ class GCPerformanceEntry : public PerformanceEntry {
 
  private:
   PerformanceGCKind gckind_;
+};
+
+class ELDHistogram : public BaseObject, public Histogram {
+ public:
+  ELDHistogram(Environment* env,
+               Local<Object> wrap,
+               int32_t resolution);
+
+  ~ELDHistogram() override;
+
+  bool RecordDelta();
+  bool Enable();
+  bool Disable();
+  void ResetState() {
+    Reset();
+    exceeds_ = 0;
+    prev_ = 0;
+  }
+  int64_t Exceeds() { return exceeds_; }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("histogram", GetMemorySize());
+  }
+
+  SET_MEMORY_INFO_NAME(ELDHistogram)
+  SET_SELF_SIZE(ELDHistogram)
+
+ private:
+  void CloseTimer();
+
+  bool enabled_ = false;
+  int32_t resolution_ = 0;
+  int64_t exceeds_ = 0;
+  uint64_t prev_ = 0;
+  uv_timer_t* timer_;
 };
 
 }  // namespace performance

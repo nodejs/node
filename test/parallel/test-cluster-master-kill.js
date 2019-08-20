@@ -26,7 +26,7 @@ const cluster = require('cluster');
 
 if (cluster.isWorker) {
 
-  // keep the worker alive
+  // Keep the worker alive
   const http = require('http');
   http.Server().listen(0, '127.0.0.1');
 
@@ -39,7 +39,7 @@ if (cluster.isWorker) {
     pid: worker.process.pid
   });
 
-  // terminate the cluster process
+  // Terminate the cluster process
   worker.once('listening', common.mustCall(() => {
     setTimeout(() => {
       process.exit(0);
@@ -64,10 +64,10 @@ if (cluster.isWorker) {
   let alive = true;
   master.on('exit', common.mustCall((code) => {
 
-    // make sure that the master died on purpose
+    // Make sure that the master died on purpose
     assert.strictEqual(code, 0);
 
-    // check worker process status
+    // Check worker process status
     const pollWorker = () => {
       alive = common.isAlive(pid);
       if (alive) {

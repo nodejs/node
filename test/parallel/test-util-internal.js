@@ -4,20 +4,13 @@
 require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const { internalBinding } = require('internal/test/binding');
 
 const {
   getHiddenValue,
   setHiddenValue,
-  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
-  safeGetenv
-} = process.binding('util');
-
-for (const oneEnv in process.env) {
-  assert.strictEqual(
-    safeGetenv(oneEnv),
-    process.env[oneEnv]
-  );
-}
+  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
+} = internalBinding('util');
 
 assert.strictEqual(
   getHiddenValue({}, kArrowMessagePrivateSymbolIndex),

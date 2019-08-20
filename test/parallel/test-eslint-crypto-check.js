@@ -1,6 +1,8 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 common.skipIfEslintMissing();
 
@@ -19,9 +21,23 @@ new RuleTester().run('crypto-check', rule, {
       common.skip("missing crypto");
     }
     require("crypto");
+    `,
+    `
+    if (!common.hasCrypto) {
+      common.skip("missing crypto");
+    }
+    internalBinding("crypto");
     `
   ],
   invalid: [
+    {
+      code: 'require("common")\n' +
+            'require("crypto")\n' +
+            'if (!common.hasCrypto) {\n' +
+            '  common.skip("missing crypto");\n' +
+            '}',
+      errors: [{ message }]
+    },
     {
       code: 'require("common")\n' +
             'require("crypto")',
@@ -43,6 +59,18 @@ new RuleTester().run('crypto-check', rule, {
               '}\n' +
               'if (common.foo) {}\n' +
               'require("crypto")'
+    },
+    {
+      code: 'require("common")\n' +
+            'if (common.foo) {}\n' +
+            'internalBinding("crypto")',
+      errors: [{ message }],
+      output: 'require("common")\n' +
+              'if (!common.hasCrypto) {' +
+              ' common.skip("missing crypto");' +
+              '}\n' +
+              'if (common.foo) {}\n' +
+              'internalBinding("crypto")'
     }
   ]
 });

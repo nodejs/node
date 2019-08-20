@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-bigint
+// Flags: --allow-natives-syntax
 
 'use strict'
 
@@ -19,6 +19,7 @@ function test(f, {input, check}) {
 
 function Test(f, ...cases) {
   for (let i = 0; i < cases.length; ++i) {
+    %PrepareFunctionForOptimization(f);
     test(f, cases[i]);
     %OptimizeFunctionOnNextCall(f);
     for (let j = 0; j < cases.length; ++j) {
@@ -31,7 +32,7 @@ function Test(f, ...cases) {
 
 function V(input, expected_value) {
   function check(result) {
-    assertFalse(result.exception, input);
+    assertFalse(result.exception, `unexpected exception ${result.value} on input ${input}`);
     assertEquals(expected_value, result.value);
   }
   return {input, check};
@@ -39,7 +40,7 @@ function V(input, expected_value) {
 
 function E(input, expected_exception) {
   function check(result) {
-    assertTrue(result.exception, input);
+    assertTrue(result.exception, `expected exception ${expected_exception.name} on input ${input}`);
     assertInstanceof(result.value, expected_exception);
   }
   return {input, check};
@@ -56,9 +57,14 @@ const six = {[Symbol.toPrimitive]() {return 6n}};
 // inputs.
 ////////////////////////////////////////////////////////////////////////////////
 
-
 Test(x => Number(x),
     V(1n, 1), V(1, 1), V("", 0), V(1.4, 1.4), V(null, 0), V(six, 6));
+
+Test(x => Math.trunc(+x),
+    E(1n, TypeError), V(1, 1), V("", 0), V(1.4, 1), V(null, 0), E(six, TypeError));
+
+Test(x => Math.trunc(Number(x)),
+    V(1n, 1), V(1, 1), V("", 0), V(1.4, 1), V(null, 0), V(six, 6));
 
 Test(x => String(x),
     V(1n, "1"), V(1, "1"), V(1.4, "1.4"), V(null, "null"), V(six, "6"));

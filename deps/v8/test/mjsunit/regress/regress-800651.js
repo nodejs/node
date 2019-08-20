@@ -15,13 +15,17 @@ async function f() {
 }
 f();
 
-async function g() {
+async function importUndefined() {
   try {
-    let namespace = await import({ get toString() { return undefined; }});
+    await import({ get toString() { return undefined; }})
   } catch(e) {
     log(2);
   }
 }
+
+function g() {
+  let namespace = Promise.resolve().then(importUndefined);
+}
 g();
-  %RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(list, [1,2]);

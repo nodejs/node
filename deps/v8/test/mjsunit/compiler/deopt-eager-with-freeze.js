@@ -12,6 +12,7 @@ function useObject(obj) {
   return obj.f;
 }
 
+%PrepareFunctionForOptimization(useObject);
 var o = {f: 1, g: 2}
 assertEquals(useObject(o), 2);
 assertEquals(useObject(o), 4);

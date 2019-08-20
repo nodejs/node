@@ -67,6 +67,7 @@ function assertKind(expected, obj, name_opt) {
   function bar0(t) {
     return new t();
   }
+  %PrepareFunctionForOptimization(bar0);
   a = bar0(Array);
   a[0] = 3.5;
   b = bar0(Array);
@@ -77,7 +78,8 @@ function assertKind(expected, obj, name_opt) {
   assertOptimized(bar0);
   // bar0 should deopt
   b = bar0(Object);
-  assertUnoptimized(bar0)
+  assertUnoptimized(bar0);
+  %PrepareFunctionForOptimization(bar0);
   // When it's re-optimized, we should call through the full stub
   bar0(Array);
   %OptimizeFunctionOnNextCall(bar0);
@@ -92,40 +94,6 @@ function assertKind(expected, obj, name_opt) {
 })();
 
 
-// Test: Ensure that inlined array calls in crankshaft learn from deopts
-// based on the move to a dictionary for the array.
-(function() {
-  function bar(len) {
-    return new Array(len);
-  }
-  a = bar(10);
-  a[0] = "a string";
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-  %OptimizeFunctionOnNextCall(bar);
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-  assertOptimized(bar);
-  bar(10000);
-  assertOptimized(bar);
-
-  function barn(one, two, three) {
-    return new Array(one, two, three);
-  }
-
-  a = barn(1, 2, 3);
-  a[1] = "a string";
-  a = barn(1, 2, 3);
-  assertKind(elements_kind.fast, a);
-  %OptimizeFunctionOnNextCall(barn);
-  a = barn(1, 2, 3);
-  assertKind(elements_kind.fast, a);
-  assertOptimized(barn);
-  a = barn(1, "oops", 3);
-  assertOptimized(barn);
-})();
-
-
 // Test: When a method with array constructor is crankshafted, the type
 // feedback for elements kind is baked in. Verify that transitions don't
 // change it anymore
@@ -133,12 +101,12 @@ function assertKind(expected, obj, name_opt) {
   function bar() {
     return new Array();
   }
+  %PrepareFunctionForOptimization(bar);
   a = bar();
   bar();
   %OptimizeFunctionOnNextCall(bar);
   b = bar();
   assertOptimized(bar);
-  %DebugPrint(3);
   b[0] = 3.5;
   c = bar();
   assertKind(elements_kind.fast_smi_only, c);
@@ -150,6 +118,7 @@ function assertKind(expected, obj, name_opt) {
 // map for Array in that context will be used.
 (function() {
   function bar() { return new Array(); }
+  %PrepareFunctionForOptimization(bar);
   bar();
   bar();
   %OptimizeFunctionOnNextCall(bar);
@@ -157,7 +126,8 @@ function assertKind(expected, obj, name_opt) {
   assertTrue(a instanceof Array);
 
   var contextB = Realm.create();
-  Realm.eval(contextB, "function bar2() { return new Array(); };");
+  Realm.eval(contextB,
+      "function bar2() { return new Array(); }; %PrepareFunctionForOptimization(bar2)");
   Realm.eval(contextB, "bar2(); bar2();");
   Realm.eval(contextB, "%OptimizeFunctionOnNextCall(bar2);");
   Realm.eval(contextB, "bar2();");
@@ -169,6 +139,7 @@ function assertKind(expected, obj, name_opt) {
 // should deal with arguments that create holey arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   bar(0);
   bar(0);
   %OptimizeFunctionOnNextCall(bar);
@@ -188,6 +159,7 @@ function assertKind(expected, obj, name_opt) {
 // Test: Make sure that crankshaft continues with feedback for large arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   var size = 100001;
   // Perform a gc, because we are allocating a very large array and if a gc
   // happens during the allocation we could lose our memento.

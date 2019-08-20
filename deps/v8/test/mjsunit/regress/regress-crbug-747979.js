@@ -8,8 +8,8 @@ function f(a) {
   %HeapObjectVerify(a);
   a[1] = 0;
   %HeapObjectVerify(a);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 function foo() {}
 
 var arr1 = [0];

@@ -14,3 +14,9 @@ common.expectsError(() => {
   type: NghttpError,
   message: 'Invalid argument'
 });
+
+// Should convert the NghttpError object to string properly
+{
+  const err = new NghttpError(401);
+  strictEqual(err.toString(), 'Error [ERR_HTTP2_ERROR]: Unknown error code');
+}

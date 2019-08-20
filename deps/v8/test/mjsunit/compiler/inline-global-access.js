@@ -45,6 +45,7 @@ function TestInlineGlobalLoad(o) {
   }
 }
 
+%PrepareFunctionForOptimization(TestInlineGlobalLoad);
 var o = {};
 o.f = function() { return GLOBAL; };
 for (var i = 0; i < 5; i++) TestInlineGlobalLoad(o);

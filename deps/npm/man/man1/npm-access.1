@@ -1,4 +1,4 @@
-.TH "NPM\-ACCESS" "1" "December 2017" "" ""
+.TH "NPM\-ACCESS" "1" "July 2019" "" ""
 .SH "NAME"
 \fBnpm-access\fR \- Set access level on published packages
 .SH SYNOPSIS
@@ -10,6 +10,9 @@ npm access restricted [<package>]
 
 npm access grant <read\-only|read\-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
+
+npm access 2fa\-required [<package>]
+npm access 2fa\-not\-required [<package>]
 
 npm access ls\-packages [<user>|<scope>|<scope:team>]
 npm access ls\-collaborators [<package> [<user>]]
@@ -31,6 +34,10 @@ Set a package to be either publicly accessible or restricted\.
 grant / revoke:
 Add or remove the ability of users and teams to have read\-only or read\-write
 access to a package\.
+.IP \(bu 2
+2fa\-required / 2fa\-not\-required:
+Configure whether a package requires that anyone publishing it have two\-factor
+authentication enabled on their account\.
 .IP \(bu 2
 ls\-packages:
 Show all of the packages a user or a team is able to access, along with the
@@ -79,6 +86,8 @@ with an HTTP 402 status code (logically enough), unless you use
 Management of teams and team memberships is done with the \fBnpm team\fP command\.
 .SH SEE ALSO
 .RS 0
+.IP \(bu 2
+\fBlibnpmaccess\fP \fIhttps://npm\.im/libnpmaccess\fR
 .IP \(bu 2
 npm help team
 .IP \(bu 2

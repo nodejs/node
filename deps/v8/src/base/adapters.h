@@ -8,6 +8,8 @@
 #ifndef V8_BASE_ADAPTERS_H_
 #define V8_BASE_ADAPTERS_H_
 
+#include <iterator>
+
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -17,13 +19,15 @@ namespace base {
 template <typename T>
 class ReversedAdapter {
  public:
-  typedef decltype(static_cast<T*>(nullptr)->rbegin()) Iterator;
+  using Iterator =
+      std::reverse_iterator<decltype(std::begin(std::declval<T>()))>;
 
   explicit ReversedAdapter(T& t) : t_(t) {}
-  ReversedAdapter(const ReversedAdapter& ra) : t_(ra.t_) {}
+  ReversedAdapter(const ReversedAdapter& ra) V8_NOEXCEPT = default;
 
-  Iterator begin() const { return t_.rbegin(); }
-  Iterator end() const { return t_.rend(); }
+  // TODO(clemensh): Use std::rbegin/std::rend once we have C++14 support.
+  Iterator begin() const { return Iterator(std::end(t_)); }
+  Iterator end() const { return Iterator(std::begin(t_)); }
 
  private:
   T& t_;
@@ -41,7 +45,7 @@ class ReversedAdapter {
 //     // iterates through v from back to front
 //   }
 template <typename T>
-ReversedAdapter<T> Reversed(T& t) {
+ReversedAdapter<T> Reversed(T&& t) {
   return ReversedAdapter<T>(t);
 }
 

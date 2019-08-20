@@ -32,6 +32,7 @@ function f(x) {
   return x;
 }
 
+%PrepareFunctionForOptimization(f);
 f(0.5);
 f(0.5);
 %OptimizeFunctionOnNextCall(f);

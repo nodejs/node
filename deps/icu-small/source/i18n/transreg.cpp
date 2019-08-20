@@ -186,8 +186,7 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
         }
         break;
     case RULES:
-        U_ASSERT(FALSE); // don't call create() if isRuleBased() returns TRUE!
-        break;
+        UPRV_UNREACHABLE; // don't call create() if isRuleBased() returns TRUE!
     }
     return t;
 }
@@ -1330,12 +1329,12 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
             int32_t passNumber = 1;
             for (int32_t i = 0; U_SUCCESS(status) && i < entry->u.dataVector->size(); i++) {
                 // TODO: Should passNumber be turned into a decimal-string representation (1 -> "1")?
-                Transliterator* t = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
+                Transliterator* tl = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
                     (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), FALSE);
-                if (t == 0)
+                if (tl == 0)
                     status = U_MEMORY_ALLOCATION_ERROR;
                 else
-                    rbts->addElement(t, status);
+                    rbts->addElement(tl, status);
             }
             if (U_FAILURE(status)) {
                 delete rbts;
@@ -1396,8 +1395,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
         }
         return 0;
     default:
-        U_ASSERT(FALSE); // can't get here
-        return 0;
+        UPRV_UNREACHABLE; // can't get here
     }
 }
 U_NAMESPACE_END

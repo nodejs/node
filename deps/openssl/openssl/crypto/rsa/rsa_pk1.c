@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,7 +24,7 @@ int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
     if (flen > (tlen - RSA_PKCS1_PADDING_SIZE)) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_1,
                RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
-        return (0);
+        return 0;
     }
 
     p = (unsigned char *)to;
@@ -38,7 +38,7 @@ int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
     p += j;
     *(p++) = '\0';
     memcpy(p, from, (unsigned int)flen);
-    return (1);
+    return 1;
 }
 
 int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
@@ -73,7 +73,7 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
     if ((num != (flen + 1)) || (*(p++) != 0x01)) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
                RSA_R_BLOCK_TYPE_IS_NOT_01);
-        return (-1);
+        return -1;
     }
 
     /* scan over padding data */
@@ -86,7 +86,7 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
             } else {
                 RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
                        RSA_R_BAD_FIXED_HEADER_DECRYPT);
-                return (-1);
+                return -1;
             }
         }
         p++;
@@ -95,23 +95,23 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
     if (i == j) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
                RSA_R_NULL_BEFORE_BLOCK_MISSING);
-        return (-1);
+        return -1;
     }
 
     if (i < 8) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1,
                RSA_R_BAD_PAD_BYTE_COUNT);
-        return (-1);
+        return -1;
     }
     i++;                        /* Skip over the '\0' */
     j -= i;
     if (j > tlen) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1, RSA_R_DATA_TOO_LARGE);
-        return (-1);
+        return -1;
     }
     memcpy(to, p, (unsigned int)j);
 
-    return (j);
+    return j;
 }
 
 int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
@@ -123,7 +123,7 @@ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
     if (flen > (tlen - 11)) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_2,
                RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
-        return (0);
+        return 0;
     }
 
     p = (unsigned char *)to;
@@ -135,12 +135,12 @@ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
     j = tlen - 3 - flen;
 
     if (RAND_bytes(p, j) <= 0)
-        return (0);
+        return 0;
     for (i = 0; i < j; i++) {
         if (*p == '\0')
             do {
                 if (RAND_bytes(p, 1) <= 0)
-                    return (0);
+                    return 0;
             } while (*p == '\0');
         p++;
     }
@@ -148,7 +148,7 @@ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
     *(p++) = '\0';
 
     memcpy(p, from, (unsigned int)flen);
-    return (1);
+    return 1;
 }
 
 int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
@@ -158,10 +158,10 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     int i;
     /* |em| is the encoded message, zero-padded to exactly |num| bytes */
     unsigned char *em = NULL;
-    unsigned int good, found_zero_byte;
+    unsigned int good, found_zero_byte, mask;
     int zero_index = 0, msg_index, mlen = -1;
 
-    if (tlen < 0 || flen < 0)
+    if (tlen <= 0 || flen <= 0)
         return -1;
 
     /*
@@ -169,36 +169,40 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
      * section 7.2.2.
      */
 
-    if (flen > num)
-        goto err;
+    if (flen > num || num < 11) {
+        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2,
+               RSA_R_PKCS_DECODING_ERROR);
+        return -1;
+    }
 
-    if (num < 11)
-        goto err;
-
-    em = OPENSSL_zalloc(num);
+    em = OPENSSL_malloc(num);
     if (em == NULL) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, ERR_R_MALLOC_FAILURE);
         return -1;
     }
     /*
-     * Always do this zero-padding copy (even when num == flen) to avoid
-     * leaking that information. The copy still leaks some side-channel
-     * information, but it's impossible to have a fixed memory access
-     * pattern since we can't read out of the bounds of |from|.
-     *
-     * TODO(emilia): Consider porting BN_bn2bin_padded from BoringSSL.
+     * Caller is encouraged to pass zero-padded message created with
+     * BN_bn2binpad. Trouble is that since we can't read out of |from|'s
+     * bounds, it's impossible to have an invariant memory access pattern
+     * in case |from| was not zero-padded in advance.
      */
-    memcpy(em + num - flen, from, flen);
+    for (from += flen, em += num, i = 0; i < num; i++) {
+        mask = ~constant_time_is_zero(flen);
+        flen -= 1 & mask;
+        from -= 1 & mask;
+        *--em = *from & mask;
+    }
 
     good = constant_time_is_zero(em[0]);
     good &= constant_time_eq(em[1], 2);
 
+    /* scan over padding data */
     found_zero_byte = 0;
     for (i = 2; i < num; i++) {
         unsigned int equals0 = constant_time_is_zero(em[i]);
-        zero_index =
-            constant_time_select_int(~found_zero_byte & equals0, i,
-                                     zero_index);
+
+        zero_index = constant_time_select_int(~found_zero_byte & equals0,
+                                              i, zero_index);
         found_zero_byte |= equals0;
     }
 
@@ -207,7 +211,7 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
      * If we never found a 0-byte, then |zero_index| is 0 and the check
      * also fails.
      */
-    good &= constant_time_ge((unsigned int)(zero_index), 2 + 8);
+    good &= constant_time_ge(zero_index, 2 + 8);
 
     /*
      * Skip the zero byte. This is incorrect if we never found a zero-byte
@@ -217,27 +221,35 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     mlen = num - msg_index;
 
     /*
-     * For good measure, do this check in constant time as well; it could
-     * leak something if |tlen| was assuming valid padding.
+     * For good measure, do this check in constant time as well.
      */
-    good &= constant_time_ge((unsigned int)(tlen), (unsigned int)(mlen));
+    good &= constant_time_ge(tlen, mlen);
 
     /*
-     * We can't continue in constant-time because we need to copy the result
-     * and we cannot fake its length. This unavoidably leaks timing
-     * information at the API boundary.
+     * Move the result in-place by |num|-11-|mlen| bytes to the left.
+     * Then if |good| move |mlen| bytes from |em|+11 to |to|.
+     * Otherwise leave |to| unchanged.
+     * Copy the memory back in a way that does not reveal the size of
+     * the data being copied via a timing side channel. This requires copying
+     * parts of the buffer multiple times based on the bits set in the real
+     * length. Clear bits do a non-copy with identical access pattern.
+     * The loop below has overall complexity of O(N*log(N)).
      */
-    if (!good) {
-        mlen = -1;
-        goto err;
+    tlen = constant_time_select_int(constant_time_lt(num - 11, tlen),
+                                    num - 11, tlen);
+    for (msg_index = 1; msg_index < num - 11; msg_index <<= 1) {
+        mask = ~constant_time_eq(msg_index & (num - 11 - mlen), 0);
+        for (i = 11; i < num - msg_index; i++)
+            em[i] = constant_time_select_8(mask, em[i + msg_index], em[i]);
+    }
+    for (i = 0; i < tlen; i++) {
+        mask = good & constant_time_lt(i, mlen);
+        to[i] = constant_time_select_8(mask, em[i + 11], to[i]);
     }
 
-    memcpy(to, em + msg_index, mlen);
-
- err:
     OPENSSL_clear_free(em, num);
-    if (mlen == -1)
-        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2,
-               RSA_R_PKCS_DECODING_ERROR);
-    return mlen;
+    RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2, RSA_R_PKCS_DECODING_ERROR);
+    err_clear_last_constant_time(1 & good);
+
+    return constant_time_select_int(good, mlen, -1);
 }

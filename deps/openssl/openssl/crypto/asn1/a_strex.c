@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -139,7 +139,7 @@ static int do_buf(unsigned char *buf, int buflen,
                   int type, unsigned short flags, char *quotes, char_io *io_ch,
                   void *arg)
 {
-    int i, outlen, len;
+    int i, outlen, len, charwidth;
     unsigned short orflags;
     unsigned char *p, *q;
     unsigned long c;
@@ -147,12 +147,32 @@ static int do_buf(unsigned char *buf, int buflen,
     p = buf;
     q = buf + buflen;
     outlen = 0;
+    charwidth = type & BUF_TYPE_WIDTH_MASK;
+
+    switch (charwidth) {
+    case 4:
+        if (buflen & 3) {
+            ASN1err(ASN1_F_DO_BUF, ASN1_R_INVALID_UNIVERSALSTRING_LENGTH);
+            return -1;
+        }
+        break;
+    case 2:
+        if (buflen & 1) {
+            ASN1err(ASN1_F_DO_BUF, ASN1_R_INVALID_BMPSTRING_LENGTH);
+            return -1;
+        }
+        break;
+    default:
+        break;
+    }
+
     while (p != q) {
         if (p == buf && flags & ASN1_STRFLGS_ESC_2253)
             orflags = CHARTYPE_FIRST_ESC_2253;
         else
             orflags = 0;
-        switch (type & BUF_TYPE_WIDTH_MASK) {
+
+        switch (charwidth) {
         case 4:
             c = ((unsigned long)*p++) << 24;
             c |= ((unsigned long)*p++) << 16;
@@ -173,6 +193,7 @@ static int do_buf(unsigned char *buf, int buflen,
             i = UTF8_getc(p, buflen, &c);
             if (i < 0)
                 return -1;      /* Invalid UTF8String */
+            buflen -= i;
             p += i;
             break;
         default:
@@ -259,9 +280,10 @@ static int do_dump(unsigned long lflags, char_io *io_ch, void *arg,
     t.type = str->type;
     t.value.ptr = (char *)str;
     der_len = i2d_ASN1_TYPE(&t, NULL);
-    der_buf = OPENSSL_malloc(der_len);
-    if (der_buf == NULL)
+    if ((der_buf = OPENSSL_malloc(der_len)) == NULL) {
+        ASN1err(ASN1_F_DO_DUMP, ERR_R_MALLOC_FAILURE);
         return -1;
+    }
     p = der_buf;
     i2d_ASN1_TYPE(&t, &p);
     outlen = do_hex_dump(io_ch, arg, der_buf, der_len);
@@ -280,12 +302,22 @@ static int do_dump(unsigned long lflags, char_io *io_ch, void *arg,
 static const signed char tag2nbyte[] = {
     -1, -1, -1, -1, -1,         /* 0-4 */
     -1, -1, -1, -1, -1,         /* 5-9 */
-    -1, -1, 0, -1,              /* 10-13 */
-    -1, -1, -1, -1,             /* 15-17 */
-    1, 1, 1,                    /* 18-20 */
-    -1, 1, 1, 1,                /* 21-24 */
-    -1, 1, -1,                  /* 25-27 */
-    4, -1, 2                    /* 28-30 */
+    -1, -1,                     /* 10-11 */
+     0,                         /* 12 V_ASN1_UTF8STRING */
+    -1, -1, -1, -1, -1,         /* 13-17 */
+     1,                         /* 18 V_ASN1_NUMERICSTRING */
+     1,                         /* 19 V_ASN1_PRINTABLESTRING */
+     1,                         /* 20 V_ASN1_T61STRING */
+    -1,                         /* 21 */
+     1,                         /* 22 V_ASN1_IA5STRING */
+     1,                         /* 23 V_ASN1_UTCTIME */
+     1,                         /* 24 V_ASN1_GENERALIZEDTIME */
+    -1,                         /* 25 */
+     1,                         /* 26 V_ASN1_ISO64STRING */
+    -1,                         /* 27 */
+     4,                         /* 28 V_ASN1_UNIVERSALSTRING */
+    -1,                         /* 29 */
+     2                          /* 30 V_ASN1_BMPSTRING */
 };
 
 /*
@@ -591,54 +623,4 @@ int ASN1_STRING_to_UTF8(unsigned char **out, const ASN1_STRING *in)
         return ret;
     *out = stmp.data;
     return stmp.length;
-}
-
-/* Return 1 if host is a valid hostname and 0 otherwise */
-int asn1_valid_host(const ASN1_STRING *host)
-{
-    int hostlen = host->length;
-    const unsigned char *hostptr = host->data;
-    int type = host->type;
-    int i;
-    signed char width = -1;
-    unsigned short chflags = 0, prevchflags;
-
-    if (type > 0 && type < 31)
-        width = tag2nbyte[type];
-    if (width == -1 || hostlen == 0)
-        return 0;
-    /* Treat UTF8String as width 1 as any MSB set is invalid */
-    if (width == 0)
-        width = 1;
-    for (i = 0 ; i < hostlen; i+= width) {
-        prevchflags = chflags;
-        /* Value must be <= 0x7F: check upper bytes are all zeroes */
-        if (width == 4) {
-            if (*hostptr++ != 0 || *hostptr++ != 0 || *hostptr++ != 0)
-                return 0;
-        } else if (width == 2) {
-            if (*hostptr++ != 0)
-                return 0;
-        }
-        if (*hostptr > 0x7f)
-            return 0;
-        chflags = char_type[*hostptr++];
-        if (!(chflags & (CHARTYPE_HOST_ANY | CHARTYPE_HOST_WILD))) {
-            /* Nothing else allowed at start or end of string */
-            if (i == 0 || i == hostlen - 1)
-                return 0;
-            /* Otherwise invalid if not dot or hyphen */
-            if (!(chflags & (CHARTYPE_HOST_DOT | CHARTYPE_HOST_HYPHEN)))
-                return 0;
-            /*
-             * If previous is dot or hyphen then illegal unless both
-             * are hyphens: as .- -. .. are all illegal
-             */
-            if (prevchflags & (CHARTYPE_HOST_DOT | CHARTYPE_HOST_HYPHEN)
-                && ((prevchflags & CHARTYPE_HOST_DOT)
-                    || (chflags & CHARTYPE_HOST_DOT)))
-                return 0;
-        }
-    }
-    return 1;
 }

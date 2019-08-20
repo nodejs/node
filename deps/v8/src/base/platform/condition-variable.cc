@@ -41,7 +41,7 @@ ConditionVariable::~ConditionVariable() {
   // Darwin kernel. http://crbug.com/517681.
   {
     Mutex lock;
-    LockGuard<Mutex> l(&lock);
+    MutexGuard l(&lock);
     struct timespec ts;
     ts.tv_sec = 0;
     ts.tv_nsec = 1;

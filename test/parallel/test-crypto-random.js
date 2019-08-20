@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --pending-deprecation
 'use strict';
 const common = require('../common');
 
@@ -28,21 +29,23 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const { kMaxLength } = require('buffer');
+const { inspect } = require('util');
 
 const kMaxUint32 = Math.pow(2, 32) - 1;
 const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
-// bump, we register a lot of exit listeners
+// Bump, we register a lot of exit listeners
 process.setMaxListeners(256);
+
+common.expectWarning('DeprecationWarning',
+                     'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
 
 {
   [crypto.randomBytes, crypto.pseudoRandomBytes].forEach((f) => {
     [undefined, null, false, true, {}, []].forEach((value) => {
       const errObj = {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        name: 'TypeError',
         message: 'The "size" argument must be of type number. ' +
                 `Received type ${typeof value}`
       };
@@ -53,7 +56,7 @@ process.setMaxListeners(256);
     [-1, NaN, 2 ** 32].forEach((value) => {
       const errObj = {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "size" is out of range. It must be >= 0 && <= ' +
                  `${kMaxPossibleLength}. Received ${value}`
       };
@@ -197,7 +200,7 @@ process.setMaxListeners(256);
 
     const typeErrObj = {
       code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      name: 'TypeError',
       message: 'The "offset" argument must be of type number. ' +
                'Received type string'
     };
@@ -220,7 +223,7 @@ process.setMaxListeners(256);
     [NaN, kMaxPossibleLength + 1, -10, (-1 >>> 0) + 1].forEach((offsetSize) => {
       const errObj = {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        name: 'RangeError',
         message: 'The value of "offset" is out of range. ' +
                  `It must be >= 0 && <= 10. Received ${offsetSize}`
       };
@@ -243,7 +246,7 @@ process.setMaxListeners(256);
 
     const rangeErrObj = {
       code: 'ERR_OUT_OF_RANGE',
-      name: 'RangeError [ERR_OUT_OF_RANGE]',
+      name: 'RangeError',
       message: 'The value of "size + offset" is out of range. ' +
                'It must be <= 10. Received 11'
     };
@@ -263,7 +266,7 @@ assert.throws(
   () => crypto.randomBytes((-1 >>> 0) + 1),
   {
     code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    name: 'RangeError',
     message: 'The value of "size" is out of range. ' +
              `It must be >= 0 && <= ${kMaxPossibleLength}. Received 4294967296`
   }
@@ -290,7 +293,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function',
+      message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
@@ -300,7 +303,16 @@ assert.throws(
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function',
+      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
+});
+
+
+['pseudoRandomBytes', 'prng', 'rng'].forEach((f) => {
+  const desc = Object.getOwnPropertyDescriptor(crypto, f);
+  assert.ok(desc);
+  assert.strictEqual(desc.configurable, true);
+  assert.strictEqual(desc.writable, true);
+  assert.strictEqual(desc.enumerable, false);
 });

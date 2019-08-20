@@ -4,7 +4,8 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -14,22 +15,23 @@ namespace internal {
 
 // ES6 #sec-boolean.prototype.tostring
 TF_BUILTIN(BooleanPrototypeToString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* value = ToThisValue(context, receiver, PrimitiveType::kBoolean,
-                            "Boolean.prototype.toString");
-  Node* result = LoadObjectField(value, Oddball::kToStringOffset);
+  TNode<Oddball> value =
+      CAST(ToThisValue(context, receiver, PrimitiveType::kBoolean,
+                       "Boolean.prototype.toString"));
+  TNode<String> result = CAST(LoadObjectField(value, Oddball::kToStringOffset));
   Return(result);
 }
 
 // ES6 #sec-boolean.prototype.valueof
 TF_BUILTIN(BooleanPrototypeValueOf, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kBoolean,
-                             "Boolean.prototype.valueOf");
+  TNode<Oddball> result = CAST(ToThisValue(
+      context, receiver, PrimitiveType::kBoolean, "Boolean.prototype.valueOf"));
   Return(result);
 }
 

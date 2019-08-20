@@ -15,13 +15,10 @@ const jsPrimitives = {
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
-  'Array', 'ArrayBuffer', 'AsyncFunction', 'DataView', 'Date', 'Error',
-  'EvalError', 'Float32Array', 'Float64Array', 'Function', 'Generator',
-  'GeneratorFunction', 'Int16Array', 'Int32Array', 'Int8Array', 'Map', 'Object',
-  'Promise', 'Proxy', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
-  'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
-  'Uint16Array', 'Uint32Array', 'Uint8Array', 'Uint8ClampedArray', 'WeakMap',
-  'WeakSet'
+  'Array', 'ArrayBuffer', 'ArrayBufferView', 'DataView', 'Date', 'Error',
+  'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
+  'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
+  'TypeError', 'TypedArray', 'URIError', 'Uint8Array',
 ];
 
 const customTypesMap = {
@@ -29,14 +26,22 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
-  'AsyncIterator': 'https://github.com/tc39/proposal-async-iteration',
+  'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
+
+  'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
 
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterator_protocol`,
 
+  'Module Namespace Object':
+    'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
+
   'AsyncHook': 'async_hooks.html#async_hooks_async_hooks_createhook_callbacks',
+  'AsyncResource': 'async_hooks.html#async_hooks_class_asyncresource',
+
+  'brotli options': 'zlib.html#zlib_class_brotlioptions',
 
   'Buffer': 'buffer.html#buffer_class_buffer',
 
@@ -46,8 +51,11 @@ const customTypesMap = {
 
   'Cipher': 'crypto.html#crypto_class_cipher',
   'Decipher': 'crypto.html#crypto_class_decipher',
+  'DiffieHellman': 'crypto.html#crypto_class_diffiehellman',
+  'ECDH': 'crypto.html#crypto_class_ecdh',
   'Hash': 'crypto.html#crypto_class_hash',
   'Hmac': 'crypto.html#crypto_class_hmac',
+  'KeyObject': 'crypto.html#crypto_class_keyobject',
   'Sign': 'crypto.html#crypto_class_sign',
   'Verify': 'crypto.html#crypto_class_verify',
   'crypto.constants': 'crypto.html#crypto_crypto_constants_1',
@@ -56,9 +64,12 @@ const customTypesMap = {
 
   'Domain': 'domain.html#domain_class_domain',
 
+  'import.meta': 'esm.html#esm_import_meta',
+
   'EventEmitter': 'events.html#events_class_eventemitter',
 
   'FileHandle': 'fs.html#fs_class_filehandle',
+  'fs.Dirent': 'fs.html#fs_class_fs_dirent',
   'fs.FSWatcher': 'fs.html#fs_class_fs_fswatcher',
   'fs.ReadStream': 'fs.html#fs_class_fs_readstream',
   'fs.Stats': 'fs.html#fs_class_fs_stats',
@@ -83,14 +94,18 @@ const customTypesMap = {
   'Http2Stream': 'http2.html#http2_class_http2stream',
   'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
 
+  'https.Server': 'https.html#https_class_https_server',
+
+  'module': 'modules.html#modules_the_module_object',
+  'require': 'modules.html#modules_require_id',
+
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
 
-  'module': 'modules.html#modules_the_module_object',
-
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
+  'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
   'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
   'PerformanceNodeTiming':
     'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len
@@ -100,6 +115,8 @@ const customTypesMap = {
     'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
 
   'readline.Interface': 'readline.html#readline_class_interface',
+
+  'repl.REPLServer': 'repl.html#repl_class_replserver',
 
   'Stream': 'stream.html#stream_stream',
   'stream.Duplex': 'stream.html#stream_class_stream_duplex',
@@ -114,8 +131,16 @@ const customTypesMap = {
   'tls.Server': 'tls.html#tls_class_tls_server',
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
+  'Tracing': 'tracing.html#tracing_tracing_object',
+
   'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams'
+  'URLSearchParams': 'url.html#url_class_urlsearchparams',
+
+  'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
+
+  'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
+
+  'zlib options': 'zlib.html#zlib_class_options',
 };
 
 const arrayPart = /(?:\[])+$/;
@@ -128,7 +153,7 @@ function toLink(typeInput) {
   typeTexts.forEach((typeText) => {
     typeText = typeText.trim();
     if (typeText) {
-      let typeUrl = null;
+      let typeUrl;
 
       // To support type[], type[][] etc., we store the full string
       // and use the bracket-less version to lookup the type URL.
@@ -141,7 +166,7 @@ function toLink(typeInput) {
         typeUrl = `${jsDataStructuresUrl}#${primitive}_type`;
       } else if (jsGlobalTypes.includes(typeText)) {
         typeUrl = `${jsGlobalObjectsUrl}${typeText}`;
-      } else if (customTypesMap[typeText]) {
+      } else {
         typeUrl = customTypesMap[typeText];
       }
 

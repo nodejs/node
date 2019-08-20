@@ -31,5 +31,5 @@ paused
 #}
 
 paused
-test(#)
+test()#
 

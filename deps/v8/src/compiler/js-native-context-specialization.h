@@ -7,24 +7,29 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/deoptimize-reason.h"
+#include "src/compiler/js-heap-broker.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class FeedbackNexus;
+class JSGlobalObject;
+class JSGlobalProxy;
+class StringConstantBase;
 
 namespace compiler {
 
 // Forward declarations.
 enum class AccessMode;
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class ElementAccessInfo;
 class JSGraph;
+class JSHeapBroker;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class PropertyAccessInfo;
@@ -35,7 +40,8 @@ class TypeCache;
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
 // nodes.  And also specializes {LoadNamed} and {StoreNamed} nodes according
 // to type feedback (if available).
-class JSNativeContextSpecialization final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
+    : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
   enum Flag {
@@ -43,12 +49,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
     kAccessorInliningEnabled = 1u << 0,
     kBailoutOnUninitialized = 1u << 1
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
-  JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
+  JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
+                                JSHeapBroker* broker, Flags flags,
                                 Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
-                                Zone* zone);
+                                Zone* zone, Zone* shared_zone);
 
   const char* reducer_name() const override {
     return "JSNativeContextSpecialization";
@@ -56,8 +63,17 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   Reduction Reduce(Node* node) final;
 
+  // Utility for folding string constant concatenation.
+  // Supports JSAdd nodes and nodes typed as string or number.
+  // Public for the sake of unit testing.
+  static base::Optional<size_t> GetMaxStringLength(JSHeapBroker* broker,
+                                                   Node* node);
+
  private:
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSAsyncFunctionEnter(Node* node);
+  Reduction ReduceJSAsyncFunctionReject(Node* node);
+  Reduction ReduceJSAsyncFunctionResolve(Node* node);
   Reduction ReduceJSGetSuperConstructor(Node* node);
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
@@ -69,34 +85,47 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
+  Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSStoreNamedOwn(Node* node);
   Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
+  Reduction ReduceJSStoreInArrayLiteral(Node* node);
+  Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                MapHandles const& receiver_maps,
-                                AccessMode access_mode,
-                                KeyedAccessLoadMode load_mode,
-                                KeyedAccessStoreMode store_mode);
-  Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
-                              FeedbackNexus const& nexus,
-                              AccessMode access_mode,
-                              KeyedAccessLoadMode load_mode,
-                              KeyedAccessStoreMode store_mode);
+                                ElementAccessFeedback const& processed);
+  // In the case of non-keyed (named) accesses, pass the name as {static_name}
+  // and use {nullptr} for {key} (load/store modes are irrelevant).
+  Reduction ReducePropertyAccess(Node* node, Node* key,
+                                 base::Optional<NameRef> static_name,
+                                 Node* value, FeedbackSource const& source,
+                                 AccessMode access_mode);
   Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
-                                       FeedbackNexus const& nexus,
-                                       Handle<Name> name,
+                                       FeedbackSource const& source,
+                                       NameRef const& name,
                                        AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
-                              MapHandles const& receiver_maps,
-                              Handle<Name> name, AccessMode access_mode,
-                              Node* index = nullptr);
+                              NamedAccessFeedback const& processed,
+                              AccessMode access_mode, Node* key = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
-                               Handle<Name> name, AccessMode access_mode,
-                               Node* index = nullptr);
+                               NameRef const& name, AccessMode access_mode,
+                               Node* key = nullptr);
+  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
+                               NameRef const& name, AccessMode access_mode,
+                               Node* key, PropertyCellRef const& property_cell);
+  Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* key,
+                                            AccessMode access_mode,
+                                            KeyedAccessLoadMode load_mode);
+  Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
+                                        KeyedAccessMode const& keyed_mode);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+  Reduction ReduceJSToString(Node* node);
+
+  Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
+
+  const StringConstantBase* CreateDelayedStringConstant(Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {
@@ -120,23 +149,26 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
                                          Node* context, Node* frame_state,
                                          Node* effect, Node* control,
-                                         Handle<Name> name,
+                                         NameRef const& name,
                                          ZoneVector<Node*>* if_exceptions,
                                          PropertyAccessInfo const& access_info,
                                          AccessMode access_mode);
   ValueEffectControl BuildPropertyLoad(Node* receiver, Node* context,
                                        Node* frame_state, Node* effect,
-                                       Node* control, Handle<Name> name,
+                                       Node* control, NameRef const& name,
                                        ZoneVector<Node*>* if_exceptions,
                                        PropertyAccessInfo const& access_info);
 
   ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
                                         Node* context, Node* frame_state,
                                         Node* effect, Node* control,
-                                        Handle<Name> name,
+                                        NameRef const& name,
                                         ZoneVector<Node*>* if_exceptions,
                                         PropertyAccessInfo const& access_info,
                                         AccessMode access_mode);
+
+  ValueEffectControl BuildPropertyTest(Node* effect, Node* control,
+                                       PropertyAccessInfo const& access_info);
 
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver, Node* context,
@@ -151,14 +183,15 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                 PropertyAccessInfo const& access_info);
   Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
-                      Handle<SharedFunctionInfo> shared_info,
-                      Handle<FunctionTemplateInfo> function_template_info);
+                      SharedFunctionInfoRef const& shared_info,
+                      FunctionTemplateInfoRef const& function_template_info);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(
-      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
-      ElementAccessInfo const& access_info, AccessMode access_mode,
-      KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode);
+  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
+                                        Node* value, Node* effect,
+                                        Node* control,
+                                        ElementAccessInfo const& access_info,
+                                        KeyedAccessMode const& keyed_mode);
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,
@@ -166,18 +199,18 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                KeyedAccessLoadMode load_mode);
 
   // Construct appropriate subgraph to extend properties backing store.
-  Node* BuildExtendPropertiesBackingStore(Handle<Map> map, Node* properties,
+  Node* BuildExtendPropertiesBackingStore(const MapRef& map, Node* properties,
                                           Node* effect, Node* control);
 
   // Construct appropriate subgraph to check that the {value} matches
   // the previously recorded {name} feedback.
-  Node* BuildCheckEqualsName(Handle<Name> name, Node* value, Node* effect,
+  Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
 
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(MapHandles const& receiver_maps);
+  bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
@@ -186,9 +219,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                            MapHandles* receiver_maps);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
-  // If maps are returned then you can be sure that the {receiver} definitely
-  // has one of the returned maps at this point in the program (identified
-  // by {effect}).
   bool InferReceiverMaps(Node* receiver, Node* effect,
                          MapHandles* receiver_maps);
   // Try to infer a root map for the {receiver} independent of the current
@@ -206,13 +236,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
       Node* receiver, Node* effect, Handle<HeapObject> prototype);
 
-  // Script context lookup logic.
-  struct ScriptContextTableLookupResult;
-  bool LookupInScriptContextTable(Handle<Name> name,
-                                  ScriptContextTableLookupResult* result);
-
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   CommonOperatorBuilder* common() const;
@@ -221,18 +248,20 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  Handle<Context> native_context() const { return native_context_; }
+  NativeContextRef native_context() const { return broker()->native_context(); }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
+  Zone* shared_zone() const { return shared_zone_; }
 
   JSGraph* const jsgraph_;
+  JSHeapBroker* const broker_;
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;
-  Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
-  TypeCache const& type_cache_;
+  Zone* const shared_zone_;
+  TypeCache const* type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

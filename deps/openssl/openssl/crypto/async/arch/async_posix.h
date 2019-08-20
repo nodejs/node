@@ -17,7 +17,8 @@
 
 # include <unistd.h>
 
-# if _POSIX_VERSION >= 200112L
+# if _POSIX_VERSION >= 200112L \
+     && (_POSIX_VERSION < 200809L || defined(__GLIBC__))
 
 # include <pthread.h>
 
@@ -26,7 +27,6 @@
 
 #  include <ucontext.h>
 #  include <setjmp.h>
-#  include "e_os.h"
 
 typedef struct async_fibre_st {
     ucontext_t fibre;

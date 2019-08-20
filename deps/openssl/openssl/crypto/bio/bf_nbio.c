@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,7 +34,11 @@ typedef struct nbio_test_st {
 static const BIO_METHOD methods_nbiof = {
     BIO_TYPE_NBIO_TEST,
     "non-blocking IO test filter",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     nbiof_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     nbiof_read,
     nbiof_puts,
     nbiof_gets,
@@ -46,31 +50,33 @@ static const BIO_METHOD methods_nbiof = {
 
 const BIO_METHOD *BIO_f_nbio_test(void)
 {
-    return (&methods_nbiof);
+    return &methods_nbiof;
 }
 
 static int nbiof_new(BIO *bi)
 {
     NBIO_TEST *nt;
 
-    if ((nt = OPENSSL_zalloc(sizeof(*nt))) == NULL)
-        return (0);
+    if ((nt = OPENSSL_zalloc(sizeof(*nt))) == NULL) {
+        BIOerr(BIO_F_NBIOF_NEW, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
     nt->lrn = -1;
     nt->lwn = -1;
     bi->ptr = (char *)nt;
     bi->init = 1;
-    return (1);
+    return 1;
 }
 
 static int nbiof_free(BIO *a)
 {
     if (a == NULL)
-        return (0);
+        return 0;
     OPENSSL_free(a->ptr);
     a->ptr = NULL;
     a->init = 0;
     a->flags = 0;
-    return (1);
+    return 1;
 }
 
 static int nbiof_read(BIO *b, char *out, int outl)
@@ -80,12 +86,12 @@ static int nbiof_read(BIO *b, char *out, int outl)
     unsigned char n;
 
     if (out == NULL)
-        return (0);
+        return 0;
     if (b->next_bio == NULL)
-        return (0);
+        return 0;
 
     BIO_clear_retry_flags(b);
-    if (RAND_bytes(&n, 1) <= 0)
+    if (RAND_priv_bytes(&n, 1) <= 0)
         return -1;
     num = (n & 0x07);
 
@@ -100,7 +106,7 @@ static int nbiof_read(BIO *b, char *out, int outl)
         if (ret < 0)
             BIO_copy_next_retry(b);
     }
-    return (ret);
+    return ret;
 }
 
 static int nbiof_write(BIO *b, const char *in, int inl)
@@ -111,9 +117,9 @@ static int nbiof_write(BIO *b, const char *in, int inl)
     unsigned char n;
 
     if ((in == NULL) || (inl <= 0))
-        return (0);
+        return 0;
     if (b->next_bio == NULL)
-        return (0);
+        return 0;
     nt = (NBIO_TEST *)b->ptr;
 
     BIO_clear_retry_flags(b);
@@ -122,7 +128,7 @@ static int nbiof_write(BIO *b, const char *in, int inl)
         num = nt->lwn;
         nt->lwn = 0;
     } else {
-        if (RAND_bytes(&n, 1) <= 0)
+        if (RAND_priv_bytes(&n, 1) <= 0)
             return -1;
         num = (n & 7);
     }
@@ -140,7 +146,7 @@ static int nbiof_write(BIO *b, const char *in, int inl)
             nt->lwn = inl;
         }
     }
-    return (ret);
+    return ret;
 }
 
 static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
@@ -148,7 +154,7 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
     long ret;
 
     if (b->next_bio == NULL)
-        return (0);
+        return 0;
     switch (cmd) {
     case BIO_C_DO_STATE_MACHINE:
         BIO_clear_retry_flags(b);
@@ -162,7 +168,7 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = BIO_ctrl(b->next_bio, cmd, num, ptr);
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static long nbiof_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
@@ -170,25 +176,25 @@ static long nbiof_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
     long ret = 1;
 
     if (b->next_bio == NULL)
-        return (0);
+        return 0;
     switch (cmd) {
     default:
         ret = BIO_callback_ctrl(b->next_bio, cmd, fp);
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static int nbiof_gets(BIO *bp, char *buf, int size)
 {
     if (bp->next_bio == NULL)
-        return (0);
-    return (BIO_gets(bp->next_bio, buf, size));
+        return 0;
+    return BIO_gets(bp->next_bio, buf, size);
 }
 
 static int nbiof_puts(BIO *bp, const char *str)
 {
     if (bp->next_bio == NULL)
-        return (0);
-    return (BIO_puts(bp->next_bio, str));
+        return 0;
+    return BIO_puts(bp->next_bio, str);
 }

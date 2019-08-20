@@ -1,6 +1,8 @@
 'use strict';
+// Flags: --expose-internals
 require('../common');
 const assert = require('assert');
+const { internalBinding } = require('internal/test/binding');
 
 assert.throws(
   function() {
@@ -9,4 +11,4 @@ assert.throws(
   /No such module: test/
 );
 
-process.binding('buffer');
+internalBinding('buffer');

@@ -4,6 +4,31 @@
 
 // Flags: --allow-natives-syntax
 
+// Ensure empty keys are handled properly
+(function() {
+  const a = {};
+  let k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(0, k.length);
+})();
+
+// Ensure non-enumerable keys are handled properly
+(function() {
+  const a = {};
+  Object.defineProperty(a, 'x', {
+    value: 1,
+    enumerable: false
+  });
+  let k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(0, k.length);
+
+  a.y = 2;
+  k = Object.keys(a);
+  %HeapObjectVerify(k);
+  assertEquals(1, k.length);
+})();
+
 // Ensure that mutation of the Object.keys result doesn't affect the
 // enumeration cache for fast-mode objects.
 (function() {
@@ -31,4 +56,62 @@
   assertEquals(0, k.length);
   k.shift();
   assertEquals(0, k.length);
+})();
+
+// Ensure we invoke all steps on proxies.
+(function ObjectKeysProxy() {
+  let log = [];
+  let result = Object.keys(new Proxy({}, {
+    ownKeys(target) {
+      log.push('ownKeys');
+      return ['a', 'b', 'c'];
+    },
+    getOwnPropertyDescriptor(target, key) {
+      log.push('getOwnPropertyDescriptor-' + key);
+      if (key === 'b') return {enumerable: false, configurable: true};
+      return {enumerable: true, configurable: true};
+    }
+  }));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'ownKeys', 'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
+
+  // Test normal target.
+  log = [];
+  let target = {a: 1, b: 1, c: 1};
+  let handler = {
+    getOwnPropertyDescriptor(target, key) {
+      log.push('getOwnPropertyDescriptor-' + key);
+      if (key === 'b') return {enumerable: false, configurable: true};
+      return {enumerable: true, configurable: true};
+    }
+  };
+  result = Object.keys(new Proxy(target, handler));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
+
+  // Test trap invocation with non-enumerable target properties.
+  log = [];
+  target = Object.create(Object.prototype, {
+    a: {enumerable: true, configurable: true},
+    b: {enumerable: false, configurable: true},
+    c: {enumerable: true, configurable: true}
+  });
+  result = Object.keys(new Proxy(target, handler));
+  assertEquals(['a', 'c'], result);
+  assertEquals(
+      [
+        'getOwnPropertyDescriptor-a', 'getOwnPropertyDescriptor-b',
+        'getOwnPropertyDescriptor-c'
+      ],
+      log);
 })();

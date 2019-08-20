@@ -9,6 +9,7 @@
     a[0] = v & 0xff;
   }
 
+  %PrepareFunctionForOptimization(foo);
   var a = new Uint8ClampedArray(4);
   foo(a, 1);
   foo(a, 2);
@@ -23,6 +24,7 @@
     a[0] = v >>> 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   var a = new Uint8ClampedArray(4);
   foo(a, 1);
   foo(a, 2);
@@ -37,6 +39,7 @@
     a[0] = v | 0;
   }
 
+  %PrepareFunctionForOptimization(foo);
   var a = new Uint8ClampedArray(4);
   foo(a, 1);
   foo(a, 2);
@@ -54,6 +57,7 @@
     a[0] = v;
   }
 
+  %PrepareFunctionForOptimization(foo);
   var a = new Uint8ClampedArray(4);
   foo(a, 1);
   foo(a, 2);

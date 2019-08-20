@@ -2,25 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/code-generator.h"
+#include "src/compiler/backend/code-generator.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef v8::internal::compiler::Instruction TestInstr;
-typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
+using TestInstr = v8::internal::compiler::Instruction;
+using TestInstrSeq = v8::internal::compiler::InstructionSequence;
 
 // A testing helper for the register code abstraction.
 class InstructionTester : public HandleAndZoneScope {
@@ -82,8 +82,13 @@ class InstructionTester : public HandleAndZoneScope {
     return code->AddInstruction(instr);
   }
 
+  int NewNop() {
+    TestInstr* instr = TestInstr::New(zone(), kArchNop);
+    return code->AddInstruction(instr);
+  }
+
   UnallocatedOperand Unallocated(int vreg) {
-    return UnallocatedOperand(UnallocatedOperand::ANY, vreg);
+    return UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT, vreg);
   }
 
   RpoNumber RpoFor(BasicBlock* block) {
@@ -163,6 +168,7 @@ TEST(InstructionGetBasicBlock) {
   int i8 = R.NewInstr();
   R.code->EndBlock(R.RpoFor(b2));
   R.code->StartBlock(R.RpoFor(b3));
+  R.NewNop();
   R.code->EndBlock(R.RpoFor(b3));
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));

@@ -8,6 +8,10 @@ const fetchRegistry = require('./registry')
 const fetchRemote = module.exports = Object.create(null)
 
 Fetcher.impl(fetchRemote, {
+  packument (spec, opts) {
+    return BB.reject(new Error('Not implemented yet'))
+  },
+
   manifest (spec, opts) {
     // We can't get the manifest for a remote tarball until
     // we extract the tarball itself.

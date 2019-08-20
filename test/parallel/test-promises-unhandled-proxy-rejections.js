@@ -1,6 +1,8 @@
 'use strict';
 const common = require('../common');
 
+common.disableCrashOnUnhandledRejection();
+
 const expectedDeprecationWarning = ['Unhandled promise rejections are ' +
                                    'deprecated. In the future, promise ' +
                                    'rejections that are not handled will ' +
@@ -10,7 +12,7 @@ const expectedPromiseWarning = ['Unhandled promise rejection. ' +
   'This error originated either by throwing ' +
   'inside of an async function without a catch ' +
   'block, or by rejecting a promise which was ' +
-  'not handled with .catch(). (rejection id: 1)', common.noWarnCode];
+  'not handled with .catch(). (rejection id: 1)'];
 
 function throwErr() {
   throw new Error('Error from proxy');
@@ -37,5 +39,5 @@ common.expectWarning({
   UnhandledPromiseRejectionWarning: expectedPromiseWarning,
 });
 
-// ensure this doesn't crash
+// Ensure this doesn't crash
 Promise.reject(thorny);

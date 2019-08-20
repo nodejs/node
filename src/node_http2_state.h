@@ -15,6 +15,7 @@ namespace http2 {
     IDX_SETTINGS_MAX_FRAME_SIZE,
     IDX_SETTINGS_MAX_CONCURRENT_STREAMS,
     IDX_SETTINGS_MAX_HEADER_LIST_SIZE,
+    IDX_SETTINGS_ENABLE_CONNECT_PROTOCOL,
     IDX_SETTINGS_COUNT
   };
 
@@ -54,13 +55,6 @@ namespace http2 {
     IDX_OPTIONS_FLAGS
   };
 
-  enum Http2PaddingBufferFields {
-    PADDING_BUF_FRAME_LENGTH,
-    PADDING_BUF_MAX_PAYLOAD_LENGTH,
-    PADDING_BUF_RETURN_VALUE,
-    PADDING_BUF_FIELD_COUNT
-  };
-
   enum Http2StreamStatisticsIndex {
     IDX_STREAM_STATS_ID,
     IDX_STREAM_STATS_TIMETOFIRSTBYTE,
@@ -84,9 +78,9 @@ namespace http2 {
     IDX_SESSION_STATS_COUNT
   };
 
-class http2_state {
+class Http2State {
  public:
-  explicit http2_state(v8::Isolate* isolate) :
+  explicit Http2State(v8::Isolate* isolate) :
     root_buffer(
       isolate,
       sizeof(http2_state_internal)),
@@ -110,11 +104,6 @@ class http2_state {
       offsetof(http2_state_internal, session_stats_buffer),
       IDX_SESSION_STATS_COUNT,
       root_buffer),
-    padding_buffer(
-      isolate,
-      offsetof(http2_state_internal, padding_buffer),
-      PADDING_BUF_FIELD_COUNT,
-      root_buffer),
     options_buffer(
       isolate,
       offsetof(http2_state_internal, options_buffer),
@@ -127,14 +116,13 @@ class http2_state {
       root_buffer) {
   }
 
-  AliasedBuffer<uint8_t, v8::Uint8Array> root_buffer;
-  AliasedBuffer<double, v8::Float64Array> session_state_buffer;
-  AliasedBuffer<double, v8::Float64Array> stream_state_buffer;
-  AliasedBuffer<double, v8::Float64Array> stream_stats_buffer;
-  AliasedBuffer<double, v8::Float64Array> session_stats_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> padding_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> options_buffer;
-  AliasedBuffer<uint32_t, v8::Uint32Array> settings_buffer;
+  AliasedUint8Array root_buffer;
+  AliasedFloat64Array session_state_buffer;
+  AliasedFloat64Array stream_state_buffer;
+  AliasedFloat64Array stream_stats_buffer;
+  AliasedFloat64Array session_stats_buffer;
+  AliasedUint32Array options_buffer;
+  AliasedUint32Array settings_buffer;
 
  private:
   struct http2_state_internal {
@@ -143,7 +131,6 @@ class http2_state {
     double stream_state_buffer[IDX_STREAM_STATE_COUNT];
     double stream_stats_buffer[IDX_STREAM_STATS_COUNT];
     double session_stats_buffer[IDX_SESSION_STATS_COUNT];
-    uint32_t padding_buffer[PADDING_BUF_FIELD_COUNT];
     uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
     uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];
   };

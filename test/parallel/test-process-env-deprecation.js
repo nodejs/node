@@ -12,5 +12,9 @@ common.expectWarning(
   'DEP0104'
 );
 
+// Make sure setting a valid environment variable doesn't
+// result in warning being suppressed, see:
+// https://github.com/nodejs/node/pull/25157
+process.env.FOO = 'apple';
 process.env.ABC = undefined;
 assert.strictEqual(process.env.ABC, 'undefined');

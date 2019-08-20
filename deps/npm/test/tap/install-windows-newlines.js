@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-windows-newlines')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg, stdio: [0, 1, 2] }
 
@@ -67,7 +67,7 @@ test('setup', function (t) {
       fs.readFileSync(
         path.resolve(pkg, 'node_modules/cli-dependency/hashbang.js'),
         'utf8'
-      ).includes('\r\n'),
+      ).includes('node\r\n'),
       'hashbang dependency cli newlines converted'
     )
     t.ok(

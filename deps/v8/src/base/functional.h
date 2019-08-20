@@ -137,18 +137,17 @@ V8_INLINE size_t hash_value(std::pair<T1, T2> const& v) {
   return hash_combine(v.first, v.second);
 }
 
-
 template <typename T>
-struct hash : public std::unary_function<T, size_t> {
+struct hash {
   V8_INLINE size_t operator()(T const& v) const { return hash_value(v); }
 };
 
-#define V8_BASE_HASH_SPECIALIZE(type)                            \
-  template <>                                                    \
-  struct hash<type> : public std::unary_function<type, size_t> { \
-    V8_INLINE size_t operator()(type const v) const {            \
-      return ::v8::base::hash_value(v);                          \
-    }                                                            \
+#define V8_BASE_HASH_SPECIALIZE(type)                 \
+  template <>                                         \
+  struct hash<type> {                                 \
+    V8_INLINE size_t operator()(type const v) const { \
+      return ::v8::base::hash_value(v);               \
+    }                                                 \
   };
 V8_BASE_HASH_SPECIALIZE(bool)
 V8_BASE_HASH_SPECIALIZE(signed char)
@@ -166,7 +165,7 @@ V8_BASE_HASH_SPECIALIZE(double)
 #undef V8_BASE_HASH_SPECIALIZE
 
 template <typename T>
-struct hash<T*> : public std::unary_function<T*, size_t> {
+struct hash<T*> {
   V8_INLINE size_t operator()(T* const v) const {
     return ::v8::base::hash_value(v);
   }
@@ -181,10 +180,10 @@ struct hash<T*> : public std::unary_function<T*, size_t> {
 // hash data structure based on the bitwise representation of types.
 
 template <typename T>
-struct bit_equal_to : public std::binary_function<T, T, bool> {};
+struct bit_equal_to {};
 
 template <typename T>
-struct bit_hash : public std::unary_function<T, size_t> {};
+struct bit_hash {};
 
 #define V8_BASE_BIT_SPECIALIZE_TRIVIAL(type)                 \
   template <>                                                \
@@ -203,19 +202,19 @@ V8_BASE_BIT_SPECIALIZE_TRIVIAL(long long)           // NOLINT(runtime/int)
 V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned long long)  // NOLINT(runtime/int)
 #undef V8_BASE_BIT_SPECIALIZE_TRIVIAL
 
-#define V8_BASE_BIT_SPECIALIZE_BIT_CAST(type, btype)                          \
-  template <>                                                                 \
-  struct bit_equal_to<type> : public std::binary_function<type, type, bool> { \
-    V8_INLINE bool operator()(type lhs, type rhs) const {                     \
-      return bit_cast<btype>(lhs) == bit_cast<btype>(rhs);                    \
-    }                                                                         \
-  };                                                                          \
-  template <>                                                                 \
-  struct bit_hash<type> : public std::unary_function<type, size_t> {          \
-    V8_INLINE size_t operator()(type v) const {                               \
-      hash<btype> h;                                                          \
-      return h(bit_cast<btype>(v));                                           \
-    }                                                                         \
+#define V8_BASE_BIT_SPECIALIZE_BIT_CAST(type, btype)       \
+  template <>                                              \
+  struct bit_equal_to<type> {                              \
+    V8_INLINE bool operator()(type lhs, type rhs) const {  \
+      return bit_cast<btype>(lhs) == bit_cast<btype>(rhs); \
+    }                                                      \
+  };                                                       \
+  template <>                                              \
+  struct bit_hash<type> {                                  \
+    V8_INLINE size_t operator()(type v) const {            \
+      hash<btype> h;                                       \
+      return h(bit_cast<btype>(v));                        \
+    }                                                      \
   };
 V8_BASE_BIT_SPECIALIZE_BIT_CAST(float, uint32_t)
 V8_BASE_BIT_SPECIALIZE_BIT_CAST(double, uint64_t)

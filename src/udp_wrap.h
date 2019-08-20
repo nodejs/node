@@ -27,7 +27,6 @@
 #include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "req_wrap-inl.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -40,13 +39,18 @@ class UDPWrap: public HandleWrap {
   };
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context);
+                         v8::Local<v8::Context> context,
+                         void* priv);
   static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind6(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Connect6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send6(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Disconnect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -60,12 +64,12 @@ class UDPWrap: public HandleWrap {
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Local<v8::Object> Instantiate(Environment* env,
-                                           AsyncWrap* parent,
-                                           SocketType type);
-  uv_udp_t* UVHandle();
-
-  size_t self_size() const override { return sizeof(*this); }
+  static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
+                                                AsyncWrap* parent,
+                                                SocketType type);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(UDPWrap)
+  SET_SELF_SIZE(UDPWrap)
 
  private:
   typedef uv_udp_t HandleType;
@@ -77,6 +81,8 @@ class UDPWrap: public HandleWrap {
   UDPWrap(Environment* env, v8::Local<v8::Object> object);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
+                     int family);
+  static void DoConnect(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
   static void DoSend(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);

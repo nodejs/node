@@ -29,20 +29,26 @@
 
 var imul_func = Math.imul;
 function imul_polyfill(a, b) {
-  var ah  = (a >>> 16) & 0xffff;
+  var ah = a >>> 16 & 0xffff;
   var al = a & 0xffff;
-  var bh  = (b >>> 16) & 0xffff;
+  var bh = b >>> 16 & 0xffff;
   var bl = b & 0xffff;
-  return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+  return al * bl + (ah * bl + al * bh << 16 >>> 0) | 0;
 }
 
 function TestMathImul(expected, a, b) {
-  function imul_meth_closure(a, b) { return Math.imul(a, b); }
-  function imul_func_closure(a, b) { return imul_func(a, b); }
+  function imul_meth_closure(a, b) {
+    return Math.imul(a, b);
+  };
+  %PrepareFunctionForOptimization(imul_meth_closure);
+  function imul_func_closure(a, b) {
+    return imul_func(a, b);
+  }
 
   // Test reference implementation.
+  ;
+  %PrepareFunctionForOptimization(imul_func_closure);
   assertEquals(expected, imul_polyfill(a, b));
-
   // Test direct method call.
   assertEquals(expected, Math.imul(a, b));
 

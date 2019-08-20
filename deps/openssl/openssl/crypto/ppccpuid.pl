@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -124,26 +124,23 @@ Ladd:	lwarx	r5,0,r3
 	.long	0
 .size	.OPENSSL_atomic_add,.-.OPENSSL_atomic_add
 
-.globl	.OPENSSL_rdtsc
+.globl	.OPENSSL_rdtsc_mftb
 .align	4
-.OPENSSL_rdtsc:
-___
-$code.=<<___	if ($flavour =~ /64/);
+.OPENSSL_rdtsc_mftb:
 	mftb	r3
-___
-$code.=<<___	if ($flavour !~ /64/);
-Loop_rdtsc:
-	mftbu	r5
-	mftb	r3
-	mftbu	r4
-	cmplw	r4,r5
-	bne	Loop_rdtsc
-___
-$code.=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
-.size	.OPENSSL_rdtsc,.-.OPENSSL_rdtsc
+.size	.OPENSSL_rdtsc_mftb,.-.OPENSSL_rdtsc_mftb
+
+.globl	.OPENSSL_rdtsc_mfspr268
+.align	4
+.OPENSSL_rdtsc_mfspr268:
+	mfspr	r3,268
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_rdtsc_mfspr268,.-.OPENSSL_rdtsc_mfspr268
 
 .globl	.OPENSSL_cleanse
 .align	4
@@ -210,9 +207,9 @@ my ($tick,$lasttick)=("r6","r7");
 my ($diff,$lastdiff)=("r8","r9");
 
 $code.=<<___;
-.globl	.OPENSSL_instrument_bus
+.globl	.OPENSSL_instrument_bus_mftb
 .align	4
-.OPENSSL_instrument_bus:
+.OPENSSL_instrument_bus_mftb:
 	mtctr	$cnt
 
 	mftb	$lasttick		# collect 1st tick
@@ -240,11 +237,11 @@ Loop:	mftb	$tick
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
-.size	.OPENSSL_instrument_bus,.-.OPENSSL_instrument_bus
+.size	.OPENSSL_instrument_bus_mftb,.-.OPENSSL_instrument_bus_mftb
 
-.globl	.OPENSSL_instrument_bus2
+.globl	.OPENSSL_instrument_bus2_mftb
 .align	4
-.OPENSSL_instrument_bus2:
+.OPENSSL_instrument_bus2_mftb:
 	mr	r0,$cnt
 	slwi	$cnt,$cnt,2
 
@@ -292,7 +289,91 @@ Ldone2:
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
 	.long	0
-.size	.OPENSSL_instrument_bus2,.-.OPENSSL_instrument_bus2
+.size	.OPENSSL_instrument_bus2_mftb,.-.OPENSSL_instrument_bus2_mftb
+
+.globl	.OPENSSL_instrument_bus_mfspr268
+.align	4
+.OPENSSL_instrument_bus_mfspr268:
+	mtctr	$cnt
+
+	mfspr	$lasttick,268		# collect 1st tick
+	li	$diff,0
+
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+Loop3:	mfspr	$tick,268
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+	addi	$out,$out,4		# ++$out
+	bdnz	Loop3
+
+	mr	r3,$cnt
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,2,0
+	.long	0
+.size	.OPENSSL_instrument_bus_mfspr268,.-.OPENSSL_instrument_bus_mfspr268
+
+.globl	.OPENSSL_instrument_bus2_mfspr268
+.align	4
+.OPENSSL_instrument_bus2_mfspr268:
+	mr	r0,$cnt
+	slwi	$cnt,$cnt,2
+
+	mfspr	$lasttick,268		# collect 1st tick
+	li	$diff,0
+
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+	mfspr	$tick,268		# collect 1st diff
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	mr	$lastdiff,$diff
+Loop4:
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+	addic.	$max,$max,-1
+	beq	Ldone4
+
+	mfspr	$tick,268
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	cmplw	7,$diff,$lastdiff
+	mr	$lastdiff,$diff
+
+	mfcr	$tick			# pull cr
+	not	$tick,$tick		# flip bits
+	rlwinm	$tick,$tick,1,29,29	# isolate flipped eq bit and scale
+
+	sub.	$cnt,$cnt,$tick		# conditional --$cnt
+	add	$out,$out,$tick		# conditional ++$out
+	bne	Loop4
+
+Ldone4:
+	srwi	$cnt,$cnt,2
+	sub	r3,r0,$cnt
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,3,0
+	.long	0
+.size	.OPENSSL_instrument_bus2_mfspr268,.-.OPENSSL_instrument_bus2_mfspr268
 ___
 }
 

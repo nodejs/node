@@ -21,7 +21,7 @@ function assertThrowsAsync(run, errorType, message) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (!hadError) {
     throw new MjsUnitAssertionError(
@@ -55,7 +55,7 @@ function assertEqualsAsync(expected, run, msg) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (hadError) throw actual;
 
@@ -103,12 +103,35 @@ function AbortUnreachable() {
 // ----------------------------------------------------------------------------
 // Do not install `AsyncGeneratorFunction` constructor on global object
 assertEquals(undefined, this.AsyncGeneratorFunction);
-let AsyncGeneratorFunction = (async function*() {}).constructor;
+
+// ----------------------------------------------------------------------------
+let AsyncGenerator = Object.getPrototypeOf(async function*() {});
+let AsyncGeneratorPrototype = AsyncGenerator.prototype;
+
+// %AsyncGenerator% and %AsyncGeneratorPrototype% are both ordinary objects
+assertEquals("object", typeof AsyncGenerator);
+assertEquals("object", typeof AsyncGeneratorPrototype);
+
+// %AsyncGenerator% <---> %AsyncGeneratorPrototype% circular reference
+assertEquals(AsyncGenerator, AsyncGeneratorPrototype.constructor);
+assertEquals(AsyncGeneratorPrototype, AsyncGenerator.prototype);
+
+let protoDesc = Object.getOwnPropertyDescriptor(AsyncGenerator, 'prototype');
+assertFalse(protoDesc.enumerable);
+assertFalse(protoDesc.writable);
+assertTrue(protoDesc.configurable);
+
+let ctorDesc =
+    Object.getOwnPropertyDescriptor(AsyncGeneratorPrototype, 'constructor');
+assertFalse(ctorDesc.enumerable);
+assertFalse(ctorDesc.writable);
+assertTrue(ctorDesc.configurable);
 
 // ----------------------------------------------------------------------------
 // The AsyncGeneratorFunction Constructor is the %AsyncGeneratorFunction%
 // intrinsic object and is a subclass of Function.
 // (proposal-async-iteration/#sec-asyncgeneratorfunction-constructor)
+let AsyncGeneratorFunction = AsyncGenerator.constructor;
 assertEquals(Object.getPrototypeOf(AsyncGeneratorFunction), Function);
 assertEquals(Object.getPrototypeOf(AsyncGeneratorFunction.prototype),
              Function.prototype);
@@ -425,7 +448,7 @@ async function* asyncGeneratorForNestedResumeNext() {
 }
 it = asyncGeneratorForNestedResumeNext();
 it.next().then(logIterResult, AbortUnreachable);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "rootbeer", done: false },
   { value: "float", done: false },
@@ -441,7 +464,7 @@ let asyncGeneratorExprForNestedResumeNext = async function*() {
 };
 it = asyncGeneratorExprForNestedResumeNext();
 it.next().then(logIterResult, AbortUnreachable);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "first", done: false },
   { value: "second", done: false },
@@ -459,7 +482,7 @@ let asyncGeneratorMethodForNestedResumeNext = ({
 }).method;
 it = asyncGeneratorMethodForNestedResumeNext();
 it.next().then(logIterResult, AbortUnreachable);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "remember", done: false },
   { value: "the cant!", done: false },
@@ -475,7 +498,7 @@ let asyncGeneratorCallEvalForNestedResumeNext =
       yield await Resolver("rainbow!");`);
 it = asyncGeneratorCallEvalForNestedResumeNext();
 it.next().then(logIterResult, AbortUnreachable);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "reading", done: false },
   { value: "rainbow!", done: false },
@@ -491,7 +514,7 @@ let asyncGeneratorNewEvalForNestedResumeNext =
       yield await Resolver("BB!");`);
 it = asyncGeneratorNewEvalForNestedResumeNext();
 it.next().then(logIterResult, AbortUnreachable);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: 731, done: false },
   { value: "BB!", done: false },
@@ -513,7 +536,7 @@ async function* asyncGeneratorForNestedResumeThrow() {
 }
 it = asyncGeneratorForNestedResumeThrow();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   "throw1",
   "throw2",
@@ -533,7 +556,7 @@ let asyncGeneratorExprForNestedResumeThrow = async function*() {
 };
 it = asyncGeneratorExprForNestedResumeThrow();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   "throw3",
   "throw4",
@@ -555,7 +578,7 @@ let asyncGeneratorMethodForNestedResumeThrow = ({
 }).method;
 it = asyncGeneratorMethodForNestedResumeThrow();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   "throw5",
   "throw6",
@@ -575,7 +598,7 @@ let asyncGeneratorCallEvalForNestedResumeThrow =
       AbortUnreachable();`);
 it = asyncGeneratorCallEvalForNestedResumeThrow();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   "throw7",
   "throw8",
@@ -595,7 +618,7 @@ let asyncGeneratorNewEvalForNestedResumeThrow =
       AbortUnreachable();`);
 it = asyncGeneratorNewEvalForNestedResumeThrow();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   "throw9",
   "throw10",
@@ -613,7 +636,7 @@ async function* asyncGeneratorForNestedResumeReturn() {
 }
 it = asyncGeneratorForNestedResumeReturn();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "step1", done: false },
   { value: "step2", done: true },
@@ -628,7 +651,7 @@ let asyncGeneratorExprForNestedResumeReturn = async function*() {
 };
 it = asyncGeneratorExprForNestedResumeReturn();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "step3", done: false },
   { value: "step4", done: true },
@@ -645,7 +668,7 @@ let asyncGeneratorMethodForNestedResumeReturn = ({
 }).method;
 it = asyncGeneratorMethodForNestedResumeReturn();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "step5", done: false },
   { value: "step6", done: true },
@@ -660,7 +683,7 @@ let asyncGeneratorCallEvalForNestedResumeReturn =
       yield "step7";`);
 it = asyncGeneratorCallEvalForNestedResumeReturn();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "step7", done: false },
   { value: "step8", done: true },
@@ -675,7 +698,7 @@ let asyncGeneratorNewEvalForNestedResumeReturn =
       yield "step9";`);
 it = asyncGeneratorNewEvalForNestedResumeReturn();
 it.next().then(logIterResult, logError);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "step9", done: false },
   { value: "step10", done: true },

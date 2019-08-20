@@ -48,10 +48,10 @@ function write(out) {
   let finishEvent = false;
   let endCb = false;
 
-  // first, write until it gets some backpressure
+  // First, write until it gets some backpressure
   while (out.write(buf)) {}
 
-  // now end, and make sure that we don't get the 'finish' event
+  // Now end, and make sure that we don't get the 'finish' event
   // before the tick where the cb gets called.  We give it until
   // nextTick because this is added as a listener before the endcb
   // is registered.  The order is not what we're testing here, just

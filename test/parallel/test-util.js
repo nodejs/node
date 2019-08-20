@@ -21,82 +21,86 @@
 
 'use strict';
 // Flags: --expose-internals
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
 const context = require('vm').runInNewContext;
 
 // isArray
-assert.strictEqual(true, util.isArray([]));
-assert.strictEqual(true, util.isArray(Array()));
-assert.strictEqual(true, util.isArray(new Array()));
-assert.strictEqual(true, util.isArray(new Array(5)));
-assert.strictEqual(true, util.isArray(new Array('with', 'some', 'entries')));
-assert.strictEqual(true, util.isArray(context('Array')()));
-assert.strictEqual(false, util.isArray({}));
-assert.strictEqual(false, util.isArray({ push: function() {} }));
-assert.strictEqual(false, util.isArray(/regexp/));
-assert.strictEqual(false, util.isArray(new Error()));
-assert.strictEqual(false, util.isArray(Object.create(Array.prototype)));
+assert.strictEqual(util.isArray([]), true);
+assert.strictEqual(util.isArray(Array()), true);
+assert.strictEqual(util.isArray(new Array()), true);
+assert.strictEqual(util.isArray(new Array(5)), true);
+assert.strictEqual(util.isArray(new Array('with', 'some', 'entries')), true);
+assert.strictEqual(util.isArray(context('Array')()), true);
+assert.strictEqual(util.isArray({}), false);
+assert.strictEqual(util.isArray({ push: function() {} }), false);
+assert.strictEqual(util.isArray(/regexp/), false);
+assert.strictEqual(util.isArray(new Error()), false);
+assert.strictEqual(util.isArray(Object.create(Array.prototype)), false);
 
 // isRegExp
-assert.strictEqual(true, util.isRegExp(/regexp/));
-assert.strictEqual(true, util.isRegExp(RegExp(), 'foo'));
-assert.strictEqual(true, util.isRegExp(new RegExp()));
-assert.strictEqual(true, util.isRegExp(context('RegExp')()));
-assert.strictEqual(false, util.isRegExp({}));
-assert.strictEqual(false, util.isRegExp([]));
-assert.strictEqual(false, util.isRegExp(new Date()));
-assert.strictEqual(false, util.isRegExp(Object.create(RegExp.prototype)));
+assert.strictEqual(util.isRegExp(/regexp/), true);
+assert.strictEqual(util.isRegExp(RegExp(), 'foo'), true);
+assert.strictEqual(util.isRegExp(new RegExp()), true);
+assert.strictEqual(util.isRegExp(context('RegExp')()), true);
+assert.strictEqual(util.isRegExp({}), false);
+assert.strictEqual(util.isRegExp([]), false);
+assert.strictEqual(util.isRegExp(new Date()), false);
+assert.strictEqual(util.isRegExp(Object.create(RegExp.prototype)), false);
 
 // isDate
-assert.strictEqual(true, util.isDate(new Date()));
-assert.strictEqual(true, util.isDate(new Date(0), 'foo'));
-assert.strictEqual(true, util.isDate(new (context('Date'))()));
-assert.strictEqual(false, util.isDate(Date()));
-assert.strictEqual(false, util.isDate({}));
-assert.strictEqual(false, util.isDate([]));
-assert.strictEqual(false, util.isDate(new Error()));
-assert.strictEqual(false, util.isDate(Object.create(Date.prototype)));
+assert.strictEqual(util.isDate(new Date()), true);
+assert.strictEqual(util.isDate(new Date(0), 'foo'), true);
+assert.strictEqual(util.isDate(new (context('Date'))()), true);
+assert.strictEqual(util.isDate(Date()), false);
+assert.strictEqual(util.isDate({}), false);
+assert.strictEqual(util.isDate([]), false);
+assert.strictEqual(util.isDate(new Error()), false);
+assert.strictEqual(util.isDate(Object.create(Date.prototype)), false);
 
 // isError
-assert.strictEqual(true, util.isError(new Error()));
-assert.strictEqual(true, util.isError(new TypeError()));
-assert.strictEqual(true, util.isError(new SyntaxError()));
-assert.strictEqual(true, util.isError(new (context('Error'))()));
-assert.strictEqual(true, util.isError(new (context('TypeError'))()));
-assert.strictEqual(true, util.isError(new (context('SyntaxError'))()));
-assert.strictEqual(false, util.isError({}));
-assert.strictEqual(false, util.isError({ name: 'Error', message: '' }));
-assert.strictEqual(false, util.isError([]));
-assert.strictEqual(true, util.isError(Object.create(Error.prototype)));
+assert.strictEqual(util.isError(new Error()), true);
+assert.strictEqual(util.isError(new TypeError()), true);
+assert.strictEqual(util.isError(new SyntaxError()), true);
+assert.strictEqual(util.isError(new (context('Error'))()), true);
+assert.strictEqual(util.isError(new (context('TypeError'))()), true);
+assert.strictEqual(util.isError(new (context('SyntaxError'))()), true);
+assert.strictEqual(util.isError({}), false);
+assert.strictEqual(util.isError({ name: 'Error', message: '' }), false);
+assert.strictEqual(util.isError([]), false);
+assert.strictEqual(util.isError(Object.create(Error.prototype)), true);
 
 // isObject
-assert.ok(util.isObject({}) === true);
+assert.strictEqual(util.isObject({}), true);
+assert.strictEqual(util.isObject([]), true);
+assert.strictEqual(util.isObject(new Number(3)), true);
+assert.strictEqual(util.isObject(Number(4)), false);
+assert.strictEqual(util.isObject(1), false);
 
 // isPrimitive
-assert.strictEqual(false, util.isPrimitive({}));
-assert.strictEqual(false, util.isPrimitive(new Error()));
-assert.strictEqual(false, util.isPrimitive(new Date()));
-assert.strictEqual(false, util.isPrimitive([]));
-assert.strictEqual(false, util.isPrimitive(/regexp/));
-assert.strictEqual(false, util.isPrimitive(function() {}));
-assert.strictEqual(false, util.isPrimitive(new Number(1)));
-assert.strictEqual(false, util.isPrimitive(new String('bla')));
-assert.strictEqual(false, util.isPrimitive(new Boolean(true)));
-assert.strictEqual(true, util.isPrimitive(1));
-assert.strictEqual(true, util.isPrimitive('bla'));
-assert.strictEqual(true, util.isPrimitive(true));
-assert.strictEqual(true, util.isPrimitive(undefined));
-assert.strictEqual(true, util.isPrimitive(null));
-assert.strictEqual(true, util.isPrimitive(Infinity));
-assert.strictEqual(true, util.isPrimitive(NaN));
-assert.strictEqual(true, util.isPrimitive(Symbol('symbol')));
+assert.strictEqual(util.isPrimitive({}), false);
+assert.strictEqual(util.isPrimitive(new Error()), false);
+assert.strictEqual(util.isPrimitive(new Date()), false);
+assert.strictEqual(util.isPrimitive([]), false);
+assert.strictEqual(util.isPrimitive(/regexp/), false);
+assert.strictEqual(util.isPrimitive(function() {}), false);
+assert.strictEqual(util.isPrimitive(new Number(1)), false);
+assert.strictEqual(util.isPrimitive(new String('bla')), false);
+assert.strictEqual(util.isPrimitive(new Boolean(true)), false);
+assert.strictEqual(util.isPrimitive(1), true);
+assert.strictEqual(util.isPrimitive('bla'), true);
+assert.strictEqual(util.isPrimitive(true), true);
+assert.strictEqual(util.isPrimitive(undefined), true);
+assert.strictEqual(util.isPrimitive(null), true);
+assert.strictEqual(util.isPrimitive(Infinity), true);
+assert.strictEqual(util.isPrimitive(NaN), true);
+assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 
 // isBuffer
-assert.strictEqual(false, util.isBuffer('foo'));
-assert.strictEqual(true, util.isBuffer(Buffer.from('foo')));
+assert.strictEqual(util.isBuffer('foo'), false);
+assert.strictEqual(util.isBuffer(Buffer.from('foo')), true);
 
 // _extend
 assert.deepStrictEqual(util._extend({ a: 1 }), { a: 1 });
@@ -113,14 +117,17 @@ assert.strictEqual(util.isBoolean(false), true);
 assert.strictEqual(util.isBoolean('string'), false);
 
 assert.strictEqual(util.isNull(null), true);
+assert.strictEqual(util.isNull(undefined), false);
 assert.strictEqual(util.isNull(), false);
 assert.strictEqual(util.isNull('string'), false);
 
+assert.strictEqual(util.isUndefined(undefined), true);
 assert.strictEqual(util.isUndefined(), true);
 assert.strictEqual(util.isUndefined(null), false);
 assert.strictEqual(util.isUndefined('string'), false);
 
 assert.strictEqual(util.isNullOrUndefined(null), true);
+assert.strictEqual(util.isNullOrUndefined(undefined), true);
 assert.strictEqual(util.isNullOrUndefined(), true);
 assert.strictEqual(util.isNullOrUndefined('string'), false);
 
@@ -141,34 +148,29 @@ assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
-common.expectWarning('DeprecationWarning', [
-  ['util.print is deprecated. Use console.log instead.', common.noWarnCode],
-  ['util.puts is deprecated. Use console.log instead.', common.noWarnCode],
-  ['util.debug is deprecated. Use console.error instead.', common.noWarnCode],
-  ['util.error is deprecated. Use console.error instead.', common.noWarnCode]
-]);
-
-util.print('test');
-util.puts('test');
-util.debug('test');
-util.error('test');
-
 {
   assert.strictEqual(util.types.isNativeError(new Error()), true);
   assert.strictEqual(util.types.isNativeError(new TypeError()), true);
   assert.strictEqual(util.types.isNativeError(new SyntaxError()), true);
-  assert.strictEqual(util.types.isNativeError(new (context('Error'))()),
-                     true);
-  assert.strictEqual(util.types.isNativeError(new (context('TypeError'))()),
-                     true);
-  assert.strictEqual(util.types.isNativeError(new (context('SyntaxError'))()),
-                     true);
+  assert.strictEqual(util.types.isNativeError(new (context('Error'))()), true);
+  assert.strictEqual(
+    util.types.isNativeError(new (context('TypeError'))()),
+    true
+  );
+  assert.strictEqual(
+    util.types.isNativeError(new (context('SyntaxError'))()),
+    true
+  );
   assert.strictEqual(util.types.isNativeError({}), false);
-  assert.strictEqual(util.types.isNativeError({ name: 'Error', message: '' }),
-                     false);
+  assert.strictEqual(
+    util.types.isNativeError({ name: 'Error', message: '' }),
+    false
+  );
   assert.strictEqual(util.types.isNativeError([]), false);
-  assert.strictEqual(util.types.isNativeError(Object.create(Error.prototype)),
-                     false);
+  assert.strictEqual(
+    util.types.isNativeError(Object.create(Error.prototype)),
+    false
+  );
   assert.strictEqual(
     util.types.isNativeError(new errors.codes.ERR_IPC_CHANNEL_CLOSED()),
     true

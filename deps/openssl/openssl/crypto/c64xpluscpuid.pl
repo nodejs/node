@@ -231,7 +231,7 @@ bus_loop1?:
 _OPENSSL_instrument_bus2:
 	.asmfunc
 	MV	A6,B0			; reassign max
-||	MV	B4,A6			; reassing sizeof(output)
+||	MV	B4,A6			; reassign sizeof(output)
 ||	MVK	0x00004030,A3
 	MV	A4,B4			; reassign output
 ||	MVK	0,A4			; return value

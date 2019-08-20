@@ -31,6 +31,7 @@ function mul(x, y) {
   return (x * y) | 0;
 }
 
+%PrepareFunctionForOptimization(mul);
 mul(0, 0);
 mul(0, 0);
 %OptimizeFunctionOnNextCall(mul);
@@ -41,6 +42,7 @@ function div(x, y) {
   return (x / y) | 0;
 }
 
+%PrepareFunctionForOptimization(div);
 div(4, 2);
 div(4, 2);
 %OptimizeFunctionOnNextCall(div);

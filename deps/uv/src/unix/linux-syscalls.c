@@ -77,56 +77,6 @@
 # endif
 #endif /* __NR_eventfd2 */
 
-#ifndef __NR_epoll_create
-# if defined(__x86_64__)
-#  define __NR_epoll_create 213
-# elif defined(__i386__)
-#  define __NR_epoll_create 254
-# elif defined(__arm__)
-#  define __NR_epoll_create (UV_SYSCALL_BASE + 250)
-# endif
-#endif /* __NR_epoll_create */
-
-#ifndef __NR_epoll_create1
-# if defined(__x86_64__)
-#  define __NR_epoll_create1 291
-# elif defined(__i386__)
-#  define __NR_epoll_create1 329
-# elif defined(__arm__)
-#  define __NR_epoll_create1 (UV_SYSCALL_BASE + 357)
-# endif
-#endif /* __NR_epoll_create1 */
-
-#ifndef __NR_epoll_ctl
-# if defined(__x86_64__)
-#  define __NR_epoll_ctl 233 /* used to be 214 */
-# elif defined(__i386__)
-#  define __NR_epoll_ctl 255
-# elif defined(__arm__)
-#  define __NR_epoll_ctl (UV_SYSCALL_BASE + 251)
-# endif
-#endif /* __NR_epoll_ctl */
-
-#ifndef __NR_epoll_wait
-# if defined(__x86_64__)
-#  define __NR_epoll_wait 232 /* used to be 215 */
-# elif defined(__i386__)
-#  define __NR_epoll_wait 256
-# elif defined(__arm__)
-#  define __NR_epoll_wait (UV_SYSCALL_BASE + 252)
-# endif
-#endif /* __NR_epoll_wait */
-
-#ifndef __NR_epoll_pwait
-# if defined(__x86_64__)
-#  define __NR_epoll_pwait 281
-# elif defined(__i386__)
-#  define __NR_epoll_pwait 319
-# elif defined(__arm__)
-#  define __NR_epoll_pwait (UV_SYSCALL_BASE + 346)
-# endif
-#endif /* __NR_epoll_pwait */
-
 #ifndef __NR_inotify_init
 # if defined(__x86_64__)
 #  define __NR_inotify_init 253
@@ -237,6 +187,21 @@
 # endif
 #endif /* __NR_pwritev */
 
+#ifndef __NR_statx
+# if defined(__x86_64__)
+#  define __NR_statx 332
+# elif defined(__i386__)
+#  define __NR_statx 383
+# elif defined(__aarch64__)
+#  define __NR_statx 397
+# elif defined(__arm__)
+#  define __NR_statx (UV_SYSCALL_BASE + 397)
+# elif defined(__ppc__)
+#  define __NR_statx 383
+# elif defined(__s390__)
+#  define __NR_statx 379
+# endif
+#endif /* __NR_statx */
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 #if defined(__i386__)
@@ -279,76 +244,6 @@ int uv__eventfd(unsigned int count) {
 int uv__eventfd2(unsigned int count, int flags) {
 #if defined(__NR_eventfd2)
   return syscall(__NR_eventfd2, count, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__epoll_create(int size) {
-#if defined(__NR_epoll_create)
-  return syscall(__NR_epoll_create, size);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__epoll_create1(int flags) {
-#if defined(__NR_epoll_create1)
-  return syscall(__NR_epoll_create1, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event* events) {
-#if defined(__NR_epoll_ctl)
-  return syscall(__NR_epoll_ctl, epfd, op, fd, events);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__epoll_wait(int epfd,
-                   struct uv__epoll_event* events,
-                   int nevents,
-                   int timeout) {
-#if defined(__NR_epoll_wait)
-  int result;
-  result = syscall(__NR_epoll_wait, epfd, events, nevents, timeout);
-#if MSAN_ACTIVE
-  if (result > 0)
-    __msan_unpoison(events, sizeof(events[0]) * result);
-#endif
-  return result;
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__epoll_pwait(int epfd,
-                    struct uv__epoll_event* events,
-                    int nevents,
-                    int timeout,
-                    uint64_t sigmask) {
-#if defined(__NR_epoll_pwait)
-  int result;
-  result = syscall(__NR_epoll_pwait,
-                   epfd,
-                   events,
-                   nevents,
-                   timeout,
-                   &sigmask,
-                   sizeof(sigmask));
-#if MSAN_ACTIVE
-  if (result > 0)
-    __msan_unpoison(events, sizeof(events[0]) * result);
-#endif
-  return result;
 #else
   return errno = ENOSYS, -1;
 #endif
@@ -431,19 +326,6 @@ int uv__recvmmsg(int fd,
 }
 
 
-int uv__utimesat(int dirfd,
-                 const char* path,
-                 const struct timespec times[2],
-                 int flags)
-{
-#if defined(__NR_utimensat)
-  return syscall(__NR_utimensat, dirfd, path, times, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
 ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, int64_t offset) {
 #if defined(__NR_preadv)
   return syscall(__NR_preadv, fd, iov, iovcnt, (long)offset, (long)(offset >> 32));
@@ -465,6 +347,22 @@ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset)
 int uv__dup3(int oldfd, int newfd, int flags) {
 #if defined(__NR_dup3)
   return syscall(__NR_dup3, oldfd, newfd, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__statx(int dirfd,
+              const char* path,
+              int flags,
+              unsigned int mask,
+              struct uv__statx* statxbuf) {
+  /* __NR_statx make Android box killed by SIGSYS.
+   * That looks like a seccomp2 sandbox filter rejecting the system call.
+   */
+#if defined(__NR_statx) && !defined(__ANDROID__)
+  return syscall(__NR_statx, dirfd, path, flags, mask, statxbuf);
 #else
   return errno = ENOSYS, -1;
 #endif

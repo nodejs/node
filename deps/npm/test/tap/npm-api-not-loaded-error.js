@@ -1,8 +1,9 @@
 var test = require('tap').test
+const common = require('../common-tap.js')
 var npm = require('../..')
 var path = require('path')
 var rimraf = require('rimraf')
-var npmrc = path.join(__dirname, 'npmrc')
+var npmrc = path.join(common.pkg, 'npmrc')
 var fs = require('fs')
 
 test('setup', function (t) {

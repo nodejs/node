@@ -16,9 +16,9 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
                 B(CreateRestParameter),
-                B(Star), R(0),
-  /*   10 E> */ B(StackCheck),
                 B(Star), R(1),
+  /*   10 E> */ B(StackCheck),
+                B(Star), R(0),
   /*   42 S> */ B(Return),
 ]
 constant pool: [
@@ -36,11 +36,11 @@ parameter count: 2
 bytecode array length: 13
 bytecodes: [
                 B(CreateRestParameter),
-                B(Star), R(0),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
-                B(Mov), R(arg0), R(1),
-                B(Mov), R(0), R(2),
-  /*   29 S> */ B(Ldar), R(2),
+                B(Mov), R(arg0), R(0),
+                B(Mov), R(2), R(1),
+  /*   29 S> */ B(Ldar), R(1),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
@@ -58,12 +58,12 @@ parameter count: 2
 bytecode array length: 15
 bytecodes: [
                 B(CreateRestParameter),
-                B(Star), R(0),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
-                B(Mov), R(arg0), R(1),
-                B(Mov), R(0), R(2),
+                B(Mov), R(arg0), R(0),
+                B(Mov), R(2), R(1),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(0),
+  /*   44 E> */ B(LdaKeyedProperty), R(1), U8(0),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
@@ -83,12 +83,12 @@ bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(3),
                 B(CreateRestParameter),
-                B(Star), R(0),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
-                B(Mov), R(arg0), R(1),
-                B(Mov), R(0), R(2),
+                B(Mov), R(arg0), R(0),
+                B(Mov), R(2), R(1),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(1),
+  /*   44 E> */ B(LdaKeyedProperty), R(1), U8(1),
                 B(Star), R(4),
                 B(LdaZero),
   /*   59 E> */ B(LdaKeyedProperty), R(3), U8(3),

@@ -8,6 +8,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
@@ -38,9 +39,9 @@ TEST(NodeWithNullInputReachableFromEnd) {
   phi->ReplaceInput(0, nullptr);
   graph.SetEnd(phi);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
-  os << AsJSON(graph, &table);
+  NodeOriginTable table2(&graph);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -57,9 +58,9 @@ TEST(NodeWithNullControlReachableFromEnd) {
   phi->ReplaceInput(1, nullptr);
   graph.SetEnd(phi);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
-  os << AsJSON(graph, &table);
+  NodeOriginTable table2(&graph);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -76,9 +77,9 @@ TEST(NodeWithNullInputReachableFromStart) {
   phi->ReplaceInput(0, nullptr);
   graph.SetEnd(start);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
-  os << AsJSON(graph, &table);
+  NodeOriginTable table2(&graph);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -93,9 +94,9 @@ TEST(NodeWithNullControlReachableFromStart) {
   merge->ReplaceInput(1, nullptr);
   graph.SetEnd(merge);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
-  os << AsJSON(graph, &table);
+  NodeOriginTable table2(&graph);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
 }
 
 
@@ -120,9 +121,22 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   Node* end = graph.NewNode(&dummy_operator6, 6, end_dependencies);
   graph.SetEnd(end);
 
-  OFStream os(stdout);
   SourcePositionTable table(&graph);
-  os << AsJSON(graph, &table);
+  NodeOriginTable table2(&graph);
+  StdoutStream{} << AsJSON(graph, &table, &table2);
+}
+
+TEST(TestSourceIdAssigner) {
+  Handle<SharedFunctionInfo> shared1;
+  Handle<SharedFunctionInfo> shared2;
+
+  SourceIdAssigner assigner(2);
+  const int source_id1 = assigner.GetIdFor(shared1);
+  const int source_id2 = assigner.GetIdFor(shared2);
+
+  CHECK_EQ(source_id1, source_id2);
+  CHECK_EQ(source_id1, assigner.GetIdAt(0));
+  CHECK_EQ(source_id2, assigner.GetIdAt(1));
 }
 
 }  // namespace compiler

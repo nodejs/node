@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,9 +34,9 @@ int RSA_padding_add_X931(unsigned char *to, int tlen,
     p = (unsigned char *)to;
 
     /* If no padding start and end nibbles are in one byte */
-    if (j == 0)
+    if (j == 0) {
         *p++ = 0x6A;
-    else {
+    } else {
         *p++ = 0x6B;
         if (j > 1) {
             memset(p, 0xBB, j - 1);
@@ -47,7 +47,7 @@ int RSA_padding_add_X931(unsigned char *to, int tlen,
     memcpy(p, from, (unsigned int)flen);
     p += flen;
     *p = 0xCC;
-    return (1);
+    return 1;
 }
 
 int RSA_padding_check_X931(unsigned char *to, int tlen,
@@ -81,8 +81,9 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
             return -1;
         }
 
-    } else
+    } else {
         j = flen - 2;
+    }
 
     if (p[j] != 0xCC) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_X931, RSA_R_INVALID_TRAILER);
@@ -91,7 +92,7 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
 
     memcpy(to, p, (unsigned int)j);
 
-    return (j);
+    return j;
 }
 
 /* Translate between X931 hash ids and NIDs */

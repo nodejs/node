@@ -71,13 +71,13 @@ function listener(event, exec_state, event_data, data) {
     success(NaN, `string * two`);
     success("s2", `string + two`);
     success("s2", `string + two`);
-    fail(`[...array]`);
+    success([1,2,3], `[...array]`);
     success(3, `max(...array)`);
-    fail(`({[string]:1})`);
+    success({s:1}, `({[string]:1})`);
     fail(`[a, b] = [1, 2]`);
     success(2, `def(2)`);
     success(1, `def()`);
-    fail(`d1(['a'])`);  // Iterator.prototype.next performs stores.
+    success('ab', `d1(['a'])`);
     success("XYz", `d2({x:'X', y:'Y'})`);
   } catch (e) {
     exception = e;

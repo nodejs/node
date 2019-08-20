@@ -39,16 +39,22 @@ n.on('message', (m) => {
 // https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
 // returns "undefined" but JSON.parse() cannot parse that...
 assert.throws(() => n.send(undefined), {
-  name: 'TypeError [ERR_MISSING_ARGS]',
+  name: 'TypeError',
   message: 'The "message" argument must be specified',
   code: 'ERR_MISSING_ARGS'
 });
 assert.throws(() => n.send(), {
-  name: 'TypeError [ERR_MISSING_ARGS]',
+  name: 'TypeError',
   message: 'The "message" argument must be specified',
   code: 'ERR_MISSING_ARGS'
 });
 
+assert.throws(() => n.send(Symbol()), {
+  name: 'TypeError',
+  message: 'The "message" argument must be one of type string,' +
+           ' object, number, or boolean. Received type symbol',
+  code: 'ERR_INVALID_ARG_TYPE'
+});
 n.send({ hello: 'world' });
 
 n.on('exit', common.mustCall((c) => {

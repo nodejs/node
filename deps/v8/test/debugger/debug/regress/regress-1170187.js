@@ -31,8 +31,8 @@
 
 Debug = debug.Debug
 
-listenerCalled = false;
-exception = false;
+let listenerCalled = false;
+let exceptionThrown = false;
 
 
 function checkName(name) {
@@ -64,7 +64,7 @@ function listener(event, exec_state, event_data, data) {
       listenerCalled = true;
     }
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   };
 };
 
@@ -73,8 +73,14 @@ Debug.setListener(listener);
 
 // Call a function with local variables passing a different number parameters
 // that the number of arguments.
-(function(x,y){var a,b,c; debugger; return 3})()
+(function(x,y){
+  var a,b,c;
+  // Make sure a, b, and c are used.
+  a,b,c;
+  debugger;
+  return 3
+})()
 
 // Make sure that the debug event listener vas invoked (again).
 assertTrue(listenerCalled);
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")

@@ -122,6 +122,14 @@
   # (https://chromium-review.googlesource.com/c/546941#message-5dc0f5efe277388501e8870e39ec70383dfc7db8)
   'js1_5/Scope/regress-185485': [FAIL],
 
+  # Georgina is bicameral as of Unicode 11, but the test assumes that it's unicameral.
+  # no_i18n build has an old ICU data and Georgian is treated as unicameral.
+  'ecma/String/15.5.4.12-3': [FAIL, ['no_i18n == True', PASS]],
+
+  # Expecations in this test don't match the spec.
+  # See also https://bugs.chromium.org/p/v8/issues/detail?id=9446
+  'js1_5/Regress/regress-248444': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
@@ -133,7 +141,7 @@
   # messing up ability to see other failures on the waterfall.
   'js1_5/extensions/regress-342960': [SKIP],
 
-  # This test uses a unitialized variable. A Bug has been filed:
+  # This test uses an uninitialized variable. A Bug has been filed:
   # https://bugzilla.mozilla.org/show_bug.cgi?id=575575
   'js1_5/Array/regress-465980-02': [SKIP],
 
@@ -146,13 +154,25 @@
   'js1_2/function/Number': [SKIP],
 
   # TODO(2018): Might timeout in debug mode.
-  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', NO_VARIANTS, FAIL]],
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, ['mode == debug', NO_VARIANTS, FAIL]],
 
   # These tests use invalid LHS expressions in assignments.
   'js1_5/Regress/regress-319391': [SKIP],
   'js1_5/Regress/regress-350253': [SKIP],
   'js1_5/Regress/regress-462292': [SKIP],
   'js1_5/decompilation/regress-443071-01': [SKIP],
+
+  # This test checks that 'unshift' doesn't cause a OOM. Since the range error
+  # will get thrown at the end of the operation, this test runs for a long time.
+  # https://crbug.com/v8/8120
+  'ecma_3/Array/regress-322135-04': [SKIP],
+
+  # These tests try to sort very large arrays. Array#sort pre-processing does
+  # not support huge sparse Arrays, so these tests run a very long time.
+  # https://crbug.com/v8/8714
+  'js1_5/Array/regress-330812': [SKIP],
+  'js1_5/Regress/regress-422348': [SKIP],
+  'js1_5/Array/regress-157652': [SKIP],
 
   ##################### SLOW TESTS #####################
 
@@ -180,6 +200,11 @@
   # characters. This takes a long time to run (~32 seconds).
   'js1_5/GC/regress-348532': [SKIP],
 
+  # Takes a really long time to run, creating an Array of length
+  # 2^32 - 1. Related to removal of "sparse" array support for
+  # splice and friends:
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8131.
+  'ecma_3/Array/regress-322135-03': [SKIP],
 
   # Runs for too long: huge array with getters and setters. As it says
   # in the test: "This test will probably run out of memory".
@@ -188,18 +213,22 @@
   # Slow with arm64 simulator in debug.
   'ecma_3/Statements/regress-302439': [PASS, ['mode == debug', SLOW]],
 
+  # More slow tests.
+  'ecma/Date/15.9.5.9': [PASS, SLOW],
+  'ecma/Expressions/11.7.2': [PASS, SLOW],
+
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
   'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-203278-1': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-244470': [PASS, ['mode == debug', FAIL]],
   'ecma_3/RegExp/regress-209067': [PASS, ['mode == debug', FAIL]],
-  'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
+  'js1_5/GC/regress-278725': [PASS, SLOW, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
   'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL], NO_VARIANTS],
   'ecma/FunctionObjects/15.3.1.1-3': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
@@ -225,7 +254,22 @@
 
   # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
   'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
-  'ecma/Date/15.9.5.22-2': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
+
+  # These 4 tests made an incorrect assumption that the timezone offset of any
+  # given timezone has not changed over time. With icu-timezone-data enabled
+  # and https://github.com/tc39/ecma262/pull/778 implemented, the historical
+  # timezone offset is handled properly and these tests are broken in i18n
+  # build. It's non-trivial to fix them because they strive to work in *any*
+  # timezone.
+  # TODO(jshin): Add equivalent tests with a specific timezone using TZ variable
+  # on Linux to mjsunit.
+
+  'ecma/Date/15.9.5.16': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.18': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.22-1': [PASS, ['no_i18n == False', FAIL]],
+
+  # 1050186: Arm/MIPS vm is broken;  probably unrelated to dates
+  'ecma/Date/15.9.5.22-2': [PASS, ['no_i18n == False or arch == arm or arch == mipsel or arch == mips', FAIL]],
 
   # Flaky test that fails due to what appears to be a bug in the test.
   # Occurs depending on current time
@@ -476,7 +520,6 @@
   'ecma_3/extensions/regress-274152': [FAIL_OK],
   'js1_5/Regress/regress-372364': [FAIL_OK],
   'js1_5/Regress/regress-420919': [FAIL_OK],
-  'js1_5/Regress/regress-422348': [FAIL_OK],
   'js1_5/Regress/regress-410852': [FAIL_OK],
   'ecma_3/RegExp/regress-375715-04': [FAIL_OK],
   'js1_5/decompilation/regress-456964-01': [FAIL_OK],
@@ -679,7 +722,7 @@
 
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
-  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-303213': [FAIL, SLOW, ['mode == debug', NO_VARIANTS]],
 
   # This test fails since we now throw in String.prototype.match when apply
   # is given null or undefined as this argument (and so does firefox nightly).
@@ -994,8 +1037,31 @@
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
 
-['variant == wasm_traps', {
+['system == android', {
+  # https://crbug.com/v8/8146
+  'ecma/Array/15.4.4.5-3': [FAIL],
+}],  # 'system == android'
+
+['tsan', {
+  # https://crbug.com/v8/7632
+  'ecma_3/RegExp/regress-85721': [SKIP],
+}],  # tsan
+
+##############################################################################
+['variant == stress', {
+  # Slow tests.
+  'js1_5/Regress/regress-360969-05': [SKIP],
+  'js1_5/Regress/regress-360969-06': [SKIP],
+}],  # variant == stress
+
+##############################################################################
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

@@ -13,7 +13,7 @@ function foo() {
       return Worker.__f_0(-2147483648, __f_0);
     };
 
-    var __v_9 = new Worker('');
+    var __v_9 = new Worker('', {type: 'string'});
     __f_1 = {s: Math.s, __f_1: true};
   }
 }

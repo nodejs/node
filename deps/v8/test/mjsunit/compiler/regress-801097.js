@@ -14,6 +14,7 @@ function GetFunction() {
 }
 
 var func = GetFunction();
+%PrepareFunctionForOptimization(func);
 assertThrows("func();");
 %OptimizeFunctionOnNextCall(func);
 assertThrows("func()");

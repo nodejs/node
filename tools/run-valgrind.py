@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
 from os import path
 import subprocess
 import sys
@@ -36,23 +37,23 @@ NODE_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
 VALGRIND_ARGUMENTS = [
   'valgrind',
   '--error-exitcode=1',
-  '--smc-check=all',
-  # Node.js does not clean up on exit so don't complain about
-  # memory leaks but do complain about invalid memory access.
-  '--quiet',
+  '--smc-check=all-non-file',
+  '--suppressions=' + path.join(NODE_ROOT, 'tools', 'valgrind.supp'),
+  '--gen-suppressions=all',
 ]
 
 if len(sys.argv) < 2:
-  print 'Please provide an executable to analyze.'
+  print('Please provide an executable to analyze.')
   sys.exit(1)
 
 executable = path.join(NODE_ROOT, sys.argv[1])
 if not path.exists(executable):
-  print 'Cannot find the file specified: %s' % executable
+  print('Cannot find the file specified: %s' % executable)
   sys.exit(1)
 
 # Compute the command line.
-command = VALGRIND_ARGUMENTS + [executable] + sys.argv[2:]
+command = VALGRIND_ARGUMENTS + [executable, '--zero-fill-buffers']
+command += sys.argv[2:]
 
 # Run valgrind.
 process = subprocess.Popen(command, stderr=subprocess.PIPE)

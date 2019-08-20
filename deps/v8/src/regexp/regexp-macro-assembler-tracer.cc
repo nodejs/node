@@ -5,7 +5,7 @@
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
 #include "src/ast/ast.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -20,10 +20,7 @@ RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
-
-RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() {
-}
-
+RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
 
 void RegExpMacroAssemblerTracer::AbortedCodeGeneration() {
   PrintF(" AbortedCodeGeneration\n");

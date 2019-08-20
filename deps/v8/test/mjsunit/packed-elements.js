@@ -94,6 +94,7 @@ function test6() {
 function test_with_optimization(f) {
   // Run tests in a loop to make sure that inlined Array() constructor runs out
   // of new space memory and must fall back on runtime impl.
+  %PrepareFunctionForOptimization(f);
   for (i = 0; i < 25000; ++i) f();
   %OptimizeFunctionOnNextCall(f);
   for (i = 0; i < 25000; ++i) f(); // Make sure GC happens

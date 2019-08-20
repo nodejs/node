@@ -38,14 +38,14 @@ const Readable = require('stream').Readable;
   r.push(Buffer.from('blerg'));
 
   setTimeout(function() {
-    // we're testing what we think we are
+    // We're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall());
   }, 1);
 }
 
 {
-  // second test, make sure that readable is re-emitted if there's
+  // Second test, make sure that readable is re-emitted if there's
   // already a length, while it IS reading.
 
   const r = new Readable({
@@ -58,7 +58,7 @@ const Readable = require('stream').Readable;
   r.push(Buffer.from('bl'));
 
   setTimeout(function() {
-    // assert we're testing what we think we are
+    // Assert we're testing what we think we are
     assert(r._readableState.reading);
     r.on('readable', common.mustCall());
   }, 1);
@@ -78,14 +78,14 @@ const Readable = require('stream').Readable;
   r.push(null);
 
   setTimeout(function() {
-    // assert we're testing what we think we are
+    // Assert we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall());
   }, 1);
 }
 
 {
-  // pushing a empty string in non-objectMode should
+  // Pushing an empty string in non-objectMode should
   // trigger next `read()`.
   const underlyingData = ['', 'x', 'y', '', 'z'];
   const expected = underlyingData.filter((data) => data);
@@ -112,4 +112,17 @@ const Readable = require('stream').Readable;
   r.on('end', common.mustCall(() => {
     assert.deepStrictEqual(result, expected);
   }));
+}
+
+{
+  // #20923
+  const r = new Readable();
+  r._read = function() {
+    // Actually doing thing here
+  };
+  r.on('data', function() {});
+
+  r.removeAllListeners();
+
+  assert.strictEqual(r.eventNames().length, 0);
 }

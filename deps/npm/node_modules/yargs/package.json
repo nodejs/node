@@ -1,0 +1,101 @@
+{
+  "_from": "yargs@^11.0.0",
+  "_id": "yargs@11.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-Rjp+lMYQOWtgqojx1dEWorjCofi1YN7AoFvYV7b1gx/7dAAeuI4kN5SZiEvr0ZmsZTOpDRcCqrpI10L31tFkBw==",
+  "_location": "/yargs",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "yargs@^11.0.0",
+    "name": "yargs",
+    "escapedName": "yargs",
+    "rawSpec": "^11.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^11.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx"
+  ],
+  "_resolved": "https://registry.npmjs.org/yargs/-/yargs-11.0.0.tgz",
+  "_shasum": "c052931006c5eee74610e5fc0354bedfd08a201b",
+  "_spec": "yargs@^11.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/libnpx",
+  "bugs": {
+    "url": "https://github.com/yargs/yargs/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "cliui": "^4.0.0",
+    "decamelize": "^1.1.1",
+    "find-up": "^2.1.0",
+    "get-caller-file": "^1.0.1",
+    "os-locale": "^2.0.0",
+    "require-directory": "^2.1.1",
+    "require-main-filename": "^1.0.1",
+    "set-blocking": "^2.0.0",
+    "string-width": "^2.0.0",
+    "which-module": "^2.0.0",
+    "y18n": "^3.2.1",
+    "yargs-parser": "^9.0.2"
+  },
+  "deprecated": false,
+  "description": "yargs the modern, pirate-themed, successor to optimist.",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "chalk": "^1.1.3",
+    "coveralls": "^2.11.11",
+    "cpr": "^2.0.0",
+    "cross-spawn": "^5.0.1",
+    "es6-promise": "^4.0.2",
+    "hashish": "0.0.4",
+    "mocha": "^3.0.1",
+    "nyc": "^11.2.1",
+    "rimraf": "^2.5.0",
+    "standard": "^8.6.0",
+    "standard-version": "^4.2.0",
+    "which": "^1.2.9",
+    "yargs-test-extends": "^1.0.1"
+  },
+  "engine": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js",
+    "yargs.js",
+    "lib",
+    "locales",
+    "completion.sh.hbs",
+    "LICENSE"
+  ],
+  "homepage": "http://yargs.js.org/",
+  "keywords": [
+    "argument",
+    "args",
+    "option",
+    "parser",
+    "parsing",
+    "cli",
+    "command"
+  ],
+  "license": "MIT",
+  "main": "./index.js",
+  "name": "yargs",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/yargs/yargs.git"
+  },
+  "scripts": {
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "posttest": "standard",
+    "release": "standard-version",
+    "test": "nyc --cache mocha --require ./test/before.js --timeout=8000 --check-leaks"
+  },
+  "standard": {
+    "ignore": [
+      "**/example/**"
+    ]
+  },
+  "version": "11.0.0"
+}

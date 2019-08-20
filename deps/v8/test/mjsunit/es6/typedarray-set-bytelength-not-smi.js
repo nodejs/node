@@ -5,13 +5,13 @@
 // Flags: --allow-natives-syntax --mock-arraybuffer-allocator
 
 (function TestBufferByteLengthNonSmi() {
-  const source_buffer_length = %_MaxSmi() + 1;
+  const source_buffer_length = %MaxSmi() + 1;
   const source_buffer = new ArrayBuffer(source_buffer_length);
   const source = new Uint16Array(source_buffer);
   assertEquals(source_buffer_length, source_buffer.byteLength);
   assertEquals(source_buffer_length / 2, source.length);
 
-  const target_buffer_length = %_MaxSmi() - 1;
+  const target_buffer_length = %MaxSmi() - 1;
   const target_buffer = new ArrayBuffer(target_buffer_length);
   const target = new Uint16Array(target_buffer);
   assertEquals(target_buffer_length, target_buffer.byteLength);

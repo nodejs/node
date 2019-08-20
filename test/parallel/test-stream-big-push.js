@@ -34,7 +34,7 @@ let reads = 0;
 
 function _read() {
   if (reads === 0) {
-    setTimeout(function() {
+    setTimeout(() => {
       r.push(str);
     }, 1);
     reads++;
@@ -51,18 +51,18 @@ r._read = common.mustCall(_read, 3);
 
 r.on('end', common.mustCall());
 
-// push some data in to start.
-// we've never gotten any read event at this point.
+// Push some data in to start.
+// We've never gotten any read event at this point.
 const ret = r.push(str);
-// should be false.  > hwm
+// Should be false.  > hwm
 assert(!ret);
 let chunk = r.read();
 assert.strictEqual(chunk, str);
 chunk = r.read();
 assert.strictEqual(chunk, null);
 
-r.once('readable', function() {
-  // this time, we'll get *all* the remaining data, because
+r.once('readable', () => {
+  // This time, we'll get *all* the remaining data, because
   // it's been added synchronously, as the read WOULD take
   // us below the hwm, and so it triggered a _read() again,
   // which synchronously added more, which we then return.

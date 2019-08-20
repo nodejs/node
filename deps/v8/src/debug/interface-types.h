@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 
@@ -60,7 +60,7 @@ struct WasmDisassemblyOffsetTableEntry {
 
 struct WasmDisassembly {
   using OffsetTable = std::vector<WasmDisassemblyOffsetTableEntry>;
-  WasmDisassembly() {}
+  WasmDisassembly() = default;
   WasmDisassembly(std::string disassembly, OffsetTable offset_table)
       : disassembly(std::move(disassembly)),
         offset_table(std::move(offset_table)) {}
@@ -69,13 +69,14 @@ struct WasmDisassembly {
   OffsetTable offset_table;
 };
 
-enum PromiseDebugActionType {
-  kDebugAsyncFunctionPromiseCreated,
+enum DebugAsyncActionType {
   kDebugPromiseThen,
   kDebugPromiseCatch,
   kDebugPromiseFinally,
   kDebugWillHandle,
   kDebugDidHandle,
+  kAsyncFunctionSuspended,
+  kAsyncFunctionFinished
 };
 
 enum BreakLocationType {
@@ -83,6 +84,30 @@ enum BreakLocationType {
   kReturnBreakLocation,
   kDebuggerStatementBreakLocation,
   kCommonBreakLocation
+};
+
+enum class CoverageMode {
+  // Make use of existing information in feedback vectors on the heap.
+  // Only return a yes/no result. Optimization and GC are not affected.
+  // Collecting best effort coverage does not reset counters.
+  kBestEffort,
+  // Disable optimization and prevent feedback vectors from being garbage
+  // collected in order to preserve precise invocation counts. Collecting
+  // precise count coverage resets counters to get incremental updates.
+  kPreciseCount,
+  // We are only interested in a yes/no result for the function. Optimization
+  // and GC can be allowed once a function has been invoked. Collecting
+  // precise binary coverage resets counters for incremental updates.
+  kPreciseBinary,
+  // Similar to the precise coverage modes but provides coverage at a
+  // lower granularity. Design doc: goo.gl/lA2swZ.
+  kBlockCount,
+  kBlockBinary,
+};
+
+enum class TypeProfileMode {
+  kNone,
+  kCollect,
 };
 
 class V8_EXPORT_PRIVATE BreakLocation : public Location {
@@ -150,20 +175,18 @@ class ConsoleDelegate {
                      const ConsoleContext& context) {}
   virtual void Count(const ConsoleCallArguments& args,
                      const ConsoleContext& context) {}
+  virtual void CountReset(const ConsoleCallArguments& args,
+                          const ConsoleContext& context) {}
   virtual void Assert(const ConsoleCallArguments& args,
                       const ConsoleContext& context) {}
-  virtual void MarkTimeline(const ConsoleCallArguments& args,
-                            const ConsoleContext& context) {}
   virtual void Profile(const ConsoleCallArguments& args,
                        const ConsoleContext& context) {}
   virtual void ProfileEnd(const ConsoleCallArguments& args,
                           const ConsoleContext& context) {}
-  virtual void Timeline(const ConsoleCallArguments& args,
-                        const ConsoleContext& context) {}
-  virtual void TimelineEnd(const ConsoleCallArguments& args,
-                           const ConsoleContext& context) {}
   virtual void Time(const ConsoleCallArguments& args,
                     const ConsoleContext& context) {}
+  virtual void TimeLog(const ConsoleCallArguments& args,
+                       const ConsoleContext& context) {}
   virtual void TimeEnd(const ConsoleCallArguments& args,
                        const ConsoleContext& context) {}
   virtual void TimeStamp(const ConsoleCallArguments& args,
@@ -171,39 +194,9 @@ class ConsoleDelegate {
   virtual ~ConsoleDelegate() = default;
 };
 
-typedef int BreakpointId;
+using BreakpointId = int;
 
 }  // namespace debug
-}  // namespace v8
-
-// TODO(yangguo): this is legacy left over from removing v8-debug.h, and still
-//                used in cctests. Let's get rid of these soon.
-namespace v8 {
-enum DebugEvent {
-  Break = 1,
-  Exception = 2,
-  AfterCompile = 3,
-  CompileError = 4,
-  AsyncTaskEvent = 5,
-};
-
-class Debug {
- public:
-  class EventDetails {
-   public:
-    virtual DebugEvent GetEvent() const = 0;
-    virtual Local<Object> GetExecutionState() const = 0;
-    virtual Local<Object> GetEventData() const = 0;
-    virtual Local<Context> GetEventContext() const = 0;
-    virtual Local<Value> GetCallbackData() const = 0;
-
-    virtual Isolate* GetIsolate() const = 0;
-
-    virtual ~EventDetails() {}
-  };
-
-  typedef void (*EventCallback)(const EventDetails& event_details);
-};
 }  // namespace v8
 
 #endif  // V8_DEBUG_INTERFACE_TYPES_H_

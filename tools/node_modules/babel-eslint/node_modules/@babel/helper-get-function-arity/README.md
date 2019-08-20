@@ -1,21 +1,19 @@
 # @babel/helper-get-function-arity
 
-Function that returns the number of arguments that a function takes.
-* Examples of what is considered an argument can be found at [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/length)
+> Helper function to get function arity
 
-## Usage
+See our website [@babel/helper-get-function-arity](https://babeljs.io/docs/en/next/babel-helper-get-function-arity.html) for more information.
 
-```javascript
-import getFunctionArity from "@babel/helper-get-function-arity";
+## Install
 
-function wrap(state, method, id, scope) {
-  // ...
-  if (!t.isFunction(method)) {
-    return false;
-  }
+Using npm:
 
-  const argumentsLength = getFunctionArity(method);
+```sh
+npm install --save-dev @babel/helper-get-function-arity
+```
 
-  // ...
-}
+or using yarn:
+
+```sh
+yarn add @babel/helper-get-function-arity --dev
 ```

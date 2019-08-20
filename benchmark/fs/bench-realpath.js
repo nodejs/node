@@ -24,7 +24,7 @@ function relativePath(n) {
   (function r(cntr) {
     if (cntr-- <= 0)
       return bench.end(n);
-    fs.realpath(relative_path, function() {
+    fs.realpath(relative_path, () => {
       r(cntr);
     });
   }(n));
@@ -34,7 +34,7 @@ function resolvedPath(n) {
   (function r(cntr) {
     if (cntr-- <= 0)
       return bench.end(n);
-    fs.realpath(resolved_path, function() {
+    fs.realpath(resolved_path, () => {
       r(cntr);
     });
   }(n));

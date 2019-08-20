@@ -767,7 +767,7 @@ uregex_start64(URegularExpression *regexp2,
     if (validateRE(regexp, TRUE, status) == FALSE) {
         return 0;
     }
-    int32_t result = regexp->fMatcher->start(groupNum, *status);
+    int64_t result = regexp->fMatcher->start64(groupNum, *status);
     return result;
 }
 
@@ -791,7 +791,7 @@ uregex_end64(URegularExpression   *regexp2,
     if (validateRE(regexp, TRUE, status) == FALSE) {
         return 0;
     }
-    int32_t result = regexp->fMatcher->end(groupNum, *status);
+    int64_t result = regexp->fMatcher->end64(groupNum, *status);
     return result;
 }
 
@@ -1654,8 +1654,8 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
         } else if (UTEXT_USES_U16(m->fInputText)) {
             srcIdx = (int32_t)nativeIdx;
         } else {
-            UErrorCode status = U_ZERO_ERROR;
-            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, NULL, 0, &status);
+            UErrorCode newStatus = U_ZERO_ERROR;
+            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, NULL, 0, &newStatus);
         }
 
         for (;;) {

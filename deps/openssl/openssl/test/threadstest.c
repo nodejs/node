@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,9 +11,8 @@
 # include <windows.h>
 #endif
 
-#include <stdio.h>
-
 #include <openssl/crypto.h>
+#include "testutil.h"
 
 #if !defined(OPENSSL_THREADS) || defined(CRYPTO_TDEBUG)
 
@@ -85,15 +84,9 @@ static int test_lock(void)
 {
     CRYPTO_RWLOCK *lock = CRYPTO_THREAD_lock_new();
 
-    if (!CRYPTO_THREAD_read_lock(lock)) {
-        fprintf(stderr, "CRYPTO_THREAD_read_lock() failed\n");
+    if (!TEST_true(CRYPTO_THREAD_read_lock(lock))
+        || !TEST_true(CRYPTO_THREAD_unlock(lock)))
         return 0;
-    }
-
-    if (!CRYPTO_THREAD_unlock(lock)) {
-        fprintf(stderr, "CRYPTO_THREAD_unlock() failed\n");
-        return 0;
-    }
 
     CRYPTO_THREAD_lock_free(lock);
 
@@ -116,23 +109,12 @@ static void once_run_thread_cb(void)
 static int test_once(void)
 {
     thread_t thread;
-    if (!run_thread(&thread, once_run_thread_cb) ||
-        !wait_for_thread(thread))
-    {
-        fprintf(stderr, "run_thread() failed\n");
-        return 0;
-    }
 
-    if (!CRYPTO_THREAD_run_once(&once_run, once_do_run)) {
-        fprintf(stderr, "CRYPTO_THREAD_run_once() failed\n");
+    if (!TEST_true(run_thread(&thread, once_run_thread_cb))
+        || !TEST_true(wait_for_thread(thread))
+        || !CRYPTO_THREAD_run_once(&once_run, once_do_run)
+        || !TEST_int_eq(once_run_count, 1))
         return 0;
-    }
-
-    if (once_run_count != 1) {
-        fprintf(stderr, "once run %u times\n", once_run_count);
-        return 0;
-    }
-
     return 1;
 }
 
@@ -157,21 +139,14 @@ static void thread_local_thread_cb(void)
     void *ptr;
 
     ptr = CRYPTO_THREAD_get_local(&thread_local_key);
-    if (ptr != NULL) {
-        fprintf(stderr, "ptr not NULL\n");
+    if (!TEST_ptr_null(ptr)
+        || !TEST_true(CRYPTO_THREAD_set_local(&thread_local_key,
+                                              &destructor_run_count)))
         return;
-    }
-
-    if (!CRYPTO_THREAD_set_local(&thread_local_key, &destructor_run_count)) {
-        fprintf(stderr, "CRYPTO_THREAD_set_local() failed\n");
-        return;
-    }
 
     ptr = CRYPTO_THREAD_get_local(&thread_local_key);
-    if (ptr != &destructor_run_count) {
-        fprintf(stderr, "invalid ptr\n");
+    if (!TEST_ptr_eq(ptr, &destructor_run_count))
         return;
-    }
 
     thread_local_thread_cb_ok = 1;
 }
@@ -181,66 +156,38 @@ static int test_thread_local(void)
     thread_t thread;
     void *ptr = NULL;
 
-    if (!CRYPTO_THREAD_init_local(&thread_local_key, thread_local_destructor)) {
-        fprintf(stderr, "CRYPTO_THREAD_init_local() failed\n");
+    if (!TEST_true(CRYPTO_THREAD_init_local(&thread_local_key,
+                                            thread_local_destructor)))
         return 0;
-    }
 
     ptr = CRYPTO_THREAD_get_local(&thread_local_key);
-    if (ptr != NULL) {
-        fprintf(stderr, "ptr not NULL\n");
+    if (!TEST_ptr_null(ptr)
+        || !TEST_true(run_thread(&thread, thread_local_thread_cb))
+        || !TEST_true(wait_for_thread(thread))
+        || !TEST_int_eq(thread_local_thread_cb_ok, 1))
         return 0;
-    }
-
-    if (!run_thread(&thread, thread_local_thread_cb) ||
-        !wait_for_thread(thread))
-    {
-        fprintf(stderr, "run_thread() failed\n");
-        return 0;
-    }
-
-    if (thread_local_thread_cb_ok != 1) {
-        fprintf(stderr, "thread-local thread callback failed\n");
-        return 0;
-    }
 
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG)
 
     ptr = CRYPTO_THREAD_get_local(&thread_local_key);
-    if (ptr != NULL) {
-        fprintf(stderr, "ptr not NULL\n");
+    if (!TEST_ptr_null(ptr))
         return 0;
-    }
 
 # if !defined(OPENSSL_SYS_WINDOWS)
-    if (destructor_run_count != 1) {
-        fprintf(stderr, "thread-local destructor run %u times\n",
-                destructor_run_count);
+    if (!TEST_int_eq(destructor_run_count, 1))
         return 0;
-    }
 # endif
-
 #endif
 
-    if (!CRYPTO_THREAD_cleanup_local(&thread_local_key)) {
-        fprintf(stderr, "CRYPTO_THREAD_cleanup_local() failed\n");
+    if (!TEST_true(CRYPTO_THREAD_cleanup_local(&thread_local_key)))
         return 0;
-    }
-
     return 1;
 }
 
-int main(int argc, char **argv)
+int setup_tests(void)
 {
-    if (!test_lock())
-      return 1;
-
-    if (!test_once())
-      return 1;
-
-    if (!test_thread_local())
-      return 1;
-
-    printf("PASS\n");
-    return 0;
+    ADD_TEST(test_lock);
+    ADD_TEST(test_once);
+    ADD_TEST(test_thread_local);
+    return 1;
 }

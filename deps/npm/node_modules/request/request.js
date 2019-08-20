@@ -6,12 +6,10 @@ var url = require('url')
 var util = require('util')
 var stream = require('stream')
 var zlib = require('zlib')
-var hawk = require('hawk')
 var aws2 = require('aws-sign2')
 var aws4 = require('aws4')
 var httpSignature = require('http-signature')
 var mime = require('mime-types')
-var stringstream = require('stringstream')
 var caseless = require('caseless')
 var ForeverAgent = require('forever-agent')
 var FormData = require('form-data')
@@ -25,6 +23,7 @@ var Querystring = require('./lib/querystring').Querystring
 var Har = require('./lib/har').Har
 var Auth = require('./lib/auth').Auth
 var OAuth = require('./lib/oauth').OAuth
+var hawk = require('./lib/hawk')
 var Multipart = require('./lib/multipart').Multipart
 var Redirect = require('./lib/redirect').Redirect
 var Tunnel = require('./lib/tunnel').Tunnel
@@ -288,10 +287,14 @@ Request.prototype.init = function (options) {
   self.setHost = false
   if (!self.hasHeader('host')) {
     var hostHeaderName = self.originalHostHeaderName || 'host'
-    // When used with an IPv6 address, `host` will provide
-    // the correct bracketed format, unlike using `hostname` and
-    // optionally adding the `port` when necessary.
     self.setHeader(hostHeaderName, self.uri.host)
+    // Drop :port suffix from Host header if known protocol.
+    if (self.uri.port) {
+      if ((self.uri.port === '80' && self.uri.protocol === 'http:') ||
+          (self.uri.port === '443' && self.uri.protocol === 'https:')) {
+        self.setHeader(hostHeaderName, self.uri.hostname)
+      }
+    }
     self.setHost = true
   }
 
@@ -1049,13 +1052,8 @@ Request.prototype.onRequestResponse = function (response) {
     if (self.encoding) {
       if (self.dests.length !== 0) {
         console.error('Ignoring encoding parameter as this stream is being piped to another stream which makes the encoding option invalid.')
-      } else if (responseContent.setEncoding) {
-        responseContent.setEncoding(self.encoding)
       } else {
-        // Should only occur on node pre-v0.9.4 (joyent/node@9b5abe5) with
-        // zlib streams.
-        // If/When support for 0.9.4 is dropped, this should be unnecessary.
-        responseContent = responseContent.pipe(stringstream(self.encoding))
+        responseContent.setEncoding(self.encoding)
       }
     }
 
@@ -1364,10 +1362,11 @@ Request.prototype.aws = function (opts, now) {
       host: self.uri.host,
       path: self.uri.path,
       method: self.method,
-      headers: {
-        'content-type': self.getHeader('content-type') || ''
-      },
+      headers: self.headers,
       body: self.body
+    }
+    if (opts.service) {
+      options.service = opts.service
     }
     var signRes = aws4.sign(options, {
       accessKeyId: opts.key,
@@ -1426,7 +1425,7 @@ Request.prototype.httpSignature = function (opts) {
 }
 Request.prototype.hawk = function (opts) {
   var self = this
-  self.setHeader('Authorization', hawk.client.header(self.uri, self.method, opts).field)
+  self.setHeader('Authorization', hawk.header(self.uri, self.method, opts))
 }
 Request.prototype.oauth = function (_oauth) {
   var self = this

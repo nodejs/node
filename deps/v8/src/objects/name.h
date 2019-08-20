@@ -5,7 +5,9 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,12 +17,8 @@ namespace internal {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public HeapObject {
+class Name : public TorqueGeneratedName<Name, HeapObject> {
  public:
-  // Get and set the hash field of the name.
-  inline uint32_t hash_field();
-  inline void set_hash_field(uint32_t value);
-
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();
 
@@ -28,8 +26,9 @@ class Name : public HeapObject {
   inline uint32_t Hash();
 
   // Equality operations.
-  inline bool Equals(Name* other);
-  inline static bool Equals(Handle<Name> one, Handle<Name> two);
+  inline bool Equals(Name other);
+  inline static bool Equals(Isolate* isolate, Handle<Name> one,
+                            Handle<Name> two);
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
@@ -40,38 +39,32 @@ class Name : public HeapObject {
   // symbol properties are added, so we can optimize lookups on objects
   // that don't have the flag.
   inline bool IsInterestingSymbol() const;
+  inline bool IsInterestingSymbol(Isolate* isolate) const;
 
   // If the name is private, it can only name own properties.
-  inline bool IsPrivate();
+  inline bool IsPrivate() const;
+  inline bool IsPrivate(Isolate* isolate) const;
 
-  // If the name is a private field, it should behave like a private
+  // If the name is a private name, it should behave like a private
   // symbol but also throw on property access miss.
-  inline bool IsPrivateField();
+  inline bool IsPrivateName() const;
+  inline bool IsPrivateName(Isolate* isolate) const;
 
   inline bool IsUniqueName() const;
+  inline bool IsUniqueName(Isolate* isolate) const;
 
   static inline bool ContainsCachedArrayIndex(uint32_t hash);
 
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
-  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(Handle<Name> name);
-  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(
-      Handle<Name> name, Handle<String> prefix);
-
-  DECL_CAST(Name)
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
+      Isolate* isolate, Handle<Name> name);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
+      Isolate* isolate, Handle<Name> name, Handle<String> prefix);
 
   DECL_PRINTER(Name)
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
-
-  // Layout description.
-  static const int kHashFieldSlot = HeapObject::kHeaderSize;
-#if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
-  static const int kHashFieldOffset = kHashFieldSlot;
-#else
-  static const int kHashFieldOffset = kHashFieldSlot + kInt32Size;
-#endif
-  static const int kSize = kHashFieldSlot + kPointerSize;
 
   // Mask constant for checking if a name has a computed hash code
   // and if it is a string that is an array index.  The least significant bit
@@ -133,18 +126,12 @@ class Name : public HeapObject {
  protected:
   static inline bool IsHashFieldComputed(uint32_t field);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Name);
+  TQ_OBJECT_CONSTRUCTORS(Name)
 };
 
 // ES6 symbols.
-class Symbol : public Name {
+class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
  public:
-  // [name]: The print name of a symbol, or undefined if none.
-  DECL_ACCESSORS(name, Object)
-
-  DECL_INT_ACCESSORS(flags)
-
   // [is_private]: Whether this is a private symbol.  Private symbols can only
   // be used to designate own properties of objects.
   DECL_BOOLEAN_ACCESSORS(is_private)
@@ -164,35 +151,30 @@ class Symbol : public Name {
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
 
-  // [is_private_field]: Whether this is a private field.  Private fields
+  // [is_private_name]: Whether this is a private name.  Private names
   // are the same as private symbols except they throw on missing
   // property access.
   //
   // This also sets the is_private bit.
-  inline bool is_private_field() const;
-  inline void set_is_private_field();
-
-  DECL_CAST(Symbol)
+  inline bool is_private_name() const;
+  inline void set_is_private_name();
 
   // Dispatched behavior.
   DECL_PRINTER(Symbol)
   DECL_VERIFIER(Symbol)
 
-  // Layout description.
-  static const int kNameOffset = Name::kSize;
-  static const int kFlagsOffset = kNameOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+// Flags layout.
+#define FLAGS_BIT_FIELDS(V, _)          \
+  V(IsPrivateBit, bool, 1, _)           \
+  V(IsWellKnownSymbolBit, bool, 1, _)   \
+  V(IsPublicBit, bool, 1, _)            \
+  V(IsInterestingSymbolBit, bool, 1, _) \
+  V(IsPrivateNameBit, bool, 1, _)
 
-  // Flags layout.
-  static const int kPrivateBit = 0;
-  static const int kWellKnownSymbolBit = 1;
-  static const int kPublicBit = 2;
-  static const int kInterestingSymbolBit = 3;
-  static const int kPrivateFieldBit = 4;
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
 
-  typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
+  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   void SymbolShortPrint(std::ostream& os);
 
@@ -202,7 +184,7 @@ class Symbol : public Name {
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
+  TQ_OBJECT_CONSTRUCTORS(Symbol)
 };
 
 }  // namespace internal

@@ -3,7 +3,6 @@
 const common = require('../common');
 const { Duplex } = require('stream');
 const assert = require('assert');
-const { inherits } = require('util');
 
 {
   const duplex = new Duplex({
@@ -77,7 +76,7 @@ const { inherits } = require('util');
   duplex.on('end', common.mustNotCall('no end event'));
   duplex.on('finish', common.mustNotCall('no finish event'));
 
-  // error is swallowed by the custom _destroy
+  // Error is swallowed by the custom _destroy
   duplex.on('error', common.mustNotCall('no error event'));
   duplex.on('close', common.mustCall());
 
@@ -177,7 +176,7 @@ const { inherits } = require('util');
   duplex.destroyed = true;
   assert.strictEqual(duplex.destroyed, true);
 
-  // the internal destroy() mechanism should not be triggered
+  // The internal destroy() mechanism should not be triggered
   duplex.on('finish', common.mustNotCall());
   duplex.on('end', common.mustNotCall());
   duplex.destroy();
@@ -190,7 +189,8 @@ const { inherits } = require('util');
     Duplex.call(this);
   }
 
-  inherits(MyDuplex, Duplex);
+  Object.setPrototypeOf(MyDuplex.prototype, Duplex.prototype);
+  Object.setPrototypeOf(MyDuplex, Duplex);
 
   new MyDuplex();
 }

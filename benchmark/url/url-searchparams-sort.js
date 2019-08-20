@@ -3,6 +3,7 @@ const common = require('../common.js');
 const URLSearchParams = require('url').URLSearchParams;
 
 const inputs = {
+  wpt: 'wpt',  // To work around tests
   empty: '',
   sorted: 'a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p&q&r&s&t&u&v&w&x&y&z',
   almostsorted: 'a&b&c&d&e&f&g&i&h&j&k&l&m&n&o&p&q&r&s&t&u&w&v&x&y&z',
@@ -38,7 +39,7 @@ function main({ type, n }) {
   const array = getParams(input);
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     params[searchParams] = array.slice();
     params.sort();
   }

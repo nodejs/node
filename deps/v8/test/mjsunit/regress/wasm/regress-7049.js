@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Build two instances, instance 2 is interpreted, and calls instance 1 (via

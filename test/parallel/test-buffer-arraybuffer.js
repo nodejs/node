@@ -40,7 +40,12 @@ assert.throws(function() {
   Object.setPrototypeOf(AB, ArrayBuffer);
   Object.setPrototypeOf(AB.prototype, ArrayBuffer.prototype);
   Buffer.from(new AB());
-}, TypeError);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: 'The first argument must be one of type string, Buffer,' +
+  ' ArrayBuffer, Array, or Array-like Object. Received type object'
+});
 
 // Test the byteOffset and length arguments
 {
@@ -60,12 +65,12 @@ assert.throws(function() {
 
   assert.throws(() => Buffer.from(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"offset" is outside of buffer bounds'
   });
   assert.throws(() => Buffer.from(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"length" is outside of buffer bounds'
   });
 }
@@ -88,12 +93,12 @@ assert.throws(function() {
 
   assert.throws(() => Buffer(ab.buffer, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"offset" is outside of buffer bounds'
   });
   assert.throws(() => Buffer(ab.buffer, 3, 6), {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"length" is outside of buffer bounds'
   });
 }
@@ -115,7 +120,7 @@ assert.throws(function() {
     Buffer.from(ab, Infinity);
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"offset" is outside of buffer bounds'
   });
 }
@@ -137,7 +142,7 @@ assert.throws(function() {
     Buffer.from(ab, 0, Infinity);
   }, {
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+    name: 'RangeError',
     message: '"length" is outside of buffer bounds'
   });
 }

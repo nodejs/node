@@ -27,18 +27,18 @@ const net = require('net');
 
 const s = new net.Stream();
 
-// test that destroy called on a stream with a server only ever decrements the
+// Test that destroy called on a stream with a server only ever decrements the
 // server connection count once
 
 s.server = new net.Server();
 s.server.connections = 10;
 s._server = s.server;
 
-assert.strictEqual(10, s.server.connections);
+assert.strictEqual(s.server.connections, 10);
 s.destroy();
-assert.strictEqual(9, s.server.connections);
+assert.strictEqual(s.server.connections, 9);
 s.destroy();
-assert.strictEqual(9, s.server.connections);
+assert.strictEqual(s.server.connections, 9);
 
 const SIZE = 2E6;
 const N = 10;

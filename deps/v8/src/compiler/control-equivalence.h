@@ -6,9 +6,9 @@
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -56,7 +56,7 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
 
  private:
   static const size_t kInvalidClass = static_cast<size_t>(-1);
-  typedef enum { kInputDirection, kUseDirection } DFSDirection;
+  enum DFSDirection { kInputDirection, kUseDirection };
 
   struct Bracket {
     DFSDirection direction;  // Direction in which this bracket was added.
@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
   };
 
   // The set of brackets for each node during the DFS walk.
-  typedef ZoneLinkedList<Bracket> BracketList;
+  using BracketList = ZoneLinkedList<Bracket>;
 
   struct DFSStackEntry {
     DFSDirection direction;            // Direction currently used in DFS walk.
@@ -78,7 +78,7 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
   };
 
   // The stack is used during the undirected DFS walk.
-  typedef ZoneStack<DFSStackEntry> DFSStack;
+  using DFSStack = ZoneStack<DFSStackEntry>;
 
   struct NodeData : ZoneObject {
     explicit NodeData(Zone* zone)
@@ -94,7 +94,7 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
   };
 
   // The per-node data computed during the DFS walk.
-  typedef ZoneVector<NodeData*> Data;
+  using Data = ZoneVector<NodeData*>;
 
   // Called at pre-visit during DFS walk.
   void VisitPre(Node* node);

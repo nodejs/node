@@ -7,11 +7,6 @@ import("//build/dotfile_settings.gni")
 # The location of the build configuration file.
 buildconfig = "//build/config/BUILDCONFIG.gn"
 
-# The secondary source root is a parallel directory tree where
-# GN build files are placed when they can not be placed directly
-# in the source tree, e.g. for third party source trees.
-secondary_source = "//build/secondary/"
-
 # These are the targets to check headers for by default. The files in targets
 # matching these patterns (see "gn help label_pattern" for format) will have
 # their includes checked for proper dependencies when you run either
@@ -21,5 +16,4 @@ check_targets = []
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
 # discouraged except for gypi_to_gn calls.
-exec_script_whitelist =
-    build_dotfile_settings.exec_script_whitelist + [ "//test/test262/BUILD.gn" ]
+exec_script_whitelist = build_dotfile_settings.exec_script_whitelist + []

@@ -1,0 +1,19 @@
+####################################################################
+[ req ]
+default_bits            = 2432
+default_md	        = sha256
+distinguished_name	= req_DN
+string_mask = utf8only
+
+req_extensions = v3_req # The extensions to add to a certificate request
+
+[ req_DN ]
+commonName                      = "Common Name"
+commonName_value              = "A user"
+userId = "User ID"
+userId_value = "test"
+
+[ v3_req ]
+extendedKeyUsage = clientAuth
+subjectKeyIdentifier = hash
+basicConstraints = CA:false

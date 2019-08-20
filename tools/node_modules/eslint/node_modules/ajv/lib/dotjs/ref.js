@@ -40,7 +40,8 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
         }
         var __err = out;
         out = $$outStack.pop();
-        if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
+        if (!it.compositeRule && $breakOnError) {
+          /* istanbul ignore if */
           if (it.async) {
             out += ' throw new ValidationError([' + (__err) + ']); ';
           } else {
@@ -73,7 +74,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
         out += ' if (' + ($nextValid) + ') { ';
       }
     } else {
-      $async = $refVal.$async === true;
+      $async = $refVal.$async === true || (it.async && $refVal.$async !== false);
       $refCode = $refVal.code;
     }
   }
@@ -100,7 +101,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
       if ($breakOnError) {
         out += ' var ' + ($valid) + '; ';
       }
-      out += ' try { ' + (it.yieldAwait) + ' ' + (__callValidate) + '; ';
+      out += ' try { await ' + (__callValidate) + '; ';
       if ($breakOnError) {
         out += ' ' + ($valid) + ' = true; ';
       }

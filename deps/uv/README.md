@@ -169,6 +169,19 @@ $ make check
 $ make install
 ```
 
+To build with [CMake](https://cmake.org/):
+
+```bash
+$ mkdir -p out/cmake ; cd out/cmake   # create build directory
+$ cmake ../.. -DBUILD_TESTING=ON      # generate project with test
+$ cmake --build .                     # build
+$ ctest -C Debug --output-on-failure  # run tests
+
+# Or manually run tests:
+$ ./out/cmake/uv_run_tests    # shared library build
+$ ./out/cmake/uv_run_tests_a  # static library build
+```
+
 To build with GYP, first run:
 
 ```bash
@@ -252,8 +265,7 @@ Run:
 
 ```bash
 $ ./gyp_uv.py -f xcode
-$ xcodebuild -ARCHS="x86_64" -project uv.xcodeproj \
-     -configuration Release -target All
+$ xcodebuild -ARCHS="x86_64" -project out/uv.xcodeproj -configuration Release -alltargets
 ```
 
 Using Homebrew:
@@ -272,15 +284,38 @@ Make sure that you specify the architecture you wish to build for in the
 
 Run:
 
+For arm
+
 ```bash
-$ source ./android-configure NDK_PATH gyp [API_LEVEL]
+$ source ./android-configure-arm NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for arm64
+
+```bash
+$ source ./android-configure-arm64 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86
+
+```bash
+$ source ./android-configure-x86 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86_64
+
+```bash
+$ source ./android-configure-x86_64 NDK_PATH gyp [API_LEVEL]
 $ make -C out
 ```
 
 The default API level is 24, but a different one can be selected as follows:
 
 ```bash
-$ source ./android-configure ~/android-ndk-r15b gyp 21
+$ source ./android-configure-arm ~/android-ndk-r15b gyp 21
 $ make -C out
 ```
 
@@ -300,13 +335,65 @@ $ ninja -C out/Release
 
 ### Running tests
 
-Run:
+#### Build
+
+Build (includes tests):
 
 ```bash
 $ ./gyp_uv.py -f make
 $ make -C out
+```
+
+#### Run all tests
+
+```bash
 $ ./out/Debug/run-tests
 ```
+
+#### Run one test
+
+The list of all tests is in `test/test-list.h`.
+
+This invocation will cause the `run-tests` driver to fork and execute `TEST_NAME` in a child process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME
+```
+
+This invocation will cause the `run-tests` driver to execute the test within the `run-tests` process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME TEST_NAME
+```
+
+#### Debugging tools
+
+When running the test from within the `run-tests` process (`run-tests TEST_NAME TEST_NAME`), tools like gdb and valgrind work normally.
+When running the test from a child of the `run-tests` process (`run-tests TEST_NAME`), use these tools in a fork-aware manner.
+
+##### Fork-aware gdb
+
+Use the [follow-fork-mode](https://sourceware.org/gdb/onlinedocs/gdb/Forks.html) setting:
+
+```
+$ gdb --args out/Debug/run-tests TEST_NAME
+
+(gdb) set follow-fork-mode child
+...
+```
+
+##### Fork-aware valgrind
+
+Use the `--trace-children=yes` parameter:
+
+```bash
+$ valgrind --trace-children=yes -v --tool=memcheck --leak-check=full --track-origins=yes --leak-resolution=high --show-reachable=yes --log-file=memcheck-%p.log out/Debug/run-tests TEST_NAME
+```
+
+### Running benchmarks
+
+See the section on running tests.
+The benchmark driver is `out/Debug/run-benchmarks` and the benchmarks are listed in `test/benchmark-list.h`.
 
 ## Supported Platforms
 
@@ -322,6 +409,13 @@ describes the package in more detail.
 
 AIX support for filesystem events is not compiled when building with `gyp`.
 
+### z/OS Notes
+
+z/OS creates System V semaphores and message queues. These persist on the system
+after the process terminates unless the event loop is closed.
+
+Use the `ipcrm` command to manually clear up System V resources.
+
 ## Patches
 
 See the [guidelines for contributing][].
@@ -332,7 +426,7 @@ See the [guidelines for contributing][].
 [libuv_banner]: https://raw.githubusercontent.com/libuv/libuv/master/img/banner.png
 [x32]: https://en.wikipedia.org/wiki/X32_ABI
 [Python 2.6 or 2.7]: https://www.python.org/downloads/
-[Visual C++ Build Tools]: http://landinghub.visualstudio.com/visual-cpp-build-tools
+[Visual C++ Build Tools]: https://visualstudio.microsoft.com/visual-cpp-build-tools/
 [Visual Studio 2015 Update 3]: https://www.visualstudio.com/vs/older-downloads/
 [Visual Studio 2017]: https://www.visualstudio.com/downloads/
 [Git for Windows]: http://git-scm.com/download/win

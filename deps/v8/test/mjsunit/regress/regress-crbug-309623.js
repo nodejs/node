@@ -38,8 +38,8 @@ assertTrue(%HasSmiElements(a));
 function foo(i) {
   a[0] = u[i];
   return a[0];
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertEquals(u[0], foo(0));
 assertEquals(u[0], foo(0));
 %OptimizeFunctionOnNextCall(foo);

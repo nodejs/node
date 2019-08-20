@@ -36,31 +36,47 @@ namespace v8 {
 namespace base {
 
 
+int64_t get_gmt_offset(const tm& localtm) {
+  // replacement for tm->tm_gmtoff field in glibc
+  // returns seconds east of UTC, taking DST into account
+  struct timeval tv;
+  struct timezone tz;
+  int ret_code = gettimeofday(&tv, &tz);
+  // 0 = success, -1 = failure
+  DCHECK_NE(ret_code, -1);
+  if (ret_code == -1) {
+    return 0;
+  }
+  return (-tz.tz_minuteswest * 60) + (localtm.tm_isdst > 0 ? 3600 : 0);
+}
+
 class AIXTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
 
   ~AIXTimezoneCache() override {}
 };
 
-const char* AIXTimezoneCache::LocalTimezone(double time) {
-  if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time / msPerSecond));
+const char* AIXTimezoneCache::LocalTimezone(double time_ms) {
+  if (std::isnan(time_ms)) return "";
+  time_t tv = static_cast<time_t>(floor(time_ms / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
   if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
 
-double AIXTimezoneCache::LocalTimeOffset() {
-  // On AIX, struct tm does not contain a tm_gmtoff field.
+double AIXTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
+  // On AIX, struct tm does not contain a tm_gmtoff field, use get_gmt_offset
+  // helper function
   time_t utc = time(nullptr);
   DCHECK_NE(utc, -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
   DCHECK_NOT_NULL(loc);
-  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
+  return static_cast<double>(get_gmt_offset(*loc) * msPerSecond -
+                             (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
 TimezoneCache* OS::CreateTimezoneCache() { return new AIXTimezoneCache(); }
@@ -110,6 +126,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 }
 
 void OS::SignalCodeMovingGC() {}
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

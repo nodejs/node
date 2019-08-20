@@ -24,16 +24,14 @@ class ScopeTestHelper {
                   baseline->AsDeclarationScope()->function_kind() ==
                       scope->AsDeclarationScope()->function_kind());
 
-    if (!ProducedPreParsedScopeData::ScopeNeedsData(baseline)) {
-      return;
-    }
+    if (!PreparseDataBuilder::ScopeNeedsData(baseline)) return;
 
     if (scope->is_declaration_scope() &&
         scope->AsDeclarationScope()->is_skipped_function()) {
       return;
     }
 
-    if (baseline->scope_type() == ScopeType::FUNCTION_SCOPE) {
+    if (baseline->is_function_scope()) {
       Variable* function = baseline->AsDeclarationScope()->function_var();
       if (function != nullptr) {
         CompareVariables(function, scope->AsDeclarationScope()->function_var(),
@@ -47,8 +45,9 @@ class ScopeTestHelper {
               scope_local = scope->locals()->begin();
          baseline_local != baseline->locals()->end();
          ++baseline_local, ++scope_local) {
-      if (scope_local->mode() == VAR || scope_local->mode() == LET ||
-          scope_local->mode() == CONST) {
+      if (scope_local->mode() == VariableMode::kVar ||
+          scope_local->mode() == VariableMode::kLet ||
+          scope_local->mode() == VariableMode::kConst) {
         CompareVariables(*baseline_local, *scope_local, precise_maybe_assigned);
       }
     }
@@ -98,7 +97,7 @@ class ScopeTestHelper {
   static void MarkInnerFunctionsAsSkipped(Scope* scope) {
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      if (inner->scope_type() == ScopeType::FUNCTION_SCOPE &&
+      if (inner->is_function_scope() &&
           !inner->AsDeclarationScope()->is_arrow_scope()) {
         inner->AsDeclarationScope()->set_is_skipped_function(true);
       }
@@ -107,15 +106,13 @@ class ScopeTestHelper {
   }
 
   static bool HasSkippedFunctionInside(Scope* scope) {
-    if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+    if (scope->is_function_scope() &&
         scope->AsDeclarationScope()->is_skipped_function()) {
       return true;
     }
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      if (HasSkippedFunctionInside(inner)) {
-        return true;
-      }
+      if (HasSkippedFunctionInside(inner)) return true;
     }
     return false;
   }

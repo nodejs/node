@@ -22,7 +22,7 @@ assert.strictEqual(source._readableState.pipes.length, 2);
 
 source.unpipe(dest2);
 
-assert.strictEqual(source._readableState.pipes, dest1);
+assert.deepStrictEqual(source._readableState.pipes, [dest1]);
 assert.notStrictEqual(source._readableState.pipes, dest2);
 
 dest2.on('unpipe', common.mustNotCall());
@@ -30,10 +30,10 @@ source.unpipe(dest2);
 
 source.unpipe(dest1);
 
-assert.strictEqual(source._readableState.pipes, null);
+assert.strictEqual(source._readableState.pipes.length, 0);
 
 {
-  // test `cleanup()` if we unpipe all streams.
+  // Test `cleanup()` if we unpipe all streams.
   const source = Readable({ read: () => {} });
   const dest1 = Writable({ write: () => {} });
   const dest2 = Writable({ write: () => {} });
@@ -43,8 +43,7 @@ assert.strictEqual(source._readableState.pipes, null);
   const destCheckEventNames = ['close', 'finish', 'drain', 'error', 'unpipe'];
 
   const checkSrcCleanup = common.mustCall(() => {
-    assert.strictEqual(source._readableState.pipes, null);
-    assert.strictEqual(source._readableState.pipesCount, 0);
+    assert.strictEqual(source._readableState.pipes.length, 0);
     assert.strictEqual(source._readableState.flowing, false);
 
     srcCheckEventNames.forEach((eventName) => {

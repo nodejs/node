@@ -5,13 +5,13 @@
 
 const common = require('../common');
 
-const { search } = require('internal/modules/esm/default_resolve');
+const resolve = require('internal/modules/esm/default_resolve');
 
 common.expectsError(
-  () => search('target', undefined),
+  () => resolve('target', undefined),
   {
-    code: 'ERR_MISSING_MODULE',
+    code: 'ERR_MODULE_NOT_FOUND',
     type: Error,
-    message: 'Cannot find module target'
+    message: /Cannot find package 'target'/
   }
 );

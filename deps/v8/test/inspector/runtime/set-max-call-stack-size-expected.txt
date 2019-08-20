@@ -1,0 +1,97 @@
+Checks Runtime.setMaxCallStackSizeToCapture.
+Test with max size 0.
+{
+    args : [
+        [0] : {
+            type : string
+            value : Nested call.
+        }
+    ]
+    executionContextId : <executionContextId>
+    timestamp : <timestamp>
+    type : trace
+}
+Test with max size 1.
+{
+    args : [
+        [0] : {
+            type : string
+            value : Nested call.
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 10
+                functionName : bar
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+        parent : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : test
+                    lineNumber : 10
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+            ]
+            description : setTimeout
+        }
+    }
+    timestamp : <timestamp>
+    type : trace
+}
+Test with max size 2.
+{
+    args : [
+        [0] : {
+            type : string
+            value : Nested call.
+        }
+    ]
+    executionContextId : <executionContextId>
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 10
+                functionName : bar
+                lineNumber : 2
+                scriptId : <scriptId>
+                url : test.js
+            }
+            [1] : {
+                columnNumber : 2
+                functionName : foo
+                lineNumber : 6
+                scriptId : <scriptId>
+                url : test.js
+            }
+        ]
+        parent : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : test
+                    lineNumber : 10
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : expr.js
+                }
+            ]
+            description : setTimeout
+        }
+    }
+    timestamp : <timestamp>
+    type : trace
+}

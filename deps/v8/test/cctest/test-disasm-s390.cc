@@ -28,13 +28,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -47,13 +47,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
   disasm.InstructionDecode(disasm_buffer, pc);
 
-  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
+  if (strcmp(compare_string, disasm_buffer.begin()) != 0) {
     fprintf(stderr,
             "expected: \n"
             "%s\n"
             "disassembled: \n"
             "%s\n\n",
-            compare_string, disasm_buffer.start());
+            compare_string, disasm_buffer.begin());
     return false;
   }
   return true;
@@ -62,12 +62,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                            \
-  CcTest::InitializeVM();                                   \
-  Isolate* isolate = CcTest::i_isolate();                   \
-  HandleScope scope(isolate);                               \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(isolate, buffer, 4 * 1024);                \
+#define SET_UP()                                             \
+  CcTest::InitializeVM();                                    \
+  Isolate* isolate = CcTest::i_isolate();                    \
+  HandleScope scope(isolate);                                \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -87,9 +88,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN()                                                   \
-  if (failure) {                                                       \
-    V8_Fatal(__FILE__, __LINE__, "S390 Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                            \
+  if (failure) {                                \
+    FATAL("S390 Disassembler tests failed.\n"); \
   }
 
 TEST(TwoBytes) {
@@ -187,9 +188,9 @@ TEST(SixBytes) {
   COMPARE(slag(r1, r3, r2), "eb132000000b   slag\tr1,r3,0(r2)");
   COMPARE(srag(r1, r3, r2), "eb132000000a   srag\tr1,r3,0(r2)");
   COMPARE(srag(r1, r3, Operand(2)), "eb130002000a   srag\tr1,r3,2(r0)");
-  COMPARE(risbg(r1, r2, Operand(3), Operand(5), Operand(2), false),
+  COMPARE(risbg(r1, r2, Operand(3), Operand(5), Operand(2)),
           "ec1203050255   risbg\tr1,r2,3,5,2");
-  COMPARE(risbgn(r1, r2, Operand(3), Operand(5), Operand(2), false),
+  COMPARE(risbgn(r1, r2, Operand(3), Operand(5), Operand(2)),
           "ec1203050259   risbgn\tr1,r2,3,5,2");
   COMPARE(stmg(r3, r4, MemOperand(sp, 10)),
           "eb34f00a0024   stmg\tr3,r4,10(sp)");
@@ -290,13 +291,18 @@ TEST(SixBytes) {
   COMPARE(clg(r9, MemOperand(r6, r7, 19)), "e39670130021   clg\tr9,19(r6,r7)");
   COMPARE(bctg(r8, MemOperand(sp, 10)), "e380f00a0046   bctg\tr8,10(sp)");
   COMPARE(icy(r2, MemOperand(r3, 2)), "e32030020073   icy\tr2,2(r3)");
-  COMPARE(mvc(MemOperand(r9, 9), MemOperand(r3, 15), 10),
-          "d2099009300f   mvc\t9(9,r9),15(r3)");
+  COMPARE(mvc(MemOperand(r9, 9), MemOperand(r3, 15), Operand(10)),
+          "d20a9009300f   mvc\t9(10,r9),15(r3)");
   COMPARE(nilf(r0, Operand(8000)), "c00b00001f40   nilf\tr0,8000");
   COMPARE(oilf(r9, Operand(1000)), "c09d000003e8   oilf\tr9,1000");
 
   VERIFY_RUN();
 }
+
+#undef SET_UP
+#undef COMPARE
+#undef EMIT_PENDING_LITERALS
+#undef VERIFY_RUN
 
 }  // namespace internal
 }  // namespace v8

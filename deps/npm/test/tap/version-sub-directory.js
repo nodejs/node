@@ -9,10 +9,10 @@ var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
 
-var pkg = path.resolve(__dirname, 'version-sub-directory')
+var pkg = common.pkg
 var subDirectory = path.resolve(pkg, 'sub-directory')
 var packagePath = path.resolve(pkg, 'package.json')
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 
 var json = { name: 'cat', version: '0.1.2' }
 
@@ -32,6 +32,7 @@ test('npm version <semver> from a subdirectory', function (t) {
   function version (er, stdout, stderr) {
     t.ifError(er, 'git repo initialized without issue')
     t.notOk(stderr, 'no error output')
+    npm.config.set('sign-git-commit', false)
     npm.config.set('sign-git-tag', false)
     npm.commands.version(['patch'], checkVersion)
   }

@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -128,7 +129,7 @@ class XcodeProject(object):
     try:
       os.makedirs(self.path)
       self.created_dir = True
-    except OSError, e:
+    except OSError as e:
       if e.errno != errno.EEXIST:
         raise
 
@@ -182,7 +183,7 @@ class XcodeProject(object):
     # the tree tree view for UI display.
     # Any values set globally are applied to all configurations, then any
     # per-configuration values are applied.
-    for xck, xcv in self.build_file_dict.get('xcode_settings', {}).iteritems():
+    for xck, xcv in self.build_file_dict.get('xcode_settings', {}).items():
       xccl.SetBuildSetting(xck, xcv)
     if 'xcode_config_file' in self.build_file_dict:
       config_ref = self.project.AddOrGetFileInRootGroup(
@@ -196,7 +197,7 @@ class XcodeProject(object):
         if build_file_configuration_named:
           xcc = xccl.ConfigurationNamed(config_name)
           for xck, xcv in build_file_configuration_named.get('xcode_settings',
-                                                             {}).iteritems():
+                                                             {}).items():
             xcc.SetBuildSetting(xck, xcv)
           if 'xcode_config_file' in build_file_configuration_named:
             config_ref = self.project.AddOrGetFileInRootGroup(
@@ -272,7 +273,7 @@ class XcodeProject(object):
           script = script + "\n".join(
             ['export %s="%s"' %
              (key, gyp.xcodeproj_file.ConvertVariablesToShellSyntax(val))
-             for (key, val) in command.get('environment').iteritems()]) + "\n"
+             for (key, val) in command.get('environment').items()]) + "\n"
 
         # Some test end up using sockets, files on disk, etc. and can get
         # confused if more then one test runs at a time.  The generator
@@ -453,7 +454,7 @@ sys.exit(subprocess.call(sys.argv[1:]))" """
       same = False
       try:
         same = filecmp.cmp(pbxproj_path, new_pbxproj_path, False)
-      except OSError, e:
+      except OSError as e:
         if e.errno != errno.ENOENT:
           raise
 
@@ -472,10 +473,10 @@ sys.exit(subprocess.call(sys.argv[1:]))" """
         #
         # No way to get the umask without setting a new one?  Set a safe one
         # and then set it back to the old value.
-        umask = os.umask(077)
+        umask = os.umask(0o77)
         os.umask(umask)
 
-        os.chmod(new_pbxproj_path, 0666 & ~umask)
+        os.chmod(new_pbxproj_path, 0o666 & ~umask)
         os.rename(new_pbxproj_path, pbxproj_path)
 
     except Exception:
@@ -565,7 +566,7 @@ def EscapeXcodeDefine(s):
 def PerformBuild(data, configurations, params):
   options = params['options']
 
-  for build_file, build_file_dict in data.iteritems():
+  for build_file, build_file_dict in data.items():
     (build_file_root, build_file_ext) = os.path.splitext(build_file)
     if build_file_ext != '.gyp':
       continue
@@ -576,7 +577,7 @@ def PerformBuild(data, configurations, params):
   for config in configurations:
     arguments = ['xcodebuild', '-project', xcodeproj_path]
     arguments += ['-configuration', config]
-    print "Building [%s]: %s" % (config, arguments)
+    print("Building [%s]: %s" % (config, arguments))
     subprocess.check_call(arguments)
 
 
@@ -624,7 +625,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   skip_excluded_files = \
       not generator_flags.get('xcode_list_excluded_files', True)
   xcode_projects = {}
-  for build_file, build_file_dict in data.iteritems():
+  for build_file, build_file_dict in data.items():
     (build_file_root, build_file_ext) = os.path.splitext(build_file)
     if build_file_ext != '.gyp':
       continue
@@ -736,7 +737,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       xctarget_type = gyp.xcodeproj_file.PBXNativeTarget
       try:
         target_properties['productType'] = _types[type_bundle_key]
-      except KeyError, e:
+      except KeyError as e:
         gyp.common.ExceptionAppend(e, "-- unknown product type while "
                                    "writing target %s" % target_name)
         raise
@@ -1013,7 +1014,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
         # target.
         makefile.write('all: \\\n')
         for concrete_output_index in \
-            xrange(0, len(concrete_outputs_by_rule_source)):
+            range(0, len(concrete_outputs_by_rule_source)):
           # Only list the first (index [0]) concrete output of each input
           # in the "all" target.  Otherwise, a parallel make (-j > 1) would
           # attempt to process each input multiple times simultaneously.
@@ -1036,7 +1037,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
           # rule source.  Collect the names of the directories that are
           # required.
           concrete_output_dirs = []
-          for concrete_output_index in xrange(0, len(concrete_outputs)):
+          for concrete_output_index in range(0, len(concrete_outputs)):
             concrete_output = concrete_outputs[concrete_output_index]
             if concrete_output_index == 0:
               bol = ''
@@ -1055,7 +1056,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
           # the set of additional rule inputs, if any.
           prerequisites = [rule_source]
           prerequisites.extend(rule.get('inputs', []))
-          for prerequisite_index in xrange(0, len(prerequisites)):
+          for prerequisite_index in range(0, len(prerequisites)):
             prerequisite = prerequisites[prerequisite_index]
             if prerequisite_index == len(prerequisites) - 1:
               eol = ''
@@ -1277,7 +1278,7 @@ exit 1
           set_define = EscapeXcodeDefine(define)
           xcbc.AppendBuildSetting('GCC_PREPROCESSOR_DEFINITIONS', set_define)
       if 'xcode_settings' in configuration:
-        for xck, xcv in configuration['xcode_settings'].iteritems():
+        for xck, xcv in configuration['xcode_settings'].items():
           xcbc.SetBuildSetting(xck, xcv)
       if 'xcode_config_file' in configuration:
         config_ref = pbxp.AddOrGetFileInRootGroup(
@@ -1285,7 +1286,7 @@ exit 1
         xcbc.SetBaseConfiguration(config_ref)
 
   build_files = []
-  for build_file, build_file_dict in data.iteritems():
+  for build_file, build_file_dict in data.items():
     if build_file.endswith('.gyp'):
       build_files.append(build_file)
 

@@ -20,7 +20,7 @@ new tls.TLSSocket(serverSide, {
   })
 });
 
-// captured traffic from browser's request to https://www.google.com
+// Captured traffic from browser's request to https://www.google.com
 const sslHello = fixtures.readSync('google_ssl_hello.bin');
 
 clientSide.write(sslHello);

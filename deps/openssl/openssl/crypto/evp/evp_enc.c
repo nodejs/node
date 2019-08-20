@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/rand_drbg.h>
 #include <openssl/engine.h>
 #include "internal/evp_int.h"
 #include "evp_locl.h"
@@ -293,8 +294,9 @@ int is_partially_overlapping(const void *ptr1, const void *ptr2, int len)
     return overlapped;
 }
 
-int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
-                      const unsigned char *in, int inl)
+static int evp_EncryptDecryptUpdate(EVP_CIPHER_CTX *ctx,
+                                    unsigned char *out, int *outl,
+                                    const unsigned char *in, int inl)
 {
     int i, j, bl, cmpl = inl;
 
@@ -306,7 +308,7 @@ int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     if (ctx->cipher->flags & EVP_CIPH_FLAG_CUSTOM_CIPHER) {
         /* If block size > 1 then the cipher will have to do this check */
         if (bl == 1 && is_partially_overlapping(out, in, cmpl)) {
-            EVPerr(EVP_F_EVP_ENCRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
+            EVPerr(EVP_F_EVP_ENCRYPTDECRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
             return 0;
         }
 
@@ -323,7 +325,7 @@ int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
         return inl == 0;
     }
     if (is_partially_overlapping(out + ctx->buf_len, in, cmpl)) {
-        EVPerr(EVP_F_EVP_ENCRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
+        EVPerr(EVP_F_EVP_ENCRYPTDECRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
         return 0;
     }
 
@@ -370,6 +372,19 @@ int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     return 1;
 }
 
+
+int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+                      const unsigned char *in, int inl)
+{
+    /* Prevent accidental use of decryption context when encrypting */
+    if (!ctx->encrypt) {
+        EVPerr(EVP_F_EVP_ENCRYPTUPDATE, EVP_R_INVALID_OPERATION);
+        return 0;
+    }
+
+    return evp_EncryptDecryptUpdate(ctx, out, outl, in, inl);
+}
+
 int EVP_EncryptFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 {
     int ret;
@@ -381,6 +396,12 @@ int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 {
     int n, ret;
     unsigned int i, b, bl;
+
+    /* Prevent accidental use of decryption context when encrypting */
+    if (!ctx->encrypt) {
+        EVPerr(EVP_F_EVP_ENCRYPTFINAL_EX, EVP_R_INVALID_OPERATION);
+        return 0;
+    }
 
     if (ctx->cipher->flags & EVP_CIPH_FLAG_CUSTOM_CIPHER) {
         ret = ctx->cipher->do_cipher(ctx, out, NULL, 0);
@@ -425,6 +446,12 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     int fix_len, cmpl = inl;
     unsigned int b;
 
+    /* Prevent accidental use of encryption context when decrypting */
+    if (ctx->encrypt) {
+        EVPerr(EVP_F_EVP_DECRYPTUPDATE, EVP_R_INVALID_OPERATION);
+        return 0;
+    }
+
     b = ctx->cipher->block_size;
 
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS))
@@ -451,7 +478,7 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     }
 
     if (ctx->flags & EVP_CIPH_NO_PADDING)
-        return EVP_EncryptUpdate(ctx, out, outl, in, inl);
+        return evp_EncryptDecryptUpdate(ctx, out, outl, in, inl);
 
     OPENSSL_assert(b <= sizeof(ctx->final));
 
@@ -468,7 +495,7 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     } else
         fix_len = 0;
 
-    if (!EVP_EncryptUpdate(ctx, out, outl, in, inl))
+    if (!evp_EncryptDecryptUpdate(ctx, out, outl, in, inl))
         return 0;
 
     /*
@@ -499,6 +526,13 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 {
     int i, n;
     unsigned int b;
+
+    /* Prevent accidental use of encryption context when decrypting */
+    if (ctx->encrypt) {
+        EVPerr(EVP_F_EVP_DECRYPTFINAL_EX, EVP_R_INVALID_OPERATION);
+        return 0;
+    }
+
     *outl = 0;
 
     if (ctx->cipher->flags & EVP_CIPH_FLAG_CUSTOM_CIPHER) {
@@ -523,7 +557,7 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
     if (b > 1) {
         if (ctx->buf_len || !ctx->final_used) {
             EVPerr(EVP_F_EVP_DECRYPTFINAL_EX, EVP_R_WRONG_FINAL_BLOCK_LENGTH);
-            return (0);
+            return 0;
         }
         OPENSSL_assert(b <= sizeof(ctx->final));
 
@@ -534,12 +568,12 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
         n = ctx->final[b - 1];
         if (n == 0 || n > (int)b) {
             EVPerr(EVP_F_EVP_DECRYPTFINAL_EX, EVP_R_BAD_DECRYPT);
-            return (0);
+            return 0;
         }
         for (i = 0; i < n; i++) {
             if (ctx->final[--b] != n) {
                 EVPerr(EVP_F_EVP_DECRYPTFINAL_EX, EVP_R_BAD_DECRYPT);
-                return (0);
+                return 0;
             }
         }
         n = ctx->cipher->block_size - n;
@@ -548,7 +582,7 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
         *outl = n;
     } else
         *outl = 0;
-    return (1);
+    return 1;
 }
 
 int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *c, int keylen)
@@ -577,6 +611,7 @@ int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *ctx, int pad)
 int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr)
 {
     int ret;
+
     if (!ctx->cipher) {
         EVPerr(EVP_F_EVP_CIPHER_CTX_CTRL, EVP_R_NO_CIPHER_SET);
         return 0;
@@ -600,7 +635,7 @@ int EVP_CIPHER_CTX_rand_key(EVP_CIPHER_CTX *ctx, unsigned char *key)
 {
     if (ctx->cipher->flags & EVP_CIPH_RAND_KEY)
         return EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_RAND_KEY, 0, key);
-    if (RAND_bytes(key, ctx->key_len) <= 0)
+    if (RAND_priv_bytes(key, ctx->key_len) <= 0)
         return 0;
     return 1;
 }

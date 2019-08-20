@@ -27,11 +27,11 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api.h"
-#include "src/frames-inl.h"
-#include "src/string-stream.h"
+#include "src/api/api-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/strings/string-stream.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::ObjectTemplate;
@@ -181,7 +181,7 @@ THREADED_TEST(GlobalVariableAccess) {
   templ->InstanceTemplate()->SetAccessor(
       v8_str("baz"), GetIntValue, SetIntValue,
       v8::External::New(isolate, &baz));
-  LocalContext env(0, templ->InstanceTemplate());
+  LocalContext env(nullptr, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run(env.local()).ToLocalChecked();
   CHECK_EQ(-3, bar);
   CHECK_EQ(7, foo);
@@ -538,10 +538,9 @@ static void StackCheck(Local<String> name,
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
-    i::Code* code = frame->LookupCode();
-    CHECK(code->IsCode());
-    i::Address pc = frame->pc();
-    CHECK(code->contains(pc));
+    i::Code code = frame->LookupCode();
+    CHECK(code.IsCode());
+    CHECK(code.contains(frame->pc()));
     iter.Advance();
   }
 }
@@ -802,7 +801,8 @@ TEST(PrototypeGetterAccessCheck) {
       "    x = obj.foo;"
       "  }"
       "  return x;"
-      "}");
+      "};"
+      "%PrepareFunctionForOptimization(f);");
 
   security_check_value = true;
   ExpectInt32("f()", 907);
@@ -813,7 +813,7 @@ TEST(PrototypeGetterAccessCheck) {
     CHECK(try_catch.HasCaught());
   }
 
-  // Test crankshaft.
+  // Test TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(f);");
 
   security_check_value = true;

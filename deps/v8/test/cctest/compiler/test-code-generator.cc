@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-stub-assembler.h"
-#include "src/codegen.h"
-#include "src/compilation-info.h"
-#include "src/compiler/code-generator.h"
-#include "src/compiler/instruction.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/backend/code-generator.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/smi.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -28,8 +29,10 @@ namespace {
 int GetSlotSizeInBytes(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTagged:
+      // Spill slots for tagged values are always uncompressed.
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat32:
-      return kPointerSize;
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
@@ -50,7 +53,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 // arguments:
 // ~~~
 // FixedArray setup(CodeObject* test, FixedArray state_in) {
-//   FixedArray state_out = AllocateFixedArray(state_in.length());
+//   FixedArray state_out = AllocateZeroedFixedArray(state_in.length());
 //   // `test` will tail-call to its first parameter which will be `teardown`.
 //   return test(teardown, state_out, state_in[0], state_in[1],
 //               state_in[2], ...);
@@ -73,7 +76,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, 2);
+  CodeAssemblerTester tester(isolate, 2, Code::BUILTIN, "setup");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
@@ -83,8 +86,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
-  Node* state_out = __ AllocateFixedArray(PACKED_ELEMENTS,
-                                          __ IntPtrConstant(parameters.size()));
+  TNode<FixedArray> state_out =
+      __ AllocateZeroedFixedArray(__ IntPtrConstant(parameters.size()));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
@@ -94,9 +97,12 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
         __ StoreFixedArrayElement(state_out, i, __ AllocateHeapNumber());
         break;
       case MachineRepresentation::kSimd128: {
-        __ StoreFixedArrayElement(
-            state_out, i,
-            __ AllocateFixedArray(PACKED_SMI_ELEMENTS, __ IntPtrConstant(4)));
+        TNode<FixedArray> vector =
+            __ AllocateZeroedFixedArray(__ IntPtrConstant(4));
+        for (int lane = 0; lane < 4; lane++) {
+          __ StoreFixedArrayElement(vector, lane, __ SmiConstant(0));
+        }
+        __ StoreFixedArrayElement(state_out, i, vector);
         break;
       }
       default:
@@ -106,7 +112,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  Node* state_in = __ Parameter(1);
+  TNode<FixedArray> state_in = __ Cast(__ Parameter(1));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
@@ -125,8 +131,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
-          Node* lane_value = __ SmiToInt32(
-              __ LoadFixedArrayElement(element, __ IntPtrConstant(lane)));
+          TNode<Int32T> lane_value = __ LoadAndUntagToWord32FixedArrayElement(
+              __ CAST(element), __ IntPtrConstant(lane));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
                   lane),
@@ -153,11 +159,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 // ~~~
 // FixedArray teardown(CodeObject* /* unused  */, FixedArray result,
 //                     // Tagged registers.
-//                     Object* r0, Object* r1, ...,
+//                     Object r0, Object r1, ...,
 //                     // FP registers.
 //                     Float32 s0, Float64 d1, ...,
 //                     // Mixed stack slots.
-//                     Float64 mem0, Object* mem1, Float32 mem2, ...) {
+//                     Float64 mem0, Object mem1, Float32 mem2, ...) {
 //   result[0] = r0;
 //   result[1] = r1;
 //   ...
@@ -186,21 +192,22 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 //
 // Finally, it is important that this function does not call `RecordWrite` which
 // is why "setup" is in charge of all allocations and we are using
-// SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
-// top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
-// example.
+// UNSAFE_SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may
+// clobber the top 64 bits of Simd128 registers. This is the case on x64, ia32
+// and Arm64 for example.
 Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, call_descriptor);
+  CodeAssemblerTester tester(isolate, call_descriptor, "teardown");
   CodeStubAssembler assembler(tester.state());
-  Node* result_array = __ Parameter(1);
+  TNode<FixedArray> result_array = __ Cast(__ Parameter(1));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     // The first argument is not used and the second is "result_array".
     Node* param = __ Parameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
-        __ StoreFixedArrayElement(result_array, i, param, SKIP_WRITE_BARRIER);
+        __ StoreFixedArrayElement(result_array, i, param,
+                                  UNSAFE_SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.
       case MachineRepresentation::kFloat32:
@@ -213,7 +220,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
             param, MachineRepresentation::kFloat64);
         break;
       case MachineRepresentation::kSimd128: {
-        Node* vector = __ LoadFixedArrayElement(result_array, i);
+        TNode<FixedArray> vector =
+            __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
           Node* lane_value =
               __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
@@ -222,7 +230,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                       ->I32x4ExtractLane(lane),
                   param));
           __ StoreFixedArrayElement(vector, lane, lane_value,
-                                    SKIP_WRITE_BARRIER);
+                                    UNSAFE_SKIP_WRITE_BARRIER);
         }
         break;
       }
@@ -242,7 +250,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
       if (value->IsSmi()) {
-        os << Smi::cast(*value)->value();
+        os << Smi::cast(*value).value();
       } else {
         os << value->Number();
       }
@@ -252,10 +260,10 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       os << value->Number();
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray* vector = FixedArray::cast(*value);
+      FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
+        os << Smi::cast(vector.get(lane)).value();
         if (lane < 3) {
           os << ", ";
         }
@@ -265,7 +273,6 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
     }
     default:
       UNREACHABLE();
-      break;
   }
   os << " (" << operand.representation() << " ";
   if (operand.location_kind() == AllocatedOperand::REGISTER) {
@@ -357,7 +364,11 @@ class TestEnvironment : public HandleAndZoneScope {
  public:
   // These constants may be tuned to experiment with different environments.
 
+#ifdef V8_TARGET_ARCH_IA32
+  static constexpr int kGeneralRegisterCount = 3;
+#else
   static constexpr int kGeneralRegisterCount = 4;
+#endif
   static constexpr int kDoubleRegisterCount = 6;
 
   static constexpr int kTaggedSlotCount = 64;
@@ -372,23 +383,16 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kDoubleConstantCount = 4;
 
   TestEnvironment()
-      : blocks_(1, main_zone()),
-        code_(main_isolate(), main_zone(), &blocks_),
+      : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
+        instructions_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
                          MachineRepresentation::kFloat64}) {
-    // Create and initialize a single empty block in blocks_.
-    InstructionBlock* block = new (main_zone()) InstructionBlock(
-        main_zone(), RpoNumber::FromInt(0), RpoNumber::Invalid(),
-        RpoNumber::Invalid(), false, false);
-    block->set_ao_number(RpoNumber::FromInt(0));
-    blocks_[0] = block;
-
-    int stack_slot_count =
+    stack_slot_count_ =
         kTaggedSlotCount + kFloat32SlotCount + kFloat64SlotCount;
     if (TestSimd128Moves()) {
-      stack_slot_count += kSimd128SlotCount;
+      stack_slot_count_ += kSimd128SlotCount;
       supported_reps_.push_back(MachineRepresentation::kSimd128);
     }
     // The "teardown" and "test" functions share the same descriptor with the
@@ -396,15 +400,15 @@ class TestEnvironment : public HandleAndZoneScope {
     // ~~~
     // FixedArray f(CodeObject* teardown, FixedArray preallocated_result,
     //              // Tagged registers.
-    //              Object*, Object*, ...,
+    //              Object, Object, ...,
     //              // FP registers.
     //              Float32, Float64, Simd128, ...,
     //              // Mixed stack slots.
-    //              Float64, Object*, Float32, Simd128, ...);
+    //              Float64, Object, Float32, Simd128, ...);
     // ~~~
     LocationSignature::Builder test_signature(
         main_zone(), 1,
-        2 + kGeneralRegisterCount + kDoubleRegisterCount + stack_slot_count);
+        2 + kGeneralRegisterCount + kDoubleRegisterCount + stack_slot_count_);
 
     // The first parameter will be the code object of the "teardown"
     // function. This way, the "test" function can tail-call to it.
@@ -418,7 +422,7 @@ class TestEnvironment : public HandleAndZoneScope {
     test_signature.AddParam(
         LinkageLocation::ForCallerFrameSlot(-1, MachineType::AnyTagged()));
     int slot_parameter_n = -2;
-    const int kTotalStackParameterCount = stack_slot_count + 1;
+    const int kTotalStackParameterCount = stack_slot_count_ + 1;
 
     // Initialise registers.
 
@@ -427,13 +431,10 @@ class TestEnvironment : public HandleAndZoneScope {
     // kReturnRegister0 as the first parameter, and the call will need a
     // register to hold the CodeObject address. So the maximum number of
     // registers left to test with is the number of available registers minus 2.
-    DCHECK_LE(
-        kGeneralRegisterCount,
-        RegisterConfiguration::Default()->num_allocatable_general_registers() -
-            2);
+    DCHECK_LE(kGeneralRegisterCount,
+              GetRegConfig()->num_allocatable_general_registers() - 2);
 
-    int32_t general_mask =
-        RegisterConfiguration::Default()->allocatable_general_codes_mask();
+    int32_t general_mask = GetRegConfig()->allocatable_general_codes_mask();
     // kReturnRegister0 is used to hold the "teardown" code object, do not
     // generate moves using it.
     std::unique_ptr<const RegisterConfiguration> registers(
@@ -522,7 +523,7 @@ class TestEnvironment : public HandleAndZoneScope {
         // Keep a map of (MachineRepresentation . std::vector<int>) with
         // allocated slots to pick from for each representation.
         int slot = slot_parameter_n;
-        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kPointerSize);
+        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kSystemPointerSize);
         AddStackSlot(&test_signature, rep, slot);
         entry->second--;
       }
@@ -534,9 +535,9 @@ class TestEnvironment : public HandleAndZoneScope {
     // differentiate between a pointer to a HeapNumber and a integer. For this
     // reason, we make sure all integers are Smis, including constants.
     for (int i = 0; i < kSmiConstantCount; i++) {
-      intptr_t smi_value = reinterpret_cast<intptr_t>(
-          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
-      Constant constant = kPointerSize == 8
+      intptr_t smi_value = static_cast<intptr_t>(
+          Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
+      Constant constant = kSystemPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
       AddConstant(MachineRepresentation::kTagged, AllocateConstant(constant));
@@ -574,8 +575,8 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   int AllocateConstant(Constant constant) {
-    int virtual_register = code_.NextVirtualRegister();
-    code_.AddConstant(virtual_register, constant);
+    int virtual_register = instructions_.NextVirtualRegister();
+    instructions_.AddConstant(virtual_register, constant);
     return virtual_register;
   }
 
@@ -635,18 +636,21 @@ class TestEnvironment : public HandleAndZoneScope {
         case MachineRepresentation::kTagged:
           state->set(i, Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
           break;
-        case MachineRepresentation::kFloat32:
+        case MachineRepresentation::kFloat32: {
           // HeapNumbers are Float64 values. However, we will convert it to a
           // Float32 and back inside `setup` and `teardown`. Make sure the value
           // we pick fits in a Float32.
-          state->set(
-              i, *main_isolate()->factory()->NewHeapNumber(
-                     static_cast<double>(DoubleToFloat32(rng_->NextDouble()))));
+          Handle<HeapNumber> num = main_isolate()->factory()->NewHeapNumber(
+              static_cast<double>(DoubleToFloat32(rng_->NextDouble())));
+          state->set(i, *num);
           break;
-        case MachineRepresentation::kFloat64:
-          state->set(
-              i, *main_isolate()->factory()->NewHeapNumber(rng_->NextDouble()));
+        }
+        case MachineRepresentation::kFloat64: {
+          Handle<HeapNumber> num =
+              main_isolate()->factory()->NewHeapNumber(rng_->NextDouble());
+          state->set(i, *num);
           break;
+        }
         case MachineRepresentation::kSimd128: {
           Handle<FixedArray> vector =
               main_isolate()->factory()->NewFixedArray(4);
@@ -670,8 +674,18 @@ class TestEnvironment : public HandleAndZoneScope {
     Handle<FixedArray> state_out = main_isolate()->factory()->NewFixedArray(
         static_cast<int>(layout_.size()));
     {
+#ifdef ENABLE_SLOW_DCHECKS
+      // The "setup" and "teardown" functions are relatively big, and with
+      // runtime assertions enabled they get so big that memory during register
+      // allocation becomes a problem. Temporarily disable such assertions.
+      bool old_enable_slow_asserts = FLAG_enable_slow_asserts;
+      FLAG_enable_slow_asserts = false;
+#endif
       Handle<Code> setup =
           BuildSetupFunction(main_isolate(), test_descriptor_, layout_);
+#ifdef ENABLE_SLOW_DCHECKS
+      FLAG_enable_slow_asserts = old_enable_slow_asserts;
+#endif
       // FunctionTester maintains its own HandleScope which means that its
       // return value will be freed along with it. Copy the result into
       // state_out.
@@ -709,21 +723,19 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(move->destination()));
       InstructionOperand from = move->source();
       if (from.IsConstant()) {
-        Constant constant =
-            code_.GetConstant(ConstantOperand::cast(from).virtual_register());
+        Constant constant = instructions_.GetConstant(
+            ConstantOperand::cast(from).virtual_register());
         Handle<Object> constant_value;
         switch (constant.type()) {
           case Constant::kInt32:
             constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt32())),
+                Handle<Smi>(Smi(static_cast<Address>(
+                                static_cast<intptr_t>(constant.ToInt32()))),
                             main_isolate());
             break;
           case Constant::kInt64:
-            constant_value =
-                Handle<Smi>(reinterpret_cast<Smi*>(
-                                static_cast<intptr_t>(constant.ToInt64())),
-                            main_isolate());
+            constant_value = Handle<Smi>(
+                Smi(static_cast<Address>(constant.ToInt64())), main_isolate());
             break;
           case Constant::kFloat32:
             constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -740,8 +752,7 @@ class TestEnvironment : public HandleAndZoneScope {
         state_out->set(to_index, *constant_value);
       } else {
         int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
-        state_out->set(to_index, *state_out->GetValueChecked<Object>(
-                                     main_isolate(), from_index));
+        state_out->set(to_index, state_out->get(from_index));
       }
     }
     return state_out;
@@ -761,10 +772,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(swap->destination()));
       int rhs_index =
           OperandToStatePosition(AllocatedOperand::cast(swap->source()));
-      Handle<Object> lhs =
-          state_out->GetValueChecked<Object>(main_isolate(), lhs_index);
-      Handle<Object> rhs =
-          state_out->GetValueChecked<Object>(main_isolate(), rhs_index);
+      Handle<Object> lhs{state_out->get(lhs_index), main_isolate()};
+      Handle<Object> rhs{state_out->get(rhs_index), main_isolate()};
       state_out->set(lhs_index, *rhs);
       state_out->set(rhs_index, *lhs);
     }
@@ -774,10 +783,8 @@ class TestEnvironment : public HandleAndZoneScope {
   // Compare the given state with a reference.
   void CheckState(Handle<FixedArray> actual, Handle<FixedArray> expected) {
     for (int i = 0; i < static_cast<int>(layout_.size()); i++) {
-      Handle<Object> actual_value =
-          actual->GetValueChecked<Object>(main_isolate(), i);
-      Handle<Object> expected_value =
-          expected->GetValueChecked<Object>(main_isolate(), i);
+      Handle<Object> actual_value{actual->get(i), main_isolate()};
+      Handle<Object> expected_value{expected->get(i), main_isolate()};
       if (!CompareValues(actual_value, expected_value,
                          layout_[i].representation())) {
         std::ostringstream expected_str;
@@ -785,8 +792,8 @@ class TestEnvironment : public HandleAndZoneScope {
                         layout_[i]);
         std::ostringstream actual_str;
         PrintStateValue(actual_str, main_isolate(), actual_value, layout_[i]);
-        V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
-                 expected_str.str().c_str(), actual_str.str().c_str());
+        FATAL("Expected: '%s' but got '%s'", expected_str.str().c_str(),
+              actual_str.str().c_str());
       }
     }
   }
@@ -800,13 +807,11 @@ class TestEnvironment : public HandleAndZoneScope {
         return actual->StrictEquals(*expected);
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
-          Handle<Smi> actual_lane =
-              FixedArray::cast(*actual)->GetValueChecked<Smi>(main_isolate(),
-                                                              lane);
-          Handle<Smi> expected_lane =
-              FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
-                                                                lane);
-          if (!actual_lane->StrictEquals(*expected_lane)) {
+          int actual_lane =
+              Smi::cast(FixedArray::cast(*actual).get(lane)).value();
+          int expected_lane =
+              Smi::cast(FixedArray::cast(*expected).get(lane)).value();
+          if (actual_lane != expected_lane) {
             return false;
           }
         }
@@ -908,13 +913,19 @@ class TestEnvironment : public HandleAndZoneScope {
     return allocated_constants_[rep][index];
   }
 
+  static InstructionBlock* NewBlock(Zone* zone, RpoNumber rpo) {
+    return new (zone) InstructionBlock(zone, rpo, RpoNumber::Invalid(),
+                                       RpoNumber::Invalid(), false, false);
+  }
+
   v8::base::RandomNumberGenerator* rng() const { return rng_; }
-  InstructionSequence* code() { return &code_; }
+  InstructionSequence* instructions() { return &instructions_; }
   CallDescriptor* test_descriptor() { return test_descriptor_; }
+  int stack_slot_count() const { return stack_slot_count_; }
 
  private:
   ZoneVector<InstructionBlock*> blocks_;
-  InstructionSequence code_;
+  InstructionSequence instructions_;
   v8::base::RandomNumberGenerator* rng_;
   // The layout describes the type of each element in the environment, in order.
   std::vector<AllocatedOperand> layout_;
@@ -928,6 +939,7 @@ class TestEnvironment : public HandleAndZoneScope {
       allocated_registers_;
   std::map<MachineRepresentation, std::vector<AllocatedOperand>>
       allocated_slots_;
+  int stack_slot_count_;
 };
 
 // static
@@ -943,37 +955,102 @@ constexpr int TestEnvironment::kDoubleConstantCount;
 
 // Wrapper around the CodeGenerator. Code generated by this can only be called
 // using the given `TestEnvironment`.
-//
-// TODO(planglois): We execute moves on stack parameters only which restricts
-// ourselves to small positive offsets relative to the frame pointer. We should
-// test large and negative offsets too. A way to do this would be to move some
-// stack parameters to local spill slots and create artificial stack space
-// between them.
 class CodeGeneratorTester {
  public:
-  explicit CodeGeneratorTester(TestEnvironment* environment)
+  explicit CodeGeneratorTester(TestEnvironment* environment,
+                               int extra_stack_space = 0)
       : zone_(environment->main_zone()),
         info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
         linkage_(environment->test_descriptor()),
-        frame_(environment->test_descriptor()->CalculateFixedFrameSize()),
-        generator_(environment->main_zone(), &frame_, &linkage_,
-                   environment->code(), &info_, environment->main_isolate(),
-                   base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-                   nullptr, LoadPoisoning::kDontPoison) {
+        frame_(environment->test_descriptor()->CalculateFixedFrameSize(
+            Code::STUB)) {
+    // Pick half of the stack parameters at random and move them into spill
+    // slots, separated by `extra_stack_space` bytes.
+    // When testing a move with stack slots using CheckAssembleMove or
+    // CheckAssembleSwap, we'll transparently make use of local spill slots
+    // instead of stack parameters for those that were picked. This allows us to
+    // test negative, positive, far and near ranges.
+    for (int i = 0; i < (environment->stack_slot_count() / 2);) {
+      MachineRepresentation rep =
+          environment->CreateRandomMachineRepresentation();
+      LocationOperand old_slot =
+          LocationOperand::cast(environment->CreateRandomStackSlotOperand(rep));
+      // Do not pick the same slot twice.
+      if (GetSpillSlot(&old_slot) != spill_slots_.end()) {
+        continue;
+      }
+      LocationOperand new_slot =
+          AllocatedOperand(LocationOperand::STACK_SLOT, rep,
+                           frame_.AllocateSpillSlot(GetSlotSizeInBytes(rep)));
+      // Artificially create space on the stack by allocating a new slot.
+      if (extra_stack_space > 0) {
+        frame_.AllocateSpillSlot(extra_stack_space);
+      }
+      spill_slots_.emplace_back(old_slot, new_slot);
+      i++;
+    }
+
+    generator_ = new CodeGenerator(
+        environment->main_zone(), &frame_, &linkage_,
+        environment->instructions(), &info_, environment->main_isolate(),
+        base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+        PoisoningMitigationLevel::kDontPoison,
+        AssemblerOptions::Default(environment->main_isolate()),
+        Builtins::kNoBuiltinId);
+
     // Force a frame to be created.
-    generator_.frame_access_state()->MarkHasFrame(true);
-    generator_.AssembleConstructFrame();
+    generator_->frame_access_state()->MarkHasFrame(true);
+    generator_->AssembleConstructFrame();
     // TODO(all): Generate a stack check here so that we fail gracefully if the
     // frame is too big.
+
+    // Move chosen stack parameters into spill slots.
+    for (auto move : spill_slots_) {
+      generator_->AssembleMove(&move.first, &move.second);
+    }
+  }
+
+  ~CodeGeneratorTester() { delete generator_; }
+
+  std::vector<std::pair<LocationOperand, LocationOperand>>::iterator
+  GetSpillSlot(InstructionOperand* op) {
+    if (op->IsAnyStackSlot()) {
+      LocationOperand slot = LocationOperand::cast(*op);
+      return std::find_if(
+          spill_slots_.begin(), spill_slots_.end(),
+          [slot](
+              const std::pair<LocationOperand, LocationOperand>& moved_pair) {
+            return moved_pair.first.index() == slot.index();
+          });
+    } else {
+      return spill_slots_.end();
+    }
+  }
+
+  // If the operand corresponds to a spill slot, return it. Else just pass it
+  // through.
+  InstructionOperand* MaybeTranslateSlot(InstructionOperand* op) {
+    auto it = GetSpillSlot(op);
+    if (it != spill_slots_.end()) {
+      // The second element is the spill slot associated with op.
+      return &it->second;
+    } else {
+      return op;
+    }
   }
 
   Instruction* CreateTailCall(int stack_slot_delta) {
     int optional_padding_slot = stack_slot_delta;
     InstructionOperand callee[] = {
+        AllocatedOperand(LocationOperand::REGISTER,
+                         MachineRepresentation::kTagged,
+                         kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 2, callee, 0, nullptr);
+    Instruction* tail_call =
+        Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
+                         arraysize(callee), callee, 0, nullptr);
     return tail_call;
   }
 
@@ -986,7 +1063,7 @@ class CodeGeneratorTester {
   void CheckAssembleTailCallGaps(Instruction* instr,
                                  int first_unused_stack_slot,
                                  CodeGeneratorTester::PushTypeFlag push_type) {
-    generator_.AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
+    generator_->AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
     defined(V8_TARGET_ARCH_PPC)
     // Only folding register pushes is supported on ARM.
@@ -1005,33 +1082,45 @@ class CodeGeneratorTester {
         CHECK(move->IsEliminated());
       }
     }
-    generator_.AssembleGaps(instr);
-    generator_.AssembleTailCallAfterGap(instr, first_unused_stack_slot);
+    generator_->AssembleGaps(instr);
+    generator_->AssembleTailCallAfterGap(instr, first_unused_stack_slot);
   }
 
   void CheckAssembleMove(InstructionOperand* source,
                          InstructionOperand* destination) {
-    int start = generator_.tasm()->pc_offset();
-    generator_.AssembleMove(source, destination);
-    CHECK(generator_.tasm()->pc_offset() > start);
+    int start = generator_->tasm()->pc_offset();
+    generator_->AssembleMove(MaybeTranslateSlot(source),
+                             MaybeTranslateSlot(destination));
+    CHECK(generator_->tasm()->pc_offset() > start);
   }
 
   void CheckAssembleSwap(InstructionOperand* source,
                          InstructionOperand* destination) {
-    int start = generator_.tasm()->pc_offset();
-    generator_.AssembleSwap(source, destination);
-    CHECK(generator_.tasm()->pc_offset() > start);
+    int start = generator_->tasm()->pc_offset();
+    generator_->AssembleSwap(MaybeTranslateSlot(source),
+                             MaybeTranslateSlot(destination));
+    CHECK(generator_->tasm()->pc_offset() > start);
   }
 
   Handle<Code> Finalize() {
-    generator_.FinishCode();
-    generator_.safepoints()->Emit(generator_.tasm(),
-                                  frame_.GetTotalFrameSlotCount());
-    return generator_.FinalizeCode();
+    generator_->FinishCode();
+    generator_->safepoints()->Emit(generator_->tasm(),
+                                   frame_.GetTotalFrameSlotCount());
+    generator_->MaybeEmitOutOfLineConstantPool();
+
+    return generator_->FinalizeCode().ToHandleChecked();
   }
 
   Handle<Code> FinalizeForExecuting() {
-    InstructionSequence* sequence = generator_.code();
+    // The test environment expects us to have performed moves on stack
+    // parameters. However, some of them are mapped to local spill slots. They
+    // should be moved back into stack parameters so their values are passed
+    // along to the `teardown` function.
+    for (auto move : spill_slots_) {
+      generator_->AssembleMove(&move.second, &move.first);
+    }
+
+    InstructionSequence* sequence = generator_->instructions();
 
     sequence->StartBlock(RpoNumber::FromInt(0));
     // The environment expects this code to tail-call to it's first parameter
@@ -1046,14 +1135,16 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 3, callee, 0, nullptr);
+    Instruction* tail_call =
+        Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
+                         arraysize(callee), callee, 0, nullptr);
     sequence->AddInstruction(tail_call);
     sequence->EndBlock(RpoNumber::FromInt(0));
 
-    generator_.AssembleBlock(
+    generator_->AssembleBlock(
         sequence->InstructionBlockAt(RpoNumber::FromInt(0)));
 
     return Finalize();
@@ -1061,10 +1152,12 @@ class CodeGeneratorTester {
 
  private:
   Zone* zone_;
-  CompilationInfo info_;
+  OptimizedCompilationInfo info_;
   Linkage linkage_;
   Frame frame_;
-  CodeGenerator generator_;
+  CodeGenerator* generator_;
+  // List of operands to be moved from stack parameters to spill slots.
+  std::vector<std::pair<LocationOperand, LocationOperand>> spill_slots_;
 };
 
 // The following fuzz tests will assemble a lot of moves, wrap them in
@@ -1091,81 +1184,108 @@ class CodeGeneratorTester {
 // reference, computed with a simulation of AssembleMove and AssembleSwap. See
 // SimulateMoves and SimulateSwaps.
 
+// Allocate space between slots to increase coverage of moves with larger
+// ranges. Note that this affects how much stack is allocated when running the
+// generated code. It means we have to be careful not to exceed the stack limit,
+// which is lower on Windows.
+#ifdef V8_OS_WIN
+constexpr int kExtraSpace = 0;
+#else
+constexpr int kExtraSpace = 1 * KB;
+#endif
+
 TEST(FuzzAssembleMove) {
   TestEnvironment env;
-  CodeGeneratorTester c(&env);
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
   ParallelMove* moves = env.GenerateRandomMoves(1000);
 
-  for (auto m : *moves) {
-    c.CheckAssembleMove(&m->source(), &m->destination());
-  }
-
-  Handle<Code> test = c.FinalizeForExecuting();
-  if (FLAG_print_code) {
-    test->Print();
-  }
-
-  Handle<FixedArray> actual = env.Run(test, state_in);
   Handle<FixedArray> expected = env.SimulateMoves(moves, state_in);
-  env.CheckState(actual, expected);
+
+  // Test small and potentially large ranges separately.
+  for (int extra_space : {0, kExtraSpace}) {
+    CodeGeneratorTester c(&env, extra_space);
+
+    for (auto m : *moves) {
+      c.CheckAssembleMove(&m->source(), &m->destination());
+    }
+
+    Handle<Code> test = c.FinalizeForExecuting();
+    if (FLAG_print_code) {
+      test->Print();
+    }
+
+    Handle<FixedArray> actual = env.Run(test, state_in);
+    env.CheckState(actual, expected);
+  }
 }
 
 TEST(FuzzAssembleSwap) {
   TestEnvironment env;
-  CodeGeneratorTester c(&env);
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
   ParallelMove* swaps = env.GenerateRandomSwaps(1000);
 
-  for (auto s : *swaps) {
-    c.CheckAssembleSwap(&s->source(), &s->destination());
-  }
-
-  Handle<Code> test = c.FinalizeForExecuting();
-  if (FLAG_print_code) {
-    test->Print();
-  }
-
-  Handle<FixedArray> actual = env.Run(test, state_in);
   Handle<FixedArray> expected = env.SimulateSwaps(swaps, state_in);
-  env.CheckState(actual, expected);
+
+  // Test small and potentially large ranges separately.
+  for (int extra_space : {0, kExtraSpace}) {
+    CodeGeneratorTester c(&env, extra_space);
+
+    for (auto s : *swaps) {
+      c.CheckAssembleSwap(&s->source(), &s->destination());
+    }
+
+    Handle<Code> test = c.FinalizeForExecuting();
+    if (FLAG_print_code) {
+      test->Print();
+    }
+
+    Handle<FixedArray> actual = env.Run(test, state_in);
+    env.CheckState(actual, expected);
+  }
 }
 
 TEST(FuzzAssembleMoveAndSwap) {
   TestEnvironment env;
-  CodeGeneratorTester c(&env);
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
   Handle<FixedArray> expected =
       env.main_isolate()->factory()->NewFixedArray(state_in->length());
-  state_in->CopyTo(0, *expected, 0, state_in->length());
 
-  for (int i = 0; i < 1000; i++) {
-    // Randomly alternate between swaps and moves.
-    if (env.rng()->NextInt(2) == 0) {
-      ParallelMove* move = env.GenerateRandomMoves(1);
-      expected = env.SimulateMoves(move, expected);
-      c.CheckAssembleMove(&move->at(0)->source(), &move->at(0)->destination());
-    } else {
-      ParallelMove* swap = env.GenerateRandomSwaps(1);
-      expected = env.SimulateSwaps(swap, expected);
-      c.CheckAssembleSwap(&swap->at(0)->source(), &swap->at(0)->destination());
+  // Test small and potentially large ranges separately.
+  for (int extra_space : {0, kExtraSpace}) {
+    CodeGeneratorTester c(&env, extra_space);
+
+    state_in->CopyTo(0, *expected, 0, state_in->length());
+
+    for (int i = 0; i < 1000; i++) {
+      // Randomly alternate between swaps and moves.
+      if (env.rng()->NextInt(2) == 0) {
+        ParallelMove* move = env.GenerateRandomMoves(1);
+        expected = env.SimulateMoves(move, expected);
+        c.CheckAssembleMove(&move->at(0)->source(),
+                            &move->at(0)->destination());
+      } else {
+        ParallelMove* swap = env.GenerateRandomSwaps(1);
+        expected = env.SimulateSwaps(swap, expected);
+        c.CheckAssembleSwap(&swap->at(0)->source(),
+                            &swap->at(0)->destination());
+      }
     }
-  }
 
-  Handle<Code> test = c.FinalizeForExecuting();
-  if (FLAG_print_code) {
-    test->Print();
-  }
+    Handle<Code> test = c.FinalizeForExecuting();
+    if (FLAG_print_code) {
+      test->Print();
+    }
 
-  Handle<FixedArray> actual = env.Run(test, state_in);
-  env.CheckState(actual, expected);
+    Handle<FixedArray> actual = env.Run(test, state_in);
+    env.CheckState(actual, expected);
+  }
 }
 
 TEST(AssembleTailCallGap) {
-  const RegisterConfiguration* conf = RegisterConfiguration::Default();
+  const RegisterConfiguration* conf = GetRegConfig();
   TestEnvironment env;
 
   // This test assumes at least 4 registers are allocatable.

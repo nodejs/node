@@ -5,15 +5,15 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "include/v8.h"
-#include "src/api.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace remote_object_unittest {
 
-typedef TestWithIsolate RemoteObjectTest;
+using RemoteObjectTest = TestWithIsolate;
 
 namespace {
 

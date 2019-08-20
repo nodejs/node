@@ -50,13 +50,25 @@ function OptUnreliable() {
 }
 
 DefineHigherOrderTests([
-  "NaiveForEachReplacement", Naive, NaiveSetup, v => v === max_index,
-  "DoubleForEach", mc("forEach"), DoubleSetup, v => v === max_index + 0.5,
-  "SmiForEach", mc("forEach"), SmiSetup, v => v === max_index,
-  "FastForEach", mc("forEach"), FastSetup, v => v === `value ${max_index}`,
-  "GenericForEach", mc("forEach", true), ObjectSetup, v => v === max_index,
-  "OptFastForEach", OptFast, FastSetup, undefined,
-  "OptUnreliableForEach", OptUnreliable, FastSetup, v => v === `value ${max_index}`
+  ['NaiveForEachReplacement', Naive, NaiveSetup, v => v === max_index],
+  [
+    'DoubleForEach', newClosure('forEach'), DoubleSetup,
+    v => v === max_index + 0.5
+  ],
+  ['SmiForEach', newClosure('forEach'), SmiSetup, v => v === max_index],
+  [
+    'FastForEach', newClosure('forEach'), FastSetup,
+    v => v === `value ${max_index}`
+  ],
+  [
+    'GenericForEach', newClosure('forEach', true), ObjectSetup,
+    v => v === max_index
+  ],
+  ['OptFastForEach', OptFast, FastSetup, undefined],
+  [
+    'OptUnreliableForEach', OptUnreliable, FastSetup,
+    v => v === `value ${max_index}`
+  ]
 ]);
 
 })();

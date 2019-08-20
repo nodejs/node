@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -24,21 +24,30 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   CodeDesc code_desc;
   code_desc.buffer = buffer;
   code_desc.buffer_size = buffer_size;
-  code_desc.constant_pool_size = 0;
   code_desc.instr_size = buffer_size;
+  code_desc.safepoint_table_offset = buffer_size;
+  code_desc.safepoint_table_size = 0;
+  code_desc.handler_table_offset = buffer_size;
+  code_desc.handler_table_size = 0;
+  code_desc.constant_pool_offset = buffer_size;
+  code_desc.constant_pool_size = 0;
+  code_desc.code_comments_offset = buffer_size;
+  code_desc.code_comments_size = 0;
+  code_desc.reloc_offset = buffer_size;
   code_desc.reloc_size = 0;
-  code_desc.origin = nullptr;
   code_desc.unwinding_info = nullptr;
   code_desc.unwinding_info_size = 0;
+  code_desc.origin = nullptr;
 
-  Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
-      code_desc, Code::STUB, Handle<Object>::null());
+  Handle<Code> code =
+      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, Code::STUB).Build();
 
   CHECK(!code->has_unwinding_info());
-  CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
-  CHECK_EQ(code->instruction_end() - reinterpret_cast<byte*>(*code),
-           Code::kHeaderSize + buffer_size - kHeapObjectTag);
+  CHECK_EQ(code->raw_instruction_size(), buffer_size);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
+                     buffer, buffer_size));
+  CHECK_EQ(code->raw_instruction_end() - code->address(),
+           Code::kHeaderSize + buffer_size);
 }
 
 TEST(CodeLayoutWithUnwindingInfo) {
@@ -61,29 +70,37 @@ TEST(CodeLayoutWithUnwindingInfo) {
   CodeDesc code_desc;
   code_desc.buffer = buffer;
   code_desc.buffer_size = buffer_size;
-  code_desc.constant_pool_size = 0;
   code_desc.instr_size = buffer_size;
+  code_desc.safepoint_table_offset = buffer_size;
+  code_desc.safepoint_table_size = 0;
+  code_desc.handler_table_offset = buffer_size;
+  code_desc.handler_table_size = 0;
+  code_desc.constant_pool_offset = buffer_size;
+  code_desc.constant_pool_size = 0;
+  code_desc.code_comments_offset = buffer_size;
+  code_desc.code_comments_size = 0;
+  code_desc.reloc_offset = buffer_size;
   code_desc.reloc_size = 0;
-  code_desc.origin = nullptr;
   code_desc.unwinding_info = unwinding_info;
   code_desc.unwinding_info_size = unwinding_info_size;
+  code_desc.origin = nullptr;
 
-  Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
-      code_desc, Code::STUB, Handle<Object>::null());
+  Handle<Code> code =
+      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, Code::STUB).Build();
 
   CHECK(code->has_unwinding_info());
-  CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
+  CHECK_EQ(code->raw_instruction_size(), buffer_size);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
+                     buffer, buffer_size));
   CHECK(IsAligned(code->GetUnwindingInfoSizeOffset(), 8));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
-  CHECK(
-      IsAligned(reinterpret_cast<uintptr_t>(code->unwinding_info_start()), 8));
-  CHECK_EQ(
-      memcmp(code->unwinding_info_start(), unwinding_info, unwinding_info_size),
-      0);
-  CHECK_EQ(code->unwinding_info_end() - reinterpret_cast<byte*>(*code),
+  CHECK(IsAligned(code->unwinding_info_start(), 8));
+  CHECK_EQ(memcmp(reinterpret_cast<void*>(code->unwinding_info_start()),
+                  unwinding_info, unwinding_info_size),
+           0);
+  CHECK_EQ(code->unwinding_info_end() - code->address(),
            Code::kHeaderSize + RoundUp(buffer_size, kInt64Size) + kInt64Size +
-               unwinding_info_size - kHeapObjectTag);
+               unwinding_info_size);
 }
 
 }  // namespace internal

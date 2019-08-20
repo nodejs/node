@@ -23,8 +23,8 @@ const bindingModules = cryptoModules.concat(['tls_wrap']);
 module.exports = function(context) {
   const missingCheckNodes = [];
   const requireNodes = [];
-  var commonModuleNode = null;
-  var hasSkipCall = false;
+  let commonModuleNode = null;
+  let hasSkipCall = false;
 
   function testCryptoUsage(node) {
     if (utils.isRequired(node, requireModules) ||
@@ -66,6 +66,22 @@ module.exports = function(context) {
 
   function reportIfMissingCheck() {
     if (hasSkipCall) {
+      // There is a skip, which is good, but verify that the require() calls
+      // in question come after at least one check.
+      if (missingCheckNodes.length > 0) {
+        requireNodes.forEach((requireNode) => {
+          const beforeAllChecks = missingCheckNodes.every((checkNode) => {
+            return requireNode.start < checkNode.start;
+          });
+
+          if (beforeAllChecks) {
+            context.report({
+              node: requireNode,
+              message: msg
+            });
+          }
+        });
+      }
       return;
     }
 
@@ -101,6 +117,6 @@ module.exports = function(context) {
     'CallExpression': (node) => testCryptoUsage(node),
     'IfStatement:exit': (node) => testIfStatement(node),
     'MemberExpression:exit': (node) => testMemberExpression(node),
-    'Program:exit': (node) => reportIfMissingCheck(node)
+    'Program:exit': () => reportIfMissingCheck()
   };
 };

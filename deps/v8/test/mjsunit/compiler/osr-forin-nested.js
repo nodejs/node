@@ -14,10 +14,12 @@ function foo(t) {
   for (var x in t) {
     for (var i = 0; i < 2; i++) {
       %OptimizeOsr();
+      %PrepareFunctionForOptimization(foo);
     }
   }
   return 5;
 }
+%PrepareFunctionForOptimization(foo);
 
 test(5, foo, {x:20});
 
@@ -27,9 +29,11 @@ function bar(t) {
     for (var i = 0; i < 2; i++) {
       %OptimizeOsr();
       sum += t[x];
+      %PrepareFunctionForOptimization(bar);
     }
   }
   return sum;
 }
+%PrepareFunctionForOptimization(bar);
 
 test(62, bar, {x:20,y:11});

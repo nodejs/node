@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-promise-finally
-
 Debug = debug.Debug
 
 var exception = null;
@@ -37,7 +35,7 @@ Promise.resolve()
   .finally(() => thenable)
   .catch(e => caughtException = e);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 Debug.setListener(null);
 Debug.clearBreakOnException();

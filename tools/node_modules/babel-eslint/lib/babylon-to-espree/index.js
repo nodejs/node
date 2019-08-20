@@ -6,11 +6,6 @@ var toTokens = require("./toTokens");
 var toAST = require("./toAST");
 
 module.exports = function(ast, traverse, tt, code) {
-  // remove EOF token, eslint doesn't use this for anything and it interferes
-  // with some rules see https://github.com/babel/babel-eslint/issues/2
-  // todo: find a more elegant way to do this
-  ast.tokens.pop();
-
   // convert tokens
   ast.tokens = toTokens(ast.tokens, tt, code);
 

@@ -20,22 +20,20 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// verify that connect reqs are properly cleaned up
+// Verify that connect reqs are properly cleaned up.
 
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const ROUNDS = 10;
-const ATTEMPTS_PER_ROUND = 100;
+const ROUNDS = 5;
+const ATTEMPTS_PER_ROUND = 50;
 let rounds = 1;
 let reqs = 0;
 
 pummel();
 
 function pummel() {
-  console.log('Round', rounds, '/', ROUNDS);
-
   let pending;
   for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
     net.createConnection(common.PORT).on('error', function(err) {
@@ -52,7 +50,8 @@ function pummel() {
 function check() {
   setTimeout(function() {
     assert.strictEqual(process._getActiveRequests().length, 0);
-    assert.strictEqual(process._getActiveHandles().length, 1); // the timer
+    const activeHandles = process._getActiveHandles();
+    assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
     check_called = true;
   }, 0);
 }

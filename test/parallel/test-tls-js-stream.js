@@ -6,30 +6,29 @@ if (!common.hasCrypto)
 
 const fixtures = require('../common/fixtures');
 
-const assert = require('assert');
 const net = require('net');
 const stream = require('stream');
 const tls = require('tls');
 
-const connected = {
-  client: 0,
-  server: 0
-};
-
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
-}, function(c) {
+}, common.mustCall(function(c) {
   console.log('new client');
-  connected.server++;
+
+  c.resume();
   c.end('ohai');
-}).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   const raw = net.connect(this.address().port);
 
   let pending = false;
   raw.on('readable', function() {
     if (pending)
       p._read();
+  });
+
+  raw.on('end', function() {
+    p.push(null);
   });
 
   const p = new stream.Duplex({
@@ -53,23 +52,15 @@ const server = tls.createServer({
   const socket = tls.connect({
     socket: p,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     console.log('client secure');
 
-    connected.client++;
-
-    socket.end('hello');
     socket.resume();
-    socket.destroy();
-  });
+    socket.end('hello');
+  }));
 
   socket.once('close', function() {
     console.log('client close');
     server.close();
   });
-});
-
-process.once('exit', function() {
-  assert.strictEqual(connected.client, 1);
-  assert.strictEqual(connected.server, 1);
-});
+}));

@@ -27,7 +27,7 @@ const { Readable, Writable } = require('stream');
 const EE = require('events').EventEmitter;
 
 
-// a mock thing a bit like the net.Socket/tcp_wrap.handle interaction
+// A mock thing a bit like the net.Socket/tcp_wrap.handle interaction
 
 const stream = new Readable({
   highWaterMark: 16,
@@ -97,7 +97,7 @@ writer._write = function(chunk, encoding, cb) {
 writer.on('finish', finish);
 
 
-// now emit some chunks.
+// Now emit some chunks.
 
 const chunk = 'asdfg';
 

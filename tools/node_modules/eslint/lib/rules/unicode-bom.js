@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require or disallow Unicode byte order mark (BOM)",
             category: "Stylistic Issues",
@@ -23,7 +25,11 @@ module.exports = {
             {
                 enum: ["always", "never"]
             }
-        ]
+        ],
+        messages: {
+            expected: "Expected Unicode BOM (Byte Order Mark).",
+            unexpected: "Unexpected Unicode BOM (Byte Order Mark)."
+        }
     },
 
     create(context) {
@@ -44,7 +50,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Expected Unicode BOM (Byte Order Mark).",
+                        messageId: "expected",
                         fix(fixer) {
                             return fixer.insertTextBeforeRange([0, 1], "\uFEFF");
                         }
@@ -53,7 +59,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: location,
-                        message: "Unexpected Unicode BOM (Byte Order Mark).",
+                        messageId: "unexpected",
                         fix(fixer) {
                             return fixer.removeRange([-1, 0]);
                         }

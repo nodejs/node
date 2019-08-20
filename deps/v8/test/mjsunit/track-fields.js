@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
+// Flags: --modify-field-representation-inplace
 
 // Test transitions caused by changes to field representations.
 
@@ -95,7 +96,7 @@ o6.b = 1.5;
 assertFalse(%HaveSameMap(o6, o7));
 // Smi, double, object.
 o7.c = {};
-assertFalse(%HaveSameMap(o6, o7));
+assertTrue(%HaveSameMap(o6, o7));
 // Smi, double, object.
 o6.c = {};
 assertTrue(%HaveSameMap(o6, o7));
@@ -113,6 +114,7 @@ of1.field = {};
 var of2 = {b:0};
 of2.field = 10;
 
+%PrepareFunctionForOptimization(poly_load);
 poly_load(of1, false);
 poly_load(of1, false);
 poly_load(of2, true);
@@ -131,6 +133,7 @@ function load_poly(o) {
   return o.a;
 }
 
+%PrepareFunctionForOptimization(load_poly);
 var o10 = { "a": 1.6 };
 var o11 = { "b": 1, "a": 1.7 };
 load_poly(o10);
@@ -149,6 +152,7 @@ function load_mono(o) {
   return o.a1;
 }
 
+%PrepareFunctionForOptimization(load_mono);
 var object = {"x": 1};
 var o10 = { "a1": 1.6 };
 var o11 = { "a1": object, "b": 1 };
@@ -163,6 +167,7 @@ function load_mono2(o) {
   return o.a2;
 }
 
+%PrepareFunctionForOptimization(load_mono2);
 var o12 = { "a2": 5 };
 var o13 = { "a2": object, "b": 1 };
 load_mono2(o12);
@@ -176,6 +181,7 @@ function load_mono3(o) {
   return o.a3;
 }
 
+%PrepareFunctionForOptimization(load_mono3);
 var o14 = { "a3": 1.6 };
 var o15 = { "a3": 1.8, "b": 1 };
 load_mono3(o14);
@@ -264,7 +270,6 @@ assertEquals(100, o20.dbl);
 function attr_mismatch_obj(v, writable) {
   var o = {};
   // Assign twice to make the field non-constant.
-  // TODO(ishell): update test once constant field tracking is done.
   o.some_value = 0;
   o.some_value = v;
   Object.defineProperty(o, "second_value", {value:10, writable:writable});
@@ -331,7 +336,8 @@ read_first_double(df1);
 // Test boilerplates with computed values.
 function none_boilerplate(a) {
   return {"a_none":a};
-}
+};
+%PrepareFunctionForOptimization(none_boilerplate);
 %OptimizeFunctionOnNextCall(none_boilerplate);
 var none_double1 = none_boilerplate(1.7);
 var none_double2 = none_boilerplate(1.9);
@@ -346,6 +352,7 @@ function none_to_smi(a) {
   return {"a_smi":a};
 }
 
+%PrepareFunctionForOptimization(none_to_smi);
 var none_smi1 = none_to_smi(1);
 var none_smi2 = none_to_smi(2);
 %OptimizeFunctionOnNextCall(none_to_smi);
@@ -360,6 +367,7 @@ function none_to_double(a) {
   return {"a_double":a};
 }
 
+%PrepareFunctionForOptimization(none_to_double);
 var none_to_double1 = none_to_double(1.5);
 var none_to_double2 = none_to_double(2.8);
 %OptimizeFunctionOnNextCall(none_to_double);
@@ -374,6 +382,7 @@ function none_to_object(a) {
   return {"an_object":a};
 }
 
+%PrepareFunctionForOptimization(none_to_object);
 var none_to_object1 = none_to_object(true);
 var none_to_object2 = none_to_object(false);
 %OptimizeFunctionOnNextCall(none_to_object);

@@ -91,8 +91,13 @@ const secret4 = dh4.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret4);
 
-const wrongBlockLength =
-  /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
+const wrongBlockLength = {
+  message: 'error:0606506D:digital envelope' +
+    ' routines:EVP_DecryptFinal_ex:wrong final block length',
+  code: 'ERR_OSSL_EVP_WRONG_FINAL_BLOCK_LENGTH',
+  library: 'digital envelope routines',
+  reason: 'wrong final block length'
+};
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -111,7 +116,7 @@ const wrongBlockLength =
 
 assert.throws(() => {
   dh3.computeSecret('');
-}, /^Error: Supplied key is too small$/);
+}, { message: 'Supplied key is too small' });
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');
@@ -230,7 +235,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert(firstByte === 2 || firstByte === 3);
   firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
   assert(firstByte === 6 || firstByte === 7);
-  // format value should be string
+  // Format value should be string
 
   common.expectsError(
     () => ecdh1.getPublicKey('buffer', 10),
@@ -260,7 +265,7 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
 
   assert.throws(() => {
     ecdh4.setPublicKey(ecdh3.getPublicKey());
-  }, /^Error: Failed to convert Buffer to EC_POINT$/);
+  }, { message: 'Failed to convert Buffer to EC_POINT' });
 
   // Verify that we can use ECDH without having to use newly generated keys.
   const ecdh5 = crypto.createECDH('secp256k1');
@@ -374,7 +379,7 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   crypto.createSign('SHA256').sign(ecPrivateKey);
 }
 
-// invalid test: curve argument is undefined
+// Invalid test: curve argument is undefined
 common.expectsError(
   () => crypto.createECDH(),
   {
@@ -383,3 +388,30 @@ common.expectsError(
     message: 'The "curve" argument must be of type string. ' +
              'Received type undefined'
   });
+
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('unknown-group');
+  },
+  /^Error: Unknown group$/,
+  'crypto.getDiffieHellman(\'unknown-group\') ' +
+  'failed to throw the expected error.'
+);
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('modp1').setPrivateKey('');
+  },
+  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
+  'setPrivateKey is not a function$'),
+  'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
+  'failed to throw the expected error.'
+);
+assert.throws(
+  function() {
+    crypto.getDiffieHellman('modp1').setPublicKey('');
+  },
+  new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
+  'setPublicKey is not a function$'),
+  'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
+  'failed to throw the expected error.'
+);

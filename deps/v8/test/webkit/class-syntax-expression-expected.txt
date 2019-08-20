@@ -17,7 +17,7 @@ PASS (new A).__proto__ is A.prototype
 PASS A.prototype.constructor is A
 PASS x = class threw exception SyntaxError: Unexpected end of input.
 PASS x = class { threw exception SyntaxError: Unexpected end of input.
-PASS x = class { ( } threw exception SyntaxError: Unexpected token (.
+PASS x = class { ( } threw exception SyntaxError: Unexpected token '('.
 PASS x = class {} did not throw exception.
 PASS x = class { constructor() {} constructor() {} } threw exception SyntaxError: A class may only have one constructor.
 PASS x = class { get constructor() {} } threw exception SyntaxError: Class constructor may not be an accessor.

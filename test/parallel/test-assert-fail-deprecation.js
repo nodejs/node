@@ -15,11 +15,12 @@ assert.throws(() => {
   assert.fail('first', 'second');
 }, {
   code: 'ERR_ASSERTION',
-  name: 'AssertionError [ERR_ASSERTION]',
+  name: 'AssertionError',
   message: '\'first\' != \'second\'',
   operator: '!=',
   actual: 'first',
-  expected: 'second'
+  expected: 'second',
+  generatedMessage: true
 });
 
 // Three args
@@ -27,11 +28,12 @@ assert.throws(() => {
   assert.fail('ignored', 'ignored', 'another custom message');
 }, {
   code: 'ERR_ASSERTION',
-  name: 'AssertionError [ERR_ASSERTION]',
+  name: 'AssertionError',
   message: 'another custom message',
-  operator: undefined,
+  operator: 'fail',
   actual: 'ignored',
-  expected: 'ignored'
+  expected: 'ignored',
+  generatedMessage: false
 });
 
 // Three args with custom Error
@@ -47,7 +49,7 @@ assert.throws(() => {
   assert.fail('first', 'second', undefined, 'operator');
 }, {
   code: 'ERR_ASSERTION',
-  name: 'AssertionError [ERR_ASSERTION]',
+  name: 'AssertionError',
   message: '\'first\' operator \'second\'',
   operator: 'operator',
   actual: 'first',

@@ -5,11 +5,28 @@
 #ifndef HEAP_HEAP_UTILS_H_
 #define HEAP_HEAP_UTILS_H_
 
+#include "src/api/api-inl.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
 namespace internal {
 namespace heap {
+
+class TemporaryEmbedderHeapTracerScope {
+ public:
+  TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
+                                   v8::EmbedderHeapTracer* tracer)
+      : isolate_(isolate) {
+    isolate_->SetEmbedderHeapTracer(tracer);
+  }
+
+  ~TemporaryEmbedderHeapTracerScope() {
+    isolate_->SetEmbedderHeapTracer(nullptr);
+  }
+
+ private:
+  v8::Isolate* const isolate_;
+};
 
 void SealCurrentObjects(Heap* heap);
 
@@ -22,7 +39,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                                                                 int remainder);
 
 std::vector<Handle<FixedArray>> CreatePadding(
-    Heap* heap, int padding_size, PretenureFlag tenure,
+    Heap* heap, int padding_size, AllocationType allocation,
     int object_size = kMaxRegularHeapObjectSize);
 
 void AllocateAllButNBytes(
@@ -51,6 +68,17 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space);
 void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void ForceEvacuationCandidate(Page* page);
+
+void InvokeScavenge();
+
+void InvokeMarkSweep();
+
+template <typename GlobalOrPersistent>
+bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
+  v8::HandleScope scope(isolate);
+  auto tmp = global.Get(isolate);
+  return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
+}
 
 }  // namespace heap
 }  // namespace internal

@@ -427,6 +427,9 @@ void http_parser_pause(http_parser *parser, int paused);
 /* Checks if this is the final chunk of the body. */
 int http_body_is_final(const http_parser *parser);
 
+/* Change the maximum header size provided at compile time. */
+void http_parser_set_max_header_size(uint32_t size);
+
 #ifdef __cplusplus
 }
 #endif

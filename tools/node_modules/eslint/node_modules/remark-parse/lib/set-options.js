@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse
- * @fileoverview Markdown parser.
- */
-
 'use strict';
 
 var xtend = require('xtend');
@@ -14,7 +6,6 @@ var defaults = require('./defaults');
 
 module.exports = setOptions;
 
-/* Set options. */
 function setOptions(options) {
   var self = this;
   var current = self.options;
@@ -43,10 +34,7 @@ function setOptions(options) {
       (key !== 'blocks' && typeof value !== 'boolean') ||
       (key === 'blocks' && typeof value !== 'object')
     ) {
-      throw new Error(
-        'Invalid value `' + value + '` ' +
-        'for setting `options.' + key + '`'
-      );
+      throw new Error('Invalid value `' + value + '` for setting `options.' + key + '`');
     }
 
     options[key] = value;

@@ -1,12 +1,18 @@
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const v8 = require('v8');
 const os = require('os');
 
 const circular = {};
 circular.circular = circular;
+
+const wasmModule = new WebAssembly.Module(fixtures.readSync('simple.wasm'));
 
 const objects = [
   { foo: 'bar' },
@@ -17,10 +23,11 @@ const objects = [
   undefined,
   null,
   42,
-  circular
+  circular,
+  wasmModule
 ];
 
-const hostObject = new (process.binding('js_stream').JSStream)();
+const hostObject = new (internalBinding('js_stream').JSStream)();
 
 const serializerTypeError =
   /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;
@@ -95,6 +102,47 @@ const deserializerTypeError =
   assert.strictEqual(des.readValue().val, hostObject);
 }
 
+// This test ensures that `v8.Serializer.writeRawBytes()` support
+// `TypedArray` and `DataView`.
+{
+  const text = 'hostObjectTag';
+  const data = Buffer.from(text);
+  const arrayBufferViews = common.getArrayBufferViews(data);
+
+  // `buf` is one of `TypedArray` or `DataView`.
+  function testWriteRawBytes(buf) {
+    let writeHostObjectCalled = false;
+    const ser = new v8.DefaultSerializer();
+
+    ser._writeHostObject = common.mustCall((object) => {
+      writeHostObjectCalled = true;
+      ser.writeUint32(buf.byteLength);
+      ser.writeRawBytes(buf);
+    });
+
+    ser.writeHeader();
+    ser.writeValue({ val: hostObject });
+
+    const des = new v8.DefaultDeserializer(ser.releaseBuffer());
+    des._readHostObject = common.mustCall(() => {
+      assert.strictEqual(writeHostObjectCalled, true);
+      const length = des.readUint32();
+      const buf = des.readRawBytes(length);
+      assert.strictEqual(buf.toString(), text);
+
+      return hostObject;
+    });
+
+    des.readHeader();
+
+    assert.strictEqual(des.readValue().val, hostObject);
+  }
+
+  arrayBufferViews.forEach((buf) => {
+    testWriteRawBytes(buf);
+  });
+}
+
 {
   const ser = new v8.DefaultSerializer();
   ser._writeHostObject = common.mustCall((object) => {
@@ -142,4 +190,53 @@ const deserializerTypeError =
 {
   assert.throws(v8.Serializer, serializerTypeError);
   assert.throws(v8.Deserializer, deserializerTypeError);
+}
+
+
+// `v8.deserialize()` and `new v8.Deserializer()` should support both
+// `TypedArray` and `DataView`.
+{
+  for (const obj of objects) {
+    const buf = v8.serialize(obj);
+
+    for (const arrayBufferView of common.getArrayBufferViews(buf)) {
+      assert.deepStrictEqual(v8.deserialize(arrayBufferView), obj);
+    }
+
+    for (const arrayBufferView of common.getArrayBufferViews(buf)) {
+      const deserializer = new v8.DefaultDeserializer(arrayBufferView);
+      deserializer.readHeader();
+      const value = deserializer.readValue();
+      assert.deepStrictEqual(value, obj);
+
+      const serializer = new v8.DefaultSerializer();
+      serializer.writeHeader();
+      serializer.writeValue(value);
+      assert.deepStrictEqual(buf, serializer.releaseBuffer());
+    }
+  }
+}
+
+{
+  const INVALID_SOURCE = 'INVALID_SOURCE_TYPE';
+  const serializer = new v8.Serializer();
+  serializer.writeHeader();
+  assert.throws(
+    () => serializer.writeRawBytes(INVALID_SOURCE),
+    /^TypeError: source must be a TypedArray or a DataView$/,
+  );
+  assert.throws(
+    () => v8.deserialize(INVALID_SOURCE),
+    /^TypeError: buffer must be a TypedArray or a DataView$/,
+  );
+  assert.throws(
+    () => new v8.Deserializer(INVALID_SOURCE),
+    /^TypeError: buffer must be a TypedArray or a DataView$/,
+  );
+}
+
+{
+  const deserializedWasmModule = v8.deserialize(v8.serialize(wasmModule));
+  const instance = new WebAssembly.Instance(deserializedWasmModule);
+  assert.strictEqual(instance.exports.add(10, 20), 30);
 }

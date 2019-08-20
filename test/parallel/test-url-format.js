@@ -173,6 +173,16 @@ const formatTests = {
     hash: '#bar'
   },
 
+  // `#` in path end + `#` in query
+  '/path/to/%%23?foo=the%231#bar': {
+    href: '/path/to/%%23?foo=the%231#bar',
+    pathname: '/path/to/%#',
+    query: {
+      foo: 'the#1'
+    },
+    hash: '#bar'
+  },
+
   // `?` and `#` in path and search
   'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag': {
     href: 'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag',
@@ -193,7 +203,7 @@ const formatTests = {
     pathname: '/fooA100%mBr',
   },
 
-  // multiple `#` in search
+  // Multiple `#` in search
   'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag': {
     href: 'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag',
     protocol: 'http:',
@@ -206,7 +216,7 @@ const formatTests = {
     pathname: '/'
   },
 
-  // more than 255 characters in hostname which exceeds the limit
+  // More than 255 characters in hostname which exceeds the limit
   [`http://${'a'.repeat(255)}.com/node`]: {
     href: 'http:///node',
     protocol: 'http:',
@@ -217,7 +227,7 @@ const formatTests = {
     path: '/node'
   },
 
-  // greater than or equal to 63 characters after `.` in hostname
+  // Greater than or equal to 63 characters after `.` in hostname
   [`http://www.${'z'.repeat(63)}example.com/node`]: {
     href: `http://www.${'z'.repeat(63)}example.com/node`,
     protocol: 'http:',

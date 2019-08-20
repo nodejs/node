@@ -117,7 +117,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_cbc_enc_loop
@@ -224,7 +224,7 @@ $::code.=<<___;
 	call		_${alg}${bits}_encrypt_1x
 	add		$inp, 16, $inp
 	sub		$len, 1, $len
-		
+
 	stda		%f0, [$out]0xe2		! ASI_BLK_INIT, T4-specific
 	add		$out, 8, $out
 	stda		%f2, [$out]0xe2		! ASI_BLK_INIT, T4-specific
@@ -339,7 +339,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_cbc_dec_loop2x
@@ -445,7 +445,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]
@@ -702,7 +702,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_ctr32_loop2x
@@ -791,7 +791,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]
@@ -1024,7 +1024,7 @@ $code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_xts_${dir}loop2x
@@ -1135,7 +1135,7 @@ $code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]

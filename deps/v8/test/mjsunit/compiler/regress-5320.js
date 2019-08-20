@@ -28,6 +28,7 @@
 // Flags: --allow-natives-syntax --opt
 
 function OptimizeTruncatingBinaryOp(func) {
+  %PrepareFunctionForOptimization(func);
   func(42, -2);
   func(31, undefined);
   %OptimizeFunctionOnNextCall(func);

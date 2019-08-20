@@ -131,11 +131,39 @@ struct ESS_signing_cert {
     STACK_OF(POLICYINFO) *policy_info;
 };
 
+/*-
+ * ESSCertIDv2 ::=  SEQUENCE {
+ *        hashAlgorithm           AlgorithmIdentifier
+ *                DEFAULT {algorithm id-sha256},
+ *        certHash                Hash,
+ *        issuerSerial            IssuerSerial OPTIONAL
+ * }
+ */
+
+struct ESS_cert_id_v2_st {
+    X509_ALGOR *hash_alg;       /* Default: SHA-256 */
+    ASN1_OCTET_STRING *hash;
+    ESS_ISSUER_SERIAL *issuer_serial;
+};
+
+/*-
+ * SigningCertificateV2 ::= SEQUENCE {
+ *        certs                   SEQUENCE OF ESSCertIDv2,
+ *        policies                SEQUENCE OF PolicyInformation OPTIONAL
+ * }
+ */
+
+struct ESS_signing_cert_v2_st {
+    STACK_OF(ESS_CERT_ID_V2) *cert_ids;
+    STACK_OF(POLICYINFO) *policy_info;
+};
+
 
 struct TS_resp_ctx {
     X509 *signer_cert;
     EVP_PKEY *signer_key;
     const EVP_MD *signer_md;
+    const EVP_MD *ess_cert_id_digest;
     STACK_OF(X509) *certs;      /* Certs to include in signed data. */
     STACK_OF(ASN1_OBJECT) *policies; /* Acceptable policies. */
     ASN1_OBJECT *default_policy; /* It may appear in policies, too. */

@@ -161,6 +161,7 @@ function run_test_3() {
     assert.strictEqual(fileData, fileDataExpected_3);
 
     run_test_4();
+    run_test_5();
   });
 
   file.on('error', function(err) {
@@ -178,16 +179,31 @@ function run_test_3() {
 
 const run_test_4 = common.mustCall(function() {
   //  Error: start must be >= zero
-  const block = () => {
+  const fn = () => {
     fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
   };
   const err = {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. ' +
-             'It must be >= 0. Received {start: -5}',
+             'It must be >= 0 and <= 2 ** 53 - 1. Received -5',
     type: RangeError
   };
-  common.expectsError(block, err);
+  common.expectsError(fn, err);
+});
+
+
+const run_test_5 = common.mustCall(function() {
+  //  Error: start must be <= 2 ** 53 - 1
+  const fn = () => {
+    fs.createWriteStream(filepath, { start: 2 ** 53, flags: 'r+' });
+  };
+  const err = {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. It must be ' +
+             '>= 0 and <= 2 ** 53 - 1. Received 9_007_199_254_740_992',
+    type: RangeError
+  };
+  common.expectsError(fn, err);
 });
 
 run_test_1();

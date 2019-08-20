@@ -13,11 +13,13 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
-#include "src/globals.h"
-#include "src/identity-map.h"
+#include "src/common/globals.h"
+#include "src/handles/maybe-handles.h"
+#include "src/utils/identity-map.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -27,9 +29,10 @@ enum class MemoryPressureLevel;
 
 namespace internal {
 
+class AstRawString;
 class AstValueFactory;
+class BackgroundCompileTask;
 class CancelableTaskManager;
-class CompilerDispatcherJob;
 class UnoptimizedCompileJob;
 class CompilerDispatcherTracer;
 class DeferredHandles;
@@ -37,6 +40,8 @@ class FunctionLiteral;
 class Isolate;
 class ParseInfo;
 class SharedFunctionInfo;
+class TimedHistogram;
+class WorkerThreadRuntimeCallStats;
 class Zone;
 
 template <typename T>
@@ -70,7 +75,7 @@ class Handle;
 // thread.
 class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
-  typedef uintptr_t JobId;
+  using JobId = uintptr_t;
 
   CompilerDispatcher(Isolate* isolate, Platform* platform,
                      size_t max_stack_size);
@@ -79,86 +84,82 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Returns true if the compiler dispatcher is enabled.
   bool IsEnabled() const;
 
-  // Enqueue a job for parse and compile. Returns true if a job was enqueued.
-  bool Enqueue(Handle<SharedFunctionInfo> function);
+  base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
+                                const AstRawString* function_name,
+                                const FunctionLiteral* function_literal);
 
-  // Like Enqueue, but also advances the job so that it can potentially
-  // continue running on a background thread (if at all possible). Returns
-  // true if the job was enqueued.
-  bool EnqueueAndStep(Handle<SharedFunctionInfo> function);
+  // Registers the given |function| with the compilation job |job_id|.
+  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo function);
 
-  // Returns true if there is a pending job for the given function.
+  // Returns true if there is a pending job with the given id.
+  bool IsEnqueued(JobId job_id) const;
+
+  // Returns true if there is a pending job registered for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
 
   // Blocks until the given function is compiled (and does so as fast as
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
-  // Blocks until all jobs are finished.
-  void FinishAllNow();
+  // Aborts compilation job |job_id|.
+  void AbortJob(JobId job_id);
 
-  // Aborts a given job. Blocks if requested.
-  void Abort(Handle<SharedFunctionInfo> function, BlockingBehavior blocking);
-
-  // Aborts all jobs. Blocks if requested.
-  void AbortAll(BlockingBehavior blocking);
-
-  // Memory pressure notifications from the embedder.
-  void MemoryPressureNotification(v8::MemoryPressureLevel level,
-                                  bool is_isolate_locked);
+  // Aborts all jobs, blocking until all jobs are aborted.
+  void AbortAll();
 
  private:
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueJob);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueWithoutSFI);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepWithoutSFI);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepTwice);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueParsed);
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepParsed);
+  FRIEND_TEST(CompilerDispatcherTest, IdleTaskNoIdleTime);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(CompilerDispatcherTest, CompileOnBackgroundThread);
-  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithBackgroundTask);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask);
-  FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
+  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(CompilerDispatcherTest, AbortJobNotStarted);
+  FRIEND_TEST(CompilerDispatcherTest, AbortJobAlreadyStarted);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
-  typedef std::map<JobId, std::unique_ptr<CompilerDispatcherJob>> JobMap;
-  typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
-  class AbortTask;
-  class BackgroundTask;
-  class IdleTask;
+  struct Job {
+    explicit Job(BackgroundCompileTask* task_arg);
+    ~Job();
 
-  void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
-  void AbortInactiveJobs();
-  bool CanEnqueue();
-  bool CanEnqueue(Handle<SharedFunctionInfo> function);
+    bool IsReadyToFinalize(const base::MutexGuard&) {
+      return has_run && (!function.is_null() || aborted);
+    }
+
+    bool IsReadyToFinalize(base::Mutex* mutex) {
+      base::MutexGuard lock(mutex);
+      return IsReadyToFinalize(lock);
+    }
+
+    std::unique_ptr<BackgroundCompileTask> task;
+    MaybeHandle<SharedFunctionInfo> function;
+    bool has_run;
+    bool aborted;
+  };
+
+  using JobMap = std::map<JobId, std::unique_ptr<Job>>;
+  using SharedToJobIdMap = IdentityMap<JobId, FreeStoreAllocationPolicy>;
+
+  void WaitForJobIfRunningOnBackground(Job* job);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
-  void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
-  void ScheduleMoreBackgroundTasksIfNeeded();
-  void ScheduleIdleTaskFromAnyThread();
-  void ScheduleIdleTaskIfNeeded();
-  void ScheduleAbortTask();
+  void ScheduleMoreWorkerTasksIfNeeded();
+  void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
-  JobId Enqueue(std::unique_ptr<CompilerDispatcherJob> job);
-  JobId EnqueueAndStep(std::unique_ptr<CompilerDispatcherJob> job);
-  // Returns job if not removed otherwise iterator following the removed job.
-  JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
   // Returns iterator to the inserted job.
-  JobMap::const_iterator InsertJob(std::unique_ptr<CompilerDispatcherJob> job);
+  JobMap::const_iterator InsertJob(std::unique_ptr<Job> job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
-  bool FinishNow(CompilerDispatcherJob* job);
 
   Isolate* isolate_;
+  AccountingAllocator* allocator_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
+  TimedHistogram* background_compile_timer_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   Platform* platform_;
   size_t max_stack_size_;
 
   // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
   bool trace_compiler_dispatcher_;
-
-  std::unique_ptr<CompilerDispatcherTracer> tracer_;
 
   std::unique_ptr<CancelableTaskManager> task_manager_;
 
@@ -172,30 +173,25 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // compilation's JobId;
   SharedToJobIdMap shared_to_unoptimized_job_id_;
 
-  base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
-
   // The following members can be accessed from any thread. Methods need to hold
   // the mutex |mutex_| while accessing them.
   base::Mutex mutex_;
 
-  // True if the dispatcher is in the process of aborting running tasks.
-  bool abort_;
-
+  // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
 
-  // Number of scheduled or running BackgroundTask objects.
-  size_t num_background_tasks_;
+  // Number of scheduled or running WorkerTask objects.
+  int num_worker_tasks_;
 
-  // The set of CompilerDispatcherJobs that can be advanced on any thread.
-  std::unordered_set<CompilerDispatcherJob*> pending_background_jobs_;
+  // The set of jobs that can be run on a background thread.
+  std::unordered_set<Job*> pending_background_jobs_;
 
-  // The set of CompilerDispatcherJobs currently processed on background
-  // threads.
-  std::unordered_set<CompilerDispatcherJob*> running_background_jobs_;
+  // The set of jobs currently being run on background threads.
+  std::unordered_set<Job*> running_background_jobs_;
 
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
-  CompilerDispatcherJob* main_thread_blocking_on_job_;
+  Job* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
 
   // Test support.

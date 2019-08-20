@@ -5,10 +5,13 @@
 
 const path = require('path');
 const common = require('../common.js');
-const filename = path.resolve(process.env.NODE_TMPDIR || __dirname,
-                              `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
 const assert = require('assert');
+
+const tmpdir = require('../../test/common/tmpdir');
+tmpdir.refresh();
+const filename = path.resolve(tmpdir.path,
+                              `.removeme-benchmark-garbage-${process.pid}`);
 
 const bench = common.createBenchmark(main, {
   dur: [5],
@@ -17,7 +20,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ len, dur, concurrent }) {
-  try { fs.unlinkSync(filename); } catch (e) {}
+  try { fs.unlinkSync(filename); } catch {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
@@ -25,10 +28,10 @@ function main({ len, dur, concurrent }) {
   var reads = 0;
   var benchEnded = false;
   bench.start();
-  setTimeout(function() {
+  setTimeout(() => {
     benchEnded = true;
     bench.end(reads);
-    try { fs.unlinkSync(filename); } catch (e) {}
+    try { fs.unlinkSync(filename); } catch {}
     process.exit(0);
   }, dur * 1000);
 

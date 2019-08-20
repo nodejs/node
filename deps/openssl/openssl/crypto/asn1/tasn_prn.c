@@ -315,7 +315,8 @@ static int asn1_template_print_ctx(BIO *out, ASN1_VALUE **fld, int indent,
                                      pctx))
                 return 0;
         }
-        if (!i && BIO_printf(out, "%*s<EMPTY>\n", indent + 2, "") <= 0)
+        if (i == 0 && BIO_printf(out, "%*s<%s>\n", indent + 2, "",
+                                 stack == NULL ? "ABSENT" : "EMPTY") <= 0)
             return 0;
         if (pctx->flags & ASN1_PCTX_FLAGS_SHOW_SEQUENCE) {
             if (BIO_printf(out, "%*s}\n", indent, "") <= 0)

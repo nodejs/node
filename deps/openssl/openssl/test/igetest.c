@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,24 +12,20 @@
 #include <openssl/rand.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
-#include "e_os.h"
+#include "internal/nelem.h"
+#include "testutil.h"
 
 #define TEST_SIZE       128
 #define BIG_TEST_SIZE 10240
 
-static void hexdump(FILE *f, const char *title, const unsigned char *s, int l)
-{
-    int n = 0;
+#if BIG_TEST_SIZE < TEST_SIZE
+#error BIG_TEST_SIZE is smaller than TEST_SIZE
+#endif
 
-    fprintf(f, "%s", title);
-    for (; n < l; ++n) {
-        if ((n % 16) == 0)
-            fprintf(f, "\n%04x", n);
-        fprintf(f, " %02x", s[n]);
-    }
-    fprintf(f, "\n");
-}
+static unsigned char rkey[16];
+static unsigned char rkey2[16];
+static unsigned char plaintext[BIG_TEST_SIZE];
+static unsigned char saved_iv[AES_BLOCK_SIZE * 4];
 
 #define MAX_VECTOR_SIZE 64
 
@@ -145,114 +141,88 @@ static struct bi_ige_test const bi_ige_test_vectors[] = {
 
 };
 
-static int run_test_vectors(void)
+static int test_ige_vectors(int n)
 {
-    unsigned int n;
-    int errs = 0;
+    const struct ige_test *const v = &ige_test_vectors[n];
+    AES_KEY key;
+    unsigned char buf[MAX_VECTOR_SIZE];
+    unsigned char iv[AES_BLOCK_SIZE * 2];
+    int testresult = 1;
 
-    for (n = 0; n < OSSL_NELEM(ige_test_vectors); ++n) {
-        const struct ige_test *const v = &ige_test_vectors[n];
-        AES_KEY key;
-        unsigned char buf[MAX_VECTOR_SIZE];
-        unsigned char iv[AES_BLOCK_SIZE * 2];
+    if (!TEST_int_le(v->length, MAX_VECTOR_SIZE))
+        return 0;
 
-        assert(v->length <= MAX_VECTOR_SIZE);
+    if (v->encrypt == AES_ENCRYPT)
+        AES_set_encrypt_key(v->key, 8 * sizeof(v->key), &key);
+    else
+        AES_set_decrypt_key(v->key, 8 * sizeof(v->key), &key);
+    memcpy(iv, v->iv, sizeof(iv));
+    AES_ige_encrypt(v->in, buf, v->length, &key, iv, v->encrypt);
 
-        if (v->encrypt == AES_ENCRYPT)
-            AES_set_encrypt_key(v->key, 8 * sizeof(v->key), &key);
-        else
-            AES_set_decrypt_key(v->key, 8 * sizeof(v->key), &key);
-        memcpy(iv, v->iv, sizeof(iv));
-        AES_ige_encrypt(v->in, buf, v->length, &key, iv, v->encrypt);
-
-        if (memcmp(v->out, buf, v->length)) {
-            printf("IGE test vector %d failed\n", n);
-            hexdump(stdout, "key", v->key, sizeof(v->key));
-            hexdump(stdout, "iv", v->iv, sizeof(v->iv));
-            hexdump(stdout, "in", v->in, v->length);
-            hexdump(stdout, "expected", v->out, v->length);
-            hexdump(stdout, "got", buf, v->length);
-
-            ++errs;
-        }
-
-        /* try with in == out */
-        memcpy(iv, v->iv, sizeof(iv));
-        memcpy(buf, v->in, v->length);
-        AES_ige_encrypt(buf, buf, v->length, &key, iv, v->encrypt);
-
-        if (memcmp(v->out, buf, v->length)) {
-            printf("IGE test vector %d failed (with in == out)\n", n);
-            hexdump(stdout, "key", v->key, sizeof(v->key));
-            hexdump(stdout, "iv", v->iv, sizeof(v->iv));
-            hexdump(stdout, "in", v->in, v->length);
-            hexdump(stdout, "expected", v->out, v->length);
-            hexdump(stdout, "got", buf, v->length);
-
-            ++errs;
-        }
+    if (!TEST_mem_eq(v->out, v->length, buf, v->length)) {
+        TEST_info("IGE test vector %d failed", n);
+        test_output_memory("key", v->key, sizeof(v->key));
+        test_output_memory("iv", v->iv, sizeof(v->iv));
+        test_output_memory("in", v->in, v->length);
+        testresult = 0;
     }
 
-    for (n = 0; n < OSSL_NELEM(bi_ige_test_vectors); ++n) {
-        const struct bi_ige_test *const v = &bi_ige_test_vectors[n];
-        AES_KEY key1;
-        AES_KEY key2;
-        unsigned char buf[MAX_VECTOR_SIZE];
+    /* try with in == out */
+    memcpy(iv, v->iv, sizeof(iv));
+    memcpy(buf, v->in, v->length);
+    AES_ige_encrypt(buf, buf, v->length, &key, iv, v->encrypt);
 
-        assert(v->length <= MAX_VECTOR_SIZE);
-
-        if (v->encrypt == AES_ENCRYPT) {
-            AES_set_encrypt_key(v->key1, 8 * v->keysize, &key1);
-            AES_set_encrypt_key(v->key2, 8 * v->keysize, &key2);
-        } else {
-            AES_set_decrypt_key(v->key1, 8 * v->keysize, &key1);
-            AES_set_decrypt_key(v->key2, 8 * v->keysize, &key2);
-        }
-
-        AES_bi_ige_encrypt(v->in, buf, v->length, &key1, &key2, v->iv,
-                           v->encrypt);
-
-        if (memcmp(v->out, buf, v->length)) {
-            printf("Bidirectional IGE test vector %d failed\n", n);
-            hexdump(stdout, "key 1", v->key1, sizeof(v->key1));
-            hexdump(stdout, "key 2", v->key2, sizeof(v->key2));
-            hexdump(stdout, "iv", v->iv, sizeof(v->iv));
-            hexdump(stdout, "in", v->in, v->length);
-            hexdump(stdout, "expected", v->out, v->length);
-            hexdump(stdout, "got", buf, v->length);
-
-            ++errs;
-        }
+    if (!TEST_mem_eq(v->out, v->length, buf, v->length)) {
+        TEST_info("IGE test vector %d failed (with in == out)", n);
+        test_output_memory("key", v->key, sizeof(v->key));
+        test_output_memory("iv", v->iv, sizeof(v->iv));
+        test_output_memory("in", v->in, v->length);
+        testresult = 0;
     }
 
-    return errs;
+    return testresult;
 }
 
-int main(int argc, char **argv)
+static int test_bi_ige_vectors(int n)
 {
-    unsigned char rkey[16];
-    unsigned char rkey2[16];
-    AES_KEY key;
+    const struct bi_ige_test *const v = &bi_ige_test_vectors[n];
+    AES_KEY key1;
     AES_KEY key2;
-    unsigned char plaintext[BIG_TEST_SIZE];
+    unsigned char buf[MAX_VECTOR_SIZE];
+
+        if (!TEST_int_le(v->length, MAX_VECTOR_SIZE))
+            return 0;
+
+    if (v->encrypt == AES_ENCRYPT) {
+        AES_set_encrypt_key(v->key1, 8 * v->keysize, &key1);
+        AES_set_encrypt_key(v->key2, 8 * v->keysize, &key2);
+    } else {
+        AES_set_decrypt_key(v->key1, 8 * v->keysize, &key1);
+        AES_set_decrypt_key(v->key2, 8 * v->keysize, &key2);
+    }
+
+    AES_bi_ige_encrypt(v->in, buf, v->length, &key1, &key2, v->iv,
+                       v->encrypt);
+
+    if (!TEST_mem_eq(v->out, v->length, buf, v->length)) {
+        test_output_memory("key 1", v->key1, sizeof(v->key1));
+        test_output_memory("key 2", v->key2, sizeof(v->key2));
+        test_output_memory("iv", v->iv, sizeof(v->iv));
+        test_output_memory("in", v->in, v->length);
+        return 0;
+    }
+
+    return 1;
+}
+
+static int test_ige_enc_dec(void)
+{
+    AES_KEY key;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
     unsigned char ciphertext[BIG_TEST_SIZE];
     unsigned char checktext[BIG_TEST_SIZE];
-    unsigned char iv[AES_BLOCK_SIZE * 4];
-    unsigned char saved_iv[AES_BLOCK_SIZE * 4];
-    int err = 0;
-    unsigned int n;
-    unsigned matches;
 
-    assert(BIG_TEST_SIZE >= TEST_SIZE);
-
-    RAND_bytes(rkey, sizeof(rkey));
-    RAND_bytes(plaintext, sizeof(plaintext));
-    RAND_bytes(iv, sizeof(iv));
-    memcpy(saved_iv, iv, sizeof(saved_iv));
-
-    /* Forward IGE only... */
-
-    /* Straight encrypt/decrypt */
+    memcpy(iv, saved_iv, sizeof(iv));
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     AES_ige_encrypt(plaintext, ciphertext, TEST_SIZE, &key, iv, AES_ENCRYPT);
 
@@ -260,14 +230,16 @@ int main(int argc, char **argv)
     memcpy(iv, saved_iv, sizeof(iv));
     AES_ige_encrypt(ciphertext, checktext, TEST_SIZE, &key, iv, AES_DECRYPT);
 
-    if (memcmp(checktext, plaintext, TEST_SIZE)) {
-        printf("Encrypt+decrypt doesn't match\n");
-        hexdump(stdout, "Plaintext", plaintext, TEST_SIZE);
-        hexdump(stdout, "Checktext", checktext, TEST_SIZE);
-        ++err;
-    }
+    return TEST_mem_eq(checktext, TEST_SIZE, plaintext, TEST_SIZE);
+}
 
-    /* Now check encrypt chaining works */
+static int test_ige_enc_chaining(void)
+{
+    AES_KEY key;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     memcpy(iv, saved_iv, sizeof(iv));
     AES_ige_encrypt(plaintext, ciphertext, TEST_SIZE / 2, &key, iv,
@@ -280,14 +252,16 @@ int main(int argc, char **argv)
     memcpy(iv, saved_iv, sizeof(iv));
     AES_ige_encrypt(ciphertext, checktext, TEST_SIZE, &key, iv, AES_DECRYPT);
 
-    if (memcmp(checktext, plaintext, TEST_SIZE)) {
-        printf("Chained encrypt+decrypt doesn't match\n");
-        hexdump(stdout, "Plaintext", plaintext, TEST_SIZE);
-        hexdump(stdout, "Checktext", checktext, TEST_SIZE);
-        ++err;
-    }
+    return TEST_mem_eq(checktext, TEST_SIZE, plaintext, TEST_SIZE);
+}
 
-    /* And check decrypt chaining */
+static int test_ige_dec_chaining(void)
+{
+    AES_KEY key;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     memcpy(iv, saved_iv, sizeof(iv));
     AES_ige_encrypt(plaintext, ciphertext, TEST_SIZE / 2, &key, iv,
@@ -304,15 +278,21 @@ int main(int argc, char **argv)
                     checktext + TEST_SIZE / 2, TEST_SIZE / 2, &key, iv,
                     AES_DECRYPT);
 
-    if (memcmp(checktext, plaintext, TEST_SIZE)) {
-        printf("Chained encrypt+chained decrypt doesn't match\n");
-        hexdump(stdout, "Plaintext", plaintext, TEST_SIZE);
-        hexdump(stdout, "Checktext", checktext, TEST_SIZE);
-        ++err;
-    }
+    return TEST_mem_eq(checktext, TEST_SIZE, plaintext, TEST_SIZE);
+}
 
-    /* make sure garble extends forwards only */
-    AES_set_encrypt_key(rkey, 8 * sizeof(rkey),&key);
+static int test_ige_garble_forwards(void)
+{
+    AES_KEY key;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+    unsigned int n;
+    int testresult = 1;
+    const size_t ctsize = sizeof(checktext);
+    size_t matches;
+
+    AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     memcpy(iv, saved_iv, sizeof(iv));
     AES_ige_encrypt(plaintext, ciphertext, sizeof(plaintext), &key, iv,
                     AES_ENCRYPT);
@@ -329,26 +309,24 @@ int main(int argc, char **argv)
         if (checktext[n] == plaintext[n])
             ++matches;
 
-    if (matches > sizeof(checktext) / 2 + sizeof(checktext) / 100) {
-        printf("More than 51%% matches after garbling\n");
-        ++err;
-    }
+    /* Fail if there is more than 51% matching bytes */
+    if (!TEST_size_t_le(matches, ctsize / 2 + ctsize / 100))
+        testresult = 0;
 
-    if (matches < sizeof(checktext) / 2) {
-        printf("Garble extends backwards!\n");
-        ++err;
-    }
+    /* Fail if the garble goes backwards */
+    if (!TEST_size_t_gt(matches, ctsize / 2))
+        testresult = 0;
+    return testresult;
+}
 
-    /* Bi-directional IGE */
+static int test_bi_ige_enc_dec(void)
+{
+    AES_KEY key, key2;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
 
-    /*
-     * Note that we don't have to recover the IV, because chaining isn't
-     */
-    /* possible with biIGE, so the IV is not updated. */
-
-    RAND_bytes(rkey2, sizeof(rkey2));
-
-    /* Straight encrypt/decrypt */
+    memcpy(iv, saved_iv, sizeof(iv));
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     AES_set_encrypt_key(rkey2, 8 * sizeof(rkey2), &key2);
     AES_bi_ige_encrypt(plaintext, ciphertext, TEST_SIZE, &key, &key2, iv,
@@ -359,14 +337,19 @@ int main(int argc, char **argv)
     AES_bi_ige_encrypt(ciphertext, checktext, TEST_SIZE, &key, &key2, iv,
                        AES_DECRYPT);
 
-    if (memcmp(checktext, plaintext, TEST_SIZE)) {
-        printf("Encrypt+decrypt doesn't match\n");
-        hexdump(stdout, "Plaintext", plaintext, TEST_SIZE);
-        hexdump(stdout, "Checktext", checktext, TEST_SIZE);
-        ++err;
-    }
+    return TEST_mem_eq(checktext, TEST_SIZE, plaintext, TEST_SIZE);
+}
 
-    /* make sure garble extends both ways */
+static int test_bi_ige_garble1(void)
+{
+    AES_KEY key, key2;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+    unsigned int n;
+    size_t matches;
+
+    memcpy(iv, saved_iv, sizeof(iv));
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     AES_set_encrypt_key(rkey2, 8 * sizeof(rkey2), &key2);
     AES_ige_encrypt(plaintext, ciphertext, sizeof(plaintext), &key, iv,
@@ -384,12 +367,20 @@ int main(int argc, char **argv)
         if (checktext[n] == plaintext[n])
             ++matches;
 
-    if (matches > sizeof(checktext) / 100) {
-        printf("More than 1%% matches after bidirectional garbling\n");
-        ++err;
-    }
+    /* Fail if there is more than 1% matching bytes */
+    return TEST_size_t_le(matches, sizeof(checktext) / 100);
+}
 
-    /* make sure garble extends both ways (2) */
+static int test_bi_ige_garble2(void)
+{
+    AES_KEY key, key2;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+    unsigned int n;
+    size_t matches;
+
+    memcpy(iv, saved_iv, sizeof(iv));
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     AES_set_encrypt_key(rkey2, 8 * sizeof(rkey2), &key2);
     AES_ige_encrypt(plaintext, ciphertext, sizeof(plaintext), &key, iv,
@@ -407,12 +398,20 @@ int main(int argc, char **argv)
         if (checktext[n] == plaintext[n])
             ++matches;
 
-    if (matches > sizeof(checktext) / 100) {
-        printf("More than 1%% matches after bidirectional garbling (2)\n");
-        ++err;
-    }
+    /* Fail if there is more than 1% matching bytes */
+    return TEST_size_t_le(matches, sizeof(checktext) / 100);
+}
 
-    /* make sure garble extends both ways (3) */
+static int test_bi_ige_garble3(void)
+{
+    AES_KEY key, key2;
+    unsigned char iv[AES_BLOCK_SIZE * 4];
+    unsigned char ciphertext[BIG_TEST_SIZE];
+    unsigned char checktext[BIG_TEST_SIZE];
+    unsigned int n;
+    size_t matches;
+
+    memcpy(iv, saved_iv, sizeof(iv));
     AES_set_encrypt_key(rkey, 8 * sizeof(rkey), &key);
     AES_set_encrypt_key(rkey2, 8 * sizeof(rkey2), &key2);
     AES_ige_encrypt(plaintext, ciphertext, sizeof(plaintext), &key, iv,
@@ -430,12 +429,26 @@ int main(int argc, char **argv)
         if (checktext[n] == plaintext[n])
             ++matches;
 
-    if (matches > sizeof(checktext) / 100) {
-        printf("More than 1%% matches after bidirectional garbling (3)\n");
-        ++err;
-    }
+    /* Fail if there is more than 1% matching bytes */
+    return TEST_size_t_le(matches, sizeof(checktext) / 100);
+}
 
-    err += run_test_vectors();
+int setup_tests(void)
+{
+    RAND_bytes(rkey, sizeof(rkey));
+    RAND_bytes(rkey2, sizeof(rkey2));
+    RAND_bytes(plaintext, sizeof(plaintext));
+    RAND_bytes(saved_iv, sizeof(saved_iv));
 
-    return err;
+    ADD_TEST(test_ige_enc_dec);
+    ADD_TEST(test_ige_enc_chaining);
+    ADD_TEST(test_ige_dec_chaining);
+    ADD_TEST(test_ige_garble_forwards);
+    ADD_TEST(test_bi_ige_enc_dec);
+    ADD_TEST(test_bi_ige_garble1);
+    ADD_TEST(test_bi_ige_garble2);
+    ADD_TEST(test_bi_ige_garble3);
+    ADD_ALL_TESTS(test_ige_vectors, OSSL_NELEM(ige_test_vectors));
+    ADD_ALL_TESTS(test_bi_ige_vectors, OSSL_NELEM(bi_ige_test_vectors));
+    return 1;
 }

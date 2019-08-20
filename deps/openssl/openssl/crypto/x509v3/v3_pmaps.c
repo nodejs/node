@@ -52,6 +52,7 @@ static STACK_OF(CONF_VALUE) *i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD
     int i;
     char obj_tmp1[80];
     char obj_tmp2[80];
+
     for (i = 0; i < sk_POLICY_MAPPING_num(pmaps); i++) {
         pmap = sk_POLICY_MAPPING_value(pmaps, i);
         i2t_ASN1_OBJECT(obj_tmp1, 80, pmap->issuerDomainPolicy);
@@ -64,18 +65,19 @@ static STACK_OF(CONF_VALUE) *i2v_POLICY_MAPPINGS(const X509V3_EXT_METHOD
 static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
                                  X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
 {
-    POLICY_MAPPINGS *pmaps = NULL;
     POLICY_MAPPING *pmap = NULL;
     ASN1_OBJECT *obj1 = NULL, *obj2 = NULL;
     CONF_VALUE *val;
+    POLICY_MAPPINGS *pmaps;
+    const int num = sk_CONF_VALUE_num(nval);
     int i;
 
-    if ((pmaps = sk_POLICY_MAPPING_new_null()) == NULL) {
+    if ((pmaps = sk_POLICY_MAPPING_new_reserve(NULL, num)) == NULL) {
         X509V3err(X509V3_F_V2I_POLICY_MAPPINGS, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
 
-    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+    for (i = 0; i < num; i++) {
         val = sk_CONF_VALUE_value(nval, i);
         if (!val->value || !val->name) {
             X509V3err(X509V3_F_V2I_POLICY_MAPPINGS,
@@ -99,7 +101,7 @@ static void *v2i_POLICY_MAPPINGS(const X509V3_EXT_METHOD *method,
         pmap->issuerDomainPolicy = obj1;
         pmap->subjectDomainPolicy = obj2;
         obj1 = obj2 = NULL;
-        sk_POLICY_MAPPING_push(pmaps, pmap);
+        sk_POLICY_MAPPING_push(pmaps, pmap); /* no failure as it was reserved */
     }
     return pmaps;
  err:

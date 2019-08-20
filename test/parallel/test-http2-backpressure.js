@@ -9,12 +9,10 @@ const assert = require('assert');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
 
-common.crashOnUnhandledRejection();
-
 {
   let req;
   const server = http2.createServer();
-  server.on('stream', common.mustCallAsync(async (stream, headers) => {
+  server.on('stream', mustCallAsync(async (stream, headers) => {
     stream.respond({
       'content-type': 'text/html',
       ':status': 200
@@ -46,4 +44,10 @@ function event(ee, eventName) {
   return new Promise((resolve) => {
     ee.once(eventName, common.mustCall(resolve));
   });
+}
+
+function mustCallAsync(fn, exact) {
+  return common.mustCall((...args) => {
+    return Promise.resolve(fn(...args)).then(common.mustCall((val) => val));
+  }, exact);
 }

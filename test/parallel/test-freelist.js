@@ -8,24 +8,33 @@ const FreeList = require('internal/freelist');
 
 assert.strictEqual(typeof FreeList, 'function');
 
-const flist1 = new FreeList('flist1', 3, String);
+const flist1 = new FreeList('flist1', 3, Object);
 
 // Allocating when empty, should not change the list size
-const result = flist1.alloc('test');
-assert.strictEqual(typeof result, 'string');
-assert.strictEqual(result, 'test');
+const result = flist1.alloc();
+assert.strictEqual(typeof result, 'object');
 assert.strictEqual(flist1.list.length, 0);
 
 // Exhaust the free list
-assert(flist1.free('test1'));
-assert(flist1.free('test2'));
-assert(flist1.free('test3'));
+assert(flist1.free({ id: 'test1' }));
+assert(flist1.free({ id: 'test2' }));
+assert(flist1.free({ id: 'test3' }));
 
 // Now it should not return 'true', as max length is exceeded
-assert.strictEqual(flist1.free('test4'), false);
-assert.strictEqual(flist1.free('test5'), false);
+assert.strictEqual(flist1.free({ id: 'test4' }), false);
+assert.strictEqual(flist1.free({ id: 'test5' }), false);
 
 // At this point 'alloc' should just return the stored values
-assert.strictEqual(flist1.alloc(), 'test3');
-assert.strictEqual(flist1.alloc(), 'test2');
-assert.strictEqual(flist1.alloc(), 'test1');
+assert.strictEqual(flist1.alloc().id, 'test3');
+assert.strictEqual(flist1.alloc().id, 'test2');
+assert.strictEqual(flist1.alloc().id, 'test1');
+
+// Check list has elements
+const flist2 = new FreeList('flist2', 2, Object);
+assert.strictEqual(flist2.hasItems(), false);
+
+flist2.free({ id: 'test1' });
+assert.strictEqual(flist2.hasItems(), true);
+
+flist2.alloc();
+assert.strictEqual(flist2.hasItems(), false);

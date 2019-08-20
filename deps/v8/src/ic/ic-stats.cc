@@ -4,11 +4,11 @@
 
 #include "src/ic/ic-stats.h"
 
-#include "src/flags.h"
-#include "src/objects-inl.h"
+#include "src/init/v8.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ ICStats::ICStats() : ic_infos_(MAX_IC_INFO), pos_(0) {
 }
 
 void ICStats::Begin() {
-  if (V8_LIKELY(!FLAG_ic_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
   base::Relaxed_Store(&enabled_, 1);
 }
 
@@ -54,36 +54,38 @@ void ICStats::Dump() {
   Reset();
 }
 
-const char* ICStats::GetOrCacheScriptName(Script* script) {
-  if (script_name_map_.find(script) != script_name_map_.end()) {
-    return script_name_map_[script].get();
+const char* ICStats::GetOrCacheScriptName(Script script) {
+  Address script_ptr = script.ptr();
+  if (script_name_map_.find(script_ptr) != script_name_map_.end()) {
+    return script_name_map_[script_ptr].get();
   }
-  Object* script_name_raw = script->name();
-  if (script_name_raw->IsString()) {
-    String* script_name = String::cast(script_name_raw);
+  Object script_name_raw = script.name();
+  if (script_name_raw.IsString()) {
+    String script_name = String::cast(script_name_raw);
     char* c_script_name =
-        script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
+        script_name.ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
             .release();
     script_name_map_.insert(
-        std::make_pair(script, std::unique_ptr<char[]>(c_script_name)));
+        std::make_pair(script_ptr, std::unique_ptr<char[]>(c_script_name)));
     return c_script_name;
   } else {
     script_name_map_.insert(
-        std::make_pair(script, std::unique_ptr<char[]>(nullptr)));
+        std::make_pair(script_ptr, std::unique_ptr<char[]>(nullptr)));
     return nullptr;
   }
   return nullptr;
 }
 
-const char* ICStats::GetOrCacheFunctionName(JSFunction* function) {
-  if (function_name_map_.find(function) != function_name_map_.end()) {
-    return function_name_map_[function].get();
+const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
+  Address function_ptr = function.ptr();
+  if (function_name_map_.find(function_ptr) != function_name_map_.end()) {
+    return function_name_map_[function_ptr].get();
   }
-  SharedFunctionInfo* shared = function->shared();
-  ic_infos_[pos_].is_optimized = function->IsOptimized();
-  char* function_name = shared->DebugName()->ToCString().release();
+  SharedFunctionInfo shared = function.shared();
+  ic_infos_[pos_].is_optimized = function.IsOptimized();
+  char* function_name = shared.DebugName().ToCString().release();
   function_name_map_.insert(
-      std::make_pair(function, std::unique_ptr<char[]>(function_name)));
+      std::make_pair(function_ptr, std::unique_ptr<char[]>(function_name)));
   return function_name;
 }
 
@@ -95,7 +97,7 @@ ICInfo::ICInfo()
       is_constructor(false),
       is_optimized(false),
       map(nullptr),
-      is_dictionary_map(0),
+      is_dictionary_map(false),
       number_of_own_descriptors(0) {}
 
 void ICInfo::Reset() {

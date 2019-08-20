@@ -79,6 +79,7 @@ if (!is.null(plot.filename)) {
     width=.1, na.rm=TRUE
   );
   p = p + geom_point();
+  p = p + geom_line();
   p = p + ylab("rate of operations (higher is better)");
   p = p + ggtitle(dat[1, 1]);
   ggsave(plot.filename, p);

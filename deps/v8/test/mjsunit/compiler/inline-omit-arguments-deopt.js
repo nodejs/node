@@ -15,5 +15,6 @@ function baz() {
   return foo.arguments.length == 1 && foo.arguments[0] == 11;
 }
 
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(true, bar(12, 14));

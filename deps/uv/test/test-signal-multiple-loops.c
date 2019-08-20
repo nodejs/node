@@ -249,7 +249,7 @@ TEST_IMPL(signal_multiple_loops) {
     uv_sem_wait(&sem);
 
   /* Block all signals to this thread, so we are sure that from here the signal
-   * handler runs in another thread. This is is more likely to catch thread and
+   * handler runs in another thread. This is more likely to catch thread and
    * signal safety issues if there are any.
    */
   sigfillset(&sigset);
@@ -295,4 +295,8 @@ TEST_IMPL(signal_multiple_loops) {
   return 0;
 }
 
-#endif  /* !_WIN32 */
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

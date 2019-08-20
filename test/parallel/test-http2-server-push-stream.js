@@ -22,6 +22,14 @@ server.on('stream', common.mustCall((stream, headers) => {
         'x-push-data': 'pushed by server',
       });
       push.end('pushed by server data');
+
+      common.expectsError(() => {
+        push.pushStream({}, common.mustNotCall());
+      }, {
+        code: 'ERR_HTTP2_NESTED_PUSH',
+        type: Error
+      });
+
       stream.end('test');
     }));
   }
@@ -46,6 +54,7 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers['content-type'], 'text/html');
       assert.strictEqual(headers['x-push-data'], 'pushed by server');
     }));
+    stream.on('aborted', common.mustNotCall());
   }));
 
   let data = '';

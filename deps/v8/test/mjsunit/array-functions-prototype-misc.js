@@ -31,13 +31,8 @@
  * should work on other objects too, so we test that too.
  */
 
-var LARGE = 400000;
-var VERYLARGE = 4000000000;
-
-// Nicer for firefox 1.5.  Unless you uncomment the following two lines,
-// smjs will appear to hang on this file.
-//var LARGE = 40000;
-//var VERYLARGE = 40000;
+var LARGE = 40000;
+var VERYLARGE = 40000;
 
 var fourhundredth = LARGE/400;
 
@@ -45,7 +40,7 @@ function PseudoArray() {
 };
 
 for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
-  var poses = [0, 140, 20000, VERYLARGE];
+  var poses = [0, 140, 20000];
   var the_prototype;
   var new_function;
   var push_function;
@@ -175,20 +170,6 @@ for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
       assertEquals("concat", join);
       join = ba.join('');
       assertEquals("catcon", join);
-
-      var sparse = [];
-      sparse[pos + 1000] = 'is ';
-      sparse[pos + 271828] = 'time ';
-      sparse[pos + 31415] = 'the ';
-      sparse[pos + 012260199] = 'all ';
-      sparse[-1] = 'foo';
-      sparse[pos + 22591927] = 'good ';
-      sparse[pos + 1618033] = 'for ';
-      sparse[pos + 91] = ': Now ';
-      sparse[pos + 86720199] = 'men.';
-      sparse.hest = 'fisk';
-
-      assertEquals("baz: Now is the time for all good men.", sparse.join(''));
     }
 
     a = new_function(pos);
@@ -252,19 +233,22 @@ for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
     assertEquals("bar", a[2]);
 
     // Shift.
-    var baz = shift_function(a);
-    assertEquals("baz", baz);
-    assertEquals("boo", a[0]);
-    assertEquals(pos + 3, a.length);
-    assertEquals("foo", a[pos + 2]);
+    // Skip VERYLARGE arrays, as we removed sparse support for shift.
+    // Slice is also skipped, since it relies on the "shift" test to be run.
+    if (pos < VERYLARGE) {
+      var baz = shift_function(a);
+      assertEquals("baz", baz);
+      assertEquals("boo", a[0]);
+      assertEquals(pos + 3, a.length);
+      assertEquals("foo", a[pos + 2]);
 
-    // Slice.
-    var bar = slice_function(a, 1, 0);  // don't throw an exception please.
-    bar = slice_function(a, 1, 2);
-    assertEquals("bar", bar[0]);
-    assertEquals(1, bar.length);
-    assertEquals("bar", a[1]);
-
+      // Slice.
+      var bar = slice_function(a, 1, 0);  // don't throw an exception please.
+      bar = slice_function(a, 1, 2);
+      assertEquals("bar", bar[0]);
+      assertEquals(1, bar.length);
+      assertEquals("bar", a[1]);
+    }
   }
 }
 

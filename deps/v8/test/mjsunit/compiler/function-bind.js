@@ -12,6 +12,7 @@
     return bar.bind(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0)());
   assertEquals(1, foo(1)());
   %OptimizeFunctionOnNextCall(foo);
@@ -26,6 +27,7 @@
     return bar.bind(undefined, x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0)());
   assertEquals(1, foo(1)());
   %OptimizeFunctionOnNextCall(foo);
@@ -39,6 +41,7 @@
     return bar.bind(undefined, x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0)());
   assertEquals(1, foo(1)());
   %OptimizeFunctionOnNextCall(foo);
@@ -53,6 +56,7 @@
     return bar.bind(undefined, x, y);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0, 0)());
   assertEquals(2, foo(1, 1)());
   %OptimizeFunctionOnNextCall(foo);
@@ -68,6 +72,7 @@
     return bar.bind(undefined, x, y);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(0, foo(0, 0)());
   assertEquals(2, foo(1, 1)());
   %OptimizeFunctionOnNextCall(foo);
@@ -81,6 +86,7 @@
 
   function foo(g) { return bar(g.bind(null, 2)); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo((x, y) => x + y));
   assertEquals(1, foo((x, y) => x - y));
   %OptimizeFunctionOnNextCall(foo);
@@ -93,6 +99,7 @@
 
   function foo(a) { return a.map(add.bind(null, 1)); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals([1, 2, 3], foo([0, 1, 2]));
   assertEquals([2, 3, 4], foo([1, 2, 3]));
   %OptimizeFunctionOnNextCall(foo);
@@ -106,6 +113,7 @@
 
   function foo(inc) { return inc(1); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2, foo(inc));
   assertEquals(2, foo(inc));
   %OptimizeFunctionOnNextCall(foo);
@@ -118,6 +126,7 @@
 
   function foo() { return new B; }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertInstanceof(foo(), B);
   %OptimizeFunctionOnNextCall(foo);
@@ -137,6 +146,7 @@
 
   function foo(z) { return new B(z); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(3).x);
   assertEquals(2, foo(3).y);
   assertEquals(3, foo(3).z);
@@ -154,6 +164,7 @@
     return new B;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(), A);
   assertInstanceof(foo(), A);
   %OptimizeFunctionOnNextCall(foo);
@@ -174,6 +185,7 @@
     return new B(z);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(3).x);
   assertEquals(2, foo(3).y);
   assertEquals(3, foo(3).z);
@@ -191,6 +203,7 @@
     return new B;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(B), A);
   assertInstanceof(foo(B), A);
   %OptimizeFunctionOnNextCall(foo);
@@ -211,6 +224,7 @@
     return new B(z);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(B, 3).x);
   assertEquals(2, foo(B, 3).y);
   assertEquals(3, foo(B, 3).z);
@@ -231,6 +245,7 @@
   };
   const B = C.__proto__ = A.bind(null, 1);
 
+  %PrepareFunctionForOptimization(C);
   assertInstanceof(new C(), A);
   assertInstanceof(new C(), B);
   assertInstanceof(new C(), C);
@@ -253,6 +268,7 @@
     return bar(B)
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo(B), A);
   assertInstanceof(foo(B), A);
   %OptimizeFunctionOnNextCall(foo);
@@ -276,6 +292,7 @@
     return bar(B, z);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(B, 3).x);
   assertEquals(2, foo(B, 3).y);
   assertEquals(3, foo(B, 3).z);

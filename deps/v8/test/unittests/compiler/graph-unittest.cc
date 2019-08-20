@@ -4,9 +4,10 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
+#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
-#include "src/factory.h"
-#include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -14,23 +15,29 @@ namespace internal {
 namespace compiler {
 
 GraphTest::GraphTest(int num_parameters)
-    : TestWithNativeContext(),
-      TestWithIsolateAndZone(),
+    : canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
-      source_positions_(&graph_) {
+      broker_(isolate(), zone(), FLAG_trace_heap_broker),
+      source_positions_(&graph_),
+      node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
+  broker()->SetNativeContextRef();
 }
 
-
-GraphTest::~GraphTest() {}
+GraphTest::~GraphTest() = default;
 
 
 Node* GraphTest::Parameter(int32_t index) {
   return graph()->NewNode(common()->Parameter(index), graph()->start());
 }
 
+Node* GraphTest::Parameter(Type type, int32_t index) {
+  Node* node = GraphTest::Parameter(index);
+  NodeProperties::SetType(node, type);
+  return node;
+}
 
 Node* GraphTest::Float32Constant(volatile float value) {
   return graph()->NewNode(common()->Float32Constant(value));
@@ -59,7 +66,7 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type* type = Type::NewConstant(value, zone());
+  Type type = Type::NewConstant(broker(), value, zone());
   NodeProperties::SetType(node, type);
   return node;
 }
@@ -109,16 +116,10 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 }
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(isolate(), Typer::kNoFlags, graph()) {}
+    : GraphTest(num_parameters),
+      typer_(broker(), Typer::kNoFlags, graph(), tick_counter()) {}
 
-TypedGraphTest::~TypedGraphTest() {}
-
-
-Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
-  Node* node = GraphTest::Parameter(index);
-  NodeProperties::SetType(node, type);
-  return node;
-}
+TypedGraphTest::~TypedGraphTest() = default;
 
 namespace graph_unittest {
 

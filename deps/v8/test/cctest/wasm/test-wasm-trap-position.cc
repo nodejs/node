@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
-#include "src/assembler-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -21,17 +21,16 @@ using v8::Utils;
 
 namespace {
 
-#define CHECK_CSTREQ(exp, found)                                           \
-  do {                                                                     \
-    const char* exp_ = (exp);                                              \
-    const char* found_ = (found);                                          \
-    DCHECK_NOT_NULL(exp);                                                  \
-    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {     \
-      V8_Fatal(__FILE__, __LINE__,                                         \
-               "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
-               exp_, found_ ? found_ : "<null>");                          \
-    }                                                                      \
-  } while (0)
+#define CHECK_CSTREQ(exp, found)                                              \
+  do {                                                                        \
+    const char* exp_ = (exp);                                                 \
+    const char* found_ = (found);                                             \
+    DCHECK_NOT_NULL(exp);                                                     \
+    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {        \
+      FATAL("Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, exp_, \
+            found_ ? found_ : "<null>");                                      \
+    }                                                                         \
+  } while (false)
 
 struct ExceptionInfo {
   const char* func_name;
@@ -54,7 +53,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK_EQ(N, stack->GetFrameCount());
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
-    v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
+    v8::Local<v8::StackFrame> frame = stack->GetFrame(v8_isolate, frameNr);
     v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
@@ -69,8 +68,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 // Trigger a trap for executing unreachable.
 WASM_EXEC_TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<void> r(execution_mode, "main",
-                     compiler::kRuntimeExceptionSupport);
+  WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   BUILD(r, WASM_UNREACHABLE);
@@ -85,7 +83,7 @@ WASM_EXEC_TEST(Unreachable) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -95,7 +93,7 @@ WASM_EXEC_TEST(Unreachable) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"main", static_cast<int>(wasm_index) + 1, 2},  // --
+      {"main", static_cast<int>(wasm_index) + 1, 7},  // --
       {"callFn", 1, 24}                               // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
@@ -104,8 +102,7 @@ WASM_EXEC_TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 WASM_EXEC_TEST(IllegalLoad) {
-  WasmRunner<void> r(execution_mode, "main",
-                     compiler::kRuntimeExceptionSupport);
+  WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   r.builder().AddMemory(0L);
@@ -129,7 +126,7 @@ WASM_EXEC_TEST(IllegalLoad) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -139,9 +136,9 @@ WASM_EXEC_TEST(IllegalLoad) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"main", static_cast<int>(wasm_index_1) + 1, 8},       // --
-      {"call_main", static_cast<int>(wasm_index_2) + 1, 3},  // --
-      {"callFn", 1, 24}                                      // --
+      {"main", static_cast<int>(wasm_index_1) + 1, 13},       // --
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 30},  // --
+      {"callFn", 1, 24}                                       // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);

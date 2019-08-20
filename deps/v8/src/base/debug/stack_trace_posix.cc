@@ -61,7 +61,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding);
 namespace {
 
 volatile sig_atomic_t in_signal_handler = 0;
-bool dump_stack_in_signal_handler = 1;
+bool dump_stack_in_signal_handler = true;
 
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
 // http://www.codesourcery.com/cxx-abi/abi.html#mangling
@@ -72,6 +72,7 @@ const char kMangledSymbolPrefix[] = "_Z";
 const char kSymbolCharacters[] =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
+#if HAVE_EXECINFO_H
 // Demangles C++ symbols in the given text. Example:
 //
 // "out/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"
@@ -81,7 +82,6 @@ void DemangleSymbols(std::string* text) {
   // Note: code in this function is NOT async-signal safe (std::string uses
   // malloc internally).
 
-#if HAVE_EXECINFO_H
 
   std::string::size_type search_from = 0;
   while (search_from < text->size()) {
@@ -104,7 +104,7 @@ void DemangleSymbols(std::string* text) {
     // Try to demangle the mangled symbol candidate.
     int status = 0;
     std::unique_ptr<char, FreeDeleter> demangled_symbol(
-        abi::__cxa_demangle(mangled_symbol.c_str(), nullptr, 0, &status));
+        abi::__cxa_demangle(mangled_symbol.c_str(), nullptr, nullptr, &status));
     if (status == 0) {  // Demangling is successful.
       // Remove the mangled symbol.
       text->erase(mangled_start, mangled_end - mangled_start);
@@ -117,18 +117,18 @@ void DemangleSymbols(std::string* text) {
       search_from = mangled_start + 2;
     }
   }
-
-#endif  // HAVE_EXECINFO_H
 }
+#endif  // HAVE_EXECINFO_H
 
 class BacktraceOutputHandler {
  public:
   virtual void HandleOutput(const char* output) = 0;
 
  protected:
-  virtual ~BacktraceOutputHandler() {}
+  virtual ~BacktraceOutputHandler() = default;
 };
 
+#if HAVE_EXECINFO_H
 void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   // This should be more than enough to store a 64-bit number in hex:
   // 16 hex digits + 1 for null-terminator.
@@ -139,7 +139,6 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   handler->HandleOutput(buf);
 }
 
-#if HAVE_EXECINFO_H
 void ProcessBacktrace(void* const* trace, size_t size,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -267,7 +266,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
-  PrintBacktraceOutputHandler() {}
+  PrintBacktraceOutputHandler() = default;
 
   void HandleOutput(const char* output) override {
     // NOTE: This code MUST be async-signal safe (it's used by in-process

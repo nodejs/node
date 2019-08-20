@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 

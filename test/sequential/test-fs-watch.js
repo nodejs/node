@@ -28,6 +28,9 @@ const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
@@ -108,34 +111,18 @@ tmpdir.refresh();
   fs.watch(__filename, { persistent: false }, common.mustNotCall());
 }
 
-// whitebox test to ensure that wrapped FSEvent is safe
+// Whitebox test to ensure that wrapped FSEvent is safe
 // https://github.com/joyent/node/issues/6690
 {
   let oldhandle;
-  assert.throws(() => {
-    const w = fs.watch(__filename, common.mustNotCall());
-    oldhandle = w._handle;
-    w._handle = { close: w._handle.close };
-    w.close();
-  }, {
-    message: 'handle must be a FSEvent',
-    code: 'ERR_ASSERTION'
-  });
+  common.expectsInternalAssertion(
+    () => {
+      const w = fs.watch(__filename, common.mustNotCall());
+      oldhandle = w._handle;
+      w._handle = { close: w._handle.close };
+      w.close();
+    },
+    'handle must be a FSEvent'
+  );
   oldhandle.close(); // clean up
-}
-
-{
-  let oldhandle;
-  assert.throws(() => {
-    const w = fs.watchFile(__filename,
-                           { persistent: false },
-                           common.mustNotCall());
-    oldhandle = w._handle;
-    w._handle = { stop: w._handle.stop };
-    w.stop();
-  }, {
-    message: 'handle must be a StatWatcher',
-    code: 'ERR_ASSERTION'
-  });
-  oldhandle.stop(); // clean up
 }

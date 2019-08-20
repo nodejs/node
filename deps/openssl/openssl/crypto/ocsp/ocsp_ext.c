@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,7 +22,7 @@
 
 int OCSP_REQUEST_get_ext_count(OCSP_REQUEST *x)
 {
-    return (X509v3_get_ext_count(x->tbsRequest.requestExtensions));
+    return X509v3_get_ext_count(x->tbsRequest.requestExtensions);
 }
 
 int OCSP_REQUEST_get_ext_by_NID(OCSP_REQUEST *x, int nid, int lastpos)
@@ -46,12 +46,12 @@ int OCSP_REQUEST_get_ext_by_critical(OCSP_REQUEST *x, int crit, int lastpos)
 
 X509_EXTENSION *OCSP_REQUEST_get_ext(OCSP_REQUEST *x, int loc)
 {
-    return (X509v3_get_ext(x->tbsRequest.requestExtensions, loc));
+    return X509v3_get_ext(x->tbsRequest.requestExtensions, loc);
 }
 
 X509_EXTENSION *OCSP_REQUEST_delete_ext(OCSP_REQUEST *x, int loc)
 {
-    return (X509v3_delete_ext(x->tbsRequest.requestExtensions, loc));
+    return X509v3_delete_ext(x->tbsRequest.requestExtensions, loc);
 }
 
 void *OCSP_REQUEST_get1_ext_d2i(OCSP_REQUEST *x, int nid, int *crit, int *idx)
@@ -76,18 +76,18 @@ int OCSP_REQUEST_add_ext(OCSP_REQUEST *x, X509_EXTENSION *ex, int loc)
 
 int OCSP_ONEREQ_get_ext_count(OCSP_ONEREQ *x)
 {
-    return (X509v3_get_ext_count(x->singleRequestExtensions));
+    return X509v3_get_ext_count(x->singleRequestExtensions);
 }
 
 int OCSP_ONEREQ_get_ext_by_NID(OCSP_ONEREQ *x, int nid, int lastpos)
 {
-    return (X509v3_get_ext_by_NID(x->singleRequestExtensions, nid, lastpos));
+    return X509v3_get_ext_by_NID(x->singleRequestExtensions, nid, lastpos);
 }
 
 int OCSP_ONEREQ_get_ext_by_OBJ(OCSP_ONEREQ *x, const ASN1_OBJECT *obj,
                                int lastpos)
 {
-    return (X509v3_get_ext_by_OBJ(x->singleRequestExtensions, obj, lastpos));
+    return X509v3_get_ext_by_OBJ(x->singleRequestExtensions, obj, lastpos);
 }
 
 int OCSP_ONEREQ_get_ext_by_critical(OCSP_ONEREQ *x, int crit, int lastpos)
@@ -98,12 +98,12 @@ int OCSP_ONEREQ_get_ext_by_critical(OCSP_ONEREQ *x, int crit, int lastpos)
 
 X509_EXTENSION *OCSP_ONEREQ_get_ext(OCSP_ONEREQ *x, int loc)
 {
-    return (X509v3_get_ext(x->singleRequestExtensions, loc));
+    return X509v3_get_ext(x->singleRequestExtensions, loc);
 }
 
 X509_EXTENSION *OCSP_ONEREQ_delete_ext(OCSP_ONEREQ *x, int loc)
 {
-    return (X509v3_delete_ext(x->singleRequestExtensions, loc));
+    return X509v3_delete_ext(x->singleRequestExtensions, loc);
 }
 
 void *OCSP_ONEREQ_get1_ext_d2i(OCSP_ONEREQ *x, int nid, int *crit, int *idx)
@@ -127,7 +127,7 @@ int OCSP_ONEREQ_add_ext(OCSP_ONEREQ *x, X509_EXTENSION *ex, int loc)
 
 int OCSP_BASICRESP_get_ext_count(OCSP_BASICRESP *x)
 {
-    return (X509v3_get_ext_count(x->tbsResponseData.responseExtensions));
+    return X509v3_get_ext_count(x->tbsResponseData.responseExtensions);
 }
 
 int OCSP_BASICRESP_get_ext_by_NID(OCSP_BASICRESP *x, int nid, int lastpos)
@@ -152,12 +152,12 @@ int OCSP_BASICRESP_get_ext_by_critical(OCSP_BASICRESP *x, int crit,
 
 X509_EXTENSION *OCSP_BASICRESP_get_ext(OCSP_BASICRESP *x, int loc)
 {
-    return (X509v3_get_ext(x->tbsResponseData.responseExtensions, loc));
+    return X509v3_get_ext(x->tbsResponseData.responseExtensions, loc);
 }
 
 X509_EXTENSION *OCSP_BASICRESP_delete_ext(OCSP_BASICRESP *x, int loc)
 {
-    return (X509v3_delete_ext(x->tbsResponseData.responseExtensions, loc));
+    return X509v3_delete_ext(x->tbsResponseData.responseExtensions, loc);
 }
 
 void *OCSP_BASICRESP_get1_ext_d2i(OCSP_BASICRESP *x, int nid, int *crit,
@@ -184,34 +184,34 @@ int OCSP_BASICRESP_add_ext(OCSP_BASICRESP *x, X509_EXTENSION *ex, int loc)
 
 int OCSP_SINGLERESP_get_ext_count(OCSP_SINGLERESP *x)
 {
-    return (X509v3_get_ext_count(x->singleExtensions));
+    return X509v3_get_ext_count(x->singleExtensions);
 }
 
 int OCSP_SINGLERESP_get_ext_by_NID(OCSP_SINGLERESP *x, int nid, int lastpos)
 {
-    return (X509v3_get_ext_by_NID(x->singleExtensions, nid, lastpos));
+    return X509v3_get_ext_by_NID(x->singleExtensions, nid, lastpos);
 }
 
 int OCSP_SINGLERESP_get_ext_by_OBJ(OCSP_SINGLERESP *x, const ASN1_OBJECT *obj,
                                    int lastpos)
 {
-    return (X509v3_get_ext_by_OBJ(x->singleExtensions, obj, lastpos));
+    return X509v3_get_ext_by_OBJ(x->singleExtensions, obj, lastpos);
 }
 
 int OCSP_SINGLERESP_get_ext_by_critical(OCSP_SINGLERESP *x, int crit,
                                         int lastpos)
 {
-    return (X509v3_get_ext_by_critical(x->singleExtensions, crit, lastpos));
+    return X509v3_get_ext_by_critical(x->singleExtensions, crit, lastpos);
 }
 
 X509_EXTENSION *OCSP_SINGLERESP_get_ext(OCSP_SINGLERESP *x, int loc)
 {
-    return (X509v3_get_ext(x->singleExtensions, loc));
+    return X509v3_get_ext(x->singleExtensions, loc);
 }
 
 X509_EXTENSION *OCSP_SINGLERESP_delete_ext(OCSP_SINGLERESP *x, int loc)
 {
-    return (X509v3_delete_ext(x->singleExtensions, loc));
+    return X509v3_delete_ext(x->singleExtensions, loc);
 }
 
 void *OCSP_SINGLERESP_get1_ext_d2i(OCSP_SINGLERESP *x, int nid, int *crit,
@@ -439,6 +439,7 @@ X509_EXTENSION *OCSP_url_svcloc_new(X509_NAME *issuer, const char **urls)
 
     if ((sloc = OCSP_SERVICELOC_new()) == NULL)
         goto err;
+    X509_NAME_free(sloc->issuer);
     if ((sloc->issuer = X509_NAME_dup(issuer)) == NULL)
         goto err;
     if (urls && *urls
@@ -449,12 +450,11 @@ X509_EXTENSION *OCSP_url_svcloc_new(X509_NAME *issuer, const char **urls)
             goto err;
         if ((ad->method = OBJ_nid2obj(NID_ad_OCSP)) == NULL)
             goto err;
-        if ((ad->location = GENERAL_NAME_new()) == NULL)
-            goto err;
         if ((ia5 = ASN1_IA5STRING_new()) == NULL)
             goto err;
         if (!ASN1_STRING_set((ASN1_STRING *)ia5, *urls, -1))
             goto err;
+        /* ad->location is allocated inside ACCESS_DESCRIPTION_new */
         ad->location->type = GEN_URI;
         ad->location->d.ia5 = ia5;
         ia5 = NULL;

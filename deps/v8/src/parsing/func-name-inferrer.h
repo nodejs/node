@@ -5,7 +5,10 @@
 #ifndef V8_PARSING_FUNC_NAME_INFERRER_H_
 #define V8_PARSING_FUNC_NAME_INFERRER_H_
 
-#include "src/zone/zone.h"
+#include <vector>
+
+#include "src/base/macros.h"
+#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +20,11 @@ class FunctionLiteral;
 
 enum class InferName { kYes, kNo };
 
+template <>
+struct PointerWithPayloadTraits<AstRawString> {
+  static constexpr int value = 2;
+};
+
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
 // Inference is performed in cases when an anonymous function is assigned
@@ -27,29 +35,33 @@ enum class InferName { kYes, kNo };
 // and during parsing of the RHS, a function literal can be collected. After
 // parsing the RHS we can infer a name for function literals that do not have
 // a name.
-class FuncNameInferrer : public ZoneObject {
+class FuncNameInferrer {
  public:
-  FuncNameInferrer(AstValueFactory* ast_value_factory, Zone* zone);
+  explicit FuncNameInferrer(AstValueFactory* ast_value_factory);
 
   // To enter function name inference state, put a FuncNameInferrer::State
   // on the stack.
   class State {
    public:
-    explicit State(FuncNameInferrer* fni) : fni_(fni) {
-      if (fni_ != nullptr) fni_->Enter();
+    explicit State(FuncNameInferrer* fni)
+        : fni_(fni), top_(fni->names_stack_.size()) {
+      ++fni_->scope_depth_;
     }
     ~State() {
-      if (fni_ != nullptr) fni_->Leave();
+      DCHECK(fni_->IsOpen());
+      fni_->names_stack_.resize(top_);
+      --fni_->scope_depth_;
     }
 
    private:
     FuncNameInferrer* fni_;
+    size_t top_;
 
     DISALLOW_COPY_AND_ASSIGN(State);
   };
 
   // Returns whether we have entered name collection state.
-  bool IsOpen() const { return !entries_stack_.is_empty(); }
+  bool IsOpen() const { return scope_depth_ > 0; }
 
   // Pushes an enclosing the name of enclosing function onto names stack.
   void PushEnclosingName(const AstRawString* name);
@@ -62,14 +74,12 @@ class FuncNameInferrer : public ZoneObject {
   // Adds a function to infer name for.
   void AddFunction(FunctionLiteral* func_to_infer) {
     if (IsOpen()) {
-      funcs_to_infer_.Add(func_to_infer, zone());
+      funcs_to_infer_.push_back(func_to_infer);
     }
   }
 
   void RemoveLastFunction() {
-    if (IsOpen() && !funcs_to_infer_.is_empty()) {
-      funcs_to_infer_.RemoveLast();
-    }
+    if (IsOpen() && !funcs_to_infer_.empty()) funcs_to_infer_.pop_back();
   }
 
   void RemoveAsyncKeywordFromEnd();
@@ -77,32 +87,27 @@ class FuncNameInferrer : public ZoneObject {
   // Infers a function name and leaves names collection state.
   void Infer() {
     DCHECK(IsOpen());
-    if (!funcs_to_infer_.is_empty()) {
-      InferFunctionsNames();
-    }
+    if (!funcs_to_infer_.empty()) InferFunctionsNames();
   }
 
  private:
-  enum NameType {
+  enum NameType : uint8_t {
     kEnclosingConstructorName,
     kLiteralName,
     kVariableName
   };
   struct Name {
-    Name(const AstRawString* name, NameType type) : name(name), type(type) {}
-    const AstRawString* name;
-    NameType type;
+    // Needed for names_stack_.resize()
+    Name() { UNREACHABLE(); }
+    Name(const AstRawString* name, NameType type)
+        : name_and_type_(name, type) {}
+
+    PointerWithPayload<const AstRawString, NameType, 2> name_and_type_;
+    inline const AstRawString* name() const {
+      return name_and_type_.GetPointer();
+    }
+    inline NameType type() const { return name_and_type_.GetPayload(); }
   };
-
-  void Enter() { entries_stack_.Add(names_stack_.length(), zone()); }
-
-  void Leave() {
-    DCHECK(IsOpen());
-    names_stack_.Rewind(entries_stack_.RemoveLast());
-    if (entries_stack_.is_empty()) funcs_to_infer_.Clear();
-  }
-
-  Zone* zone() const { return zone_; }
 
   // Constructs a full name in dotted notation from gathered names.
   const AstConsString* MakeNameFromStack();
@@ -111,10 +116,9 @@ class FuncNameInferrer : public ZoneObject {
   void InferFunctionsNames();
 
   AstValueFactory* ast_value_factory_;
-  ZoneList<int> entries_stack_;
-  ZoneList<Name> names_stack_;
-  ZoneList<FunctionLiteral*> funcs_to_infer_;
-  Zone* zone_;
+  std::vector<Name> names_stack_;
+  std::vector<FunctionLiteral*> funcs_to_infer_;
+  size_t scope_depth_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
 };

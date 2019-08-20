@@ -51,7 +51,8 @@ const winPaths = [
 ];
 
 const winSpecialCaseParseTests = [
-  ['/foo/bar', { root: '/' }],
+  ['t', { base: 't', name: 't', root: '', dir: '', ext: '' }],
+  ['/foo/bar', { root: '/', dir: '/foo', base: 'bar', ext: '', name: 'bar' }],
 ];
 
 const winSpecialCaseFormatTests = [
@@ -98,21 +99,16 @@ const unixSpecialCaseFormatTests = [
   [{}, '']
 ];
 
-const expectedMessage = common.expectsError({
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
-}, 18);
-
 const errors = [
-  { method: 'parse', input: [null], message: expectedMessage },
-  { method: 'parse', input: [{}], message: expectedMessage },
-  { method: 'parse', input: [true], message: expectedMessage },
-  { method: 'parse', input: [1], message: expectedMessage },
-  { method: 'parse', input: [], message: expectedMessage },
-  { method: 'format', input: [null], message: expectedMessage },
-  { method: 'format', input: [''], message: expectedMessage },
-  { method: 'format', input: [true], message: expectedMessage },
-  { method: 'format', input: [1], message: expectedMessage },
+  { method: 'parse', input: [null] },
+  { method: 'parse', input: [{}] },
+  { method: 'parse', input: [true] },
+  { method: 'parse', input: [1] },
+  { method: 'parse', input: [] },
+  { method: 'format', input: [null] },
+  { method: 'format', input: [''] },
+  { method: 'format', input: [true] },
+  { method: 'format', input: [1] },
 ];
 
 checkParseFormat(path.win32, winPaths);
@@ -153,10 +149,10 @@ const trailingTests = [
   ]
 ];
 const failures = [];
-trailingTests.forEach(function(test) {
+trailingTests.forEach((test) => {
   const parse = test[0];
   const os = parse === path.win32.parse ? 'win32' : 'posix';
-  test[1].forEach(function(test) {
+  test[1].forEach((test) => {
     const actual = parse(test[0]);
     const expected = test[1];
     const message = `path.${os}.parse(${JSON.stringify(test[0])})\n  expect=${
@@ -180,15 +176,18 @@ trailingTests.forEach(function(test) {
 assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
-  errors.forEach(function(errorCase) {
+  errors.forEach(({ method, input }) => {
     assert.throws(() => {
-      path[errorCase.method].apply(path, errorCase.input);
-    }, errorCase.message);
+      path[method].apply(path, input);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError'
+    });
   });
 }
 
 function checkParseFormat(path, paths) {
-  paths.forEach(function([element, root]) {
+  paths.forEach(([element, root]) => {
     const output = path.parse(element);
     assert.strictEqual(typeof output.root, 'string');
     assert.strictEqual(typeof output.dir, 'string');
@@ -205,19 +204,14 @@ function checkParseFormat(path, paths) {
 }
 
 function checkSpecialCaseParseFormat(path, testCases) {
-  testCases.forEach(function(testCase) {
-    const element = testCase[0];
-    const expect = testCase[1];
-    const output = path.parse(element);
-    Object.keys(expect).forEach(function(key) {
-      assert.strictEqual(output[key], expect[key]);
-    });
+  testCases.forEach(([element, expect]) => {
+    assert.deepStrictEqual(path.parse(element), expect);
   });
 }
 
 function checkFormat(path, testCases) {
-  testCases.forEach(function(testCase) {
-    assert.strictEqual(path.format(testCase[0]), testCase[1]);
+  testCases.forEach(([element, expect]) => {
+    assert.strictEqual(path.format(element), expect);
   });
 
   [null, undefined, 1, true, false, 'string'].forEach((pathObject) => {

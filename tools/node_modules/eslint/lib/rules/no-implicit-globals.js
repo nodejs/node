@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow variable and `function` declarations in the global scope",
             category: "Best Practices",

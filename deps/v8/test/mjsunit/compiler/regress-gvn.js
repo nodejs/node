@@ -37,6 +37,8 @@ function test(a) {
   return a[0];
 }
 
+%PrepareFunctionForOptimization(test);
+
 var a = new Array();
 
 var n = 100;

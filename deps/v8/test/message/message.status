@@ -43,4 +43,30 @@
   'wasm-trace-memory-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32
 
+['variant == code_serializer', {
+  # TODO(yangguo): Code serializer output is incompatible with all message
+  # tests.
+  '*': [SKIP],
+}],  # variant == code_serializer
+
+['no_i18n == True', {
+  'fail/list-format*': [SKIP],
+}],  # no_i18n == True
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
+  'fail/wasm-*': [SKIP],
+  'wasm-*': [SKIP],
+
+  # Test output requires --validate-asm, which is disabled in jitless mode.
+  'asm-*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
 ]

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,11 +14,14 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-static int bnrand(int pseudorand, BIGNUM *rnd, int bits, int top, int bottom)
+typedef enum bnrand_flag_e {
+    NORMAL, TESTING, PRIVATE
+} BNRAND_FLAG;
+
+static int bnrand(BNRAND_FLAG flag, BIGNUM *rnd, int bits, int top, int bottom)
 {
     unsigned char *buf = NULL;
-    int ret = 0, bit, bytes, mask;
-    time_t tim;
+    int b, ret = 0, bit, bytes, mask;
 
     if (bits == 0) {
         if (top != BN_RAND_TOP_ANY || bottom != BN_RAND_BOTTOM_ANY)
@@ -40,13 +43,11 @@ static int bnrand(int pseudorand, BIGNUM *rnd, int bits, int top, int bottom)
     }
 
     /* make a random number and set the top and bottom bits */
-    time(&tim);
-    RAND_add(&tim, sizeof(tim), 0.0);
-
-    if (RAND_bytes(buf, bytes) <= 0)
+    b = flag == NORMAL ? RAND_bytes(buf, bytes) : RAND_priv_bytes(buf, bytes);
+    if (b <= 0)
         goto err;
 
-    if (pseudorand == 2) {
+    if (flag == TESTING) {
         /*
          * generate patterns that are more likely to trigger BN library bugs
          */
@@ -86,7 +87,7 @@ static int bnrand(int pseudorand, BIGNUM *rnd, int bits, int top, int bottom)
  err:
     OPENSSL_clear_free(buf, bytes);
     bn_check_top(rnd);
-    return (ret);
+    return ret;
 
 toosmall:
     BNerr(BN_F_BNRAND, BN_R_BITS_TOO_SMALL);
@@ -95,29 +96,27 @@ toosmall:
 
 int BN_rand(BIGNUM *rnd, int bits, int top, int bottom)
 {
-    return bnrand(0, rnd, bits, top, bottom);
-}
-
-int BN_pseudo_rand(BIGNUM *rnd, int bits, int top, int bottom)
-{
-    return bnrand(1, rnd, bits, top, bottom);
+    return bnrand(NORMAL, rnd, bits, top, bottom);
 }
 
 int BN_bntest_rand(BIGNUM *rnd, int bits, int top, int bottom)
 {
-    return bnrand(2, rnd, bits, top, bottom);
+    return bnrand(TESTING, rnd, bits, top, bottom);
+}
+
+int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom)
+{
+    return bnrand(PRIVATE, rnd, bits, top, bottom);
 }
 
 /* random number r:  0 <= r < range */
-static int bn_rand_range(int pseudo, BIGNUM *r, const BIGNUM *range)
+static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range)
 {
-    int (*bn_rand) (BIGNUM *, int, int, int) =
-        pseudo ? BN_pseudo_rand : BN_rand;
     int n;
     int count = 100;
 
     if (range->neg || BN_is_zero(range)) {
-        BNerr(BN_F_BN_RAND_RANGE, BN_R_INVALID_RANGE);
+        BNerr(BN_F_BNRAND_RANGE, BN_R_INVALID_RANGE);
         return 0;
     }
 
@@ -133,8 +132,9 @@ static int bn_rand_range(int pseudo, BIGNUM *r, const BIGNUM *range)
          * than range
          */
         do {
-            if (!bn_rand(r, n + 1, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
+            if (!bnrand(flag, r, n + 1, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
                 return 0;
+
             /*
              * If r < 3*range, use r := r MOD range (which is either r, r -
              * range, or r - 2*range). Otherwise, iterate once more. Since
@@ -150,7 +150,7 @@ static int bn_rand_range(int pseudo, BIGNUM *r, const BIGNUM *range)
             }
 
             if (!--count) {
-                BNerr(BN_F_BN_RAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
+                BNerr(BN_F_BNRAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
                 return 0;
             }
 
@@ -159,11 +159,11 @@ static int bn_rand_range(int pseudo, BIGNUM *r, const BIGNUM *range)
     } else {
         do {
             /* range = 11..._2  or  range = 101..._2 */
-            if (!bn_rand(r, n, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
+            if (!bnrand(flag, r, n, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
                 return 0;
 
             if (!--count) {
-                BNerr(BN_F_BN_RAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
+                BNerr(BN_F_BNRAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
                 return 0;
             }
         }
@@ -176,12 +176,22 @@ static int bn_rand_range(int pseudo, BIGNUM *r, const BIGNUM *range)
 
 int BN_rand_range(BIGNUM *r, const BIGNUM *range)
 {
-    return bn_rand_range(0, r, range);
+    return bnrand_range(NORMAL, r, range);
+}
+
+int BN_priv_rand_range(BIGNUM *r, const BIGNUM *range)
+{
+    return bnrand_range(PRIVATE, r, range);
+}
+
+int BN_pseudo_rand(BIGNUM *rnd, int bits, int top, int bottom)
+{
+    return BN_rand(rnd, bits, top, bottom);
 }
 
 int BN_pseudo_rand_range(BIGNUM *r, const BIGNUM *range)
 {
-    return bn_rand_range(1, r, range);
+    return BN_rand_range(r, range);
 }
 
 /*
@@ -229,7 +239,7 @@ int BN_generate_dsa_nonce(BIGNUM *out, const BIGNUM *range,
     memset(private_bytes + todo, 0, sizeof(private_bytes) - todo);
 
     for (done = 0; done < num_k_bytes;) {
-        if (RAND_bytes(random_bytes, sizeof(random_bytes)) != 1)
+        if (RAND_priv_bytes(random_bytes, sizeof(random_bytes)) != 1)
             goto err;
         SHA512_Init(&sha);
         SHA512_Update(&sha, &done, sizeof(done));

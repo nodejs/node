@@ -5,14 +5,17 @@
 #ifndef V8_DEBUG_DEBUG_FRAMES_H_
 #define V8_DEBUG_DEBUG_FRAMES_H_
 
-#include "src/deoptimizer.h"
-#include "src/frames.h"
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate.h"
+#include "src/execution/v8threads.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
+
+class JavaScriptFrame;
+class StandardFrame;
 
 class FrameInspector {
  public:
@@ -22,7 +25,7 @@ class FrameInspector {
   ~FrameInspector();
 
   int GetParametersCount();
-  Handle<JSFunction> GetFunction() { return function_; }
+  Handle<JSFunction> GetFunction() const { return function_; }
   Handle<Script> GetScript() { return script_; }
   Handle<Object> GetParameter(int index);
   Handle<Object> GetExpression(int index);
@@ -36,26 +39,16 @@ class FrameInspector {
   bool IsWasm();
   bool IsJavaScript();
 
-  inline JavaScriptFrame* javascript_frame() {
-    return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
-                                          : JavaScriptFrame::cast(frame_);
-  }
+  JavaScriptFrame* javascript_frame();
 
-  JavaScriptFrame* GetArgumentsFrame() { return javascript_frame(); }
-  void SetArgumentsFrame(StandardFrame* frame);
-
-  void MaterializeStackLocals(Handle<JSObject> target,
-                              Handle<ScopeInfo> scope_info,
-                              bool materialize_arguments_object = false);
-
-  void UpdateStackLocalsFromMaterializedObject(Handle<JSObject> object,
-                                               Handle<ScopeInfo> scope_info);
+  int inlined_frame_index() const { return inlined_frame_index_; }
 
  private:
   bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
   StandardFrame* frame_;
+  int inlined_frame_index_;
   std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
   wasm::WasmInterpreter::FramePtr wasm_interpreted_frame_;
   Isolate* isolate_;
@@ -72,24 +65,21 @@ class FrameInspector {
   DISALLOW_COPY_AND_ASSIGN(FrameInspector);
 };
 
-
-class DebugFrameHelper : public AllStatic {
+class RedirectActiveFunctions : public ThreadVisitor {
  public:
-  static SaveContext* FindSavedContextForFrame(Isolate* isolate,
-                                               StandardFrame* frame);
-  // Advances the iterator to the frame that matches the index and returns the
-  // inlined frame index, or -1 if not found.  Skips native JS functions.
-  static int FindIndexedNonNativeFrame(StackTraceFrameIterator* it, int index);
+  enum class Mode {
+    kUseOriginalBytecode,
+    kUseDebugBytecode,
+  };
 
-  // Helper functions for wrapping and unwrapping stack frame ids.
-  static Smi* WrapFrameId(StackFrame::Id id) {
-    DCHECK(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
-    return Smi::FromInt(id >> 2);
-  }
+  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
 
-  static StackFrame::Id UnwrapFrameId(int wrapped) {
-    return static_cast<StackFrame::Id>(wrapped << 2);
-  }
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
+
+ private:
+  SharedFunctionInfo shared_;
+  Mode mode_;
+  DisallowHeapAllocation no_gc_;
 };
 
 }  // namespace internal

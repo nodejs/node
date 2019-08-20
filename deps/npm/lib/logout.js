@@ -1,43 +1,44 @@
-module.exports = logout
+'use strict'
 
-var dezalgo = require('dezalgo')
-var log = require('npmlog')
+const BB = require('bluebird')
 
-var npm = require('./npm.js')
-var mapToRegistry = require('./utils/map-to-registry.js')
+const eu = encodeURIComponent
+const getAuth = require('npm-registry-fetch/auth.js')
+const log = require('npmlog')
+const npm = require('./npm.js')
+const npmConfig = require('./config/figgy-config.js')
+const npmFetch = require('libnpm/fetch')
 
 logout.usage = 'npm logout [--registry=<url>] [--scope=<@scope>]'
 
-function afterLogout (normalized, cb) {
+function afterLogout (normalized) {
   var scope = npm.config.get('scope')
 
   if (scope) npm.config.del(scope + ':registry')
 
   npm.config.clearCredentialsByURI(normalized)
-  npm.config.save('user', cb)
+  return BB.fromNode(cb => npm.config.save('user', cb))
 }
 
+module.exports = logout
 function logout (args, cb) {
-  cb = dezalgo(cb)
-
-  mapToRegistry('/', npm.config, function (err, uri, auth, normalized) {
-    if (err) return cb(err)
-
+  const opts = npmConfig()
+  BB.try(() => {
+    const reg = npmFetch.pickRegistry('foo', opts)
+    const auth = getAuth(reg, opts)
     if (auth.token) {
-      log.verbose('logout', 'clearing session token for', normalized)
-      npm.registry.logout(normalized, { auth: auth }, function (err) {
-        if (err) return cb(err)
-
-        afterLogout(normalized, cb)
-      })
+      log.verbose('logout', 'clearing session token for', reg)
+      return npmFetch(`/-/user/token/${eu(auth.token)}`, opts.concat({
+        method: 'DELETE',
+        ignoreBody: true
+      })).then(() => afterLogout(reg))
     } else if (auth.username || auth.password) {
-      log.verbose('logout', 'clearing user credentials for', normalized)
-
-      afterLogout(normalized, cb)
+      log.verbose('logout', 'clearing user credentials for', reg)
+      return afterLogout(reg)
     } else {
-      cb(new Error(
-        'Not logged in to', normalized + ',', "so can't log out."
-      ))
+      throw new Error(
+        'Not logged in to', reg + ',', "so can't log out."
+      )
     }
-  })
+  }).nodeify(cb)
 }

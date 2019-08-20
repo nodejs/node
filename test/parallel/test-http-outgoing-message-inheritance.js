@@ -5,24 +5,28 @@ const { OutgoingMessage } = require('http');
 const { Writable } = require('stream');
 const assert = require('assert');
 
-// check that OutgoingMessage can be used without a proper Socket
+// Check that OutgoingMessage can be used without a proper Socket
 // Fixes: https://github.com/nodejs/node/issues/14386
 // Fixes: https://github.com/nodejs/node/issues/14381
 
 class Response extends OutgoingMessage {
-  constructor() {
-    super({ method: 'GET', httpVersionMajor: 1, httpVersionMinor: 1 });
-  }
-
   _implicitHeader() {}
 }
 
 const res = new Response();
+
+let firstChunk = true;
+
 const ws = new Writable({
   write: common.mustCall((chunk, encoding, callback) => {
-    assert(chunk.toString().match(/hello world/));
+    if (firstChunk) {
+      assert(chunk.toString().endsWith('hello world'));
+      firstChunk = false;
+    } else {
+      assert.strictEqual(chunk.length, 0);
+    }
     setImmediate(callback);
-  })
+  }, 2)
 });
 
 res.socket = ws;

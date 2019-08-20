@@ -1,9 +1,12 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 const tmpdir = require('../common/tmpdir');
 
@@ -33,10 +36,9 @@ process.chdir('..');
 assert.strictEqual(process.cwd().normalize(),
                    path.resolve(tmpdir.path).normalize());
 
-const errMessage = /^TypeError: Bad argument\.$/;
-assert.throws(function() { process.chdir({}); },
-              errMessage, 'Bad argument.');
-assert.throws(function() { process.chdir(); },
-              errMessage, 'Bad argument.');
-assert.throws(function() { process.chdir('x', 'y'); },
-              errMessage, 'Bad argument.');
+const err = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /The "directory" argument must be of type string/
+};
+common.expectsError(function() { process.chdir({}); }, err);
+common.expectsError(function() { process.chdir(); }, err);

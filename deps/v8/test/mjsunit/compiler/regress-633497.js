@@ -23,6 +23,7 @@ function f(a) {
   return +x;
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

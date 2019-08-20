@@ -764,9 +764,9 @@ RuleBasedCollator::internalCompareUTF8(const char *left, int32_t leftLength,
     // Make sure both or neither strings have a known length.
     // We do not optimize for mixed length/termination.
     if(leftLength >= 0) {
-        if(rightLength < 0) { rightLength = uprv_strlen(right); }
+        if(rightLength < 0) { rightLength = static_cast<int32_t>(uprv_strlen(right)); }
     } else {
-        if(rightLength >= 0) { leftLength = uprv_strlen(left); }
+        if(rightLength >= 0) { leftLength = static_cast<int32_t>(uprv_strlen(left)); }
     }
     return doCompare(reinterpret_cast<const uint8_t *>(left), leftLength,
                      reinterpret_cast<const uint8_t *>(right), rightLength, errorCode);
@@ -862,9 +862,9 @@ public:
         } else {
             str.setTo(text, (int32_t)(spanLimit - text));
             {
-                ReorderingBuffer buffer(nfcImpl, str);
-                if(buffer.init(str.length(), errorCode)) {
-                    nfcImpl.makeFCD(spanLimit, textLimit, &buffer, errorCode);
+                ReorderingBuffer r_buffer(nfcImpl, str);
+                if(r_buffer.init(str.length(), errorCode)) {
+                    nfcImpl.makeFCD(spanLimit, textLimit, &r_buffer, errorCode);
                 }
             }
             if(U_SUCCESS(errorCode)) {
@@ -1554,11 +1554,7 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
                                                   "collation", locale,
                                                   NULL, &errorCode);
     if(U_FAILURE(errorCode)) { return 0; }
-    if(length == 0) {
-        uprv_strcpy(resultLocale, "root");
-    } else {
-        resultLocale[length] = 0;
-    }
+    resultLocale[length] = 0;
 
     // Append items in alphabetic order of their short definition letters.
     CharString result;
@@ -1585,7 +1581,11 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
     length = uloc_getKeywordValue(resultLocale, "collation", subtag, UPRV_LENGTHOF(subtag), &errorCode);
     appendSubtag(result, 'K', subtag, length, errorCode);
     length = uloc_getLanguage(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'L', subtag, length, errorCode);
+    if (length == 0) {
+        appendSubtag(result, 'L', "root", 4, errorCode);
+    } else {
+        appendSubtag(result, 'L', subtag, length, errorCode);
+    }
     if(attributeHasBeenSetExplicitly(UCOL_NORMALIZATION_MODE)) {
         appendAttribute(result, 'N', getAttribute(UCOL_NORMALIZATION_MODE, errorCode), errorCode);
     }

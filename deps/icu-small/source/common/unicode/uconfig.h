@@ -183,7 +183,7 @@
  */
 #ifdef U_HAVE_LIB_SUFFIX
     /* Use the predefined value. */
-#elif defined(U_LIB_SUFFIX_C_NAME)
+#elif defined(U_LIB_SUFFIX_C_NAME) || defined(U_IN_DOXYGEN)
 #   define U_HAVE_LIB_SUFFIX 1
 #endif
 
@@ -369,6 +369,18 @@
 #   define UCONFIG_MSGPAT_DEFAULT_APOSTROPHE_MODE UMSGPAT_APOS_DOUBLE_OPTIONAL
 #endif
 
+/**
+ * \def UCONFIG_USE_WINDOWS_LCID_MAPPING_API
+ * On platforms where U_PLATFORM_HAS_WIN32_API is true, this switch determines
+ * if the Windows platform APIs are used for LCID<->Locale Name conversions.
+ * Otherwise, only the built-in ICU tables are used.
+ *
+ * @internal ICU 64
+ */
+#ifndef UCONFIG_USE_WINDOWS_LCID_MAPPING_API
+#   define UCONFIG_USE_WINDOWS_LCID_MAPPING_API 1
+#endif
+
 /* i18n library switches ---------------------------------------------------- */
 
 /**
@@ -429,17 +441,6 @@
  */
 #ifndef UCONFIG_HAVE_PARSEALLINPUT
 #   define UCONFIG_HAVE_PARSEALLINPUT 1
-#endif
-
-
-/**
- * \def UCONFIG_FORMAT_FASTPATHS_49
- * This switch turns on other formatting fastpaths. Binary incompatible in object DecimalFormat and DecimalFormatSymbols
- *
- * @internal
- */
-#ifndef UCONFIG_FORMAT_FASTPATHS_49
-#   define UCONFIG_FORMAT_FASTPATHS_49 1
 #endif
 
 /**

@@ -2,7 +2,7 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
@@ -36,24 +36,27 @@ const tests = [
 ];
 
 function run(test) {
-  const env = Object.assign({}, process.env, test.env);
+  const env = test.env;
   const expected = test.expected;
+
   const opts = {
     terminal: true,
     input: new stream.Readable({ read() {} }),
     output: new stream.Writable({ write() {} })
   };
 
-  REPL.createInternalRepl(env, opts, function(err, repl) {
+  Object.assign(process.env, env);
+
+  REPL.createInternalRepl(process.env, opts, function(err, repl) {
     assert.ifError(err);
 
-    // The REPL registers 'module' and 'require' globals
-    common.allowGlobals(repl.context.module, repl.context.require);
-
-    assert.strictEqual(expected.terminal, repl.terminal,
+    assert.strictEqual(repl.terminal, expected.terminal,
                        `Expected ${inspect(expected)} with ${inspect(env)}`);
-    assert.strictEqual(expected.useColors, repl.useColors,
+    assert.strictEqual(repl.useColors, expected.useColors,
                        `Expected ${inspect(expected)} with ${inspect(env)}`);
+    for (const key of Object.keys(env)) {
+      delete process.env[key];
+    }
     repl.close();
   });
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,10 +12,6 @@
 
 # include <openssl/bn.h>
 # include <limits.h>
-
-#ifdef  __cplusplus
-extern "C" {
-#endif
 
 BIGNUM *bn_wexpand(BIGNUM *a, int words);
 BIGNUM *bn_expand2(BIGNUM *a, int words);
@@ -34,8 +30,6 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len);
 
 int bn_get_top(const BIGNUM *a);
 
-void bn_set_top(BIGNUM *a, int top);
-
 int bn_get_dmax(const BIGNUM *a);
 
 /* Set all words to zero */
@@ -53,7 +47,7 @@ BN_ULONG *bn_get_words(const BIGNUM *a);
  * Set the internal data words in a to point to words which contains size
  * elements. The BN_FLG_STATIC_DATA flag is set
  */
-void bn_set_static_words(BIGNUM *a, BN_ULONG *words, int size);
+void bn_set_static_words(BIGNUM *a, const BN_ULONG *words, int size);
 
 /*
  * Copy words into the BIGNUM |a|, reallocating space as necessary.
@@ -64,19 +58,33 @@ void bn_set_static_words(BIGNUM *a, BN_ULONG *words, int size);
  * |num_words| is int because bn_expand2 takes an int. This is an internal
  * function so we simply trust callers not to pass negative values.
  */
-int bn_set_words(BIGNUM *a, BN_ULONG *words, int num_words);
-
-size_t bn_sizeof_BIGNUM(void);
+int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words);
 
 /*
- * Return element el from an array of BIGNUMs starting at base (required
- * because callers do not know the size of BIGNUM at compilation time)
+ * Some BIGNUM functions assume most significant limb to be non-zero, which
+ * is customarily arranged by bn_correct_top. Output from below functions
+ * is not processed with bn_correct_top, and for this reason it may not be
+ * returned out of public API. It may only be passed internally into other
+ * functions known to support non-minimal or zero-padded BIGNUMs. Even
+ * though the goal is to facilitate constant-time-ness, not each subroutine
+ * is constant-time by itself. They all have pre-conditions, consult source
+ * code...
  */
-BIGNUM *bn_array_el(BIGNUM *base, int el);
-
-
-#ifdef  __cplusplus
-}
-#endif
+int bn_mul_mont_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
+                          BN_MONT_CTX *mont, BN_CTX *ctx);
+int bn_to_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
+                         BN_CTX *ctx);
+int bn_from_mont_fixed_top(BIGNUM *r, const BIGNUM *a, BN_MONT_CTX *mont,
+                           BN_CTX *ctx);
+int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
+                         const BIGNUM *m);
+int bn_mod_sub_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
+                         const BIGNUM *m);
+int bn_mul_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx);
+int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
+int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
+int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
+                     const BIGNUM *d, BN_CTX *ctx);
 
 #endif

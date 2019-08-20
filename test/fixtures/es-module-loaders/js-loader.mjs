@@ -1,23 +1,20 @@
-import _url from 'url';
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter(str =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-)
+import { URL } from 'url';
+import { builtinModules } from 'module';
 
-const baseURL = new _url.URL('file://');
+const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
 export function resolve (specifier, base = baseURL) {
-  if (builtins.has(specifier)) {
+  if (builtinModules.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
     };
   }
   // load all dependencies as esm, regardless of file extension
-  const url = new _url.URL(specifier, base).href;
+  const url = new URL(specifier, base).href;
   return {
     url,
-    format: 'esm'
+    format: 'module'
   };
 }

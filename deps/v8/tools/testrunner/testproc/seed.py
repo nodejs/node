@@ -34,12 +34,19 @@ class SeedProc(base.TestProcProducer):
     assert requirement == base.DROP_RESULT
 
   def _next_test(self, test):
-    for _ in xrange(0, self._parallel_subtests):
-      self._try_send_next_test(test)
+    is_loaded = False
+    for _ in range(0, self._parallel_subtests):
+      is_loaded |= self._try_send_next_test(test)
+
+    return is_loaded
 
   def _result_for(self, test, subtest, result):
     self._todo[test.procid] -= 1
-    self._try_send_next_test(test)
+    if not self._try_send_next_test(test):
+      if not self._todo.get(test.procid):
+        del self._last_idx[test.procid]
+        del self._todo[test.procid]
+        self._send_result(test, None)
 
   def _try_send_next_test(self, test):
     def create_subtest(idx):
@@ -49,10 +56,8 @@ class SeedProc(base.TestProcProducer):
     num = self._last_idx[test.procid]
     if not self._count or num < self._count:
       num += 1
-      self._send_test(create_subtest(num))
       self._todo[test.procid] += 1
       self._last_idx[test.procid] = num
-    elif not self._todo.get(test.procid):
-      del self._last_idx[test.procid]
-      del self._todo[test.procid]
-      self._send_result(test, None)
+      return self._send_test(create_subtest(num))
+
+    return False

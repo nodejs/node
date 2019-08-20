@@ -11,6 +11,7 @@
 
   var e = 0x41000001;
 
+  %PrepareFunctionForOptimization(f);
   f(e);
   %OptimizeFunctionOnNextCall(f);
   assertEquals("A", f(e));
@@ -21,6 +22,7 @@
     return (x >>> 24) & 0xffff;
   };
 
+  %PrepareFunctionForOptimization(f);
   f(1);
   %OptimizeFunctionOnNextCall(f);
   assertEquals(0, f(1));

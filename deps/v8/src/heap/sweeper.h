@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "src/base/platform/semaphore.h"
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -23,9 +23,9 @@ enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
 
 class Sweeper {
  public:
-  typedef std::vector<Page*> IterabilityList;
-  typedef std::deque<Page*> SweepingList;
-  typedef std::vector<Page*> SweptList;
+  using IterabilityList = std::vector<Page*>;
+  using SweepingList = std::vector<Page*>;
+  using SweptList = std::vector<Page*>;
 
   // Pauses the sweeper tasks or completes sweeping.
   class PauseOrCompleteScope final {
@@ -51,7 +51,8 @@ class Sweeper {
     void FilterOldSpaceSweepingPages(Callback callback) {
       if (!sweeping_in_progress_) return;
 
-      SweepingList* sweeper_list = &sweeper_->sweeping_list_[OLD_SPACE];
+      SweepingList* sweeper_list =
+          &sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)];
       // Iteration here is from most free space to least free space.
       for (auto it = old_space_sweeping_list_.begin();
            it != old_space_sweeping_list_.end(); it++) {
@@ -76,18 +77,7 @@ class Sweeper {
   };
   enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
 
-  Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
-      : heap_(heap),
-        marking_state_(marking_state),
-        num_tasks_(0),
-        pending_sweeper_tasks_semaphore_(0),
-        incremental_sweeper_pending_(false),
-        sweeping_in_progress_(false),
-        num_sweeping_tasks_(0),
-        stop_sweeper_tasks_(false),
-        iterability_task_semaphore_(0),
-        iterability_in_progress_(false),
-        iterability_task_started_(false) {}
+  Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state);
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
 
@@ -106,7 +96,7 @@ class Sweeper {
   // and the main thread can sweep lazily, but the background sweeper tasks
   // are not running yet.
   void StartSweeping();
-  void StartSweeperTasks();
+  V8_EXPORT_PRIVATE void StartSweeperTasks();
   void EnsureCompleted();
   bool AreSweeperTasksRunning();
 
@@ -123,7 +113,8 @@ class Sweeper {
   class IterabilityTask;
   class SweeperTask;
 
-  static const int kNumberOfSweepingSpaces = LAST_PAGED_SPACE + 1;
+  static const int kNumberOfSweepingSpaces =
+      LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
   static const int kMaxSweeperTasks = 3;
 
   template <typename Callback>
@@ -137,7 +128,7 @@ class Sweeper {
   bool IsDoneSweeping() const {
     bool is_done = true;
     ForAllSweepingSpaces([this, &is_done](AllocationSpace space) {
-      if (!sweeping_list_[space].empty()) is_done = false;
+      if (!sweeping_list_[GetSweepSpaceIndex(space)].empty()) is_done = false;
     });
     return is_done;
   }
@@ -159,11 +150,17 @@ class Sweeper {
   void MakeIterable(Page* page);
 
   bool IsValidIterabilitySpace(AllocationSpace space) {
-    return space == NEW_SPACE;
+    return space == NEW_SPACE || space == RO_SPACE;
   }
 
-  bool IsValidSweepingSpace(AllocationSpace space) {
-    return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
+  static bool IsValidSweepingSpace(AllocationSpace space) {
+    return space >= FIRST_GROWABLE_PAGED_SPACE &&
+           space <= LAST_GROWABLE_PAGED_SPACE;
+  }
+
+  static int GetSweepSpaceIndex(AllocationSpace space) {
+    DCHECK(IsValidSweepingSpace(space));
+    return space - FIRST_GROWABLE_PAGED_SPACE;
   }
 
   Heap* const heap_;
@@ -178,9 +175,9 @@ class Sweeper {
   bool sweeping_in_progress_;
   // Counter is actively maintained by the concurrent tasks to avoid querying
   // the semaphore for maintaining a task counter on the main thread.
-  base::AtomicNumber<intptr_t> num_sweeping_tasks_;
+  std::atomic<intptr_t> num_sweeping_tasks_;
   // Used by PauseOrCompleteScope to signal early bailout to tasks.
-  base::AtomicValue<bool> stop_sweeper_tasks_;
+  std::atomic<bool> stop_sweeper_tasks_;
 
   // Pages that are only made iterable but have their free lists ignored.
   IterabilityList iterability_list_;
@@ -188,6 +185,7 @@ class Sweeper {
   base::Semaphore iterability_task_semaphore_;
   bool iterability_in_progress_;
   bool iterability_task_started_;
+  bool should_reduce_memory_;
 };
 
 }  // namespace internal

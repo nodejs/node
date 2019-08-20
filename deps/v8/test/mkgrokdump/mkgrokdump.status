@@ -3,8 +3,15 @@
 # found in the LICENSE file.
 
 [
+
 # Only test for default mode x64.
-['variant != default or arch != x64', {
+['variant != default or arch != x64 or lite_mode', {
   '*': [SKIP],
-}],  # variant != default or arch != x64
+}],  # variant != default or arch != x64 or lite_mode
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
 ]

@@ -15,42 +15,67 @@ namespace interpreter {
 
 class BytecodeArrayBuilder;
 
-// A label representing a branch target in a bytecode array. When a
-// label is bound, it represents a known position in the bytecode
-// array. For labels that are forward references there can be at most
-// one reference whilst it is unbound.
-class V8_EXPORT_PRIVATE BytecodeLabel final {
+// A label representing a loop header in a bytecode array. It is bound before
+// the jump is seen, so its position is always known by the time the jump is
+// reached.
+class V8_EXPORT_PRIVATE BytecodeLoopHeader final {
  public:
-  BytecodeLabel() : bound_(false), offset_(kInvalidOffset) {}
+  BytecodeLoopHeader() : offset_(kInvalidOffset) {}
 
-  bool is_bound() const { return bound_; }
-  size_t offset() const { return offset_; }
+  size_t offset() const {
+    DCHECK_NE(offset_, kInvalidOffset);
+    return offset_;
+  }
 
  private:
   static const size_t kInvalidOffset = static_cast<size_t>(-1);
 
   void bind_to(size_t offset) {
-    DCHECK(!bound_ && offset != kInvalidOffset);
+    DCHECK_NE(offset, kInvalidOffset);
+    DCHECK_EQ(offset_, kInvalidOffset);
     offset_ = offset;
+  }
+
+  // The bytecode offset of the loop header.
+  size_t offset_;
+
+  friend class BytecodeArrayWriter;
+};
+
+// A label representing a forward branch target in a bytecode array. When a
+// label is bound, it represents a known position in the bytecode array. A label
+// can only have at most one referrer jump.
+class V8_EXPORT_PRIVATE BytecodeLabel final {
+ public:
+  BytecodeLabel() : bound_(false), jump_offset_(kInvalidOffset) {}
+
+  bool is_bound() const { return bound_; }
+  size_t jump_offset() const {
+    DCHECK_NE(jump_offset_, kInvalidOffset);
+    return jump_offset_;
+  }
+
+  bool has_referrer_jump() const { return jump_offset_ != kInvalidOffset; }
+
+ private:
+  static const size_t kInvalidOffset = static_cast<size_t>(-1);
+
+  void bind() {
+    DCHECK(!bound_);
     bound_ = true;
   }
 
   void set_referrer(size_t offset) {
-    DCHECK(!bound_ && offset != kInvalidOffset && offset_ == kInvalidOffset);
-    offset_ = offset;
+    DCHECK(!bound_);
+    DCHECK_NE(offset, kInvalidOffset);
+    DCHECK_EQ(jump_offset_, kInvalidOffset);
+    jump_offset_ = offset;
   }
 
-  bool is_forward_target() const {
-    return offset() != kInvalidOffset && !is_bound();
-  }
-
-  // There are three states for a label:
-  //                    bound_   offset_
-  //  UNSET             false    kInvalidOffset
-  //  FORWARD_TARGET    false    Offset of referring jump
-  //  BACKWARD_TARGET    true    Offset of label in bytecode array when bound
+  // Set when the label is bound (i.e. the start of the target basic block).
   bool bound_;
-  size_t offset_;
+  // Set when the jump referrer is set (i.e. the location of the jump).
+  size_t jump_offset_;
 
   friend class BytecodeArrayWriter;
 };
@@ -58,26 +83,26 @@ class V8_EXPORT_PRIVATE BytecodeLabel final {
 // Class representing a branch target of multiple jumps.
 class V8_EXPORT_PRIVATE BytecodeLabels {
  public:
-  explicit BytecodeLabels(Zone* zone) : labels_(zone) {}
+  explicit BytecodeLabels(Zone* zone) : labels_(zone), is_bound_(false) {}
 
   BytecodeLabel* New();
 
   void Bind(BytecodeArrayBuilder* builder);
 
-  void BindToLabel(BytecodeArrayBuilder* builder, const BytecodeLabel& target);
-
   bool is_bound() const {
-    bool is_bound = !labels_.empty() && labels_.front().is_bound();
-    DCHECK(!is_bound ||
-           std::all_of(labels_.begin(), labels_.end(),
-                       [](const BytecodeLabel& l) { return l.is_bound(); }));
-    return is_bound;
+    DCHECK_IMPLIES(
+        is_bound_,
+        std::all_of(labels_.begin(), labels_.end(), [](const BytecodeLabel& l) {
+          return !l.has_referrer_jump() || l.is_bound();
+        }));
+    return is_bound_;
   }
 
   bool empty() const { return labels_.empty(); }
 
  private:
   ZoneLinkedList<BytecodeLabel> labels_;
+  bool is_bound_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeLabels);
 };

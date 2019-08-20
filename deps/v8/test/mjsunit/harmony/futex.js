@@ -107,6 +107,7 @@
 (function TestWakePositiveInfinity() {
   var i32a = new Int32Array(new SharedArrayBuffer(16));
   Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
+  Atomics.notify(i32a, 0, Number.POSITIVE_INFINITY);
 })();
 
 // In a previous version, this test caused a check failure
@@ -121,7 +122,7 @@
 
 if (this.Worker) {
 
-  var TestWaitWithTimeout = function(timeout) {
+  var TestWaitWithTimeout = function(notify, timeout) {
     var sab = new SharedArrayBuffer(16);
     var i32a = new Int32Array(sab);
 
@@ -132,47 +133,49 @@ if (this.Worker) {
          postMessage(result);
        };`;
 
-    var worker = new Worker(workerScript);
+    var worker = new Worker(workerScript, {type: 'string'});
     worker.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a, 0) != 1) {}
 
-    Atomics.wake(i32a, 0, 1);
+    notify(i32a, 0, 1);
     assertEquals("ok", worker.getMessage());
     worker.terminate();
 
-    var worker2 = new Worker(workerScript);
+    var worker2 = new Worker(workerScript, {type: 'string'});
     var offset = 8;
     var i32a2 = new Int32Array(sab, offset);
     worker2.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 0) != 1) {}
-    Atomics.wake(i32a2, 0, 1);
+    notify(i32a2, 0, 1);
     assertEquals("ok", worker2.getMessage());
     worker2.terminate();
 
     // Futex should work when index and buffer views are different, but
     // the real address is the same.
-    var worker3 = new Worker(workerScript);
+    var worker3 = new Worker(workerScript, {type: 'string'});
     i32a2 = new Int32Array(sab, 4);
     worker3.postMessage({sab: sab, offset: 8});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 1) != 1) {}
-    Atomics.wake(i32a2, 1, 1);
+    notify(i32a2, 1, 1);
     assertEquals("ok", worker3.getMessage());
     worker3.terminate();
   };
 
   // Test various infinite timeouts
-  TestWaitWithTimeout(undefined);
-  TestWaitWithTimeout(NaN);
-  TestWaitWithTimeout(Infinity);
+  TestWaitWithTimeout(Atomics.wake, undefined);
+  TestWaitWithTimeout(Atomics.wake, NaN);
+  TestWaitWithTimeout(Atomics.wake, Infinity);
+  TestWaitWithTimeout(Atomics.notify, undefined);
+  TestWaitWithTimeout(Atomics.notify, NaN);
+  TestWaitWithTimeout(Atomics.notify, Infinity);
 
-
-  (function TestWakeMulti() {
+  var TestWakeMulti = function(notify) {
     var sab = new SharedArrayBuffer(20);
     var i32a = new Int32Array(sab);
 
@@ -202,7 +205,7 @@ if (this.Worker) {
     var id;
     var workers = [];
     for (id = 0; id < 4; id++) {
-      workers[id] = new Worker(workerScript);
+      workers[id] = new Worker(workerScript, {type: 'string'});
       workers[id].postMessage({sab: sab, id: id});
     }
 
@@ -210,7 +213,7 @@ if (this.Worker) {
     while (%AtomicsNumWaitersForTesting(i32a, 4) != 4) {}
 
     // Wake up three waiters.
-    assertEquals(3, Atomics.wake(i32a, 4, 3));
+    assertEquals(3, notify(i32a, 4, 3));
 
     var wokenCount = 0;
     var waitingId = 0 + 1 + 2 + 3;
@@ -232,12 +235,16 @@ if (this.Worker) {
     assertEquals(1, %AtomicsNumWaitersForTesting(i32a, 4));
 
     // Finally wake the last waiter.
-    assertEquals(1, Atomics.wake(i32a, 4, 1));
+    assertEquals(1, notify(i32a, 4, 1));
     assertEquals("ok", workers[waitingId].getMessage());
     workers[waitingId].terminate();
 
     assertEquals(0, %AtomicsNumWaitersForTesting(i32a, 4));
 
-  })();
+  };
 
+  TestWakeMulti(Atomics.wake);
+  // TODO(binji): This is hitting d8's max worker count when run with multiple
+  // isolates. Re-enable when workers are cleaned up after termination.
+  // TestWakeMulti(Atomics.notify);
 }

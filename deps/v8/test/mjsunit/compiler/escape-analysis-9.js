@@ -43,6 +43,7 @@ function g(a) {
   return o[0];
 }
 
+%PrepareFunctionForOptimization(g);
 assertEquals(7, g());
 assertEquals(7, g());
 %OptimizeFunctionOnNextCall(g);

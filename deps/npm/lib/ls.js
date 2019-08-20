@@ -12,6 +12,7 @@ var readPackageTree = require('read-package-tree')
 var archy = require('archy')
 var semver = require('semver')
 var color = require('ansicolors')
+var moduleName = require('./utils/module-name.js')
 var npa = require('npm-package-arg')
 var sortedObject = require('sorted-object')
 var npm = require('./npm.js')
@@ -59,7 +60,9 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
     args = []
   } else {
     args = args.map(function (a) {
-      if (typeof a === 'object') {
+      if (typeof a === 'object' && a.package._requested.type === 'alias') {
+        return [moduleName(a), `npm:${a.package.name}@${a.package.version}`, a]
+      } else if (typeof a === 'object') {
         return [a.package.name, a.package.version, a]
       } else {
         var p = npa(a)
@@ -139,9 +142,9 @@ function filterByEnv (data) {
       return
     }
 
-    if ((dev && inList(devKeys, name)) ||            // only --dev
-        (production && inList(prodKeys, name)) ||    // only --production
-        (!dev && !production)) {                            // no --production|--dev|--only=xxx
+    if ((dev && inList(devKeys, name)) || // only --dev
+        (production && inList(prodKeys, name)) || // only --production
+        (!dev && !production)) { // no --production|--dev|--only=xxx
       dependencies[name] = data.dependencies[name]
     }
   })
@@ -165,7 +168,7 @@ function alphasort (a, b) {
   a = a.toLowerCase()
   b = b.toLowerCase()
   return a > b ? 1
-       : a < b ? -1 : 0
+    : a < b ? -1 : 0
 }
 
 function isCruft (data) {
@@ -305,7 +308,7 @@ function filterFound (root, args) {
     if (!markDeps) continue
     Object.keys(markDeps).forEach(function (depName) {
       var dep = markDeps[depName]
-      if (dep.peerMissing) return
+      if (dep.peerMissing && !dep._from) return
       dep._parent = markPkg
       for (var ii = 0; ii < args.length; ii++) {
         var argName = args[ii][0]
@@ -392,8 +395,11 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   }
 
   var out = {}
-  // the top level is a bit special.
-  out.label = data._id || ''
+  if (data._requested && data._requested.type === 'alias') {
+    out.label = `${d}@npm:${data._id}`
+  } else {
+    out.label = data._id || ''
+  }
   if (data._found === 'explicit' && data._id) {
     if (npm.color) {
       out.label = color.bgBlack(color.yellow(out.label.trim())) + ' '
@@ -520,16 +526,16 @@ function makeParseable_ (data, long, dir, depth, parent, d) {
   if (data.missing) {
     if (depth < npm.config.get('depth')) {
       data = npm.config.get('long')
-           ? path.resolve(parent.path, 'node_modules', d) +
+        ? path.resolve(parent.path, 'node_modules', d) +
              ':' + d + '@' + JSON.stringify(data.requiredBy) + ':INVALID:MISSING'
-           : ''
+        : ''
     } else {
       data = path.resolve(dir || '', 'node_modules', d || '') +
              (npm.config.get('long')
-             ? ':' + d + '@' + JSON.stringify(data.requiredBy) +
+               ? ':' + d + '@' + JSON.stringify(data.requiredBy) +
                ':' + // no realpath resolved
                ':MAXDEPTH'
-             : '')
+               : '')
     }
 
     return data

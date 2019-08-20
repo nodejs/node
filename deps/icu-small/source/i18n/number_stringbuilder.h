@@ -3,7 +3,7 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 #ifndef __NUMBER_STRINGBUILDER_H__
 #define __NUMBER_STRINGBUILDER_H__
 
@@ -14,6 +14,7 @@
 #include "cstring.h"
 #include "uassert.h"
 #include "number_types.h"
+#include "fphdlimp.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -84,7 +85,18 @@ class U_I18N_API NumberStringBuilder : public UMemory {
 
     int32_t insert(int32_t index, const NumberStringBuilder &other, UErrorCode &status);
 
+    void writeTerminator(UErrorCode& status);
+
+    /**
+     * Gets a "safe" UnicodeString that can be used even after the NumberStringBuilder is destructed.
+     * */
     UnicodeString toUnicodeString() const;
+
+    /**
+     * Gets an "unsafe" UnicodeString that is valid only as long as the NumberStringBuilder is alive and
+     * unchanged. Slightly faster than toUnicodeString().
+     */
+    const UnicodeString toTempUnicodeString() const;
 
     UnicodeString toDebugString() const;
 
@@ -92,9 +104,13 @@ class U_I18N_API NumberStringBuilder : public UMemory {
 
     bool contentEquals(const NumberStringBuilder &other) const;
 
-    void populateFieldPosition(FieldPosition &fp, int32_t offset, UErrorCode &status) const;
+    bool nextFieldPosition(FieldPosition& fp, UErrorCode& status) const;
 
-    void populateFieldPositionIterator(FieldPositionIterator &fpi, UErrorCode &status) const;
+    void getAllFieldPositions(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
+
+    bool nextPosition(ConstrainedFieldPosition& cfpos, Field numericField, UErrorCode& status) const;
+
+    bool containsField(Field field) const;
 
   private:
     bool fUsingHeap = false;
@@ -128,6 +144,14 @@ class U_I18N_API NumberStringBuilder : public UMemory {
     int32_t prepareForInsertHelper(int32_t index, int32_t count, UErrorCode &status);
 
     int32_t remove(int32_t index, int32_t count);
+
+    static bool isIntOrGroup(Field field);
+
+    static bool isNumericField(Field field);
+
+    int32_t trimBack(int32_t limit) const;
+
+    int32_t trimFront(int32_t start) const;
 };
 
 } // namespace impl

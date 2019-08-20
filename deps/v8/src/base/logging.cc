@@ -53,7 +53,12 @@ void PrettyPrintChar(std::ostream& os, int ch) {
 }
 
 void DefaultDcheckHandler(const char* file, int line, const char* message) {
+#ifdef DEBUG
   V8_Fatal(file, line, "Debug check failed: %s.", message);
+#else
+  // This case happens only for unit tests.
+  V8_Fatal("Debug check failed: %s.", message);
+#endif
 }
 
 }  // namespace
@@ -135,7 +140,7 @@ class FailureMessage {
 
   static const uintptr_t kStartMarker = 0xdecade10;
   static const uintptr_t kEndMarker = 0xdecade11;
-  static const int kMessageBufferSize = 1024;
+  static const int kMessageBufferSize = 512;
 
   uintptr_t start_marker_ = kStartMarker;
   char message_[kMessageBufferSize];
@@ -144,7 +149,13 @@ class FailureMessage {
 
 }  // namespace
 
+#ifdef DEBUG
 void V8_Fatal(const char* file, int line, const char* format, ...) {
+#else
+void V8_Fatal(const char* format, ...) {
+  const char* file = "";
+  int line = 0;
+#endif
   va_list arguments;
   va_start(arguments, format);
   // Format the error message into a stack object for later retrieveal by the
@@ -154,6 +165,7 @@ void V8_Fatal(const char* file, int line, const char* format, ...) {
 
   fflush(stdout);
   fflush(stderr);
+  // Print the formatted message to stdout without cropping the output.
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                            line);
 
@@ -169,6 +181,15 @@ void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stderr);
   v8::base::OS::Abort();
 }
+
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+void V8_FatalNoContext() {
+  v8::base::OS::PrintError("V8 CHECK or FATAL\n");
+  if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
+  fflush(stderr);
+  v8::base::OS::Abort();
+}
+#endif
 
 void V8_Dcheck(const char* file, int line, const char* message) {
   v8::base::g_dcheck_function(file, line, message);

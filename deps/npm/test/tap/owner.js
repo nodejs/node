@@ -1,12 +1,9 @@
 var mr = require('npm-registry-mock')
 var test = require('tap').test
-var path = require('path')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
-var cachedir = path.join(basedir, 'cache')
+var basedir = common.pkg
+var cachedir = common.cache
 
 var server
 
@@ -74,8 +71,6 @@ function mocks (server) {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(cachedir)
   mr({ port: common.port, plugin: mocks }, function (er, s) {
     server = s
     t.end()
@@ -160,10 +155,5 @@ test('npm owner rm', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
   t.end()
 })
-
-function cleanup () {
-  rimraf.sync(basedir)
-}

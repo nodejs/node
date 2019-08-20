@@ -36,9 +36,9 @@ server.listen(0, function() {
   });
 
   req.on('response', function(res) {
-    assert.strictEqual(countdown.remaining, 1,
-                       'Full response received before all 102 Processing');
-    assert.strictEqual(200, res.statusCode,
+    // Check that all 102 Processing received before full response received.
+    assert.strictEqual(countdown.remaining, 1);
+    assert.strictEqual(res.statusCode, 200,
                        `Final status code was ${res.statusCode}, not 200.`);
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });

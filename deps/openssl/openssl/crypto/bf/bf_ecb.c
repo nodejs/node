@@ -19,7 +19,7 @@
 
 const char *BF_options(void)
 {
-    return ("blowfish(ptr)");
+    return "blowfish(ptr)";
 }
 
 void BF_ecb_encrypt(const unsigned char *in, unsigned char *out,

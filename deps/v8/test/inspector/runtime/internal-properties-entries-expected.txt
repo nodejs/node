@@ -281,6 +281,102 @@ expression: it = new Map([[1,2],[3,4]]).entries(); it.next(); it.next(); it
         ]
     }
 }
+expression: new Map([[1, undefined], [2, () => 42], [3, /abc/], [4, new Error()]]).entries()
+[
+    [0] : {
+        key : 1
+    }
+    [1] : {
+        key : 2
+        value : {
+        }
+    }
+    [2] : {
+        key : 3
+        value : {
+        }
+    }
+    [3] : {
+        key : 4
+        value : {
+        }
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {1 => undefined}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : {2 => () => 42}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 2
+                value : {
+                    className : Object
+                    description : {3 => /abc/}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 3
+                value : {
+                    className : Object
+                    description : {4 => Error     at <anonymous>:1:57}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [4] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 4
+                    type : number
+                    value : 4
+                }
+                writable : true
+            }
+        ]
+    }
+}
 
 Running test: sets
 expression: new Set([1,2])
@@ -500,6 +596,7 @@ expression: it = new Set([1,2]).keys(); it.next(); it
 expression: it = new Set([1,2]).entries(); it.next(); it
 [
     [0] : {
+        key : 2
         value : 2
     }
 ]
@@ -514,7 +611,7 @@ expression: it = new Set([1,2]).entries(); it.next(); it
                 name : 0
                 value : {
                     className : Object
-                    description : 2
+                    description : {2 => 2}
                     objectId : <objectId>
                     subtype : internal#entry
                     type : object

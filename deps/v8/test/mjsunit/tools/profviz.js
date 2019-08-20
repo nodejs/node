@@ -30,6 +30,8 @@
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
 // Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Files: tools/profviz/composer.js
+// Resources: test/mjsunit/tools/profviz-test.log
+// Resources: test/mjsunit/tools/profviz-test.default
 // Env: TEST_FILE_NAME
 
 assertEquals('string', typeof TEST_FILE_NAME);

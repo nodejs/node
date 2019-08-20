@@ -6,11 +6,20 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const EQUALITY_OPERATORS = ["===", "!==", "==", "!="];
+const RELATIONAL_OPERATORS = [">", "<", ">=", "<=", "in", "instanceof"];
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow constant expressions in conditions",
             category: "Possible Errors",
@@ -23,7 +32,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     checkLoops: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -107,7 +117,21 @@ module.exports = {
                     const isLeftShortCircuit = (isLeftConstant && isLogicalIdentity(node.left, node.operator));
                     const isRightShortCircuit = (isRightConstant && isLogicalIdentity(node.right, node.operator));
 
-                    return (isLeftConstant && isRightConstant) || isLeftShortCircuit || isRightShortCircuit;
+                    return (isLeftConstant && isRightConstant) ||
+                        (
+
+                            // in the case of an "OR", we need to know if the right constant value is truthy
+                            node.operator === "||" &&
+                            isRightConstant &&
+                            node.right.value &&
+                            (
+                                !node.parent ||
+                                node.parent.type !== "BinaryExpression" ||
+                                !(EQUALITY_OPERATORS.includes(node.parent.operator) || RELATIONAL_OPERATORS.includes(node.parent.operator))
+                            )
+                        ) ||
+                        isLeftShortCircuit ||
+                        isRightShortCircuit;
                 }
 
                 case "AssignmentExpression":
@@ -171,7 +195,6 @@ module.exports = {
 
         /**
          * Reports when the set still contains stored constant conditions
-         * @param {ASTNode} node The AST node to check.
          * @returns {void}
          * @private
          */
@@ -207,6 +230,8 @@ module.exports = {
             "ForStatement:exit": checkConstantConditionLoopInSet,
             FunctionDeclaration: enterFunction,
             "FunctionDeclaration:exit": exitFunction,
+            FunctionExpression: enterFunction,
+            "FunctionExpression:exit": exitFunction,
             YieldExpression: () => loopsInCurrentScope.clear()
         };
 

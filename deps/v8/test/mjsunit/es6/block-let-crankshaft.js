@@ -36,6 +36,7 @@ var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14,
 
 for (var i = 0; i < functions.length; ++i) {
   var func = functions[i];
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var j = 0; j < 10; ++j) {
@@ -317,6 +318,7 @@ function TestThrow() {
       throw x;
     }
   }
+  %PrepareFunctionForOptimization(f);
   for (var i = 0; i < 5; i++) {
     try {
       f();
@@ -341,6 +343,7 @@ TestThrow();
 function TestFunctionLocal(s) {
   'use strict';
   var func = eval("(function baz(){" + s + "; })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -363,6 +366,7 @@ function TestFunctionLocal(s) {
 function TestFunctionContext(s) {
   'use strict';
   var func = eval("(function baz(){ " + s + "; (function() { x; }); })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -389,6 +393,7 @@ function TestFunctionContext(s) {
 function TestBlockLocal(s) {
   'use strict';
   var func = eval("(function baz(){ { " + s + "; } })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -411,6 +416,7 @@ function TestBlockLocal(s) {
 function TestBlockContext(s) {
   'use strict';
   var func = eval("(function baz(){ { " + s + "; (function() { x; }); } })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -468,6 +474,9 @@ function g(x) {
     return y;
   }
 }
+
+%PrepareFunctionForOptimization(f);
+%PrepareFunctionForOptimization(g);
 
 for (var i=0; i<10; i++) {
   f(i);

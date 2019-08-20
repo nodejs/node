@@ -29,10 +29,10 @@ const readable = new stream.Readable();
 // _read is a noop, here.
 readable._read = Function();
 
-// default state of a stream is not "paused"
+// Default state of a stream is not "paused"
 assert.ok(!readable.isPaused());
 
-// make the stream start flowing...
+// Make the stream start flowing...
 readable.on('data', Function());
 
 // still not paused.

@@ -25,9 +25,9 @@ const fs = require('fs');
 
 // Test that fs.readFile fails correctly on a non-existent file.
 
-// `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
-// the directory there.
-if (common.isFreeBSD)
+// `fs.readFile('/')` does not fail on AIX and FreeBSD because you can open
+// and read the directory there.
+if (common.isAIX || common.isFreeBSD)
   common.skip('platform not supported.');
 
 const assert = require('assert');
@@ -38,12 +38,12 @@ function test(env, cb) {
   const filename = fixtures.path('test-fs-readfile-error.js');
   const execPath = `"${process.execPath}" "${filename}"`;
   const options = { env: Object.assign({}, process.env, env) };
-  exec(execPath, options, common.mustCall((err, stdout, stderr) => {
+  exec(execPath, options, (err, stdout, stderr) => {
     assert(err);
     assert.strictEqual(stdout, '');
     assert.notStrictEqual(stderr, '');
     cb(String(stderr));
-  }));
+  });
 }
 
 test({ NODE_DEBUG: '' }, common.mustCall((data) => {

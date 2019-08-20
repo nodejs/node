@@ -8,7 +8,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 662C2191D614E753232391E558B6EC90C2F0E2F1
+    hash : 1912c266357e416d5e19323209ce6b851f2e0f2c
     isLiveEdit : false
     isModule : false
     length : 42
@@ -27,7 +27,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 362F9F016AAA39B904701571F19E8FA0B174F0B3
+    hash : 10f9f2639b93aaa6175107400af8e91f3b0f471b
     isLiveEdit : false
     isModule : false
     length : 52
@@ -46,7 +46,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 976FA8F0184B894A9B10AFE4AC94EC437EE4FB60
+    hash : 0f8af679a498b4814efa01b934ce49ca06bf4ee7
     isLiveEdit : false
     isModule : false
     length : 43
@@ -65,7 +65,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 3F4F1CC20C664E61705CD011E025DD093676ED54
+    hash : 2cc1f4f316e466c0110dc50790dd520e45de6763
     isLiveEdit : false
     isModule : false
     length : 46
@@ -84,7 +84,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 55928721655B662420FC9F66450A7C2C327C8C36
+    hash : 127829554266b55666f9cf02c2c7a05463c8c723
     isLiveEdit : false
     isModule : false
     length : 50
@@ -103,7 +103,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : CF0E583119A280424958512525ECCFB3B4F7A262
+    hash : 1385e0fc24082a91521585943bfcce52262a7f4b
     isLiveEdit : false
     isModule : false
     length : 60
@@ -122,7 +122,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : D1FA51B286EA72144EC0E44681120344F2D2EBD5
+    hash : 2b15af1d4127ae68644e0ce4443021185dbe2d2f
     isLiveEdit : false
     isModule : false
     length : 51
@@ -141,7 +141,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 7ABA6300FC0D3908C0536EE2EFF60B48E36FFA35
+    hash : 0036aba78093d0cf2ee6350c84b06ffe53aff63e
     isLiveEdit : false
     isModule : false
     length : 54
@@ -160,7 +160,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : EB6DE473AF1788035E434F41ABC86140BD638644
+    hash : 374ed6be308871fa14f434e504168cba446836db
     isLiveEdit : false
     isModule : false
     length : 88
@@ -179,7 +179,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 63710BD01F77B0F0C00E0662B45B782A5976A206
+    hash : 0db017360f0b77f12660e00ca287b54b602a6795
     isLiveEdit : false
     isModule : false
     length : 89
@@ -198,7 +198,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : FC51669018C05471C8F46535240B9C77110E7291
+    hash : 096615cf17450c8153564f8c77c9b0421927e011
     isLiveEdit : false
     isModule : false
     length : 40
@@ -217,7 +217,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : FE0F41315BEF7930C8F465359F53D504110E7291
+    hash : 1314f0ef0397feb553564f8c405d35f91927e011
     isLiveEdit : false
     isModule : false
     length : 41
@@ -236,7 +236,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330614150F8F7EB45184E245F542E304118
+    hash : 033b33d18f0514168154be7f45f542e4811403e2
     isLiveEdit : false
     isModule : false
     length : 18
@@ -255,7 +255,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 474CCF101B1996849E154ED20F854F368C793767
+    hash : 01fcc474486991b12de451e963f458f0767397c8
     isLiveEdit : false
     isModule : false
     length : 96
@@ -274,7 +274,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : DD0A3C60B97506161FA15D9419969A90DF33E2E0
+    hash : 06c3a0dd6160579b49d51af109a969910e2e33fd
     isLiveEdit : false
     isModule : false
     length : 39
@@ -293,7 +293,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330A774BD52F7EB45184E245F54C94FB815
+    hash : 033b33d125db477a8154be7f45f542e4518bf49c
     isLiveEdit : false
     isModule : false
     length : 19
@@ -312,7 +312,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330EA93E221F7EB45184E245F5479702083
+    hash : 033b33d1122e39ae8154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 20
@@ -331,7 +331,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 867981735982F829F7EB45184E245F5479702083
+    hash : 37189768928f28958154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 21
@@ -350,7 +350,7 @@ scriptParsed
     endLine : 4
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 095D6881D29C0D76F7EB45184E245F5479702083
+    hash : 1886d59067d0c92d8154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 22
@@ -369,7 +369,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 662C2191D614E753232391E558B6EC90C2F0E2F1
+    hash : 1912c266357e416d5e19323209ce6b851f2e0f2c
     isLiveEdit : false
     isModule : false
     length : 42
@@ -388,7 +388,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 362F9F016AAA39B904701571F19E8FA0B174F0B3
+    hash : 10f9f2639b93aaa6175107400af8e91f3b0f471b
     isLiveEdit : false
     isModule : false
     length : 52
@@ -407,7 +407,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 976FA8F0184B894A9B10AFE4AC94EC437EE4FB60
+    hash : 0f8af679a498b4814efa01b934ce49ca06bf4ee7
     isLiveEdit : false
     isModule : false
     length : 43
@@ -426,7 +426,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 3F4F1CC20C664E61705CD011E025DD093676ED54
+    hash : 2cc1f4f316e466c0110dc50790dd520e45de6763
     isLiveEdit : false
     isModule : false
     length : 46
@@ -445,7 +445,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 55928721655B662420FC9F66450A7C2C327C8C36
+    hash : 127829554266b55666f9cf02c2c7a05463c8c723
     isLiveEdit : false
     isModule : false
     length : 50
@@ -464,7 +464,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : CF0E583119A280424958512525ECCFB3B4F7A262
+    hash : 1385e0fc24082a91521585943bfcce52262a7f4b
     isLiveEdit : false
     isModule : false
     length : 60
@@ -483,7 +483,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : D1FA51B286EA72144EC0E44681120344F2D2EBD5
+    hash : 2b15af1d4127ae68644e0ce4443021185dbe2d2f
     isLiveEdit : false
     isModule : false
     length : 51
@@ -502,7 +502,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 7ABA6300FC0D3908C0536EE2EFF60B48E36FFA35
+    hash : 0036aba78093d0cf2ee6350c84b06ffe53aff63e
     isLiveEdit : false
     isModule : false
     length : 54
@@ -521,7 +521,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : EB6DE473AF1788035E434F41ABC86140BD638644
+    hash : 374ed6be308871fa14f434e504168cba446836db
     isLiveEdit : false
     isModule : false
     length : 88
@@ -540,7 +540,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 63710BD01F77B0F0C00E0662B45B782A5976A206
+    hash : 0db017360f0b77f12660e00ca287b54b602a6795
     isLiveEdit : false
     isModule : false
     length : 89
@@ -559,7 +559,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : FC51669018C05471C8F46535240B9C77110E7291
+    hash : 096615cf17450c8153564f8c77c9b0421927e011
     isLiveEdit : false
     isModule : false
     length : 40
@@ -578,7 +578,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : FE0F41315BEF7930C8F465359F53D504110E7291
+    hash : 1314f0ef0397feb553564f8c405d35f91927e011
     isLiveEdit : false
     isModule : false
     length : 41
@@ -597,7 +597,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330614150F8F7EB45184E245F542E304118
+    hash : 033b33d18f0514168154be7f45f542e4811403e2
     isLiveEdit : false
     isModule : false
     length : 18
@@ -616,7 +616,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : 474CCF101B1996849E154ED20F854F368C793767
+    hash : 01fcc474486991b12de451e963f458f0767397c8
     isLiveEdit : false
     isModule : false
     length : 96
@@ -635,7 +635,7 @@ scriptParsed
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : DD0A3C60B97506161FA15D9419969A90DF33E2E0
+    hash : 06c3a0dd6160579b49d51af109a969910e2e33fd
     isLiveEdit : false
     isModule : false
     length : 39
@@ -658,6 +658,24 @@ scriptParsed
 }
 scriptFailedToParse
 {
+    scriptSource : {a:2:<nl>//# sourceURL=http://a.js
+}
+{
+    endColumn : 25
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 33c5612558c02e5a3bfa0d098c82865f38f98df2
+    isModule : false
+    length : 31
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : http://a.js
+}
+scriptFailedToParse
+{
     scriptSource : }//# sourceURL=failed.js<nl>//# sourceMappingURL=failed-map
 }
 {
@@ -665,7 +683,7 @@ scriptFailedToParse
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
-    hash : BB13EE1015533BA2FF7F72464D9CDD374BABDA67
+    hash : 01ee31bb2ab335516427f7ff73ddc9d476adbab4
     isModule : false
     length : 56
     scriptId : <scriptId>
@@ -683,7 +701,7 @@ scriptParsed
     endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330A774BD52F7EB45184E245F54C94FB815
+    hash : 033b33d125db477a8154be7f45f542e4518bf49c
     isLiveEdit : false
     isModule : false
     length : 19
@@ -702,7 +720,7 @@ scriptParsed
     endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 1D33B330EA93E221F7EB45184E245F5479702083
+    hash : 033b33d1122e39ae8154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 20
@@ -721,7 +739,7 @@ scriptParsed
     endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 867981735982F829F7EB45184E245F5479702083
+    hash : 37189768928f28958154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 21
@@ -740,7 +758,7 @@ scriptParsed
     endLine : 4
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 095D6881D29C0D76F7EB45184E245F5479702083
+    hash : 1886d59067d0c92d8154be7f45f542e438020797
     isLiveEdit : false
     isModule : false
     length : 22

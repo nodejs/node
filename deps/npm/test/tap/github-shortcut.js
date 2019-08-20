@@ -13,7 +13,7 @@ const test = require('tap').test
 
 const common = require('../common-tap.js')
 
-const pkg = path.resolve(__dirname, 'github-shortcut')
+const pkg = common.pkg
 
 const json = {
   name: 'github-shortcut',
@@ -48,7 +48,7 @@ test('github-shortcut', function (t) {
   })
 
   const opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'

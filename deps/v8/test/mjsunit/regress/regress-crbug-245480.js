@@ -38,8 +38,8 @@ function assertHoley(obj, name_opt) {
 
 function create_array(arg) {
   return new Array(arg);
-}
-
+};
+%PrepareFunctionForOptimization(create_array);
 obj = create_array(0);
 assertHoley(obj);
 create_array(0);
@@ -49,9 +49,9 @@ assertHoley(obj);
 
 // The code below would assert in debug or crash in release
 function f(length) {
-  return new Array(length)
-}
-
+  return new Array(length);
+};
+%PrepareFunctionForOptimization(f);
 f(0);
 f(0);
 %OptimizeFunctionOnNextCall(f);

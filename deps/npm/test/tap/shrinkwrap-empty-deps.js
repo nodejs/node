@@ -9,7 +9,7 @@ const path = require('path')
 const rimraf = require('rimraf')
 const test = require('tap').test
 
-const pkg = path.resolve(__dirname, 'shrinkwrap-empty-deps')
+const pkg = common.pkg
 
 const EXEC_OPTS = { cwd: pkg }
 

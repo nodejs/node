@@ -1,5 +1,6 @@
 'use strict'
 var gitHosts = require('./git-host-info.js')
+/* eslint-disable node/no-deprecated-api */
 var extend = Object.assign || require('util')._extend
 
 var GitHost = module.exports = function (type, user, auth, project, committish, defaultRepresentation, opts) {
@@ -24,6 +25,7 @@ GitHost.prototype.hash = function () {
 GitHost.prototype._fill = function (template, opts) {
   if (!template) return
   var vars = extend({}, opts)
+  vars.path = vars.path ? vars.path.replace(/^[/]+/g, '') : ''
   opts = extend(extend({}, this.opts), opts)
   var self = this
   Object.keys(this).forEach(function (key) {
@@ -31,10 +33,16 @@ GitHost.prototype._fill = function (template, opts) {
   })
   var rawAuth = vars.auth
   var rawComittish = vars.committish
+  var rawFragment = vars.fragment
+  var rawPath = vars.path
   Object.keys(vars).forEach(function (key) {
     vars[key] = encodeURIComponent(vars[key])
   })
   vars['auth@'] = rawAuth ? rawAuth + '@' : ''
+  vars['#fragment'] = rawFragment ? '#' + this.hashformat(rawFragment) : ''
+  vars.fragment = vars.fragment ? vars.fragment : ''
+  vars['#path'] = rawPath ? '#' + this.hashformat(rawPath) : ''
+  vars['/path'] = vars.path ? '/' + vars.path : ''
   if (opts.noCommittish) {
     vars['#committish'] = ''
     vars['/tree/committish'] = ''
@@ -43,8 +51,8 @@ GitHost.prototype._fill = function (template, opts) {
   } else {
     vars['#committish'] = rawComittish ? '#' + rawComittish : ''
     vars['/tree/committish'] = vars.committish
-                            ? '/' + vars.treepath + '/' + vars.committish
-                            : ''
+      ? '/' + vars.treepath + '/' + vars.committish
+      : ''
     vars['/committish'] = vars.committish ? '/' + vars.committish : ''
     vars.committish = vars.committish || 'master'
   }
@@ -67,8 +75,19 @@ GitHost.prototype.sshurl = function (opts) {
   return this._fill(this.sshurltemplate, opts)
 }
 
-GitHost.prototype.browse = function (opts) {
-  return this._fill(this.browsetemplate, opts)
+GitHost.prototype.browse = function (P, F, opts) {
+  if (typeof P === 'string') {
+    if (typeof F !== 'string') {
+      opts = F
+      F = null
+    }
+    return this._fill(this.browsefiletemplate, extend({
+      fragment: F,
+      path: P
+    }, opts))
+  } else {
+    return this._fill(this.browsetemplate, P)
+  }
 }
 
 GitHost.prototype.docs = function (opts) {
@@ -100,9 +119,7 @@ GitHost.prototype.tarball = function (opts) {
 }
 
 GitHost.prototype.file = function (P, opts) {
-  return this._fill(this.filetemplate, extend({
-    path: P.replace(/^[/]+/g, '')
-  }, opts))
+  return this._fill(this.filetemplate, extend({ path: P }, opts))
 }
 
 GitHost.prototype.getDefaultRepresentation = function () {

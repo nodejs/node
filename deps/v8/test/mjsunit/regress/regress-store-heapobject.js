@@ -19,8 +19,8 @@ function f(bool) {
     store(o, 1);
   }
   return o;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f(false);
 f(false);
 %OptimizeFunctionOnNextCall(f);

@@ -213,6 +213,56 @@ function assertIteratorResult(value, done, result) {
 })();
 
 
+(function TestLength() {
+  class C {
+    static ['length']() {
+      return 42;
+    }
+  }
+  assertEquals(42, C.length());
+
+  class C1 {
+    static get ['length']() {
+      return 'A';
+    }
+  }
+  assertEquals('A', C1.length);
+
+  class C2 {
+    static get length() {
+      assertUnreachable();
+    }
+    static get ['length']() {
+      return 'B';
+    }
+  }
+  assertEquals('B', C2.length);
+
+  class C3 {
+    static get length() {
+      assertUnreachable();
+    }
+    static get ['length']() {
+      assertUnreachable();
+    }
+    static get ['length']() {
+      return 'C';
+    }
+  }
+  assertEquals('C', C3.length);
+
+  class C4 {
+    static get ['length']() {
+      assertUnreachable();
+    }
+    static get length() {
+      return 'D';
+    }
+  }
+  assertEquals('D', C4.length);
+})();
+
+
 (function TestGetter() {
   class C {
     get ['a']() {

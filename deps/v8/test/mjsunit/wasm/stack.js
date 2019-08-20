@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // The stack trace contains file path, only keep "stack.js".
@@ -24,7 +23,7 @@ function verifyStack(frames, expected) {
     assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
     var toString;
     if (exp[0]) {
-      toString = "wasm-function[" + exp[2] + "]:" + exp[3];
+      toString = "wasm-function[" + exp[2] + "]:" + exp[5];
       if (exp[1] !== null) toString = exp[1] + " (" + toString + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
@@ -70,10 +69,10 @@ var module = builder.instantiate({mod: {func: STACK}});
 (function testSimpleStack() {
   var expected_string = 'Error\n' +
       // The line numbers below will change as this test gains / loses lines..
-      '    at STACK (stack.js:39:11)\n' +            // --
-      '    at main (wasm-function[1]:1)\n' +         // --
-      '    at testSimpleStack (stack.js:78:18)\n' +  // --
-      '    at stack.js:80:3';                        // --
+      '    at STACK (stack.js:38:11)\n' +            // --
+      '    at main (wasm-function[1]:0x86)\n' +      // --
+      '    at testSimpleStack (stack.js:77:18)\n' +  // --
+      '    at stack.js:79:3';                        // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -89,11 +88,11 @@ Error.prepareStackTrace = function(error, frames) {
   module.exports.main();
 
   verifyStack(stack, [
-      // isWasm           function   line  pos        file
-      [   false,           "STACK",    39,   0, "stack.js"],
-      [    true,            "main",     1,   1,       null],
-      [   false, "testStackFrames",    89,   0, "stack.js"],
-      [   false,              null,    98,   0, "stack.js"]
+      // isWasm           function   line  pos        file  offset
+      [   false,           "STACK",    38,   0, "stack.js"],
+      [    true,            "main",     1,   1,       null, '0x86'],
+      [   false, "testStackFrames",    88,   0, "stack.js"],
+      [   false,              null,    97,   0, "stack.js"]
   ]);
 })();
 
@@ -104,10 +103,10 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
-        // isWasm               function   line  pos        file
-        [    true,    "exec_unreachable",    2,    1,       null],
-        [   false, "testWasmUnreachable",  102,    0, "stack.js"],
-        [   false,                  null,  113,    0, "stack.js"]
+        // isWasm               function   line  pos        file  offset
+        [    true,    "exec_unreachable",    2,    1,       null, '0x8b'],
+        [   false, "testWasmUnreachable",  101,    0, "stack.js"],
+        [   false,                  null,  112,    0, "stack.js"]
     ]);
   }
 })();
@@ -119,11 +118,11 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
-        // isWasm                  function   line  pos        file
-        [    true,                     null,     3,   3,       null],
-        [    true, "call_mem_out_of_bounds",     4,   1,       null],
-        [   false, "testWasmMemOutOfBounds",   117,   0, "stack.js"],
-        [   false,                     null,   129,   0, "stack.js"]
+        // isWasm                  function   line  pos        file  offset
+        [    true,                     null,     3,   3,       null, '0x91'],
+        [    true, "call_mem_out_of_bounds",     4,   1,       null, '0x97'],
+        [   false, "testWasmMemOutOfBounds",   116,   0, "stack.js"],
+        [   false,                     null,   128,   0, "stack.js"]
     ]);
   }
 })();
@@ -148,11 +147,11 @@ Error.prepareStackTrace = function(error, frames) {
     assertEquals("Maximum call stack size exceeded", e.message, "trap reason");
     assertTrue(e.stack.length >= 4, "expected at least 4 stack entries");
     verifyStack(e.stack.splice(0, 4), [
-        // isWasm     function  line  pos  file
-        [    true, "recursion",    0,   0, null],
-        [    true, "recursion",    0,   3, null],
-        [    true, "recursion",    0,   3, null],
-        [    true, "recursion",    0,   3, null]
+        // isWasm     function  line  pos  file  offset
+        [    true, "recursion",    0,   0, null, '0x34'],
+        [    true, "recursion",    0,   3, null, '0x37'],
+        [    true, "recursion",    0,   3, null, '0x37'],
+        [    true, "recursion",    0,   3, null, '0x37']
     ]);
   }
 })();
@@ -174,10 +173,11 @@ Error.prepareStackTrace = function(error, frames) {
     fail('expected wasm exception');
   } catch (e) {
     assertEquals('unreachable', e.message, 'trap reason');
+    let hexOffset = '0x' + (unreachable_pos + 0x25).toString(16);
     verifyStack(e.stack, [
-      // isWasm, function, line, pos, file
-      [true, 'main', 0, unreachable_pos + 1, null],  // -
-      [false, 'testBigOffset', 173, 0, 'stack.js'],  //-
+      // isWasm, function, line, pos, file, offset
+      [true, 'main', 0, unreachable_pos + 1, null, hexOffset],  // -
+      [false, 'testBigOffset', 172, 0, 'stack.js'],             //-
       [false, null, 184, 0, 'stack.js']
     ]);
   }

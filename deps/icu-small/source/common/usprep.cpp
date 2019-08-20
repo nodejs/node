@@ -47,7 +47,10 @@ Static cache for already opened StringPrep profiles
 static UHashtable *SHARED_DATA_HASHTABLE = NULL;
 static icu::UInitOnce gSharedDataInitOnce;
 
-static UMutex usprepMutex = U_MUTEX_INITIALIZER;
+static UMutex *usprepMutex() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 /* format version of spp file */
 //static uint8_t formatVersion[4]={ 0, 0, 0, 0 };
@@ -112,7 +115,9 @@ hashEntry(const UHashTok parm) {
     UHashTok namekey, pathkey;
     namekey.pointer = b->name;
     pathkey.pointer = b->path;
-    return uhash_hashChars(namekey)+37*uhash_hashChars(pathkey);
+    uint32_t unsignedHash = static_cast<uint32_t>(uhash_hashChars(namekey)) +
+            37u * static_cast<uint32_t>(uhash_hashChars(pathkey));
+    return static_cast<int32_t>(unsignedHash);
 }
 
 /* compares two entries */
@@ -146,9 +151,9 @@ usprep_internal_flushCache(UBool noRefCount){
      * if shared data hasn't even been lazy evaluated yet
      * return 0
      */
-    umtx_lock(&usprepMutex);
+    umtx_lock(usprepMutex());
     if (SHARED_DATA_HASHTABLE == NULL) {
-        umtx_unlock(&usprepMutex);
+        umtx_unlock(usprepMutex());
         return 0;
     }
 
@@ -179,7 +184,7 @@ usprep_internal_flushCache(UBool noRefCount){
         }
 
     }
-    umtx_unlock(&usprepMutex);
+    umtx_unlock(usprepMutex());
 
     return deletedNum;
 }
@@ -257,7 +262,7 @@ loadData(UStringPrepProfile* profile,
     }
 
     /* in the mutex block, set the data for this process */
-    umtx_lock(&usprepMutex);
+    umtx_lock(usprepMutex());
     if(profile->sprepData==NULL) {
         profile->sprepData=dataMemory;
         dataMemory=NULL;
@@ -266,7 +271,7 @@ loadData(UStringPrepProfile* profile,
     } else {
         p=(const int32_t *)udata_getMemory(profile->sprepData);
     }
-    umtx_unlock(&usprepMutex);
+    umtx_unlock(usprepMutex());
     /* initialize some variables */
     profile->mappingData=(uint16_t *)((uint8_t *)(p+_SPREP_INDEX_TOP)+profile->indexes[_SPREP_INDEX_TRIE_SIZE]);
 
@@ -323,12 +328,12 @@ usprep_getProfile(const char* path,
     stackKey.path = (char*) path;
 
     /* fetch the data from the cache */
-    umtx_lock(&usprepMutex);
+    umtx_lock(usprepMutex());
     profile = (UStringPrepProfile*) (uhash_get(SHARED_DATA_HASHTABLE,&stackKey));
     if(profile != NULL) {
         profile->refCount++;
     }
-    umtx_unlock(&usprepMutex);
+    umtx_unlock(usprepMutex());
 
     if(profile == NULL) {
         /* else load the data and put the data in the cache */
@@ -351,16 +356,16 @@ usprep_getProfile(const char* path,
         LocalMemory<char> keyName;
         LocalMemory<char> keyPath;
         if( key.allocateInsteadAndReset() == NULL ||
-            keyName.allocateInsteadAndCopy(uprv_strlen(name)+1) == NULL ||
+            keyName.allocateInsteadAndCopy(static_cast<int32_t>(uprv_strlen(name)+1)) == NULL ||
             (path != NULL &&
-             keyPath.allocateInsteadAndCopy(uprv_strlen(path)+1) == NULL)
+             keyPath.allocateInsteadAndCopy(static_cast<int32_t>(uprv_strlen(path)+1)) == NULL)
          ) {
             *status = U_MEMORY_ALLOCATION_ERROR;
             usprep_unload(newProfile.getAlias());
             return NULL;
         }
 
-        umtx_lock(&usprepMutex);
+        umtx_lock(usprepMutex());
         // If another thread already inserted the same key/value, refcount and cleanup our thread data
         profile = (UStringPrepProfile*) (uhash_get(SHARED_DATA_HASHTABLE,&stackKey));
         if(profile != NULL) {
@@ -381,7 +386,7 @@ usprep_getProfile(const char* path,
             profile->refCount = 1;
             uhash_put(SHARED_DATA_HASHTABLE, key.orphan(), profile, status);
         }
-        umtx_unlock(&usprepMutex);
+        umtx_unlock(usprepMutex());
     }
 
     return profile;
@@ -420,12 +425,12 @@ usprep_close(UStringPrepProfile* profile){
         return;
     }
 
-    umtx_lock(&usprepMutex);
+    umtx_lock(usprepMutex());
     /* decrement the ref count*/
     if(profile->refCount > 0){
         profile->refCount--;
     }
-    umtx_unlock(&usprepMutex);
+    umtx_unlock(usprepMutex());
 
 }
 
@@ -726,7 +731,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
             ((result < _SPREP_TYPE_THRESHOLD) && (result & 0x01) /* first bit says it the code point is prohibited*/)
            ){
             *status = U_STRINGPREP_PROHIBITED_ERROR;
-            uprv_syntaxError(b1, b2Index-U16_LENGTH(ch), b2Len, parseError);
+            uprv_syntaxError(b2, b2Index-U16_LENGTH(ch), b2Len, parseError);
             return 0;
         }
 

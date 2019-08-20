@@ -7,45 +7,80 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 
-assert.throws(() => tls.createSecureContext({ ciphers: 1 }),
-              /TypeError: Ciphers must be a string/);
+common.expectsError(
+  () => tls.createSecureContext({ ciphers: 1 }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options.ciphers" property must be of type string.' +
+      ' Received type number'
+  });
 
-assert.throws(() => tls.createServer({ ciphers: 1 }),
-              /TypeError: Ciphers must be a string/);
+common.expectsError(
+  () => tls.createServer({ ciphers: 1 }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options.ciphers" property must be of type string.' +
+      ' Received type number'
+  });
 
-assert.throws(() => tls.createSecureContext({ key: 'dummykey', passphrase: 1 }),
-              /TypeError: Pass phrase must be a string/);
+common.expectsError(
+  () => tls.createSecureContext({ key: 'dummykey', passphrase: 1 }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'Pass phrase must be a string'
+  });
 
-assert.throws(() => tls.createServer({ key: 'dummykey', passphrase: 1 }),
-              /TypeError: Pass phrase must be a string/);
+common.expectsError(
+  () => tls.createServer({ key: 'dummykey', passphrase: 1 }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'Pass phrase must be a string'
+  });
 
-assert.throws(() => tls.createServer({ ecdhCurve: 1 }),
-              /TypeError: ECDH curve name must be a string/);
+common.expectsError(
+  () => tls.createServer({ ecdhCurve: 1 }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'ECDH curve name must be a string'
+  });
 
-common.expectsError(() => tls.createServer({ handshakeTimeout: 'abcd' }),
-                    {
-                      code: 'ERR_INVALID_ARG_TYPE',
-                      type: TypeError,
-                      message: 'The "options.handshakeTimeout" property must ' +
-                               'be of type number. Received type string'
-                    }
+common.expectsError(
+  () => tls.createServer({ handshakeTimeout: 'abcd' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options.handshakeTimeout" property must ' +
+              'be of type number. Received type string'
+  }
 );
 
-assert.throws(() => tls.createServer({ sessionTimeout: 'abcd' }),
-              /TypeError: Session timeout must be a 32-bit integer/);
+common.expectsError(
+  () => tls.createServer({ sessionTimeout: 'abcd' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'Session timeout must be a 32-bit integer'
+  });
 
-assert.throws(() => tls.createServer({ ticketKeys: 'abcd' }),
-              /TypeError: Ticket keys must be a buffer/);
+common.expectsError(
+  () => tls.createServer({ ticketKeys: 'abcd' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'Ticket keys must be a buffer'
+  });
 
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
               /TypeError: Ticket keys length must be 48 bytes/);
 
-common.expectsError(
+common.expectsInternalAssertion(
   () => tls.createSecurePair({}),
-  {
-    code: 'ERR_ASSERTION',
-    message: 'context.context must be a NativeSecureContext'
-  }
+  'context.context must be a NativeSecureContext'
 );
 
 {
@@ -58,24 +93,24 @@ common.expectsError(
 }
 
 {
-  const buffer = Buffer.from('abcd');
-  const out = {};
-  tls.convertNPNProtocols(buffer, out);
-  out.NPNProtocols.write('efgh');
-  assert(buffer.equals(Buffer.from('abcd')));
-  assert(out.NPNProtocols.equals(Buffer.from('efgh')));
+  const arrayBufferViewStr = 'abcd';
+  const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
+  for (const expectView of common.getArrayBufferViews(inputBuffer)) {
+    const out = {};
+    tls.convertALPNProtocols(expectView, out);
+    assert(out.ALPNProtocols.equals(Buffer.from(expectView)));
+  }
 }
 
 {
-  const buffer = new Uint8Array(Buffer.from('abcd'));
+  const protocols = [(new String('a')).repeat(500)];
   const out = {};
-  tls.convertALPNProtocols(buffer, out);
-  assert(out.ALPNProtocols.equals(Buffer.from('abcd')));
-}
-
-{
-  const buffer = new Uint8Array(Buffer.from('abcd'));
-  const out = {};
-  tls.convertNPNProtocols(buffer, out);
-  assert(out.NPNProtocols.equals(Buffer.from('abcd')));
+  common.expectsError(
+    () => tls.convertALPNProtocols(protocols, out),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'The byte length of the protocol at index 0 exceeds the ' +
+        'maximum length. It must be <= 255. Received 500'
+    }
+  );
 }

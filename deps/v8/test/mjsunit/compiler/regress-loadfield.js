@@ -46,6 +46,8 @@ function test(a) {
   }
 }
 
+%PrepareFunctionForOptimization(test);
+
 // Create an object with fast backing store properties.
 var a = {};
 a.p1 = "";

@@ -7,23 +7,13 @@
 
 #include "include/v8config.h"
 
-// Annotate a typedef or function indicating it's ok if it's not used.
-// Use like:
-//   typedef Foo Bar ALLOW_UNUSED_TYPE;
+// Annotate a  using ALLOW_UNUSED_TYPE = or function indicating it's ok if it's
+// not used. Use like:
+//    using Bar = Foo;
 #if V8_HAS_ATTRIBUTE_UNUSED
 #define ALLOW_UNUSED_TYPE __attribute__((unused))
 #else
 #define ALLOW_UNUSED_TYPE
-#endif
-
-
-// Annotate a function indicating the caller must examine the return value.
-// Use like:
-//   int foo() WARN_UNUSED_RESULT;
-#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
-#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
 // Tell the compiler a function is using a printf-style format string.
@@ -101,5 +91,18 @@
 #define NON_EXPORTED_BASE(code) code
 
 #endif  // V8_CC_MSVC
+
+// Allowing the use of noexcept by removing the keyword on older compilers that
+// do not support adding noexcept to default members.
+// Disabled on MSVC because constructors of standard containers are not noexcept
+// there.
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                      \
+      !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
+      !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64)) ||  \
+     (defined(__clang__) && __cplusplus > 201300L))
+#define V8_NOEXCEPT noexcept
+#else
+#define V8_NOEXCEPT
+#endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

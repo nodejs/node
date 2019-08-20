@@ -34,6 +34,8 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PAGE_NOACCESS;
+    case OS::MemoryPermission::kRead:
+      return PAGE_READONLY;
     case OS::MemoryPermission::kReadWrite:
       return PAGE_READWRITE;
     case OS::MemoryPermission::kReadWriteExecute:
@@ -66,7 +68,7 @@ uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
 class CygwinTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
 
   ~CygwinTimezoneCache() override {}
 };
@@ -80,7 +82,7 @@ const char* CygwinTimezoneCache::LocalTimezone(double time) {
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
-double CygwinTimezoneCache::LocalTimeOffset() {
+double LocalTimeOffset(double time_ms, bool is_utc) {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(nullptr);
   DCHECK_NE(utc, -1);
@@ -170,6 +172,33 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+bool OS::DiscardSystemPages(void* address, size_t size) {
+  // On Windows, discarded pages are not returned to the system immediately and
+  // not guaranteed to be zeroed when returned to the application.
+  using DiscardVirtualMemoryFunction =
+      DWORD(WINAPI*)(PVOID virtualAddress, SIZE_T size);
+  static std::atomic<DiscardVirtualMemoryFunction> discard_virtual_memory(
+      reinterpret_cast<DiscardVirtualMemoryFunction>(-1));
+  if (discard_virtual_memory ==
+      reinterpret_cast<DiscardVirtualMemoryFunction>(-1))
+    discard_virtual_memory =
+        reinterpret_cast<DiscardVirtualMemoryFunction>(GetProcAddress(
+            GetModuleHandle(L"Kernel32.dll"), "DiscardVirtualMemory"));
+  // Use DiscardVirtualMemory when available because it releases faster than
+  // MEM_RESET.
+  DiscardVirtualMemoryFunction discard_function = discard_virtual_memory.load();
+  if (discard_function) {
+    DWORD ret = discard_function(address, size);
+    if (!ret) return true;
+  }
+  // DiscardVirtualMemory is buggy in Win10 SP0, so fall back to MEM_RESET on
+  // failure.
+  void* ptr = VirtualAlloc(address, size, MEM_RESET, PAGE_READWRITE);
+  CHECK(ptr);
+  return ptr;
+}
+
+// static
 bool OS::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
@@ -238,6 +267,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 void OS::SignalCodeMovingGC() {
   // Nothing to do on Cygwin.
 }
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

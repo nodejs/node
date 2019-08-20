@@ -36,6 +36,7 @@ function isLittleEndian() {
 // Test that both kinds of NaNs (signaling or quiet) do not signal
 
 function TestAllModes(f) {
+  %PrepareFunctionForOptimization(f);
   f(); // Runtime
   f(); // IC
   f(); // IC second time

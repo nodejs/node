@@ -6,9 +6,10 @@
 #define V8_COMPILER_ESCAPE_ANALYSIS_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +34,7 @@ class NodeHashCache {
         : node_cache_(cache), from_(from), tmp_(nullptr) {}
     // Construct a new node from scratch.
     Constructor(NodeHashCache* cache, const Operator* op, int input_count,
-                Node** inputs, Type* type);
+                Node** inputs, Type type);
 
     // Modify the new node.
     void ReplaceValueInput(Node* input, int i) {
@@ -100,6 +101,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   Reduction ReplaceNode(Node* original, Node* replacement);
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph_->isolate(); }
   EscapeAnalysisResult analysis_result() const { return analysis_result_; }
   Zone* zone() const { return zone_; }
 

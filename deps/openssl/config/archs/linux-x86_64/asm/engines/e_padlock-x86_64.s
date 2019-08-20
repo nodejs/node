@@ -1,4 +1,4 @@
-.text
+.text	
 .globl	padlock_capability
 .type	padlock_capability,@function
 .align	16
@@ -8,11 +8,20 @@ padlock_capability:
 	cpuid
 	xorl	%eax,%eax
 	cmpl	$0x746e6543,%ebx
-	jne	.Lnoluck
+	jne	.Lzhaoxin
 	cmpl	$0x48727561,%edx
 	jne	.Lnoluck
 	cmpl	$0x736c7561,%ecx
 	jne	.Lnoluck
+	jmp	.LzhaoxinEnd
+.Lzhaoxin:
+	cmpl	$0x68532020,%ebx
+	jne	.Lnoluck
+	cmpl	$0x68676e61,%edx
+	jne	.Lnoluck
+	cmpl	$0x20206961,%ecx
+	jne	.Lnoluck
+.LzhaoxinEnd:
 	movl	$0xC0000000,%eax
 	cpuid
 	movl	%eax,%edx
@@ -1020,7 +1029,7 @@ padlock_ctr32_encrypt:
 .size	padlock_ctr32_encrypt,.-padlock_ctr32_encrypt
 .byte	86,73,65,32,80,97,100,108,111,99,107,32,120,56,54,95,54,52,32,109,111,100,117,108,101,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	16
-.data
+.data	
 .align	8
 .Lpadlock_saved_context:
 .quad	0

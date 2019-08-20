@@ -1,0 +1,72 @@
+{
+  "_from": "libnpmsearch@2.0.2",
+  "_id": "libnpmsearch@2.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-VTBbV55Q6fRzTdzziYCr64+f8AopQ1YZ+BdPOv16UegIEaE8C0Kch01wo4s3kRTFV64P121WZJwgmBwrq68zYg==",
+  "_location": "/libnpmsearch",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "libnpmsearch@2.0.2",
+    "name": "libnpmsearch",
+    "escapedName": "libnpmsearch",
+    "rawSpec": "2.0.2",
+    "saveSpec": null,
+    "fetchSpec": "2.0.2"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/libnpmsearch/-/libnpmsearch-2.0.2.tgz",
+  "_shasum": "9a4f059102d38e3dd44085bdbfe5095f2a5044cf",
+  "_spec": "libnpmsearch@2.0.2",
+  "_where": "/Users/isaacs/dev/npm/cli",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/libnpmsearch/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "figgy-pudding": "^3.5.1",
+    "get-stream": "^4.0.0",
+    "npm-registry-fetch": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "Programmatic API for searching in npm and compatible registries.",
+  "devDependencies": {
+    "nock": "^9.6.1",
+    "standard": "^12.0.0",
+    "standard-version": "*",
+    "tap": "^12.0.1",
+    "weallbehave": "*",
+    "weallcontribute": "*"
+  },
+  "homepage": "https://npmjs.com/package/libnpmsearch",
+  "keywords": [
+    "npm",
+    "search",
+    "api",
+    "libnpm"
+  ],
+  "license": "ISC",
+  "name": "libnpmsearch",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/libnpmsearch.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --100 test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "2.0.2"
+}

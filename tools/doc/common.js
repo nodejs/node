@@ -1,6 +1,7 @@
 'use strict';
 
-const yaml = require('js-yaml');
+const yaml =
+  require(`${__dirname}/../node_modules/eslint/node_modules/js-yaml`);
 
 function isYAMLBlock(text) {
   return /^<!-- YAML/.test(text);
@@ -24,9 +25,17 @@ function extractAndParseYAML(text) {
     meta.added = arrify(meta.added);
   }
 
+  if (meta.napiVersion) {
+    meta.napiVersion = arrify(meta.napiVersion);
+  }
+
   if (meta.deprecated) {
     // Treat deprecated like added for consistency.
     meta.deprecated = arrify(meta.deprecated);
+  }
+
+  if (meta.removed) {
+    meta.removed = arrify(meta.removed);
   }
 
   meta.changes = meta.changes || [];
@@ -34,4 +43,4 @@ function extractAndParseYAML(text) {
   return meta;
 }
 
-module.exports = { isYAMLBlock, extractAndParseYAML };
+module.exports = { arrify, isYAMLBlock, extractAndParseYAML };

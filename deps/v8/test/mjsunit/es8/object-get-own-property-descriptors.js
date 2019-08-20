@@ -193,21 +193,7 @@ function TestDuplicateKeys() {
     defineProperty(target, name, desc) { assertUnreachable(); }
   });
 
-  var result = Object.getOwnPropertyDescriptors(P);
-  assertEquals({
-    "A": {
-      "value": "VALUE",
-      "writable": false,
-      "enumerable": false,
-      "configurable": true
-    }
-  }, result);
-  assertTrue(result.hasOwnProperty("A"));
-  assertEquals([
-    "ownKeys()",
-    "getOwnPropertyDescriptor(A)",
-    "getOwnPropertyDescriptor(A)"
-  ], log);
+  assertThrows(() => Object.getOwnPropertyDescriptors(P), TypeError);
 }
 TestDuplicateKeys();
 

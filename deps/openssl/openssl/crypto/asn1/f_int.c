@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
+#include "internal/ctype.h"
 #include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/asn1.h>
@@ -20,7 +20,7 @@ int i2a_ASN1_INTEGER(BIO *bp, const ASN1_INTEGER *a)
     char buf[2];
 
     if (a == NULL)
-        return (0);
+        return 0;
 
     if (a->type & V_ASN1_NEG) {
         if (BIO_write(bp, "-", 1) != 1)
@@ -46,9 +46,9 @@ int i2a_ASN1_INTEGER(BIO *bp, const ASN1_INTEGER *a)
             n += 2;
         }
     }
-    return (n);
+    return n;
  err:
-    return (-1);
+    return -1;
 }
 
 int a2i_ASN1_INTEGER(BIO *bp, ASN1_INTEGER *bs, char *buf, int size)
@@ -76,18 +76,7 @@ int a2i_ASN1_INTEGER(BIO *bp, ASN1_INTEGER *bs, char *buf, int size)
         again = (buf[i - 1] == '\\');
 
         for (j = 0; j < i; j++) {
-#ifndef CHARSET_EBCDIC
-            if (!(((buf[j] >= '0') && (buf[j] <= '9')) ||
-                  ((buf[j] >= 'a') && (buf[j] <= 'f')) ||
-                  ((buf[j] >= 'A') && (buf[j] <= 'F'))))
-#else
-            /*
-             * This #ifdef is not strictly necessary, since the characters
-             * A...F a...f 0...9 are contiguous (yes, even in EBCDIC - but
-             * not the whole alphabet). Nevertheless, isxdigit() is faster.
-             */
-            if (!isxdigit(buf[j]))
-#endif
+            if (!ossl_isxdigit(buf[j]))
             {
                 i = j;
                 break;

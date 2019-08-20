@@ -8,7 +8,8 @@ class MapProcessor extends LogReader {
     super();
     this.dispatchTable_ = {
       'code-creation': {
-        parsers: [null, parseInt, parseInt, parseInt, parseInt, null, 'var-args'],
+        parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
+          parseString, parseVarArgs],
         processor: this.processCodeCreation
       },
       'code-move': {
@@ -24,21 +25,20 @@ class MapProcessor extends LogReader {
         processor: this.processFunctionMove
       },
       'map-create': {
-        parsers: [parseInt, parseInt, null],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapCreate
       },
       'map': {
-        parsers: [null, parseInt, parseInt, parseInt, parseInt, parseInt,
-          null, null, null
+        parsers: [parseString, parseInt, parseInt, parseInt, parseInt, parseInt,
+          parseString, parseString, parseString
         ],
         processor: this.processMap
       },
       'map-details': {
-        parsers: [parseInt, parseInt, null],
+        parsers: [parseInt, parseInt, parseString],
         processor: this.processMapDetails
       }
     };
-    this.deserializedEntriesNames_ = [];
     this.profile_ = new Profile();
     this.timeline_ = new Timeline();
   }
@@ -65,7 +65,7 @@ class MapProcessor extends LogReader {
         this.processLogLine(line);
       }
     } catch(e) {
-      console.log("Error occurred during parsing, trying to continue: " + e);
+      console.error("Error occurred during parsing, trying to continue: " + e);
     }
     return this.finalize();
   }
@@ -107,10 +107,6 @@ class MapProcessor extends LogReader {
 
   processCodeCreation(
     type, kind, timestamp, start, size, name, maybe_func) {
-    name = this.deserializedEntriesNames_[start] || name;
-    if (name.startsWith("onComplete")) {
-      console.log(name);
-    }
     if (maybe_func.length) {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
@@ -155,7 +151,7 @@ class MapProcessor extends LogReader {
     from = this.getExistingMap(from, time);
     to = this.getExistingMap(to, time);
     let edge = new Edge(type, name, reason, time, from, to);
-    edge.filePosition = this.formatPC(pc, line, column);
+    to.filePosition = this.formatPC(pc, line, column);
     edge.finishSetup();
   }
 
@@ -179,9 +175,6 @@ class MapProcessor extends LogReader {
   }
 
   createMap(id, time) {
-    if (id == 0x1821257d1761) {
-      console.log(id);
-    }
     let map = new V8Map(id, time);
     this.timeline_.push(map);
     return map;
@@ -216,6 +209,7 @@ class V8Map {
     V8Map.set(id, this);
     this.leftId = 0;
     this.rightId = 0;
+    this.filePosition = "";
   }
 
   finalize(id) {
@@ -291,6 +285,10 @@ class V8Map {
     return this.edge === void 0 ? "new" : this.edge.type;
   }
 
+  isBootstrapped() {
+    return this.edge === void 0;
+  }
+
   getParents() {
     let parents = [];
     let current = this.parent();
@@ -322,7 +320,6 @@ class Edge {
     this.time = time;
     this.from = from;
     this.to = to;
-    this.filePosition = "";
   }
 
   finishSetup() {
@@ -370,31 +367,35 @@ class Edge {
   }
 
   isTransition() {
-    return this.type == "Transition"
+    return this.type === "Transition"
   }
 
   isFastToSlow() {
-    return this.type == "Normalize"
+    return this.type === "Normalize"
   }
 
   isSlowToFast() {
-    return this.type == "SlowToFast"
+    return this.type === "SlowToFast"
   }
 
   isInitial() {
-    return this.type == "InitialMap"
+    return this.type === "InitialMap"
+  }
+
+  isBootstrapped() {
+    return this.type === "new"
   }
 
   isReplaceDescriptors() {
-    return this.type == "ReplaceDescriptors"
+    return this.type === "ReplaceDescriptors"
   }
 
   isCopyAsPrototype() {
-    return this.reason == "CopyAsPrototype"
+    return this.reason === "CopyAsPrototype"
   }
 
   isOptimizeAsPrototype() {
-    return this.reason == "OptimizeAsPrototype"
+    return this.reason === "OptimizeAsPrototype"
   }
 
   symbol() {

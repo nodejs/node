@@ -9,8 +9,6 @@ const makeCallback = binding.makeCallback;
 // Make sure this is run in the future.
 const mustCallCheckDomains = common.mustCall(checkDomains);
 
-common.crashOnUnhandledRejection();
-
 // Make sure that using MakeCallback allows the error to propagate.
 assert.throws(function() {
   makeCallback({}, function() {
@@ -79,9 +77,8 @@ assert.throws(function() {
         }));
       });
     } else if (arg === 2) {
-      // setTimeout runs via the TimerWrap, which runs through
-      // AsyncWrap::MakeCallback(). Make sure there are no conflicts using
-      // node::MakeCallback() within it.
+      // Make sure there are no conflicts using node::MakeCallback()
+      // within timers.
       setTimeout(common.mustCall(function() {
         verifyExecutionOrder(3);
       }), 10);

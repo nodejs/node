@@ -41,31 +41,24 @@ const filenameTwo = 'hasOwnProperty';
 const filepathTwo = filenameTwo;
 const filepathTwoAbs = path.join(testDir, filenameTwo);
 
-const filenameThree = 'charm'; // because the third time is
+const filenameThree = 'charm'; // Because the third time is
 
 const filenameFour = 'get';
 
 process.on('exit', function() {
-  fs.unlinkSync(filepathOne);
-  fs.unlinkSync(filepathTwoAbs);
-  fs.unlinkSync(filenameThree);
-  fs.unlinkSync(filenameFour);
-  assert.strictEqual(1, watchSeenOne);
-  assert.strictEqual(2, watchSeenTwo);
-  assert.strictEqual(1, watchSeenThree);
-  assert.strictEqual(1, watchSeenFour);
+  assert.strictEqual(watchSeenOne, 1);
+  assert.strictEqual(watchSeenTwo, 2);
+  assert.strictEqual(watchSeenThree, 1);
+  assert.strictEqual(watchSeenFour, 1);
 });
 
 
+tmpdir.refresh();
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathOne);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+  () => { fs.watchFile(filepathOne); },
+  { code: 'ERR_INVALID_ARG_TYPE' }
 );
 
 // Does not throw.
@@ -84,12 +77,8 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathTwo);
-  },
-  function(e) {
-    return e.message === '"watchFile()" requires a listener function';
-  }
+  () => { fs.watchFile(filepathTwo); },
+  { code: 'ERR_INVALID_ARG_TYPE' }
 );
 
 { // Does not throw.
@@ -114,9 +103,10 @@ setTimeout(function() {
     fs.unwatchFile(filenameThree, b);
     ++watchSeenThree;
   }
-  fs.watchFile(filenameThree, common.mustNotCall());
+  const uncalledListener = common.mustNotCall();
+  fs.watchFile(filenameThree, uncalledListener);
   fs.watchFile(filenameThree, b);
-  fs.unwatchFile(filenameThree, common.mustNotCall());
+  fs.unwatchFile(filenameThree, uncalledListener);
 }
 
 setTimeout(function() {
@@ -134,7 +124,7 @@ setTimeout(function() {
 { // Does not throw.
   function a() {
     ++watchSeenFour;
-    assert.strictEqual(1, watchSeenFour);
+    assert.strictEqual(watchSeenFour, 1);
     fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
   }
   fs.watchFile(filenameFour, a);

@@ -21,14 +21,15 @@ function err() {
   d.run(err2);
 
   function err2() {
-    // this function doesn't exist, and throws an error as a result.
+    // This function doesn't exist, and throws an error as a result.
     err3(); // eslint-disable-line no-undef
   }
 
   function handleDomainError(e) {
-    // In the domain's error handler, the current active domain should be the
-    // domain within which the error was thrown.
-    assert.strictEqual(process.domain, d);
+    assert.strictEqual(e.domain, d);
+    // Domains' error handlers are called outside of their domain's context, so
+    // we're not expecting any active domain here.
+    assert.strictEqual(process.domain, undefined);
   }
 }
 

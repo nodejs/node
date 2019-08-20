@@ -48,7 +48,7 @@ if (cluster.isMaster) {
   });
 
   server2.on('error', function(err) {
-    // an error is expected on the second worker
+    // An error is expected on the second worker
     process.send(`server2:${err.code}`);
   });
 
@@ -59,7 +59,7 @@ if (cluster.isMaster) {
   }, common.mustCall(function() {
     server2.listen({ port: common.PORT + 1, exclusive: true },
                    common.mustCall(function() {
-                     // the first worker should succeed
+                     // The first worker should succeed
                      process.send('success');
                    })
     );

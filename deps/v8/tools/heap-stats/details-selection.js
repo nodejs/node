@@ -8,6 +8,10 @@ const details_selection_template =
     document.currentScript.ownerDocument.querySelector(
         '#details-selection-template');
 
+const VIEW_BY_INSTANCE_TYPE = 'by-instance-type';
+const VIEW_BY_INSTANCE_CATEGORY = 'by-instance-category';
+const VIEW_BY_FIELD_TYPE = 'by-field-type';
+
 class DetailsSelection extends HTMLElement {
   constructor() {
     super();
@@ -15,16 +19,18 @@ class DetailsSelection extends HTMLElement {
     shadowRoot.appendChild(details_selection_template.content.cloneNode(true));
     this.isolateSelect.addEventListener(
         'change', e => this.handleIsolateChange(e));
+    this.dataViewSelect.addEventListener(
+        'change', e => this.notifySelectionChanged(e));
     this.datasetSelect.addEventListener(
         'change', e => this.notifySelectionChanged(e));
     this.gcSelect.addEventListener(
-        'change', e => this.notifySelectionChanged(e));
+      'change', e => this.notifySelectionChanged(e));
     this.$('#csv-export-btn')
         .addEventListener('click', e => this.exportCurrentSelection(e));
-    this.$('#merge-categories')
-        .addEventListener('change', e => this.notifySelectionChanged(e));
     this.$('#category-filter-btn')
-        .addEventListener('click', e => this.filterCurrentSeclection(e));
+        .addEventListener('click', e => this.filterCurrentSelection(e));
+    this.$('#category-auto-filter-btn')
+        .addEventListener('click', e => this.filterTop20Categories(e));
   }
 
   connectedCallback() {
@@ -42,11 +48,38 @@ class DetailsSelection extends HTMLElement {
     return this._data;
   }
 
+  get selectedIsolate() {
+    return this._data[this.selection.isolate];
+  }
+
   get selectedData() {
     console.assert(this.data, 'invalid data');
     console.assert(this.selection, 'invalid selection');
-    return this.data[this.selection.isolate]
-        .gcs[this.selection.gc][this.selection.data_set];
+    return this.selectedIsolate.gcs[this.selection.gc][this.selection.data_set];
+  }
+
+  $(id) {
+    return this.shadowRoot.querySelector(id);
+  }
+
+  querySelectorAll(query) {
+    return this.shadowRoot.querySelectorAll(query);
+  }
+
+  get dataViewSelect() {
+    return this.$('#data-view-select');
+  }
+
+  get datasetSelect() {
+    return this.$('#dataset-select');
+  }
+
+  get isolateSelect() {
+    return this.$('#isolate-select');
+  }
+
+  get gcSelect() {
+    return this.$('#gc-select');
   }
 
   buildCategory(name) {
@@ -77,23 +110,11 @@ class DetailsSelection extends HTMLElement {
     const innerDiv = document.createElement('div');
     div.appendChild(innerDiv);
     innerDiv.id = name + 'Content';
+    const percentDiv = document.createElement('div');
+    div.appendChild(percentDiv);
+    percentDiv.className = 'percentBackground';
+    percentDiv.id = name + 'PercentBackground';
     return div;
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  get datasetSelect() {
-    return this.$('#dataset-select');
-  }
-
-  get isolateSelect() {
-    return this.$('#isolate-select');
-  }
-
-  get gcSelect() {
-    return this.$('#gc-select');
   }
 
   dataChanged() {
@@ -105,22 +126,28 @@ class DetailsSelection extends HTMLElement {
   }
 
   populateIsolateSelect() {
-    let entries = Object.entries(this.data);
+    let isolates = Object.entries(this.data);
     // Sorty by peak heap memory consumption.
-    entries.sort((a, b) => b[1].peakMemory - a[1].peakMemory);
+    isolates.sort((a, b) => b[1].peakMemory - a[1].peakMemory);
     this.populateSelect(
-        '#isolate-select', entries, (key, isolate) => isolate.getLabel());
+        '#isolate-select', isolates, (key, isolate) => isolate.getLabel());
   }
 
   resetUI(resetIsolateSelect) {
     if (resetIsolateSelect) removeAllChildren(this.isolateSelect);
 
+    removeAllChildren(this.dataViewSelect);
     removeAllChildren(this.datasetSelect);
     removeAllChildren(this.gcSelect);
     this.clearCategories();
-    this.$('#csv-export-btn').disabled = 'disabled';
-    this.$('#category-filter-btn').disabled = 'disabled';
-    this.$('#category-filter').disabled = 'disabled';
+    this.setButtonState('disabled');
+  }
+
+  setButtonState(disabled) {
+    this.$('#csv-export-btn').disabled = disabled;
+    this.$('#category-filter').disabled = disabled;
+    this.$('#category-filter-btn').disabled = disabled;
+    this.$('#category-auto-filter-btn').disabled = disabled;
   }
 
   handleIsolateChange(e) {
@@ -131,13 +158,25 @@ class DetailsSelection extends HTMLElement {
     }
     this.resetUI(false);
     this.populateSelect(
-        '#dataset-select',
-        this.data[this.selection.isolate].data_sets.entries(), null, 'live');
+        '#data-view-select', [
+          [VIEW_BY_INSTANCE_TYPE, 'Selected instance types'],
+          [VIEW_BY_INSTANCE_CATEGORY, 'Selected type categories'],
+          [VIEW_BY_FIELD_TYPE, 'Field type statistics']
+        ],
+        (key, label) => label, VIEW_BY_INSTANCE_TYPE);
+    this.populateSelect(
+        '#dataset-select', this.selectedIsolate.data_sets.entries(), null,
+        'live');
     this.populateSelect(
         '#gc-select',
-        Object.keys(this.data[this.selection.isolate].gcs)
-            .map(v => [v, this.data[this.selection.isolate].gcs[v].time]),
-        time => time + 'ms');
+        Object.keys(this.selectedIsolate.gcs)
+            .map(id => [id, this.selectedIsolate.gcs[id].time]),
+        (key, time, index) => {
+          return (index + ': ').padStart(4, '0') +
+              formatSeconds(time).padStart(6, '0') + ' ' +
+              formatBytes(this.selectedIsolate.gcs[key].live.overall)
+                  .padStart(9, '0');
+        });
     this.populateCategories();
     this.notifySelectionChanged();
   }
@@ -145,33 +184,58 @@ class DetailsSelection extends HTMLElement {
   notifySelectionChanged(e) {
     if (!this.selection.isolate) return;
 
+    this.selection.data_view = this.dataViewSelect.value;
     this.selection.categories = {};
-    for (let category of CATEGORIES.keys()) {
-      const selected = this.selectedInCategory(category);
-      if (selected.length > 0) this.selection.categories[category] = selected;
+    if (this.selection.data_view === VIEW_BY_FIELD_TYPE) {
+      this.$('#categories').style.display = 'none';
+    } else {
+      for (let category of CATEGORIES.keys()) {
+        const selected = this.selectedInCategory(category);
+        if (selected.length > 0) this.selection.categories[category] = selected;
+      }
+      this.$('#categories').style.display = 'block';
     }
     this.selection.category_names = CATEGORY_NAMES;
     this.selection.data_set = this.datasetSelect.value;
-    this.selection.merge_categories = this.$('#merge-categories').checked;
     this.selection.gc = this.gcSelect.value;
-    this.$('#csv-export-btn').disabled = false;
-    this.$('#category-filter-btn').disabled = false;
-    this.$('#category-filter').disabled = false;
+    this.setButtonState(false);
     this.updatePercentagesInCategory();
+    this.updatePercentagesInInstanceTypes();
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
   }
 
-  filterCurrentSeclection(e) {
-    const filter_value = this.$('#category-filter').value * KB;
-    if (filter_value === 0) return;
+  filterCurrentSelection(e) {
+    const minSize = this.$('#category-filter').value * KB;
+    this.filterCurrentSelectionWithThresold(minSize);
+  }
+
+  filterTop20Categories(e) {
+    // Limit to show top 20 categories only.
+    let minSize = 0;
+    let count = 0;
+    let sizes = this.selectedIsolate.instanceTypePeakMemory;
+    for (let key in sizes) {
+      if (count == 20) break;
+      minSize = sizes[key];
+      count++;
+    }
+    this.filterCurrentSelectionWithThresold(minSize);
+  }
+
+  filterCurrentSelectionWithThresold(minSize) {
+    if (minSize === 0) return;
 
     this.selection.category_names.forEach((_, category) => {
-      for (let checkbox of this.shadowRoot.querySelectorAll(
+      for (let checkbox of this.querySelectorAll(
                'input[name=' + category + 'Checkbox]')) {
         checkbox.checked =
             this.selectedData.instance_type_data[checkbox.instance_type]
-                .overall > filter_value;
+                .overall > minSize;
+        console.log(
+            checkbox.instance_type, checkbox.checked,
+            this.selectedData.instance_type_data[checkbox.instance_type]
+                .overall);
       }
     });
     this.notifySelectionChanged();
@@ -182,7 +246,7 @@ class DetailsSelection extends HTMLElement {
     let overall = 0;
     // Reset all categories.
     this.selection.category_names.forEach((_, category) => {
-      this.$(`#${category}PercentContent`).innerHTML = '0%';
+      overalls[category] = 0;
     });
     // Only update categories that have selections.
     Object.entries(this.selection.categories).forEach(([category, value]) => {
@@ -195,16 +259,30 @@ class DetailsSelection extends HTMLElement {
       overall += overalls[category];
     });
     Object.entries(overalls).forEach(([category, category_overall]) => {
+      let percents = category_overall / overall * 100;
       this.$(`#${category}PercentContent`).innerHTML =
-          `${(category_overall / overall * 100).toFixed(1)}%`;
+          `${percents.toFixed(1)}%`;
+      this.$('#' + category + 'PercentBackground').style.left = percents + '%';
+    });
+  }
+
+  updatePercentagesInInstanceTypes() {
+    const instanceTypeData = this.selectedData.instance_type_data;
+    const maxInstanceType = this.selectedData.singleInstancePeakMemory;
+    this.querySelectorAll('.instanceTypeSelectBox  input').forEach(checkbox => {
+      let instanceType = checkbox.value;
+      let instanceTypeSize = instanceTypeData[instanceType].overall;
+      let percents = instanceTypeSize / maxInstanceType;
+      let percentDiv = checkbox.parentNode.querySelector('.percentBackground');
+      percentDiv.style.left = (percents * 100) + '%';
+
     });
   }
 
   selectedInCategory(category) {
-    const selected = this.shadowRoot.querySelectorAll(
-        'input[name=' + category + 'Checkbox]:checked');
-    var tmp = [];
-    for (var val of selected.values()) tmp.push(val.value);
+    let tmp = [];
+    this.querySelectorAll('input[name=' + category + 'Checkbox]:checked')
+        .forEach(checkbox => tmp.push(checkbox.value));
     return tmp;
   }
 
@@ -224,8 +302,10 @@ class DetailsSelection extends HTMLElement {
 
   populateSelect(id, iterable, labelFn = null, autoselect = null) {
     if (labelFn == null) labelFn = e => e;
+    let index = 0;
     for (let [key, value] of iterable) {
-      const label = labelFn(key, value);
+      index++;
+      const label = labelFn(key, value, index);
       const option = this.createOption(key, label);
       if (autoselect === key) {
         option.selected = 'selected';
@@ -250,8 +330,7 @@ class DetailsSelection extends HTMLElement {
       categories[cat] = [];
     }
 
-    for (let instance_type of this.data[this.selection.isolate]
-             .non_empty_instance_types) {
+    for (let instance_type of this.selectedIsolate.non_empty_instance_types) {
       const category = this.categoryForType(instance_type);
       categories[category].push(instance_type);
     }
@@ -265,24 +344,20 @@ class DetailsSelection extends HTMLElement {
   }
 
   unselectCategory(category) {
-    for (let checkbox of this.shadowRoot.querySelectorAll(
-             'input[name=' + category + 'Checkbox]')) {
-      checkbox.checked = false;
-    }
+    this.querySelectorAll('input[name=' + category + 'Checkbox]')
+        .forEach(checkbox => checkbox.checked = false);
     this.notifySelectionChanged();
   }
 
   selectCategory(category) {
-    for (let checkbox of this.shadowRoot.querySelectorAll(
-             'input[name=' + category + 'Checkbox]')) {
-      checkbox.checked = true;
-    }
+    this.querySelectorAll('input[name=' + category + 'Checkbox]')
+        .forEach(checkbox => checkbox.checked = true);
     this.notifySelectionChanged();
   }
 
   createCheckBox(instance_type, category) {
     const div = document.createElement('div');
-    div.classList.add('boxDiv');
+    div.classList.add('instanceTypeSelectBox');
     const input = document.createElement('input');
     div.appendChild(input);
     input.type = 'checkbox';
@@ -296,14 +371,17 @@ class DetailsSelection extends HTMLElement {
     div.appendChild(label);
     label.innerText = instance_type;
     label.htmlFor = instance_type + 'Checkbox';
+    const percentDiv = document.createElement('div');
+    percentDiv.className = 'percentBackground';
+    div.appendChild(percentDiv);
     return div;
   }
 
   exportCurrentSelection(e) {
     const data = [];
-    const selected_data = this.data[this.selection.isolate]
-                              .gcs[this.selection.gc][this.selection.data_set]
-                              .instance_type_data;
+    const selected_data =
+        this.selectedIsolate.gcs[this.selection.gc][this.selection.data_set]
+            .instance_type_data;
     Object.values(this.selection.categories).forEach(instance_types => {
       instance_types.forEach(instance_type => {
         data.push([instance_type, selected_data[instance_type].overall / KB]);

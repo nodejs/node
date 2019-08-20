@@ -60,7 +60,7 @@ assert.deepEqual(result, {
   g: undefined
 });
 
-// define new properties
+// Define new properties
 vm.runInContext(`
 Object.defineProperty(this, 'h', {value: 'h'});
 Object.defineProperty(this, 'i', {});
@@ -108,7 +108,7 @@ vm.runInContext('k = 2;', ctx);
 assert.strictEqual(ctx.k, 2);
 assert.strictEqual(vm.runInContext('k;', ctx), 2);
 
-// redefine properties on the global object
+// Redefine properties on the global object
 assert.strictEqual(typeof vm.runInContext('encodeURI;', ctx), 'function');
 assert.strictEqual(ctx.encodeURI, undefined);
 vm.runInContext(`
@@ -117,7 +117,7 @@ Object.defineProperty(this, 'encodeURI', { value: 42 });
 assert.strictEqual(vm.runInContext('encodeURI;', ctx), 42);
 assert.strictEqual(ctx.encodeURI, 42);
 
-// redefine properties on the sandbox
+// Redefine properties on the sandbox
 vm.runInContext(`
 Object.defineProperty(this, 'e', { value: 'newE' });
 `, ctx);

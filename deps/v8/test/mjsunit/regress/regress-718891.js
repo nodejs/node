@@ -24,6 +24,7 @@ function TestDontSelfHealWithDeoptedCode(run_unoptimized, ClosureFactory) {
   // so that the closure doesn't leak in a dead register).
   (() => {
     var optimized_closure = ClosureFactory();
+    %PrepareFunctionForOptimization(optimized_closure);
     // Use .call to avoid the CallIC retaining the JSFunction in the
     // feedback vector via a weak map, which would mean it wouldn't be
     // collected in the minor gc below.
@@ -40,6 +41,7 @@ function TestDontSelfHealWithDeoptedCode(run_unoptimized, ClosureFactory) {
   // old->new remember set.
   (() => {
     var dummy = function() { return 1; };
+    %PrepareFunctionForOptimization(dummy);
     %OptimizeFunctionOnNextCall(dummy);
     dummy();
   })();

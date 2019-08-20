@@ -15,7 +15,7 @@ function testFunction() {
   console.dir('dir');
   console.dirxml('dirxml');
   console.table([[1,2],[3,4]]);
-  console.table([[1,2],[3,4]], [1,2]);
+  console.table([[1,2],[3,4]], ['1','2']);
   console.trace('trace');
   console.trace();
   console.group();
@@ -32,6 +32,18 @@ function testFunction() {
   console.count();
   console.count(undefined);
   console.count('default');
+  console.countReset();
+  console.count();
+  console.countReset(undefined);
+  console.count();
+  console.countReset('default');
+  console.count();
+  console.countReset('countReset');
+  console.table('foo');
+  console.table(2);
+  console.table(2n);
+  console.table(Symbol('foo'));
+  console.table(function() {});
 }
 //# sourceURL=test.js`, 7, 26);
 

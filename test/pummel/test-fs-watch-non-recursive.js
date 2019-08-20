@@ -24,20 +24,14 @@ const common = require('../common');
 const path = require('path');
 const fs = require('fs');
 
-const tmpdir = require('tmpdir');
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const testDir = tmpdir.path;
 const testsubdir = path.join(testDir, 'testsubdir');
 const filepath = path.join(testsubdir, 'watch.txt');
 
-function cleanup() {
-  try { fs.unlinkSync(filepath); } catch (e) { }
-  try { fs.rmdirSync(testsubdir); } catch (e) { }
-}
-process.on('exit', cleanup);
-cleanup();
-
-try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
+fs.mkdirSync(testsubdir, 0o700);
 
 // Need a grace period, else the mkdirSync() above fires off an event.
 setTimeout(function() {

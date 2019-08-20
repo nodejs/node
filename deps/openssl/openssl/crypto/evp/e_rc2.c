@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,12 +72,12 @@ static const EVP_CIPHER r2_40_cbc_cipher = {
 
 const EVP_CIPHER *EVP_rc2_64_cbc(void)
 {
-    return (&r2_64_cbc_cipher);
+    return &r2_64_cbc_cipher;
 }
 
 const EVP_CIPHER *EVP_rc2_40_cbc(void)
 {
-    return (&r2_40_cbc_cipher);
+    return &r2_40_cbc_cipher;
 }
 
 static int rc2_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
@@ -92,15 +92,16 @@ static int rc2_meth_to_magic(EVP_CIPHER_CTX *e)
 {
     int i;
 
-    EVP_CIPHER_CTX_ctrl(e, EVP_CTRL_GET_RC2_KEY_BITS, 0, &i);
+    if (EVP_CIPHER_CTX_ctrl(e, EVP_CTRL_GET_RC2_KEY_BITS, 0, &i) <= 0)
+        return 0;
     if (i == 128)
-        return (RC2_128_MAGIC);
+        return RC2_128_MAGIC;
     else if (i == 64)
-        return (RC2_64_MAGIC);
+        return RC2_64_MAGIC;
     else if (i == 40)
-        return (RC2_40_MAGIC);
+        return RC2_40_MAGIC;
     else
-        return (0);
+        return 0;
 }
 
 static int rc2_magic_to_meth(int i)
@@ -113,7 +114,7 @@ static int rc2_magic_to_meth(int i)
         return 40;
     else {
         EVPerr(EVP_F_RC2_MAGIC_TO_METH, EVP_R_UNSUPPORTED_KEY_SIZE);
-        return (0);
+        return 0;
     }
 }
 
@@ -136,8 +137,9 @@ static int rc2_get_asn1_type_and_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
             return -1;
         if (i > 0 && !EVP_CipherInit_ex(c, NULL, NULL, NULL, iv, -1))
             return -1;
-        EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_SET_RC2_KEY_BITS, key_bits, NULL);
-        if (EVP_CIPHER_CTX_set_key_length(c, key_bits / 8) <= 0)
+        if (EVP_CIPHER_CTX_ctrl(c, EVP_CTRL_SET_RC2_KEY_BITS, key_bits,
+                                NULL) <= 0
+                || EVP_CIPHER_CTX_set_key_length(c, key_bits / 8) <= 0)
             return -1;
     }
     return i;
@@ -155,7 +157,7 @@ static int rc2_set_asn1_type_and_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
                                           (unsigned char *)EVP_CIPHER_CTX_original_iv(c),
                                           j);
     }
-    return (i);
+    return i;
 }
 
 static int rc2_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)

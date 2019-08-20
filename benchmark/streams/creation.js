@@ -1,9 +1,11 @@
 'use strict';
 const common = require('../common.js');
-const Duplex = require('stream').Duplex;
-const Readable = require('stream').Readable;
-const Transform = require('stream').Transform;
-const Writable = require('stream').Writable;
+const {
+  Duplex,
+  Readable,
+  Transform,
+  Writable,
+} = require('stream');
 
 const bench = common.createBenchmark(main, {
   n: [50e6],

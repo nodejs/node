@@ -10,14 +10,6 @@
 /**
  * The Whirlpool hashing function.
  *
- * <P>
- * <b>References</b>
- *
- * <P>
- * The Whirlpool algorithm was developed by
- * <a href="mailto:pbarreto@scopus.com.br">Paulo S. L. M. Barreto</a> and
- * <a href="mailto:vincent.rijmen@cryptomathic.com">Vincent Rijmen</a>.
- *
  * See
  *      P.S.L.M. Barreto, V. Rijmen,
  *      ``The Whirlpool hashing function,''

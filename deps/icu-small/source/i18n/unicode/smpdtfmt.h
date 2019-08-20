@@ -49,6 +49,11 @@ class FieldPositionHandler;
 class TimeZoneFormat;
 class SharedNumberFormat;
 class SimpleDateFormatMutableNFs;
+class DateIntervalFormat;
+
+namespace number {
+class LocalizedNumberFormatter;
+}
 
 /**
  *
@@ -1143,7 +1148,7 @@ public:
      * Overrides base class method and
      * This method clears per field NumberFormat instances
      * previously set by {@see adoptNumberFormat(const UnicodeString&, NumberFormat*, UErrorCode)}
-     * @param adoptNF the NumbeferFormat used
+     * @param formatToAdopt the NumbeferFormat used
      * @stable ICU 54
      */
     void adoptNumberFormat(NumberFormat *formatToAdopt);
@@ -1158,7 +1163,7 @@ public:
      * Per field NumberFormat can also be cleared in {@see DateFormat::setNumberFormat(const NumberFormat& newNumberFormat)}
      *
      * @param fields  the fields to override(like y)
-     * @param adoptNF the NumbeferFormat used
+     * @param formatToAdopt the NumbeferFormat used
      * @param status  Receives a status code, which will be U_ZERO_ERROR
      *                if the operation succeeds.
      * @stable ICU 54
@@ -1213,6 +1218,7 @@ public:
 
 private:
     friend class DateFormat;
+    friend class DateIntervalFormat;
 
     void initializeDefaultCentury(void);
 
@@ -1268,7 +1274,6 @@ private:
                    int32_t fieldNum,
                    FieldPositionHandler& handler,
                    Calendar& cal,
-                   SimpleDateFormatMutableNFs &mutableNFs,
                    UErrorCode& status) const; // in case of illegal argument
 
     /**
@@ -1284,7 +1289,7 @@ private:
      * @param minDigits Minimum number of digits the result should have
      * @param maxDigits Maximum number of digits the result should have
      */
-    void zeroPaddingNumber(NumberFormat *currentNumberFormat,
+    void zeroPaddingNumber(const NumberFormat *currentNumberFormat,
                            UnicodeString &appendTo,
                            int32_t value,
                            int32_t minDigits,
@@ -1414,21 +1419,21 @@ private:
      */
     int32_t subParse(const UnicodeString& text, int32_t& start, char16_t ch, int32_t count,
                      UBool obeyCount, UBool allowNegative, UBool ambiguousYear[], int32_t& saveHebrewMonth, Calendar& cal,
-                     int32_t patLoc, MessageFormat * numericLeapMonthFormatter, UTimeZoneFormatTimeType *tzTimeType, SimpleDateFormatMutableNFs &mutableNFs,
+                     int32_t patLoc, MessageFormat * numericLeapMonthFormatter, UTimeZoneFormatTimeType *tzTimeType,
                      int32_t *dayPeriod=NULL) const;
 
     void parseInt(const UnicodeString& text,
                   Formattable& number,
                   ParsePosition& pos,
                   UBool allowNegative,
-                  NumberFormat *fmt) const;
+                  const NumberFormat *fmt) const;
 
     void parseInt(const UnicodeString& text,
                   Formattable& number,
                   int32_t maxDigits,
                   ParsePosition& pos,
                   UBool allowNegative,
-                  NumberFormat *fmt) const;
+                  const NumberFormat *fmt) const;
 
     int32_t checkIntSuffix(const UnicodeString& text, int32_t start,
                            int32_t patLoc, UBool isNegative) const;
@@ -1496,6 +1501,16 @@ private:
     int32_t skipUWhiteSpace(const UnicodeString& text, int32_t pos) const;
 
     /**
+     * Initialize LocalizedNumberFormatter instances used for speedup.
+     */
+    void initFastNumberFormatters(UErrorCode& status);
+
+    /**
+     * Delete the LocalizedNumberFormatter instances used for speedup.
+     */
+    void freeFastNumberFormatters();
+
+    /**
      * Initialize NumberFormat instances used for numbering system overrides.
      */
     void initNumberFormatters(const Locale &locale,UErrorCode &status);
@@ -1518,7 +1533,7 @@ private:
     /**
      * Lazy TimeZoneFormat instantiation, semantically const
      */
-    TimeZoneFormat *tzFormat() const;
+    TimeZoneFormat *tzFormat(UErrorCode &status) const;
 
     const NumberFormat* getNumberFormatByIndex(UDateFormatField index) const;
 
@@ -1584,6 +1599,7 @@ private:
 
     UBool                fHasMinute;
     UBool                fHasSecond;
+    UBool                fHasHanYearChar; // pattern contains the Han year character \u5E74
 
     /**
      * Sets fHasMinutes and fHasSeconds.
@@ -1610,6 +1626,20 @@ private:
      * to fNumberFormat in DateFormat.
      */
     const SharedNumberFormat    **fSharedNumberFormatters;
+
+    enum NumberFormatterKey {
+        SMPDTFMT_NF_1x10,
+        SMPDTFMT_NF_2x10,
+        SMPDTFMT_NF_3x10,
+        SMPDTFMT_NF_4x10,
+        SMPDTFMT_NF_2x2,
+        SMPDTFMT_NF_COUNT
+    };
+
+    /**
+     * Number formatters pre-allocated for fast performance on the most common integer lengths.
+     */
+    const number::LocalizedNumberFormatter* fFastNumberFormatters[SMPDTFMT_NF_COUNT] = {};
 
     UBool fHaveDefaultCentury;
 

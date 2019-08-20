@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow specified identifiers",
             category: "Stylistic Issues",
@@ -25,6 +27,9 @@ module.exports = {
                 type: "string"
             },
             uniqueItems: true
+        },
+        messages: {
+            blacklisted: "Identifier '{{name}}' is blacklisted."
         }
     },
 
@@ -70,7 +75,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node,
-                message: "Identifier '{{name}}' is blacklisted.",
+                messageId: "blacklisted",
                 data: {
                     name: node.name
                 }

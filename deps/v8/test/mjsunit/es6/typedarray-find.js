@@ -190,13 +190,13 @@ assertEquals(x, 4);
 var tmp = {
   [Symbol.toPrimitive]() {
     assertUnreachable("Parameter should not be processed when " +
-                      "array.[[ViewedArrayBuffer]] is neutered.");
+                      "array.[[ViewedArrayBuffer]] is detached.");
     return 0;
   }
 };
 
 var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-%ArrayBufferNeuter(array.buffer);
+%ArrayBufferDetach(array.buffer);
 
 assertThrows(() => array.find(tmp), TypeError);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,172 +11,192 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../e_os.h"
-
+#include "internal/nelem.h"
 #include <openssl/crypto.h>
 #include <openssl/bio.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
+#include "testutil.h"
 
-#ifdef OPENSSL_NO_DH
-int main(int argc, char *argv[])
-{
-    printf("No DH support\n");
-    return (0);
-}
-#else
+#ifndef OPENSSL_NO_DH
 # include <openssl/dh.h>
 
 static int cb(int p, int n, BN_GENCB *arg);
 
-static const char rnd_seed[] =
-    "string to make the random number generator think it has entropy";
-
-static int run_rfc5114_tests(void);
-
-int main(int argc, char *argv[])
+static int dh_test(void)
 {
+    DH *dh = NULL;
+    BIGNUM *p = NULL, *q = NULL, *g = NULL;
+    const BIGNUM *p2, *q2, *g2;
+    BIGNUM *priv_key = NULL;
+    const BIGNUM *pub_key2, *priv_key2;
     BN_GENCB *_cb = NULL;
     DH *a = NULL;
     DH *b = NULL;
     DH *c = NULL;
-    const BIGNUM *ap = NULL, *ag = NULL, *apub_key = NULL, *priv_key = NULL;
-    const BIGNUM *bpub_key = NULL;
+    const BIGNUM *ap = NULL, *ag = NULL, *apub_key = NULL;
+    const BIGNUM *bpub_key = NULL, *bpriv_key = NULL;
     BIGNUM *bp = NULL, *bg = NULL, *cpriv_key = NULL;
-    char buf[12] = {0};
     unsigned char *abuf = NULL;
     unsigned char *bbuf = NULL;
     unsigned char *cbuf = NULL;
     int i, alen, blen, clen, aout, bout, cout;
-    int ret = 1;
-    BIO *out = NULL;
+    int ret = 0;
 
-    CRYPTO_set_mem_debug(1);
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
+    if (!TEST_ptr(dh = DH_new())
+        || !TEST_ptr(p = BN_new())
+        || !TEST_ptr(q = BN_new())
+        || !TEST_ptr(g = BN_new())
+        || !TEST_ptr(priv_key = BN_new()))
+        goto err1;
 
-    RAND_seed(rnd_seed, sizeof(rnd_seed));
+    /*
+     * I) basic tests
+     */
 
-    out = BIO_new(BIO_s_file());
-    if (out == NULL)
-        EXIT(1);
-    BIO_set_fp(out, stdout, BIO_NOCLOSE | BIO_FP_TEXT);
+    /* using a small predefined Sophie Germain DH group with generator 3 */
+    if (!TEST_true(BN_set_word(p, 4079L))
+        || !TEST_true(BN_set_word(q, 2039L))
+        || !TEST_true(BN_set_word(g, 3L))
+        || !TEST_true(DH_set0_pqg(dh, p, q, g)))
+        goto err1;
 
-    _cb = BN_GENCB_new();
-    if (_cb == NULL)
-        goto err;
-    BN_GENCB_set(_cb, &cb, out);
-    if (((a = DH_new()) == NULL)
-        || (!DH_generate_parameters_ex(a, 64, DH_GENERATOR_5, _cb)))
-        goto err;
+    /* test the combined getter for p, q, and g */
+    DH_get0_pqg(dh, &p2, &q2, &g2);
+    if (!TEST_ptr_eq(p2, p)
+        || !TEST_ptr_eq(q2, q)
+        || !TEST_ptr_eq(g2, g))
+        goto err2;
 
+    /* test the simple getters for p, q, and g */
+    if (!TEST_ptr_eq(DH_get0_p(dh), p2)
+        || !TEST_ptr_eq(DH_get0_q(dh), q2)
+        || !TEST_ptr_eq(DH_get0_g(dh), g2))
+        goto err2;
+
+    /* set the private key only*/
+    if (!TEST_true(BN_set_word(priv_key, 1234L))
+        || !TEST_true(DH_set0_key(dh, NULL, priv_key)))
+        goto err2;
+
+    /* test the combined getter for pub_key and priv_key */
+    DH_get0_key(dh, &pub_key2, &priv_key2);
+    if (!TEST_ptr_eq(pub_key2, NULL)
+        || !TEST_ptr_eq(priv_key2, priv_key))
+        goto err3;
+
+    /* test the simple getters for pub_key and priv_key */
+    if (!TEST_ptr_eq(DH_get0_pub_key(dh), pub_key2)
+        || !TEST_ptr_eq(DH_get0_priv_key(dh), priv_key2))
+        goto err3;
+
+    /* now generate a key pair ... */
+    if (!DH_generate_key(dh))
+        goto err3;
+
+    /* ... and check whether the private key was reused: */
+
+    /* test it with the combined getter for pub_key and priv_key */
+    DH_get0_key(dh, &pub_key2, &priv_key2);
+    if (!TEST_ptr(pub_key2)
+        || !TEST_ptr_eq(priv_key2, priv_key))
+        goto err3;
+
+    /* test it the simple getters for pub_key and priv_key */
+    if (!TEST_ptr_eq(DH_get0_pub_key(dh), pub_key2)
+        || !TEST_ptr_eq(DH_get0_priv_key(dh), priv_key2))
+        goto err3;
+
+    /* check whether the public key was calculated correctly */
+    TEST_uint_eq(BN_get_word(pub_key2), 3331L);
+
+    /*
+     * II) key generation
+     */
+
+    /* generate a DH group ... */
+    if (!TEST_ptr(_cb = BN_GENCB_new()))
+        goto err3;
+    BN_GENCB_set(_cb, &cb, NULL);
+    if (!TEST_ptr(a = DH_new())
+            || !TEST_true(DH_generate_parameters_ex(a, 64,
+                                                    DH_GENERATOR_5, _cb)))
+        goto err3;
+
+    /* ... and check whether it is valid */
     if (!DH_check(a, &i))
-        goto err;
-    if (i & DH_CHECK_P_NOT_PRIME)
-        BIO_puts(out, "p value is not prime\n");
-    if (i & DH_CHECK_P_NOT_SAFE_PRIME)
-        BIO_puts(out, "p value is not a safe prime\n");
-    if (i & DH_UNABLE_TO_CHECK_GENERATOR)
-        BIO_puts(out, "unable to check the generator value\n");
-    if (i & DH_NOT_SUITABLE_GENERATOR)
-        BIO_puts(out, "the g value is not a generator\n");
+        goto err3;
+    if (!TEST_false(i & DH_CHECK_P_NOT_PRIME)
+            || !TEST_false(i & DH_CHECK_P_NOT_SAFE_PRIME)
+            || !TEST_false(i & DH_UNABLE_TO_CHECK_GENERATOR)
+            || !TEST_false(i & DH_NOT_SUITABLE_GENERATOR))
+        goto err3;
 
     DH_get0_pqg(a, &ap, NULL, &ag);
-    BIO_puts(out, "\np    =");
-    BN_print(out, ap);
-    BIO_puts(out, "\ng    =");
-    BN_print(out, ag);
-    BIO_puts(out, "\n");
 
-    b = DH_new();
-    if (b == NULL)
-        goto err;
+    /* now create another copy of the DH group for the peer */
+    if (!TEST_ptr(b = DH_new()))
+        goto err3;
 
-    bp = BN_dup(ap);
-    bg = BN_dup(ag);
-    if ((bp == NULL) || (bg == NULL) || !DH_set0_pqg(b, bp, NULL, bg))
-        goto err;
+    if (!TEST_ptr(bp = BN_dup(ap))
+            || !TEST_ptr(bg = BN_dup(ag))
+            || !TEST_true(DH_set0_pqg(b, bp, NULL, bg)))
+        goto err3;
     bp = bg = NULL;
 
+    /*
+     * III) simulate a key exchange
+     */
+
     if (!DH_generate_key(a))
-        goto err;
-    DH_get0_key(a, &apub_key, &priv_key);
-    BIO_puts(out, "pri 1=");
-    BN_print(out, priv_key);
-    BIO_puts(out, "\npub 1=");
-    BN_print(out, apub_key);
-    BIO_puts(out, "\n");
+        goto err3;
+    DH_get0_key(a, &apub_key, NULL);
 
     if (!DH_generate_key(b))
-        goto err;
-    DH_get0_key(b, &bpub_key, &priv_key);
-    BIO_puts(out, "pri 2=");
-    BN_print(out, priv_key);
-    BIO_puts(out, "\npub 2=");
-    BN_print(out, bpub_key);
-    BIO_puts(out, "\n");
+        goto err3;
+    DH_get0_key(b, &bpub_key, &bpriv_key);
 
     /* Also test with a private-key-only copy of |b|. */
-    if ((c = DHparams_dup(b)) == NULL
-            || (cpriv_key = BN_dup(priv_key)) == NULL
-            || !DH_set0_key(c, NULL, cpriv_key))
-        goto err;
+    if (!TEST_ptr(c = DHparams_dup(b))
+            || !TEST_ptr(cpriv_key = BN_dup(bpriv_key))
+            || !TEST_true(DH_set0_key(c, NULL, cpriv_key)))
+        goto err3;
     cpriv_key = NULL;
 
     alen = DH_size(a);
-    abuf = OPENSSL_malloc(alen);
-    if (abuf == NULL)
-        goto err;
-
-    aout = DH_compute_key(abuf, bpub_key, a);
-
-    BIO_puts(out, "key1 =");
-    for (i = 0; i < aout; i++) {
-        sprintf(buf, "%02X", abuf[i]);
-        BIO_puts(out, buf);
-    }
-    BIO_puts(out, "\n");
+    if (!TEST_ptr(abuf = OPENSSL_malloc(alen))
+            || !TEST_true((aout = DH_compute_key(abuf, bpub_key, a)) != -1))
+        goto err3;
 
     blen = DH_size(b);
-    bbuf = OPENSSL_malloc(blen);
-    if (bbuf == NULL)
-        goto err;
-
-    bout = DH_compute_key(bbuf, apub_key, b);
-
-    BIO_puts(out, "key2 =");
-    for (i = 0; i < bout; i++) {
-        sprintf(buf, "%02X", bbuf[i]);
-        BIO_puts(out, buf);
-    }
-    BIO_puts(out, "\n");
+    if (!TEST_ptr(bbuf = OPENSSL_malloc(blen))
+            || !TEST_true((bout = DH_compute_key(bbuf, apub_key, b)) != -1))
+        goto err3;
 
     clen = DH_size(c);
-    cbuf = OPENSSL_malloc(clen);
-    if (cbuf == NULL)
-        goto err;
+    if (!TEST_ptr(cbuf = OPENSSL_malloc(clen))
+            || !TEST_true((cout = DH_compute_key(cbuf, apub_key, c)) != -1))
+        goto err3;
 
-    cout = DH_compute_key(cbuf, apub_key, c);
+    if (!TEST_true(aout >= 4)
+            || !TEST_mem_eq(abuf, aout, bbuf, bout)
+            || !TEST_mem_eq(abuf, aout, cbuf, cout))
+        goto err3;
 
-    BIO_puts(out, "key3 =");
-    for (i = 0; i < cout; i++) {
-        sprintf(buf, "%02X", cbuf[i]);
-        BIO_puts(out, buf);
-    }
-    BIO_puts(out, "\n");
+    ret = 1;
+    goto success;
 
-    if ((aout < 4) || (bout != aout) || (memcmp(abuf, bbuf, aout) != 0)
-        || (cout != aout) || (memcmp(abuf, cbuf, aout) != 0)) {
-        fprintf(stderr, "Error in DH routines\n");
-        ret = 1;
-    } else
-        ret = 0;
-    if (!run_rfc5114_tests())
-        ret = 1;
- err:
-    (void)BIO_flush(out);
-    ERR_print_errors_fp(stderr);
-
+ err1:
+    /* an error occurred before p,q,g were assigned to dh */
+    BN_free(p);
+    BN_free(q);
+    BN_free(g);
+ err2:
+    /* an error occured before priv_key was assigned to dh */
+    BN_free(priv_key);
+ err3:
+ success:
     OPENSSL_free(abuf);
     OPENSSL_free(bbuf);
     OPENSSL_free(cbuf);
@@ -187,30 +207,13 @@ int main(int argc, char *argv[])
     BN_free(bg);
     BN_free(cpriv_key);
     BN_GENCB_free(_cb);
-    BIO_free(out);
+    DH_free(dh);
 
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (CRYPTO_mem_leaks_fp(stderr) <= 0)
-        ret = 1;
-#endif
-
-    EXIT(ret);
+    return ret;
 }
 
 static int cb(int p, int n, BN_GENCB *arg)
 {
-    char c = '*';
-
-    if (p == 0)
-        c = '.';
-    if (p == 1)
-        c = '+';
-    if (p == 2)
-        c = '*';
-    if (p == 3)
-        c = '\n';
-    BIO_write(BN_GENCB_get_arg(arg), &c, 1);
-    (void)BIO_flush(BN_GENCB_get_arg(arg));
     return 1;
 }
 
@@ -496,7 +499,7 @@ static const rfc5114_td rfctd[] = {
         make_rfc5114_td(2048_256)
 };
 
-static int run_rfc5114_tests(void)
+static int rfc5114_test(void)
 {
     int i;
     DH *dhA = NULL;
@@ -510,74 +513,63 @@ static int run_rfc5114_tests(void)
     for (i = 0; i < (int)OSSL_NELEM(rfctd); i++) {
         td = rfctd + i;
         /* Set up DH structures setting key components */
-        dhA = td->get_param();
-        dhB = td->get_param();
-        if ((dhA == NULL) || (dhB == NULL))
+        if (!TEST_ptr(dhA = td->get_param())
+                || !TEST_ptr(dhB = td->get_param()))
             goto bad_err;
 
-        priv_key = BN_bin2bn(td->xA, td->xA_len, NULL);
-        pub_key = BN_bin2bn(td->yA, td->yA_len, NULL);
-        if (priv_key == NULL || pub_key == NULL
-                || !DH_set0_key(dhA, pub_key, priv_key))
+        if (!TEST_ptr(priv_key = BN_bin2bn(td->xA, td->xA_len, NULL))
+                || !TEST_ptr(pub_key = BN_bin2bn(td->yA, td->yA_len, NULL))
+                || !TEST_true(DH_set0_key(dhA, pub_key, priv_key)))
             goto bad_err;
 
-        priv_key = BN_bin2bn(td->xB, td->xB_len, NULL);
-        pub_key = BN_bin2bn(td->yB, td->yB_len, NULL);
-
-        if (priv_key == NULL || pub_key == NULL
-                || !DH_set0_key(dhB, pub_key, priv_key))
+        if (!TEST_ptr(priv_key = BN_bin2bn(td->xB, td->xB_len, NULL))
+                || !TEST_ptr(pub_key = BN_bin2bn(td->yB, td->yB_len, NULL))
+                || !TEST_true( DH_set0_key(dhB, pub_key, priv_key)))
             goto bad_err;
         priv_key = pub_key = NULL;
 
-        if ((td->Z_len != (size_t)DH_size(dhA))
-            || (td->Z_len != (size_t)DH_size(dhB)))
+        if (!TEST_uint_eq(td->Z_len, (size_t)DH_size(dhA))
+            || !TEST_uint_eq(td->Z_len, (size_t)DH_size(dhB)))
             goto err;
 
-        Z1 = OPENSSL_malloc(DH_size(dhA));
-        Z2 = OPENSSL_malloc(DH_size(dhB));
-        if ((Z1 == NULL) || (Z2 == NULL))
+        if (!TEST_ptr(Z1 = OPENSSL_malloc(DH_size(dhA)))
+                || !TEST_ptr(Z2 = OPENSSL_malloc(DH_size(dhB))))
             goto bad_err;
         /*
          * Work out shared secrets using both sides and compare with expected
          * values.
          */
         DH_get0_key(dhB, &pub_key_tmp, NULL);
-        if (DH_compute_key(Z1, pub_key_tmp, dhA) == -1)
+        if (!TEST_int_ne(DH_compute_key(Z1, pub_key_tmp, dhA), -1))
             goto bad_err;
 
         DH_get0_key(dhA, &pub_key_tmp, NULL);
-        if (DH_compute_key(Z2, pub_key_tmp, dhB) == -1)
+        if (!TEST_int_ne(DH_compute_key(Z2, pub_key_tmp, dhB), -1))
             goto bad_err;
 
-        if (memcmp(Z1, td->Z, td->Z_len))
+        if (!TEST_mem_eq(Z1, td->Z_len, td->Z, td->Z_len)
+                || !TEST_mem_eq(Z2, td->Z_len, td->Z, td->Z_len))
             goto err;
-        if (memcmp(Z2, td->Z, td->Z_len))
-            goto err;
-
-        printf("RFC5114 parameter test %d OK\n", i + 1);
 
         DH_free(dhA);
-        DH_free(dhB);
-        OPENSSL_free(Z1);
-        OPENSSL_free(Z2);
         dhA = NULL;
+        DH_free(dhB);
         dhB = NULL;
+        OPENSSL_free(Z1);
         Z1 = NULL;
+        OPENSSL_free(Z2);
         Z2 = NULL;
     }
 
     /* Now i == OSSL_NELEM(rfctd) */
     /* RFC5114 uses unsafe primes, so now test an invalid y value */
-    dhA = DH_get_2048_224();
-    if (dhA == NULL)
-        goto bad_err;
-    Z1 = OPENSSL_malloc(DH_size(dhA));
-    if (Z1 == NULL)
+    if (!TEST_ptr(dhA = DH_get_2048_224())
+            || !TEST_ptr(Z1 = OPENSSL_malloc(DH_size(dhA))))
         goto bad_err;
 
-    bady = BN_bin2bn(dhtest_rfc5114_2048_224_bad_y,
-                     sizeof(dhtest_rfc5114_2048_224_bad_y), NULL);
-    if (bady == NULL)
+    if (!TEST_ptr(bady = BN_bin2bn(dhtest_rfc5114_2048_224_bad_y,
+                                   sizeof(dhtest_rfc5114_2048_224_bad_y),
+                                   NULL)))
         goto bad_err;
 
     if (!DH_generate_key(dhA))
@@ -592,14 +584,11 @@ static int run_rfc5114_tests(void)
     }
     /* We'll have a stale error on the queue from the above test so clear it */
     ERR_clear_error();
-
-    printf("RFC5114 parameter test %d OK\n", i + 1);
-
     BN_free(bady);
     DH_free(dhA);
     OPENSSL_free(Z1);
-
     return 1;
+
  bad_err:
     BN_free(bady);
     DH_free(dhA);
@@ -608,19 +597,28 @@ static int run_rfc5114_tests(void)
     BN_free(priv_key);
     OPENSSL_free(Z1);
     OPENSSL_free(Z2);
-
-    fprintf(stderr, "Initialisation error RFC5114 set %d\n", i + 1);
-    ERR_print_errors_fp(stderr);
+    TEST_error("Initialisation error RFC5114 set %d\n", i + 1);
     return 0;
+
  err:
     BN_free(bady);
     DH_free(dhA);
     DH_free(dhB);
     OPENSSL_free(Z1);
     OPENSSL_free(Z2);
-
-    fprintf(stderr, "Test failed RFC5114 set %d\n", i + 1);
+    TEST_error("Test failed RFC5114 set %d\n", i + 1);
     return 0;
 }
-
 #endif
+
+
+int setup_tests(void)
+{
+#ifdef OPENSSL_NO_DH
+    TEST_note("No DH support");
+#else
+    ADD_TEST(dh_test);
+    ADD_TEST(rfc5114_test);
+#endif
+    return 1;
+}

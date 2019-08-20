@@ -1,14 +1,4 @@
-/* eslint-disable required-modules */
 'use strict';
-function min(arr) {
-  let res = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    const val = arr[i];
-    if (val < res)
-      res = val;
-  }
-  return res;
-}
 function run_repeated(n, fn) {
   const res = [];
   for (let i = 0; i < n; i++) res.push(fn());
@@ -119,11 +109,11 @@ let tester_set_treshold;
 
   // calibrate Set access times for accessing the full bucket / an empty bucket
   const pos_time =
-    min(run_repeated(10000, time_set_lookup.bind(null, tester_set,
-                                                 positive_test_value)));
+    Math.min(...run_repeated(10000, time_set_lookup.bind(null, tester_set,
+                                                         positive_test_value)));
   const neg_time =
-    min(run_repeated(10000, time_set_lookup.bind(null, tester_set,
-                                                 negative_test_value)));
+    Math.min(...run_repeated(10000, time_set_lookup.bind(null, tester_set,
+                                                         negative_test_value)));
   tester_set_treshold = (pos_time + neg_time) / 2;
   // console.log(`pos_time: ${pos_time}, neg_time: ${neg_time},`,
   //             `threshold: ${tester_set_treshold}`);

@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-typed-lowering.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -29,8 +29,8 @@ namespace {
 
 const size_t kIndices[] = {0, 1, 42, 100, 1024};
 
-Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
-                          Type::Number(),    Type::String(), Type::Object()};
+Type const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
+                         Type::Number(),    Type::String(), Type::Object()};
 
 }  // namespace
 
@@ -38,7 +38,7 @@ Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
   JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
-  ~JSTypedLoweringTest() override {}
+  ~JSTypedLoweringTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {
@@ -47,13 +47,14 @@ class JSTypedLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), zone());
     return reducer.Reduce(node);
   }
 
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
-    Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
+    Handle<JSArrayBuffer> buffer =
+        factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
     JSArrayBuffer::Setup(buffer, isolate(), true, bytes, byte_length);
     return buffer;
   }
@@ -175,7 +176,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(Type*, type, kJSTypes) {
+  TRACED_FOREACH(Type, type, kJSTypes) {
     Node* const lhs = Parameter(type);
     Reduction r = Reduce(
         graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
@@ -341,7 +342,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(size_t, index, kIndices) {
-    TRACED_FOREACH(Type*, type, kJSTypes) {
+    TRACED_FOREACH(Type, type, kJSTypes) {
       Node* const value = Parameter(type);
 
       Reduction const r1 =
@@ -401,12 +402,7 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
   Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
                                         context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsCall(_, IsHeapConstant(
-                            CodeFactory::StringAdd(
-                                isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED)
-                                .code()),
-                     lhs, rhs, context, frame_state, effect, control));
+  EXPECT_THAT(r.replacement(), IsStringConcat(_, lhs, rhs));
 }
 
 }  // namespace compiler

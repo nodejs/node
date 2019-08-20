@@ -1,12 +1,14 @@
 #ifndef TEST_CCTEST_NODE_TEST_FIXTURE_H_
 #define TEST_CCTEST_NODE_TEST_FIXTURE_H_
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <memory>
 #include "gtest/gtest.h"
 #include "node.h"
 #include "node_platform.h"
 #include "node_internals.h"
-#include "env.h"
+#include "env-inl.h"
+#include "util-inl.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"
 
@@ -53,25 +55,35 @@ struct Argv {
   int nr_args_;
 };
 
+using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
+      decltype(&node::FreeArrayBufferAllocator)>;
+using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
+using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
 class NodeTestFixture : public ::testing::Test {
  protected:
-  static std::unique_ptr<v8::ArrayBuffer::Allocator> allocator;
-  static std::unique_ptr<v8::TracingController> tracing_controller;
-  static std::unique_ptr<node::NodePlatform> platform;
-  static v8::Isolate::CreateParams params;
+  static ArrayBufferUniquePtr allocator;
+  static TracingAgentUniquePtr tracing_agent;
+  static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
+  static bool node_initialized;
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
-    platform.reset(new node::NodePlatform(4, nullptr));
-    tracing_controller.reset(new v8::TracingController());
-    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-    params.array_buffer_allocator = allocator.get();
-    node::tracing::TraceEventHelper::SetTracingController(
-        tracing_controller.get());
+    if (!node_initialized) {
+      node_initialized = true;
+      int argc = 1;
+      const char* argv0 = "cctest";
+      int exec_argc;
+      const char** exec_argv;
+      node::Init(&argc, &argv0, &exec_argc, &exec_argv);
+    }
+
+    tracing_agent = std::make_unique<node::tracing::Agent>();
+    node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    v8::V8::InitializePlatform(platform.get());
+    platform.reset(static_cast<node::NodePlatform*>(
+          node::InitializeV8Platform(4)));
     v8::V8::Initialize();
   }
 
@@ -84,13 +96,19 @@ class NodeTestFixture : public ::testing::Test {
     CHECK_EQ(0, uv_loop_close(&current_loop));
   }
 
-  virtual void SetUp() {
-    isolate_ = v8::Isolate::New(params);
+  void SetUp() override {
+    allocator = ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
+                                     &node::FreeArrayBufferAllocator);
+    isolate_ = NewIsolate(allocator.get(), &current_loop);
     CHECK_NE(isolate_, nullptr);
+    isolate_->Enter();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
+    isolate_->Exit();
     isolate_->Dispose();
+    platform->DrainTasks(isolate_);
+    platform->UnregisterIsolate(isolate_);
     isolate_ = nullptr;
   }
 };
@@ -131,11 +149,13 @@ class EnvironmentTestFixture : public NodeTestFixture {
       return context_;
     }
 
+    Env(const Env&) = delete;
+    Env& operator=(const Env&) = delete;
+
    private:
     v8::Local<v8::Context> context_;
     node::IsolateData* isolate_data_;
     node::Environment* environment_;
-    DISALLOW_COPY_AND_ASSIGN(Env);
   };
 };
 

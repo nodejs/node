@@ -1,19 +1,15 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
 var npm = require('../../')
-var osenv = require('osenv')
-var path = require('path')
 var fs = require('fs')
-var rimraf = require('rimraf')
-var mkdirp = require('mkdirp')
 var which = require('which')
 var spawn = require('child_process').spawn
 
-var pkg = path.resolve(__dirname, 'version-git-not-clean')
-var cache = path.resolve(pkg, 'cache')
+var pkg = common.pkg
+var cache = common.cache
 
 test('npm version <semver> with working directory not clean', function (t) {
-  setup()
+  process.chdir(pkg)
   npm.load({ cache: cache, registry: common.registry, prefix: pkg }, function () {
     which('git', function (err, git) {
       t.ifError(err, 'git found')
@@ -59,6 +55,7 @@ test('npm version <semver> --force with working directory not clean', function (
   common.npm(
     [
       '--force',
+      '--no-sign-git-commit',
       '--no-sign-git-tag',
       '--registry', common.registry,
       '--prefix', pkg,
@@ -80,17 +77,3 @@ test('npm version <semver> --force with working directory not clean', function (
       t.end()
     })
 })
-
-test('cleanup', function (t) {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-
-  rimraf.sync(pkg)
-  t.end()
-})
-
-function setup () {
-  mkdirp.sync(pkg)
-  mkdirp.sync(cache)
-  process.chdir(pkg)
-}

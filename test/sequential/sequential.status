@@ -7,10 +7,8 @@ prefix sequential
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-inspector-async-call-stack       : PASS, FLAKY
-test-inspector-bindings               : PASS, FLAKY
-test-inspector-debug-end              : PASS, FLAKY
-test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
+# https://github.com/nodejs/node/issues/22327
+test-http2-large-file: PASS, FLAKY
 
 [$system==linux]
 
@@ -21,3 +19,7 @@ test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
 [$system==freebsd]
 
 [$system==aix]
+# https://github.com/nodejs/node/pull/29054
+test-buffer-creation-regression: SKIP
+
+[$arch==arm]

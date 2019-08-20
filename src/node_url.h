@@ -4,16 +4,12 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "env-inl.h"
+#include "env.h"
 
 #include <string>
 
 namespace node {
 namespace url {
-
-using v8::Local;
-using v8::Value;
-
 
 #define PARSESTATES(XX)                                                       \
   XX(kSchemeStart)                                                            \
@@ -50,7 +46,8 @@ using v8::Value;
   XX(URL_FLAGS_HAS_HOST, 0x80)                                                \
   XX(URL_FLAGS_HAS_PATH, 0x100)                                               \
   XX(URL_FLAGS_HAS_QUERY, 0x200)                                              \
-  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)
+  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)                                           \
+  XX(URL_FLAGS_IS_DEFAULT_SCHEME_PORT, 0x800)                                 \
 
 enum url_parse_state {
   kUnknownState = -1,
@@ -112,16 +109,16 @@ class URL {
     }
   }
 
-  explicit URL(std::string input) :
+  explicit URL(const std::string& input) :
       URL(input.c_str(), input.length()) {}
 
-  URL(std::string input, const URL* base) :
+  URL(const std::string& input, const URL* base) :
       URL(input.c_str(), input.length(), base) {}
 
-  URL(std::string input, const URL& base) :
+  URL(const std::string& input, const URL& base) :
       URL(input.c_str(), input.length(), &base) {}
 
-  URL(std::string input, std::string base) :
+  URL(const std::string& input, const std::string& base) :
       URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
 
   int32_t flags() {
@@ -158,9 +155,8 @@ class URL {
 
   std::string path() const {
     std::string ret;
-    for (auto i = context_.path.begin(); i != context_.path.end(); i++) {
-      ret += '/';
-      ret += *i;
+    for (const std::string& element : context_.path) {
+      ret += '/' + element;
     }
     return ret;
   }
@@ -168,8 +164,10 @@ class URL {
   // Get the path of the file: URL in a format consumable by native file system
   // APIs. Returns an empty string if something went wrong.
   std::string ToFilePath() const;
+  // Get the file URL from native file system path.
+  static URL FromFilePath(const std::string& file_path);
 
-  const Local<Value> ToObject(Environment* env) const;
+  v8::MaybeLocal<v8::Value> ToObject(Environment* env) const;
 
   URL(const URL&) = default;
   URL& operator=(const URL&) = default;

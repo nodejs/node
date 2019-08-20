@@ -27,8 +27,13 @@
 
 
 TEST_IMPL(ip4_addr) {
-
   struct sockaddr_in addr;
+  char dst[16];
+
+  ASSERT(0 == uv_inet_ntop(AF_INET, "\xFF\xFF\xFF\xFF", dst, sizeof(dst)));
+  ASSERT(0 == strcmp(dst, "255.255.255.255"));
+  ASSERT(UV_ENOSPC == uv_inet_ntop(AF_INET, "\xFF\xFF\xFF\xFF",
+                                   dst, sizeof(dst) - 1));
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   ASSERT(0 == uv_ip4_addr("255.255.255.255", TEST_PORT, &addr));

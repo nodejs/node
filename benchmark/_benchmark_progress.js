@@ -35,12 +35,11 @@ class BenchmarkProgress {
     // Number of times each file will be run (roughly).
     this.runsPerFile = queue.length / benchmarks.length;
     this.currentFile = '';  // Filename of current benchmark.
-    this.currentFileConfig;  // Configurations for current file
     // Number of configurations already run for the current file.
     this.completedConfig = 0;
     // Total number of configurations for the current file
     this.scheduledConfig = 0;
-    this.interval = 0;  // result of setInterval for updating the elapsed time
+    this.interval;  // Updates the elapsed time.
   }
 
   startQueue(index) {

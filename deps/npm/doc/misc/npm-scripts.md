@@ -10,9 +10,9 @@ following scripts:
   Run BEFORE the package is packed and published, as well as on local `npm
   install` without any arguments. (See below)
 * prepare:
-  Run both BEFORE the package is packed and published, and on local `npm
-  install` without any arguments (See below). This is run
-  AFTER `prepublish`, but BEFORE `prepublishOnly`.
+  Run both BEFORE the package is packed and published, on local `npm
+  install` without any arguments, and when installing git dependencies (See
+  below). This is run AFTER `prepublish`, but BEFORE `prepublishOnly`.
 * prepublishOnly:
   Run BEFORE the package is prepared and packed, ONLY on `npm publish`. (See
   below.)
@@ -52,8 +52,8 @@ following scripts:
 Additionally, arbitrary scripts can be executed by running `npm
 run-script <stage>`. *Pre* and *post* commands with matching
 names will be run for those as well (e.g. `premyscript`, `myscript`,
-`postmyscript`). Scripts from dependencies can be run with `npm explore
-<pkg> -- npm run <stage>`.
+`postmyscript`). Scripts from dependencies can be run with
+`npm explore <pkg> -- npm run <stage>`.
 
 ## PREPUBLISH AND PREPARE
 
@@ -143,7 +143,9 @@ The package.json fields are tacked onto the `npm_package_` prefix. So,
 for instance, if you had `{"name":"foo", "version":"1.2.5"}` in your
 package.json file, then your package scripts would have the
 `npm_package_name` environment variable set to "foo", and the
-`npm_package_version` set to "1.2.5"
+`npm_package_version` set to "1.2.5".  You can access these variables
+in your code with `process.env.npm_package_name` and
+`process.env.npm_package_version`, and so on for other fields.
 
 ### configuration
 

@@ -11,9 +11,9 @@ var Dir = Tacks.Dir
 var common = require('../common-tap.js')
 var isWindows = require('../../lib/utils/is-windows.js')
 
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
+var basedir = common.pkg
 var testdir = path.join(basedir, 'testdir')
-var cachedir = path.join(basedir, 'cache')
+var cachedir = common.cache
 var globaldir = path.join(basedir, 'global')
 var tmpdir = path.join(basedir, 'tmp')
 
@@ -365,7 +365,7 @@ testdirContent['install-behavior'] = Dir({
       }
     })
   }),
-  'noext': File(new Buffer(
+  'noext': File(Buffer.from(
     '1f8b08000000000000032b484cce4e4c4fd52f80d07a59c5f9790c540606' +
     '06066626260a20dadccc144c1b1841f86000923334363037343536343732' +
     '633000728c0c80f2d4760836505a5c925804740aa5e640bca200a78708a8' +
@@ -373,7 +373,7 @@ testdirContent['install-behavior'] = Dir({
     '1928d5720db41b47c1281805a36014501f00005012007200080000',
     'hex'
   )),
-  'tarball-1.0.0.tgz': File(new Buffer(
+  'tarball-1.0.0.tgz': File(Buffer.from(
     '1f8b08000000000000032b484cce4e4c4fd52f80d07a59c5f9790c540606' +
     '06066626260a20dadccc144c1b1841f8606062a6c060686c606e686a6c68' +
     '666ec26000e480e5a9ed106ca0b4b824b108e8144acd817845014e0f1150' +
@@ -586,7 +586,7 @@ test('save behavior', function (t) {
       t.is(deps['sb-transitive'], 'file:../sb-transitive', 'package.json')
       var sdep = shrinkwrap.dependencies['sb-transitive'] || {}
       var tdep = sdep.dependencies.sbta
-      t.like(tdep, {bundled: true, version: 'file:../sb-transitive/sbta'}, 'npm-shrinkwrap.json transitive dep')
+      t.like(tdep, {bundled: null, version: 'file:../sb-transitive/sbta'}, 'npm-shrinkwrap.json transitive dep')
       t.like(sdep, {bundled: null, version: 'file:../sb-transitive'}, 'npm-shrinkwrap.json direct dep')
       t.done()
     })

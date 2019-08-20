@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
+#include "internal/ctype.h"
 #include "internal/cryptlib.h"
 #include <openssl/rand.h>
 #include <openssl/x509.h>
@@ -635,7 +635,7 @@ static STACK_OF(MIME_HEADER) *mime_parse_hdr(BIO *bio)
         return NULL;
     while ((len = BIO_gets(bio, linebuf, MAX_SMLEN)) > 0) {
         /* If whitespace at line start then continuation line */
-        if (mhdr && isspace((unsigned char)linebuf[0]))
+        if (mhdr && ossl_isspace(linebuf[0]))
             state = MIME_NAME;
         else
             state = MIME_START;
@@ -759,7 +759,7 @@ static char *strip_start(char *name)
             /* Else null string */
             return NULL;
         }
-        if (!isspace((unsigned char)c))
+        if (!ossl_isspace(c))
             return p;
     }
     return NULL;
@@ -780,7 +780,7 @@ static char *strip_end(char *name)
             *p = 0;
             return name;
         }
-        if (isspace((unsigned char)c))
+        if (ossl_isspace(c))
             *p = 0;
         else
             return name;
@@ -792,29 +792,18 @@ static MIME_HEADER *mime_hdr_new(const char *name, const char *value)
 {
     MIME_HEADER *mhdr = NULL;
     char *tmpname = NULL, *tmpval = NULL, *p;
-    int c;
 
     if (name) {
         if ((tmpname = OPENSSL_strdup(name)) == NULL)
             return NULL;
-        for (p = tmpname; *p; p++) {
-            c = (unsigned char)*p;
-            if (isupper(c)) {
-                c = tolower(c);
-                *p = c;
-            }
-        }
+        for (p = tmpname; *p; p++)
+            *p = ossl_tolower(*p);
     }
     if (value) {
         if ((tmpval = OPENSSL_strdup(value)) == NULL)
             goto err;
-        for (p = tmpval; *p; p++) {
-            c = (unsigned char)*p;
-            if (isupper(c)) {
-                c = tolower(c);
-                *p = c;
-            }
-        }
+        for (p = tmpval; *p; p++)
+            *p = ossl_tolower(*p);
     }
     mhdr = OPENSSL_malloc(sizeof(*mhdr));
     if (mhdr == NULL)
@@ -835,19 +824,14 @@ static MIME_HEADER *mime_hdr_new(const char *name, const char *value)
 static int mime_hdr_addparam(MIME_HEADER *mhdr, const char *name, const char *value)
 {
     char *tmpname = NULL, *tmpval = NULL, *p;
-    int c;
     MIME_PARAM *mparam = NULL;
+
     if (name) {
         tmpname = OPENSSL_strdup(name);
         if (!tmpname)
             goto err;
-        for (p = tmpname; *p; p++) {
-            c = (unsigned char)*p;
-            if (isupper(c)) {
-                c = tolower(c);
-                *p = c;
-            }
-        }
+        for (p = tmpname; *p; p++)
+            *p = ossl_tolower(*p);
     }
     if (value) {
         tmpval = OPENSSL_strdup(value);
@@ -876,7 +860,7 @@ static int mime_hdr_cmp(const MIME_HEADER *const *a,
     if (!(*a)->name || !(*b)->name)
         return ! !(*a)->name - ! !(*b)->name;
 
-    return (strcmp((*a)->name, (*b)->name));
+    return strcmp((*a)->name, (*b)->name);
 }
 
 static int mime_param_cmp(const MIME_PARAM *const *a,
@@ -884,7 +868,7 @@ static int mime_param_cmp(const MIME_PARAM *const *a,
 {
     if (!(*a)->param_name || !(*b)->param_name)
         return ! !(*a)->param_name - ! !(*b)->param_name;
-    return (strcmp((*a)->param_name, (*b)->param_name));
+    return strcmp((*a)->param_name, (*b)->param_name);
 }
 
 /* Find a header with a given name (if possible) */
@@ -899,8 +883,6 @@ static MIME_HEADER *mime_hdr_find(STACK_OF(MIME_HEADER) *hdrs, const char *name)
     htmp.params = NULL;
 
     idx = sk_MIME_HEADER_find(hdrs, &htmp);
-    if (idx < 0)
-        return NULL;
     return sk_MIME_HEADER_value(hdrs, idx);
 }
 
@@ -912,8 +894,6 @@ static MIME_PARAM *mime_param_find(MIME_HEADER *hdr, const char *name)
     param.param_name = (char *)name;
     param.param_value = NULL;
     idx = sk_MIME_PARAM_find(hdr->params, &param);
-    if (idx < 0)
-        return NULL;
     return sk_MIME_PARAM_value(hdr->params, idx);
 }
 
@@ -966,15 +946,17 @@ static int strip_eol(char *linebuf, int *plen, int flags)
     int len = *plen;
     char *p, c;
     int is_eol = 0;
-    p = linebuf + len - 1;
+
     for (p = linebuf + len - 1; len > 0; len--, p--) {
         c = *p;
-        if (c == '\n')
+        if (c == '\n') {
             is_eol = 1;
-        else if (is_eol && flags & SMIME_ASCIICRLF && c < 33)
+        } else if (is_eol && flags & SMIME_ASCIICRLF && c == 32) {
+            /* Strip trailing space on a line; 32 == ASCII for ' ' */
             continue;
-        else if (c != '\r')
+        } else if (c != '\r') {
             break;
+        }
     }
     *plen = len;
     return is_eol;

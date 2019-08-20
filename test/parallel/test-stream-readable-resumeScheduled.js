@@ -14,7 +14,7 @@ const { Readable, Writable } = require('stream');
   // resumeScheduled should start = `false`.
   assert.strictEqual(r._readableState.resumeScheduled, false);
 
-  // calling pipe() should change the state value = true.
+  // Calling pipe() should change the state value = true.
   r.pipe(w);
   assert.strictEqual(r._readableState.resumeScheduled, true);
 
@@ -32,7 +32,7 @@ const { Readable, Writable } = require('stream');
 
   r.push(Buffer.from([1, 2, 3]));
 
-  // adding 'data' listener should change the state value
+  // Adding 'data' listener should change the state value
   r.on('data', common.mustCall(() => {
     assert.strictEqual(r._readableState.resumeScheduled, false);
   }));

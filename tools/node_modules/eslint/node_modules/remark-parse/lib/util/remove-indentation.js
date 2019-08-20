@@ -1,42 +1,18 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:util:remove-indentation
- * @fileoverview Remove indentation.
- */
-
 'use strict';
 
-/* Dependencies. */
 var trim = require('trim');
 var repeat = require('repeat-string');
 var getIndent = require('./get-indentation');
 
-/* Expose. */
 module.exports = indentation;
 
-/* Characters. */
 var C_SPACE = ' ';
 var C_NEWLINE = '\n';
 var C_TAB = '\t';
 
-/**
- * Remove the minimum indent from every line in `value`.
+/* Remove the minimum indent from every line in `value`.
  * Supports both tab, spaced, and mixed indentation (as
- * well as possible).
- *
- * @example
- *   removeIndentation('  foo'); // 'foo'
- *   removeIndentation('    foo', 2); // '  foo'
- *   removeIndentation('\tfoo', 2); // '  foo'
- *   removeIndentation('  foo\n bar'); // ' foo\n bar'
- *
- * @param {string} value - Value to trim.
- * @param {number?} [maximum] - Maximum indentation
- *   to remove.
- * @return {string} - Unindented `value`.
- */
+ * well as possible). */
 function indentation(value, maximum) {
   var values = value.split(C_NEWLINE);
   var position = values.length + 1;

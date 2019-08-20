@@ -7,11 +7,12 @@
 
 #include "src/base/flags.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
+class ByteArray;
 class Callable;
 template <typename T>
 class Handle;
@@ -25,37 +26,54 @@ namespace compiler {
 class CodeAssemblerState;
 }
 
+template <typename T>
+static constexpr T FirstFromVarArgs(T x, ...) noexcept {
+  return x;
+}
+
 // Convenience macro to avoid generating named accessors for all builtins.
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->builtin_handle(Builtins::k##name)
 
 class Builtins {
  public:
-  ~Builtins();
+  explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
 
   void TearDown();
 
-  // Garbage collection support.
-  void IterateBuiltins(RootVisitor* v);
-
   // Disassembler support.
-  const char* Lookup(byte* pc);
+  const char* Lookup(Address pc);
 
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
-    BUILTIN_LIST_ALL(DEF_ENUM)
+    BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
+                 DEF_ENUM)
 #undef DEF_ENUM
-        builtin_count
+        builtin_count,
+
+#define EXTRACT_NAME(Name, ...) k##Name,
+    // Define kFirstBytecodeHandler,
+    kFirstBytecodeHandler =
+        FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
+#undef EXTRACT_NAME
   };
 
   static const int32_t kNoBuiltinId = -1;
 
-  static bool IsBuiltinId(int maybe_id) {
+  static constexpr int kFirstWideBytecodeHandler =
+      kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
+  static constexpr int kFirstExtraWideBytecodeHandler =
+      kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  static constexpr int kLastBytecodeHandlerPlusOne =
+      kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
+
+  static constexpr bool IsBuiltinId(int maybe_id) {
     return 0 <= maybe_id && maybe_id < builtin_count;
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
+  enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -66,38 +84,23 @@ class Builtins {
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsThenCall(ConvertReceiverMode receiver_mode,
-                                           InterpreterPushArgsMode mode);
-  Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
-  Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
-  // Used by BuiltinDeserializer.
-  void set_builtin(int index, HeapObject* builtin);
+  // Used by CreateOffHeapTrampolines in isolate.cc.
+  void set_builtin(int index, Code builtin);
 
-  Code* builtin(int index) {
-    DCHECK(IsBuiltinId(index));
-    // Code::cast cannot be used here since we access builtins
-    // during the marking phase of mark sweep. See IC::Clear.
-    return reinterpret_cast<Code*>(builtins_[index]);
-  }
-
-  Address builtin_address(int index) {
-    DCHECK(IsBuiltinId(index));
-    return reinterpret_cast<Address>(&builtins_[index]);
-  }
-
+  V8_EXPORT_PRIVATE Code builtin(int index);
   V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
-
-  // Used by lazy deserialization to determine whether a given builtin has been
-  // deserialized. See the DeserializeLazy builtin.
-  Object** builtins_table_address() { return &builtins_[0]; }
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
   static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
+
+  // Support for --print-builtin-size and --print-builtin-code.
+  void PrintBuiltinCode();
+  void PrintBuiltinSize();
 
   // Returns the C++ entry point for builtins implemented in C++, and the null
   // Address otherwise.
@@ -107,34 +110,40 @@ class Builtins {
   static const char* KindNameOf(int index);
 
   static bool IsCpp(int index);
-  static bool HasCppImplementation(int index);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
-  static bool IsBuiltin(Code* code);
+  static bool IsBuiltin(const Code code);
 
-  // True, iff the given code object is a builtin with off-heap code.
-  static bool IsOffHeapBuiltin(Code* code);
+  // As above, but safe to access off the main thread since the check is done
+  // by handle location. Similar to Heap::IsRootHandle.
+  bool IsBuiltinHandle(Handle<HeapObject> maybe_code, int* index) const;
 
-  // Returns true iff the given builtin can be lazy-loaded from the snapshot.
-  // This is true in general for most builtins with the exception of a few
-  // special cases such as CompileLazy and DeserializeLazy.
-  static bool IsLazy(int index);
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  static bool IsIsolateIndependentBuiltin(const Code code);
 
-  // Helper methods used for testing isolate-independent builtins.
-  // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
-  static bool IsIsolateIndependent(int index);
+  // True, iff the given builtin contains no isolate-specific code and can be
+  // embedded into the binary.
+  static constexpr bool kAllBuiltinsAreIsolateIndependent = true;
+  static constexpr bool AllBuiltinsAreIsolateIndependent() {
+    return kAllBuiltinsAreIsolateIndependent;
+  }
+  static constexpr bool IsIsolateIndependent(int index) {
+    STATIC_ASSERT(kAllBuiltinsAreIsolateIndependent);
+    return kAllBuiltinsAreIsolateIndependent;
+  }
 
-  // This is the condition we currently use to determine whether a builtin is
-  // copied off-heap when --stress-off-heap-code is passed. Such builtins do not
-  // need to be isolate-independent, e.g. they can contain external references
-  // that point to one specific isolate. A further restrictions is that there
-  // must be enough space for the trampoline.
-  static bool IsOffHeapSafe(int index);
+  // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
+  // through near jumps, their code is completely copied into a fresh off-heap
+  // area.
+  static bool IsWasmRuntimeStub(int index);
 
-  // The off-heap trampoline is short but requires a certain minimal instruction
-  // size. This function states whether a given builtin is too short.
-  static bool IsTooShortForOffHeapTrampoline(int index);
+  // Updates the table of builtin entry points based on the current contents of
+  // the builtins table.
+  static void UpdateBuiltinEntryTable(Isolate* isolate);
+
+  // Emits a CodeCreateEvent for every builtin.
+  static void EmitCodeCreateEvents(Isolate* isolate);
 
   bool is_initialized() const { return initialized_; }
 
@@ -144,22 +153,57 @@ class Builtins {
     initialized_ = true;
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct, Handle<HeapObject> function,
       Handle<Object> receiver, int argc, Handle<Object> args[],
       Handle<HeapObject> new_target);
 
-  enum ExitFrameType { EXIT, BUILTIN_EXIT };
+  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
 
-  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
-                               ExitFrameType exit_frame_type);
+  static void Generate_CEntry(MacroAssembler* masm, int result_size,
+                              SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                              bool builtin_exit_frame);
 
   static bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                    Handle<JSObject> target_global_proxy);
 
- private:
-  Builtins();
+  // Creates a trampoline code object that jumps to the given off-heap entry.
+  // The result should not be used directly, but only from the related Factory
+  // function.
+  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                   Address off_heap_entry,
+                                                   int32_t kind_specific_flags);
 
+  // Generate the RelocInfo ByteArray that would be generated for an offheap
+  // trampoline.
+  static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
+  static bool IsJSEntryVariant(int builtin_index) {
+    switch (builtin_index) {
+      case kJSEntry:
+      case kJSConstructEntry:
+      case kJSRunMicrotasksEntry:
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
+
+  int js_entry_handler_offset() const {
+    DCHECK_NE(js_entry_handler_offset_, 0);
+    return js_entry_handler_offset_;
+  }
+
+  void SetJSEntryHandlerOffset(int offset) {
+    // Check the stored offset is either uninitialized or unchanged (we
+    // generate multiple variants of this builtin but they should all have the
+    // same handler offset).
+    CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
+    js_entry_handler_offset_ = offset;
+  }
+
+ private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
 
@@ -186,23 +230,27 @@ class Builtins {
 #define DECLARE_TF(Name, ...) \
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, DECLARE_ASM)
+  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF, DECLARE_TF, DECLARE_TF,
+               IGNORE_BUILTIN, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF
 
-  // Note: These are always Code objects, but to conform with
-  // IterateBuiltins() above which assumes Object**'s for the callback
-  // function f, we use an Object* array here.
-  Object* builtins_[builtin_count];
-  bool initialized_;
+  Isolate* isolate_;
+  bool initialized_ = false;
 
-  friend class Isolate;
+  // Stores the offset of exception handler entry point (the handler_entry
+  // label) in JSEntry and its variants. It's used to generate the handler table
+  // during codegen (mksnapshot-only).
+  int js_entry_handler_offset_ = 0;
+
   friend class SetupIsolateDelegate;
 
   DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
+
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id);
 
 }  // namespace internal
 }  // namespace v8

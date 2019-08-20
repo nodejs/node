@@ -29,6 +29,7 @@ gc();
 
 // Ensure |proto| is marked as "should be fast".
 var o = new A();
+%EnsureFeedbackVectorForFunction(foo);
 foo(o);
 foo(o);
 foo(o);

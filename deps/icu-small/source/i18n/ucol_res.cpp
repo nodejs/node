@@ -348,7 +348,7 @@ CollationLoader::loadFromCollations(UErrorCode &errorCode) {
     const char *actualLocale = ures_getLocaleByType(data, ULOC_ACTUAL_LOCALE, &errorCode);
     if(U_FAILURE(errorCode)) { return NULL; }
     const char *vLocale = validLocale.getBaseName();
-    UBool actualAndValidLocalesAreDifferent = uprv_strcmp(actualLocale, vLocale) != 0;
+    UBool actualAndValidLocalesAreDifferent = Locale(actualLocale) != Locale(vLocale);
 
     // Set the collation types on the informational locales,
     // except when they match the default types (for brevity and backwards compatibility).
@@ -400,17 +400,17 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
     // Try to fetch the optional rules string.
     {
         UErrorCode internalErrorCode = U_ZERO_ERROR;
-        int32_t length;
-        const UChar *s = ures_getStringByKey(data, "Sequence", &length,
+        int32_t len;
+        const UChar *s = ures_getStringByKey(data, "Sequence", &len,
                                              &internalErrorCode);
         if(U_SUCCESS(internalErrorCode)) {
-            t->rules.setTo(TRUE, s, length);
+            t->rules.setTo(TRUE, s, len);
         }
     }
 
     const char *actualLocale = locale.getBaseName();  // without type
     const char *vLocale = validLocale.getBaseName();
-    UBool actualAndValidLocalesAreDifferent = uprv_strcmp(actualLocale, vLocale) != 0;
+    UBool actualAndValidLocalesAreDifferent = Locale(actualLocale) != Locale(vLocale);
 
     // For the actual locale, suppress the default type *according to the actual locale*.
     // For example, zh has default=pinyin and contains all of the Chinese tailorings.
@@ -426,10 +426,10 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
         LocalUResourceBundlePointer def(
                 ures_getByKeyWithFallback(actualBundle.getAlias(), "collations/default", NULL,
                                           &internalErrorCode));
-        int32_t length;
-        const UChar *s = ures_getString(def.getAlias(), &length, &internalErrorCode);
-        if(U_SUCCESS(internalErrorCode) && length < UPRV_LENGTHOF(defaultType)) {
-            u_UCharsToChars(s, defaultType, length + 1);
+        int32_t len;
+        const UChar *s = ures_getString(def.getAlias(), &len, &internalErrorCode);
+        if(U_SUCCESS(internalErrorCode) && len < UPRV_LENGTHOF(defaultType)) {
+            u_UCharsToChars(s, defaultType, len + 1);
         } else {
             uprv_strcpy(defaultType, "standard");
         }

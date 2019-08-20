@@ -22,6 +22,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "node_process.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -43,26 +44,27 @@ class SignalWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
                          Local<Value> unused,
-                         Local<Context> context) {
+                         Local<Context> context,
+                         void* priv) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     Local<String> signalString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Signal");
     constructor->SetClassName(signalString);
+    constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-    AsyncWrap::AddWrapMethods(env, constructor);
-    env->SetProtoMethod(constructor, "close", HandleWrap::Close);
-    env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(signalString, constructor->GetFunction());
+    target->Set(env->context(), signalString,
+                constructor->GetFunction(env->context()).ToLocalChecked())
+                .Check();
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SignalWrap)
+  SET_SELF_SIZE(SignalWrap)
 
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
@@ -86,18 +88,30 @@ class SignalWrap : public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-    int signum = args[0]->Int32Value();
+    Environment* env = wrap->env();
+    int signum;
+    if (!args[0]->Int32Value(env->context()).To(&signum)) return;
 #if defined(__POSIX__) && HAVE_INSPECTOR
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
-      if (env->inspector_agent()->IsStarted()) {
+      if (env->inspector_agent()->IsListening()) {
         ProcessEmitWarning(env,
                            "process.on(SIGPROF) is reserved while debugging");
         return;
       }
     }
 #endif
-    int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
+    int err = uv_signal_start(
+        &wrap->handle_,
+        [](uv_signal_t* handle, int signum) {
+          SignalWrap* wrap = ContainerOf(&SignalWrap::handle_, handle);
+          Environment* env = wrap->env();
+          HandleScope handle_scope(env->isolate());
+          Context::Scope context_scope(env->context());
+          Local<Value> arg = Integer::New(env->isolate(), signum);
+          wrap->MakeCallback(env->onsignal_string(), 1, &arg);
+        },
+        signum);
     args.GetReturnValue().Set(err);
   }
 
@@ -108,16 +122,6 @@ class SignalWrap : public HandleWrap {
     args.GetReturnValue().Set(err);
   }
 
-  static void OnSignal(uv_signal_t* handle, int signum) {
-    SignalWrap* wrap = ContainerOf(&SignalWrap::handle_, handle);
-    Environment* env = wrap->env();
-    HandleScope handle_scope(env->isolate());
-    Context::Scope context_scope(env->context());
-
-    Local<Value> arg = Integer::New(env->isolate(), signum);
-    wrap->MakeCallback(env->onsignal_string(), 1, &arg);
-  }
-
   uv_signal_t handle_;
 };
 
@@ -126,4 +130,4 @@ class SignalWrap : public HandleWrap {
 }  // namespace node
 
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(signal_wrap, node::SignalWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)

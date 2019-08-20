@@ -21,6 +21,7 @@
 ******************************************************************************
 */
 
+#include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/ucnv.h"
 #include "charstr.h"
@@ -48,7 +49,10 @@ TODO: This cache should probably be removed when the deprecated code is
 static UHashtable *cache = NULL;
 static icu::UInitOnce gCacheInitOnce;
 
-static UMutex resbMutex = U_MUTEX_INITIALIZER;
+static UMutex *resbMutex() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 /* INTERNAL: hashes an entry  */
 static int32_t U_CALLCONV hashEntry(const UHashTok parm) {
@@ -92,13 +96,13 @@ static UBool chopLocale(char *name) {
  *  Internal function
  */
 static void entryIncrease(UResourceDataEntry *entry) {
-    umtx_lock(&resbMutex);
+    umtx_lock(resbMutex());
     entry->fCountExisting++;
     while(entry->fParent != NULL) {
       entry = entry->fParent;
       entry->fCountExisting++;
     }
-    umtx_unlock(&resbMutex);
+    umtx_unlock(resbMutex());
 }
 
 /**
@@ -180,9 +184,9 @@ static int32_t ures_flushCache()
     /*if shared data hasn't even been lazy evaluated yet
     * return 0
     */
-    umtx_lock(&resbMutex);
+    umtx_lock(resbMutex());
     if (cache == NULL) {
-        umtx_unlock(&resbMutex);
+        umtx_unlock(resbMutex());
         return 0;
     }
 
@@ -214,7 +218,7 @@ static int32_t ures_flushCache()
          * got decremented by free_entry().
          */
     } while(deletedMore);
-    umtx_unlock(&resbMutex);
+    umtx_unlock(resbMutex());
 
     return rbDeletedNum;
 }
@@ -228,9 +232,9 @@ U_CAPI UBool U_EXPORT2 ures_dumpCacheContents(void) {
   const UHashElement *e;
   UResourceDataEntry *resB;
 
-    umtx_lock(&resbMutex);
+    umtx_lock(resbMutex());
     if (cache == NULL) {
-      umtx_unlock(&resbMutex);
+      umtx_unlock(resbMutex());
       fprintf(stderr,"%s:%d: RB Cache is NULL.\n", __FILE__, __LINE__);
       return FALSE;
     }
@@ -250,7 +254,7 @@ U_CAPI UBool U_EXPORT2 ures_dumpCacheContents(void) {
 
     fprintf(stderr,"%s:%d: RB Cache still contains %d items.\n", __FILE__, __LINE__, uhash_count(cache));
 
-    umtx_unlock(&resbMutex);
+    umtx_unlock(resbMutex());
 
     return cacheNotEmpty;
 }
@@ -368,6 +372,11 @@ static UResourceDataEntry *init_entry(const char *localeID, const char *path, UE
         res_load(&(r->fData), r->fPath, r->fName, status);
 
         if (U_FAILURE(*status)) {
+            /* if we failed to load due to an out-of-memory error, exit early. */
+            if (*status == U_MEMORY_ALLOCATION_ERROR) {
+                uprv_free(r);
+                return NULL;
+            }
             /* we have no such entry in dll, so it will always use fallback */
             *status = U_USING_FALLBACK_WARNING;
             r->fBogus = U_USING_FALLBACK_WARNING;
@@ -483,6 +492,9 @@ findFirstExisting(const char* path, char* name,
 
         /*Fallback data stuff*/
         *hasChopped = chopLocale(name);
+        if (*hasChopped && *name == '\0') {
+            uprv_strcpy(name, "und");
+        }
     }
     return r;
 }
@@ -506,6 +518,18 @@ U_CFUNC void ures_initStackObject(UResourceBundle* resB) {
   uprv_memset(resB, 0, sizeof(UResourceBundle));
   ures_setIsStackObject(resB, TRUE);
 }
+
+U_NAMESPACE_BEGIN
+
+StackUResourceBundle::StackUResourceBundle() {
+    ures_initStackObject(&bundle);
+}
+
+StackUResourceBundle::~StackUResourceBundle() {
+    ures_close(&bundle);
+}
+
+U_NAMESPACE_END
 
 static UBool  // returns U_SUCCESS(*status)
 loadParentsExceptRoot(UResourceDataEntry *&t1,
@@ -537,6 +561,11 @@ loadParentsExceptRoot(UResourceDataEntry *&t1,
         UErrorCode usrStatus = U_ZERO_ERROR;
         if (usingUSRData) {  // This code inserts user override data into the inheritance chain.
             u2 = init_entry(name, usrDataPath, &usrStatus);
+            // If we failed due to out-of-memory, report that to the caller and exit early.
+            if (usrStatus == U_MEMORY_ALLOCATION_ERROR) {
+                *status = usrStatus;
+                return FALSE;
+            }
         }
 
         if (usingUSRData && U_SUCCESS(usrStatus) && u2->fBogus == U_ZERO_ERROR) {
@@ -637,10 +666,16 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
         }
     }
 
-    umtx_lock(&resbMutex);
+    umtx_lock(resbMutex());
     { /* umtx_lock */
         /* We're going to skip all the locales that do not have any data */
         r = findFirstExisting(path, name, &isRoot, &hasChopped, &isDefault, &intStatus);
+
+        // If we failed due to out-of-memory, report the failure and exit early.
+        if (intStatus == U_MEMORY_ALLOCATION_ERROR) {
+            *status = intStatus;
+            goto finishUnlock;
+        }
 
         if(r != NULL) { /* if there is one real locale, we can look for parents. */
             t1 = r;
@@ -648,15 +683,20 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
             if ( usingUSRData ) {  /* This code inserts user override data into the inheritance chain */
                 UErrorCode usrStatus = U_ZERO_ERROR;
                 UResourceDataEntry *u1 = init_entry(t1->fName, usrDataPath, &usrStatus);
-               if ( u1 != NULL ) {
-                 if(u1->fBogus == U_ZERO_ERROR) {
-                   u1->fParent = t1;
-                   r = u1;
-                 } else {
-                   /* the USR override data wasn't found, set it to be deleted */
-                   u1->fCountExisting = 0;
-                 }
-               }
+                // If we failed due to out-of-memory, report the failure and exit early.
+                if (intStatus == U_MEMORY_ALLOCATION_ERROR) {
+                    *status = intStatus;
+                    goto finishUnlock;
+                }
+                if ( u1 != NULL ) {
+                    if(u1->fBogus == U_ZERO_ERROR) {
+                        u1->fParent = t1;
+                        r = u1;
+                    } else {
+                        /* the USR override data wasn't found, set it to be deleted */
+                        u1->fCountExisting = 0;
+                    }
+                }
             }
             if (hasChopped && !isRoot) {
                 if (!loadParentsExceptRoot(t1, name, UPRV_LENGTHOF(name), usingUSRData, usrDataPath, status)) {
@@ -671,6 +711,11 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
             /* insert default locale */
             uprv_strcpy(name, uloc_getDefault());
             r = findFirstExisting(path, name, &isRoot, &hasChopped, &isDefault, &intStatus);
+            // If we failed due to out-of-memory, report the failure and exit early.
+            if (intStatus == U_MEMORY_ALLOCATION_ERROR) {
+                *status = intStatus;
+                goto finishUnlock;
+            }
             intStatus = U_USING_DEFAULT_WARNING;
             if(r != NULL) { /* the default locale exists */
                 t1 = r;
@@ -690,6 +735,11 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
         if(r == NULL) {
             uprv_strcpy(name, kRootLocaleName);
             r = findFirstExisting(path, name, &isRoot, &hasChopped, &isDefault, &intStatus);
+            // If we failed due to out-of-memory, report the failure and exit early.
+            if (intStatus == U_MEMORY_ALLOCATION_ERROR) {
+                *status = intStatus;
+                goto finishUnlock;
+            }
             if(r != NULL) {
                 t1 = r;
                 intStatus = U_USING_DEFAULT_WARNING;
@@ -715,7 +765,7 @@ static UResourceDataEntry *entryOpen(const char* path, const char* localeID,
         }
     } /* umtx_lock */
 finishUnlock:
-    umtx_unlock(&resbMutex);
+    umtx_unlock(resbMutex());
 
     if(U_SUCCESS(*status)) {
         if(intStatus != U_ZERO_ERROR) {
@@ -740,7 +790,7 @@ entryOpenDirect(const char* path, const char* localeID, UErrorCode* status) {
         return NULL;
     }
 
-    umtx_lock(&resbMutex);
+    umtx_lock(resbMutex());
     // findFirstExisting() without fallbacks.
     UResourceDataEntry *r = init_entry(localeID, path, status);
     if(U_SUCCESS(*status)) {
@@ -778,7 +828,7 @@ entryOpenDirect(const char* path, const char* localeID, UErrorCode* status) {
             t1 = t1->fParent;
         }
     }
-    umtx_unlock(&resbMutex);
+    umtx_unlock(resbMutex());
     return r;
 }
 
@@ -821,9 +871,9 @@ static void entryCloseInt(UResourceDataEntry *resB) {
  */
 
 static void entryClose(UResourceDataEntry *resB) {
-  umtx_lock(&resbMutex);
+  umtx_lock(resbMutex());
   entryCloseInt(resB);
-  umtx_unlock(&resbMutex);
+  umtx_unlock(resbMutex());
 }
 
 /*
@@ -1079,7 +1129,7 @@ static UResourceBundle *init_resb_result(const ResourceData *rdata, Resource r,
                             UResourceDataEntry *dataEntry = mainRes->fData;
                             char stackPath[URES_MAX_BUFFER_SIZE];
                             char *pathBuf = stackPath, *myPath = pathBuf;
-                            if(uprv_strlen(keyPath) > URES_MAX_BUFFER_SIZE) {
+                            if(uprv_strlen(keyPath) >= UPRV_LENGTHOF(stackPath)) {
                                 pathBuf = (char *)uprv_malloc((uprv_strlen(keyPath)+1)*sizeof(char));
                                 if(pathBuf == NULL) {
                                     *status = U_MEMORY_ALLOCATION_ERROR;
@@ -2269,11 +2319,13 @@ ures_openDirect(const char* path, const char* localeID, UErrorCode* status) {
 }
 
 /**
- *  API: This function is used to open a resource bundle
+ *  Internal API: This function is used to open a resource bundle
  *  proper fallback chaining is executed while initialization.
  *  The result is stored in cache for later fallback search.
+ *
+ * Same as ures_open(), but uses the fill-in parameter and does not allocate a new bundle.
  */
-U_CAPI void U_EXPORT2
+U_INTERNAL void U_EXPORT2
 ures_openFillIn(UResourceBundle *r, const char* path,
                 const char* localeID, UErrorCode* status) {
     if(U_SUCCESS(*status) && r == NULL) {
@@ -2281,6 +2333,18 @@ ures_openFillIn(UResourceBundle *r, const char* path,
         return;
     }
     ures_openWithType(r, path, localeID, URES_OPEN_LOCALE_DEFAULT_ROOT, status);
+}
+
+/**
+ * Same as ures_openDirect(), but uses the fill-in parameter and does not allocate a new bundle.
+ */
+U_INTERNAL void U_EXPORT2
+ures_openDirectFillIn(UResourceBundle *r, const char* path, const char* localeID, UErrorCode* status) {
+    if(U_SUCCESS(*status) && r == NULL) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    ures_openWithType(r, path, localeID, URES_OPEN_DIRECT, status);
 }
 
 /**
@@ -2421,7 +2485,7 @@ ures_loc_nextLocale(UEnumeration* en,
     UResourceBundle *k = NULL;
     const char *result = NULL;
     int32_t len = 0;
-    if(ures_hasNext(res) && (k = ures_getNextResource(res, &ctx->curr, status))) {
+    if(ures_hasNext(res) && (k = ures_getNextResource(res, &ctx->curr, status)) != 0) {
         result = ures_getKey(k);
         len = (int32_t)uprv_strlen(result);
     }
@@ -2843,7 +2907,7 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
     valuesBuf[0]=0;
     valuesBuf[1]=0;
 
-    while((locale = uenum_next(locs, &locLen, status))) {
+    while((locale = uenum_next(locs, &locLen, status)) != 0) {
         UResourceBundle   *bund = NULL;
         UResourceBundle   *subPtr = NULL;
         UErrorCode subStatus = U_ZERO_ERROR; /* don't fail if a bundle is unopenable */
@@ -2868,7 +2932,7 @@ ures_getKeywordValues(const char *path, const char *keyword, UErrorCode *status)
             continue;
         }
 
-        while((subPtr = ures_getNextResource(&item,&subItem,&subStatus))
+        while((subPtr = ures_getNextResource(&item,&subItem,&subStatus)) != 0
             && U_SUCCESS(subStatus)) {
             const char *k;
             int32_t i;

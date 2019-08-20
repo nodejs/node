@@ -21,7 +21,7 @@ function assertEqualsAsync(expected, run, msg) {
 
   assertFalse(hadValue || hadError);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   if (hadError) throw actual;
 
@@ -67,7 +67,7 @@ function setbreaks() {
 
 f();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEqualsAsync(2, async () => break_count);
 assertEqualsAsync(null, async () => exception);

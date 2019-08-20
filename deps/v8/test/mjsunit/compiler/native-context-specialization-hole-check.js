@@ -25,7 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --opt --no-always-opt --turbo-inlining
+
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  testRunner.quit(0);
+}
 
 function f() {
   Array.prototype[10] = 2;
@@ -33,12 +38,14 @@ function f() {
   arr[500] = 20;
   arr[10] = arr[50];
 }
+%EnsureFeedbackVectorForFunction(f);
 
 function g() {
   f();
 }
+%PrepareFunctionForOptimization(g);
 g();
 g();
 %OptimizeFunctionOnNextCall(g);
 g();
-assertTrue(%GetDeoptCount(g) > 0);
+assertUnoptimized(g);

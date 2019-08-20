@@ -56,10 +56,10 @@ function runAb(opts, callback) {
     const completeRequests = parseInt(m[1]);
 
     m = /HTML transferred:\s*(\d+) bytes/i.exec(stdout);
-    const htmlTransfered = parseInt(m[1]);
+    const htmlTransferred = parseInt(m[1]);
 
     assert.strictEqual(bodyLength, documentLength);
-    assert.strictEqual(completeRequests * documentLength, htmlTransfered);
+    assert.strictEqual(completeRequests * documentLength, htmlTransferred);
 
     if (callback) callback();
   });

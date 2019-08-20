@@ -28,7 +28,7 @@ const stream = require('stream');
 class TestWriter extends stream.Writable {
   _write(buffer, encoding, callback) {
     console.log('write called');
-    // super slow write stream (callback never called)
+    // Super slow write stream (callback never called)
   }
 }
 
@@ -51,13 +51,13 @@ const src2 = new TestReader();
 
 src1.pipe(dest);
 
-src1.once('readable', function() {
-  process.nextTick(function() {
+src1.once('readable', () => {
+  process.nextTick(() => {
 
     src2.pipe(dest);
 
-    src2.once('readable', function() {
-      process.nextTick(function() {
+    src2.once('readable', () => {
+      process.nextTick(() => {
 
         src1.unpipe(dest);
       });
@@ -66,7 +66,7 @@ src1.once('readable', function() {
 });
 
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(src1.reads, 2);
   assert.strictEqual(src2.reads, 2);
 });

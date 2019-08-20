@@ -32,7 +32,7 @@
 #include "uhash.h"
 
 static UHashtable* gGenderInfoCache = NULL;
-static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
+
 static const char* gNeutralStr = "neutral";
 static const char* gMailTaintsStr = "maleTaints";
 static const char* gMixedNeutralStr = "mixedNeutral";
@@ -98,6 +98,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
     return NULL;
   }
 
+  static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
   const GenderInfo* result = NULL;
   const char* key = locale.getName();
   {

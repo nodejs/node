@@ -8,5 +8,6 @@ function f() {
   %DeoptimizeNow();
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f();

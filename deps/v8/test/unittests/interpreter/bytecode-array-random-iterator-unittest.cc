@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
-#include "src/objects-inl.h"
+#include "src/numbers/hash-seed-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -16,8 +18,8 @@ namespace interpreter {
 
 class BytecodeArrayRandomIteratorTest : public TestWithIsolateAndZone {
  public:
-  BytecodeArrayRandomIteratorTest() {}
-  ~BytecodeArrayRandomIteratorTest() override {}
+  BytecodeArrayRandomIteratorTest() = default;
+  ~BytecodeArrayRandomIteratorTest() override = default;
 };
 
 TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
@@ -26,12 +28,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -80,12 +82,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -134,12 +136,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -182,7 +184,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), 0);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
 }
 
@@ -192,12 +195,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -251,12 +254,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -329,7 +332,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(18);
@@ -436,12 +440,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -486,7 +490,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -505,7 +510,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -715,12 +721,12 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   double heap_num_0 = 2.718;
   double heap_num_1 = 2.0 * Smi::kMaxValue;
-  Smi* zero = Smi::kZero;
-  Smi* smi_0 = Smi::FromInt(64);
-  Smi* smi_1 = Smi::FromInt(-65536);
+  Smi zero = Smi::zero();
+  Smi smi_0 = Smi::FromInt(64);
+  Smi smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
@@ -966,7 +972,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -985,7 +992,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
   ASSERT_FALSE(iterator.IsValid());

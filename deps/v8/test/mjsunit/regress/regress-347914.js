@@ -81,6 +81,7 @@ function __f_0(o) {
     assertTrue(false);
   }
 }
+%PrepareFunctionForOptimization(__f_0);
 __v_4 = {};
 __v_4.size = function() { return 42; }
 __v_4.g = function() { return this.size(); };

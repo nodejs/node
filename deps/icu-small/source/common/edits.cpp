@@ -4,10 +4,12 @@
 // edits.cpp
 // created: 2017feb08 Markus W. Scherer
 
-#include "unicode/utypes.h"
 #include "unicode/edits.h"
+#include "unicode/unistr.h"
+#include "unicode/utypes.h"
 #include "cmemory.h"
 #include "uassert.h"
+#include "util.h"
 
 U_NAMESPACE_BEGIN
 
@@ -274,7 +276,7 @@ Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &error
         // ab deletions meet bc insertions at the same intermediate-string index.
         // Some users expect the bc insertions to come first, so we fetch from bc first.
         if (bc_bLength == 0) {
-            if (bcHasNext && (bcHasNext = bcIter.next(errorCode))) {
+            if (bcHasNext && (bcHasNext = bcIter.next(errorCode)) != 0) {
                 bc_bLength = bcIter.oldLength();
                 cLength = bcIter.newLength();
                 if (bc_bLength == 0) {
@@ -291,7 +293,7 @@ Edits &Edits::mergeAndAppend(const Edits &ab, const Edits &bc, UErrorCode &error
             // else see if the other iterator is done, too.
         }
         if (ab_bLength == 0) {
-            if (abHasNext && (abHasNext = abIter.next(errorCode))) {
+            if (abHasNext && (abHasNext = abIter.next(errorCode)) != 0) {
                 aLength = abIter.oldLength();
                 ab_bLength = abIter.newLength();
                 if (ab_bLength == 0) {
@@ -771,6 +773,31 @@ int32_t Edits::Iterator::sourceIndexFromDestinationIndex(int32_t i, UErrorCode &
         // In an unchanged span, offset within it.
         return srcIndex + (i - destIndex);
     }
+}
+
+UnicodeString& Edits::Iterator::toString(UnicodeString& sb) const {
+    sb.append(u"{ src[", -1);
+    ICU_Utility::appendNumber(sb, srcIndex);
+    sb.append(u"..", -1);
+    ICU_Utility::appendNumber(sb, srcIndex + oldLength_);
+    if (changed) {
+        sb.append(u"] ⇝ dest[", -1);
+    } else {
+        sb.append(u"] ≡ dest[", -1);
+    }
+    ICU_Utility::appendNumber(sb, destIndex);
+    sb.append(u"..", -1);
+    ICU_Utility::appendNumber(sb, destIndex + newLength_);
+    if (changed) {
+        sb.append(u"], repl[", -1);
+        ICU_Utility::appendNumber(sb, replIndex);
+        sb.append(u"..", -1);
+        ICU_Utility::appendNumber(sb, replIndex + newLength_);
+        sb.append(u"] }", -1);
+    } else {
+        sb.append(u"] (no-change) }", -1);
+    }
+    return sb;
 }
 
 U_NAMESPACE_END

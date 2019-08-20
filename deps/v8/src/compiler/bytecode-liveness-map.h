@@ -6,7 +6,7 @@
 #define V8_COMPILER_BYTECODE_LIVENESS_MAP_H_
 
 #include "src/base/hashmap.h"
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

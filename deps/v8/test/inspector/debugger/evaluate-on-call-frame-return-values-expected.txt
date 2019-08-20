@@ -1,0 +1,354 @@
+Tests that exercise various result types from Debugger.evaluateOnCallFrame
+
+Running test: testCreateFunction
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : SUCCESS
+        }
+    }
+}
+
+Running test: testNumericValue
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : -578.28
+            type : number
+            value : -578.28
+        }
+    }
+}
+
+Running test: testUnserializableValues
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : NaN
+            type : number
+            unserializableValue : NaN
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : Infinity
+            type : number
+            unserializableValue : Infinity
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : -Infinity
+            type : number
+            unserializableValue : -Infinity
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : -0
+            type : number
+            unserializableValue : -0
+        }
+    }
+}
+
+Running test: testBooleanValue
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : true
+        }
+    }
+}
+
+Running test: testObject
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+
+Running test: testConsoleLog
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName : eval
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName :
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url :
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+
+Running test: testSymbol
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : Symbol(foo)
+            objectId : <objectId>
+            type : symbol
+        }
+    }
+}
+
+Running test: testSymbolReturnByValueError
+{
+    error : {
+        code : -32000
+        message : Object couldn't be returned by value
+    }
+    id : <messageId>
+}
+
+Running test: testPromiseResolveReturnByVal
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+            }
+        }
+    }
+}
+
+Running test: testPromiseResolve
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Promise
+            description : Promise
+            objectId : <objectId>
+            subtype : promise
+            type : object
+        }
+    }
+}
+
+Running test: testReleaseObject
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+
+Running test: testReleaseObjectInvalid
+ReleaseObject with invalid params.
+{
+    error : {
+        code : -32602
+        data : objectId: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}
+
+Running test: testObjectGroups
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+
+Running test: testReleaseObjectGroupInvalid
+ReleaseObjectGroup with invalid params
+{
+    error : {
+        code : -32602
+        data : objectGroup: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}
+
+Running test: testEvaluateSyntaxError
+{
+    className : SyntaxError
+    description : SyntaxError: Unexpected token ']'     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+
+Running test: testEvaluateReferenceError
+{
+    className : ReferenceError
+    description : ReferenceError: totalRandomNotRealVariable789 is not defined     at eval (eval at <anonymous> (:1:1), <anonymous>:1:1)     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+
+Running test: testCallFrameIdTypeError
+{
+    error : {
+        code : -32602
+        data : callFrameId: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}
+
+Running test: testCallFrameIdInvalidInput
+Testing evaluateOnCallFrame with non-existent callFrameId
+{
+    error : {
+        code : -32000
+        message : Invalid call frame id
+    }
+    id : <messageId>
+}
+
+Running test: testNullExpression
+{
+    error : {
+        code : -32602
+        data : expression: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}

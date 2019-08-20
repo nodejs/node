@@ -10,7 +10,7 @@ const http = require('http');
 
 const expected = '/café🐶';
 
-assert.strictEqual('/caf\u{e9}\u{1f436}', expected);
+assert.strictEqual(expected, '/caf\u{e9}\u{1f436}');
 
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.strictEqual(req.url, expected);
@@ -23,9 +23,9 @@ const server = http.createServer(common.mustCall(function(req, res) {
 
 }));
 
-server.listen(0, function() {
+server.listen(0, () => {
   http.request({
-    port: this.address().port,
+    port: server.address().port,
     path: expected,
     method: 'GET'
   }, common.mustCall(function(res) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,10 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "internal/cryptlib.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <openssl/crypto.h>
-#include "internal/cryptlib.h"
 #include "internal/conf.h"
 #include "internal/dso.h"
 #include <openssl/x509.h>
@@ -142,6 +142,9 @@ int CONF_modules_load_file(const char *filename, const char *appname,
         OPENSSL_free(file);
     NCONF_free(conf);
 
+    if (flags & CONF_MFLAGS_IGNORE_RETURN_CODES)
+        return 1;
+
     return ret;
 }
 
@@ -170,6 +173,7 @@ static int module_run(const CONF *cnf, const char *name, const char *value,
     if (ret <= 0) {
         if (!(flags & CONF_MFLAGS_SILENT)) {
             char rcode[DECIMAL_SIZE(ret) + 1];
+
             CONFerr(CONF_F_MODULE_RUN, CONF_R_MODULE_INITIALIZATION_ERROR);
             BIO_snprintf(rcode, sizeof(rcode), "%-8d", ret);
             ERR_add_error_data(6, "module=", name, ", value=", value,
@@ -231,9 +235,10 @@ static CONF_MODULE *module_add(DSO *dso, const char *name,
         supported_modules = sk_CONF_MODULE_new_null();
     if (supported_modules == NULL)
         return NULL;
-    tmod = OPENSSL_zalloc(sizeof(*tmod));
-    if (tmod == NULL)
+    if ((tmod = OPENSSL_zalloc(sizeof(*tmod))) == NULL) {
+        CONFerr(CONF_F_MODULE_ADD, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
 
     tmod->dso = dso;
     tmod->name = OPENSSL_strdup(name);
@@ -475,16 +480,16 @@ void CONF_module_set_usr_data(CONF_MODULE *pmod, void *usr_data)
 
 char *CONF_get1_default_config_file(void)
 {
-    char *file;
+    char *file, *sep = "";
     int len;
 
-    file = getenv("OPENSSL_CONF");
-    if (file)
+    if ((file = ossl_safe_getenv("OPENSSL_CONF")) != NULL)
         return OPENSSL_strdup(file);
 
     len = strlen(X509_get_default_cert_area());
 #ifndef OPENSSL_SYS_VMS
     len++;
+    sep = "/";
 #endif
     len += strlen(OPENSSL_CONF);
 
@@ -492,11 +497,8 @@ char *CONF_get1_default_config_file(void)
 
     if (file == NULL)
         return NULL;
-    OPENSSL_strlcpy(file, X509_get_default_cert_area(), len + 1);
-#ifndef OPENSSL_SYS_VMS
-    OPENSSL_strlcat(file, "/", len + 1);
-#endif
-    OPENSSL_strlcat(file, OPENSSL_CONF, len + 1);
+    BIO_snprintf(file, len + 1, "%s%s%s", X509_get_default_cert_area(),
+                 sep, OPENSSL_CONF);
 
     return file;
 }

@@ -63,6 +63,7 @@ for (var i = 0; i < f32.length; i++) {
   s += i;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(f32, 0);
 foo(f32, 0);
 %OptimizeFunctionOnNextCall(foo);

@@ -11,14 +11,14 @@ test('cache add', function (t) {
         'cache',
         'add',
         'superfoo',
-        '--registry=http://localhost:1337/'
+        '--registry=http://localhost:' + common.port + '/'
       ],
       {},
       function (er, c, so, se) {
         if (er) throw er
         t.ok(c, 'got non-zero exit code')
         t.equal(so, '', 'nothing printed to stdout')
-        t.similar(se, /404 Not Found: superfoo/, 'got expected error')
+        t.similar(se, /404 Not Found.*superfoo/, 'got expected error')
         s.close()
         t.end()
       }
@@ -29,9 +29,9 @@ test('cache add', function (t) {
 function setup (cb) {
   var s = require('http').createServer(function (req, res) {
     res.statusCode = 404
-    res.end('{\"error\":\"not_found\"}\n')
+    res.end('{"error":"not_found"}\n')
   })
-  s.listen(1337, function () {
+  s.listen(common.port, function () {
     cb(null, s)
   })
 }

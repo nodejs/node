@@ -62,7 +62,11 @@ function workerScript(script) {
 
         sleep(s) { Atomics.wait(i32a, ${SLEEP_LOC}, 0, s); },
 
-        leaving() {}
+        leaving() {},
+
+        monotonicNow() {
+          return performance.now();
+        }
       }
     };`;
 }
@@ -72,7 +76,7 @@ var agent = {
     if (i32a === null) {
       i32a = new Int32Array(new SharedArrayBuffer(256));
     }
-    var w = new Worker(workerScript(script));
+    var w = new Worker(workerScript(script), {type: 'string'});
     w.index = workers.length;
     w.postMessage({kind: 'start', i32a: i32a, index: w.index});
     workers.push(w);
@@ -103,7 +107,11 @@ var agent = {
     return pendingReports.shift() || null;
   },
 
-  sleep(s) { Atomics.wait(i32a, SLEEP_LOC, 0, s); }
+  sleep(s) { Atomics.wait(i32a, SLEEP_LOC, 0, s); },
+
+  monotonicNow() {
+    return performance.now();
+  }
 };
 return agent;
 

@@ -27,4 +27,5 @@ function f() {
   }
 }
 
+%PrepareFunctionForOptimization(f);
 assertThrowsEquals(f, 42);

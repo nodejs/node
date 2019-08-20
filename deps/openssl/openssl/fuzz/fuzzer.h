@@ -10,3 +10,5 @@
 
 int FuzzerTestOneInput(const uint8_t *buf, size_t len);
 int FuzzerInitialize(int *argc, char ***argv);
+void FuzzerCleanup(void);
+void FuzzerSetRand(void);

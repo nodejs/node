@@ -5,7 +5,7 @@
   code is governed by a BSD-style license that can be found in the LICENSE file.
   -->
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <style>
 html, body {
   font-family: sans-serif;
@@ -15,9 +15,99 @@ html, body {
 h1, h2, h3, section {
   padding-left: 15px;
 }
+
+#content {
+  opacity: 0.0;
+  height: 0px;
+  transition: all 0.5s ease-in-out;
+}
+
+.success #content {
+  height: auto;
+  opacity: 1.0;
+}
+
+#fileReader {
+  width: 100%;
+  height: 100px;
+  line-height: 100px;
+  text-align: center;
+  border: solid 1px #000000;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.5s ease-in-out;
+}
+
+.failure #fileReader {
+  background-color: #FFAAAA;
+}
+
+.success #fileReader {
+    height: 20px;
+    line-height: 20px;
+}
+
+#fileReader:hover {
+  background-color: #e0edfe;
+}
+
+.loading #fileReader {
+  cursor: wait;
+}
+
+#fileReader > input {
+  display: none;
+}
+
+
+#loader {
+  display: none;
+}
+
+.loading #loader {
+  display: block;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+#spinner {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 40%;
+  left: 50%;
+  margin-left: -50px;
+  border: 30px solid #000;
+  border-top: 30px solid #36E;
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.colorbox {
+  width: 10px;
+  height: 10px;
+  border: 1px black solid;
+}
+
 #stats table {
   display: inline-block;
   padding-right: 50px;
+}
+#stats table td {
+  cursor: pointer;
 }
 #stats .transitionTable {
   max-height: 200px;
@@ -29,6 +119,16 @@ h1, h2, h3, section {
   overflow-y: hidden;
   overflow-x: scroll;
   user-select: none;
+}
+#timelineLabel {
+  transform: rotate(90deg);
+  transform-origin: left bottom 0;
+  position: absolute;
+  left: 0;
+  width: 250px;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.5;
 }
 #timelineChunks {
   height: 250px;
@@ -179,6 +279,9 @@ h1, h2, h3, section {
   word-break: break-all;
   background-color: rgba(255,255,255,0.5);
 }
+.black{
+  background-color: black;
+}
 .red {
   background-color: red;
 }
@@ -308,7 +411,7 @@ function selectOption(select, match) {
 function div(classes) {
   let node = document.createElement('div');
   if (classes !== void 0) {
-    if (typeof classes == "string") {
+    if (typeof classes === "string") {
       node.classList.add(classes);
     } else {
       classes.forEach(cls => node.classList.add(cls));
@@ -322,11 +425,17 @@ function table(className) {
   if (className) node.classList.add(className)
   return node;
 }
-function td(text) {
+
+function td(textOrNode) {
   let node = document.createElement("td");
-  node.innerText = text;
+  if (typeof textOrNode === "object") {
+    node.appendChild(textOrNode);
+  } else {
+    node.innerText = textOrNode;
+  }
   return node;
 }
+
 function tr() {
   let node = document.createElement("tr");
   return node;
@@ -369,9 +478,14 @@ define(Array.prototype, "last", function() { return this[this.length - 1] });
 // =========================================================================
 // EventHandlers
 function handleBodyLoad() {
-  let upload = $('uploadInput');
-  upload.onclick = (e) => { e.target.value = null };
-  upload.onchange = (e) => { handleLoadFile(e.target) };
+  let upload = $('fileReader');
+  upload.onclick = (e) => $("file").click();
+  upload.ondragover = (e) => e.preventDefault();
+  upload.ondrop = (e) => handleLoadFile(e);
+  $('file').onchange = (e) => handleLoadFile(e);
+  upload.onkeydown = (e) =>  {
+    if (event.key == "Enter") $("file").click();
+  };
   upload.focus();
 
   document.state = new State();
@@ -381,20 +495,31 @@ function handleBodyLoad() {
     tooltip.style.top = e.pageY + "px";
     let map = e.target.map;
     if (map) {
-      $("tooltipContents").innerText = map.description.join("\n");
+      $("tooltipContents").innerText = map.description;
     }
   });
+
+  function handleLoadFile(event) {
+    // Used for drop and file change.
+    event.preventDefault();
+    let host = event.dataTransfer ? event.dataTransfer : event.target;
+    let file = host.files[0];
+    let reader = new FileReader();
+    document.body.className = 'loading';
+    reader.onload = function(evt) {
+      try {
+        handleLoadText(this.result);
+       document.body.className = 'success';
+      } catch(e) {
+       document.body.className = 'failure';
+       console.error(e);
+      }
+    }
+    // Defer the reading to allow spinner CSS animation.
+    setTimeout(() => reader.readAsText(file), 0);
+  }
 }
 
-function handleLoadFile(upload) {
-  let files = upload.files;
-  let file = files[0];
-  let reader = new FileReader();
-  reader.onload = function(evt) {
-    handleLoadText(this.result);
-  }
-  reader.readAsText(file);
-}
 
 function handleLoadText(text) {
   let mapProcessor = new MapProcessor();
@@ -540,6 +665,7 @@ class View {
     let details = "";
     if (this.map) {
       details += "ID: " + this.map.id;
+      details += "\nSource location: " + this.map.filePosition;
       details += "\n" + this.map.description;
     }
     $("mapDetails").innerText = details;
@@ -591,7 +717,6 @@ class View {
       time += interval;
     }
     this.drawOverview();
-    this.drawHistograms();
     this.redraw();
   }
 
@@ -684,47 +809,6 @@ class View {
     ctx.fill();
     let imageData = canvas.toDataURL("image/png");
     $("timelineOverview").style.backgroundImage = "url(" + imageData + ")";
-  }
-
-  drawHistograms() {
-    $("mapsDepthHistogram").histogram = this.timeline.depthHistogram();
-    $("mapsFanOutHistogram").histogram = this.timeline.fanOutHistogram();
-  }
-
-  drawMapsDepthHistogram() {
-    let canvas = $("mapsDepthCanvas");
-    let histogram = this.timeline.depthHistogram();
-    this.drawHistogram(canvas, histogram, true);
-  }
-
-  drawMapsFanOutHistogram() {
-    let canvas = $("mapsFanOutCanvas");
-    let histogram = this.timeline.fanOutHistogram();
-    this.drawHistogram(canvas, histogram, true, true);
-  }
-
-  drawHistogram(canvas, histogram, logScaleX=false, logScaleY=false) {
-    let ctx = canvas.getContext("2d");
-    let yMax = histogram.max(each => each.length);
-    if (logScaleY) yMax = Math.log(yMax);
-    let xMax = histogram.length;
-    if (logScaleX) xMax = Math.log(xMax);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.beginPath();
-    ctx.moveTo(0,canvas.height);
-    for (let i = 0; i < histogram.length; i++) {
-      let x = i;
-      if (logScaleX) x = Math.log(x);
-      x = x / xMax * canvas.width;
-      let bucketLength = histogram[i].length;
-      if (logScaleY) bucketLength = Math.log(bucketLength);
-      let y = (1 - bucketLength / yMax) * canvas.height;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.closePath;
-    ctx.stroke();
-    ctx.fill();
   }
 
   redraw() {
@@ -1006,26 +1090,32 @@ class StatsView {
   }
   updateGeneralStats() {
     let pairs = [
-      ["Maps", e => true],
-      ["Transitions", e => e.edge && e.edge.isTransition()],
-      ["Fast to Slow", e => e.edge && e.edge.isFastToSlow()],
-      ["Slow to Fast", e => e.edge && e.edge.isSlowToFast()],
-      ["Initial Map", e => e.edge && e.edge.isInitial()],
-      ["Replace Descriptors", e => e.edge && e.edge.isReplaceDescriptors()],
-      ["Copy as Prototype", e => e.edge && e.edge.isCopyAsPrototype()],
-      ["Optimize as Prototype", e => e.edge && e.edge.isOptimizeAsPrototype()],
-      ["Deprecated", e => e.isDeprecated()],
+      ["Maps", null, e => true],
+      ["Transitions", 'black', e => e.edge && e.edge.isTransition()],
+      ["Fast to Slow", 'violet', e => e.edge && e.edge.isFastToSlow()],
+      ["Slow to Fast", 'orange', e => e.edge && e.edge.isSlowToFast()],
+      ["Initial Map", 'yellow', e => e.edge && e.edge.isInitial()],
+      ["Replace Descriptors", 'red', e => e.edge && e.edge.isReplaceDescriptors()],
+      ["Copy as Prototype", 'red', e => e.edge && e.edge.isCopyAsPrototype()],
+      ["Optimize as Prototype", null, e => e.edge && e.edge.isOptimizeAsPrototype()],
+      ["Deprecated", null, e => e.isDeprecated()],
+      ["Bootstrapped", 'green', e => e.isBootstrapped()],
     ];
 
     let text = "";
     let tableNode = table();
     let name, filter;
     let total = this.timeline.size();
-    pairs.forEach(([name, filter]) => {
+    pairs.forEach(([name, color, filter]) => {
       let row = tr();
+      if (color !== null) {
+        row.appendChild(td(div(['colorbox', color])));
+      } else {
+       row.appendChild(td(""));
+      }
       row.maps = this.timeline.filterUniqueTransitions(filter);
-      row.addEventListener("click",
-          e => this.transitionView.showMaps(e.target.parentNode.maps));
+      row.onclick =
+          (e) => this.transitionView.showMaps(e.target.parentNode.maps);
       row.appendChild(td(name));
       let count = this.timeline.count(filter);
       row.appendChild(td(count));
@@ -1060,7 +1150,7 @@ function transitionTypeToColor(type) {
   switch(type) {
     case "new": return "green";
     case "Normalize": return "violet";
-    case "map=SlowToFast": return "orange";
+    case "SlowToFast": return "orange";
     case "InitialMap": return "yellow";
     case "Transition": return "black";
     case "ReplaceDescriptors": return "red";
@@ -1069,183 +1159,53 @@ function transitionTypeToColor(type) {
 }
 
 // ShadowDom elements =========================================================
-customElements.define('x-histogram', class extends HTMLElement {
-  constructor() {
-    super();
-    let shadowRoot = this.attachShadow({mode: 'open'});
-    const t = document.querySelector('#x-histogram-template');
-    const instance = t.content.cloneNode(true);
-    shadowRoot.appendChild(instance);
-    this._histogram = undefined;
-    this.mouseX = 0;
-    this.mouseY = 0;
-    this.canvas.addEventListener('mousemove', event => this.handleCanvasMove(event));
-  }
-  setBoolAttribute(name, value) {
-    if (value) {
-      this.setAttribute(name, "");
-    } else {
-      this.deleteAttribute(name);
-    }
-  }
-  static get observedAttributes() {
-    return ['title', 'xlog', 'ylog', 'xlabel', 'ylabel'];
-  }
-  $(query) { return this.shadowRoot.querySelector(query) }
-  get h1() { return this.$("h2") }
-  get canvas() { return this.$("canvas") }
-  get xLabelDiv() { return this.$("#xLabel") }
-  get yLabelDiv() { return this.$("#yLabel") }
-
-  get histogram() {
-    return this._histogram;
-  }
-  set histogram(array) {
-    this._histogram = array;
-    if (this._histogram) {
-      this.yMax = this._histogram.max(each => each.length);
-      this.xMax = this._histogram.length;
-    }
-    this.draw();
-  }
-
-  get title() { return this.getAttribute("title") }
-  set title(string) { this.setAttribute("title", string) }
-  get xLabel() { return this.getAttribute("xlabel") }
-  set xLabel(string) { this.setAttribute("xlabel", string)}
-  get yLabel() { return this.getAttribute("ylabel") }
-  set yLabel(string) { this.setAttribute("ylabel", string)}
-  get xLog() { return this.hasAttribute("xlog") }
-  set xLog(value) { this.setBoolAttribute("xlog", value) }
-  get yLog() { return this.hasAttribute("ylog") }
-  set yLog(value) { this.setBoolAttribute("ylog", value) }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name == "title") {
-      this.h1.innerText = newValue;
-      return;
-    }
-    if (name == "ylabel") {
-      this.yLabelDiv.innerText = newValue;
-      return;
-    }
-    if (name == "xlabel") {
-      this.xLabelDiv.innerText = newValue;
-      return;
-    }
-    this.draw();
-  }
-
-  handleCanvasMove(event) {
-    this.mouseX = event.offsetX;
-    this.mouseY = event.offsetY;
-    this.draw();
-  }
-  xPosition(i) {
-    let x = i;
-    if (this.xLog) x = Math.log(x);
-    return x / this.xMax * this.canvas.width;
-  }
-  yPosition(i) {
-    let bucketLength = this.histogram[i].length;
-    if (this.yLog) {
-      return (1 - Math.log(bucketLength) / Math.log(this.yMax)) * this.drawHeight + 10;
-    } else {
-     return (1 - bucketLength / this.yMax) * this.drawHeight + 10;
-    }
-  }
-
-  get drawHeight() { return this.canvas.height - 10 }
-
-  draw() {
-    if (!this.histogram) return;
-    let width = this.canvas.width;
-    let height = this.drawHeight;
-    let ctx = this.canvas.getContext("2d");
-    if (this.xLog) yMax = Math.log(yMax);
-    let xMax = this.histogram.length;
-    if (this.yLog) xMax = Math.log(xMax);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.beginPath();
-    ctx.moveTo(0, height);
-    for (let i = 0; i < this.histogram.length; i++) {
-      ctx.lineTo(this.xPosition(i), this.yPosition(i));
-    }
-    ctx.lineTo(width, height);
-    ctx.closePath;
-    ctx.stroke();
-    ctx.fill();
-    if (!this.mouseX) return;
-    ctx.beginPath();
-    let index = Math.round(this.mouseX);
-    let yBucket = this.histogram[index];
-    let y = this.yPosition(index);
-    if (this.yLog) y = Math.log(y);
-    ctx.moveTo(0, y);
-    ctx.lineTo(width-40, y);
-    ctx.moveTo(this.mouseX, 0);
-    ctx.lineTo(this.mouseX, height);
-    ctx.stroke();
-    ctx.textAlign = "left";
-    ctx.fillText(yBucket.length, width-30, y);
-  }
-});
 
 </script>
 </head>
-<template id="x-histogram-template">
-  <style>
-    #yLabel {
-      transform: rotate(90deg);
-    }
-    canvas, #yLabel, #info { float: left; }
-    #xLabel { clear: both }
-  </style>
-  <h2></h2>
-  <div id="yLabel"></div>
-  <canvas height=50></canvas>
-  <div id="info">
-  </div>
-  <div id="xLabel"></div>
-</template>
-
 <body onload="handleBodyLoad(event)" onkeypress="handleKeyDown(event)">
-  <h2>Data</h2>
+  <h1>V8 Map Explorer</h1>
   <section>
-    <form name="fileForm">
-      <p>
-        <input id="uploadInput" type="file" name="files">
-      </p>
-    </form>
+    <div id="fileReader" tabindex=1 >
+      <span id="label">
+        Drag and drop a v8.log file into this area, or click to choose from disk.
+      </span>
+      <input id="file" type="file" name="files">
+    </div>
+    <div id="loader">
+      <div id="spinner"></div>
+    </div>
   </section>
 
-  <h2>Stats</h2>
-  <section id="stats"></section>
+  <div id="content">
+    <h2>Stats</h2>
+    <section id="stats"></section>
 
-  <h2>Timeline</h2>
-  <div id="timeline">
-    <div id=timelineChunks></div>
-    <canvas id="timelineCanvas" ></canvas>
-  </div>
-  <div id="timelineOverview"
-      onmousemove="handleTimelineIndicatorMove(event)" >
-    <div id="timelineOverviewIndicator">
-      <div class="leftMask"></div>
-      <div class="rightMask"></div>
+    <h2>Timeline</h2>
+    <div id="timeline">
+      <div id="timelineLabel">Frequency</div>
+      <div id="timelineChunks"></div>
+      <canvas id="timelineCanvas"></canvas>
     </div>
+    <div id="timelineOverview"
+        onmousemove="handleTimelineIndicatorMove(event)" >
+      <div id="timelineOverviewIndicator">
+        <div class="leftMask"></div>
+        <div class="rightMask"></div>
+      </div>
+    </div>
+
+    <h2>Transitions</h2>
+    <section id="transitionView"></section>
+    <br/>
+
+    <h2>Selected Map</h2>
+    <section id="mapDetails"></section>
   </div>
 
-  <h2>Transitions</h2>
-  <section id="transitionView"></section>
-  <br/>
-
-  <h2>Selected Map</h2>
-  <section id="mapDetails"></section>
-
-  <x-histogram id="mapsDepthHistogram"
-      title="Maps Depth" xlabel="depth" ylabel="nof"></x-histogram>
-  <x-histogram id="mapsFanOutHistogram" xlabel="fan-out"
-      title="Maps Fan-out" ylabel="nof"></x-histogram>
+  <h2>Instructions</h2>
+  <section>
+    <p>Visualize Map trees that have been gathere using <code>--trace-maps</code>.</p>
+  </section>
 
   <div id="tooltip">
     <div id="tooltipContents"></div>

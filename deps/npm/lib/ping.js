@@ -1,5 +1,16 @@
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
+'use strict'
+
+const npmConfig = require('./config/figgy-config.js')
+const fetch = require('libnpm/fetch')
+const figgyPudding = require('figgy-pudding')
+const log = require('npmlog')
+const npm = require('./npm.js')
+const output = require('./utils/output.js')
+
+const PingConfig = figgyPudding({
+  json: {},
+  registry: {}
+})
 
 module.exports = ping
 
@@ -10,18 +21,27 @@ function ping (args, silent, cb) {
     cb = silent
     silent = false
   }
-  var registry = npm.config.get('registry')
-  if (!registry) return cb(new Error('no default registry set'))
-  var auth = npm.config.getCredentialsByURI(registry)
 
-  npm.registry.ping(registry, {auth: auth}, function (er, pong, data, res) {
-    if (!silent) {
-      if (er) {
-        output('Ping error: ' + er)
-      } else {
-        output('Ping success: ' + JSON.stringify(pong))
+  const opts = PingConfig(npmConfig())
+  const registry = opts.registry
+  log.notice('PING', registry)
+  const start = Date.now()
+  return fetch('/-/ping?write=true', opts).then(
+    res => res.json().catch(() => ({}))
+  ).then(details => {
+    if (silent) {
+    } else {
+      const time = Date.now() - start
+      log.notice('PONG', `${time / 1000}ms`)
+      if (npm.config.get('json')) {
+        output(JSON.stringify({
+          registry,
+          time,
+          details
+        }, null, 2))
+      } else if (Object.keys(details).length) {
+        log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
       }
     }
-    cb(er, er ? null : pong, data, res)
-  })
+  }).nodeify(cb)
 }

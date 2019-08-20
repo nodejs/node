@@ -82,7 +82,7 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
   return fn;
 };
 
-// regular alphanumerics
+// Regular alphanumerics
 addTest('io.JS', [
   { name: 'i', sequence: 'i' },
   { name: 'o', sequence: 'o' },
@@ -91,31 +91,37 @@ addTest('io.JS', [
   { name: 's', sequence: 'S', shift: true },
 ]);
 
-// named characters
+// Named characters
 addTest('\n\r\t', [
   { name: 'enter', sequence: '\n' },
   { name: 'return', sequence: '\r' },
   { name: 'tab', sequence: '\t' },
 ]);
 
-// space and backspace
-addTest('\b\x7f\x1b\b\x1b\x7f \x1b ', [
+// Space and backspace
+addTest('\b\x7f\x1b\b\x1b\x7f\x1b\x1b  \x1b ', [
   { name: 'backspace', sequence: '\b' },
   { name: 'backspace', sequence: '\x7f' },
   { name: 'backspace', sequence: '\x1b\b', meta: true },
   { name: 'backspace', sequence: '\x1b\x7f', meta: true },
+  { name: 'space', sequence: '\x1b\x1b ', meta: true },
   { name: 'space', sequence: ' ' },
   { name: 'space', sequence: '\x1b ', meta: true },
 ]);
 
-// control keys
+// Escape key
+addTest('\x1b\x1b\x1b', [
+  { name: 'escape', sequence: '\x1b\x1b\x1b', meta: true },
+]);
+
+// Control keys
 addTest('\x01\x0b\x10', [
   { name: 'a', sequence: '\x01', ctrl: true },
   { name: 'k', sequence: '\x0b', ctrl: true },
   { name: 'p', sequence: '\x10', ctrl: true },
 ]);
 
-// alt keys
+// Alt keys
 addTest('a\x1baA\x1bA', [
   { name: 'a', sequence: 'a' },
   { name: 'a', sequence: '\x1ba', meta: true },
@@ -139,7 +145,7 @@ addTest('\x1b[11~\x1b[12~\x1b[13~\x1b[14~', [
   { name: 'f4', sequence: '\x1b[14~', code: '[14~' },
 ]);
 
-// from Cygwin and used in libuv
+// From Cygwin and used in libuv
 addTest('\x1b[[A\x1b[[B\x1b[[C\x1b[[D\x1b[[E', [
   { name: 'f1', sequence: '\x1b[[A', code: '[[A' },
   { name: 'f2', sequence: '\x1b[[B', code: '[[B' },
@@ -148,7 +154,7 @@ addTest('\x1b[[A\x1b[[B\x1b[[C\x1b[[D\x1b[[E', [
   { name: 'f5', sequence: '\x1b[[E', code: '[[E' },
 ]);
 
-// common
+// Common
 addTest('\x1b[15~\x1b[17~\x1b[18~\x1b[19~\x1b[20~\x1b[21~\x1b[23~\x1b[24~', [
   { name: 'f5', sequence: '\x1b[15~', code: '[15~' },
   { name: 'f6', sequence: '\x1b[17~', code: '[17~' },
@@ -182,7 +188,7 @@ addTest('\x1bOA\x1bOB\x1bOC\x1bOD\x1bOE\x1bOF\x1bOH', [
   { name: 'home', sequence: '\x1bOH', code: 'OH' },
 ]);
 
-// old xterm shift-arrows
+// Old xterm shift-arrows
 addTest('\x1bO2A\x1bO2B', [
   { name: 'up', sequence: '\x1bO2A', code: 'OA', shift: true },
   { name: 'down', sequence: '\x1bO2B', code: 'OB', shift: true },
@@ -218,7 +224,7 @@ addTest('\x1b[A\x1b[B\x1b[2A\x1b[2B', [
   { name: 'down', sequence: '\x1b[2B', code: '[B', shift: true },
 ]);
 
-// rxvt keys with modifiers
+// `rxvt` keys with modifiers.
 // eslint-disable-next-line max-len
 addTest('\x1b[20~\x1b[2$\x1b[2^\x1b[3$\x1b[3^\x1b[5$\x1b[5^\x1b[6$\x1b[6^\x1b[7$\x1b[7^\x1b[8$\x1b[8^', [
   { name: 'f9', sequence: '\x1b[20~', code: '[20~' },
@@ -236,7 +242,7 @@ addTest('\x1b[20~\x1b[2$\x1b[2^\x1b[3$\x1b[3^\x1b[5$\x1b[5^\x1b[6$\x1b[6^\x1b[7$
   { name: 'end', sequence: '\x1b[8^', code: '[8^', ctrl: true },
 ]);
 
-// misc
+// Misc
 addTest('\x1b[Z', [
   { name: 'tab', sequence: '\x1b[Z', code: '[Z', shift: true },
 ]);
@@ -253,7 +259,7 @@ addTest('\x1b[H\x1b[5H\x1b[1;5H', [
   { name: 'home', sequence: '\x1b[1;5H', code: '[H', ctrl: true },
 ]);
 
-// escape sequences broken into multiple data chunks
+// Escape sequences broken into multiple data chunks
 addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
   { name: 'right', sequence: '\x1b[C', code: '[C' },
@@ -261,7 +267,7 @@ addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'right', sequence: '\x1b[C', code: '[C' },
 ]);
 
-// escape sequences mixed with regular ones
+// Escape sequences mixed with regular ones
 addTest('\x1b[DD\x1b[2DD\x1b[2^D', [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
   { name: 'd', sequence: 'D', shift: true },
@@ -271,7 +277,7 @@ addTest('\x1b[DD\x1b[2DD\x1b[2^D', [
   { name: 'd', sequence: 'D', shift: true },
 ]);
 
-// color sequences
+// Color sequences
 addTest('\x1b[31ma\x1b[39ma', [
   { name: 'undefined', sequence: '\x1b[31m', code: '[31m' },
   { name: 'a', sequence: 'a' },
@@ -279,14 +285,31 @@ addTest('\x1b[31ma\x1b[39ma', [
   { name: 'a', sequence: 'a' },
 ]);
 
+// `rxvt` keys with modifiers.
+addTest('\x1b[a\x1b[b\x1b[c\x1b[d\x1b[e', [
+  { name: 'up', sequence: '\x1b[a', code: '[a', shift: true },
+  { name: 'down', sequence: '\x1b[b', code: '[b', shift: true },
+  { name: 'right', sequence: '\x1b[c', code: '[c', shift: true },
+  { name: 'left', sequence: '\x1b[d', code: '[d', shift: true },
+  { name: 'clear', sequence: '\x1b[e', code: '[e', shift: true },
+]);
+
+addTest('\x1bOa\x1bOb\x1bOc\x1bOd\x1bOe', [
+  { name: 'up', sequence: '\x1bOa', code: 'Oa', ctrl: true },
+  { name: 'down', sequence: '\x1bOb', code: 'Ob', ctrl: true },
+  { name: 'right', sequence: '\x1bOc', code: 'Oc', ctrl: true },
+  { name: 'left', sequence: '\x1bOd', code: 'Od', ctrl: true },
+  { name: 'clear', sequence: '\x1bOe', code: 'Oe', ctrl: true },
+]);
+
 // Reduce array of addKeyIntervalTest(..) right to left
-// with () => {} as initial function
+// with () => {} as initial function.
 const runKeyIntervalTests = [
-  // escape character
+  // Escape character
   addKeyIntervalTest('\x1b', [
     { name: 'escape', sequence: '\x1b', meta: true }
   ]),
-  // chain of escape characters
+  // Chain of escape characters.
   addKeyIntervalTest('\x1b\x1b\x1b\x1b'.split(''), [
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true },
@@ -295,5 +318,5 @@ const runKeyIntervalTests = [
   ])
 ].reverse().reduce((acc, fn) => fn(acc), () => {});
 
-// run key interval tests one after another
+// Run key interval tests one after another.
 runKeyIntervalTests();

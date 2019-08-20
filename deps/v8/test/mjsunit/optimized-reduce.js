@@ -5,6 +5,31 @@
 // Flags: --allow-natives-syntax --expose-gc --turbo-inline-array-builtins
 // Flags: --opt --no-always-opt
 
+// Unknown field access leads to eager-deopt unrelated to reduce, should still
+// lead to correct result.
+(() => {
+  const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  // For this particular eager deopt point to work, we need to dodge
+  // TurboFan's soft-deopts through a non-inlined and non-optimized function
+  // call to foo().
+  function foo(o, deopt) { if (deopt) { o.abc = 3; }}
+  %NeverOptimizeFunction(foo);
+  function eagerDeoptInCalled(deopt) {
+    return a.reduce((r, v, i, o) => {
+      if (i === 7) {
+        foo(a, deopt);
+      }
+      return r + "S";
+    }, "H");
+  }
+  %PrepareFunctionForOptimization(eagerDeoptInCalled);
+  eagerDeoptInCalled();
+  eagerDeoptInCalled();
+  %OptimizeFunctionOnNextCall(eagerDeoptInCalled);
+  eagerDeoptInCalled();
+  assertEquals("HSSSSSSSSSS", eagerDeoptInCalled(true));
+})();
+
 // Make sure we gracefully handle the case of an empty array in
 // optimized code.
 (function() {
@@ -14,7 +39,8 @@
       a = [,,,];  // also a holey smi array.
     }
     return a.reduce((r,v,i,o)=>r+v);
-  }
+  };
+  %PrepareFunctionForOptimization(nothingThere);
   nothingThere();
   nothingThere();
   %OptimizeFunctionOnNextCall(nothingThere);
@@ -38,6 +64,7 @@
   } catch (e) {
     assertTrue(re.exec(e.stack) !== null);
   }
+  %PrepareFunctionForOptimization(alwaysThrows);
   try { alwaysThrows(); } catch (e) {}
   try { alwaysThrows(); } catch (e) {}
   %OptimizeFunctionOnNextCall(alwaysThrows);

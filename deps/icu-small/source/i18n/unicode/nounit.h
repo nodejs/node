@@ -13,6 +13,7 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DRAFT_API
 
 #include "unicode/measunit.h"
 
@@ -23,7 +24,6 @@
 
 U_NAMESPACE_BEGIN
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Dimensionless unit for percent and permille.
  * @see NumberFormatter
@@ -62,6 +62,12 @@ public:
     NoUnit(const NoUnit& other);
 
     /**
+     * Destructor.
+     * @draft ICU 60
+     */
+    virtual ~NoUnit();
+
+    /**
      * Return a polymorphic clone of this object.  The result will
      * have the same class as returned by getDynamicClassID().
      * @draft ICU 60
@@ -86,12 +92,6 @@ public:
      */
     static UClassID U_EXPORT2 getStaticClassID();
 
-    /**
-     * Destructor.
-     * @draft ICU 60
-     */
-    virtual ~NoUnit();
-
 private:
     /**
      * Constructor
@@ -100,10 +100,10 @@ private:
     NoUnit(const char* subtype);
 
 };
-#endif  /* U_HIDE_DRAFT_API */
 
 U_NAMESPACE_END
 
+#endif  /* U_HIDE_DRAFT_API */
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif // __NOUNIT_H__

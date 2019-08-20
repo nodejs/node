@@ -6,6 +6,7 @@
 
 #include "src/compiler/store-store-elimination.h"
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
@@ -32,7 +33,7 @@ namespace compiler {
     if (V8_UNLIKELY(!(condition))) {                                          \
       FATAL("Check failed: %s. Extra info: " fmt, #condition, ##__VA_ARGS__); \
     }                                                                         \
-  } while (0)
+  } while (false)
 
 #ifdef DEBUG
 #define DCHECK_EXTRA(condition, fmt, ...) \
@@ -71,7 +72,7 @@ namespace compiler {
 
 namespace {
 
-typedef uint32_t StoreOffset;
+using StoreOffset = uint32_t;
 
 struct UnobservableStore {
   NodeId id_;
@@ -100,9 +101,9 @@ class UnobservablesSet final {
   static UnobservablesSet Unvisited();
   static UnobservablesSet VisitedEmpty(Zone* zone);
   UnobservablesSet();  // unvisited
-  UnobservablesSet(const UnobservablesSet& other) : set_(other.set_) {}
+  UnobservablesSet(const UnobservablesSet& other) V8_NOEXCEPT = default;
 
-  UnobservablesSet Intersect(UnobservablesSet other, Zone* zone) const;
+  UnobservablesSet Intersect(const UnobservablesSet& other, Zone* zone) const;
   UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
 
@@ -129,7 +130,8 @@ namespace {
 
 class RedundantStoreFinder final {
  public:
-  RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone);
+  RedundantStoreFinder(JSGraph* js_graph, TickCounter* tick_counter,
+                       Zone* temp_zone);
 
   void Find();
 
@@ -140,13 +142,14 @@ class RedundantStoreFinder final {
  private:
   void VisitEffectfulNode(Node* node);
   UnobservablesSet RecomputeUseIntersection(Node* node);
-  UnobservablesSet RecomputeSet(Node* node, UnobservablesSet uses);
+  UnobservablesSet RecomputeSet(Node* node, const UnobservablesSet& uses);
   static bool CannotObserveStoreField(Node* node);
 
   void MarkForRevisit(Node* node);
   bool HasBeenVisited(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() { return jsgraph()->isolate(); }
   Zone* temp_zone() const { return temp_zone_; }
   ZoneVector<UnobservablesSet>& unobservable() { return unobservable_; }
   UnobservablesSet& unobservable_for_id(NodeId id) {
@@ -156,6 +159,7 @@ class RedundantStoreFinder final {
   ZoneSet<Node*>& to_remove() { return to_remove_; }
 
   JSGraph* const jsgraph_;
+  TickCounter* const tick_counter_;
   Zone* const temp_zone_;
 
   ZoneStack<Node*> revisit_;
@@ -198,6 +202,7 @@ void RedundantStoreFinder::Find() {
   Visit(jsgraph()->graph()->end());
 
   while (!revisit_.empty()) {
+    tick_counter_->DoTick();
     Node* next = revisit_.top();
     revisit_.pop();
     DCHECK_LT(next->id(), in_revisit_.size());
@@ -229,9 +234,10 @@ bool RedundantStoreFinder::HasBeenVisited(Node* node) {
   return !unobservable_for_id(node->id()).IsUnvisited();
 }
 
-void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
+void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
+                                Zone* temp_zone) {
   // Find superfluous nodes
-  RedundantStoreFinder finder(js_graph, temp_zone);
+  RedundantStoreFinder finder(js_graph, tick_counter, temp_zone);
   finder.Find();
 
   // Remove superfluous nodes
@@ -251,12 +257,12 @@ void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
 // Recompute unobservables-set for a node. Will also mark superfluous nodes
 // as to be removed.
 
-UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
-                                                    UnobservablesSet uses) {
+UnobservablesSet RedundantStoreFinder::RecomputeSet(
+    Node* node, const UnobservablesSet& uses) {
   switch (node->op()->opcode()) {
     case IrOpcode::kStoreField: {
       Node* stored_to = node->InputAt(0);
-      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      const FieldAccess& access = FieldAccessOf(node->op());
       StoreOffset offset = ToOffset(access);
 
       UnobservableStore observation = {stored_to->id(), offset};
@@ -297,7 +303,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
     }
     case IrOpcode::kLoadField: {
       Node* loaded_from = node->InputAt(0);
-      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      const FieldAccess& access = FieldAccessOf(node->op());
       StoreOffset offset = ToOffset(access);
 
       TRACE(
@@ -335,8 +341,11 @@ bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
 }
 
 // Initialize unobservable_ with js_graph->graph->NodeCount() empty sets.
-RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone)
+RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph,
+                                           TickCounter* tick_counter,
+                                           Zone* temp_zone)
     : jsgraph_(js_graph),
+      tick_counter_(tick_counter),
       temp_zone_(temp_zone),
       revisit_(temp_zone),
       in_revisit_(js_graph->graph()->NodeCount(), temp_zone),
@@ -471,7 +480,7 @@ UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
 // Computes the intersection of two UnobservablesSets. May return
 // UnobservablesSet::Unvisited() instead of an empty UnobservablesSet for
 // speed.
-UnobservablesSet UnobservablesSet::Intersect(UnobservablesSet other,
+UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
                                              Zone* zone) const {
   if (IsEmpty() || other.IsEmpty()) {
     return Unvisited();

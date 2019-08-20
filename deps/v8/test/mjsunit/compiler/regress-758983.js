@@ -13,6 +13,7 @@ function f(b) {
   return r < 0;
 }
 
+%PrepareFunctionForOptimization(f);
 f(true);
 f(true);
 %OptimizeFunctionOnNextCall(f);

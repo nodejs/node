@@ -3,6 +3,7 @@
 const BB = require('bluebird')
 
 const contentPath = require('./content/path')
+const figgyPudding = require('figgy-pudding')
 const finished = BB.promisify(require('mississippi').finished)
 const fixOwner = require('./util/fix-owner')
 const fs = require('graceful-fs')
@@ -14,10 +15,20 @@ const ssri = require('ssri')
 
 BB.promisifyAll(fs)
 
+const VerifyOpts = figgyPudding({
+  concurrency: {
+    default: 20
+  },
+  filter: {},
+  log: {
+    default: { silly () {} }
+  }
+})
+
 module.exports = verify
 function verify (cache, opts) {
-  opts = opts || {}
-  opts.log && opts.log.silly('verify', 'verifying cache at', cache)
+  opts = VerifyOpts(opts)
+  opts.log.silly('verify', 'verifying cache at', cache)
   return BB.reduce([
     markStartTime,
     fixPerms,
@@ -40,7 +51,7 @@ function verify (cache, opts) {
     })
   }, {}).tap(stats => {
     stats.runTime.total = stats.endTime - stats.startTime
-    opts.log && opts.log.silly('verify', 'verification finished for', cache, 'in', `${stats.runTime.total}ms`)
+    opts.log.silly('verify', 'verification finished for', cache, 'in', `${stats.runTime.total}ms`)
   })
 }
 
@@ -53,10 +64,10 @@ function markEndTime (cache, opts) {
 }
 
 function fixPerms (cache, opts) {
-  opts.log && opts.log.silly('verify', 'fixing cache permissions')
-  return fixOwner.mkdirfix(cache, opts.uid, opts.gid).then(() => {
+  opts.log.silly('verify', 'fixing cache permissions')
+  return fixOwner.mkdirfix(cache, cache).then(() => {
     // TODO - fix file permissions too
-    return fixOwner.chownr(cache, opts.uid, opts.gid)
+    return fixOwner.chownr(cache, cache)
   }).then(() => null)
 }
 
@@ -70,11 +81,11 @@ function fixPerms (cache, opts) {
 // 5. If content is not marked as live, rimraf it.
 //
 function garbageCollect (cache, opts) {
-  opts.log && opts.log.silly('verify', 'garbage collecting content')
+  opts.log.silly('verify', 'garbage collecting content')
   const indexStream = index.lsStream(cache)
   const liveContent = new Set()
   indexStream.on('data', entry => {
-    if (opts && opts.filter && !opts.filter(entry)) { return }
+    if (opts.filter && !opts.filter(entry)) { return }
     liveContent.add(entry.integrity.toString())
   })
   return finished(indexStream).then(() => {
@@ -117,7 +128,7 @@ function garbageCollect (cache, opts) {
             })
           })
         }
-      }, {concurrency: opts.concurrency || 20}))
+      }, { concurrency: opts.concurrency }))
     })
   })
 }
@@ -137,11 +148,11 @@ function verifyContent (filepath, sri) {
         contentInfo.valid = false
       })
     }).then(() => contentInfo)
-  }).catch({code: 'ENOENT'}, () => ({size: 0, valid: false}))
+  }).catch({ code: 'ENOENT' }, () => ({ size: 0, valid: false }))
 }
 
 function rebuildIndex (cache, opts) {
-  opts.log && opts.log.silly('verify', 'rebuilding index')
+  opts.log.silly('verify', 'rebuilding index')
   return index.ls(cache).then(entries => {
     const stats = {
       missingContent: 0,
@@ -153,7 +164,7 @@ function rebuildIndex (cache, opts) {
       if (entries.hasOwnProperty(k)) {
         const hashed = index._hashKey(k)
         const entry = entries[k]
-        const excluded = opts && opts.filter && !opts.filter(entry)
+        const excluded = opts.filter && !opts.filter(entry)
         excluded && stats.rejectedEntries++
         if (buckets[hashed] && !excluded) {
           buckets[hashed].push(entry)
@@ -170,7 +181,7 @@ function rebuildIndex (cache, opts) {
     }
     return BB.map(Object.keys(buckets), key => {
       return rebuildBucket(cache, buckets[key], stats, opts)
-    }, {concurrency: opts.concurrency || 20}).then(() => stats)
+    }, { concurrency: opts.concurrency }).then(() => stats)
   })
 }
 
@@ -182,11 +193,10 @@ function rebuildBucket (cache, bucket, stats, opts) {
       const content = contentPath(cache, entry.integrity)
       return fs.statAsync(content).then(() => {
         return index.insert(cache, entry.key, entry.integrity, {
-          uid: opts.uid,
-          gid: opts.gid,
-          metadata: entry.metadata
+          metadata: entry.metadata,
+          size: entry.size
         }).then(() => { stats.totalEntries++ })
-      }).catch({code: 'ENOENT'}, () => {
+      }).catch({ code: 'ENOENT' }, () => {
         stats.rejectedEntries++
         stats.missingContent++
       })
@@ -195,14 +205,18 @@ function rebuildBucket (cache, bucket, stats, opts) {
 }
 
 function cleanTmp (cache, opts) {
-  opts.log && opts.log.silly('verify', 'cleaning tmp directory')
+  opts.log.silly('verify', 'cleaning tmp directory')
   return rimraf(path.join(cache, 'tmp'))
 }
 
 function writeVerifile (cache, opts) {
   const verifile = path.join(cache, '_lastverified')
-  opts.log && opts.log.silly('verify', 'writing verifile to ' + verifile)
-  return fs.writeFileAsync(verifile, '' + (+(new Date())))
+  opts.log.silly('verify', 'writing verifile to ' + verifile)
+  try {
+    return fs.writeFileAsync(verifile, '' + (+(new Date())))
+  } finally {
+    fixOwner.chownr.sync(cache, verifile)
+  }
 }
 
 module.exports.lastRun = lastRun

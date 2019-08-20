@@ -26,7 +26,7 @@
 #
 # (*)	64-bit code in 32-bit application context, which actually is
 #	on TODO list. It should be noted that for safe deployment in
-#	32-bit *mutli-threaded* context asyncronous signals should be
+#	32-bit *multi-threaded* context asynchronous signals should be
 #	blocked upon entry to SHA512 block routine. This is because
 #	32-bit signaling procedure invalidates upper halves of GPRs.
 #	Context switch procedure preserves them, but not signaling:-(

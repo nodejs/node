@@ -83,7 +83,7 @@
 
 /*
  * Verify that the size previously defined and expected for
- * ares_socklen_t is actually the the same as the one reported
+ * ares_socklen_t is actually the same as the one reported
  * by sizeof() at compile time.
  */
 

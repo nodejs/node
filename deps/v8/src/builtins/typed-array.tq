@@ -1,0 +1,379 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type Uint8Elements;
+  type Int8Elements;
+  type Uint16Elements;
+  type Int16Elements;
+  type Uint32Elements;
+  type Int32Elements;
+  type Float32Elements;
+  type Float64Elements;
+  type Uint8ClampedElements;
+  type BigUint64Elements;
+  type BigInt64Elements;
+
+  struct TypedArrayElementsInfo {
+    // Calculates the number of bytes required for specified number of elements.
+    CalculateByteLength(lengthSmi: PositiveSmi): uintptr labels IfInvalid {
+      const length = Convert<uintptr>(lengthSmi);
+      const byteLength = length << this.sizeLog2;
+      // If an overflow ocurred, the byte length exceeds
+      // JSArrayBuffer::kMaxByteLength and is invalid.
+      if (byteLength >>> this.sizeLog2 != length) goto IfInvalid;
+      return byteLength;
+    }
+
+    // Calculates the maximum number of elements supported by a specified number
+    // of bytes.
+    CalculateLength(byteLength: uintptr): PositiveSmi labels IfInvalid {
+      return Convert<PositiveSmi>(byteLength >>> this.sizeLog2)
+          otherwise IfInvalid;
+    }
+
+    // Determines if `bytes` (byte offset or length) cannot be evenly divided by
+    // element size.
+    IsUnaligned(bytes: uintptr): bool {
+      // Exploits the fact the element size is a power of 2. Determining whether
+      // there is remainder (not aligned) can be achieved efficiently with bit
+      // masking. Shift is safe as sizeLog2 can be 3 at most (see
+      // ElementsKindToShiftSize).
+      return (bytes & ((1 << this.sizeLog2) - 1)) != 0;
+    }
+
+    sizeLog2: uintptr;
+    kind: ElementsKind;
+  }
+  extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
+  extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
+      Context, Object, constexpr string): JSTypedArray;
+
+  extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
+      RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemmove(
+      RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemset(
+      RawPtr, intptr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::GetBuffer(
+      implicit context: Context)(JSTypedArray): JSArrayBuffer;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
+      JSTypedArray): TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
+      TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
+      ElementsKind): bool;
+  extern macro LoadFixedTypedArrayElementAsTagged(
+      RawPtr, Smi, constexpr ElementsKind): Numeric;
+  extern macro StoreJSTypedArrayElementFromTagged(
+      Context, JSTypedArray, Smi, Object, constexpr ElementsKind);
+
+  type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
+  type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
+
+  // AttachedJSTypedArray guards that the array's buffer is not detached.
+  transient type AttachedJSTypedArray extends JSTypedArray;
+
+  macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
+      labels Detached {
+    if (IsDetachedBuffer(array.buffer)) goto Detached;
+    return %RawDownCast<AttachedJSTypedArray>(array);
+  }
+
+  struct AttachedJSTypedArrayWitness {
+    Get(): AttachedJSTypedArray {
+      return this.unstable;
+    }
+
+    GetStable(): JSTypedArray {
+      return this.stable;
+    }
+
+    Recheck() labels Detached {
+      if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+      this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
+    }
+
+    Load(implicit context: Context)(k: Smi): Object {
+      const lf: LoadFn = this.loadfn;
+      return lf(context, this.unstable, k);
+    }
+
+    stable: JSTypedArray;
+    unstable: AttachedJSTypedArray;
+    loadfn: LoadFn;
+  }
+
+  macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
+      AttachedJSTypedArrayWitness {
+    const kind = array.elements_kind;
+    return AttachedJSTypedArrayWitness{
+      stable: array,
+      unstable: array,
+      loadfn: GetLoadFnForElementsKind(kind)
+    };
+  }
+
+  macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        return LoadFixedElement<Int32Elements>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        return LoadFixedElement<Float32Elements>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        return LoadFixedElement<Float64Elements>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        return LoadFixedElement<Uint8ClampedElements>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        return LoadFixedElement<BigUint64Elements>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        return LoadFixedElement<BigInt64Elements>;
+      } else {
+        unreachable;
+      }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        return LoadFixedElement<Uint8Elements>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        return LoadFixedElement<Int8Elements>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        return LoadFixedElement<Uint16Elements>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        return LoadFixedElement<Int16Elements>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        return LoadFixedElement<Uint32Elements>;
+      } else {
+        unreachable;
+      }
+    }
+  }
+
+  macro KindForArrayType<T: type>(): constexpr ElementsKind;
+  KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
+    return UINT8_ELEMENTS;
+  }
+  KindForArrayType<Int8Elements>(): constexpr ElementsKind {
+    return INT8_ELEMENTS;
+  }
+  KindForArrayType<Uint16Elements>(): constexpr ElementsKind {
+    return UINT16_ELEMENTS;
+  }
+  KindForArrayType<Int16Elements>(): constexpr ElementsKind {
+    return INT16_ELEMENTS;
+  }
+  KindForArrayType<Uint32Elements>(): constexpr ElementsKind {
+    return UINT32_ELEMENTS;
+  }
+  KindForArrayType<Int32Elements>(): constexpr ElementsKind {
+    return INT32_ELEMENTS;
+  }
+  KindForArrayType<Float32Elements>(): constexpr ElementsKind {
+    return FLOAT32_ELEMENTS;
+  }
+  KindForArrayType<Float64Elements>(): constexpr ElementsKind {
+    return FLOAT64_ELEMENTS;
+  }
+  KindForArrayType<Uint8ClampedElements>(): constexpr ElementsKind {
+    return UINT8_CLAMPED_ELEMENTS;
+  }
+  KindForArrayType<BigUint64Elements>(): constexpr ElementsKind {
+    return BIGUINT64_ELEMENTS;
+  }
+  KindForArrayType<BigInt64Elements>(): constexpr ElementsKind {
+    return BIGINT64_ELEMENTS;
+  }
+
+  builtin LoadFixedElement<T: type>(
+      _context: Context, array: JSTypedArray, index: Smi): Object {
+    return LoadFixedTypedArrayElementAsTagged(
+        array.data_ptr, index, KindForArrayType<T>());
+  }
+
+  builtin StoreFixedElement<T: type>(
+      context: Context, typedArray: JSTypedArray, index: Smi,
+      value: Object): Object {
+    StoreJSTypedArrayElementFromTagged(
+        context, typedArray, index, value, KindForArrayType<T>());
+    return Undefined;
+  }
+
+  transitioning macro CallCompare(
+      implicit context: Context, array: JSTypedArray,
+      comparefn: Callable)(a: Object, b: Object): Number {
+    // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
+    const v: Number =
+        ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
+
+    // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    if (IsDetachedBuffer(array.buffer)) {
+      ThrowTypeError(kDetachedOperation, '%TypedArray%.prototype.sort');
+    }
+
+    // c. If v is NaN, return +0.
+    if (NumberIsNaN(v)) return 0;
+
+    // d. return v.
+    return v;
+  }
+
+  // Merges two sorted runs [from, middle) and [middle, to)
+  // from "source" into "target".
+  transitioning macro
+  TypedArrayMerge(
+      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+      source: FixedArray, from: Smi, middle: Smi, to: Smi, target: FixedArray) {
+    let left: Smi = from;
+    let right: Smi = middle;
+
+    for (let targetIndex: Smi = from; targetIndex < to; ++targetIndex) {
+      if (left < middle && right >= to) {
+        // If the left run has elements, but the right does not, we take
+        // from the left.
+        target.objects[targetIndex] = source.objects[left++];
+      } else if (left < middle) {
+        // If both have elements, we need to compare.
+        const leftElement: Object = source.objects[left];
+        const rightElement: Object = source.objects[right];
+        if (CallCompare(leftElement, rightElement) <= 0) {
+          target.objects[targetIndex] = leftElement;
+          left++;
+        } else {
+          target.objects[targetIndex] = rightElement;
+          right++;
+        }
+      } else {
+        // No elements on the left, but the right does, so we take
+        // from the right.
+        assert(left == middle);
+        target.objects[targetIndex] = source.objects[right++];
+      }
+    }
+  }
+
+  transitioning builtin
+  TypedArrayMergeSort(
+      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+      source: FixedArray, from: Smi, to: Smi, target: FixedArray): Object {
+    assert(to - from > 1);
+    const middle: Smi = from + ((to - from) >> 1);
+
+    // On the next recursion step source becomes target and vice versa.
+    // This saves the copy of the relevant range from the original
+    // array into a work array on each recursion step.
+    if (middle - from > 1) TypedArrayMergeSort(target, from, middle, source);
+    if (to - middle > 1) TypedArrayMergeSort(target, middle, to, source);
+
+    TypedArrayMerge(source, from, middle, to, target);
+
+    return Undefined;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
+  transitioning javascript builtin TypedArrayPrototypeSort(
+      js-implicit context: Context,
+      receiver: Object)(...arguments): JSTypedArray {
+    // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
+    //    throw a TypeError exception.
+    const comparefnObj: Object =
+        arguments.length > 0 ? arguments[0] : Undefined;
+    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
+      ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
+    }
+
+    // 2. Let obj be the this value.
+    const obj: Object = receiver;
+
+    // 3. Let buffer be ? ValidateTypedArray(obj).
+    //    ValidateTypedArray currently returns the array, not the ViewBuffer.
+    const array: JSTypedArray =
+        ValidateTypedArray(context, obj, '%TypedArray%.prototype.sort');
+
+    // Default sorting is done in C++ using std::sort
+    if (comparefnObj == Undefined) {
+      return TypedArraySortFast(context, obj);
+    }
+
+    // 4. Let len be obj.[[ArrayLength]].
+    // TODO(v8:4153): Support huge TypedArrays here.
+    const len = Cast<Smi>(Convert<Number>(array.length)) otherwise unreachable;
+
+    // Arrays of length 1 or less are considered sorted.
+    if (len < 2) return array;
+
+    const comparefn: Callable =
+        Cast<Callable>(comparefnObj) otherwise unreachable;
+    let loadfn: LoadFn;
+    let storefn: StoreFn;
+
+    const elementsKind: ElementsKind = array.elements_kind;
+
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        loadfn = LoadFixedElement<Int32Elements>;
+        storefn = StoreFixedElement<Int32Elements>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        loadfn = LoadFixedElement<Float32Elements>;
+        storefn = StoreFixedElement<Float32Elements>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        loadfn = LoadFixedElement<Float64Elements>;
+        storefn = StoreFixedElement<Float64Elements>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        loadfn = LoadFixedElement<Uint8ClampedElements>;
+        storefn = StoreFixedElement<Uint8ClampedElements>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        loadfn = LoadFixedElement<BigUint64Elements>;
+        storefn = StoreFixedElement<BigUint64Elements>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        loadfn = LoadFixedElement<BigInt64Elements>;
+        storefn = StoreFixedElement<BigInt64Elements>;
+      } else {
+        unreachable;
+      }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        loadfn = LoadFixedElement<Uint8Elements>;
+        storefn = StoreFixedElement<Uint8Elements>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        loadfn = LoadFixedElement<Int8Elements>;
+        storefn = StoreFixedElement<Int8Elements>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        loadfn = LoadFixedElement<Uint16Elements>;
+        storefn = StoreFixedElement<Uint16Elements>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        loadfn = LoadFixedElement<Int16Elements>;
+        storefn = StoreFixedElement<Int16Elements>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        loadfn = LoadFixedElement<Uint32Elements>;
+        storefn = StoreFixedElement<Uint32Elements>;
+      } else {
+        unreachable;
+      }
+    }
+
+    // Prepare the two work arrays. All numbers are converted to tagged
+    // objects first, and merge sorted between the two FixedArrays.
+    // The result is then written back into the JSTypedArray.
+    const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+    const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+
+    for (let i: Smi = 0; i < len; ++i) {
+      const element: Object = loadfn(context, array, i);
+      work1.objects[i] = element;
+      work2.objects[i] = element;
+    }
+
+    TypedArrayMergeSort(work2, 0, len, work1);
+
+    // work1 contains the sorted numbers. Write them back.
+    for (let i: Smi = 0; i < len; ++i)
+      storefn(context, array, i, work1.objects[i]);
+
+    return array;
+  }
+}

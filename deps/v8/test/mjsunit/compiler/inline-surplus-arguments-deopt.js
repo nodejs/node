@@ -16,5 +16,6 @@ function baz() {
          foo.arguments[2] == 15;
 }
 
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(true, bar(12, 14));

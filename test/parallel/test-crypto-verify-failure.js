@@ -29,9 +29,7 @@ const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
-const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const certPem = fixtures.readKey('rsa_cert.crt');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),

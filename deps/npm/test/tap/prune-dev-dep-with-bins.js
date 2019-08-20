@@ -1,12 +1,11 @@
 'use strict'
 var fs = require('fs')
-var path = require('path')
 var test = require('tap').test
 var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir
 var common = require('../common-tap.js')
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 
 var fixture = new Tacks(
   Dir({
@@ -50,7 +49,7 @@ var fixture = new Tacks(
           ') ELSE (\n' +
           '@SETLOCAL\n' +
           '@SET PATHEXT=%PATHEXT:;.JS;=;%\n' +
-          'node  "%~dp0\..\yes\yes.js" %*')
+          'node  "%~dp0\\..\\yes\\yes.js" %*')
       })
     }),
     'package.json': File({

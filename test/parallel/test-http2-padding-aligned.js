@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const { PADDING_STRATEGY_ALIGNED } = http2.constants;
+const { PADDING_STRATEGY_ALIGNED, PADDING_STRATEGY_CALLBACK } = http2.constants;
 const makeDuplexPair = require('../common/duplexpair');
 
 {
@@ -66,3 +66,6 @@ const makeDuplexPair = require('../common/duplexpair');
   }));
   req.end();
 }
+
+// PADDING_STRATEGY_CALLBACK has been aliased to mean aligned padding.
+assert.strictEqual(PADDING_STRATEGY_ALIGNED, PADDING_STRATEGY_CALLBACK);

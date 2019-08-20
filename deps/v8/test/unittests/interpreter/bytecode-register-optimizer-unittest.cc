@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
@@ -23,7 +23,7 @@ class BytecodeRegisterOptimizerTest
     Register output;
   };
 
-  BytecodeRegisterOptimizerTest() {}
+  BytecodeRegisterOptimizerTest() = default;
   ~BytecodeRegisterOptimizerTest() override { delete register_allocator_; }
 
   void Initialize(int number_of_parameters, int number_of_locals) {

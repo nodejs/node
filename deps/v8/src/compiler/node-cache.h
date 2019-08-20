@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_NODE_CACHE_H_
 #define V8_COMPILER_NODE_CACHE_H_
 
+#include "src/base/export-template.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
 
@@ -27,11 +28,11 @@ class Node;
 // nodes such as constants, parameters, etc.
 template <typename Key, typename Hash = base::hash<Key>,
           typename Pred = std::equal_to<Key> >
-class NodeCache final {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
  public:
   explicit NodeCache(unsigned max = 256)
       : entries_(nullptr), size_(0), max_(max) {}
-  ~NodeCache() {}
+  ~NodeCache() = default;
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
@@ -61,21 +62,32 @@ class NodeCache final {
 };
 
 // Various default cache types.
-typedef NodeCache<int32_t> Int32NodeCache;
-typedef NodeCache<int64_t> Int64NodeCache;
+using Int32NodeCache = NodeCache<int32_t>;
+using Int64NodeCache = NodeCache<int64_t>;
 
 // All we want is the numeric value of the RelocInfo::Mode enum. We typedef
 // below to avoid pulling in assembler.h
-typedef char RelocInfoMode;
-typedef std::pair<int32_t, RelocInfoMode> RelocInt32Key;
-typedef std::pair<int64_t, RelocInfoMode> RelocInt64Key;
-typedef NodeCache<RelocInt32Key> RelocInt32NodeCache;
-typedef NodeCache<RelocInt64Key> RelocInt64NodeCache;
+using RelocInfoMode = char;
+using RelocInt32Key = std::pair<int32_t, RelocInfoMode>;
+using RelocInt64Key = std::pair<int64_t, RelocInfoMode>;
+using RelocInt32NodeCache = NodeCache<RelocInt32Key>;
+using RelocInt64NodeCache = NodeCache<RelocInt64Key>;
 #if V8_HOST_ARCH_32_BIT
-typedef Int32NodeCache IntPtrNodeCache;
+using IntPtrNodeCache = Int32NodeCache;
 #else
-typedef Int64NodeCache IntPtrNodeCache;
+using IntPtrNodeCache = Int64NodeCache;
 #endif
+
+// Explicit instantiation declarations.
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<int32_t>;
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<int64_t>;
+
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<RelocInt32Key>;
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) NodeCache<RelocInt64Key>;
 
 }  // namespace compiler
 }  // namespace internal

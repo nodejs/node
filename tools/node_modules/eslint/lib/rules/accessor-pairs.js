@@ -72,24 +72,30 @@ function isPropertyDescriptor(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce getter and setter pairs in objects",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/accessor-pairs"
         },
+
         schema: [{
             type: "object",
             properties: {
                 getWithoutSet: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 },
                 setWithoutGet: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: true
                 }
             },
             additionalProperties: false
         }],
+
         messages: {
             getter: "Getter is not present.",
             setter: "Setter is not present."

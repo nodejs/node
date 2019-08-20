@@ -1,17 +1,34 @@
 'use strict'
 
+const figgyPudding = require('figgy-pudding')
 const index = require('./lib/entry-index')
 const memo = require('./lib/memoization')
 const write = require('./lib/content/write')
 const to = require('mississippi').to
 
+const PutOpts = figgyPudding({
+  algorithms: {
+    default: ['sha512']
+  },
+  integrity: {},
+  memoize: {},
+  metadata: {},
+  pickAlgorithm: {},
+  size: {},
+  tmpPrefix: {},
+  single: {},
+  sep: {},
+  error: {},
+  strict: {}
+})
+
 module.exports = putData
 function putData (cache, key, data, opts) {
-  opts = opts || {}
+  opts = PutOpts(opts)
   return write(cache, data, opts).then(res => {
-    // TODO - stop modifying opts
-    opts.size = res.size
-    return index.insert(cache, key, res.integrity, opts).then(entry => {
+    return index.insert(
+      cache, key, res.integrity, opts.concat({ size: res.size })
+    ).then(entry => {
       if (opts.memoize) {
         memo.put(cache, entry, data, opts)
       }
@@ -22,7 +39,7 @@ function putData (cache, key, data, opts) {
 
 module.exports.stream = putStream
 function putStream (cache, key, opts) {
-  opts = opts || {}
+  opts = PutOpts(opts)
   let integrity
   let size
   const contentStream = write.stream(
@@ -45,9 +62,7 @@ function putStream (cache, key, opts) {
     })
   }, cb => {
     contentStream.end(() => {
-      // TODO - stop modifying `opts`
-      opts.size = size
-      index.insert(cache, key, integrity, opts).then(entry => {
+      index.insert(cache, key, integrity, opts.concat({ size })).then(entry => {
         if (opts.memoize) {
           memo.put(cache, entry, Buffer.concat(memoData, memoTotal), opts)
         }

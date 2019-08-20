@@ -3,10 +3,9 @@
 const common = require('../common');
 const { Writable, Readable, Transform, finished } = require('stream');
 const assert = require('assert');
+const EE = require('events');
 const fs = require('fs');
 const { promisify } = require('util');
-
-common.crashOnUnhandledRejection();
 
 {
   const rs = new Readable({
@@ -93,8 +92,8 @@ common.crashOnUnhandledRejection();
 {
   const rs = fs.createReadStream('file-does-not-exist');
 
-  finished(rs, common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ENOENT');
+  finished(rs, common.expectsError({
+    code: 'ENOENT'
   }));
 }
 
@@ -106,7 +105,7 @@ common.crashOnUnhandledRejection();
   }));
 
   rs.push(null);
-  rs.emit('close'); // should not trigger an error
+  rs.emit('close'); // Should not trigger an error
   rs.resume();
 }
 
@@ -117,7 +116,71 @@ common.crashOnUnhandledRejection();
     assert(err, 'premature close error');
   }));
 
-  rs.emit('close'); // should trigger error
+  rs.emit('close'); // Should trigger error
   rs.push(null);
   rs.resume();
+}
+
+// Test faulty input values and options.
+{
+  const rs = new Readable({
+    read() {}
+  });
+
+  assert.throws(
+    () => finished(rs, 'foo'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /callback/
+    }
+  );
+  assert.throws(
+    () => finished(rs, 'foo', () => {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /opts/
+    }
+  );
+  assert.throws(
+    () => finished(rs, {}, 'foo'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /callback/
+    }
+  );
+
+  finished(rs, null, common.mustCall());
+
+  rs.push(null);
+  rs.resume();
+}
+
+// Test that calling returned function removes listeners
+{
+  const ws = new Writable({
+    write(data, env, cb) {
+      cb();
+    }
+  });
+  const removeListener = finished(ws, common.mustNotCall());
+  removeListener();
+  ws.end();
+}
+
+{
+  const rs = new Readable();
+  const removeListeners = finished(rs, common.mustNotCall());
+  removeListeners();
+
+  rs.emit('close');
+  rs.push(null);
+  rs.resume();
+}
+
+{
+  const streamLike = new EE();
+  streamLike.readableEnded = true;
+  streamLike.readable = true;
+  finished(streamLike, common.mustCall);
+  streamLike.emit('close');
 }

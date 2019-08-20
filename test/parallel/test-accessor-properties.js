@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -9,8 +10,9 @@ const assert = require('assert');
 
 // Objects that call StreamBase::AddMethods, when setting up
 // their prototype
-const TTY = process.binding('tty_wrap').TTY;
-const UDP = process.binding('udp_wrap').UDP;
+const { internalBinding } = require('internal/test/binding');
+const TTY = internalBinding('tty_wrap').TTY;
+const UDP = internalBinding('udp_wrap').UDP;
 
 {
   // Should throw instead of raise assertions
@@ -30,30 +32,21 @@ const UDP = process.binding('udp_wrap').UDP;
     UDP.prototype.fd;
   }, TypeError);
 
-  // Should not throw for Object.getOwnPropertyDescriptor
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'bytesRead'),
-    'object'
-  );
+  const StreamWrapProto = Object.getPrototypeOf(TTY.prototype);
+  const properties = ['bytesRead', 'fd', '_externalStream'];
 
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'fd'),
-    'object'
-  );
-
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(TTY.prototype, '_externalStream'),
-    'object'
-  );
-
-  assert.strictEqual(
-    typeof Object.getOwnPropertyDescriptor(UDP.prototype, 'fd'),
-    'object'
-  );
+  properties.forEach((property) => {
+    // Should not throw for Object.getOwnPropertyDescriptor
+    assert.strictEqual(
+      typeof Object.getOwnPropertyDescriptor(StreamWrapProto, property),
+      'object',
+      'typeof property descriptor ' + property + ' is not \'object\''
+    );
+  });
 
   if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     // There are accessor properties in crypto too
-    const crypto = process.binding('crypto');
+    const crypto = internalBinding('crypto');
 
     assert.throws(() => {
       crypto.SecureContext.prototype._external;

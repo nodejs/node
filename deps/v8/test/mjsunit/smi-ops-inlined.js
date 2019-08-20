@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --always-inline-smi-code
-
 const SMI_MAX = (1 << 30) - 1;
 const SMI_MIN = -(1 << 30);
 const ONE = 1;

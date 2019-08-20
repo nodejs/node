@@ -1,7 +1,41 @@
 ## Change Log
 
+### v2.87.0 (2018/05/21)
+- [#2943](https://github.com/request/request/pull/2943) Replace hawk dependency with a local implemenation (#2943) (@hueniverse)
+
+### v2.86.0 (2018/05/15)
+- [#2885](https://github.com/request/request/pull/2885) Remove redundant code (for Node.js 0.9.4 and below) and dependency (@ChALkeR)
+- [#2942](https://github.com/request/request/pull/2942) Make Test GREEN Again! (@simov)
+- [#2923](https://github.com/request/request/pull/2923) Alterations for failing CI tests (@gareth-robinson)
+
+### v2.85.0 (2018/03/12)
+- [#2880](https://github.com/request/request/pull/2880) Revert "Update hawk to 7.0.7 (#2880)" (@simov)
+
+### v2.84.0 (2018/03/12)
+- [#2793](https://github.com/request/request/pull/2793) Fixed calculation of oauth_body_hash, issue #2792 (@dvishniakov)
+- [#2880](https://github.com/request/request/pull/2880) Update hawk to 7.0.7 (#2880) (@kornel-kedzierski)
+
+### v2.83.0 (2017/09/27)
+- [#2776](https://github.com/request/request/pull/2776) Updating tough-cookie due to security fix. (#2776) (@karlnorling)
+
+### v2.82.0 (2017/09/19)
+- [#2703](https://github.com/request/request/pull/2703) Add Node.js v8 to Travis CI (@ryysud)
+- [#2751](https://github.com/request/request/pull/2751) Update of hawk and qs to latest version (#2751) (@Olivier-Moreau)
+- [#2658](https://github.com/request/request/pull/2658) Fixed some text in README.md (#2658) (@Marketionist)
+- [#2635](https://github.com/request/request/pull/2635) chore(package): update aws-sign2 to version 0.7.0 (#2635) (@greenkeeperio-bot)
+- [#2641](https://github.com/request/request/pull/2641) Update README to simplify & update convenience methods (#2641) (@FredKSchott)
+- [#2541](https://github.com/request/request/pull/2541) Add convenience method for HTTP OPTIONS (#2541) (@jamesseanwright)
+- [#2605](https://github.com/request/request/pull/2605) Add promise support section to README (#2605) (@FredKSchott)
+- [#2579](https://github.com/request/request/pull/2579) refactor(lint): replace eslint with standard (#2579) (@ahmadnassri)
+- [#2598](https://github.com/request/request/pull/2598) Update codecov to version 2.0.2 🚀 (@greenkeeperio-bot)
+- [#2590](https://github.com/request/request/pull/2590) Adds test-timing keepAlive test (@nicjansma)
+- [#2589](https://github.com/request/request/pull/2589) fix tabulation on request example README.MD (@odykyi)
+- [#2594](https://github.com/request/request/pull/2594) chore(dependencies): har-validator to 5.x [removes babel dep] (@ahmadnassri)
+
 ### v2.81.0 (2017/03/09)
 - [#2584](https://github.com/request/request/pull/2584) Security issue: Upgrade qs to version 6.4.0 (@sergejmueller)
+- [#2578](https://github.com/request/request/pull/2578) safe-buffer doesn't zero-fill by default, its just a polyfill. (#2578) (@mikeal)
+- [#2566](https://github.com/request/request/pull/2566) Timings: Tracks 'lookup', adds 'wait' time, fixes connection re-use (#2566) (@nicjansma)
 - [#2574](https://github.com/request/request/pull/2574) Migrating to safe-buffer for improved security. (@mikeal)
 - [#2573](https://github.com/request/request/pull/2573) fixes #2572 (@ahmadnassri)
 
@@ -186,7 +220,8 @@
 - [#1687](https://github.com/request/request/pull/1687) Fix caseless bug - content-type not being set for multipart/form-data (@simov, @garymathews)
 
 ### v2.59.0 (2015/07/20)
-- [#1671](https://github.com/request/request/pull/1671) Add tests and docs for using the agent, agentClass, agentOptions and forever options. Forever option defaults to using http(s).Agent in node 0.12+ (@simov)
+- [#1671](https://github.com/request/request/pull/1671) Add tests and docs for using the agent, agentClass, agentOptions and forever options.
+ Forever option defaults to using http(s).Agent in node 0.12+ (@simov)
 - [#1679](https://github.com/request/request/pull/1679) Fix - do not remove OAuth param when using OAuth realm (@simov, @jhalickman)
 - [#1668](https://github.com/request/request/pull/1668) updated dependencies (@deamme)
 - [#1656](https://github.com/request/request/pull/1656) Fix form method (@simov)

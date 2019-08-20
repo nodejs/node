@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 let {session, contextGroup, Protocol} =
   InspectorTest.start('Checks Runtime.queryObjects');
 
@@ -116,7 +118,71 @@ InspectorTest.runAsyncTestSuite([
       await queryObjects(session, objectId, 'p');
     }
     session.disconnect();
-  }
+  },
+
+  async function testQueryObjectsWithFeedbackVector() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'Object.prototype',
+    });
+    let countBefore = await countObjects(session, objectId);
+    await Protocol.Runtime.evaluate({
+      returnByValue: true,
+      expression: `
+        global.dummyFunction = () => {
+          [42];
+          {foo: 'bar'};
+          [1,2,3];
+        }
+        %EnsureFeedbackVectorForFunction(dummyFunction);
+        dummyFunction();
+      `
+    });
+    let countAfter = await countObjects(session, objectId);
+    // Difference should be 1 since |dummyFunction| is retained.
+    InspectorTest.log('Before/After difference: ' + (countAfter - countBefore));
+    session.disconnect();
+  },
+
+  async function testWithObjectGroup() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'Array.prototype'
+    });
+
+    let initialArrayCount;
+    const N = 3;
+    InspectorTest.log(`Query for Array.prototype ${N} times`);
+    for (let i = 0; i < N; ++i) {
+      const {result:{objects}} = await Protocol.Runtime.queryObjects({
+        prototypeObjectId: objectId,
+        objectGroup: 'console'
+      });
+      logCountSinceInitial(objects.description);
+    }
+
+    await Protocol.Runtime.releaseObjectGroup({objectGroup: 'console'});
+    InspectorTest.log('\nReleased object group.');
+
+    const {result:{objects}} = await Protocol.Runtime.queryObjects({
+      prototypeObjectId: objectId,
+      objectGroup: 'console'
+    });
+    logCountSinceInitial(objects.description);
+    session.disconnect();
+
+    function logCountSinceInitial(description) {
+      const count = parseInt(/Array\((\d+)\)/.exec(description)[1]);
+      if (typeof initialArrayCount === 'undefined')
+        initialArrayCount = count;
+      InspectorTest.logMessage(`Results since initial: ${count - initialArrayCount}`);
+    }
+  },
 ]);
 
 const constructorsNameFunction = `
@@ -136,4 +202,19 @@ async function queryObjects(sesion, prototypeObjectId, name) {
   });
   InspectorTest.log('Dump each object constructor name.');
   InspectorTest.logMessage(value);
+}
+
+async function countObjects(session, prototypeObjectId) {
+  let {result:{objects}} = await session.Protocol.Runtime.queryObjects({
+    prototypeObjectId
+  });
+  let {result:{result:{value}}} = await session.Protocol.Runtime.callFunctionOn({
+    objectId: objects.objectId,
+    functionDeclaration: `function() { return this.length; }`,
+    returnByValue: true
+  });
+  await session.Protocol.Runtime.releaseObject({
+    objectId: objects.objectId,
+  });
+  return value;
 }

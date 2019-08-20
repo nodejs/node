@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kReturnValue = 19;
@@ -65,6 +64,16 @@ async function AsyncTestOk() {
     promise, module => assertInstanceof(module, WebAssembly.Module));
 }
 
+async function AsyncTestWithInstantiateOk() {
+  print('async module instantiate (ok)...');
+  %DisallowCodegenFromStrings(false);
+  %DisallowWasmCodegen(false);
+  let promise = WebAssembly.instantiate(buffer);
+  assertPromiseResult(
+      promise,
+      module => assertInstanceof(module.instance, WebAssembly.Instance));
+}
+
 async function AsyncTestFail() {
   print('async module compile (fail)...');
   %DisallowCodegenFromStrings(true);
@@ -78,12 +87,38 @@ async function AsyncTestFail() {
   }
 }
 
+async function AsyncTestWithInstantiateFail() {
+  print('async module instantiate (fail)...');
+  %DisallowCodegenFromStrings(true);
+  %DisallowWasmCodegen(false);
+  try {
+    let m = await WebAssembly.instantiate(buffer);
+    assertUnreachable();
+  } catch (e) {
+    print("  " + e);
+    assertInstanceof(e, WebAssembly.CompileError);
+  }
+}
+
 async function AsyncTestWasmFail(disallow_codegen) {
   print('async wasm module compile (fail)...');
   %DisallowCodegenFromStrings(disallow_codegen);
   %DisallowWasmCodegen(true);
   try {
     let m = await WebAssembly.compile(buffer);
+    assertUnreachable();
+  } catch (e) {
+    print("  " + e);
+    assertInstanceof(e, WebAssembly.CompileError);
+  }
+}
+
+async function AsyncTestWasmWithInstantiateFail(disallow_codegen) {
+  print('async wasm module instantiate (fail)...');
+  %DisallowCodegenFromStrings(disallow_codegen);
+  %DisallowWasmCodegen(true);
+  try {
+    let m = await WebAssembly.instantiate(buffer);
     assertUnreachable();
   } catch (e) {
     print("  " + e);
@@ -149,7 +184,9 @@ async function RunAll() {
   await SyncTestOk();
   await SyncTestFail();
   await AsyncTestOk();
+  await AsyncTestWithInstantiateOk();
   await AsyncTestFail();
+  await AsyncTestWithInstantiateFail();
   await StreamingTestOk();
   await StreamingTestFail();
 
@@ -157,6 +194,7 @@ async function RunAll() {
   for (count = 0; count < 2; ++count) {
     SyncTestWasmFail(disallow_codegen);
     AsyncTestWasmFail(disallow_codegen);
+    AsyncTestWasmWithInstantiateFail(disallow_codegen);
     StreamingTestWasmFail(disallow_codegen)
     disallow_codegen = true;
   }

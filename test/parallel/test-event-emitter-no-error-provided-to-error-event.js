@@ -29,7 +29,7 @@ const domain = require('domain');
   const e = new events.EventEmitter();
   const d = domain.create();
   d.add(e);
-  d.on('error', common.mustCall(function(er) {
+  d.on('error', common.mustCall((er) => {
     assert(er instanceof Error, 'error created');
   }));
   e.emit('error');
@@ -39,7 +39,7 @@ for (const arg of [false, null, undefined]) {
   const e = new events.EventEmitter();
   const d = domain.create();
   d.add(e);
-  d.on('error', common.mustCall(function(er) {
+  d.on('error', common.mustCall((er) => {
     assert(er instanceof Error, 'error created');
   }));
   e.emit('error', arg);
@@ -49,7 +49,7 @@ for (const arg of [42, 'fortytwo', true]) {
   const e = new events.EventEmitter();
   const d = domain.create();
   d.add(e);
-  d.on('error', common.mustCall(function(er) {
+  d.on('error', common.mustCall((er) => {
     assert.strictEqual(er, arg);
   }));
   e.emit('error', arg);

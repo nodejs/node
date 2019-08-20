@@ -25,7 +25,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const readline = require('readline');
-const internalReadline = require('internal/readline');
+const internalReadline = require('internal/readline/utils');
 const EventEmitter = require('events').EventEmitter;
 const { Writable, Readable } = require('stream');
 
@@ -61,7 +61,7 @@ function isWarned(emitter) {
 }
 
 {
-  // set crlfDelay to float 100.5ms
+  // Set crlfDelay to float 100.5ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
     input: fi,
@@ -73,7 +73,7 @@ function isWarned(emitter) {
 }
 
 {
-  // set crlfDelay to 5000ms
+  // Set crlfDelay to 5000ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
     input: fi,
@@ -98,7 +98,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // default history size 30
+  // Default history size 30
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -126,7 +126,7 @@ function isWarned(emitter) {
     assert.ok(called);
   }
 
-  // sending a blank line
+  // Sending a blank line
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -141,7 +141,7 @@ function isWarned(emitter) {
     assert.ok(called);
   }
 
-  // sending a single character with no newline
+  // Sending a single character with no newline
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(fi, {});
@@ -154,7 +154,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending a single character with no newline and then a newline
+  // Sending a single character with no newline and then a newline
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -172,7 +172,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once
+  // Sending multiple newlines at once
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -189,7 +189,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -206,7 +206,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new(empty)
+  // Sending multiple newlines at once that does not end with a new(empty)
   // line and a `end` event
   {
     const fi = new FakeInput();
@@ -228,7 +228,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   // and a `end` event(last line is)
 
   // \r should behave like \n when alone
@@ -288,7 +288,7 @@ function isWarned(emitter) {
     }), delay * 2);
   }
 
-  // set crlfDelay to `Infinity` is allowed
+  // Set crlfDelay to `Infinity` is allowed
   {
     const fi = new FakeInput();
     const delay = 200;
@@ -354,7 +354,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // constructor throws if completer is not a function or undefined
+  // Constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
     common.expectsError(function() {
@@ -366,9 +366,29 @@ function isWarned(emitter) {
       type: TypeError,
       code: 'ERR_INVALID_OPT_VALUE'
     });
+
+    common.expectsError(function() {
+      readline.createInterface({
+        input: fi,
+        completer: ''
+      });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE'
+    });
+
+    common.expectsError(function() {
+      readline.createInterface({
+        input: fi,
+        completer: false
+      });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE'
+    });
   }
 
-  // constructor throws if historySize is not a positive number
+  // Constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
     common.expectsError(function() {
@@ -399,7 +419,7 @@ function isWarned(emitter) {
     });
   }
 
-  // duplicate lines are removed from history when
+  // Duplicate lines are removed from history when
   // `options.removeHistoryDuplicates` is `true`
   {
     const fi = new FakeInput();
@@ -439,7 +459,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // duplicate lines are not removed from history when
+  // Duplicate lines are not removed from history when
   // `options.removeHistoryDuplicates` is `false`
   {
     const fi = new FakeInput();
@@ -472,7 +492,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending a multi-byte utf8 char over multiple writes
+  // Sending a multi-byte utf8 char over multiple writes
   {
     const buf = Buffer.from('☮', 'utf8');
     const fi = new FakeInput();
@@ -509,13 +529,13 @@ function isWarned(emitter) {
     });
     try {
       fi.emit('data', 'fooX');
-    } catch (e) { }
+    } catch { }
     fi.emit('data', 'bar');
     assert.strictEqual(keys.join(''), 'fooXbar');
     rli.close();
   }
 
-  // calling readline without `new`
+  // Calling readline without `new`
   {
     const fi = new FakeInput();
     const rli = readline.Interface(
@@ -531,7 +551,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // calling the question callback
+  // Calling the question callback
   {
     let called = false;
     const fi = new FakeInput();
@@ -576,7 +596,7 @@ function isWarned(emitter) {
       rli.close();
     }
 
-    // sending a multi-line question
+    // Sending a multi-line question
     {
       const fi = new FakeInput();
       const rli = new readline.Interface(
@@ -610,6 +630,152 @@ function isWarned(emitter) {
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
+      rli.close();
+    }
+
+    {
+      // Back and Forward one character
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+
+      // Back one character
+      fi.emit('keypress', '.', { ctrl: true, name: 'b' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 18);
+      // Back one character
+      fi.emit('keypress', '.', { ctrl: true, name: 'b' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 17);
+      // Forward one character
+      fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 18);
+      // Forward one character
+      fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+      rli.close();
+    }
+
+    // Back and Forward one astral character
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // Move left one character/code point
+      fi.emit('keypress', '.', { name: 'left' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      // Move right one character/code point
+      fi.emit('keypress', '.', { name: 'right' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      if (common.hasIntl) {
+        assert.strictEqual(cursorPos.cols, 2);
+      } else {
+        assert.strictEqual(cursorPos.cols, 1);
+      }
+
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '💻');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // Two astral characters left
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // Move left one character/code point
+      fi.emit('keypress', '.', { name: 'left' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      fi.emit('data', '🐕');
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+
+      if (common.hasIntl) {
+        assert.strictEqual(cursorPos.cols, 2);
+      } else {
+        assert.strictEqual(cursorPos.cols, 1);
+        // Fix cursor position without internationalization
+        fi.emit('keypress', '.', { name: 'left' });
+      }
+
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '🐕💻');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // Two astral characters right
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // Move left one character/code point
+      fi.emit('keypress', '.', { name: 'right' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      if (common.hasIntl) {
+        assert.strictEqual(cursorPos.cols, 2);
+      } else {
+        assert.strictEqual(cursorPos.cols, 1);
+        // Fix cursor position without internationalization
+        fi.emit('keypress', '.', { name: 'right' });
+      }
+
+      fi.emit('data', '🐕');
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      if (common.hasIntl) {
+        assert.strictEqual(cursorPos.cols, 4);
+      } else {
+        assert.strictEqual(cursorPos.cols, 2);
+      }
+
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '💻🐕');
+      }));
+      fi.emit('data', '\n');
       rli.close();
     }
 
@@ -728,7 +894,175 @@ function isWarned(emitter) {
         });
     }
 
-    // multi-line cursor position
+    // deleteLeft
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+
+      // Delete left character
+      fi.emit('keypress', '.', { ctrl: true, name: 'h' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 18);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, 'the quick brown fo');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // deleteLeft astral character
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      if (common.hasIntl) {
+        assert.strictEqual(cursorPos.cols, 2);
+      } else {
+        assert.strictEqual(cursorPos.cols, 1);
+      }
+      // Delete left character
+      fi.emit('keypress', '.', { ctrl: true, name: 'h' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // deleteRight
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+
+      // Go to the start of the line
+      fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      // Delete right character
+      fi.emit('keypress', '.', { ctrl: true, name: 'd' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, 'he quick brown fox');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // deleteRight astral character
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', '💻');
+
+      // Go to the start of the line
+      fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      // Delete right character
+      fi.emit('keypress', '.', { ctrl: true, name: 'd' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // deleteLineLeft
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+
+      // Delete from current to start of line
+      fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'backspace' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // deleteLineRight
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+
+      // Go to the start of the line
+      fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+
+      // Delete from current to end of line
+      fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, '');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
+    }
+
+    // Multi-line input cursor position
     {
       const fi = new FakeInput();
       const rli = new readline.Interface({
@@ -742,6 +1076,46 @@ function isWarned(emitter) {
       const cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 1);
       assert.strictEqual(cursorPos.cols, 5);
+      rli.close();
+    }
+
+    // Multi-line prompt cursor position
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '\nfilledline\nwraping text\n> ',
+        terminal: terminal
+      });
+      fi.columns = 10;
+      fi.emit('data', 't');
+      const cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 4);
+      assert.strictEqual(cursorPos.cols, 3);
+      rli.close();
+    }
+
+    // Clear the whole screen
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      const lines = ['line 1', 'line 2', 'line 3'];
+      fi.emit('data', lines.join('\n'));
+      fi.emit('keypress', '.', { ctrl: true, name: 'l' });
+      const cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 6);
+      rli.on('line', common.mustCall((line) => {
+        assert.strictEqual(line, 'line 3');
+      }));
+      fi.emit('data', '\n');
+      rli.close();
     }
   }
 
@@ -750,7 +1124,7 @@ function isWarned(emitter) {
     assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
   });
 
-  // wide characters should be treated as two columns.
+  // Wide characters should be treated as two columns.
   assert.strictEqual(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)),
                      false);
   assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)),
@@ -767,7 +1141,7 @@ function isWarned(emitter) {
   assert.strictEqual(internalReadline.getStringWidth('안녕하세요'), 10);
   assert.strictEqual(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
-  // check if vt control chars are stripped
+  // Check if vt control chars are stripped
   assert.strictEqual(
     internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m'),
     '> '
@@ -808,7 +1182,7 @@ function isWarned(emitter) {
     assert.strictEqual(isWarned(process.stdout._events), false);
   }
 
-  // can create a new readline Interface with a null output argument
+  // Can create a new readline Interface with a null output argument
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -866,7 +1240,7 @@ function isWarned(emitter) {
 const crlfDelay = Infinity;
 
 [ true, false ].forEach(function(terminal) {
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   // and a `end` event(last line is)
 
   // \r\n should emit one line event, not two
@@ -935,3 +1309,26 @@ const crlfDelay = Infinity;
     }), delay);
   }
 });
+
+// Ensure that the _wordLeft method works even for large input
+{
+  const input = new Readable({
+    read() {
+      this.push('\x1B[1;5D'); // CTRL + Left
+      this.push(null);
+    },
+  });
+  const output = new Writable({
+    write: common.mustCall((data, encoding, cb) => {
+      assert.strictEqual(rl.cursor, rl.line.length - 1);
+      cb();
+    }),
+  });
+  const rl = new readline.createInterface({
+    input: input,
+    output: output,
+    terminal: true,
+  });
+  rl.line = `a${' '.repeat(1e6)}a`;
+  rl.cursor = rl.line.length;
+}

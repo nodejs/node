@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
+// Flags: --allow-natives-syntax
 var Debug = debug.Debug;
-var LiveEdit = Debug.LiveEdit;
 
 unique_id = 0;
 
@@ -62,15 +61,7 @@ function ExecuteInDebugContext(f) {
 
 function patch(fun, from, to) {
   function debug() {
-    var log = new Array();
-    var script = Debug.findScript(fun);
-    var pos = script.source.indexOf(from);
-    try {
-      LiveEdit.TestApi.ApplySingleChunkPatch(script, pos, from.length, to,
-                                             log);
-    } finally {
-      print("Change log: " + JSON.stringify(log) + "\n");
-    }
+    %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(from, to));
   }
   ExecuteInDebugContext(debug);
 }
@@ -84,8 +75,9 @@ function patch(fun, from, to) {
   function attempt_gen_patch() {
     assertFalse(gen_patch_attempted);
     gen_patch_attempted = true;
-    assertThrows(function() { patch(generator, "'Cat'", "'Capybara'") },
-                 LiveEdit.Failure);
+    assertThrowsEquals(function() {
+      patch(generator, '\'Cat\'', '\'Capybara\'')
+    }, 'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
   };
   var iter = generator(attempt_gen_patch);
   assertIteratorResult(undefined, false, iter.next());
@@ -104,8 +96,9 @@ function patch(fun, from, to) {
   // Patching will fail however when a live iterator is suspended.
   iter = generator(function(){});
   assertIteratorResult(undefined, false, iter.next());
-  assertThrows(function() { patch(generator, "'Capybara'", "'Tapir'") },
-               LiveEdit.Failure);
+  assertThrowsEquals(function() {
+    patch(generator, '\'Capybara\'', '\'Tapir\'')
+  }, 'LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR');
   assertIteratorResult("Capybara", true, iter.next());
 
   // Try to patch functions with activations inside and outside generator
@@ -123,8 +116,9 @@ function patch(fun, from, to) {
     }
     fun_patch_attempted = true;
     // Patching outside a generator activation must fail.
-    assertThrows(function() { patch(fun_outside, "'Cat'", "'Cobra'") },
-                 LiveEdit.Failure);
+    assertThrowsEquals(function() {
+      patch(fun_outside, '\'Cat\'', '\'Cobra\'')
+    }, 'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
     // Patching inside a generator activation may succeed.
     patch(fun_inside, "'Cat'", "'Koala'");
   }

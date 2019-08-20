@@ -1,10 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 require('../common');
 const assert = require('assert');
 const net = require('net');
-const TCPWrap = process.binding('tcp_wrap').TCP;
+const { internalBinding } = require('internal/test/binding');
+const TCPWrap = internalBinding('tcp_wrap').TCP;
 
-const echoServer = net.createServer(function(conn) {
+const echoServer = net.createServer((conn) => {
   conn.end();
 });
 
@@ -32,7 +34,7 @@ echoServer.on('listening', function() {
   sock.unref();
   sock.ref();
   sock.connect(this.address().port);
-  sock.on('end', function() {
+  sock.on('end', () => {
     assert.strictEqual(refCount, 0);
     echoServer.close();
   });

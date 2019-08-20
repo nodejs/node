@@ -12,6 +12,7 @@ function f(i) {
   o2.a = o1;
   if (i == 4) return o3;
 }
+%PrepareFunctionForOptimization(f);
 for (var i = 0; i < 100; ++i){
   f(i%5)
 }

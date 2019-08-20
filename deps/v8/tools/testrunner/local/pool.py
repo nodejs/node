@@ -3,13 +3,20 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from Queue import Empty
+# for py2/py3 compatibility
+from __future__ import print_function
+
 from contextlib import contextmanager
 from multiprocessing import Process, Queue
 import os
 import signal
 import time
 import traceback
+
+try:
+  from queue import Empty  # Python 3
+except ImportError:
+  from Queue import Empty  # Python 2
 
 from . import command
 
@@ -22,10 +29,17 @@ def setup_testing():
   global Process
   del Queue
   del Process
-  from Queue import Queue
+  try:
+    from queue import Queue  # Python 3
+  except ImportError:
+    from Queue import Queue  # Python 2
+
   from threading import Thread as Process
   # Monkeypatch threading Queue to look like multiprocessing Queue.
   Queue.cancel_join_thread = lambda self: None
+  # Monkeypatch os.kill and add fake pid property on Thread.
+  os.kill = lambda *args: None
+  Process.pid = property(lambda self: None)
 
 
 class NormalResult():
@@ -67,7 +81,7 @@ def Worker(fn, work_queue, done_queue,
       except command.AbortException:
         # SIGINT, SIGTERM or internal hard timeout.
         break
-      except Exception, e:
+      except Exception as e:
         traceback.print_exc()
         print(">>> EXCEPTION: %s" % e)
         done_queue.put(ExceptionResult(e))
@@ -150,7 +164,7 @@ class Pool():
       # Disable sigint and sigterm to prevent subprocesses from capturing the
       # signals.
       with without_sig():
-        for w in xrange(self.num_workers):
+        for w in range(self.num_workers):
           p = Process(target=Worker, args=(fn,
                                           self.work_queue,
                                           self.done_queue,
@@ -195,7 +209,7 @@ class Pool():
   def _advance_more(self, gen):
     while self.processing_count < self.num_workers * self.BUFFER_FACTOR:
       try:
-        self.work_queue.put(gen.next())
+        self.work_queue.put(next(gen))
         self.processing_count += 1
       except StopIteration:
         self.advance = self._advance_empty

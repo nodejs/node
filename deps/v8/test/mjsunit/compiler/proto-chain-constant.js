@@ -38,6 +38,7 @@ var obj0 = c(obj1, { f0: { value: function() { return 0; }, writable: true }});
 
 function get4(obj) { return obj.f4; }
 
+%PrepareFunctionForOptimization(get4);
 assertEquals(4, get4(obj0)());
 assertEquals(4, get4(obj0)());
 %OptimizeFunctionOnNextCall(get4);
@@ -47,6 +48,7 @@ assertEquals(5, get4(obj0)());
 
 function get3(obj) { return obj.f3; }
 
+%PrepareFunctionForOptimization(get3);
 assertEquals(3, get3(obj0)());
 assertEquals(3, get3(obj0)());
 %OptimizeFunctionOnNextCall(get3);

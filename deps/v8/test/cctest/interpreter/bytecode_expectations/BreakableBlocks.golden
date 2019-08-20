@@ -101,19 +101,18 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 29
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
                 B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(0),
+                B(Star), R(1),
   /*   53 S> */ B(LdaSmi), I8(10),
   /*   53 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Mov), R(0), R(1),
+  /*   85 S> */ B(Mov), R(1), R(0),
                 B(Ldar), R(1),
   /*   88 S> */ B(Jump), U8(2),
                 B(PopContext), R(2),
@@ -142,25 +141,24 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 53
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Ldar), R(closure),
-                B(CreateBlockContext), U8(0),
+                B(CreateBlockContext), U8(1),
                 B(PushContext), R(3),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(0),
+                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(Star), R(1),
   /*   76 S> */ B(LdaSmi), I8(2),
   /*   76 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Mov), R(0), R(1),
+  /*  113 S> */ B(Mov), R(1), R(0),
   /*  118 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(JumpIfToBooleanFalse), U8(6),
   /*  125 S> */ B(PopContext), R(3),
@@ -174,6 +172,7 @@ bytecodes: [
   /*  162 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]

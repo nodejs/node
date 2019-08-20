@@ -15,9 +15,9 @@ Add, remove, and enumerate distribution tags on a package:
 
 * add:
   Tags the specified version of the package with the specified tag, or the
-  `--tag` config if not specified. The tag you're adding is `latest` and you
-  have two-factor authentication on auth-and-writes then you'll need to include
-  an otp on the command line with `--otp`.
+  `--tag` config if not specified. If you have two-factor authentication on
+  auth-and-writes then you’ll need to include a one-time password on the
+  command line with `--otp <one-time password>`.
 
 * rm:
   Clear a tag that is no longer in use from the package.
@@ -25,6 +25,8 @@ Add, remove, and enumerate distribution tags on a package:
 * ls:
   Show all of the dist-tags for a package, defaulting to the package in
   the current prefix.
+
+  This is the default action if none is specified.
 
 A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:

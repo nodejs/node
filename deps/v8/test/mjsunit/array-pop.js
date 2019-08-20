@@ -131,6 +131,7 @@
     return v;
   }
 
+  %PrepareFunctionForOptimization(f);
   var a = [true, true, true, true]
   assertEquals(1, f(a, false));
   assertEquals(1, f(a, false));

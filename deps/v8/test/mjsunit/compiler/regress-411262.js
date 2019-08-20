@@ -33,5 +33,6 @@ function f() {
   b.apply(this, arguments);
 }
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f();

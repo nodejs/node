@@ -1,6 +1,6 @@
 var test = require('tap').test
 var npmconf = require('../../lib/config/core.js')
-var common = require('./00-config-setup.js')
+var common = require('../common-config.js')
 var path = require('path')
 
 var ucData = common.ucData
@@ -15,7 +15,6 @@ var biData = { 'builtin-config': true }
 var cli = { foo: 'bar', heading: 'foo', 'git-tag-version': false }
 
 var projectData = {
-  'legacy-bundling': true
 }
 
 var expectList = [

@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/contexts.h"
 #include "src/interpreter/bytecode-decoder.h"
+#include "src/objects/contexts.h"
 #include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
@@ -49,20 +49,19 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        3,
        0,
        "         ForInPrepare r10-r12, [11]"},
-      {{B(CallRuntime), U16(Runtime::FunctionId::kIsDate), R8(0), U8(0)},
+      {{B(CallRuntime), U16(Runtime::FunctionId::kIsSmi), R8(0), U8(0)},
        5,
        0,
-       "   CallRuntime [IsDate], r0-r0"},
+       "   CallRuntime [IsSmi], r0-r0"},
       {{B(Ldar),
         static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
        2,
        3,
        "            Ldar a1"},
-      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U8(165),
-        R16(137)},
-       9,
+      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U8(165)},
+       7,
        0,
-       "CreateObjectLiteral.Wide [513], [1027], #165, r137"},
+       "CreateObjectLiteral.Wide [513], [1027], #165"},
       {{B(ExtraWide), B(JumpIfNull), U32(123456789)},
        6,
        0,

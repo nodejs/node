@@ -102,7 +102,7 @@ if (!id) {
     }));
   }, 2));
 } else {
-  assert(0); // bad command line argument
+  assert(0); // Bad command line argument
 }
 
 function startWorker() {

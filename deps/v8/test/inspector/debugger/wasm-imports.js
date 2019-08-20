@@ -4,7 +4,6 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests imports in wasm');
 
-utils.load('test/mjsunit/wasm/wasm-constants.js');
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Build two modules A and B. A defines function func, which contains a

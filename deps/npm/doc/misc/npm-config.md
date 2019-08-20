@@ -155,12 +155,45 @@ even for `GET` requests.
 When "dev" or "development" and running local `npm shrinkwrap`,
 `npm outdated`, or `npm update`, is an alias for `--dev`.
 
+### audit
+
+* Default: true
+* Type: Boolean
+
+When "true" submit audit reports alongside `npm install` runs to the default
+registry and all registries configured for scopes.  See the documentation
+for npm-audit(1) for details on what is submitted.
+
+### audit-level
+
+* Default: `"low"`
+* Type: `'low'`, `'moderate'`, `'high'`, `'critical'`
+
+The minimum level of vulnerability for `npm audit` to exit with
+a non-zero exit code.
+
 ### auth-type
 
 * Default: `'legacy'`
 * Type: `'legacy'`, `'sso'`, `'saml'`, `'oauth'`
 
 What authentication strategy to use with `adduser`/`login`.
+
+### before
+
+* Alias: enjoy-by
+* Default: null
+* Type: Date
+
+If passed to `npm install`, will rebuild the npm tree such that only versions
+that were available **on or before** the `--before` time get installed.
+If there's no versions available for the current set of direct dependencies, the
+command will error.
+
+If the requested version is a `dist-tag` and the given tag does not pass the
+`--before` filter, the most recent version less than or equal to that tag will
+be used. For example, `foo@latest` might install `foo@1.2` even though `latest`
+is `2.0`.
 
 ### bin-links
 
@@ -284,6 +317,9 @@ This is a list of CIDR address to be used when configuring limited access tokens
 If false, never shows colors.  If `"always"` then always shows colors.
 If true, then only prints color codes for tty file descriptors.
 
+This option can also be changed using the environment: colors are
+disabled when the environment variable `NO_COLOR` is set to any value.
+
 ### depth
 
 * Default: Infinity
@@ -319,8 +355,8 @@ Install `dev-dependencies` along with packages.
 Indicates that you don't want npm to make any changes and that it should
 only report what it would have done.  This can be passed into any of the
 commands that modify your local installation, eg, `install`, `update`,
-`dedupe`, `uninstall`.  This is NOT currently honored by network related
-commands, eg `dist-tags`, `owner`, `publish`, etc.
+`dedupe`, `uninstall`.  This is NOT currently honored by some network related
+commands, eg `dist-tags`, `owner`, etc.
 
 ### editor
 
@@ -672,6 +708,13 @@ impact how lifecycle scripts are called.
 
 The node version to use when checking a package's `engines` map.
 
+### noproxy
+
+* Default: null
+* Type: String or Array
+
+A comma-separated string or an array of domain extensions that a proxy should not be used for.
+
 ### offline
 
 * Default: false
@@ -731,6 +774,10 @@ when publishing or changing package permissions with `npm access`.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
+When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled.  To remove extraneous modules with
+package-locks disabled use `npm prune`.
+
 This option is an alias for `--shrinkwrap`.
 
 ### package-lock-only
@@ -738,7 +785,7 @@ This option is an alias for `--shrinkwrap`.
 * Default: false
 * Type: Boolean
 
-If set to true, it will update only the `package-json`,
+If set to true, it will update only the `package-lock.json`,
 instead of checking `node_modules` and downloading dependencies.
 
 ### parseable
@@ -774,6 +821,14 @@ for updates immediately even for fresh package data.
 
 The location to install global items.  If set on the command line, then
 it forces non-global commands to run in the specified folder.
+
+### preid
+
+* Default: ""
+* Type: String
+
+The "prerelease identifier" to use as a prefix for the "prerelease" part of a
+semver. Like the `rc` in `1.2.0-rc.8`.
 
 ### production
 
@@ -835,7 +890,7 @@ Remove failed installs.
 
 ### save
 
-* Default: false
+* Default: true
 * Type: Boolean
 
 Save installed packages to a package.json file as dependencies.
@@ -1011,6 +1066,17 @@ will also prevent _writing_ `npm-shrinkwrap.json` if `save` is true.
 
 This option is an alias for `--package-lock`.
 
+### sign-git-commit
+
+* Default: false
+* Type: Boolean
+
+If set to true, then the `npm version` command will commit the new package
+version using `-S` to add a signature.
+
+Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.
+
 ### sign-git-tag
 
 * Default: false
@@ -1106,6 +1172,14 @@ false, it uses ascii characters to draw trees.
 Set to true to suppress the UID/GID switching when running package
 scripts.  If set explicitly to false, then installing as a non-root user
 will fail.
+
+### update-notifier
+
+* Default: true
+* Type: Boolean
+
+Set to false to suppress the update notification when using an older
+version of npm than the latest.
 
 ### usage
 

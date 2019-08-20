@@ -1,7 +1,9 @@
 #ifndef SRC_INSPECTOR_SOCKET_H_
 #define SRC_INSPECTOR_SOCKET_H_
 
-#include "util-inl.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "util.h"
 #include "uv.h"
 
 #include <string>
@@ -23,7 +25,7 @@ class InspectorSocket {
                                  const std::string& path,
                                  const std::string& accept_key) = 0;
     virtual void OnWsFrame(const std::vector<char>& frame) = 0;
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
 
   using DelegatePointer = std::unique_ptr<Delegate>;
@@ -39,17 +41,20 @@ class InspectorSocket {
   void SwitchProtocol(ProtocolHandler* handler);
   std::string GetHost();
 
+  InspectorSocket(const InspectorSocket&) = delete;
+  InspectorSocket& operator=(const InspectorSocket&) = delete;
+
  private:
-  InspectorSocket();
+  static void Shutdown(ProtocolHandler*);
+  InspectorSocket() = default;
 
-  std::unique_ptr<ProtocolHandler, void(*)(ProtocolHandler*)> protocol_handler_;
-
-  DISALLOW_COPY_AND_ASSIGN(InspectorSocket);
+  DeleteFnPtr<ProtocolHandler, Shutdown> protocol_handler_;
 };
 
 
 }  // namespace inspector
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_SOCKET_H_

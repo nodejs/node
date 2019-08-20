@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-%SetFlags("--gc-interval=1");
+%SetAllocationTimeout(1, 1);
 
 var key = "Huckleberry Finn" + "Tom Sawyer";
 var o = {};

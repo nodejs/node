@@ -27,7 +27,7 @@ const http = require('http');
 
 // This is a regression test for https://github.com/joyent/node/issues/44
 // It is separate from test-http-malformed-request.js because it is only
-// reproduceable on the first packet on the first connection to a server.
+// reproducible on the first packet on the first connection to a server.
 
 const server = http.createServer(common.mustNotCall());
 server.listen(0);

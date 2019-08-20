@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const events = require('events');
+const { inspect } = require('util');
 const e = new events.EventEmitter();
 
 e.on('maxListeners', common.mustCall());
@@ -38,7 +39,7 @@ for (const obj of throwsObjs) {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
       message: 'The value of "n" is out of range. ' +
-               `It must be a non-negative number. Received ${obj}`
+               `It must be a non-negative number. Received ${inspect(obj)}`
     }
   );
 
@@ -48,7 +49,7 @@ for (const obj of throwsObjs) {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
       message: 'The value of "defaultMaxListeners" is out of range. ' +
-               `It must be a non-negative number. Received ${obj}`
+               `It must be a non-negative number. Received ${inspect(obj)}`
     }
   );
 }

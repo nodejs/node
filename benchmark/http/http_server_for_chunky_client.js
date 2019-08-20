@@ -10,9 +10,7 @@ process.env.PIPE_NAME = PIPE;
 
 tmpdir.refresh();
 
-var server;
-
-server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   const headers = {
     'content-type': 'text/plain',
     'content-length': '2'
@@ -21,7 +19,7 @@ server = http.createServer(function(req, res) {
   res.end('ok');
 });
 
-server.on('error', function(err) {
+server.on('error', (err) => {
   throw new Error(`server error: ${err}`);
 });
 server.listen(PIPE);
@@ -31,7 +29,7 @@ const child = fork(
   process.argv.slice(2)
 );
 child.on('message', common.sendResult);
-child.on('close', function(code) {
+child.on('close', (code) => {
   server.close();
   assert.strictEqual(code, 0);
 });

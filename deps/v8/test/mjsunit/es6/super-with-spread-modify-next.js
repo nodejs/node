@@ -28,6 +28,7 @@
   function testArgumentsPoint(x, y) {
     return new ArgumentsPoint(x, y);
   }
+  %PrepareFunctionForOptimization(testArgumentsPoint);
   testArgumentsPoint(1, 2);
   testArgumentsPoint(1, 2);
   %OptimizeFunctionOnNextCall(testArgumentsPoint);

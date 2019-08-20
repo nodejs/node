@@ -5,14 +5,16 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
-#include "src/handles-inl.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/handles/handles-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -254,10 +256,15 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
 
 
 // static
-Node* NodeProperties::FindFrameStateBefore(Node* node) {
+Node* NodeProperties::FindFrameStateBefore(Node* node,
+                                           Node* unreachable_sentinel) {
   Node* effect = NodeProperties::GetEffectInput(node);
   while (effect->opcode() != IrOpcode::kCheckpoint) {
-    if (effect->opcode() == IrOpcode::kDead) return effect;
+    if (effect->opcode() == IrOpcode::kDead ||
+        effect->opcode() == IrOpcode::kUnreachable) {
+      return unreachable_sentinel;
+    }
+    DCHECK(effect->op()->HasProperty(Operator::kNoWrite));
     DCHECK_EQ(1, effect->op()->EffectInputCount());
     effect = NodeProperties::GetEffectInput(effect);
   }
@@ -362,12 +369,36 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
 }
 
 // static
-NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
-    Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return) {
+base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
+                                                      Node* receiver) {
+  DCHECK(receiver->opcode() == IrOpcode::kJSCreate ||
+         receiver->opcode() == IrOpcode::kJSCreateArray);
+  HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
+  HeapObjectMatcher mnewtarget(GetValueInput(receiver, 1));
+  if (mtarget.HasValue() && mnewtarget.HasValue() &&
+      mnewtarget.Ref(broker).IsJSFunction()) {
+    ObjectRef target = mtarget.Ref(broker);
+    JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
+    if (newtarget.map().has_prototype_slot() && newtarget.has_initial_map()) {
+      if (broker->mode() == JSHeapBroker::kSerializing) newtarget.Serialize();
+      MapRef initial_map = newtarget.initial_map();
+      if (initial_map.GetConstructor().equals(target)) {
+        DCHECK(target.AsJSFunction().map().is_constructor());
+        DCHECK(newtarget.map().is_constructor());
+        return initial_map;
+      }
+    }
+  }
+  return base::nullopt;
+}
+
+// static
+NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
+    JSHeapBroker* broker, Node* receiver, Node* effect,
+    ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    Handle<HeapObject> receiver = m.Value();
-    Isolate* const isolate = m.Value()->GetIsolate();
+    HeapObjectRef receiver = m.Ref(broker);
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here
@@ -375,15 +406,12 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
     //
     // TODO(bmeurer): This can be removed once the Array.prototype and
     // Object.prototype have NO_ELEMENTS elements kind.
-    if (!isolate->IsInAnyContext(*receiver,
-                                 Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
-        !isolate->IsInAnyContext(*receiver,
-                                 Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
-      Handle<Map> receiver_map(receiver->map(), isolate);
-      if (receiver_map->is_stable()) {
+    if (!receiver.IsJSObject() ||
+        !broker->IsArrayOrObjectPrototype(receiver.AsJSObject())) {
+      if (receiver.map().is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_return = ZoneHandleSet<Map>(receiver_map);
+        *maps_return = ZoneHandleSet<Map>(receiver.map().object());
         return kUnreliableReceiverMaps;
       }
     }
@@ -394,7 +422,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_return = MapGuardMapsOf(effect->op()).maps();
+          *maps_return = MapGuardMapsOf(effect->op());
           return result;
         }
         break;
@@ -409,23 +437,23 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       }
       case IrOpcode::kJSCreate: {
         if (IsSame(receiver, effect)) {
-          HeapObjectMatcher mtarget(GetValueInput(effect, 0));
-          HeapObjectMatcher mnewtarget(GetValueInput(effect, 1));
-          if (mtarget.HasValue() && mnewtarget.HasValue() &&
-              mnewtarget.Value()->IsJSFunction()) {
-            Handle<JSFunction> original_constructor =
-                Handle<JSFunction>::cast(mnewtarget.Value());
-            if (original_constructor->has_initial_map()) {
-              Handle<Map> initial_map(original_constructor->initial_map());
-              if (initial_map->constructor_or_backpointer() ==
-                  *mtarget.Value()) {
-                *maps_return = ZoneHandleSet<Map>(initial_map);
-                return result;
-              }
-            }
+          base::Optional<MapRef> initial_map = GetJSCreateMap(broker, receiver);
+          if (initial_map.has_value()) {
+            *maps_return = ZoneHandleSet<Map>(initial_map->object());
+            return result;
           }
           // We reached the allocation of the {receiver}.
           return kNoReceiverMaps;
+        }
+        break;
+      }
+      case IrOpcode::kJSCreatePromise: {
+        if (IsSame(receiver, effect)) {
+          *maps_return = ZoneHandleSet<Map>(broker->native_context()
+                                                .promise_function()
+                                                .initial_map()
+                                                .object());
+          return result;
         }
         break;
       }
@@ -439,7 +467,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m(value);
             if (m.HasValue()) {
-              *maps_return = ZoneHandleSet<Map>(Handle<Map>::cast(m.Value()));
+              *maps_return = ZoneHandleSet<Map>(m.Ref(broker).AsMap().object());
               return result;
             }
           }
@@ -503,40 +531,6 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
 }
 
 // static
-MaybeHandle<Map> NodeProperties::GetMapWitness(Node* node) {
-  ZoneHandleSet<Map> maps;
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
-  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
-    return maps[0];
-  }
-  return MaybeHandle<Map>();
-}
-
-// static
-bool NodeProperties::HasInstanceTypeWitness(Node* receiver, Node* effect,
-                                            InstanceType instance_type) {
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
-  switch (result) {
-    case NodeProperties::kUnreliableReceiverMaps:
-    case NodeProperties::kReliableReceiverMaps:
-      DCHECK_NE(0, receiver_maps.size());
-      for (size_t i = 0; i < receiver_maps.size(); ++i) {
-        if (receiver_maps[i]->instance_type() != instance_type) return false;
-      }
-      return true;
-
-    case NodeProperties::kNoReceiverMaps:
-      return false;
-  }
-  UNREACHABLE();
-}
-
-// static
 bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
                                                    Node* dominator) {
   while (effect != dominator) {
@@ -551,7 +545,8 @@ bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
 }
 
 // static
-bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
+bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
+                                    Node* effect) {
   switch (receiver->opcode()) {
 #define CASE(Opcode) case IrOpcode::k##Opcode:
     JS_CONSTRUCT_OP_LIST(CASE)
@@ -563,48 +558,39 @@ bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
     case IrOpcode::kJSToObject:
       return false;
     case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();
-      return value->IsPrimitive();
+      HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
+      return value.map().IsPrimitiveMap();
     }
     default: {
-      // We don't really care about the exact maps here,
-      // just the instance types, which don't change
-      // across potential side-effecting operations.
-      ZoneHandleSet<Map> maps;
-      if (InferReceiverMaps(receiver, effect, &maps) != kNoReceiverMaps) {
-        // Check if all {maps} are actually JSReceiver maps.
-        for (size_t i = 0; i < maps.size(); ++i) {
-          if (!maps[i]->IsJSReceiverMap()) return true;
-        }
-        return false;
-      }
-      return true;
+      MapInference inference(broker, receiver, effect);
+      return !inference.HaveMaps() ||
+             !inference.AllOfInstanceTypesAreJSReceiver();
     }
   }
 }
 
 // static
-bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
-  if (CanBePrimitive(receiver, effect)) {
+bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
+                                          Node* effect) {
+  if (CanBePrimitive(broker, receiver, effect)) {
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
-      case IrOpcode::kCheckSeqString:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:
-      case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric:
       case IrOpcode::kJSToString:
       case IrOpcode::kToBoolean:
         return false;
       case IrOpcode::kHeapConstant: {
-        Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();
-        Isolate* const isolate = value->GetIsolate();
-        return value->IsNullOrUndefined(isolate);
+        HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
+        OddballType type = value.map().oddball_type();
+        return type == OddballType::kNull || type == OddballType::kUndefined;
       }
       default:
         return true;
@@ -625,7 +611,7 @@ Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
 }
 
 // static
-Type* NodeProperties::GetTypeOrAny(Node* node) {
+Type NodeProperties::GetTypeOrAny(Node* node) {
   return IsTyped(node) ? node->type() : Type::Any();
 }
 

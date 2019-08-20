@@ -66,6 +66,7 @@ function ProgressBar(fmt, options) {
     head       : options.head || (options.complete || '=')
   };
   this.renderThrottle = options.renderThrottle !== 0 ? (options.renderThrottle || 16) : 0;
+  this.lastRender = -Infinity;
   this.callback = options.callback || function () {};
   this.tokens = {};
   this.lastDraw = '';
@@ -92,14 +93,12 @@ ProgressBar.prototype.tick = function(len, tokens){
 
   this.curr += len
 
-  // schedule render
-  if (!this.renderThrottleTimeout) {
-    this.renderThrottleTimeout = setTimeout(this.render.bind(this), this.renderThrottle);
-  }
+  // try to render
+  this.render();
 
   // progress complete
   if (this.curr >= this.total) {
-    if (this.renderThrottleTimeout) this.render();
+    this.render(undefined, true);
     this.complete = true;
     this.terminate();
     this.callback(this);
@@ -115,18 +114,24 @@ ProgressBar.prototype.tick = function(len, tokens){
  * @api public
  */
 
-ProgressBar.prototype.render = function (tokens) {
-  clearTimeout(this.renderThrottleTimeout);
-  this.renderThrottleTimeout = null;
-
+ProgressBar.prototype.render = function (tokens, force) {
+  force = force !== undefined ? force : false;
   if (tokens) this.tokens = tokens;
 
   if (!this.stream.isTTY) return;
 
+  var now = Date.now();
+  var delta = now - this.lastRender;
+  if (!force && (delta < this.renderThrottle)) {
+    return;
+  } else {
+    this.lastRender = now;
+  }
+
   var ratio = this.curr / this.total;
   ratio = Math.min(Math.max(ratio, 0), 1);
 
-  var percent = ratio * 100;
+  var percent = Math.floor(ratio * 100);
   var incomplete, complete, completeLength;
   var elapsed = new Date - this.start;
   var eta = (percent == 100) ? 0 : elapsed * (this.total / this.curr - 1);

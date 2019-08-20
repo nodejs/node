@@ -53,8 +53,9 @@ var f = function() {
   var b = a.substring("1");
   [a, b].sort();
   return a;
-}
+};
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f, "concurrent");  // Mark with builtin.

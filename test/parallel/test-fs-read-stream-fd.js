@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 const path = require('path');
@@ -35,9 +35,9 @@ fs.writeFileSync(file, input);
 const fd = fs.openSync(file, 'r');
 const stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
 
-stream.on('data', (data) => {
+stream.on('data', common.mustCallAtLeast((data) => {
   output += data;
-});
+}));
 
 process.on('exit', () => {
   assert.strictEqual(output, input);

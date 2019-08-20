@@ -51,13 +51,13 @@ function NaiveSetup() {
 
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
-  "NaiveFindReplacement", Naive, NaiveSetup, v => v === max_index,
-  "DoubleFind", mc("find"), DoubleSetup, v => v === max_index + 0.5,
-  "SmiFind", mc("find"), SmiSetup, v => v === max_index,
-  "FastFind", mc("find"), FastSetup, v => v === `value ${max_index}`,
-  "GenericFind", mc("find", true), ObjectSetup, v => v === max_index,
-  "OptFastFind", OptFast, FastSetup, undefined,
-  "OptUnreliableFind", OptUnreliable, FastSetup, v => v === max_index
+  ['NaiveFindReplacement', Naive, NaiveSetup, v => v === max_index],
+  ['DoubleFind', newClosure('find'), DoubleSetup, v => v === max_index + 0.5],
+  ['SmiFind', newClosure('find'), SmiSetup, v => v === max_index],
+  ['FastFind', newClosure('find'), FastSetup, v => v === `value ${max_index}`],
+  ['GenericFind', newClosure('find', true), ObjectSetup, v => v === max_index],
+  ['OptFastFind', OptFast, FastSetup, undefined],
+  ['OptUnreliableFind', OptUnreliable, FastSetup, v => v === max_index]
 ]);
 
 })();

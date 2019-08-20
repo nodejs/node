@@ -7,7 +7,7 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'dist-tag')
+var pkg = common.pkg
 var server
 
 var scoped = {
@@ -20,14 +20,20 @@ function mocks (server) {
   server.get('/-/package/@scoped%2fpkg/dist-tags')
     .reply(200, { latest: '1.0.0', a: '0.0.1', b: '0.5.0' })
 
+  server.get('/-/package/@scoped%2fpkg/dist-tags')
+    .reply(200, { latest: '1.0.0', a: '0.0.1', b: '0.5.0' })
+
   // ls named package
+  server.get('/-/package/@scoped%2fanother/dist-tags')
+    .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
+
   server.get('/-/package/@scoped%2fanother/dist-tags')
     .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
 
   // add c
   server.get('/-/package/@scoped%2fanother/dist-tags')
     .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
-  server.put('/-/package/@scoped%2fanother/dist-tags/c', '\"7.7.7\"')
+  server.put('/-/package/@scoped%2fanother/dist-tags/c', '"7.7.7"')
     .reply(200, { latest: '7.7.7', a: '0.0.2', b: '0.6.0', c: '7.7.7' })
 
   // set same version
@@ -83,11 +89,50 @@ test('npm dist-tags ls in current package', function (t) {
   )
 })
 
+test('npm dist-tags ls default in current package', function (t) {
+  common.npm(
+    [
+      'dist-tags',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, 'a: 0.0.1\nb: 0.5.0\nlatest: 1.0.0\n')
+
+      t.end()
+    }
+  )
+})
+
 test('npm dist-tags ls on named package', function (t) {
   common.npm(
     [
       'dist-tags',
       'ls', '@scoped/another',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, 'a: 0.0.2\nb: 0.6.0\nlatest: 2.0.0\n')
+
+      t.end()
+    }
+  )
+})
+
+test('npm dist-tags ls default, named package', function (t) {
+  common.npm(
+    [
+      'dist-tags',
+      '@scoped/another',
       '--registry', common.registry,
       '--loglevel', 'silent'
     ],

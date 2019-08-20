@@ -32,7 +32,7 @@ const assert = require('assert');
 let emptyTxt;
 
 if (common.isWindows) {
-  // on Win, common.PIPE will be a named pipe, so we use an existing empty
+  // On Win, common.PIPE will be a named pipe, so we use an existing empty
   // file instead
   emptyTxt = fixtures.path('empty.txt');
 } else {

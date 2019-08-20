@@ -8,8 +8,8 @@
 
 
 # ====================================================================
-# Written by David S. Miller <davem@devemloft.net> and Andy Polyakov
-# <appro@openssl.org>. The module is licensed under 2-clause BSD
+# Written by David S. Miller and Andy Polyakov.
+# The module is licensed under 2-clause BSD
 # license. October 2012. All rights reserved.
 # ====================================================================
 
@@ -17,7 +17,7 @@
 # Camellia for SPARC T4.
 #
 # As with AES below results [for aligned data] are virtually identical
-# to critical path lenths for 3-cycle instruction latency:
+# to critical path lengths for 3-cycle instruction latency:
 #
 #		128-bit key	192/256-
 # CBC encrypt	4.14/4.21(*)	5.46/5.52
@@ -25,7 +25,7 @@
 #			     misaligned data.
 #
 # As with Intel AES-NI, question is if it's possible to improve
-# performance of parallelizeable modes by interleaving round
+# performance of parallelizable modes by interleaving round
 # instructions. In Camellia every instruction is dependent on
 # previous, which means that there is place for 2 additional ones
 # in between two dependent. Can we expect 3x performance improvement?

@@ -283,6 +283,7 @@ TEST_IMPL(fork_signal_to_child_closed) {
   int sync_pipe[2];
   int sync_pipe2[2];
   char sync_buf[1];
+  int r;
 
   fork_signal_cb_called = 0;    /* reset */
 
@@ -317,8 +318,7 @@ TEST_IMPL(fork_signal_to_child_closed) {
     printf("Waiting for child in parent\n");
     assert_wait_child(child_pid);
   } else {
-    /* child */
-    /* Our signal handler should still be installed. */
+    /* Child. Our signal handler should still be installed. */
     ASSERT(0 == uv_loop_fork(uv_default_loop()));
     printf("Checking loop in child\n");
     ASSERT(0 != uv_loop_alive(uv_default_loop()));
@@ -327,9 +327,10 @@ TEST_IMPL(fork_signal_to_child_closed) {
     /* Don't run the loop. Wait for the parent to call us */
     printf("Waiting on parent in child\n");
     /* Wait for parent. read may fail if the parent tripped an ASSERT
-       and exited, so this isn't in an ASSERT.
+       and exited, so this ASSERT is generous.
     */
-    read(sync_pipe2[0], sync_buf, 1);
+    r = read(sync_pipe2[0], sync_buf, 1);
+    ASSERT(-1 <= r && r <= 1);
     ASSERT(0 == fork_signal_cb_called);
     printf("Exiting child \n");
     /* Note that we're deliberately not running the loop
@@ -652,13 +653,11 @@ TEST_IMPL(fork_threadpool_queue_work_simple) {
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
-    /* parent */
-    /* We can still run work. */
+    /* Parent. We can still run work. */
     assert_run_work(uv_default_loop());
     assert_wait_child(child_pid);
   } else {
-    /* child */
-    /* We can work in a new loop. */
+    /* Child. We can work in a new loop. */
     printf("Running child in %d\n", getpid());
     uv_loop_init(&loop);
     printf("Child first watch\n");
@@ -677,5 +676,8 @@ TEST_IMPL(fork_threadpool_queue_work_simple) {
 }
 #endif /* !__MVS__ */
 
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
 
 #endif /* !_WIN32 */

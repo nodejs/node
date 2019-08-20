@@ -19,7 +19,7 @@ asyncScript += '});setInterval(function(){},10);'
 var zombieScript = 'console.error(process.pid);process.on(\'SIGINT\',function (){'
 zombieScript += '});setInterval(function(){console.error(process.pid)},10);'
 
-var SIGSEGV = require('constants').SIGSEGV
+var SIGSEGV = require('constants').SIGSEGV // eslint-disable-line node/no-deprecated-api
 
 var json = {
   name: 'lifecycle-signal',
@@ -88,13 +88,13 @@ test('lifecycle wait for async child process exit', {
   skip: process.platform !== 'darwin' && 'broken'
 }, function (t) {
   var innerChildPid
-  var interupted
+  var interrupted
   var child = spawn(npm, ['run', 'async'], {
     cwd: pkg
   })
   child.stderr.on('data', function (data) {
-    if (!interupted) {
-      interupted = true
+    if (!interrupted) {
+      interrupted = true
       child.kill('SIGINT')
     } else {
       innerChildPid = parseInt(data.toString(), 10)
@@ -110,13 +110,13 @@ test('lifecycle force kill using multiple SIGINT signals', {
   skip: process.platform !== 'darwin' && 'broken'
 }, function (t) {
   var innerChildPid
-  var interupted
+  var interrupted
   var child = spawn(npm, ['run', 'zombie'], {
     cwd: pkg
   })
   child.stderr.on('data', function (data) {
-    if (!interupted) {
-      interupted = true
+    if (!interrupted) {
+      interrupted = true
       child.kill('SIGINT')
     } else {
       innerChildPid = parseInt(data.toString(), 10)

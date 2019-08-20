@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,9 +9,10 @@
 
 /* X509 v3 extension utilities */
 
-#include <stdio.h>
-#include <ctype.h>
+#include "e_os.h"
 #include "internal/cryptlib.h"
+#include <stdio.h>
+#include "internal/ctype.h"
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
@@ -377,12 +378,12 @@ static char *strip_spaces(char *name)
     char *p, *q;
     /* Skip over leading spaces */
     p = name;
-    while (*p && isspace((unsigned char)*p))
+    while (*p && ossl_isspace(*p))
         p++;
     if (!*p)
         return NULL;
     q = p + strlen(p) - 1;
-    while ((q != p) && isspace((unsigned char)*q))
+    while ((q != p) && ossl_isspace(*q))
         q--;
     if (p != q)
         q[1] = 0;
@@ -467,11 +468,11 @@ static STACK_OF(OPENSSL_STRING) *get_email(X509_NAME *name,
 {
     STACK_OF(OPENSSL_STRING) *ret = NULL;
     X509_NAME_ENTRY *ne;
-    ASN1_IA5STRING *email;
+    const ASN1_IA5STRING *email;
     GENERAL_NAME *gen;
-    int i;
+    int i = -1;
+
     /* Now add any email address(es) to STACK */
-    i = -1;
     /* First supplied X509_NAME */
     while ((i = X509_NAME_get_index_by_NID(name,
                                            NID_pkcs9_emailAddress, i)) >= 0) {

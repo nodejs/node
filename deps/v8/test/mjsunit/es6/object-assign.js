@@ -171,3 +171,58 @@ assertSame(Object.assign(o, {}), o);
   var source = {get k1() { throw "fail" }};
   assertThrows(()=>Object.assign(target, source));
 })();
+
+(function strings_and_symbol_order1() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get [sym1](){ log.push("get sym1"); },
+      get a() { log.push("get a"); },
+      get b() { log.push("get b"); },
+      get c() { log.push("get c"); },
+      get [sym2](){ log.push("get sym2"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();
+
+(function strings_and_symbol_order2() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get [sym1](){ log.push("get sym1"); },
+      get a() { log.push("get a"); },
+      get [sym2](){ log.push("get sym2"); },
+      get b() { log.push("get b"); },
+      get c() { log.push("get c"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();
+
+
+(function strings_and_symbol_order3() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get a() { log.push("get a"); },
+      get [sym1](){ log.push("get sym1"); },
+      get b() { log.push("get b"); },
+      get [sym2](){ log.push("get sym2"); },
+      get c() { log.push("get c"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();

@@ -4,14 +4,13 @@
 
 // Flags: --expose-wasm --stress-compaction
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 
-function genGrowMemoryBuilder() {
+function genMemoryGrowBuilder() {
   var builder = new WasmModuleBuilder();
   builder.addFunction("grow_memory", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
   builder.addFunction("load", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
@@ -37,11 +36,15 @@ function genGrowMemoryBuilder() {
   return builder;
 }
 
+// V8 internal memory size limit.
+var kV8MaxPages = 32767;
+
+
 // TODO(gdeepti): Generate tests programatically for all the sizes instead of
 // current implementation.
-function testGrowMemoryReadWrite32() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowReadWrite32() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -84,11 +87,11 @@ function testGrowMemoryReadWrite32() {
   }
 }
 
-testGrowMemoryReadWrite32();
+testMemoryGrowReadWrite32();
 
-function testGrowMemoryReadWrite16() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowReadWrite16() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load16(offset); }
@@ -131,11 +134,11 @@ function testGrowMemoryReadWrite16() {
   }
 }
 
-testGrowMemoryReadWrite16();
+testMemoryGrowReadWrite16();
 
-function testGrowMemoryReadWrite8() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowReadWrite8() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load8(offset); }
@@ -178,11 +181,11 @@ function testGrowMemoryReadWrite8() {
   }
 }
 
-testGrowMemoryReadWrite8();
+testMemoryGrowReadWrite8();
 
-function testGrowMemoryZeroInitialSize() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowZeroInitialSize() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -212,11 +215,11 @@ function testGrowMemoryZeroInitialSize() {
   assertEquals(20, peek());
 }
 
-testGrowMemoryZeroInitialSize();
+testMemoryGrowZeroInitialSize();
 
-function testGrowMemoryZeroInitialSize32() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowZeroInitialSize32() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -238,11 +241,11 @@ function testGrowMemoryZeroInitialSize32() {
   }
 }
 
-testGrowMemoryZeroInitialSize32();
+testMemoryGrowZeroInitialSize32();
 
-function testGrowMemoryZeroInitialSize16() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowZeroInitialSize16() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load16(offset); }
@@ -264,11 +267,11 @@ function testGrowMemoryZeroInitialSize16() {
   }
 }
 
-testGrowMemoryZeroInitialSize16();
+testMemoryGrowZeroInitialSize16();
 
-function testGrowMemoryZeroInitialSize8() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowZeroInitialSize8() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load8(offset); }
@@ -290,31 +293,31 @@ function testGrowMemoryZeroInitialSize8() {
   }
 }
 
-testGrowMemoryZeroInitialSize8();
+testMemoryGrowZeroInitialSize8();
 
-function testGrowMemoryTrapMaxPagesZeroInitialMemory() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowTrapMaxPagesZeroInitialMemory() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(-1, growMem(kV8MaxPages + 1));
 }
 
-testGrowMemoryTrapMaxPagesZeroInitialMemory();
+testMemoryGrowTrapMaxPagesZeroInitialMemory();
 
-function testGrowMemoryTrapMaxPages() {
-  var builder = genGrowMemoryBuilder();
+function testMemoryGrowTrapMaxPages() {
+  var builder = genMemoryGrowBuilder();
   builder.addMemory(1, 1, false);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(-1, growMem(kV8MaxPages));
 }
 
-testGrowMemoryTrapMaxPages();
+testMemoryGrowTrapMaxPages();
 
-function testGrowMemoryTrapsWithNonSmiInput() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(0, kV8MaxPages, false);
+function testMemoryGrowTrapsWithNonSmiInput() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   // The parameter of grow_memory is unsigned. Therefore -1 stands for
@@ -322,11 +325,11 @@ function testGrowMemoryTrapsWithNonSmiInput() {
   assertEquals(-1, growMem(-1));
 };
 
-testGrowMemoryTrapsWithNonSmiInput();
+testMemoryGrowTrapsWithNonSmiInput();
 
-function testGrowMemoryCurrentMemory() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowCurrentMemory() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   builder.addFunction("memory_size", kSig_i_v)
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
@@ -338,11 +341,11 @@ function testGrowMemoryCurrentMemory() {
   assertEquals(2, MemSize());
 }
 
-testGrowMemoryCurrentMemory();
+testMemoryGrowCurrentMemory();
 
-function testGrowMemoryPreservesDataMemOp32() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowPreservesDataMemOp32() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -361,11 +364,11 @@ function testGrowMemoryPreservesDataMemOp32() {
   }
 }
 
-testGrowMemoryPreservesDataMemOp32();
+testMemoryGrowPreservesDataMemOp32();
 
-function testGrowMemoryPreservesDataMemOp16() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowPreservesDataMemOp16() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load16(offset); }
@@ -384,11 +387,11 @@ function testGrowMemoryPreservesDataMemOp16() {
   }
 }
 
-testGrowMemoryPreservesDataMemOp16();
+testMemoryGrowPreservesDataMemOp16();
 
-function testGrowMemoryPreservesDataMemOp8() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowPreservesDataMemOp8() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset, val = 0;
   function peek() { return module.exports.load8(offset); }
@@ -411,11 +414,11 @@ function testGrowMemoryPreservesDataMemOp8() {
   }
 }
 
-testGrowMemoryPreservesDataMemOp8();
+testMemoryGrowPreservesDataMemOp8();
 
-function testGrowMemoryOutOfBoundsOffset() {
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrowOutOfBoundsOffset() {
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -443,16 +446,16 @@ function testGrowMemoryOutOfBoundsOffset() {
   }
 }
 
-testGrowMemoryOutOfBoundsOffset();
+testMemoryGrowOutOfBoundsOffset();
 
-function testGrowMemoryOutOfBoundsOffset2() {
+function testMemoryGrowOutOfBoundsOffset2() {
   var builder = new WasmModuleBuilder();
   builder.addMemory(16, 128, false);
   builder.addFunction("main", kSig_v_v)
       .addBody([
           kExprI32Const, 20,
           kExprI32Const, 29,
-          kExprGrowMemory, kMemoryZero,
+          kExprMemoryGrow, kMemoryZero,
           kExprI32StoreMem, 0, 0xFF, 0xFF, 0xFF, 0x3a
           ])
       .exportAs("main");
@@ -460,10 +463,10 @@ function testGrowMemoryOutOfBoundsOffset2() {
   assertTraps(kTrapMemOutOfBounds, module.exports.main);
 }
 
-testGrowMemoryOutOfBoundsOffset2();
+testMemoryGrowOutOfBoundsOffset2();
 
-function testGrowMemoryDeclaredMaxTraps() {
-  var builder = genGrowMemoryBuilder();
+function testMemoryGrowDeclaredMaxTraps() {
+  var builder = genMemoryGrowBuilder();
   builder.addMemory(1, 16, false);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
@@ -472,13 +475,13 @@ function testGrowMemoryDeclaredMaxTraps() {
   assertEquals(-1, growMem(6));
 }
 
-testGrowMemoryDeclaredMaxTraps();
+testMemoryGrowDeclaredMaxTraps();
 
-function testGrowMemoryDeclaredSpecMaxTraps() {
+function testMemoryGrowDeclaredSpecMaxTraps() {
   // The spec maximum is higher than the internal V8 maximum. This test only
   // checks that grow_memory does not grow past the internally defined maximum
   // to reflect the current implementation.
-  var builder = genGrowMemoryBuilder();
+  var builder = genMemoryGrowBuilder();
   builder.addMemory(1, kSpecMaxPages, false);
   var module = builder.instantiate();
   function poke(value) { return module.exports.store(offset, value); }
@@ -487,12 +490,12 @@ function testGrowMemoryDeclaredSpecMaxTraps() {
   assertEquals(-1, growMem(kV8MaxPages - 20));
 }
 
-testGrowMemoryDeclaredSpecMaxTraps();
+testMemoryGrowDeclaredSpecMaxTraps();
 
-function testGrowMemory2Gb() {
-  print("testGrowMemory2Gb");
-  var builder = genGrowMemoryBuilder();
-  builder.addMemory(1, kV8MaxPages, false);
+function testMemoryGrow2Gb() {
+  print("testMemoryGrow2Gb");
+  var builder = genMemoryGrowBuilder();
+  builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -538,4 +541,4 @@ function testGrowMemory2Gb() {
   }
 }
 
-testGrowMemory2Gb();
+testMemoryGrow2Gb();

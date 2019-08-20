@@ -9,6 +9,7 @@
     return "abcdefghijklm" + s;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(isOneByteString(foo("0")));
   assertTrue(isOneByteString(foo("0")));
   %OptimizeFunctionOnNextCall(foo);
@@ -20,6 +21,7 @@
     return s + "abcdefghijklm";
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(isOneByteString(foo("0")));
   assertTrue(isOneByteString(foo("0")));
   %OptimizeFunctionOnNextCall(foo);
@@ -31,6 +33,7 @@
     return "abcdefghijklm" + s;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(isOneByteString(foo("\u1234")));
   assertFalse(isOneByteString(foo("\u1234")));
   %OptimizeFunctionOnNextCall(foo);
@@ -42,6 +45,7 @@
     return s + "abcdefghijklm";
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(isOneByteString(foo("\u1234")));
   assertFalse(isOneByteString(foo("\u1234")));
   %OptimizeFunctionOnNextCall(foo);
@@ -53,6 +57,7 @@
     return "abcdefghijkl\u1234" + s;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(isOneByteString(foo("0")));
   assertFalse(isOneByteString(foo("0")));
   %OptimizeFunctionOnNextCall(foo);
@@ -64,6 +69,7 @@
     return s + "abcdefghijkl\u1234";
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(isOneByteString(foo("0")));
   assertFalse(isOneByteString(foo("0")));
   %OptimizeFunctionOnNextCall(foo);

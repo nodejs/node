@@ -49,8 +49,10 @@ static const UChar NO_NAME[]            = { 0 };   // for empty no-fallback time
 static const char* TZDBNAMES_KEYS[]               = {"ss", "sd"};
 static const int32_t TZDBNAMES_KEYS_SIZE = UPRV_LENGTHOF(TZDBNAMES_KEYS);
 
-static UMutex gTZDBNamesMapLock = U_MUTEX_INITIALIZER;
-static UMutex gDataMutex = U_MUTEX_INITIALIZER;
+static UMutex *gDataMutex() {
+    static UMutex m = U_MUTEX_INITIALIZER;
+    return &m;
+}
 
 static UHashtable* gTZDBNamesMap = NULL;
 static icu::UInitOnce gTZDBNamesMapInitOnce = U_INITONCE_INITIALIZER;
@@ -357,8 +359,6 @@ TextTrieMap::getChildNode(CharacterNode *parent, UChar c) const {
     return NULL;
 }
 
-// Mutex for protecting the lazy creation of the Trie node structure on the first call to search().
-static UMutex TextTrieMutex = U_MUTEX_INITIALIZER;
 
 // buildTrie() - The Trie node structure is needed.  Create it from the data that was
 //               saved at the time the ZoneStringFormatter was created.  The Trie is only
@@ -386,6 +386,10 @@ TextTrieMap::search(const UnicodeString &text, int32_t start,
         //       the ICU atomic safe functions for assigning and testing.
         //       Don't test the pointer fLazyContents.
         //       Don't do unless it's really required.
+
+        // Mutex for protecting the lazy creation of the Trie node structure on the first call to search().
+        static UMutex TextTrieMutex = U_MUTEX_INITIALIZER;
+
         Mutex lock(&TextTrieMutex);
         if (fLazyContents != NULL) {
             TextTrieMap *nonConstThis = const_cast<TextTrieMap *>(this);
@@ -1210,7 +1214,7 @@ TimeZoneNamesImpl::getMetaZoneDisplayName(const UnicodeString& mzID,
     TimeZoneNamesImpl *nonConstThis = const_cast<TimeZoneNamesImpl *>(this);
 
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
         UErrorCode status = U_ZERO_ERROR;
         znames = nonConstThis->loadMetaZoneNames(mzID, status);
         if (U_FAILURE(status)) { return name; }
@@ -1236,7 +1240,7 @@ TimeZoneNamesImpl::getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNa
     TimeZoneNamesImpl *nonConstThis = const_cast<TimeZoneNamesImpl *>(this);
 
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
         UErrorCode status = U_ZERO_ERROR;
         tznames = nonConstThis->loadTimeZoneNames(tzID, status);
         if (U_FAILURE(status)) { return name; }
@@ -1259,7 +1263,7 @@ TimeZoneNamesImpl::getExemplarLocationName(const UnicodeString& tzID, UnicodeStr
     TimeZoneNamesImpl *nonConstThis = const_cast<TimeZoneNamesImpl *>(this);
 
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
         UErrorCode status = U_ZERO_ERROR;
         tznames = nonConstThis->loadTimeZoneNames(tzID, status);
         if (U_FAILURE(status)) { return name; }
@@ -1285,7 +1289,7 @@ static void mergeTimeZoneKey(const UnicodeString& mzID, char* result) {
 
     char mzIdChar[ZID_KEY_MAX + 1];
     int32_t keyLen;
-    int32_t prefixLen = uprv_strlen(gMZPrefix);
+    int32_t prefixLen = static_cast<int32_t>(uprv_strlen(gMZPrefix));
     keyLen = mzID.extract(0, mzID.length(), mzIdChar, ZID_KEY_MAX + 1, US_INV);
     uprv_memcpy((void *)result, (void *)gMZPrefix, prefixLen);
     uprv_memcpy((void *)(result + prefixLen), (void *)mzIdChar, keyLen);
@@ -1354,7 +1358,7 @@ TimeZoneNamesImpl::find(const UnicodeString& text, int32_t start, uint32_t types
     // Synchronize so that data is not loaded multiple times.
     // TODO: Consider more fine-grained synchronization.
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
 
         // First try of lookup.
         matches = doFind(handler, text, start, status);
@@ -1453,7 +1457,7 @@ struct TimeZoneNamesImpl::ZoneStringsLoader : public ResourceSink {
     virtual ~ZoneStringsLoader();
 
     void* createKey(const char* key, UErrorCode& status) {
-        int32_t len = sizeof(char) * (uprv_strlen(key) + 1);
+        int32_t len = sizeof(char) * (static_cast<int32_t>(uprv_strlen(key)) + 1);
         char* newKey = (char*) uprv_malloc(len);
         if (newKey == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
@@ -1469,7 +1473,7 @@ struct TimeZoneNamesImpl::ZoneStringsLoader : public ResourceSink {
     }
 
     UnicodeString mzIDFromKey(const char* key) {
-        return UnicodeString(key + MZ_PREFIX_LEN, uprv_strlen(key) - MZ_PREFIX_LEN, US_INV);
+        return UnicodeString(key + MZ_PREFIX_LEN, static_cast<int32_t>(uprv_strlen(key)) - MZ_PREFIX_LEN, US_INV);
     }
 
     UnicodeString tzIDFromKey(const char* key) {
@@ -1581,7 +1585,7 @@ void TimeZoneNamesImpl::loadAllDisplayNames(UErrorCode& status) {
     if (U_FAILURE(status)) return;
 
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
         internalLoadAllDisplayNames(status);
     }
 }
@@ -1598,7 +1602,7 @@ void TimeZoneNamesImpl::getDisplayNames(const UnicodeString& tzID,
 
     // Load the time zone strings
     {
-        Mutex lock(&gDataMutex);
+        Mutex lock(gDataMutex());
         tznames = (void*) nonConstThis->loadTimeZoneNames(tzID, status);
         if (U_FAILURE(status)) { return; }
     }
@@ -1618,7 +1622,7 @@ void TimeZoneNamesImpl::getDisplayNames(const UnicodeString& tzID,
                 } else {
                     // Load the meta zone strings
                     // Mutex is scoped to the "else" statement
-                    Mutex lock(&gDataMutex);
+                    Mutex lock(gDataMutex());
                     mznames = (void*) nonConstThis->loadMetaZoneNames(mzID, status);
                     if (U_FAILURE(status)) { return; }
                     // Note: when the metazone doesn't exist, in Java, loadMetaZoneNames returns
@@ -1944,8 +1948,8 @@ TZDBNameSearchHandler::handleMatch(int32_t matchLength, const CharacterNode *nod
                     // metazone mapping for "CST" is America_Central,
                     // but if region is one of CN/MO/TW, "CST" is parsed
                     // as metazone China (China Standard Time).
-                    for (int32_t i = 0; i < ninfo->nRegions; i++) {
-                        const char *region = ninfo->parseRegions[i];
+                    for (int32_t j = 0; j < ninfo->nRegions; j++) {
+                        const char *region = ninfo->parseRegions[j];
                         if (uprv_strcmp(fRegion, region) == 0) {
                             match = ninfo;
                             matchRegion = TRUE;
@@ -2059,7 +2063,7 @@ static void U_CALLCONV prepareFind(UErrorCode &status) {
     const UnicodeString *mzID;
     StringEnumeration *mzIDs = TimeZoneNamesImpl::_getAvailableMetaZoneIDs(status);
     if (U_SUCCESS(status)) {
-        while ((mzID = mzIDs->snext(status)) && U_SUCCESS(status)) {
+        while ((mzID = mzIDs->snext(status)) != 0 && U_SUCCESS(status)) {
             const TZDBNames *names = TZDBTimeZoneNames::getMetaZoneNames(*mzID, status);
             if (U_FAILURE(status)) {
                 break;
@@ -2128,7 +2132,7 @@ TZDBTimeZoneNames::TZDBTimeZoneNames(const Locale& locale)
 : fLocale(locale) {
     UBool useWorld = TRUE;
     const char* region = fLocale.getCountry();
-    int32_t regionLen = uprv_strlen(region);
+    int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
         UErrorCode status = U_ZERO_ERROR;
         char loc[ULOC_FULLNAME_CAPACITY];
@@ -2243,6 +2247,7 @@ TZDBTimeZoneNames::getMetaZoneNames(const UnicodeString& mzID, UErrorCode& statu
     U_ASSERT(status == U_ZERO_ERROR);   // already checked length above
     mzIDKey[mzID.length()] = 0;
 
+    static UMutex gTZDBNamesMapLock = U_MUTEX_INITIALIZER;
     umtx_lock(&gTZDBNamesMapLock);
     {
         void *cacheVal = uhash_get(gTZDBNamesMap, mzIDKey);

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 // Test that live-editing a frame that uses new.target fails.
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 var calls = 0;
@@ -43,16 +43,10 @@ function ExecuteInDebugContext(f) {
 
 function Replace(fun, original, patch) {
   ExecuteInDebugContext(function() {
-    var change_log = [];
     try {
-      var script = Debug.findScript(fun);
-      var patch_pos = script.source.indexOf(original);
-      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(
-          script, patch_pos, original.length, patch, change_log);
+      %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
-      assertEquals("BLOCKED_NO_NEW_TARGET_ON_RESTART",
-          change_log[0].functions_on_stack[0].replace_problem);
-      assertInstanceof(e, Debug.LiveEdit.Failure);
+      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME');
       exceptions++;
     }
   });

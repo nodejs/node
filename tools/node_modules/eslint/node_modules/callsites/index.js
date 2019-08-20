@@ -1,8 +1,13 @@
 'use strict';
-module.exports = function () {
-	var _ = Error.prepareStackTrace;
-	Error.prepareStackTrace = function (_, stack) { return stack };
-	var stack = new Error().stack.slice(1);
-	Error.prepareStackTrace = _;
+
+const callsites = () => {
+	const _prepareStackTrace = Error.prepareStackTrace;
+	Error.prepareStackTrace = (_, stack) => stack;
+	const stack = new Error().stack.slice(1);
+	Error.prepareStackTrace = _prepareStackTrace;
 	return stack;
 };
+
+module.exports = callsites;
+// TODO: Remove this for the next major release
+module.exports.default = callsites;

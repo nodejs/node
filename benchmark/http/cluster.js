@@ -3,9 +3,10 @@ const common = require('../common.js');
 const PORT = common.PORT;
 
 const cluster = require('cluster');
+let bench;
 if (cluster.isMaster) {
-  var bench = common.createBenchmark(main, {
-    // unicode confuses ab on os x.
+  bench = common.createBenchmark(main, {
+    // Unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     len: [4, 1024, 102400],
     c: [50, 500]
@@ -21,21 +22,21 @@ function main({ type, len, c }) {
   const w1 = cluster.fork();
   const w2 = cluster.fork();
 
-  cluster.on('listening', function() {
+  cluster.on('listening', () => {
     workers++;
     if (workers < 2)
       return;
 
-    setTimeout(function() {
+    setImmediate(() => {
       const path = `/${type}/${len}`;
 
       bench.http({
         path: path,
         connections: c
-      }, function() {
+      }, () => {
         w1.destroy();
         w2.destroy();
       });
-    }, 100);
+    });
   });
 }

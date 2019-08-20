@@ -35,6 +35,7 @@ function test_helper_for_ics(func, b1, b2, b3, b4) {
 }
 
 function test_helper_for_crankshaft(func, b1, b2, b3, b4) {
+  %PrepareFunctionForOptimization(func);
   assertEquals(b1, func(.5, .5));
   %OptimizeFunctionOnNextCall(func);
   assertEquals(b1, func(.5, .5));

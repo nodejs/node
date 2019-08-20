@@ -27,6 +27,19 @@ const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
+// TODO: documentation does not allow Array as an option, so testing that
+// should fail, but currently http.Server does not typecheck further than
+// if `option` is `typeof object` - so we don't test that here right now
+const invalid_options = [ 'foo', 42, true ];
+
+invalid_options.forEach((option) => {
+  assert.throws(() => {
+    new http.Server(option);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
 let request_number = 0;
 let requests_sent = 0;
 let server_response = '';
@@ -37,23 +50,23 @@ const server = http.createServer(function(req, res) {
   req.id = request_number++;
 
   if (req.id === 0) {
-    assert.strictEqual('GET', req.method);
-    assert.strictEqual('/hello', url.parse(req.url).pathname);
-    assert.strictEqual('world', qs.parse(url.parse(req.url).query).hello);
-    assert.strictEqual('b==ar', qs.parse(url.parse(req.url).query).foo);
+    assert.strictEqual(req.method, 'GET');
+    assert.strictEqual(url.parse(req.url).pathname, '/hello');
+    assert.strictEqual(qs.parse(url.parse(req.url).query).hello, 'world');
+    assert.strictEqual(qs.parse(url.parse(req.url).query).foo, 'b==ar');
   }
 
   if (req.id === 1) {
-    assert.strictEqual('POST', req.method);
-    assert.strictEqual('/quit', url.parse(req.url).pathname);
+    assert.strictEqual(req.method, 'POST');
+    assert.strictEqual(url.parse(req.url).pathname, '/quit');
   }
 
   if (req.id === 2) {
-    assert.strictEqual('foo', req.headers['x-x']);
+    assert.strictEqual(req.headers['x-x'], 'foo');
   }
 
   if (req.id === 3) {
-    assert.strictEqual('bar', req.headers['x-x']);
+    assert.strictEqual(req.headers['x-x'], 'bar');
     this.close();
   }
 
@@ -112,8 +125,8 @@ server.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(4, request_number);
-  assert.strictEqual(4, requests_sent);
+  assert.strictEqual(request_number, 4);
+  assert.strictEqual(requests_sent, 4);
 
   const hello = new RegExp('/hello');
   assert.ok(hello.test(server_response));
@@ -121,5 +134,5 @@ process.on('exit', function() {
   const quit = new RegExp('/quit');
   assert.ok(quit.test(server_response));
 
-  assert.strictEqual(true, client_got_eof);
+  assert.strictEqual(client_got_eof, true);
 });

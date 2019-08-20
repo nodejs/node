@@ -11,7 +11,7 @@ const backslashRE = /\\/g;
 
 const resolveTests = [
   [ path.win32.resolve,
-    // arguments                               result
+    // Arguments                               result
     [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
      [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
      [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
@@ -28,7 +28,7 @@ const resolveTests = [
     ]
   ],
   [ path.posix.resolve,
-    // arguments                    result
+    // Arguments                    result
     [[['/var/lib', '../', 'file/'], '/var/file'],
      [['/var/lib', '/../', 'file/'], '/file'],
      [['a/b/c/', '../../..'], process.cwd()],
@@ -68,4 +68,13 @@ if (common.isWindows) {
     process.argv[0], [resolveFixture, currentDriveLetter]);
   const resolvedPath = spawnResult.stdout.toString().trim();
   assert.strictEqual(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
+}
+
+if (!common.isWindows) {
+  // Test handling relative paths to be safe when process.cwd() fails.
+  process.cwd = () => '';
+  assert.strictEqual(process.cwd(), '');
+  const resolved = path.resolve();
+  const expected = '.';
+  assert.strictEqual(resolved, expected);
 }

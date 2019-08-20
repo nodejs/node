@@ -24,23 +24,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_internals.h"
 #include "node_buffer.h"
+#include "uv.h"
+#include "v8.h"
 
 namespace node {
 
-using v8::Array;
-using v8::Context;
-using v8::FunctionCallbackInfo;
-using v8::HandleScope;
-using v8::Integer;
-using v8::Isolate;
-using v8::Local;
-using v8::Null;
-using v8::Number;
-using v8::Object;
-using v8::String;
-using v8::Value;
 
 
 class SyncProcessOutputBuffer;
@@ -52,7 +41,7 @@ class SyncProcessOutputBuffer {
   static const unsigned int kBufferSize = 65536;
 
  public:
-  inline SyncProcessOutputBuffer();
+  inline SyncProcessOutputBuffer() = default;
 
   inline void OnAlloc(size_t suggested_size, uv_buf_t* buf) const;
   inline void OnRead(const uv_buf_t* buf, size_t nread);
@@ -68,9 +57,9 @@ class SyncProcessOutputBuffer {
  private:
   // Use unsigned int because that's what `uv_buf_init` takes.
   mutable char data_[kBufferSize];
-  unsigned int used_;
+  unsigned int used_ = 0;
 
-  SyncProcessOutputBuffer* next_;
+  SyncProcessOutputBuffer* next_ = nullptr;
 };
 
 
@@ -94,7 +83,7 @@ class SyncProcessStdioPipe {
   int Start();
   void Close();
 
-  Local<Object> GetOutputAsBuffer(Environment* env) const;
+  v8::Local<v8::Object> GetOutputAsBuffer(Environment* env) const;
 
   inline bool readable() const;
   inline bool writable() const;
@@ -151,10 +140,11 @@ class SyncProcessRunner {
   };
 
  public:
-  static void Initialize(Local<Object> target,
-                         Local<Value> unused,
-                         Local<Context> context);
-  static void Spawn(const FunctionCallbackInfo<Value>& args);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context,
+                         void* priv);
+  static void Spawn(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   friend class SyncProcessStdioPipe;
@@ -164,8 +154,8 @@ class SyncProcessRunner {
 
   inline Environment* env() const;
 
-  Local<Object> Run(Local<Value> options);
-  void TryInitializeAndRunLoop(Local<Value> options);
+  v8::MaybeLocal<v8::Object> Run(v8::Local<v8::Value> options);
+  v8::Maybe<bool> TryInitializeAndRunLoop(v8::Local<v8::Value> options);
   void CloseHandlesAndDeleteLoop();
 
   void CloseStdioPipes();
@@ -181,12 +171,12 @@ class SyncProcessRunner {
   void SetError(int error);
   void SetPipeError(int pipe_error);
 
-  Local<Object> BuildResultObject();
-  Local<Array> BuildOutputArray();
+  v8::Local<v8::Object> BuildResultObject();
+  v8::Local<v8::Array> BuildOutputArray();
 
-  int ParseOptions(Local<Value> js_value);
-  int ParseStdioOptions(Local<Value> js_value);
-  int ParseStdioOption(int child_fd, Local<Object> js_stdio_option);
+  v8::Maybe<int> ParseOptions(v8::Local<v8::Value> js_value);
+  int ParseStdioOptions(v8::Local<v8::Value> js_value);
+  int ParseStdioOption(int child_fd, v8::Local<v8::Object> js_stdio_option);
 
   inline int AddStdioIgnore(uint32_t child_fd);
   inline int AddStdioPipe(uint32_t child_fd,
@@ -195,9 +185,11 @@ class SyncProcessRunner {
                           uv_buf_t input_buffer);
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
 
-  static bool IsSet(Local<Value> value);
-  int CopyJsString(Local<Value> js_value, const char** target);
-  int CopyJsStringArray(Local<Value> js_value, char** target);
+  static bool IsSet(v8::Local<v8::Value> value);
+  v8::Maybe<int> CopyJsString(v8::Local<v8::Value> js_value,
+                              const char** target);
+  v8::Maybe<int> CopyJsStringArray(v8::Local<v8::Value> js_value,
+                                   char** target);
 
   static void ExitCallback(uv_process_t* handle,
                            int64_t exit_status,
@@ -213,7 +205,7 @@ class SyncProcessRunner {
 
   uint32_t stdio_count_;
   uv_stdio_container_t* uv_stdio_containers_;
-  std::unique_ptr<std::unique_ptr<SyncProcessStdioPipe>[]> stdio_pipes_;
+  std::vector<std::unique_ptr<SyncProcessStdioPipe>> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
   uv_process_options_t uv_process_options_;

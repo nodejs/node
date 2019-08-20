@@ -36,12 +36,12 @@ const httpsOptions = {
 };
 
 function check(request) {
-  // assert that I'm https
+  // Assert that I'm https
   assert.ok(request.socket._secureEstablished);
 }
 
 const server = https.createServer(httpsOptions, function(request, response) {
-  // run the check function
+  // Run the check function
   check(request);
   response.writeHead(200, {});
   response.end('ok');
@@ -54,7 +54,7 @@ server.listen(0, function() {
 
   // make the request
   const clientRequest = https.request(testURL);
-  // since there is a little magic with the agent
+  // Since there is a little magic with the agent
   // make sure that the request uses the https.Agent
   assert.ok(clientRequest.agent instanceof https.Agent);
   clientRequest.end();

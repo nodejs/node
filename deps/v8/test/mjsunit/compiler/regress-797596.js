@@ -8,6 +8,7 @@ function inferReceiverMapsInDeadCode() {
   var obj = { func() {} };
   gc();
   function wrappedCode() { try { code(); } catch (e) {} }
+  %PrepareFunctionForOptimization(wrappedCode);
   function code() {
     obj.a;
     try {

@@ -10,6 +10,7 @@
   var x = {};
   var a = [x,x,];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(x, foo(a));
   assertEquals(x, foo(a));
   %OptimizeFunctionOnNextCall(foo);
@@ -23,6 +24,7 @@
   var x = 0;
   var a = [x,x,];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(x, foo(a));
   assertEquals(x, foo(a));
   %OptimizeFunctionOnNextCall(foo);
@@ -36,6 +38,7 @@
   var x = 0;
   var a = [x,x,x];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(x, foo(a));
   assertEquals(x, foo(a));
   %OptimizeFunctionOnNextCall(foo);
@@ -49,6 +52,7 @@
   var x = {};
   var a = [x,x,x];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(x, foo(a));
   assertEquals(x, foo(a));
   %OptimizeFunctionOnNextCall(foo);
@@ -61,6 +65,7 @@
 
   var a = [,,];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(undefined, foo(a));
   assertEquals(undefined, foo(a));
   %OptimizeFunctionOnNextCall(foo);
@@ -75,6 +80,7 @@
 
   var a = [1, 2, 3];
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(3, foo(a));
   assertEquals(2, foo(a));
   %OptimizeFunctionOnNextCall(foo);

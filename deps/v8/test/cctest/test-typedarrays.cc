@@ -4,21 +4,22 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api.h"
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
 
-void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
+void TestArrayBufferViewContents(
+    LocalContext& env,  // NOLINT(runtime/references)
+    bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
       env->Global()
-          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("a"))
+          ->Get(env->GetIsolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
@@ -32,7 +33,6 @@ void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
     CHECK_EQ(i, contents[i]);
   }
 }
-
 
 TEST(CopyContentsTypedArray) {
   LocalContext env;
@@ -87,12 +87,10 @@ TEST(AllocateNotExternal) {
 
 void TestSpeciesProtector(char* code,
                           bool invalidates_species_protector = true) {
-  // Make BigInt64Array/BigUint64Array available for testing.
-  FLAG_harmony_bigint = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   std::string typed_array_constructors[] = {
-#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) #Type "Array",
+#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype) #Type "Array",
 
       TYPED_ARRAYS(TYPED_ARRAY_CTOR)
 #undef TYPED_ARRAY_CTOR
@@ -117,12 +115,12 @@ void TestSpeciesProtector(char* code,
 
       v8::internal::Isolate* i_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-      CHECK(i_isolate->IsSpeciesLookupChainIntact());
+      CHECK(i_isolate->IsTypedArraySpeciesLookupChainIntact());
       CompileRun(code);
       if (invalidates_species_protector) {
-        CHECK(!i_isolate->IsSpeciesLookupChainIntact());
+        CHECK(!i_isolate->IsTypedArraySpeciesLookupChainIntact());
       } else {
-        CHECK(i_isolate->IsSpeciesLookupChainIntact());
+        CHECK(i_isolate->IsTypedArraySpeciesLookupChainIntact());
       }
 
       v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");

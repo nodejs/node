@@ -34,7 +34,7 @@ function TestConstructor() {
   this[2] = 3;
 }
 
-function bad_func(o,a) {
+function bad_func(o, a) {
   var s = 0;
   for (var i = 0; i < 1; ++i) {
     o.newFileToChangeMap = undefined;
@@ -42,8 +42,8 @@ function bad_func(o,a) {
     s += x;
   }
   return s;
-}
-
+};
+%PrepareFunctionForOptimization(bad_func);
 o = new Object();
 a = new TestConstructor();
 bad_func(o, a);

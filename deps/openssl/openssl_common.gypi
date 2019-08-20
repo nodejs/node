@@ -5,6 +5,8 @@
     'openssl/crypto/',
     'openssl/crypto/include/',
     'openssl/crypto/modes/',
+    'openssl/crypto/ec/curve448',
+    'openssl/crypto/ec/curve448/arch_32',
     'config/',
   ],
   # build options specific to OS
@@ -55,13 +57,16 @@
       ],
     }, {
       # linux and others
-      'cflags': ['-Wno-missing-field-initializers',
-                 ## TODO: check gcc_version>=4.3
-                 '-Wno-old-style-declaration'],
+      'cflags': ['-Wno-missing-field-initializers',],
       'defines': [
         'OPENSSLDIR="/etc/ssl"',
         'ENGINESDIR="/dev/null"',
         'TERMIOS',
+      ],
+      'conditions': [
+        [ 'llvm_version==0', {
+          'cflags': ['-Wno-old-style-declaration',],
+        }],
       ],
     }],
   ]

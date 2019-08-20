@@ -1,3 +1,3 @@
 // Flags:  --experimental-modules
-import '../common';
-import '../fixtures/es-module-loaders/syntax-error';
+import '../common/index.mjs';
+import '../fixtures/es-module-loaders/syntax-error.mjs';

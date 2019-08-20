@@ -6,10 +6,10 @@
 #include <sstream>
 #include <utility>
 
-#include "src/api.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/v8.h"
+#include "src/api/api-inl.h"
+#include "src/init/v8.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 
 #include "test/cctest/cctest.h"
 
@@ -28,8 +28,7 @@ static Handle<T> OpenHandle(v8::Local<v8::Value> value) {
 
 static inline v8::Local<v8::Value> Run(v8::Local<v8::Script> script) {
   v8::Local<v8::Value> result;
-  if (script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-          .ToLocal(&result)) {
+  if (script->Run(CcTest::isolate()->GetCurrentContext()).ToLocal(&result)) {
     return result;
   }
   return v8::Local<v8::Value>();
@@ -44,14 +43,16 @@ Handle<T> GetLexical(const char* name) {
 
   Handle<String> str_name = factory->InternalizeUtf8String(name);
   Handle<ScriptContextTable> script_contexts(
-      isolate->native_context()->script_context_table());
+      isolate->native_context()->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
-    Handle<Object> result =
-        FixedArray::get(*ScriptContextTable::GetContext(
-                            script_contexts, lookup_result.context_index),
-                        lookup_result.slot_index, isolate);
+  if (ScriptContextTable::Lookup(isolate, *script_contexts, *str_name,
+                                 &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        isolate, script_contexts, lookup_result.context_index);
+
+    Handle<Object> result(script_context->get(lookup_result.slot_index),
+                          isolate);
     return Handle<T>::cast(result);
   }
   return Handle<T>();
@@ -73,36 +74,35 @@ static inline Handle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
-
-static Object* GetFieldValue(JSObject* obj, int property_index) {
-  FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
-  return obj->RawFastPropertyAt(index);
+static Object GetFieldValue(JSObject obj, int property_index) {
+  FieldIndex index = FieldIndex::ForPropertyIndex(obj.map(), property_index);
+  return obj.RawFastPropertyAt(index);
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
-  if (obj->IsUnboxedDoubleField(field_index)) {
-    return obj->RawFastDoublePropertyAt(field_index);
+static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
+  if (obj.IsUnboxedDoubleField(field_index)) {
+    return obj.RawFastDoublePropertyAt(field_index);
   } else {
-    Object* value = obj->RawFastPropertyAt(field_index);
-    CHECK(value->IsMutableHeapNumber());
-    return HeapNumber::cast(value)->value();
+    Object value = obj.RawFastPropertyAt(field_index);
+    if (value.IsMutableHeapNumber()) {
+      return MutableHeapNumber::cast(value).value();
+    } else {
+      return value.Number();
+    }
   }
 }
 
-
-static double GetDoubleFieldValue(JSObject* obj, int property_index) {
-  FieldIndex index = FieldIndex::ForPropertyIndex(obj->map(), property_index);
+static double GetDoubleFieldValue(JSObject obj, int property_index) {
+  FieldIndex index = FieldIndex::ForPropertyIndex(obj.map(), property_index);
   return GetDoubleFieldValue(obj, index);
 }
 
-
-bool IsObjectShrinkable(JSObject* obj) {
+bool IsObjectShrinkable(JSObject obj) {
   Handle<Map> filler_map =
       CcTest::i_isolate()->factory()->one_pointer_filler_map();
 
-  int inobject_properties = obj->map()->GetInObjectProperties();
-  int unused = obj->map()->UnusedPropertyFields();
+  int inobject_properties = obj.map().GetInObjectProperties();
+  int unused = obj.map().UnusedPropertyFields();
   if (unused == 0) return false;
 
   for (int i = inobject_properties - unused; i < inobject_properties; i++) {
@@ -112,7 +112,6 @@ bool IsObjectShrinkable(JSObject* obj) {
   }
   return true;
 }
-
 
 TEST(JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
@@ -137,7 +136,7 @@ TEST(JSObjectBasic) {
   Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -145,7 +144,7 @@ TEST(JSObjectBasic) {
   CHECK(initial_map->IsInobjectSlackTrackingInProgress());
 
   // There must be at least some slack.
-  CHECK_LT(5, obj->map()->GetInObjectProperties());
+  CHECK_LT(5, obj->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj, 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*obj, 1));
   CHECK_EQ(*obj, GetFieldValue(*obj, 2));
@@ -162,7 +161,7 @@ TEST(JSObjectBasic) {
   CHECK(!IsObjectShrinkable(*obj));
 
   // No slack left.
-  CHECK_EQ(3, obj->map()->GetInObjectProperties());
+  CHECK_EQ(3, obj->map().GetInObjectProperties());
 }
 
 
@@ -198,7 +197,7 @@ TEST(JSObjectComplex) {
   Handle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // Three instances created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 3,
@@ -206,7 +205,7 @@ TEST(JSObjectComplex) {
   CHECK(initial_map->IsInobjectSlackTrackingInProgress());
 
   // There must be at least some slack.
-  CHECK_LT(5, obj3->map()->GetInObjectProperties());
+  CHECK_LT(5, obj3->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj3, 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*obj3, 1));
   CHECK_EQ(*obj3, GetFieldValue(*obj3, 2));
@@ -226,14 +225,14 @@ TEST(JSObjectComplex) {
   CHECK(IsObjectShrinkable(*obj3));
   CHECK(!IsObjectShrinkable(*obj5));
 
-  CHECK_EQ(5, obj1->map()->GetInObjectProperties());
-  CHECK_EQ(4, obj1->map()->UnusedPropertyFields());
+  CHECK_EQ(5, obj1->map().GetInObjectProperties());
+  CHECK_EQ(4, obj1->map().UnusedPropertyFields());
 
-  CHECK_EQ(5, obj3->map()->GetInObjectProperties());
-  CHECK_EQ(2, obj3->map()->UnusedPropertyFields());
+  CHECK_EQ(5, obj3->map().GetInObjectProperties());
+  CHECK_EQ(2, obj3->map().UnusedPropertyFields());
 
-  CHECK_EQ(5, obj5->map()->GetInObjectProperties());
-  CHECK_EQ(0, obj5->map()->UnusedPropertyFields());
+  CHECK_EQ(5, obj5->map().GetInObjectProperties());
+  CHECK_EQ(0, obj5->map().UnusedPropertyFields());
 
   // Since slack tracking is complete, the new objects should not be shrinkable.
   obj1 = CompileRunI<JSObject>("new A(1);");
@@ -283,7 +282,7 @@ TEST(JSGeneratorObjectBasic) {
   Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -291,7 +290,7 @@ TEST(JSGeneratorObjectBasic) {
   CHECK(initial_map->IsInobjectSlackTrackingInProgress());
 
   // There must be at least some slack.
-  CHECK_LT(5, obj->map()->GetInObjectProperties());
+  CHECK_LT(5, obj->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj, 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*obj, 1));
   CHECK_EQ(*obj, GetFieldValue(*obj, 2));
@@ -308,7 +307,7 @@ TEST(JSGeneratorObjectBasic) {
   CHECK(!IsObjectShrinkable(*obj));
 
   // No slack left.
-  CHECK_EQ(3, obj->map()->GetInObjectProperties());
+  CHECK_EQ(3, obj->map().GetInObjectProperties());
 }
 
 
@@ -359,10 +358,10 @@ TEST(SubclassBasicNoBaseClassInstances) {
   Handle<JSObject> obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  Handle<Map> a_initial_map(a_func->initial_map());
+  Handle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
 
   CHECK(b_func->has_initial_map());
-  Handle<Map> b_initial_map(b_func->initial_map());
+  Handle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
 
   // Zero instances of A created.
   CHECK_EQ(Map::kSlackTrackingCounterStart,
@@ -375,7 +374,7 @@ TEST(SubclassBasicNoBaseClassInstances) {
   CHECK(b_initial_map->IsInobjectSlackTrackingInProgress());
 
   // There must be at least some slack.
-  CHECK_LT(10, obj->map()->GetInObjectProperties());
+  CHECK_LT(10, obj->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj, 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*obj, 1));
   CHECK_EQ(*obj, GetFieldValue(*obj, 2));
@@ -400,7 +399,7 @@ TEST(SubclassBasicNoBaseClassInstances) {
   CHECK(a_initial_map->IsInobjectSlackTrackingInProgress());
 
   // No slack left.
-  CHECK_EQ(6, obj->map()->GetInObjectProperties());
+  CHECK_EQ(6, obj->map().GetInObjectProperties());
 }
 
 
@@ -454,10 +453,10 @@ TEST(SubclassBasic) {
   Handle<JSObject> b_obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  Handle<Map> a_initial_map(a_func->initial_map());
+  Handle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
 
   CHECK(b_func->has_initial_map());
-  Handle<Map> b_initial_map(b_func->initial_map());
+  Handle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
 
   // One instance of a base class created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -480,10 +479,10 @@ TEST(SubclassBasic) {
   CHECK(!IsObjectShrinkable(*a_obj));
 
   // No slack left.
-  CHECK_EQ(3, a_obj->map()->GetInObjectProperties());
+  CHECK_EQ(3, a_obj->map().GetInObjectProperties());
 
   // There must be at least some slack.
-  CHECK_LT(10, b_obj->map()->GetInObjectProperties());
+  CHECK_LT(10, b_obj->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*b_obj, 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*b_obj, 1));
   CHECK_EQ(*b_obj, GetFieldValue(*b_obj, 2));
@@ -503,7 +502,7 @@ TEST(SubclassBasic) {
   CHECK(!IsObjectShrinkable(*b_obj));
 
   // No slack left.
-  CHECK_EQ(6, b_obj->map()->GetInObjectProperties());
+  CHECK_EQ(6, b_obj->map().GetInObjectProperties());
 }
 
 
@@ -577,13 +576,13 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // If the object is slow-mode already, bail out.
-    if (obj->map()->is_dictionary_map()) continue;
+    if (obj->map().is_dictionary_map()) continue;
 
     // There must be at least some slack.
-    CHECK_LT(fields_count, obj->map()->GetInObjectProperties());
+    CHECK_LT(fields_count, obj->map().GetInObjectProperties());
 
     // One instance was created.
     CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -607,7 +606,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     CHECK(!IsObjectShrinkable(*obj));
 
     // No slack left.
-    CHECK_EQ(fields_count, obj->map()->GetInObjectProperties());
+    CHECK_EQ(fields_count, obj->map().GetInObjectProperties());
   }
 }
 
@@ -687,11 +686,11 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // There must be no slack left.
-    CHECK_EQ(JSObject::kMaxInstanceSize, obj->map()->instance_size());
-    CHECK_EQ(kMaxInobjectProperties, obj->map()->GetInObjectProperties());
+    CHECK_EQ(JSObject::kMaxInstanceSize, obj->map().instance_size());
+    CHECK_EQ(kMaxInobjectProperties, obj->map().GetInObjectProperties());
 
     // One instance was created.
     CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -708,7 +707,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     CHECK(!IsObjectShrinkable(*obj));
 
     // No slack left.
-    CHECK_EQ(kMaxInobjectProperties, obj->map()->GetInObjectProperties());
+    CHECK_EQ(kMaxInobjectProperties, obj->map().GetInObjectProperties());
   }
 
   // The other classes in the hierarchy are not affected.
@@ -718,7 +717,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
 static void CheckExpectedProperties(int expected, std::ostringstream& os) {
   Handle<HeapObject> obj = Handle<HeapObject>::cast(
       v8::Utils::OpenHandle(*CompileRun(os.str().c_str())));
-  CHECK_EQ(expected, obj->map()->GetInObjectProperties());
+  CHECK_EQ(expected, obj->map().GetInObjectProperties());
 }
 
 TEST(ObjectLiteralPropertyBackingStoreSize) {
@@ -871,11 +870,11 @@ TEST(SlowModeSubclass) {
     Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    Handle<Map> initial_map(func->initial_map());
+    Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
     // Object should go dictionary mode.
-    CHECK_EQ(JSObject::kHeaderSize, obj->map()->instance_size());
-    CHECK(obj->map()->is_dictionary_map());
+    CHECK_EQ(JSObject::kHeaderSize, obj->map().instance_size());
+    CHECK(obj->map().is_dictionary_map());
 
     // One instance was created.
     CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -892,8 +891,8 @@ TEST(SlowModeSubclass) {
     CHECK(!IsObjectShrinkable(*obj));
 
     // Object should stay in dictionary mode.
-    CHECK_EQ(JSObject::kHeaderSize, obj->map()->instance_size());
-    CHECK(obj->map()->is_dictionary_map());
+    CHECK_EQ(JSObject::kHeaderSize, obj->map().instance_size());
+    CHECK(obj->map().is_dictionary_map());
   }
 
   // The other classes in the hierarchy are not affected.
@@ -937,7 +936,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  Handle<Map> initial_map(func->initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
 
   CHECK_EQ(instance_type, initial_map->instance_type());
 
@@ -956,7 +955,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   CHECK(initial_map->IsInobjectSlackTrackingInProgress());
 
   // There must be at least some slack.
-  CHECK_LT(builtin_properties_count + 5, obj->map()->GetInObjectProperties());
+  CHECK_LT(builtin_properties_count + 5, obj->map().GetInObjectProperties());
   CHECK_EQ(Smi::FromInt(42), GetFieldValue(*obj, builtin_properties_count + 0));
   CHECK_EQ(4.2, GetDoubleFieldValue(*obj, builtin_properties_count + 1));
   CHECK_EQ(*obj, GetFieldValue(*obj, builtin_properties_count + 2));
@@ -973,9 +972,9 @@ static void TestSubclassBuiltin(const char* subclass_name,
   CHECK(!IsObjectShrinkable(*obj));
 
   // No slack left.
-  CHECK_EQ(builtin_properties_count + 3, obj->map()->GetInObjectProperties());
+  CHECK_EQ(builtin_properties_count + 3, obj->map().GetInObjectProperties());
 
-  CHECK_EQ(instance_type, obj->map()->instance_type());
+  CHECK_EQ(instance_type, obj->map().instance_type());
 }
 
 
@@ -1020,8 +1019,8 @@ TEST(SubclassBooleanBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "Boolean", "true");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "Boolean", "false");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "true");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "false");
 }
 
 
@@ -1061,8 +1060,8 @@ TEST(SubclassNumberBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "Number", "42");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "Number", "4.2");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "42");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "4.2");
 }
 
 
@@ -1094,8 +1093,9 @@ TEST(SubclassStringBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "String", "'some string'");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "String", "");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "String",
+                      "'some string'");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "String", "");
 }
 
 
@@ -1142,12 +1142,10 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 TEST(SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
   FLAG_always_opt = false;
-  // Make BigInt64Array/BigUint64Array available for testing.
-  FLAG_harmony_bigint = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType, size) \
+#define TYPED_ARRAY_TEST(Type, type, TYPE, elementType) \
   TestSubclassBuiltin("A" #Type, JS_TYPED_ARRAY_TYPE, #Type "Array", "42");
 
   TYPED_ARRAYS(TYPED_ARRAY_TEST)
@@ -1213,6 +1211,264 @@ TEST(SubclassPromiseBuiltin) {
 TEST(SubclassPromiseBuiltinNoInlineNew) {
   FLAG_inline_new = false;
   TestSubclassPromiseBuiltin();
+}
+
+TEST(SubclassTranspiledClassHierarchy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "Object.setPrototypeOf(B, A);\n"
+      "function A() {\n"
+      "  this.a0 = 0;\n"
+      "  this.a1 = 1;\n"
+      "  this.a2 = 1;\n"
+      "  this.a3 = 1;\n"
+      "  this.a4 = 1;\n"
+      "  this.a5 = 1;\n"
+      "  this.a6 = 1;\n"
+      "  this.a7 = 1;\n"
+      "  this.a8 = 1;\n"
+      "  this.a9 = 1;\n"
+      "  this.a10 = 1;\n"
+      "  this.a11 = 1;\n"
+      "  this.a12 = 1;\n"
+      "  this.a13 = 1;\n"
+      "  this.a14 = 1;\n"
+      "  this.a15 = 1;\n"
+      "  this.a16 = 1;\n"
+      "  this.a17 = 1;\n"
+      "  this.a18 = 1;\n"
+      "  this.a19 = 1;\n"
+      "};\n"
+      "function B() {\n"
+      "  A.call(this);\n"
+      "  this.b = 1;\n"
+      "};\n");
+
+  Handle<JSFunction> func = GetGlobal<JSFunction>("B");
+
+  // Zero instances have been created so far.
+  CHECK(!func->has_initial_map());
+
+  v8::Local<v8::Script> new_script = v8_compile("new B()");
+
+  RunI<JSObject>(new_script);
+
+  CHECK(func->has_initial_map());
+  Handle<Map> initial_map(func->initial_map(), func->GetIsolate());
+
+  CHECK_EQ(JS_OBJECT_TYPE, initial_map->instance_type());
+
+  // One instance of a subclass created.
+  CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
+           initial_map->construction_counter());
+  CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+
+  // Create two instances in order to ensure that |obj|.o is a data field
+  // in case of Function subclassing.
+  Handle<JSObject> obj = RunI<JSObject>(new_script);
+
+  // Two instances of a subclass created.
+  CHECK_EQ(Map::kSlackTrackingCounterStart - 2,
+           initial_map->construction_counter());
+  CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+
+  // Create several subclass instances to complete the tracking.
+  for (int i = 2; i < Map::kGenerousAllocationCount; i++) {
+    CHECK(initial_map->IsInobjectSlackTrackingInProgress());
+    Handle<JSObject> tmp = RunI<JSObject>(new_script);
+    CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
+             IsObjectShrinkable(*tmp));
+  }
+  CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
+  CHECK(!IsObjectShrinkable(*obj));
+
+  // No slack left.
+  CHECK_EQ(21, obj->map().GetInObjectProperties());
+  CHECK_EQ(JS_OBJECT_TYPE, obj->map().instance_type());
+}
+
+TEST(Regress8853_ClassConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For classes without any this.prop assignments in their
+  // constructors we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (class {});\n");
+  CHECK(obj->map().IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map().GetInObjectProperties());
+
+  // For classes with N explicit this.prop assignments in their
+  // constructors we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  constructor() {\n"
+      "    this.x = 1;\n"
+      "    this.y = 2;\n"
+      "    this.z = 3;\n"
+      "  }\n"
+      "});\n");
+  CHECK(obj->map().IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(3 + 8, obj->map().GetInObjectProperties());
+}
+
+TEST(Regress8853_ClassHierarchy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For class hierarchies without any this.prop assignments in their
+  // constructors we reserve 2 inobject properties per constructor plus
+  // 8 inobject properties slack on top.
+  std::string base = "(class {})";
+  for (int i = 1; i < 10; ++i) {
+    std::string script = "new " + base + ";\n";
+    Handle<JSObject> obj = CompileRunI<JSObject>(script.c_str());
+    CHECK(obj->map().IsInobjectSlackTrackingInProgress());
+    CHECK(IsObjectShrinkable(*obj));
+    CHECK_EQ(8 + 2 * i, obj->map().GetInObjectProperties());
+    base = "(class extends " + base + " {})";
+  }
+}
+
+TEST(Regress8853_FunctionConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For constructor functions without any this.prop assignments in
+  // them we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (function() {});\n");
+  CHECK(obj->map().IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map().GetInObjectProperties());
+
+  // For constructor functions with N explicit this.prop assignments
+  // in them we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (function() {\n"
+      "  this.a = 1;\n"
+      "  this.b = 2;\n"
+      "  this.c = 3;\n"
+      "  this.d = 3;\n"
+      "  this.c = 3;\n"
+      "  this.f = 3;\n"
+      "});\n");
+  CHECK(obj->map().IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(6 + 8, obj->map().GetInObjectProperties());
+}
+
+TEST(InstanceFieldsArePropertiesDefaultConstructorLazy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<JSObject> obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  x00 = null;\n"
+      "  x01 = null;\n"
+      "  x02 = null;\n"
+      "  x03 = null;\n"
+      "  x04 = null;\n"
+      "  x05 = null;\n"
+      "  x06 = null;\n"
+      "  x07 = null;\n"
+      "  x08 = null;\n"
+      "  x09 = null;\n"
+      "  x10 = null;\n"
+      "});\n");
+  CHECK_EQ(11 + 8, obj->map().GetInObjectProperties());
+}
+
+TEST(InstanceFieldsArePropertiesFieldsAndConstructorLazy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<JSObject> obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  x00 = null;\n"
+      "  x01 = null;\n"
+      "  x02 = null;\n"
+      "  x03 = null;\n"
+      "  x04 = null;\n"
+      "  x05 = null;\n"
+      "  x06 = null;\n"
+      "  x07 = null;\n"
+      "  x08 = null;\n"
+      "  x09 = null;\n"
+      "  x10 = null;\n"
+      "  constructor() {\n"
+      "    this.x11 = null;\n"
+      "    this.x12 = null;\n"
+      "    this.x12 = null;\n"
+      "    this.x14 = null;\n"
+      "    this.x15 = null;\n"
+      "    this.x16 = null;\n"
+      "    this.x17 = null;\n"
+      "    this.x18 = null;\n"
+      "    this.x19 = null;\n"
+      "    this.x20 = null;\n"
+      "  }\n"
+      "});\n");
+  CHECK_EQ(21 + 8, obj->map().GetInObjectProperties());
+}
+
+TEST(InstanceFieldsArePropertiesDefaultConstructorEager) {
+  i::FLAG_lazy = false;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<JSObject> obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  x00 = null;\n"
+      "  x01 = null;\n"
+      "  x02 = null;\n"
+      "  x03 = null;\n"
+      "  x04 = null;\n"
+      "  x05 = null;\n"
+      "  x06 = null;\n"
+      "  x07 = null;\n"
+      "  x08 = null;\n"
+      "  x09 = null;\n"
+      "  x10 = null;\n"
+      "});\n");
+  CHECK_EQ(11 + 8, obj->map().GetInObjectProperties());
+}
+
+TEST(InstanceFieldsArePropertiesFieldsAndConstructorEager) {
+  i::FLAG_lazy = false;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<JSObject> obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  x00 = null;\n"
+      "  x01 = null;\n"
+      "  x02 = null;\n"
+      "  x03 = null;\n"
+      "  x04 = null;\n"
+      "  x05 = null;\n"
+      "  x06 = null;\n"
+      "  x07 = null;\n"
+      "  x08 = null;\n"
+      "  x09 = null;\n"
+      "  x10 = null;\n"
+      "  constructor() {\n"
+      "    this.x11 = null;\n"
+      "    this.x12 = null;\n"
+      "    this.x12 = null;\n"
+      "    this.x14 = null;\n"
+      "    this.x15 = null;\n"
+      "    this.x16 = null;\n"
+      "    this.x17 = null;\n"
+      "    this.x18 = null;\n"
+      "    this.x19 = null;\n"
+      "    this.x20 = null;\n"
+      "  }\n"
+      "});\n");
+  CHECK_EQ(21 + 8, obj->map().GetInObjectProperties());
 }
 
 }  // namespace test_inobject_slack_tracking

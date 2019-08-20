@@ -24,11 +24,9 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-common.globalCheck = false;
-
 // Run a string
 const result = vm.runInThisContext('\'passed\';');
-assert.strictEqual('passed', result);
+assert.strictEqual(result, 'passed');
 
 // thrown error
 assert.throws(function() {
@@ -37,7 +35,7 @@ assert.throws(function() {
 
 global.hello = 5;
 vm.runInThisContext('hello = 2');
-assert.strictEqual(2, global.hello);
+assert.strictEqual(global.hello, 2);
 
 
 // pass values
@@ -50,11 +48,18 @@ global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
 const baz = vm.runInThisContext(code);
 /* eslint-enable no-unused-vars */
-assert.strictEqual(0, global.obj.foo);
-assert.strictEqual(2, global.bar);
-assert.strictEqual(1, global.foo);
+assert.strictEqual(global.obj.foo, 0);
+assert.strictEqual(global.bar, 2);
+assert.strictEqual(global.foo, 1);
 
 // call a function
 global.f = function() { global.foo = 100; };
 vm.runInThisContext('f()');
-assert.strictEqual(100, global.foo);
+assert.strictEqual(global.foo, 100);
+
+common.allowGlobals(
+  global.hello,
+  global.foo,
+  global.obj,
+  global.f
+);

@@ -24,8 +24,21 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
+#include <cmath>
 #include <cstring>
+#include "util.h"
+
+// These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
+// To avoid warnings, undefine them before redefining them.
+#ifdef BSWAP_2
+# undef BSWAP_2
+#endif
+#ifdef BSWAP_4
+# undef BSWAP_4
+#endif
+#ifdef BSWAP_8
+# undef BSWAP_8
+#endif
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -143,7 +156,7 @@ typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
 
 template <typename Inner, typename Outer>
 constexpr uintptr_t OffsetOf(Inner Outer::*field) {
-  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field));
+  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(nullptr)->*field));
 }
 
 template <typename Inner, typename Outer>
@@ -160,34 +173,9 @@ ContainerOfHelper<Inner, Outer>::operator TypeName*() const {
 }
 
 template <typename Inner, typename Outer>
-inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
-                                                   Inner* pointer) {
+constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
+                                                      Inner* pointer) {
   return ContainerOfHelper<Inner, Outer>(field, pointer);
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
-  if (persistent.IsWeak()) {
-    return WeakPersistentToLocal(isolate, persistent);
-  } else {
-    return StrongPersistentToLocal(persistent);
-  }
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> StrongPersistentToLocal(
-    const Persistent<TypeName>& persistent) {
-  return *reinterpret_cast<v8::Local<TypeName>*>(
-      const_cast<Persistent<TypeName>*>(&persistent));
-}
-
-template <class TypeName>
-inline v8::Local<TypeName> WeakPersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent) {
-  return v8::Local<TypeName>::New(isolate, persistent);
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -211,29 +199,9 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length) {
-  return v8::String::NewFromOneByte(isolate,
-                                    reinterpret_cast<const uint8_t*>(data),
-                                    v8::NewStringType::kNormal,
-                                    length).ToLocalChecked();
-}
-
-template <typename TypeName>
-void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  object->SetAlignedPointerInInternalField(0, pointer);
-}
-
-void ClearWrap(v8::Local<v8::Object> object) {
-  Wrap<void>(object, nullptr);
-}
-
-template <typename TypeName>
-TypeName* Unwrap(v8::Local<v8::Object> object) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  void* pointer = object->GetAlignedPointerFromInternalField(0);
-  return static_cast<TypeName*>(pointer);
+  return v8::String::NewFromOneByte(
+             isolate, data, v8::NewStringType::kNormal, length)
+      .ToLocalChecked();
 }
 
 void SwapBytes16(char* data, size_t nbytes) {
@@ -312,6 +280,24 @@ char ToLower(char c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
 
+std::string ToLower(const std::string& in) {
+  std::string out(in.size(), 0);
+  for (size_t i = 0; i < in.size(); ++i)
+    out[i] = ToLower(in[i]);
+  return out;
+}
+
+char ToUpper(char c) {
+  return c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c;
+}
+
+std::string ToUpper(const std::string& in) {
+  std::string out(in.size(), 0);
+  for (size_t i = 0; i < in.size(); ++i)
+    out[i] = ToUpper(in[i]);
+  return out;
+}
+
 bool StringEqualNoCase(const char* a, const char* b) {
   do {
     if (*a == '\0')
@@ -332,8 +318,9 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
-inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
-  size_t ret = a * b;
+template <typename T>
+inline T MultiplyWithOverflowCheck(T a, T b) {
+  auto ret = a * b;
   if (a != 0)
     CHECK_EQ(b, ret / a);
 
@@ -384,21 +371,21 @@ inline T* UncheckedCalloc(size_t n) {
 template <typename T>
 inline T* Realloc(T* pointer, size_t n) {
   T* ret = UncheckedRealloc(pointer, n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Malloc(size_t n) {
   T* ret = UncheckedMalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Calloc(size_t n) {
   T* ret = UncheckedCalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
@@ -407,6 +394,144 @@ inline char* Malloc(size_t n) { return Malloc<char>(n); }
 inline char* Calloc(size_t n) { return Calloc<char>(n); }
 inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
 inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
+
+// This is a helper in the .cc file so including util-inl.h doesn't include more
+// headers than we really need to.
+void ThrowErrStringTooLong(v8::Isolate* isolate);
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::string& str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
+    // V8 only has a TODO comment about adding an exception when the maximum
+    // string size is exceeded.
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+
+  return v8::String::NewFromUtf8(
+             isolate, str.data(), v8::NewStringType::kNormal, str.size())
+      .FromMaybe(v8::Local<v8::String>());
+}
+
+template <typename T>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::vector<T>& vec,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
+  arr.SetLength(vec.size());
+  for (size_t i = 0; i < vec.size(); ++i) {
+    if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
+      return v8::MaybeLocal<v8::Value>();
+  }
+
+  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+}
+
+template <typename T, typename U>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::unordered_map<T, U>& map,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::Local<v8::Map> ret = v8::Map::New(isolate);
+  for (const auto& item : map) {
+    v8::Local<v8::Value> first, second;
+    if (!ToV8Value(context, item.first, isolate).ToLocal(&first) ||
+        !ToV8Value(context, item.second, isolate).ToLocal(&second) ||
+        ret->Set(context, first, second).IsEmpty()) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+
+  return handle_scope.Escape(ret);
+}
+
+template <typename T, typename >
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const T& number,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+
+  using Limits = std::numeric_limits<T>;
+  // Choose Uint32, Int32, or Double depending on range checks.
+  // These checks should all collapse at compile time.
+  if (static_cast<uint32_t>(Limits::max()) <=
+          std::numeric_limits<uint32_t>::max() &&
+      static_cast<uint32_t>(Limits::min()) >=
+          std::numeric_limits<uint32_t>::min() && Limits::is_exact) {
+    return v8::Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(number));
+  }
+
+  if (static_cast<int32_t>(Limits::max()) <=
+          std::numeric_limits<int32_t>::max() &&
+      static_cast<int32_t>(Limits::min()) >=
+          std::numeric_limits<int32_t>::min() && Limits::is_exact) {
+    return v8::Integer::New(isolate, static_cast<int32_t>(number));
+  }
+
+  return v8::Number::New(isolate, static_cast<double>(number));
+}
+
+SlicedArguments::SlicedArguments(
+    const v8::FunctionCallbackInfo<v8::Value>& args, size_t start) {
+  const size_t length = static_cast<size_t>(args.Length());
+  if (start >= length) return;
+  const size_t size = length - start;
+
+  AllocateSufficientStorage(size);
+  for (size_t i = 0; i < size; ++i)
+    (*this)[i] = args[i + start];
+}
+
+template <typename T, size_t S>
+ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
+    v8::Local<v8::Value> value) {
+  CHECK(value->IsArrayBufferView());
+  Read(value.As<v8::ArrayBufferView>());
+}
+
+template <typename T, size_t S>
+ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
+    v8::Local<v8::Object> value) {
+  CHECK(value->IsArrayBufferView());
+  Read(value.As<v8::ArrayBufferView>());
+}
+
+template <typename T, size_t S>
+ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
+    v8::Local<v8::ArrayBufferView> abv) {
+  Read(abv);
+}
+
+template <typename T, size_t S>
+void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
+  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
+  length_ = abv->ByteLength();
+  if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
+    data_ = static_cast<T*>(abv->Buffer()->GetContents().Data()) +
+        abv->ByteOffset();
+  } else {
+    abv->CopyContents(stack_storage_, sizeof(stack_storage_));
+    data_ = stack_storage_;
+  }
+}
+
+// ECMA262 20.1.2.5
+inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
+  if (!v->IsNumber()) return false;
+  double v_d = v.As<v8::Number>()->Value();
+  if (std::isnan(v_d)) return false;
+  if (std::isinf(v_d)) return false;
+  if (std::trunc(v_d) != v_d) return false;  // not int
+  if (std::abs(v_d) <= static_cast<double>(kMaxSafeJsInteger)) return true;
+  return false;
+}
 
 }  // namespace node
 

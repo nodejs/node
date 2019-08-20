@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "src/wasm/wasm-interpreter.h"
 
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -87,7 +87,8 @@ class ControlTransferTest : public TestWithZone {
   }
 
   void CheckNoOtherTargets(
-      const byte* start, const byte* end, ControlTransferMap& map,
+      const byte* start, const byte* end,
+      ControlTransferMap& map,  // NOLINT(runtime/references)
       std::initializer_list<ExpectedControlTransfer> targets) {
     // Check there are no other control targets.
     for (pc_t pc = 0; start + pc < end; pc++) {

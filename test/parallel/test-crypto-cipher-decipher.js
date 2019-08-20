@@ -10,12 +10,21 @@ if (common.hasFipsCrypto)
 const crypto = require('crypto');
 const assert = require('assert');
 
+common.expectWarning({
+  Warning: [
+    ['Use Cipheriv for counter mode of aes-256-gcm']
+  ],
+  DeprecationWarning: [
+    ['crypto.createCipher is deprecated.', 'DEP0106']
+  ]
+});
+
 function testCipher1(key) {
   // Test encryption and decryption
   const plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
   const cipher = crypto.createCipher('aes192', key);
 
-  // encrypt plaintext which is in utf8 format
+  // Encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in hex
   let ciph = cipher.update(plaintext, 'utf8', 'hex');
   // Only use binary or hex, not base64.
@@ -27,7 +36,7 @@ function testCipher1(key) {
 
   assert.strictEqual(txt, plaintext);
 
-  // streaming cipher interface
+  // Streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
   // in a single read() like this.  But in this case, we know it's
   // quite small, so there's no harm.
@@ -44,16 +53,16 @@ function testCipher1(key) {
 
 
 function testCipher2(key) {
-  // encryption and decryption with Base64
-  // reported in https://github.com/joyent/node/issues/738
+  // Encryption and decryption with Base64.
+  // Reported in https://github.com/joyent/node/issues/738
   const plaintext =
       '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
       'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
       'jAfaFg**';
   const cipher = crypto.createCipher('aes256', key);
 
-  // encrypt plaintext which is in utf8 format
-  // to a ciphertext which will be in Base64
+  // Encrypt plaintext which is in utf8 format to a ciphertext which will be in
+  // Base64.
   let ciph = cipher.update(plaintext, 'utf8', 'base64');
   ciph += cipher.final('base64');
 
@@ -104,15 +113,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => crypto.createCipher('aes-256-cbc', 'secret').setAuthTag(null),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView. Received type object'
-    });
-
-  common.expectsError(
     () => crypto.createCipher('aes-256-cbc', 'secret').setAAD(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -138,6 +138,15 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
+    () => crypto.createDecipher('aes-256-cbc', 'secret').setAuthTag(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type Buffer, ' +
+               'TypedArray, or DataView. Received type object'
+    });
+
+  common.expectsError(
     () => crypto.createDecipher('aes-256-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -159,13 +168,13 @@ testCipher2(Buffer.from('0123456789abcdef'));
 // not assert. See https://github.com/nodejs/node-v0.x-archive/issues/4886.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
+  try { c.final('xxx'); } catch { /* Ignore. */ }
   const d = crypto.createDecipher('aes-256-cbc', 'secret');
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
-  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
+  try { d.final('xxx'); } catch { /* Ignore. */ }
 }
 
 // Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:
@@ -229,15 +238,11 @@ testCipher2(Buffer.from('0123456789abcdef'));
   assert.strictEqual(decipher.setAAD(aadbuf), decipher);
 }
 
-// error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
+// Error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
 {
   const key = '0123456789';
   const aadbuf = Buffer.from('aadbuf');
   const data = Buffer.from('test-crypto-cipher-decipher');
-
-  common.expectWarning('Warning',
-                       'Use Cipheriv for counter mode of aes-256-gcm',
-                       common.noWarnCode);
 
   const cipher = crypto.createCipher('aes-256-gcm', key);
   cipher.setAAD(aadbuf);

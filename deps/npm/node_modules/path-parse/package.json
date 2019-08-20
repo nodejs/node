@@ -1,0 +1,65 @@
+{
+  "_args": [
+    [
+      "path-parse@1.0.6",
+      "/Users/aeschright/code/npm-release"
+    ]
+  ],
+  "_development": true,
+  "_from": "path-parse@1.0.6",
+  "_id": "path-parse@1.0.6",
+  "_inBundle": false,
+  "_integrity": "sha512-GSmOT2EbHrINBf9SR7CDELwlJ8AENk3Qn7OikK4nFYAu3Ote2+JYNVvkpAEQm3/TLNEJFD/xZJjzyxg3KBWOzw==",
+  "_location": "/path-parse",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "path-parse@1.0.6",
+    "name": "path-parse",
+    "escapedName": "path-parse",
+    "rawSpec": "1.0.6",
+    "saveSpec": null,
+    "fetchSpec": "1.0.6"
+  },
+  "_requiredBy": [
+    "/resolve"
+  ],
+  "_resolved": "https://registry.npmjs.org/path-parse/-/path-parse-1.0.6.tgz",
+  "_spec": "1.0.6",
+  "_where": "/Users/aeschright/code/npm-release",
+  "author": {
+    "name": "Javier Blanco",
+    "email": "http://jbgutierrez.info"
+  },
+  "bugs": {
+    "url": "https://github.com/jbgutierrez/path-parse/issues"
+  },
+  "description": "Node.js path.parse() ponyfill",
+  "homepage": "https://github.com/jbgutierrez/path-parse#readme",
+  "keywords": [
+    "path",
+    "paths",
+    "file",
+    "dir",
+    "parse",
+    "built-in",
+    "util",
+    "utils",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "path-parse",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbgutierrez/path-parse.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "1.0.6"
+}

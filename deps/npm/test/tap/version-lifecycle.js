@@ -2,16 +2,15 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var npm = require('../../')
-var pkg = path.resolve(__dirname, 'version-lifecycle')
-var cache = path.resolve(pkg, 'cache')
+var pkg = common.pkg
+var cache = common.cache
 var npmrc = path.resolve(pkg, './.npmrc')
-var configContents = 'sign-git-tag=false\n'
+var configContents = 'sign-git-commit=false\nsign-git-tag=false\n'
 
 test('npm version <semver> with failing preversion lifecycle script', function (t) {
   setup()
@@ -25,7 +24,12 @@ test('npm version <semver> with failing preversion lifecycle script', function (
     }
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
+  npm.load({
+    cache: cache,
+    'sign-git-commit': false,
+    'sign-git-tag': false,
+    registry: common.registry
+  }, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -47,7 +51,12 @@ test('npm version <semver> with failing version lifecycle script', function (t) 
     }
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
+  npm.load({
+    cache: cache,
+    'sign-git-commit': false,
+    'sign-git-tag': false,
+    registry: common.registry
+  }, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -69,7 +78,12 @@ test('npm version <semver> with failing postversion lifecycle script', function 
     }
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
-  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
+  npm.load({
+    cache: cache,
+    'sign-git-commit': false,
+    'sign-git-tag': false,
+    registry: common.registry
+  }, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -95,7 +109,12 @@ test('npm version <semver> execution order', function (t) {
   makeScript('preversion')
   makeScript('version')
   makeScript('postversion')
-  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
+  npm.load({
+    cache: cache,
+    'sign-git-commit': false,
+    'sign-git-tag': false,
+    registry: common.registry
+  }, function () {
     common.makeGitRepo({path: pkg}, function (err, git) {
       t.ifError(err, 'git bootstrap ran without error')
 
@@ -125,16 +144,11 @@ test('npm version <semver> execution order', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
-})
-
 function setup () {
+  process.chdir(__dirname)
+  rimraf.sync(pkg)
   mkdirp.sync(pkg)
   mkdirp.sync(path.join(pkg, 'node_modules'))
-  mkdirp.sync(cache)
   fs.writeFileSync(npmrc, configContents, 'ascii')
   process.chdir(pkg)
 }

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],$0);
+&asm_init($ARGV[0]);
 
 %PADLOCK_PREFETCH=(ecb=>128, cbc=>64);	# prefetch errata
 $PADLOCK_CHUNK=512;	# Must be a power of 2 larger than 16
@@ -73,11 +73,20 @@ $chunk="ebx";
 	&cpuid	();
 	&xor	("eax","eax");
 	&cmp	("ebx","0x".unpack("H*",'tneC'));
-	&jne	(&label("noluck"));
+	&jne	(&label("zhaoxin"));
 	&cmp	("edx","0x".unpack("H*",'Hrua'));
 	&jne	(&label("noluck"));
 	&cmp	("ecx","0x".unpack("H*",'slua'));
 	&jne	(&label("noluck"));
+	&jmp	(&label("zhaoxinEnd"));
+&set_label("zhaoxin");
+	&cmp	("ebx","0x".unpack("H*",'hS  '));
+	&jne	(&label("noluck"));
+	&cmp	("edx","0x".unpack("H*",'hgna'));
+	&jne	(&label("noluck"));
+	&cmp	("ecx","0x".unpack("H*",'  ia'));
+	&jne	(&label("noluck"));
+&set_label("zhaoxinEnd");
 	&mov	("eax",0xC0000000);
 	&cpuid	();
 	&mov	("edx","eax");
@@ -448,7 +457,7 @@ my ($mode,$opcode) = @_;
 	&mov	("esi",&wparam(1));
 	&mov	("ecx",&wparam(2));
     if ($::win32 or $::coff) {
-	&push	(&::islabel("_win32_segv_handler"));
+    	&push	(&::islabel("_win32_segv_handler"));
 	&data_byte(0x64,0xff,0x30);		# push	%fs:(%eax)
 	&data_byte(0x64,0x89,0x20);		# mov	%esp,%fs:(%eax)
     }
@@ -499,7 +508,7 @@ my ($mode,$opcode) = @_;
 	&mov	("edi",&wparam(0));
 	&movups	(&QWP(0,"edi"),"xmm0");		# copy-out context
 	&mov	(&DWP(16,"edi"),"eax");
-	&pop	("esi");
+ 	&pop	("esi");
 	&pop	("edi");
 	&ret	();
 &function_end_B("padlock_sha1_blocks");
@@ -512,7 +521,7 @@ my ($mode,$opcode) = @_;
 	&mov	("esi",&wparam(1));
 	&mov	("ecx",&wparam(2));
     if ($::win32 or $::coff) {
-	&push	(&::islabel("_win32_segv_handler"));
+    	&push	(&::islabel("_win32_segv_handler"));
 	&data_byte(0x64,0xff,0x30);		# push	%fs:(%eax)
 	&data_byte(0x64,0x89,0x20);		# mov	%esp,%fs:(%eax)
     }

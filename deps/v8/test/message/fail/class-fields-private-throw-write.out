@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: Write of private field #x to an object which did not contain the field
+  setX(o, val) { o.#x = val; }
+                      ^
+TypeError: Write of private field #x to an object which did not contain the field
+    at X.setX (*%(basename)s:7:23)
+    at *%(basename)s:10:9

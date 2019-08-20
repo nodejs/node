@@ -1,16 +1,11 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- * ECDH support in OpenSSL originally developed by
- * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
  */
 
 #ifndef HEADER_CRYPTO_H
@@ -25,11 +20,11 @@
 #  include <stdio.h>
 # endif
 
-# include <openssl/stack.h>
 # include <openssl/safestack.h>
 # include <openssl/opensslv.h>
 # include <openssl/ossl_typ.h>
 # include <openssl/opensslconf.h>
+# include <openssl/cryptoerr.h>
 
 # ifdef CHARSET_EBCDIC
 #  include <openssl/ebcdic.h>
@@ -110,15 +105,12 @@ DEFINE_STACK_OF(void)
 # define CRYPTO_EX_INDEX_UI              11
 # define CRYPTO_EX_INDEX_BIO             12
 # define CRYPTO_EX_INDEX_APP             13
-# define CRYPTO_EX_INDEX__COUNT          14
+# define CRYPTO_EX_INDEX_UI_METHOD       14
+# define CRYPTO_EX_INDEX_DRBG            15
+# define CRYPTO_EX_INDEX__COUNT          16
 
-/*
- * This is the default callbacks, but we can have others as well: this is
- * needed in Win32 where the application malloc and the library malloc may
- * not be the same.
- */
-#define OPENSSL_malloc_init() \
-    CRYPTO_set_mem_functions(CRYPTO_malloc, CRYPTO_realloc, CRYPTO_free)
+/* No longer needed, so this is a no-op */
+#define OPENSSL_malloc_init() while(0) continue
 
 int CRYPTO_mem_ctrl(int mode);
 
@@ -211,7 +203,7 @@ void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int idx);
  * The old locking functions have been removed completely without compatibility
  * macros. This is because the old functions either could not properly report
  * errors, or the returned error values were not clearly documented.
- * Replacing the locking functions with with no-ops would cause race condition
+ * Replacing the locking functions with no-ops would cause race condition
  * issues in the affected applications. It is far better for them to fail at
  * compile time.
  * On the other hand, the locking callbacks are no longer used.  Consequently,
@@ -303,6 +295,7 @@ void OPENSSL_cleanse(void *ptr, size_t len);
         CRYPTO_mem_debug_pop()
 int CRYPTO_mem_debug_push(const char *info, const char *file, int line);
 int CRYPTO_mem_debug_pop(void);
+void CRYPTO_get_alloc_counts(int *mcount, int *rcount, int *fcount);
 
 /*-
  * Debugging functions (enabled by CRYPTO_set_mem_debug(1))
@@ -317,6 +310,8 @@ void CRYPTO_mem_debug_realloc(void *addr1, void *addr2, size_t num, int flag,
 void CRYPTO_mem_debug_free(void *addr, int flag,
         const char *file, int line);
 
+int CRYPTO_mem_leaks_cb(int (*cb) (const char *str, size_t len, void *u),
+                        void *u);
 #  ifndef OPENSSL_NO_STDIO
 int CRYPTO_mem_leaks_fp(FILE *);
 #  endif
@@ -337,6 +332,11 @@ int FIPS_mode(void);
 int FIPS_mode_set(int r);
 
 void OPENSSL_init(void);
+# ifdef OPENSSL_SYS_UNIX
+void OPENSSL_fork_prepare(void);
+void OPENSSL_fork_parent(void);
+void OPENSSL_fork_child(void);
+# endif
 
 struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
 int OPENSSL_gmtime_adj(struct tm *tm, int offset_day, long offset_sec);
@@ -350,9 +350,7 @@ int OPENSSL_gmtime_diff(int *pday, int *psec,
  * into a defined order as the return value when a != b is undefined, other
  * than to be non-zero.
  */
-int CRYPTO_memcmp(const volatile void * volatile in_a,
-                  const volatile void * volatile in_b,
-                  size_t len);
+int CRYPTO_memcmp(const void * in_a, const void * in_b, size_t len);
 
 /* Standard initialisation options */
 # define OPENSSL_INIT_NO_LOAD_CRYPTO_STRINGS 0x00000001L
@@ -371,7 +369,10 @@ int CRYPTO_memcmp(const volatile void * volatile in_a,
 # define OPENSSL_INIT_ENGINE_CAPI            0x00002000L
 # define OPENSSL_INIT_ENGINE_PADLOCK         0x00004000L
 # define OPENSSL_INIT_ENGINE_AFALG           0x00008000L
-/* OPENSSL_INIT flag 0x00010000 reserved for internal use */
+/* OPENSSL_INIT_ZLIB                         0x00010000L */
+# define OPENSSL_INIT_ATFORK                 0x00020000L
+/* OPENSSL_INIT_BASE_ONLY                    0x00040000L */
+# define OPENSSL_INIT_NO_ATEXIT              0x00080000L
 /* OPENSSL_INIT flag range 0xfff00000 reserved for OPENSSL_init_ssl() */
 /* Max OPENSSL_INIT flag value is 0x80000000 */
 
@@ -391,8 +392,12 @@ void OPENSSL_thread_stop(void);
 /* Low-level control of initialization */
 OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void);
 # ifndef OPENSSL_NO_STDIO
+int OPENSSL_INIT_set_config_filename(OPENSSL_INIT_SETTINGS *settings,
+                                     const char *config_filename);
+void OPENSSL_INIT_set_config_file_flags(OPENSSL_INIT_SETTINGS *settings,
+                                        unsigned long flags);
 int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *settings,
-                                    const char *config_file);
+                                    const char *config_appname);
 # endif
 void OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS *settings);
 
@@ -433,33 +438,6 @@ int CRYPTO_THREAD_cleanup_local(CRYPTO_THREAD_LOCAL *key);
 CRYPTO_THREAD_ID CRYPTO_THREAD_get_current_id(void);
 int CRYPTO_THREAD_compare_id(CRYPTO_THREAD_ID a, CRYPTO_THREAD_ID b);
 
-/* BEGIN ERROR CODES */
-/*
- * The following lines are auto generated by the script mkerr.pl. Any changes
- * made after this point may be overwritten when the script is next run.
- */
-
-int ERR_load_CRYPTO_strings(void);
-
-/* Error codes for the CRYPTO functions. */
-
-/* Function codes. */
-# define CRYPTO_F_CRYPTO_DUP_EX_DATA                      110
-# define CRYPTO_F_CRYPTO_FREE_EX_DATA                     111
-# define CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX                 100
-# define CRYPTO_F_CRYPTO_MEMDUP                           115
-# define CRYPTO_F_CRYPTO_NEW_EX_DATA                      112
-# define CRYPTO_F_CRYPTO_SET_EX_DATA                      102
-# define CRYPTO_F_FIPS_MODE_SET                           109
-# define CRYPTO_F_GET_AND_LOCK                            113
-# define CRYPTO_F_OPENSSL_BUF2HEXSTR                      117
-# define CRYPTO_F_OPENSSL_HEXSTR2BUF                      118
-# define CRYPTO_F_OPENSSL_INIT_CRYPTO                     116
-
-/* Reason codes. */
-# define CRYPTO_R_FIPS_MODE_NOT_SUPPORTED                 101
-# define CRYPTO_R_ILLEGAL_HEX_DIGIT                       102
-# define CRYPTO_R_ODD_NUMBER_OF_DIGITS                    103
 
 # ifdef  __cplusplus
 }

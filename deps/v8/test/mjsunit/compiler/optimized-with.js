@@ -13,6 +13,7 @@
       return e
     }
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(23, f({ x:23 }));
   assertEquals(42, f({ x:42 }));
   assertInstanceof(f(null), TypeError);

@@ -7,6 +7,7 @@
 function foo(x) {
   return Symbol.iterator == x;
 }
+%PrepareFunctionForOptimization(foo);
 
 function main() {
   foo(Symbol());

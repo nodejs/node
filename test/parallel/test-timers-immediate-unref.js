@@ -3,6 +3,14 @@
 const common = require('../common');
 const Countdown = require('../common/countdown');
 
+const assert = require('assert');
+
+const immediate = setImmediate(() => {});
+assert.strictEqual(immediate.hasRef(), true);
+immediate.unref();
+assert.strictEqual(immediate.hasRef(), false);
+clearImmediate(immediate);
+
 // This immediate should execute as it was unrefed and refed again.
 // It also confirms that unref/ref are chainable.
 setImmediate(common.mustCall(firstStep)).ref().unref().unref().ref();
@@ -21,7 +29,7 @@ function secondStep() {
   const immA = setImmediate(() => {
     clearImmediate(immA);
     clearImmediate(immB);
-    // this should not keep the event loop open indefinitely
+    // This should not keep the event loop open indefinitely
     // or do anything else weird
     immA.ref();
     immB.ref();

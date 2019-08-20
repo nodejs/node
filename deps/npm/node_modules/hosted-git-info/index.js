@@ -26,6 +26,7 @@ var authProtocols = {
 var cache = {}
 
 module.exports.fromUrl = function (giturl, opts) {
+  if (typeof giturl !== 'string') return
   var key = giturl + JSON.stringify(opts || {})
 
   if (!(key in cache)) {
@@ -58,7 +59,7 @@ function fromUrl (giturl, opts) {
         project = decodeURIComponent(shortcutMatch[3])
         defaultRepresentation = 'shortcut'
       } else {
-        if (parsed.host !== gitHostInfo.domain) return
+        if (parsed.host && parsed.host !== gitHostInfo.domain && parsed.host.replace(/^www[.]/, '') !== gitHostInfo.domain) return
         if (!gitHostInfo.protocols_re.test(parsed.protocol)) return
         if (!parsed.path) return
         var pathmatch = gitHostInfo.pathmatch

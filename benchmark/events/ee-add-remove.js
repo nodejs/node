@@ -2,7 +2,7 @@
 const common = require('../common.js');
 const events = require('events');
 
-const bench = common.createBenchmark(main, { n: [25e4] });
+const bench = common.createBenchmark(main, { n: [1e6] });
 
 function main({ n }) {
   const ee = new events.EventEmitter();
@@ -10,7 +10,7 @@ function main({ n }) {
 
   var k;
   for (k = 0; k < 10; k += 1)
-    listeners.push(function() {});
+    listeners.push(() => {});
 
   bench.start();
   for (var i = 0; i < n; i += 1) {

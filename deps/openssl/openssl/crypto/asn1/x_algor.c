@@ -28,18 +28,19 @@ IMPLEMENT_ASN1_DUP_FUNCTION(X509_ALGOR)
 
 int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval)
 {
-    if (!alg)
+    if (alg == NULL)
         return 0;
+
     if (ptype != V_ASN1_UNDEF) {
         if (alg->parameter == NULL)
             alg->parameter = ASN1_TYPE_new();
         if (alg->parameter == NULL)
             return 0;
     }
-    if (alg) {
-        ASN1_OBJECT_free(alg->algorithm);
-        alg->algorithm = aobj;
-    }
+
+    ASN1_OBJECT_free(alg->algorithm);
+    alg->algorithm = aobj;
+
     if (ptype == 0)
         return 1;
     if (ptype == V_ASN1_UNDEF) {

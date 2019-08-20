@@ -6,9 +6,25 @@ import("../../gni/v8.gni")
 
 v8_executable("cctest") {
   testonly = true
+
+  sources = [
+    "cctest.cc",
+  ]
+
   deps = [
     ":cctest_sources",
   ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "testcfg.py",
+    "cctest.status",
+    "interpreter/bytecode_expectations/",
+  ]
+
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
@@ -16,34 +32,39 @@ v8_executable("cctest") {
 
   ldflags = []
 
+  if (v8_use_perfetto) {
+    deps += [ "//third_party/perfetto/include/perfetto/tracing" ]
+  }
+
   # TODO(machenbach): Translate from gyp.
   #["OS=="aix"", {
   #  "ldflags": [ "-Wl,-bbigtoc" ],
   #}],
+}
 
-  # crbug.com/676417: Suppress symbol import warning from linker.
-  if (is_win && is_component_build) {
-    ldflags += [
-      "/ignore:4217",
-      "/ignore:4049",
-    ]
-    remove_configs = [ "//build/config/win:default_incremental_linking" ]
-    configs += [ "//build/config/win:no_incremental_linking" ]
-  }
+v8_header_set("cctest_headers") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [
+    "cctest.h",
+  ]
 }
 
 v8_source_set("cctest_sources") {
   testonly = true
 
   sources = [
-    "$target_gen_dir/resources.cc",
-
     ### gcmole(all) ###
-    "../../test/common/wasm/flag-utils.h",
-    "../../test/common/wasm/test-signatures.h",
-    "../../test/common/wasm/wasm-macro-gen.h",
-    "cctest.cc",
-    "cctest.h",
+    "../common/assembler-tester.h",
+    "../common/wasm/flag-utils.h",
+    "../common/wasm/test-signatures.h",
+    "../common/wasm/wasm-macro-gen.h",
+    "collector.h",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
     "compiler/code-assembler-tester.h",
@@ -52,12 +73,15 @@ v8_source_set("cctest_sources") {
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
     "compiler/graph-builder-tester.h",
+    "compiler/serializer-tester.cc",
+    "compiler/serializer-tester.h",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
     "compiler/test-code-assembler.cc",
     "compiler/test-code-generator.cc",
     "compiler/test-gap-resolver.cc",
     "compiler/test-graph-visualizer.cc",
+    "compiler/test-instruction-scheduler.cc",
     "compiler/test-instruction.cc",
     "compiler/test-js-constant-cache.cc",
     "compiler/test-js-context-specialization.cc",
@@ -84,13 +108,13 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-native-calls.cc",
     "compiler/test-run-retpoline.cc",
     "compiler/test-run-stackcheck.cc",
-    "compiler/test-run-stubs.cc",
     "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
-    "compiler/test-run-wasm-machops.cc",
     "compiler/value-helper.cc",
     "compiler/value-helper.h",
+    "disasm-regex-helper.cc",
+    "disasm-regex-helper.h",
     "expression-type-collector-macros.h",
     "gay-fixed.cc",
     "gay-fixed.h",
@@ -106,13 +130,17 @@ v8_source_set("cctest_sources") {
     "heap/test-compaction.cc",
     "heap/test-concurrent-marking.cc",
     "heap/test-embedder-tracing.cc",
+    "heap/test-external-string-tracker.cc",
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
+    "heap/test-iterators.cc",
     "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
+    "heap/test-unmapper.cc",
+    "heap/test-weak-references.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",
@@ -141,7 +169,10 @@ v8_source_set("cctest_sources") {
     "test-accessors.cc",
     "test-allocation.cc",
     "test-api-accessors.cc",
+    "test-api-array-buffer.cc",
     "test-api-interceptors.cc",
+    "test-api-stack-traces.cc",
+    "test-api-typed-array.cc",
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
@@ -165,6 +196,7 @@ v8_source_set("cctest_sources") {
     "test-double.cc",
     "test-dtoa.cc",
     "test-elements-kind.cc",
+    "test-factory.cc",
     "test-fast-dtoa.cc",
     "test-feedback-vector.cc",
     "test-feedback-vector.h",
@@ -177,10 +209,12 @@ v8_source_set("cctest_sources") {
     "test-hashcode.cc",
     "test-hashmap.cc",
     "test-heap-profiler.cc",
+    "test-icache.cc",
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
+    "test-inspector.cc",
     "test-intl.cc",
-    "test-isolate-independent-builtins.cc",
+    "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",
@@ -195,8 +229,10 @@ v8_source_set("cctest_sources") {
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
+    "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
+    "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
     "test-symbols.cc",
@@ -208,35 +244,43 @@ v8_source_set("cctest_sources") {
     "test-transitions.h",
     "test-typedarrays.cc",
     "test-types.cc",
-    "test-unbound-queue.cc",
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
+    "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
     "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
+    "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
-    "types-fuzz.h",
+    "unicode-helpers.cc",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
+    "wasm/test-jump-table-assembler.cc",
     "wasm/test-run-wasm-64.cc",
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
+    "wasm/test-run-wasm-atomics64.cc",
+    "wasm/test-run-wasm-bulk-memory.cc",
+    "wasm/test-run-wasm-exceptions.cc",
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
-    "wasm/test-run-wasm-relocation.cc",
     "wasm/test-run-wasm-sign-extension.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
+    "wasm/test-wasm-import-wrapper-cache.cc",
     "wasm/test-wasm-interpreter-entry.cc",
+    "wasm/test-wasm-serialization.cc",
+    "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
+    "wasm/wasm-atomics-utils.h",
     "wasm/wasm-run-utils.cc",
     "wasm/wasm-run-utils.h",
   ]
@@ -246,10 +290,8 @@ v8_source_set("cctest_sources") {
       # TODO(mostynb@opera.com): figure out the jumbo issues with these source
       # files, and include them in jumbo compilation units.
       "interpreter/bytecode-expectations-printer.cc",
-      "interpreter/bytecode-expectations-printer.h",
       "interpreter/test-bytecode-generator.cc",
       "test-api.cc",
-      "test-api.h",
     ]
   }
 
@@ -258,25 +300,20 @@ v8_source_set("cctest_sources") {
       "assembler-helper-arm.cc",
       "assembler-helper-arm.h",
       "test-assembler-arm.cc",
-      "test-code-stubs-arm.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
-      "test-run-wasm-relocation-arm.cc",
+      "test-poison-disasm-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
       "test-assembler-arm64.cc",
-      "test-code-stubs-arm64.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-arm64.cc",
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
-      "test-run-wasm-relocation-arm64.cc",
+      "test-macro-assembler-arm64.cc",
+      "test-poison-disasm-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
@@ -284,72 +321,51 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
-      "test-code-stubs-ia32.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
-      "test-run-wasm-relocation-ia32.cc",
     ]
   } else if (v8_current_cpu == "mips") {
     sources += [  ### gcmole(arch:mips) ###
       "test-assembler-mips.cc",
-      "test-code-stubs-mips.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
     ]
   } else if (v8_current_cpu == "mipsel") {
     sources += [  ### gcmole(arch:mipsel) ###
       "test-assembler-mips.cc",
-      "test-code-stubs-mips.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
     ]
   } else if (v8_current_cpu == "mips64") {
     sources += [  ### gcmole(arch:mips64) ###
       "test-assembler-mips64.cc",
-      "test-code-stubs-mips64.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "test-assembler-mips64.cc",
-      "test-code-stubs-mips64.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
       "test-assembler-x64.cc",
-      "test-code-stubs-x64.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-x64.cc",
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
-      "test-run-wasm-relocation-x64.cc",
     ]
+    if (is_win) {
+      sources += [ "test-stack-unwinding-x64.cc" ]
+    }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
       "test-assembler-ppc.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
       "test-assembler-s390.cc",
-      "test-code-stubs.cc",
-      "test-code-stubs.h",
       "test-disasm-s390.cc",
     ]
   }
@@ -360,29 +376,23 @@ v8_source_set("cctest_sources") {
   ]
 
   public_deps = [
-    ":resources",
-    "../..:v8_initializers",
+    ":cctest_headers",
+    "..:common_test_headers",
+    "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 
   defines = []
-  deps = []
-
-  if (is_component_build) {
-    # cctest can't be built against a shared library, so we
-    # need to depend on the underlying static target in that case.
-    deps += [ "../..:v8_maybe_snapshot" ]
-    defines += [ "BUILDING_V8_SHARED" ]
-  } else {
-    deps += [ "../..:v8" ]
-  }
+  deps = [
+    "../..:run_torque",
+  ]
 
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
+    public_deps += [ "//third_party/icu" ]
   } else {
     sources -= [ "test-intl.cc" ]
   }
@@ -395,7 +405,9 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
-    cflags += [ "-ffp-contract=off" ]
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
   }
 
   if (is_win) {
@@ -407,44 +419,19 @@ v8_source_set("cctest_sources") {
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]
   }
-}
 
-action("resources") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "../../tools/js2c.py"
-
-  # The script depends on this other script, this rule causes a rebuild if it
-  # changes.
-  inputs = [
-    "../../tools/jsmin.py",
-  ]
-
-  # NOSORT
-  sources = [
-    "../../tools/splaytree.js",
-    "../../tools/codemap.js",
-    "../../tools/csvparser.js",
-    "../../tools/consarray.js",
-    "../../tools/profile.js",
-    "../../tools/profile_view.js",
-    "../../tools/arguments.js",
-    "../../tools/logreader.js",
-    "log-eq-of-logging-and-traversal.js",
-  ]
-
-  outputs = [
-    "$target_gen_dir/resources.cc",
-  ]
-
-  args = [
-    rebase_path("$target_gen_dir/resources.cc", root_build_dir),
-    "TEST",
-  ]
-  args += rebase_path(sources, root_build_dir)
+  if (v8_use_perfetto) {
+    deps += [
+      "//third_party/perfetto/include/perfetto/tracing",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:lite",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
+    ]
+  }
 }
 
 v8_executable("generate-bytecode-expectations") {
+  testonly = true
+
   sources = [
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
@@ -457,10 +444,14 @@ v8_executable("generate-bytecode-expectations") {
   ]
 
   deps = [
+    ":cctest_headers",
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
+  ]
+
+  data = [
+    "interpreter/bytecode_expectations/",
   ]
 }

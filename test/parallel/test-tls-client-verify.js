@@ -99,7 +99,7 @@ function testServers(index, servers, clientOptions, cb) {
 
       console.error(`expected: ${ok} authed: ${authorized}`);
 
-      assert.strictEqual(ok, authorized);
+      assert.strictEqual(authorized, ok);
       server.close();
     }));
 
@@ -108,7 +108,7 @@ function testServers(index, servers, clientOptions, cb) {
     });
 
     client.on('end', common.mustCall(function() {
-      assert.strictEqual('hello world\n', b);
+      assert.strictEqual(b, 'hello world\n');
     }));
 
     client.on('close', common.mustCall(function() {

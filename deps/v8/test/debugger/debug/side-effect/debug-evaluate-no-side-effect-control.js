@@ -64,14 +64,16 @@ var successes = [
       }
     })()`
   ],
+  [6,
+   `(function() {  // Iterator.prototype.next performs stores.
+      var sum = 0;
+      for (let i of [1, 2, 3]) sum += i;
+      return sum;
+    })()`
+  ]
 ];
 
 var fails = [
-  `(function() {  // Iterator.prototype.next performs stores.
-     var sum = 0;
-     for (let i of [1, 2, 3]) sum += i;
-     return sum;
-   })()`,
   `(function() {  // Store to scope object.
      with (o) {
        p = 2;

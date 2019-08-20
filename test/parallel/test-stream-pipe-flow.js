@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const { Readable, Writable, PassThrough } = require('stream');
 
 {
@@ -41,17 +42,17 @@ const { Readable, Writable, PassThrough } = require('stream');
     .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }))
     .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
 
-  pt.on('end', function() {
+  pt.on('end', () => {
     wrapper.push(null);
   });
 
   const wrapper = new Readable({
     objectMode: true,
     read: () => {
-      process.nextTick(function() {
+      process.nextTick(() => {
         let data = pt.read();
         if (data === null) {
-          pt.once('readable', function() {
+          pt.once('readable', () => {
             data = pt.read();
             if (data !== null) wrapper.push(data);
           });
@@ -64,4 +65,26 @@ const { Readable, Writable, PassThrough } = require('stream');
 
   wrapper.resume();
   wrapper.on('end', common.mustCall());
+}
+
+{
+  // Only register drain if there is backpressure.
+  const rs = new Readable({ read() {} });
+
+  const pt = rs
+    .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
+  assert.strictEqual(pt.listenerCount('drain'), 0);
+  pt.on('finish', () => {
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+  });
+
+  rs.push('asd');
+  assert.strictEqual(pt.listenerCount('drain'), 0);
+
+  process.nextTick(() => {
+    rs.push('asd');
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+    rs.push(null);
+    assert.strictEqual(pt.listenerCount('drain'), 0);
+  });
 }

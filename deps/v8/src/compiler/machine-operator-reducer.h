@@ -6,9 +6,9 @@
 #define V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/machine-operator.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -16,17 +16,16 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class JSGraph;
-
+class MachineGraph;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
 class V8_EXPORT_PRIVATE MachineOperatorReducer final
-    : public NON_EXPORTED_BASE(Reducer) {
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  explicit MachineOperatorReducer(JSGraph* jsgraph,
+  explicit MachineOperatorReducer(Editor* editor, MachineGraph* mcgraph,
                                   bool allow_signalling_nan = true);
-  ~MachineOperatorReducer();
+  ~MachineOperatorReducer() override;
 
   const char* reducer_name() const override { return "MachineOperatorReducer"; }
 
@@ -102,11 +101,11 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceFloat64RoundDown(Node* node);
 
   Graph* graph() const;
-  JSGraph* jsgraph() const { return jsgraph_; }
+  MachineGraph* mcgraph() const { return mcgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
 
-  JSGraph* jsgraph_;
+  MachineGraph* mcgraph_;
   bool allow_signalling_nan_;
 };
 

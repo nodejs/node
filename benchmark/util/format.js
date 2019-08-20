@@ -16,7 +16,7 @@ const inputs = {
 };
 
 const bench = common.createBenchmark(main, {
-  n: [4e6],
+  n: [1e5],
   type: Object.keys(inputs)
 });
 
@@ -25,7 +25,7 @@ function main({ n, type }) {
   const [first, second] = inputs[type || 'string'];
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     util.format(first, second);
   }
   bench.end(n);

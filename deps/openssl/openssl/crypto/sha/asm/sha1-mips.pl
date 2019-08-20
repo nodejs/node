@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -56,15 +56,15 @@
 $flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
-	$PTR_ADD="dadd";	# incidentally works even on n32
-	$PTR_SUB="dsub";	# incidentally works even on n32
+	$PTR_ADD="daddu";	# incidentally works even on n32
+	$PTR_SUB="dsubu";	# incidentally works even on n32
 	$REG_S="sd";
 	$REG_L="ld";
 	$PTR_SLL="dsll";	# incidentally works even on n32
 	$SZREG=8;
 } else {
-	$PTR_ADD="add";
-	$PTR_SUB="sub";
+	$PTR_ADD="addu";
+	$PTR_SUB="subu";
 	$REG_S="sw";
 	$REG_L="lw";
 	$PTR_SLL="sll";
@@ -75,7 +75,7 @@ if ($flavour =~ /64|n32/i) {
 #
 ######################################################################
 
-$big_endian=(`echo MIPSEL | $ENV{CC} -E -`=~/MIPSEL/)?1:0 if ($ENV{CC});
+$big_endian=(`echo MIPSEB | $ENV{CC} -E -`=~/MIPSEB/)?0:1 if ($ENV{CC});
 
 for (@ARGV) {	$output=$_ if (/\w[\w\-]*\.\w+$/);   }
 open STDOUT,">$output";
@@ -126,10 +126,14 @@ $code.=<<___;
 	addu	$e,$K		# $i
 	xor	$t0,$c,$d
 	rotr	$t1,$a,27
-	 lwl	@X[$j],$j*4+$MSB($inp)
 	and	$t0,$b
 	addu	$e,$t1
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	 lw	@X[$j],$j*4($inp)
+#else
+	 lwl	@X[$j],$j*4+$MSB($inp)
 	 lwr	@X[$j],$j*4+$LSB($inp)
+#endif
 	xor	$t0,$d
 	addu	$e,@X[$i]
 	rotr	$b,$b,2
@@ -336,13 +340,7 @@ $FRAMESIZE=16;	# large enough to accommodate NUBI saved registers
 $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? "0xc0fff008" : "0xc0ff0000";
 
 $code=<<___;
-#ifdef OPENSSL_FIPSCANISTER
-# include <openssl/fipssyms.h>
-#endif
-
-#if defined(__mips_smartmips) && !defined(_MIPS_ARCH_MIPS32R2)
-#define _MIPS_ARCH_MIPS32R2
-#endif
+#include "mips_arch.h"
 
 .text
 
@@ -387,10 +385,16 @@ $code.=<<___;
 .align	4
 .Loop:
 	.set	reorder
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lui	$K,0x5a82
+	lw	@X[0],($inp)
+	ori	$K,0x7999	# K_00_19
+#else
 	lwl	@X[0],$MSB($inp)
 	lui	$K,0x5a82
 	lwr	@X[0],$LSB($inp)
 	ori	$K,0x7999	# K_00_19
+#endif
 ___
 for ($i=0;$i<15;$i++)	{ &BODY_00_14($i,@V); unshift(@V,pop(@V)); }
 for (;$i<20;$i++)	{ &BODY_15_19($i,@V); unshift(@V,pop(@V)); }

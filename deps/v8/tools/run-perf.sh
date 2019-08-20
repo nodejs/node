@@ -55,4 +55,4 @@ perf record -R \
   -e $EVENT_TYPE \
   -c $SAMPLE_EVERY_N_CYCLES \
   --call-graph $CALL_GRAPH_METHOD \
-  -i "$COMMAND" --perf_basic_prof "$@"
+  -i "$COMMAND" --perf-basic-prof "$@"

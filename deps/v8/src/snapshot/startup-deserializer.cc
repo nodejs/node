@@ -4,10 +4,10 @@
 
 #include "src/snapshot/startup-deserializer.h"
 
-#include "src/api.h"
-#include "src/assembler-inl.h"
+#include "src/api/api.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/execution/v8threads.h"
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -16,11 +16,8 @@ namespace internal {
 void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
 
-  BuiltinDeserializer builtin_deserializer(isolate, builtin_data_);
-
-  if (!DefaultDeserializerAllocator::ReserveSpace(this,
-                                                  &builtin_deserializer)) {
-    V8::FatalProcessOutOfMemory("StartupDeserializer");
+  if (!allocator()->ReserveSpace()) {
+    V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
   }
 
   // No active threads.
@@ -35,77 +32,48 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     isolate->heap()->IterateSmiRoots(this);
-    isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-    isolate->heap()->RepairFreeListsAfterDeserialization();
+    isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
+    Iterate(isolate, this);
     isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
     DeserializeDeferredObjects();
     RestoreExternalReferenceRedirectors(accessor_infos());
     RestoreExternalReferenceRedirectors(call_handler_infos());
 
-    // Deserialize eager builtins from the builtin snapshot. Note that deferred
-    // objects must have been deserialized prior to this.
-    builtin_deserializer.DeserializeEagerBuiltinsAndHandlers();
-
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
-    FlushICacheForNewIsolate();
+    FlushICache();
   }
 
-  isolate->heap()->set_native_contexts_list(isolate->heap()->undefined_value());
+  isolate->heap()->set_native_contexts_list(
+      ReadOnlyRoots(isolate).undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
   if (isolate->heap()->allocation_sites_list() == Smi::kZero) {
     isolate->heap()->set_allocation_sites_list(
-        isolate->heap()->undefined_value());
+        ReadOnlyRoots(isolate).undefined_value());
   }
 
-  // Issue code events for newly deserialized code objects.
-  LOG_CODE_EVENT(isolate, LogCodeObjects());
-  LOG_CODE_EVENT(isolate, LogBytecodeHandlers());
-  LOG_CODE_EVENT(isolate, LogCompiledFunctions());
 
   isolate->builtins()->MarkInitialized();
 
-  // If needed, print the dissassembly of deserialized code objects.
-  // Needs to be called after the builtins are marked as initialized, in order
-  // to display the builtin names.
-  PrintDisassembledCodeObjects();
+  LogNewMapEvents();
 
-  if (FLAG_rehash_snapshot && can_rehash()) RehashHeap();
+  if (FLAG_rehash_snapshot && can_rehash()) {
+    // Hash seed was initalized in ReadOnlyDeserializer.
+    Rehash();
+  }
 }
 
-void StartupDeserializer::FlushICacheForNewIsolate() {
+void StartupDeserializer::LogNewMapEvents() {
+  if (FLAG_trace_maps) LOG(isolate_, LogAllMaps());
+}
+
+void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
   for (Page* p : *isolate()->heap()->code_space()) {
-    Assembler::FlushICache(p->area_start(), p->area_end() - p->area_start());
+    FlushInstructionCache(p->area_start(), p->area_end() - p->area_start());
   }
-}
-
-void StartupDeserializer::PrintDisassembledCodeObjects() {
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    Heap* heap = isolate()->heap();
-    HeapIterator iterator(heap);
-    DisallowHeapAllocation no_gc;
-
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-
-    for (HeapObject* obj = iterator.next(); obj != nullptr;
-         obj = iterator.next()) {
-      if (obj->IsCode()) {
-        Code::cast(obj)->Disassemble(nullptr, os);
-      }
-    }
-  }
-#endif
-}
-
-void StartupDeserializer::RehashHeap() {
-  DCHECK(FLAG_rehash_snapshot && can_rehash());
-  isolate()->heap()->InitializeHashSeed();
-  Rehash();
 }
 
 }  // namespace internal

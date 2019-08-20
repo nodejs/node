@@ -12,6 +12,21 @@ It can be accessed using:
 const inspector = require('inspector');
 ```
 
+## inspector.close()
+
+Deactivate the inspector. Blocks until there are no active connections.
+
+## inspector.console
+
+* {Object} An object to send messages to the remote inspector console.
+
+```js
+require('inspector').console.log('a message');
+```
+
+The inspector console does not have API parity with Node.js
+console.
+
 ## inspector.open([port[, host[, wait]]])
 
 * `port` {number} Port to listen on for inspector connections. Optional.
@@ -28,15 +43,24 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
-### inspector.close()
+See the [security warning](cli.html#inspector_security) regarding the `host`
+parameter usage.
 
-Deactivate the inspector. Blocks until there are no active connections.
-
-### inspector.url()
+## inspector.url()
 
 * Returns: {string|undefined}
 
 Return the URL of the active inspector, or `undefined` if there is none.
+
+## inspector.waitForDebugger()
+<!-- YAML
+added: v12.7.0
+-->
+
+Blocks until a client (existing or connected later) has sent
+`Runtime.runIfWaitingForDebugger` command.
+
+An exception will be thrown if there is no active inspector.
 
 ## Class: inspector.Session
 
@@ -101,6 +125,16 @@ Connects a session to the inspector back-end. An exception will be thrown
 if there is already a connected session established either through the API or by
 a front-end connected to the Inspector WebSocket port.
 
+### session.disconnect()
+<!-- YAML
+added: v8.0.0
+-->
+
+Immediately close the session. All pending message callbacks will be called
+with an error. [`session.connect()`] will need to be called to be able to send
+messages again. Reconnected session will lose all inspector state, such as
+enabled agents or configured breakpoints.
+
 ### session.post(method[, params][, callback])
 <!-- YAML
 added: v8.0.0
@@ -123,27 +157,19 @@ session.post('Runtime.evaluate', { expression: '2 + 2' },
 The latest version of the V8 inspector protocol is published on the
 [Chrome DevTools Protocol Viewer][].
 
-Node inspector supports all the Chrome DevTools Protocol domains declared
+Node.js inspector supports all the Chrome DevTools Protocol domains declared
 by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.
 
-### session.disconnect()
-<!-- YAML
-added: v8.0.0
--->
-
-Immediately close the session. All pending message callbacks will be called
-with an error. [`session.connect()`] will need to be called to be able to send
-messages again. Reconnected session will lose all inspector state, such as
-enabled agents or configured breakpoints.
-
 ## Example usage
+
+Apart from the debugger, various V8 Profilers are available through the DevTools
+protocol.
 
 ### CPU Profiler
 
-Apart from the debugger, various V8 Profilers are available through the DevTools
-protocol. Here's a simple example showing how to use the [CPU profiler][]:
+Here's an example showing how to use the [CPU Profiler][]:
 
 ```js
 const inspector = require('inspector');
@@ -153,11 +179,11 @@ session.connect();
 
 session.post('Profiler.enable', () => {
   session.post('Profiler.start', () => {
-    // invoke business logic under measurement here...
+    // Invoke business logic under measurement here...
 
     // some time later...
     session.post('Profiler.stop', (err, { profile }) => {
-      // write profile to disk, upload, etc.
+      // Write profile to disk, upload, etc.
       if (!err) {
         fs.writeFileSync('./profile.cpuprofile', JSON.stringify(profile));
       }
@@ -166,9 +192,33 @@ session.post('Profiler.enable', () => {
 });
 ```
 
+### Heap Profiler
+
+Here's an example showing how to use the [Heap Profiler][]:
+
+```js
+const inspector = require('inspector');
+const fs = require('fs');
+const session = new inspector.Session();
+
+const fd = fs.openSync('profile.heapsnapshot', 'w');
+
+session.connect();
+
+session.on('HeapProfiler.addHeapSnapshotChunk', (m) => {
+  fs.writeSync(fd, m.params.chunk);
+});
+
+session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
+  console.log('Runtime.takeHeapSnapshot done:', err, r);
+  session.disconnect();
+  fs.closeSync(fd);
+});
+```
 
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`session.connect()`]: #inspector_session_connect
-[Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
+[Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
+[Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler

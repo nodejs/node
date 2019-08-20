@@ -19,6 +19,7 @@ function with_tagged(x) {
     return get1(l);
 }
 
+%PrepareFunctionForOptimization(with_double);
 with_double(.5);
 with_tagged({});
 with_double(.6);

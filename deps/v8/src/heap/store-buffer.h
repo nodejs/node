@@ -5,14 +5,14 @@
 #ifndef V8_HEAP_STORE_BUFFER_H_
 #define V8_HEAP_STORE_BUFFER_H_
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/tasks/cancelable-task.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -23,16 +23,28 @@ namespace internal {
 // one is the end address of the invalid range or null if there is just one slot
 // that needs to be removed from the remembered set. On buffer overflow the
 // slots are moved to the remembered set.
+// Store buffer entries are always full pointers.
 class StoreBuffer {
  public:
   enum StoreBufferMode { IN_GC, NOT_IN_GC };
 
-  static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
-  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const int kStoreBuffers = 2;
+  static const int kStoreBufferSize =
+      Max(static_cast<int>(kMinExpectedOSPageSize / kStoreBuffers),
+          1 << (11 + kSystemPointerSizeLog2));
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const intptr_t kDeletionTag = 1;
 
   V8_EXPORT_PRIVATE static int StoreBufferOverflow(Isolate* isolate);
+
+  static void DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address start, Address end);
+  static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
+                                            Address slot);
+
+  static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
+                                  Address end);
+  static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot);
 
   explicit StoreBuffer(Heap* heap);
   void SetUp();
@@ -50,77 +62,19 @@ class StoreBuffer {
   void MoveAllEntriesToRememberedSet();
 
   inline bool IsDeletionAddress(Address address) const {
-    return reinterpret_cast<intptr_t>(address) & kDeletionTag;
+    return address & kDeletionTag;
   }
 
   inline Address MarkDeletionAddress(Address address) {
-    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) |
-                                     kDeletionTag);
+    return address | kDeletionTag;
   }
 
   inline Address UnmarkDeletionAddress(Address address) {
-    return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(address) &
-                                     ~kDeletionTag);
+    return address & ~kDeletionTag;
   }
 
-  // If we only want to delete a single slot, end should be set to null which
-  // will be written into the second field. When processing the store buffer
-  // the more efficient Remove method will be called in this case.
-  void DeleteEntry(Address start, Address end = nullptr) {
-    // Deletions coming from the GC are directly deleted from the remembered
-    // set. Deletions coming from the runtime are added to the store buffer
-    // to allow concurrent processing.
-    deletion_callback(this, start, end);
-  }
-
-  static void DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
-                                            Address start, Address end) {
-    // In GC the store buffer has to be empty at any time.
-    DCHECK(store_buffer->Empty());
-    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
-    Page* page = Page::FromAddress(start);
-    if (end) {
-      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                             SlotSet::PREFREE_EMPTY_BUCKETS);
-    } else {
-      RememberedSet<OLD_TO_NEW>::Remove(page, start);
-    }
-  }
-
-  static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
-                                  Address end) {
-    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
-    store_buffer->InsertDeletionIntoStoreBuffer(start, end);
-  }
-
-  void InsertDeletionIntoStoreBuffer(Address start, Address end) {
-    if (top_ + sizeof(Address) * 2 > limit_[current_]) {
-      StoreBufferOverflow(heap_->isolate());
-    }
-    *top_ = MarkDeletionAddress(start);
-    top_++;
-    *top_ = end;
-    top_++;
-  }
-
-  static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
-                                            Address slot) {
-    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
-    RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
-  }
-
-  static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
-    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
-    store_buffer->InsertIntoStoreBuffer(slot);
-  }
-
-  void InsertIntoStoreBuffer(Address slot) {
-    if (top_ + sizeof(Address) > limit_[current_]) {
-      StoreBufferOverflow(heap_->isolate());
-    }
-    *top_ = slot;
-    top_++;
-  }
+  inline void InsertDeletionIntoStoreBuffer(Address start, Address end);
+  inline void InsertIntoStoreBuffer(Address slot);
 
   void InsertEntry(Address slot) {
     // Insertions coming from the GC are directly inserted into the remembered
@@ -129,16 +83,17 @@ class StoreBuffer {
     insertion_callback(this, slot);
   }
 
-  void SetMode(StoreBufferMode mode) {
-    mode_ = mode;
-    if (mode == NOT_IN_GC) {
-      insertion_callback = &InsertDuringRuntime;
-      deletion_callback = &DeleteDuringRuntime;
-    } else {
-      insertion_callback = &InsertDuringGarbageCollection;
-      deletion_callback = &DeleteDuringGarbageCollection;
-    }
+  // If we only want to delete a single slot, end should be set to null which
+  // will be written into the second field. When processing the store buffer
+  // the more efficient Remove method will be called in this case.
+  void DeleteEntry(Address start, Address end = kNullAddress) {
+    // Deletions coming from the GC are directly deleted from the remembered
+    // set. Deletions coming from the runtime are added to the store buffer
+    // to allow concurrent processing.
+    deletion_callback(this, start, end);
   }
+
+  void SetMode(StoreBufferMode mode);
 
   // Used by the concurrent processing thread to transfer entries from the
   // store buffer to the remembered set.
@@ -171,7 +126,7 @@ class StoreBuffer {
         : CancelableTask(isolate),
           store_buffer_(store_buffer),
           tracer_(isolate->heap()->tracer()) {}
-    virtual ~Task() {}
+    ~Task() override = default;
 
    private:
     void RunInternal() override {

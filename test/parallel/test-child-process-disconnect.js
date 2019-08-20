@@ -48,7 +48,7 @@ if (process.argv[2] === 'child') {
       socket.end((process.connected).toString());
     });
 
-    // when the socket is closed, we will close the server
+    // When the socket is closed, we will close the server
     // allowing the process to self terminate
     socket.on('end', function() {
       server.close();
@@ -57,7 +57,7 @@ if (process.argv[2] === 'child') {
     socket.write('ready');
   });
 
-  // when the server is ready tell parent
+  // When the server is ready tell parent
   server.on('listening', function() {
     process.send({ msg: 'ready', port: server.address().port });
   });
@@ -71,33 +71,37 @@ if (process.argv[2] === 'child') {
   let childFlag = false;
   let parentFlag = false;
 
-  // when calling .disconnect the event should emit
+  // When calling .disconnect the event should emit
   // and the disconnected flag should be true.
   child.on('disconnect', common.mustCall(function() {
     parentFlag = child.connected;
   }));
 
-  // the process should also self terminate without using signals
+  // The process should also self terminate without using signals
   child.on('exit', common.mustCall());
 
-  // when child is listening
+  // When child is listening
   child.on('message', function(obj) {
     if (obj && obj.msg === 'ready') {
 
-      // connect to child using TCP to know if disconnect was emitted
+      // Connect to child using TCP to know if disconnect was emitted
       const socket = net.connect(obj.port);
 
       socket.on('data', function(data) {
         data = data.toString();
 
-        // ready to be disconnected
+        // Ready to be disconnected
         if (data === 'ready') {
           child.disconnect();
-          assert.throws(child.disconnect.bind(child), Error);
+          assert.throws(
+            child.disconnect.bind(child),
+            {
+              code: 'ERR_IPC_DISCONNECTED'
+            });
           return;
         }
 
-        // disconnect is emitted
+        // 'disconnect' is emitted
         childFlag = (data === 'true');
       });
 

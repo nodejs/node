@@ -33,7 +33,7 @@ function test0(n) {
   var a = new Array(n);
   for (var i = 0; i < n; ++i) {
     // ~ of a non-numeric value is used to trigger deoptimization.
-    a[i] = void(!(delete 'object')) % ~(delete 4);
+    a[i] = void !delete 'object' % ~delete 4;
   }
 }
 
@@ -49,7 +49,7 @@ for (var i = 0; i < 5; ++i) {
 function test1(n) {
   var a = new Array(n);
   for (var i = 0; i < n; ++i) {
-    a[i] = void(!(- 'object')) % ~(delete 4);
+    a[i] = void !-'object' % ~delete 4;
   }
 }
 
@@ -62,14 +62,15 @@ for (i = 0; i < 5; ++i) {
 
 // A similar issue, different subexpression of unary ! (e0 !== e1 is
 // translated into !(e0 == e1)) and different effect context.
-function side_effect() { }
-function observe(x, y) { return x; }
-function test2(x) {
-  return observe(this,
-                 (((side_effect.observe <= side_effect.side_effect) !== false),
-                  x + 1));
+function side_effect() {}
+function observe(x, y) {
+  return x;
 }
-
+function test2(x) {
+  return observe(
+      this, (side_effect.observe <= side_effect.side_effect !== false, x + 1));
+};
+%PrepareFunctionForOptimization(test2);
 for (var i = 0; i < 5; ++i) test2(0);
 %OptimizeFunctionOnNextCall(test2);
 test2(0);

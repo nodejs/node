@@ -5,7 +5,7 @@ const { ServerResponse } = require('http');
 const { Writable } = require('stream');
 const assert = require('assert');
 
-// check that ServerResponse can be used without a proper Socket
+// Check that ServerResponse can be used without a proper Socket
 // Fixes: https://github.com/nodejs/node/issues/14386
 // Fixes: https://github.com/nodejs/node/issues/14381
 
@@ -15,11 +15,18 @@ const res = new ServerResponse({
   httpVersionMinor: 1
 });
 
+let firstChunk = true;
+
 const ws = new Writable({
   write: common.mustCall((chunk, encoding, callback) => {
-    assert(chunk.toString().match(/hello world/));
+    if (firstChunk) {
+      assert(chunk.toString().endsWith('hello world'));
+      firstChunk = false;
+    } else {
+      assert.strictEqual(chunk.length, 0);
+    }
     setImmediate(callback);
-  })
+  }, 2)
 });
 
 res.assignSocket(ws);

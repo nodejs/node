@@ -173,6 +173,16 @@ PatternProps::skipWhiteSpace(const UChar *s, int32_t length) {
     return s;
 }
 
+int32_t
+PatternProps::skipWhiteSpace(const UnicodeString& s, int32_t start) {
+    int32_t i = start;
+    int32_t length = s.length();
+    while(i<length && isWhiteSpace(s.charAt(i))) {
+        ++i;
+    }
+    return i;
+}
+
 const UChar *
 PatternProps::trimWhiteSpace(const UChar *s, int32_t &length) {
     if(length<=0 || (!isWhiteSpace(s[0]) && !isWhiteSpace(s[length-1]))) {

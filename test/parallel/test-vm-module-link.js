@@ -3,18 +3,17 @@
 // Flags: --experimental-vm-modules
 
 const common = require('../common');
-common.crashOnUnhandledRejection();
 
 const assert = require('assert');
 const { URL } = require('url');
 
-const { Module } = require('vm');
+const { SourceTextModule } = require('vm');
 
 async function simple() {
-  const foo = new Module('export default 5;');
+  const foo = new SourceTextModule('export default 5;');
   await foo.link(common.mustNotCall());
 
-  const bar = new Module('import five from "foo"; five');
+  const bar = new SourceTextModule('import five from "foo"; five');
 
   assert.deepStrictEqual(bar.dependencySpecifiers, ['foo']);
 
@@ -30,11 +29,11 @@ async function simple() {
 }
 
 async function depth() {
-  const foo = new Module('export default 5');
+  const foo = new SourceTextModule('export default 5');
   await foo.link(common.mustNotCall());
 
   async function getProxy(parentName, parentModule) {
-    const mod = new Module(`
+    const mod = new SourceTextModule(`
       import ${parentName} from '${parentName}';
       export default ${parentName};
     `);
@@ -57,12 +56,12 @@ async function depth() {
 }
 
 async function circular() {
-  const foo = new Module(`
+  const foo = new SourceTextModule(`
     import getFoo from 'bar';
     export let foo = 42;
     export default getFoo();
   `);
-  const bar = new Module(`
+  const bar = new SourceTextModule(`
     import { foo } from 'foo';
     export default function getFoo() {
       return foo;
@@ -110,12 +109,14 @@ async function circular2() {
     `
   };
   const moduleMap = new Map();
-  const rootModule = new Module(sourceMap.root, { url: 'vm:root' });
+  const rootModule = new SourceTextModule(sourceMap.root, { url: 'vm:root' });
   async function link(specifier, referencingModule) {
     if (moduleMap.has(specifier)) {
       return moduleMap.get(specifier);
     }
-    const mod = new Module(sourceMap[specifier], { url: new URL(specifier, 'file:///').href });
+    const mod = new SourceTextModule(sourceMap[specifier], {
+      url: new URL(specifier, 'file:///').href,
+    });
     moduleMap.set(specifier, mod);
     return mod;
   }

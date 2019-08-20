@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@ $output = pop;
 open OUT,">$output";
 *STDOUT=*OUT;
 
-&asm_init($ARGV[0],"x86cpuid");
+&asm_init($ARGV[0]);
 
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 
@@ -89,7 +89,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ja	(&label("generic"));
 	&and	("edx",0xefffffff);	# clear hyper-threading bit
 	&jmp	(&label("generic"));
-	
+
 &set_label("intel");
 	&cmp	("edi",4);
 	&mov	("esi",-1);
@@ -110,7 +110,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&cmp	("ebp",0);
 	&jne	(&label("notintel"));
 	&or	("edx",1<<30);		# set reserved bit#30 on Intel CPUs
-	&and	(&HB("eax"),15);	# familiy ID
+	&and	(&HB("eax"),15);	# family ID
 	&cmp	(&HB("eax"),15);	# P4?
 	&jne	(&label("notintel"));
 	&or	("edx",1<<20);		# set reserved bit#20 to engage RC4_CHAR
@@ -290,45 +290,6 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ret	();
 &function_end_B("OPENSSL_atomic_add");
 
-# This function can become handy under Win32 in situations when
-# we don't know which calling convention, __stdcall or __cdecl(*),
-# indirect callee is using. In C it can be deployed as
-#
-#ifdef OPENSSL_CPUID_OBJ
-#	type OPENSSL_indirect_call(void *f,...);
-#	...
-#	OPENSSL_indirect_call(func,[up to $max arguments]);
-#endif
-#
-# (*)	it's designed to work even for __fastcall if number of
-#	arguments is 1 or 2!
-&function_begin_B("OPENSSL_indirect_call");
-	{
-	my ($max,$i)=(7,);	# $max has to be chosen as 4*n-1
-				# in order to preserve eventual
-				# stack alignment
-	&push	("ebp");
-	&mov	("ebp","esp");
-	&sub	("esp",$max*4);
-	&mov	("ecx",&DWP(12,"ebp"));
-	&mov	(&DWP(0,"esp"),"ecx");
-	&mov	("edx",&DWP(16,"ebp"));
-	&mov	(&DWP(4,"esp"),"edx");
-	for($i=2;$i<$max;$i++)
-		{
-		# Some copies will be redundant/bogus...
-		&mov	("eax",&DWP(12+$i*4,"ebp"));
-		&mov	(&DWP(0+$i*4,"esp"),"eax");
-		}
-	&call_ptr	(&DWP(8,"ebp"));# make the call...
-	&mov	("esp","ebp");	# ... and just restore the stack pointer
-				# without paying attention to what we called,
-				# (__cdecl *func) or (__stdcall *one).
-	&pop	("ebp");
-	&ret	();
-	}
-&function_end_B("OPENSSL_indirect_call");
-
 &function_begin_B("OPENSSL_cleanse");
 	&mov	("edx",&wparam(0));
 	&mov	("ecx",&wparam(1));
@@ -492,18 +453,6 @@ my $max = "ebp";
 
 sub gen_random {
 my $rdop = shift;
-&function_begin_B("OPENSSL_ia32_${rdop}");
-	&mov	("ecx",8);
-&set_label("loop");
-	&${rdop}("eax");
-	&jc	(&label("break"));
-	&loop	(&label("loop"));
-&set_label("break");
-	&cmp	("eax",0);
-	&cmove	("eax","ecx");
-	&ret	();
-&function_end_B("OPENSSL_ia32_${rdop}");
-
 &function_begin_B("OPENSSL_ia32_${rdop}_bytes");
 	&push	("edi");
 	&push	("ebx");
@@ -541,6 +490,7 @@ my $rdop = shift;
 	&jnz	(&label("tail"));
 
 &set_label("done");
+	&xor	("edx","edx");		# Clear random value from registers
 	&pop	("ebx");
 	&pop	("edi");
 	&ret	();

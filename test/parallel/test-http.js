@@ -27,7 +27,7 @@ const url = require('url');
 
 const expectedRequests = ['/hello', '/there', '/world'];
 
-const server = http.Server(common.mustCall(function(req, res) {
+const server = http.Server(common.mustCall((req, res) => {
   assert.strictEqual(expectedRequests.shift(), req.url);
 
   switch (req.url) {
@@ -50,9 +50,9 @@ const server = http.Server(common.mustCall(function(req, res) {
   }
 
   if (expectedRequests.length === 0)
-    this.close();
+    server.close();
 
-  req.on('end', function() {
+  req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
@@ -61,10 +61,10 @@ const server = http.Server(common.mustCall(function(req, res) {
 }, 3));
 server.listen(0);
 
-server.on('listening', function() {
-  const agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
+server.on('listening', () => {
+  const agent = new http.Agent({ port: server.address().port, maxSockets: 1 });
   const req = http.get({
-    port: this.address().port,
+    port: server.address().port,
     path: '/hello',
     headers: {
       Accept: '*/*',

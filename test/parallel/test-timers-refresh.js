@@ -5,7 +5,8 @@
 const common = require('../common');
 
 const { strictEqual } = require('assert');
-const { setUnrefTimeout, refreshFnSymbol } = require('internal/timers');
+const { setUnrefTimeout } = require('internal/timers');
+const { inspect } = require('util');
 
 // Schedule the unrefed cases first so that the later case keeps the event loop
 // active.
@@ -21,13 +22,26 @@ const { setUnrefTimeout, refreshFnSymbol } = require('internal/timers');
   }), 1);
   timer.unref();
 
-  // This relies on implicit timers handle sorting withing libuv.
+  // This relies on implicit timers handle sorting within libuv.
 
   setTimeout(common.mustCall(() => {
     strictEqual(called, false, 'unref()\'d timer returned before check');
   }), 1);
 
-  timer[refreshFnSymbol]();
+  strictEqual(timer.refresh(), timer);
+}
+
+// Should throw with non-functions
+{
+  [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
+    common.expectsError(
+      () => setUnrefTimeout(cb),
+      {
+        code: 'ERR_INVALID_CALLBACK',
+        message: `Callback must be a function. Received ${inspect(cb)}`
+      }
+    );
+  });
 }
 
 // unref pooled timer
@@ -41,7 +55,7 @@ const { setUnrefTimeout, refreshFnSymbol } = require('internal/timers');
     strictEqual(called, false, 'unref pooled timer returned before check');
   }), 1);
 
-  timer[refreshFnSymbol]();
+  strictEqual(timer.refresh(), timer);
 }
 
 // regular timer
@@ -55,5 +69,22 @@ const { setUnrefTimeout, refreshFnSymbol } = require('internal/timers');
     strictEqual(called, false, 'pooled timer returned before check');
   }), 1);
 
-  timer[refreshFnSymbol]();
+  strictEqual(timer.refresh(), timer);
+}
+
+// interval
+{
+  let called = 0;
+  const timer = setInterval(common.mustCall(() => {
+    called += 1;
+    if (called === 2) {
+      clearInterval(timer);
+    }
+  }, 2), 1);
+
+  setTimeout(common.mustCall(() => {
+    strictEqual(called, 0, 'pooled timer returned before check');
+  }), 1);
+
+  strictEqual(timer.refresh(), timer);
 }

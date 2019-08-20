@@ -1,5 +1,6 @@
 {
   "path": ["."],
+  "owners": ["username@chromium.org"],
   "flags": [],
   "run_count": 1,
   "results_processor": "results_processor.py",

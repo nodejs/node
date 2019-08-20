@@ -40,11 +40,21 @@ function test(f) {
   assertFalse(f(2 * near_lower - 7));
 }
 
-function f(x) {
-  return Number.isSafeInteger(+x);
-}
+// Check that the NumberIsSafeInteger simplified operator in
+// TurboFan does the right thing.
+function NumberIsSafeInteger(x) { return Number.isSafeInteger(+x); }
+%PrepareFunctionForOptimization(NumberIsSafeInteger);
+test(NumberIsSafeInteger);
+test(NumberIsSafeInteger);
+%OptimizeFunctionOnNextCall(NumberIsSafeInteger);
+test(NumberIsSafeInteger);
 
-test(f);
-test(f);
-%OptimizeFunctionOnNextCall(f);
-test(f);
+// Check that the ObjectIsSafeInteger simplified operator in
+// TurboFan does the right thing as well (i.e. when TurboFan
+// is not able to tell statically that the inputs are numbers).
+function ObjectIsSafeInteger(x) { return Number.isSafeInteger(x); }
+%PrepareFunctionForOptimization(ObjectIsSafeInteger);
+test(ObjectIsSafeInteger);
+test(ObjectIsSafeInteger);
+%OptimizeFunctionOnNextCall(ObjectIsSafeInteger);
+test(ObjectIsSafeInteger);

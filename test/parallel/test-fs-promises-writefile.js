@@ -2,15 +2,13 @@
 
 const common = require('../common');
 const fs = require('fs');
-const fsPromises = require('fs/promises');
+const fsPromises = fs.promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 tmpdir.refresh();
-
-common.crashOnUnhandledRejection();
 
 const dest = path.resolve(tmpDir, 'tmp.txt');
 const buffer = Buffer.from('abc'.repeat(1000));

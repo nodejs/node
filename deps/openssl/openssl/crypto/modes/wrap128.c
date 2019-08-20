@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -237,7 +237,7 @@ size_t CRYPTO_128_wrap_pad(void *key, const unsigned char *icv,
  *
  *  @param[in]  key    Key value.
  *  @param[in]  icv    (Non-standard) IV, 4 bytes. NULL = use default_aiv.
- *  @param[out] out    Plaintext. Minimal buffer length = inlen bytes.
+ *  @param[out] out    Plaintext. Minimal buffer length = (inlen - 8) bytes.
  *                     Input and output buffers can overlap if block function
  *                     supports that.
  *  @param[in]  in     Ciphertext as n 64-bit blocks.
@@ -267,7 +267,6 @@ size_t CRYPTO_128_unwrap_pad(void *key, const unsigned char *icv,
     if ((inlen & 0x7) != 0 || inlen < 16 || inlen >= CRYPTO128_WRAP_MAX)
         return 0;
 
-    memmove(out, in, inlen);
     if (inlen == 16) {
         /*
          * Section 4.2 - special case in step 1: When n=1, the ciphertext
@@ -275,14 +274,17 @@ size_t CRYPTO_128_unwrap_pad(void *key, const unsigned char *icv,
          * single AES block using AES in ECB mode: AIV | P[1] = DEC(K, C[0] |
          * C[1])
          */
-        block(out, out, key);
-        memcpy(aiv, out, 8);
+        unsigned char buff[16];
+
+        block(in, buff, key);
+        memcpy(aiv, buff, 8);
         /* Remove AIV */
-        memmove(out, out + 8, 8);
+        memcpy(out, buff + 8, 8);
         padded_len = 8;
+        OPENSSL_cleanse(buff, inlen);
     } else {
         padded_len = inlen - 8;
-        ret = crypto_128_unwrap_raw(key, aiv, out, out, inlen, block);
+        ret = crypto_128_unwrap_raw(key, aiv, out, in, inlen, block);
         if (padded_len != ret) {
             OPENSSL_cleanse(out, inlen);
             return 0;

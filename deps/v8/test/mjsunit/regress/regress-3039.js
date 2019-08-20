@@ -28,10 +28,12 @@
 // Flags: --allow-natives-syntax
 
 function do_div(x, y) {
-  return (x / y) | 0;
+  return x / y | 0;
 }
 
 // Preparation.
+;
+%PrepareFunctionForOptimization(do_div);
 assertEquals(17, do_div(51, 3));
 assertEquals(13, do_div(65, 5));
 %OptimizeFunctionOnNextCall(do_div);

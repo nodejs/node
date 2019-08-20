@@ -10,13 +10,17 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow use of the `Buffer()` constructor",
             category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-buffer-constructor"
         },
+
         schema: [],
+
         messages: {
             deprecated: "{{expr}} is deprecated. Use Buffer.from(), Buffer.alloc(), or Buffer.allocUnsafe() instead."
         }

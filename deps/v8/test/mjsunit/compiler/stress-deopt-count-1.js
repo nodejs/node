@@ -10,6 +10,7 @@ function f(x) {
   return x + 1;
 }
 
+%PrepareFunctionForOptimization(f);
 f(0);
 %OptimizeFunctionOnNextCall(f);
 

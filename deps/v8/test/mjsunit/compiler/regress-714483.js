@@ -17,6 +17,7 @@ function foo(o) {
   return o.f();
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(o1);
 try { foo(o2); } catch(e) {}
 foo(o1);

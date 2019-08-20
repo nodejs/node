@@ -16,11 +16,11 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class V8_EXPORT_PRIVATE ControlFlowBuilder BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE ControlFlowBuilder {
  public:
   explicit ControlFlowBuilder(BytecodeArrayBuilder* builder)
       : builder_(builder) {}
-  virtual ~ControlFlowBuilder() {}
+  virtual ~ControlFlowBuilder() = default;
 
  protected:
   BytecodeArrayBuilder* builder() const { return builder_; }
@@ -41,7 +41,7 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
         break_labels_(builder->zone()),
         node_(node),
         block_coverage_builder_(block_coverage_builder) {}
-  virtual ~BreakableControlFlowBuilder();
+  ~BreakableControlFlowBuilder() override;
 
   // This method is called when visiting break statements in the AST.
   // Inserts a jump to an unbound label that is patched when the corresponding
@@ -57,11 +57,6 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
   void BreakIfNull() { EmitJumpIfNull(&break_labels_); }
 
   BytecodeLabels* break_labels() { return &break_labels_; }
-
-  void set_needs_continuation_counter() { needs_continuation_counter_ = true; }
-  bool needs_continuation_counter() const {
-    return needs_continuation_counter_;
-  }
 
  protected:
   void EmitJump(BytecodeLabels* labels);
@@ -81,7 +76,6 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
   // A continuation counter (for block coverage) is needed e.g. when
   // encountering a break statement.
   AstNode* node_;
-  bool needs_continuation_counter_ = false;
   BlockCoverageBuilder* block_coverage_builder_;
 };
 
@@ -107,13 +101,12 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
       : BreakableControlFlowBuilder(builder, block_coverage_builder, node),
         continue_labels_(builder->zone()) {
     if (block_coverage_builder_ != nullptr) {
-      set_needs_continuation_counter();
       block_coverage_body_slot_ =
           block_coverage_builder_->AllocateBlockCoverageSlot(
               node, SourceRangeKind::kBody);
     }
   }
-  ~LoopBuilder();
+  ~LoopBuilder() override;
 
   void LoopHeader();
   void LoopBody();
@@ -128,7 +121,7 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   void ContinueIfNull() { EmitJumpIfNull(&continue_labels_); }
 
  private:
-  BytecodeLabel loop_header_;
+  BytecodeLoopHeader loop_header_;
 
   // Unbound labels that identify jumps for continue statements in the code and
   // jumps from checking the loop condition to the header for do-while loops.
@@ -149,7 +142,7 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
         case_sites_(builder->zone()) {
     case_sites_.resize(number_of_cases);
   }
-  ~SwitchBuilder();
+  ~SwitchBuilder() override;  // NOLINT (modernize-use-equals-default)
 
   // This method should be called by the SwitchBuilder owner when the case
   // statement with |index| is emitted to update the case jump site.
@@ -186,7 +179,7 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
         block_coverage_builder_(block_coverage_builder),
         statement_(statement) {}
 
-  ~TryCatchBuilder();
+  ~TryCatchBuilder() override;
 
   void BeginTry(Register context);
   void EndTry();
@@ -195,7 +188,6 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
  private:
   int handler_id_;
   HandlerTable::CatchPrediction catch_prediction_;
-  BytecodeLabel handler_;
   BytecodeLabel exit_;
 
   BlockCoverageBuilder* block_coverage_builder_;
@@ -217,7 +209,7 @@ class V8_EXPORT_PRIVATE TryFinallyBuilder final : public ControlFlowBuilder {
         block_coverage_builder_(block_coverage_builder),
         statement_(statement) {}
 
-  ~TryFinallyBuilder();
+  ~TryFinallyBuilder() override;
 
   void BeginTry(Register context);
   void LeaveTry();
@@ -260,7 +252,7 @@ class V8_EXPORT_PRIVATE ConditionalControlFlowBuilder final
               node, SourceRangeKind::kElse);
     }
   }
-  ~ConditionalControlFlowBuilder();
+  ~ConditionalControlFlowBuilder() override;
 
   BytecodeLabels* then_labels() { return &then_labels_; }
   BytecodeLabels* else_labels() { return &else_labels_; }

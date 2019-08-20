@@ -3,11 +3,12 @@
 
 #include "unicode/utypes.h"
 
-#if !UCONFIG_NO_FORMATTING && !UPRV_INCOMPLETE_CPP11_SUPPORT
+#if !UCONFIG_NO_FORMATTING
 
 #include "number_stringbuilder.h"
+#include "static_unicode_sets.h"
 #include "unicode/utf16.h"
-#include "uvectr32.h"
+#include "number_utils.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -33,7 +34,15 @@ inline void uprv_memmove2(void* dest, const void* src, size_t len) {
 
 } // namespace
 
-NumberStringBuilder::NumberStringBuilder() = default;
+NumberStringBuilder::NumberStringBuilder() {
+#if U_DEBUG
+    // Initializing the memory to non-zero helps catch some bugs that involve
+    // reading from an improperly terminated string.
+    for (int32_t i=0; i<getCapacity(); i++) {
+        getCharPtr()[i] = 1;
+    }
+#endif
+}
 
 NumberStringBuilder::~NumberStringBuilder() {
     if (fUsingHeap) {
@@ -241,7 +250,20 @@ NumberStringBuilder::insert(int32_t index, const NumberStringBuilder &other, UEr
     return count;
 }
 
+void NumberStringBuilder::writeTerminator(UErrorCode& status) {
+    int32_t position = prepareForInsert(fLength, 1, status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    getCharPtr()[position] = 0;
+    getFieldPtr()[position] = UNUM_FIELD_COUNT;
+    fLength--;
+}
+
 int32_t NumberStringBuilder::prepareForInsert(int32_t index, int32_t count, UErrorCode &status) {
+    U_ASSERT(index >= 0);
+    U_ASSERT(index <= fLength);
+    U_ASSERT(count >= 0);
     if (index == 0 && fZero - count >= 0) {
         // Append to start
         fZero -= count;
@@ -337,6 +359,11 @@ UnicodeString NumberStringBuilder::toUnicodeString() const {
     return UnicodeString(getCharPtr() + fZero, fLength);
 }
 
+const UnicodeString NumberStringBuilder::toTempUnicodeString() const {
+    // Readonly-alias constructor:
+    return UnicodeString(FALSE, getCharPtr() + fZero, fLength);
+}
+
 UnicodeString NumberStringBuilder::toDebugString() const {
     UnicodeString sb;
     sb.append(u"<NumberStringBuilder [", -1);
@@ -408,90 +435,165 @@ bool NumberStringBuilder::contentEquals(const NumberStringBuilder &other) const 
     return true;
 }
 
-void NumberStringBuilder::populateFieldPosition(FieldPosition &fp, int32_t offset, UErrorCode &status) const {
+bool NumberStringBuilder::nextFieldPosition(FieldPosition& fp, UErrorCode& status) const {
     int32_t rawField = fp.getField();
 
     if (rawField == FieldPosition::DONT_CARE) {
-        return;
+        return FALSE;
     }
 
     if (rawField < 0 || rawField >= UNUM_FIELD_COUNT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return;
+        return FALSE;
     }
 
-    auto field = static_cast<Field>(rawField);
+    ConstrainedFieldPosition cfpos;
+    cfpos.constrainField(UFIELD_CATEGORY_NUMBER, rawField);
+    cfpos.setState(UFIELD_CATEGORY_NUMBER, rawField, fp.getBeginIndex(), fp.getEndIndex());
+    if (nextPosition(cfpos, 0, status)) {
+        fp.setBeginIndex(cfpos.getStart());
+        fp.setEndIndex(cfpos.getLimit());
+        return true;
+    }
 
-    bool seenStart = false;
-    int32_t fractionStart = -1;
-    for (int i = fZero; i <= fZero + fLength; i++) {
-        Field _field = UNUM_FIELD_COUNT;
-        if (i < fZero + fLength) {
-            _field = getFieldPtr()[i];
-        }
-        if (seenStart && field != _field) {
-            // Special case: GROUPING_SEPARATOR counts as an INTEGER.
-            if (field == UNUM_INTEGER_FIELD && _field == UNUM_GROUPING_SEPARATOR_FIELD) {
-                continue;
+    // Special case: fraction should start after integer if fraction is not present
+    if (rawField == UNUM_FRACTION_FIELD && fp.getEndIndex() == 0) {
+        bool inside = false;
+        int32_t i = fZero;
+        for (; i < fZero + fLength; i++) {
+            if (isIntOrGroup(getFieldPtr()[i]) || getFieldPtr()[i] == UNUM_DECIMAL_SEPARATOR_FIELD) {
+                inside = true;
+            } else if (inside) {
+                break;
             }
-            fp.setEndIndex(i - fZero + offset);
-            break;
-        } else if (!seenStart && field == _field) {
-            fp.setBeginIndex(i - fZero + offset);
-            seenStart = true;
         }
-        if (_field == UNUM_INTEGER_FIELD || _field == UNUM_DECIMAL_SEPARATOR_FIELD) {
-            fractionStart = i - fZero + 1;
-        }
+        fp.setBeginIndex(i - fZero);
+        fp.setEndIndex(i - fZero);
     }
 
-    // Backwards compatibility: FRACTION needs to start after INTEGER if empty
-    if (field == UNUM_FRACTION_FIELD && !seenStart) {
-        fp.setBeginIndex(fractionStart + offset);
-        fp.setEndIndex(fractionStart + offset);
+    return false;
+}
+
+void NumberStringBuilder::getAllFieldPositions(FieldPositionIteratorHandler& fpih,
+                                               UErrorCode& status) const {
+    ConstrainedFieldPosition cfpos;
+    while (nextPosition(cfpos, 0, status)) {
+        fpih.addAttribute(cfpos.getField(), cfpos.getStart(), cfpos.getLimit());
     }
 }
 
-void NumberStringBuilder::populateFieldPositionIterator(FieldPositionIterator &fpi, UErrorCode &status) const {
-    // TODO: Set an initial capacity on uvec?
-    LocalPointer <UVector32> uvec(new UVector32(status));
-    if (U_FAILURE(status)) {
-        return;
-    }
+// Signal the end of the string using a field that doesn't exist and that is
+// different from UNUM_FIELD_COUNT, which is used for "null number field".
+static constexpr Field kEndField = 0xff;
 
-    Field current = UNUM_FIELD_COUNT;
-    int32_t currentStart = -1;
-    for (int32_t i = 0; i < fLength; i++) {
-        Field field = fieldAt(i);
-        if (current == UNUM_INTEGER_FIELD && field == UNUM_GROUPING_SEPARATOR_FIELD) {
-            // Special case: GROUPING_SEPARATOR counts as an INTEGER.
-            // Add the field, followed by the start index, followed by the end index to uvec.
-            uvec->addElement(UNUM_GROUPING_SEPARATOR_FIELD, status);
-            uvec->addElement(i, status);
-            uvec->addElement(i + 1, status);
-        } else if (current != field) {
-            if (current != UNUM_FIELD_COUNT) {
-                // Add the field, followed by the start index, followed by the end index to uvec.
-                uvec->addElement(current, status);
-                uvec->addElement(currentStart, status);
-                uvec->addElement(i, status);
+bool NumberStringBuilder::nextPosition(ConstrainedFieldPosition& cfpos, Field numericField, UErrorCode& /*status*/) const {
+    auto numericCAF = NumFieldUtils::expand(numericField);
+    int32_t fieldStart = -1;
+    Field currField = UNUM_FIELD_COUNT;
+    for (int32_t i = fZero + cfpos.getLimit(); i <= fZero + fLength; i++) {
+        Field _field = (i < fZero + fLength) ? getFieldPtr()[i] : kEndField;
+        // Case 1: currently scanning a field.
+        if (currField != UNUM_FIELD_COUNT) {
+            if (currField != _field) {
+                int32_t end = i - fZero;
+                // Grouping separators can be whitespace; don't throw them out!
+                if (currField != UNUM_GROUPING_SEPARATOR_FIELD) {
+                    end = trimBack(i - fZero);
+                }
+                if (end <= fieldStart) {
+                    // Entire field position is ignorable; skip.
+                    fieldStart = -1;
+                    currField = UNUM_FIELD_COUNT;
+                    i--;  // look at this index again
+                    continue;
+                }
+                int32_t start = fieldStart;
+                if (currField != UNUM_GROUPING_SEPARATOR_FIELD) {
+                    start = trimFront(start);
+                }
+                auto caf = NumFieldUtils::expand(currField);
+                cfpos.setState(caf.category, caf.field, start, end);
+                return true;
             }
-            current = field;
-            currentStart = i;
+            continue;
         }
-        if (U_FAILURE(status)) {
-            return;
+        // Special case: coalesce the INTEGER if we are pointing at the end of the INTEGER.
+        if (cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD)
+                && i > fZero
+                // don't return the same field twice in a row:
+                && i - fZero > cfpos.getLimit()
+                && isIntOrGroup(getFieldPtr()[i - 1])
+                && !isIntOrGroup(_field)) {
+            int j = i - 1;
+            for (; j >= fZero && isIntOrGroup(getFieldPtr()[j]); j--) {}
+            cfpos.setState(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD, j - fZero + 1, i - fZero);
+            return true;
         }
-    }
-    if (current != UNUM_FIELD_COUNT) {
-        // Add the field, followed by the start index, followed by the end index to uvec.
-        uvec->addElement(current, status);
-        uvec->addElement(currentStart, status);
-        uvec->addElement(fLength, status);
+        // Special case: coalesce NUMERIC if we are pointing at the end of the NUMERIC.
+        if (numericField != 0
+                && cfpos.matchesField(numericCAF.category, numericCAF.field)
+                && i > fZero
+                // don't return the same field twice in a row:
+                && (i - fZero > cfpos.getLimit()
+                    || cfpos.getCategory() != numericCAF.category
+                    || cfpos.getField() != numericCAF.field)
+                && isNumericField(getFieldPtr()[i - 1])
+                && !isNumericField(_field)) {
+            int j = i - 1;
+            for (; j >= fZero && isNumericField(getFieldPtr()[j]); j--) {}
+            cfpos.setState(numericCAF.category, numericCAF.field, j - fZero + 1, i - fZero);
+            return true;
+        }
+        // Special case: skip over INTEGER; will be coalesced later.
+        if (_field == UNUM_INTEGER_FIELD) {
+            _field = UNUM_FIELD_COUNT;
+        }
+        // Case 2: no field starting at this position.
+        if (_field == UNUM_FIELD_COUNT || _field == kEndField) {
+            continue;
+        }
+        // Case 3: check for field starting at this position
+        auto caf = NumFieldUtils::expand(_field);
+        if (cfpos.matchesField(caf.category, caf.field)) {
+            fieldStart = i - fZero;
+            currField = _field;
+        }
     }
 
-    // Give uvec to the FieldPositionIterator, which adopts it.
-    fpi.setData(uvec.orphan(), status);
+    U_ASSERT(currField == UNUM_FIELD_COUNT);
+    return false;
+}
+
+bool NumberStringBuilder::containsField(Field field) const {
+    for (int32_t i = 0; i < fLength; i++) {
+        if (field == fieldAt(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool NumberStringBuilder::isIntOrGroup(Field field) {
+    return field == UNUM_INTEGER_FIELD
+        || field == UNUM_GROUPING_SEPARATOR_FIELD;
+}
+
+bool NumberStringBuilder::isNumericField(Field field) {
+    return NumFieldUtils::isNumericField(field);
+}
+
+int32_t NumberStringBuilder::trimBack(int32_t limit) const {
+    return unisets::get(unisets::DEFAULT_IGNORABLES)->spanBack(
+        getCharPtr() + fZero,
+        limit,
+        USET_SPAN_CONTAINED);
+}
+
+int32_t NumberStringBuilder::trimFront(int32_t start) const {
+    return start + unisets::get(unisets::DEFAULT_IGNORABLES)->span(
+        getCharPtr() + fZero + start,
+        fLength - start,
+        USET_SPAN_CONTAINED);
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

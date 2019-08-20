@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,24 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-/*
- * This has been a quickly hacked 'ideatest.c'.  When I add tests for other
- * RC2 modes, more of the code will be uncommented.
- */
+#include "internal/nelem.h"
+#include "testutil.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include "../e_os.h"
-
-#ifdef OPENSSL_NO_RC2
-int main(int argc, char *argv[])
-{
-    printf("No RC2 support\n");
-    return (0);
-}
-#else
+#ifndef OPENSSL_NO_RC2
 # include <openssl/rc2.h>
 
 static unsigned char RC2key[4][16] = {
@@ -52,48 +38,31 @@ static unsigned char RC2cipher[4][8] = {
     {0x50, 0xDC, 0x01, 0x62, 0xBD, 0x75, 0x7F, 0x31},
 };
 
-int main(int argc, char *argv[])
+static int test_rc2(const int n)
 {
-    int i, n, err = 0;
+    int testresult = 1;
     RC2_KEY key;
     unsigned char buf[8], buf2[8];
 
-    for (n = 0; n < 4; n++) {
-        RC2_set_key(&key, 16, &(RC2key[n][0]), 0 /* or 1024 */ );
+    RC2_set_key(&key, 16, &(RC2key[n][0]), 0 /* or 1024 */ );
 
-        RC2_ecb_encrypt(&(RC2plain[n][0]), buf, &key, RC2_ENCRYPT);
-        if (memcmp(&(RC2cipher[n][0]), buf, 8) != 0) {
-            printf("ecb rc2 error encrypting\n");
-            printf("got     :");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", buf[i]);
-            printf("\n");
-            printf("expected:");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", RC2cipher[n][i]);
-            err = 20;
-            printf("\n");
-        }
+    RC2_ecb_encrypt(&RC2plain[n][0], buf, &key, RC2_ENCRYPT);
+    if (!TEST_mem_eq(&RC2cipher[n][0], 8, buf, 8))
+        testresult = 0;
 
-        RC2_ecb_encrypt(buf, buf2, &key, RC2_DECRYPT);
-        if (memcmp(&(RC2plain[n][0]), buf2, 8) != 0) {
-            printf("ecb RC2 error decrypting\n");
-            printf("got     :");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", buf[i]);
-            printf("\n");
-            printf("expected:");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", RC2plain[n][i]);
-            printf("\n");
-            err = 3;
-        }
-    }
+    RC2_ecb_encrypt(buf, buf2, &key, RC2_DECRYPT);
+    if (!TEST_mem_eq(&RC2plain[n][0], 8, buf2, 8))
+        testresult = 0;
 
-    if (err == 0)
-        printf("ecb RC2 ok\n");
-
-    EXIT(err);
+    return testresult;
 }
 
 #endif
+
+int setup_tests(void)
+{
+#ifndef OPENSSL_NO_RC2
+    ADD_ALL_TESTS(test_rc2, OSSL_NELEM(RC2key));
+#endif
+    return 1;
+}

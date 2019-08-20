@@ -22,6 +22,7 @@ inlined();
 function optimized(abort, a, b) {
   return inlined(abort, "abc", a, b);
 }
+%PrepareFunctionForOptimization(optimized);
 optimized(true);
 %OptimizeFunctionOnNextCall(optimized);
 optimized();

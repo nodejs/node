@@ -2,6 +2,12 @@
 require('../common');
 const assert = require('assert');
 
+// Disable colored output to prevent color codes from breaking assertion
+// message comparisons. This should only be an issue when process.stdout
+// is a TTY.
+if (process.stdout.isTTY)
+  process.env.NODE_DISABLE_COLORS = '1';
+
 // Turn off no-restricted-properties because we are testing deepEqual!
 /* eslint-disable no-restricted-properties */
 
@@ -12,23 +18,23 @@ const assert = require('assert');
   FakeDate.prototype = Date.prototype;
   const fake = new FakeDate();
 
-  assert.deepEqual(date, fake);
-  assert.deepEqual(fake, date);
+  assert.notDeepEqual(date, fake);
+  assert.notDeepEqual(fake, date);
 
   // For deepStrictEqual we check the runtime type,
   // then reveal the fakeness of the fake date
   assert.throws(
     () => assert.deepStrictEqual(date, fake),
     {
-      message: 'Input A expected to strictly deep-equal input B:\n' +
-               '+ expected - actual\n\n- 2016-01-01T00:00:00.000Z\n+ Date {}'
+      message: 'Expected values to be strictly deep-equal:\n' +
+               '+ actual - expected\n\n+ 2016-01-01T00:00:00.000Z\n- Date {}'
     }
   );
   assert.throws(
     () => assert.deepStrictEqual(fake, date),
     {
-      message: 'Input A expected to strictly deep-equal input B:\n' +
-               '+ expected - actual\n\n- Date {}\n+ 2016-01-01T00:00:00.000Z'
+      message: 'Expected values to be strictly deep-equal:\n' +
+               '+ actual - expected\n\n+ Date {}\n- 2016-01-01T00:00:00.000Z'
     }
   );
 }
@@ -39,7 +45,7 @@ const assert = require('assert');
   for (const prop of Object.keys(global)) {
     fakeGlobal[prop] = global[prop];
   }
-  assert.deepEqual(fakeGlobal, global);
+  assert.notDeepEqual(fakeGlobal, global);
   // Message will be truncated anyway, don't validate
   assert.throws(() => assert.deepStrictEqual(fakeGlobal, global),
                 assert.AssertionError);
@@ -51,7 +57,7 @@ const assert = require('assert');
   for (const prop of Object.keys(process)) {
     fakeProcess[prop] = process[prop];
   }
-  assert.deepEqual(fakeProcess, process);
+  assert.notDeepEqual(fakeProcess, process);
   // Message will be truncated anyway, don't validate
   assert.throws(() => assert.deepStrictEqual(fakeProcess, process),
                 assert.AssertionError);

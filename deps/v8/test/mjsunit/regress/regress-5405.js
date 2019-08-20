@@ -11,7 +11,7 @@ let log = [];
     return 10;
   }
 })();
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 (function() {
   with ({get ['.new.target']() { log.push('new.target') }}) {

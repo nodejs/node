@@ -24,12 +24,21 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <stddef.h>  // size_t
-#include <stdint.h>
+#include <cstddef>  // size_t
+#include <cstdint>
 
 namespace node {
 namespace crypto {
 
+// Parse the client hello so we can do async session resumption. OpenSSL's
+// session resumption uses synchronous callbacks, see SSL_CTX_sess_set_get_cb
+// and get_session_cb.
+//
+// TLS1.3 handshakes masquerade as TLS1.2 session resumption, and to do this,
+// they always include a session_id in the ClientHello, making up a bogus value
+// if necessary. The parser can't know if its a bogus id, and will cause a
+// 'newSession' event to be emitted. This should do no harm, the id won't be
+// found, and the handshake will continue.
 class ClientHelloParser {
  public:
   inline ClientHelloParser();
@@ -41,7 +50,6 @@ class ClientHelloParser {
     inline bool has_ticket() const { return has_ticket_; }
     inline uint8_t servername_size() const { return servername_size_; }
     inline const uint8_t* servername() const { return servername_; }
-    inline int ocsp_request() const { return ocsp_request_; }
 
    private:
     uint8_t session_size_;
@@ -49,7 +57,6 @@ class ClientHelloParser {
     bool has_ticket_;
     uint8_t servername_size_;
     const uint8_t* servername_;
-    int ocsp_request_;
 
     friend class ClientHelloParser;
   };
@@ -69,7 +76,6 @@ class ClientHelloParser {
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
-  static const uint8_t kStatusRequestOCSP = 1;
   static const size_t kMinStatusRequestSize = 5;
 
   enum ParseState {
@@ -93,7 +99,6 @@ class ClientHelloParser {
 
   enum ExtensionType {
     kServerName = 0,
-    kStatusRequest = 5,
     kTLSSessionTicket = 35
   };
 
@@ -108,16 +113,15 @@ class ClientHelloParser {
   OnHelloCb onhello_cb_;
   OnEndCb onend_cb_;
   void* cb_arg_;
-  size_t frame_len_;
-  size_t body_offset_;
-  size_t extension_offset_;
-  uint8_t session_size_;
-  const uint8_t* session_id_;
-  uint16_t servername_size_;
-  const uint8_t* servername_;
-  uint8_t ocsp_request_;
-  uint16_t tls_ticket_size_;
-  const uint8_t* tls_ticket_;
+  size_t frame_len_ = 0;
+  size_t body_offset_ = 0;
+  size_t extension_offset_ = 0;
+  uint8_t session_size_ = 0;
+  const uint8_t* session_id_ = nullptr;
+  uint16_t servername_size_ = 0;
+  const uint8_t* servername_ = nullptr;
+  uint16_t tls_ticket_size_ = -1;
+  const uint8_t* tls_ticket_ = nullptr;
 };
 
 }  // namespace crypto

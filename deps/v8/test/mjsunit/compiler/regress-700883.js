@@ -18,6 +18,7 @@ function foo(x) {
  return min(y, x);
 }
 
+%PrepareFunctionForOptimization(foo);
 foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

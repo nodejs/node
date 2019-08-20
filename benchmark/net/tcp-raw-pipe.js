@@ -5,25 +5,30 @@
 const common = require('../common.js');
 const util = require('util');
 
-// if there are --dur=N and --len=N args, then
+// If there are --dur=N and --len=N args, then
 // run the function with those settings.
 // if not, then queue up a bunch of child processes.
 const bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5]
+}, {
+  flags: [ '--expose-internals', '--no-warnings' ]
 });
 
-function fail(err, syscall) {
-  throw util._errnoException(err, syscall);
-}
-
-const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
-const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
-const WriteWrap = process.binding('stream_wrap').WriteWrap;
-const PORT = common.PORT;
-
 function main({ dur, len, type }) {
+  const {
+    TCP,
+    TCPConnectWrap,
+    constants: TCPConstants
+  } = common.binding('tcp_wrap');
+  const { WriteWrap } = common.binding('stream_wrap');
+  const PORT = common.PORT;
+
+  function fail(err, syscall) {
+    throw util._errnoException(err, syscall);
+  }
+
   // Server
   const serverHandle = new TCP(TCPConstants.SERVER);
   var err = serverHandle.bind('127.0.0.1', PORT);
@@ -38,15 +43,15 @@ function main({ dur, len, type }) {
     if (err)
       fail(err, 'connect');
 
-    clientHandle.onread = function(nread, buffer) {
-      // we're not expecting to ever get an EOF from the client.
-      // just lots of data forever.
-      if (nread < 0)
-        fail(nread, 'read');
+    clientHandle.onread = function(buffer) {
+      // We're not expecting to ever get an EOF from the client.
+      // Just lots of data forever.
+      if (!buffer)
+        fail('read');
 
       const writeReq = new WriteWrap();
       writeReq.async = false;
-      err = clientHandle.writeBuffer(writeReq, buffer);
+      err = clientHandle.writeBuffer(writeReq, Buffer.from(buffer));
 
       if (err)
         fail(err, 'write');
@@ -84,11 +89,11 @@ function main({ dur, len, type }) {
   if (err)
     fail(err, 'connect');
 
-  clientHandle.onread = function(nread, buffer) {
-    if (nread < 0)
-      fail(nread, 'read');
+  clientHandle.onread = function(buffer) {
+    if (!buffer)
+      fail('read');
 
-    bytes += buffer.length;
+    bytes += buffer.byteLength;
   };
 
   connectReq.oncomplete = function(err) {
@@ -99,8 +104,8 @@ function main({ dur, len, type }) {
 
     clientHandle.readStart();
 
-    setTimeout(function() {
-      // multiply by 2 since we're sending it first one way
+    setTimeout(() => {
+      // Multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
       process.exit(0);

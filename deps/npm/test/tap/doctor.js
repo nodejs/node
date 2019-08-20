@@ -1,5 +1,5 @@
 'use strict'
-
+/* eslint-disable camelcase */
 const common = require('../common-tap.js')
 const http = require('http')
 const mr = require('npm-registry-mock')
@@ -13,8 +13,8 @@ const which = require('which')
 const Dir = Tacks.Dir
 const File = Tacks.File
 
-const ROOT = path.join(__dirname, path.basename(__filename, '.js'))
-const CACHE = path.join(ROOT, 'cache')
+const ROOT = common.pkg
+const CACHE = common.cache
 const TMP = path.join(ROOT, 'tmp')
 const PREFIX = path.join(ROOT, 'global-prefix')
 const PKG = path.join(ROOT, 'pkg')

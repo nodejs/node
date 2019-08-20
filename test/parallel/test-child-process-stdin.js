@@ -30,8 +30,8 @@ cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
 
-assert.strictEqual(true, cat.stdin.writable);
-assert.strictEqual(false, cat.stdin.readable);
+assert.strictEqual(cat.stdin.writable, true);
+assert.strictEqual(cat.stdin.readable, false);
 
 cat.stdin.end();
 
@@ -50,9 +50,9 @@ cat.stderr.on('data', common.mustNotCall());
 cat.stderr.on('end', common.mustCall());
 
 cat.on('exit', common.mustCall(function(status) {
-  assert.strictEqual(0, status);
+  assert.strictEqual(status, 0);
 }));
 
 cat.on('close', common.mustCall(function() {
-  assert.strictEqual('hello world', response);
+  assert.strictEqual(response, 'hello world');
 }));

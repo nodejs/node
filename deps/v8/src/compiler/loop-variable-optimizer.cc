@@ -77,10 +77,9 @@ void LoopVariableOptimizer::Run() {
 void InductionVariable::AddUpperBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
-    OFStream os(stdout);
-    os << "New upper bound for " << phi()->id() << " (loop "
-       << NodeProperties::GetControlInput(phi())->id() << "): " << *bound
-       << std::endl;
+    StdoutStream{} << "New upper bound for " << phi()->id() << " (loop "
+                   << NodeProperties::GetControlInput(phi())->id()
+                   << "): " << *bound << std::endl;
   }
   upper_bounds_.push_back(Bound(bound, kind));
 }
@@ -88,9 +87,9 @@ void InductionVariable::AddUpperBound(Node* bound,
 void InductionVariable::AddLowerBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
-    OFStream os(stdout);
-    os << "New lower bound for " << phi()->id() << " (loop "
-       << NodeProperties::GetControlInput(phi())->id() << "): " << *bound;
+    StdoutStream{} << "New lower bound for " << phi()->id() << " (loop "
+                   << NodeProperties::GetControlInput(phi())->id()
+                   << "): " << *bound;
   }
   lower_bounds_.push_back(Bound(bound, kind));
 }
@@ -159,6 +158,7 @@ void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
   // Normalize to less than comparison.
   switch (cond->opcode()) {
     case IrOpcode::kJSLessThan:
+    case IrOpcode::kNumberLessThan:
     case IrOpcode::kSpeculativeNumberLessThan:
       AddCmpToLimits(&limits, cond, InductionVariable::kStrict, polarity);
       break;
@@ -166,6 +166,7 @@ void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
       AddCmpToLimits(&limits, cond, InductionVariable::kNonStrict, !polarity);
       break;
     case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kNumberLessThanOrEqual:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       AddCmpToLimits(&limits, cond, InductionVariable::kNonStrict, polarity);
       break;
@@ -227,10 +228,12 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   Node* arith = phi->InputAt(1);
   InductionVariable::ArithmeticType arithmeticType;
   if (arith->opcode() == IrOpcode::kJSAdd ||
+      arith->opcode() == IrOpcode::kNumberAdd ||
       arith->opcode() == IrOpcode::kSpeculativeNumberAdd ||
       arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
+             arith->opcode() == IrOpcode::kNumberSubtract ||
              arith->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
              arith->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
@@ -239,7 +242,13 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   }
 
   // TODO(jarin) Support both sides.
-  if (arith->InputAt(0) != phi) return nullptr;
+  Node* input = arith->InputAt(0);
+  if (input->opcode() == IrOpcode::kSpeculativeToNumber ||
+      input->opcode() == IrOpcode::kJSToNumber ||
+      input->opcode() == IrOpcode::kJSToNumberConvertBigInt) {
+    input = input->InputAt(0);
+  }
+  if (input != phi) return nullptr;
 
   Node* effect_phi = nullptr;
   for (Node* use : loop->uses()) {
@@ -319,9 +328,9 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
       // If the backedge is not a subtype of the phi's type, we insert a sigma
       // to get the typing right.
       Node* backedge_value = induction_var->phi()->InputAt(1);
-      Type* backedge_type = NodeProperties::GetType(backedge_value);
-      Type* phi_type = NodeProperties::GetType(induction_var->phi());
-      if (!backedge_type->Is(phi_type)) {
+      Type backedge_type = NodeProperties::GetType(backedge_value);
+      Type phi_type = NodeProperties::GetType(induction_var->phi());
+      if (!backedge_type.Is(phi_type)) {
         Node* loop = NodeProperties::GetControlInput(induction_var->phi());
         Node* backedge_control = loop->InputAt(1);
         Node* backedge_effect =

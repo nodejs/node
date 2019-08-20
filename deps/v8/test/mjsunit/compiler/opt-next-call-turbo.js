@@ -8,6 +8,7 @@ function foo() {
   with ({ value:"fooed" }) { return value; }
 }
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("fooed", foo());
 assertOptimized(foo);
@@ -16,6 +17,7 @@ function bar() {
   with ({ value:"bared" }) { return value; }
 }
 
+%PrepareFunctionForOptimization(bar);
 assertEquals("bared", bar());
 %OptimizeFunctionOnNextCall(bar);
 assertEquals("bared", bar());

@@ -1,4 +1,3 @@
-.file	"crypt586.s"
 .text
 .globl	fcrypt_body
 .type	fcrypt_body,@function

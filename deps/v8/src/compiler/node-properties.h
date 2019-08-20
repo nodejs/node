@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
-#include "src/globals.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -118,7 +118,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
 
   // Find the last frame state that is effect-wise before the given node. This
   // assumes a linear effect-chain up to a {CheckPoint} node in the graph.
-  static Node* FindFrameStateBefore(Node* node);
+  // Returns {unreachable_sentinel} if {node} is determined to be unreachable.
+  static Node* FindFrameStateBefore(Node* node, Node* unreachable_sentinel);
 
   // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
@@ -148,15 +149,16 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   enum InferReceiverMapsResult {
     kNoReceiverMaps,         // No receiver maps inferred.
     kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect),
-                             // but instance type is reliable.
+    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
   };
-  static InferReceiverMapsResult InferReceiverMaps(
-      Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
+  // DO NOT USE InferReceiverMapsUnsafe IN NEW CODE. Use MapInference instead.
+  static InferReceiverMapsResult InferReceiverMapsUnsafe(
+      JSHeapBroker* broker, Node* receiver, Node* effect,
+      ZoneHandleSet<Map>* maps_return);
 
-  static MaybeHandle<Map> GetMapWitness(Node* node);
-  static bool HasInstanceTypeWitness(Node* receiver, Node* effect,
-                                     InstanceType instance_type);
+  // Return the initial map of the new-target if the allocation can be inlined.
+  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
+                                               Node* receiver);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
@@ -166,11 +168,13 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Returns true if the {receiver} can be a primitive value (i.e. is not
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
-  static bool CanBePrimitive(Node* receiver, Node* effect);
+  static bool CanBePrimitive(JSHeapBroker* broker, Node* receiver,
+                             Node* effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
-  static bool CanBeNullOrUndefined(Node* receiver, Node* effect);
+  static bool CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
+                                   Node* effect);
 
   // ---------------------------------------------------------------------------
   // Context.
@@ -183,17 +187,17 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return node->type() != nullptr; }
-  static Type* GetType(Node* node) {
+  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
+  static Type GetType(Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type* GetTypeOrAny(Node* node);
-  static void SetType(Node* node, Type* type) {
-    DCHECK_NOT_NULL(type);
+  static Type GetTypeOrAny(Node* node);
+  static void SetType(Node* node, Type type) {
+    DCHECK(!type.IsInvalid());
     node->set_type(type);
   }
-  static void RemoveType(Node* node) { node->set_type(nullptr); }
+  static void RemoveType(Node* node) { node->set_type(Type::Invalid()); }
   static bool AllValueInputsAreTyped(Node* node);
 
  private:

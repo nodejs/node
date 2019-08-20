@@ -13,8 +13,6 @@ namespace internal {
 namespace compiler {
 namespace machine_operator_unittest {
 
-#if GTEST_HAS_COMBINE
-
 template <typename T>
 class MachineOperatorTestWithParam
     : public TestWithZone,
@@ -27,8 +25,8 @@ class MachineOperatorTestWithParam
   const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<
-      ::testing::tuple<MachineRepresentation, T> > B;
+  using B = ::testing::WithParamInterface<
+      ::testing::tuple<MachineRepresentation, T> >;
 };
 
 
@@ -53,10 +51,8 @@ const MachineRepresentation kRepresentationsForStore[] = {
 // -----------------------------------------------------------------------------
 // Load operator.
 
-
-typedef MachineOperatorTestWithParam<LoadRepresentation>
-    MachineLoadOperatorTest;
-
+using MachineLoadOperatorTest =
+    MachineOperatorTestWithParam<LoadRepresentation>;
 
 TEST_P(MachineLoadOperatorTest, InstancesAreGloballyShared) {
   MachineOperatorBuilder machine1(zone(), representation());
@@ -88,16 +84,13 @@ TEST_P(MachineLoadOperatorTest, OpcodeIsCorrect) {
 
 TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
   MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(),
-            OpParameter<LoadRepresentation>(machine.Load(GetParam())));
+  EXPECT_EQ(GetParam(), LoadRepresentationOf(machine.Load(GetParam())));
 }
 
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MachineOperatorTest, MachineLoadOperatorTest,
     ::testing::Combine(::testing::ValuesIn(kMachineReps),
                        ::testing::ValuesIn(kMachineTypesForAccess)));
-
 
 // -----------------------------------------------------------------------------
 // Store operator.
@@ -149,19 +142,16 @@ TEST_P(MachineStoreOperatorTest, OpcodeIsCorrect) {
 
 TEST_P(MachineStoreOperatorTest, ParameterIsCorrect) {
   MachineOperatorBuilder machine(zone(), representation());
-  EXPECT_EQ(GetParam(),
-            OpParameter<StoreRepresentation>(machine.Store(GetParam())));
+  EXPECT_EQ(GetParam(), StoreRepresentationOf(machine.Store(GetParam())));
 }
 
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MachineOperatorTest, MachineStoreOperatorTest,
     ::testing::Combine(
         ::testing::ValuesIn(kMachineReps),
         ::testing::Combine(::testing::ValuesIn(kRepresentationsForStore),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
-#endif
 
 // -----------------------------------------------------------------------------
 // Pure operators.
@@ -355,9 +345,7 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
 // -----------------------------------------------------------------------------
 // Pseudo operators.
 
-
-typedef TestWithZone MachineOperatorTest;
-
+using MachineOperatorTest = TestWithZone;
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
   MachineOperatorBuilder machine(zone(), MachineRepresentation::kWord32);

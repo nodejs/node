@@ -80,7 +80,7 @@
     const rejectedPromise = v8.createPromise();
     v8.rejectPromise(rejectedPromise, apply(function (arg1, arg2) {
       return (arg1 === arg2 && arg2 === 'x') ? 3 : -1;
-    }, null, new v8.InternalPackedArray('x', 'x')));
+    }, null, ['x', 'x']));
 
     const rejectedButHandledPromise = v8.createPromise();
     v8.rejectPromise(rejectedButHandledPromise, 4);
@@ -103,6 +103,10 @@
                         promiseStateToString(fulfilledPromise) + ' ' +
                         promiseStateToString(rejectedPromise);
 
+    const uncurryThis = v8.uncurryThis(function (a, b, c, d, e) {
+      return (this + a + b + c + d + e) === 21;
+    })(1, 2, 3, 4, 5, 6);
+
     return {
       privateSymbol: v8.createPrivateSymbol('sym'),
       fulfilledPromise, // should be fulfilled with 1
@@ -111,7 +115,8 @@
       rejectedButHandledPromise, // should be rejected but have a handler
       promiseStates, // should be the string "pending fulfilled rejected"
       promiseIsPromise: v8.isPromise(fulfilledPromise), // should be true
-      thenableIsPromise: v8.isPromise({ then() { } })  // should be false
+      thenableIsPromise: v8.isPromise({ then() { } }),  // should be false
+      uncurryThis // should be true
     };
   };
 })

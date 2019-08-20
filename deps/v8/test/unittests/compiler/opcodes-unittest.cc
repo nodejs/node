@@ -78,9 +78,6 @@ bool IsComparisonOpcode(IrOpcode::Value opcode) {
   }
 }
 
-
-const IrOpcode::Value kInvalidOpcode = static_cast<IrOpcode::Value>(123456789);
-
 char const* const kMnemonics[] = {
 #define OPCODE(Opcode) #Opcode,
     ALL_OP_LIST(OPCODE)
@@ -96,42 +93,36 @@ const IrOpcode::Value kOpcodes[] = {
 }  // namespace
 
 TEST(IrOpcodeTest, IsCommonOpcode) {
-  EXPECT_FALSE(IrOpcode::IsCommonOpcode(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_EQ(IsCommonOpcode(opcode), IrOpcode::IsCommonOpcode(opcode));
   }
 }
 
 TEST(IrOpcodeTest, IsControlOpcode) {
-  EXPECT_FALSE(IrOpcode::IsControlOpcode(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_EQ(IsControlOpcode(opcode), IrOpcode::IsControlOpcode(opcode));
   }
 }
 
 TEST(IrOpcodeTest, IsJsOpcode) {
-  EXPECT_FALSE(IrOpcode::IsJsOpcode(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_EQ(IsJsOpcode(opcode), IrOpcode::IsJsOpcode(opcode));
   }
 }
 
 TEST(IrOpcodeTest, IsConstantOpcode) {
-  EXPECT_FALSE(IrOpcode::IsConstantOpcode(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_EQ(IsConstantOpcode(opcode), IrOpcode::IsConstantOpcode(opcode));
   }
 }
 
 TEST(IrOpcodeTest, IsComparisonOpcode) {
-  EXPECT_FALSE(IrOpcode::IsComparisonOpcode(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_EQ(IsComparisonOpcode(opcode), IrOpcode::IsComparisonOpcode(opcode));
   }
 }
 
 TEST(IrOpcodeTest, Mnemonic) {
-  EXPECT_STREQ("UnknownOpcode", IrOpcode::Mnemonic(kInvalidOpcode));
   TRACED_FOREACH(IrOpcode::Value, opcode, kOpcodes) {
     EXPECT_STREQ(kMnemonics[opcode], IrOpcode::Mnemonic(opcode));
   }

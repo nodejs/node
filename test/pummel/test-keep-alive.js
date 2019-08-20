@@ -21,18 +21,20 @@
 
 'use strict';
 
-// This test requires the program 'wrk'
+// This test requires the program 'wrk'.
 const common = require('../common');
-if (common.isWindows)
-  common.skip('no `wrk` on windows');
+
+const child_process = require('child_process');
+const result = child_process.spawnSync('wrk', ['-h']);
+if (result.error && result.error.code === 'ENOENT')
+  common.skip('test requires `wrk` to be installed first');
 
 const assert = require('assert');
-const spawn = require('child_process').spawn;
 const http = require('http');
 const url = require('url');
 
 const body = 'hello world\n';
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.writeHead(200, {
     'Content-Length': body.length,
     'Content-Type': 'text/plain'
@@ -45,11 +47,11 @@ let keepAliveReqSec = 0;
 let normalReqSec = 0;
 
 
-function runAb(opts, callback) {
+const runAb = (opts, callback) => {
   const args = [
-    '-c', opts.concurrent || 100,
+    '-c', opts.concurrent || 50,
     '-t', opts.threads || 2,
-    '-d', opts.duration || '10s',
+    '-d', opts.duration || '5s',
   ];
 
   if (!opts.keepalive) {
@@ -58,19 +60,17 @@ function runAb(opts, callback) {
   }
 
   args.push(url.format({ hostname: '127.0.0.1',
-                         port: common.PORT, protocol: 'http' }));
+                         port: opts.port, protocol: 'http' }));
 
-  const child = spawn('wrk', args);
+  const child = child_process.spawn('wrk', args);
   child.stderr.pipe(process.stderr);
   child.stdout.setEncoding('utf8');
 
   let stdout;
 
-  child.stdout.on('data', function(data) {
-    stdout += data;
-  });
+  child.stdout.on('data', (data) => stdout += data);
 
-  child.on('close', function(code, signal) {
+  child.on('close', (code, signal) => {
     if (code) {
       console.error(code, signal);
       process.exit(code);
@@ -90,21 +90,35 @@ function runAb(opts, callback) {
 
     callback(reqSec, keepAliveRequests);
   });
-}
+};
 
-server.listen(common.PORT, () => {
-  runAb({ keepalive: true }, (reqSec) => {
+server.listen(0, () => {
+  const port = server.address().port;
+  runAb({ keepalive: true, port: port }, (reqSec) => {
     keepAliveReqSec = reqSec;
 
-    runAb({ keepalive: false }, function(reqSec) {
+    runAb({ keepalive: false, port: port }, (reqSec) => {
       normalReqSec = reqSec;
       server.close();
     });
   });
 });
 
-process.on('exit', function() {
-  assert.strictEqual(true, normalReqSec > 50);
-  assert.strictEqual(true, keepAliveReqSec > 50);
-  assert.strictEqual(true, normalReqSec < keepAliveReqSec);
+process.on('exit', () => {
+  assert.strictEqual(
+    normalReqSec > 50,
+    true,
+    `normalReqSec should be greater than 50, but got ${normalReqSec}`
+  );
+  assert.strictEqual(
+    keepAliveReqSec > 50,
+    true,
+    `keepAliveReqSec should be greater than 50, but got ${keepAliveReqSec}`
+  );
+  assert.strictEqual(
+    normalReqSec < keepAliveReqSec,
+    true,
+    'normalReqSec should be less than keepAliveReqSec, ' +
+    `but ${normalReqSec} is greater than ${keepAliveReqSec}`
+  );
 });

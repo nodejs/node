@@ -10,17 +10,13 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
-namespace base {
-class AccountingAllocator;
-}
 
 namespace internal {
 class WasmInstanceObject;
-struct WasmContext;
 
 namespace wasm {
 
-// forward declarations.
+// Forward declarations.
 struct ModuleWireBytes;
 struct WasmFunction;
 struct WasmModule;
@@ -60,7 +56,7 @@ using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 // param #0       _/·  _/·
 // -----------------
 //
-class InterpretedFrame {
+class V8_EXPORT_PRIVATE InterpretedFrame {
  public:
   const WasmFunction* function() const;
   int pc() const;
@@ -71,12 +67,6 @@ class InterpretedFrame {
   WasmValue GetLocalValue(int index) const;
   WasmValue GetStackValue(int index) const;
 
-  // Deleter struct to delete the underlying InterpretedFrameImpl without
-  // violating language specifications.
-  struct Deleter {
-    void operator()(InterpretedFrame* ptr);
-  };
-
  private:
   friend class WasmInterpreter;
   // Don't instante InterpretedFrames; they will be allocated as
@@ -85,30 +75,24 @@ class InterpretedFrame {
   DISALLOW_COPY_AND_ASSIGN(InterpretedFrame);
 };
 
+// Deleter struct to delete the underlying InterpretedFrameImpl without
+// violating language specifications.
+struct V8_EXPORT_PRIVATE InterpretedFrameDeleter {
+  void operator()(InterpretedFrame* ptr);
+};
+
 // An interpreter capable of executing WebAssembly.
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
-  // Open a HeapObjectsScope before running any code in the interpreter which
-  // needs access to the instance object or needs to call to JS functions.
-  class V8_EXPORT_PRIVATE HeapObjectsScope {
-   public:
-    HeapObjectsScope(WasmInterpreter* interpreter,
-                     Handle<WasmInstanceObject> instance);
-    ~HeapObjectsScope();
-
-   private:
-    char data[3 * sizeof(void*)];  // must match sizeof(HeapObjectsScopeImpl).
-    DISALLOW_COPY_AND_ASSIGN(HeapObjectsScope);
-  };
-
   // State machine for a Thread:
-  //                         +---------Run()/Step()--------+
-  //                         V                             |
-  // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED
-  //  ^                   | | | |                   /
-  //  +- HandleException -+ | | +--- Breakpoint ---+
-  //                        | |
-  //                        | +---------- Trap --------------> TRAPPED
+  //    +----------------------------------------------------------+
+  //    |                    +--------Run()/Step()---------+       |
+  //    V                    V                             |       |
+  // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED <--+
+  //    ^                 | | | |                   /              |
+  //    +--- Exception ---+ | | +--- Breakpoint ---+       RaiseException() <--+
+  //                        | |                                                |
+  //                        | +---------- Trap --------------> TRAPPED --------+
   //                        +----------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
@@ -119,7 +103,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     AfterCall = 1 << 1
   };
 
-  using FramePtr = std::unique_ptr<InterpretedFrame, InterpretedFrame::Deleter>;
+  using FramePtr = std::unique_ptr<InterpretedFrame, InterpretedFrameDeleter>;
 
   // Representation of a thread in the interpreter.
   class V8_EXPORT_PRIVATE Thread {
@@ -138,9 +122,12 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     State Step() { return Run(1); }
     void Pause();
     void Reset();
-    // Handle the pending exception in the passed isolate. Unwind the stack
-    // accordingly. Return whether the exception was handled inside wasm.
-    ExceptionHandlingResult HandleException(Isolate* isolate);
+
+    // Raise an exception in the current activation and unwind the stack
+    // accordingly. Return whether the exception was handled inside wasm:
+    //  - HANDLED: Activation at handler position and in {PAUSED} state.
+    //  - UNWOUND: Frames unwound, exception pending, and in {STOPPED} state.
+    ExceptionHandlingResult RaiseException(Isolate*, Handle<Object> exception);
 
     // Stack inspection and modification.
     pc_t GetBreakpointPc();
@@ -150,6 +137,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     FramePtr GetFrame(int index);
     WasmValue GetReturnValue(int index = 0);
     TrapReason GetTrapReason();
+
+    uint32_t GetGlobalCount();
+    WasmValue GetGlobalValue(uint32_t index);
 
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
@@ -181,7 +171,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                  const ModuleWireBytes& wire_bytes, WasmContext* wasm_context);
+                  const ModuleWireBytes& wire_bytes,
+                  Handle<WasmInstanceObject> instance);
   ~WasmInterpreter();
 
   //==========================================================================
@@ -215,7 +206,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // Manually adds code to the interpreter for the given function.
   void SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
-  void SetCallIndirectTestMode();
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.
@@ -224,7 +214,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
  private:
   Zone zone_;
-  WasmInterpreterInternals* const internals_;
+  WasmInterpreterInternals* internals_;
 };
 
 }  // namespace wasm

@@ -5,7 +5,7 @@
 // Flags: --experimental-wasm-threads
 
 (function TestPostMessageUnsharedMemory() {
-  let worker = new Worker('');
+  let worker = new Worker('', {type: 'string'});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2});
 
   assertThrows(() => worker.postMessage(memory), Error);
@@ -39,7 +39,7 @@ let workerHelpers =
        postMessage("OK");
      };`;
 
-  let worker = new Worker(workerScript);
+  let worker = new Worker(workerScript, {type: 'string'});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
   worker.postMessage(memory);
   assertEquals("OK", worker.getMessage());
@@ -60,10 +60,27 @@ let workerHelpers =
        postMessage("OK");
      };`;
 
-  let worker = new Worker(workerScript);
+  let worker = new Worker(workerScript, {type: 'string'});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
   let obj = {memories: [memory, memory], buffer: memory.buffer, foo: 1};
   worker.postMessage(obj);
   assertEquals("OK", worker.getMessage());
   worker.terminate();
+})();
+
+(function TestTwoWorkers() {
+  let workerScript = workerHelpers +
+    `onmessage = function(memory) {
+       assertIsWasmMemory(memory, 65536);
+       postMessage("OK");
+     };`;
+
+  let workers = [new Worker(workerScript, {type: 'string'}),
+                 new Worker(workerScript, {type: 'string'})];
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
+  for (let worker of workers) {
+    worker.postMessage(memory);
+    assertEquals("OK", worker.getMessage());
+    worker.terminate();
+  }
 })();

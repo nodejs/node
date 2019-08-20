@@ -14,7 +14,7 @@ in the ecosystem. For that reason, Node.js has considered error message changes
 to be breaking changes. By providing a permanent identifier for a specific
 error, we reduce the need for userland code to inspect error messages.
 
-*Note*: Switching an existing error to use the `internal/errors` module must be
+Switching an existing error to use the `internal/errors` module must be
 considered a `semver-major` change.
 
 ## Using internal/errors.js

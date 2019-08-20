@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@
 #    endif
   /*
    * Why doesn't gcc define __ARM_ARCH__? Instead it defines
-   * bunch of below macros. See all_architectires[] table in
+   * bunch of below macros. See all_architectures[] table in
    * gcc/config/arm/arm.c. On a side note it defines
    * __ARMEL__/__ARMEB__ for little-/big-endian.
    */
@@ -69,7 +69,7 @@
 #  endif
 # endif
 
-# if !__ASSEMBLER__
+# ifndef __ASSEMBLER__
 extern unsigned int OPENSSL_armcap_P;
 # endif
 
@@ -79,5 +79,6 @@ extern unsigned int OPENSSL_armcap_P;
 # define ARMV8_SHA1      (1<<3)
 # define ARMV8_SHA256    (1<<4)
 # define ARMV8_PMULL     (1<<5)
+# define ARMV8_SHA512    (1<<6)
 
 #endif

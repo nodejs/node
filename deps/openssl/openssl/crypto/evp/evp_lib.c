@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,7 @@ int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         case EVP_CIPH_CCM_MODE:
         case EVP_CIPH_XTS_MODE:
         case EVP_CIPH_OCB_MODE:
-            ret = -1;
+            ret = -2;
             break;
 
         default:
@@ -40,7 +40,13 @@ int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         }
     } else
         ret = -1;
-    return (ret);
+    if (ret <= 0)
+        EVPerr(EVP_F_EVP_CIPHER_PARAM_TO_ASN1, ret == -2 ?
+               ASN1_R_UNSUPPORTED_CIPHER :
+               EVP_R_CIPHER_PARAMETER_ERROR);
+    if (ret < -1)
+        ret = -1;
+    return ret;
 }
 
 int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
@@ -60,7 +66,7 @@ int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         case EVP_CIPH_CCM_MODE:
         case EVP_CIPH_XTS_MODE:
         case EVP_CIPH_OCB_MODE:
-            ret = -1;
+            ret = -2;
             break;
 
         default:
@@ -69,7 +75,13 @@ int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         }
     } else
         ret = -1;
-    return (ret);
+    if (ret <= 0)
+        EVPerr(EVP_F_EVP_CIPHER_ASN1_TO_PARAM, ret == -2 ?
+               EVP_R_UNSUPPORTED_CIPHER :
+               EVP_R_CIPHER_PARAMETER_ERROR);
+    if (ret < -1)
+        ret = -1;
+    return ret;
 }
 
 int EVP_CIPHER_get_asn1_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
@@ -82,11 +94,11 @@ int EVP_CIPHER_get_asn1_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         OPENSSL_assert(l <= sizeof(c->iv));
         i = ASN1_TYPE_get_octetstring(type, c->oiv, l);
         if (i != (int)l)
-            return (-1);
+            return -1;
         else if (i > 0)
             memcpy(c->iv, c->oiv, l);
     }
-    return (i);
+    return i;
 }
 
 int EVP_CIPHER_set_asn1_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
@@ -99,7 +111,7 @@ int EVP_CIPHER_set_asn1_iv(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
         OPENSSL_assert(j <= sizeof(c->iv));
         i = ASN1_TYPE_set_octetstring(type, c->oiv, j);
     }
-    return (i);
+    return i;
 }
 
 /* Convert the various cipher NIDs and dummies to a proper OID NID */
@@ -446,6 +458,25 @@ const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx)
 EVP_PKEY_CTX *EVP_MD_CTX_pkey_ctx(const EVP_MD_CTX *ctx)
 {
     return ctx->pctx;
+}
+
+void EVP_MD_CTX_set_pkey_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pctx)
+{
+    /*
+     * it's reasonable to set NULL pctx (a.k.a clear the ctx->pctx), so
+     * we have to deal with the cleanup job here.
+     */
+    if (!EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX))
+        EVP_PKEY_CTX_free(ctx->pctx);
+
+    ctx->pctx = pctx;
+
+    if (pctx != NULL) {
+        /* make sure pctx is not freed when destroying EVP_MD_CTX */
+        EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
+    } else {
+        EVP_MD_CTX_clear_flags(ctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
+    }
 }
 
 void *EVP_MD_CTX_md_data(const EVP_MD_CTX *ctx)

@@ -171,7 +171,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
   socklen_t sun_len;
   char abstract_pipe[] = "\0test-pipe";
 
-  sock = socket(AF_LOCAL, SOCK_STREAM, 0);
+  sock = socket(AF_UNIX, SOCK_STREAM, 0);
   ASSERT(sock != -1);
 
   sun_len = sizeof sun;

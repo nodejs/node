@@ -29,18 +29,17 @@ function getValue(node) {
  * @param {ASTNode} node - A node to get.
  * @param {string} value - The name of the imported or exported module.
  * @param {string[]} array - The array containing other imports or exports in the file.
- * @param {string} message - A message to be reported after the name of the module
+ * @param {string} messageId - A messageId to be reported after the name of the module
  *
  * @returns {void} No return value
  */
-function checkAndReport(context, node, value, array, message) {
+function checkAndReport(context, node, value, array, messageId) {
     if (array.indexOf(value) !== -1) {
         context.report({
             node,
-            message: "'{{module}}' {{message}}",
+            messageId,
             data: {
-                module: value,
-                message
+                module: value
             }
         });
     }
@@ -66,10 +65,10 @@ function handleImports(context, includeExports, importsInFile, exportsInFile) {
         const value = getValue(node);
 
         if (value) {
-            checkAndReport(context, node, value, importsInFile, "import is duplicated.");
+            checkAndReport(context, node, value, importsInFile, "import");
 
             if (includeExports) {
-                checkAndReport(context, node, value, exportsInFile, "import is duplicated as export.");
+                checkAndReport(context, node, value, exportsInFile, "importAs");
             }
 
             importsInFile.push(value);
@@ -91,8 +90,8 @@ function handleExports(context, importsInFile, exportsInFile) {
         const value = getValue(node);
 
         if (value) {
-            checkAndReport(context, node, value, exportsInFile, "export is duplicated.");
-            checkAndReport(context, node, value, importsInFile, "export is duplicated as import.");
+            checkAndReport(context, node, value, exportsInFile, "export");
+            checkAndReport(context, node, value, importsInFile, "exportAs");
 
             exportsInFile.push(value);
         }
@@ -101,6 +100,8 @@ function handleExports(context, importsInFile, exportsInFile) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow duplicate module imports",
             category: "ECMAScript 6",
@@ -112,11 +113,18 @@ module.exports = {
             type: "object",
             properties: {
                 includeExports: {
-                    type: "boolean"
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
-        }]
+        }],
+        messages: {
+            import: "'{{module}}' import is duplicated.",
+            importAs: "'{{module}}' import is duplicated as export.",
+            export: "'{{module}}' export is duplicated.",
+            exportAs: "'{{module}}' export is duplicated as import."
+        }
     },
 
     create(context) {

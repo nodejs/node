@@ -27,7 +27,7 @@ const domain = require('domain');
 const http = require('http');
 
 const a = domain.create();
-a.enter(); // this will be our "root" domain
+a.enter(); // This will be our "root" domain
 
 a.on('error', common.mustNotCall());
 
@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
   const b = domain.create();
   a.add(b);
 
-  // treat these EE objects as if they are a part of the b domain
+  // Treat these EE objects as if they are a part of the b domain
   // so, an 'error' event on them propagates to the domain, rather
   // than being thrown.
   b.add(req);
@@ -62,11 +62,11 @@ const server = http.createServer((req, res) => {
   const c = domain.create();
   const req = http.get({ host: 'localhost', port: server.address().port });
 
-  // add the request to the C domain
+  // Add the request to the C domain
   c.add(req);
 
   req.on('response', (res) => {
-    // add the response object to the C domain
+    // Add the response object to the C domain
     c.add(res);
     res.pipe(process.stdout);
   });

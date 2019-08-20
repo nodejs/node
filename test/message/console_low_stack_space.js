@@ -1,8 +1,11 @@
 'use strict';
-// copy console accessor because requiring ../common touches it
+// Copy console accessor because requiring ../common touches it
 const consoleDescriptor = Object.getOwnPropertyDescriptor(global, 'console');
-delete global.console;
-global.console = {};
+Object.defineProperty(global, 'console', {
+  configurable: true,
+  writable: true,
+  value: {}
+});
 
 require('../common');
 

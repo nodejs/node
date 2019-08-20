@@ -21,7 +21,7 @@ function TestTypedArrayFilter(constructor) {
   // Throw type error if source array is detached while executing a callback
   let ta1 = new constructor(10);
   assertThrows(() =>
-    ta1.filter(() => %ArrayBufferNeuter(ta1.buffer))
+    ta1.filter(() => %ArrayBufferDetach(ta1.buffer))
   , TypeError);
 
   // A new typed array should be created after finishing callbacks

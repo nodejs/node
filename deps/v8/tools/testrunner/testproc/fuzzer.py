@@ -69,14 +69,14 @@ class FuzzerProc(base.TestProcProducer):
 
   def _next_test(self, test):
     if self.is_stopped:
-      return
+      return False
 
     analysis_subtest = self._create_analysis_subtest(test)
     if analysis_subtest:
-      self._send_test(analysis_subtest)
-    else:
-      self._gens[test.procid] = self._create_gen(test)
-      self._try_send_next_test(test)
+      return self._send_test(analysis_subtest)
+
+    self._gens[test.procid] = self._create_gen(test)
+    return self._try_send_next_test(test)
 
   def _create_analysis_subtest(self, test):
     if self._disable_analysis:
@@ -100,6 +100,7 @@ class FuzzerProc(base.TestProcProducer):
         if result.has_unexpected_output:
           self._send_result(test, None)
           return
+
         self._gens[test.procid] = self._create_gen(test, result)
 
     self._try_send_next_test(test)
@@ -146,11 +147,11 @@ class FuzzerProc(base.TestProcProducer):
   def _try_send_next_test(self, test):
     if not self.is_stopped:
       for subtest in self._gens[test.procid]:
-        self._send_test(subtest)
-        return
+        if self._send_test(subtest):
+          return True
 
     del self._gens[test.procid]
-    self._send_result(test, None)
+    return False
 
   def _next_seed(self):
     seed = None
@@ -217,17 +218,16 @@ class CompactionFuzzer(Fuzzer):
       yield ['--stress-compaction-random']
 
 
+class TaskDelayFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--stress-delay-tasks']
+
+
 class ThreadPoolSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--thread-pool-size=%d' % rng.randint(1, 8)]
-
-
-class InterruptBudgetFuzzer(Fuzzer):
-  def create_flags_generator(self, rng, test, analysis_value):
-    while True:
-      limit = 1 + int(rng.random() * 144)
-      yield ['--interrupt-budget=%d' % rng.randint(1, limit * 1024)]
 
 
 class DeoptAnalyzer(Analyzer):
@@ -269,9 +269,9 @@ class DeoptFuzzer(Fuzzer):
 
 FUZZERS = {
   'compaction': (None, CompactionFuzzer),
+  'delay': (None, TaskDelayFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
-  'interrupt_budget': (None, InterruptBudgetFuzzer),
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
   'threads': (None, ThreadPoolSizeFuzzer),

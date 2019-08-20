@@ -5,13 +5,15 @@
 #ifndef V8_ZONE_ZONE_H_
 #define V8_ZONE_ZONE_H_
 
+#include <algorithm>
 #include <limits>
+#include <vector>
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
-#include "src/globals.h"
-#include "src/splay-tree.h"
+#include "src/common/globals.h"
 #include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-segment.h"
 
 #ifndef ZONE_NAME
 #define STRINGIFY(x) #x
@@ -35,17 +37,28 @@ namespace internal {
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
 
-enum class SegmentSize { kLarge, kDefault };
-
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name,
-       SegmentSize segment_size = SegmentSize::kDefault);
+  Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
-  void* New(size_t size);
+  void* New(size_t size) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    return AsanNew(size);
+#else
+    size = RoundUp(size, kAlignmentInBytes);
+    Address result = position_;
+    if (V8_UNLIKELY(size > limit_ - position_)) {
+      result = NewExpand(size);
+    } else {
+      position_ += size;
+    }
+    return reinterpret_cast<void*>(result);
+#endif
+  }
+  void* AsanNew(size_t size);
 
   template <typename T>
   T* NewArray(size_t length) {
@@ -56,6 +69,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
+  // Allows the zone to be safely reused. Releases the memory and fires zone
+  // destruction and creation events for the accounting allocator.
+  void ReleaseMemory();
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -64,11 +81,17 @@ class V8_EXPORT_PRIVATE Zone final {
 
   const char* name() const { return name_; }
 
-  size_t allocation_size() const { return allocation_size_; }
+  size_t allocation_size() const {
+    size_t extra = segment_head_ ? position_ - segment_head_->start() : 0;
+    return allocation_size_ + extra;
+  }
 
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
+
   // All pointers returned from New() are 8-byte aligned.
   static const size_t kAlignmentInBytes = 8;
 
@@ -76,13 +99,10 @@ class V8_EXPORT_PRIVATE Zone final {
   static const size_t kMinimumSegmentSize = 8 * KB;
 
   // Never allocate segments larger than this size in bytes.
-  static const size_t kMaximumSegmentSize = 1 * MB;
+  static const size_t kMaximumSegmentSize = 32 * KB;
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
-
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -113,7 +133,6 @@ class V8_EXPORT_PRIVATE Zone final {
   Segment* segment_head_;
   const char* name_;
   bool sealed_;
-  SegmentSize segment_size_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects
@@ -172,10 +191,10 @@ class ZoneList final {
     AddAll(other, zone);
   }
 
-  INLINE(~ZoneList()) { DeleteData(data_); }
+  V8_INLINE ~ZoneList() { DeleteData(data_); }
 
   // Please the MSVC compiler.  We should never have to execute this.
-  INLINE(void operator delete(void* p, ZoneAllocationPolicy allocator)) {
+  V8_INLINE void operator delete(void* p, ZoneAllocationPolicy allocator) {
     UNREACHABLE();
   }
 
@@ -193,21 +212,24 @@ class ZoneList final {
   inline T& last() const { return at(length_ - 1); }
   inline T& first() const { return at(0); }
 
-  typedef T* iterator;
+  using iterator = T*;
   inline iterator begin() const { return &data_[0]; }
   inline iterator end() const { return &data_[length_]; }
 
-  INLINE(bool is_empty() const) { return length_ == 0; }
-  INLINE(int length() const) { return length_; }
-  INLINE(int capacity() const) { return capacity_; }
+  V8_INLINE bool is_empty() const { return length_ == 0; }
+  V8_INLINE int length() const { return length_; }
+  V8_INLINE int capacity() const { return capacity_; }
 
   Vector<T> ToVector() const { return Vector<T>(data_, length_); }
+  Vector<T> ToVector(int start, int length) const {
+    return Vector<T>(data_ + start, std::min(length_ - start, length));
+  }
 
   Vector<const T> ToConstVector() const {
     return Vector<const T>(data_, length_);
   }
 
-  INLINE(void Initialize(int capacity, Zone* zone)) {
+  V8_INLINE void Initialize(int capacity, Zone* zone) {
     DCHECK_GE(capacity, 0);
     data_ = (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone))
                            : nullptr;
@@ -241,17 +263,22 @@ class ZoneList final {
 
   // Removes the last element without deleting it even if T is a
   // pointer type. Returns the removed element.
-  INLINE(T RemoveLast()) { return Remove(length_ - 1); }
+  V8_INLINE T RemoveLast() { return Remove(length_ - 1); }
 
   // Clears the list by freeing the storage memory. If you want to keep the
   // memory, use Rewind(0) instead. Be aware, that even if T is a
   // pointer type, clearing the list doesn't delete the entries.
-  INLINE(void Clear());
+  V8_INLINE void Clear();
 
   // Drops all but the first 'pos' elements from the list.
-  INLINE(void Rewind(int pos));
+  V8_INLINE void Rewind(int pos);
 
-  inline bool Contains(const T& elm) const;
+  inline bool Contains(const T& elm) const {
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == elm) return true;
+    }
+    return false;
+  }
 
   // Iterate through all list entries, starting at index 0.
   template <class Visitor>
@@ -271,10 +298,10 @@ class ZoneList final {
   int capacity_;
   int length_;
 
-  INLINE(T* NewData(int n, ZoneAllocationPolicy allocator)) {
+  V8_INLINE T* NewData(int n, ZoneAllocationPolicy allocator) {
     return static_cast<T*>(allocator.New(n * sizeof(T)));
   }
-  INLINE(void DeleteData(T* data)) { ZoneAllocationPolicy::Delete(data); }
+  V8_INLINE void DeleteData(T* data) { ZoneAllocationPolicy::Delete(data); }
 
   // Increase the capacity of a full list, and add an element.
   // List must be full already.
@@ -290,31 +317,91 @@ class ZoneList final {
   DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
 
-// A zone splay tree.  The config type parameter encapsulates the
-// different configurations of a concrete splay tree (see splay-tree.h).
-// The tree itself and all its elements are allocated in the Zone.
-template <typename Config>
-class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
+// ZonePtrList is a ZoneList of pointers to ZoneObjects allocated in the same
+// zone as the list object.
+template <typename T>
+using ZonePtrList = ZoneList<T*>;
+
+template <typename T>
+class ScopedPtrList final {
  public:
-  explicit ZoneSplayTree(Zone* zone)
-      : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
-  ~ZoneSplayTree() {
-    // Reset the root to avoid unneeded iteration over all tree nodes
-    // in the destructor.  For a zone-allocated tree, nodes will be
-    // freed by the Zone.
-    SplayTree<Config, ZoneAllocationPolicy>::ResetRoot();
+  explicit ScopedPtrList(std::vector<void*>* buffer)
+      : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
+
+  ~ScopedPtrList() { Rewind(); }
+
+  void Rewind() {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.resize(start_);
+    end_ = start_;
   }
 
-  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
+  void MergeInto(ScopedPtrList* parent) {
+    DCHECK_EQ(parent->end_, start_);
+    parent->end_ = end_;
+    start_ = end_;
+    DCHECK_EQ(0, length());
+  }
 
-  void operator delete(void* pointer) { UNREACHABLE(); }
-  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+  int length() const { return static_cast<int>(end_ - start_); }
+  T* at(int i) const {
+    size_t index = start_ + i;
+    DCHECK_LE(start_, index);
+    DCHECK_LT(index, buffer_.size());
+    return reinterpret_cast<T*>(buffer_[index]);
+  }
+
+  void CopyTo(ZonePtrList<T>* target, Zone* zone) const {
+    DCHECK_LE(end_, buffer_.size());
+    // Make sure we don't reference absent elements below.
+    if (length() == 0) return;
+    target->Initialize(length(), zone);
+    T** data = reinterpret_cast<T**>(&buffer_[start_]);
+    target->AddAll(Vector<T*>(data, length()), zone);
+  }
+
+  Vector<T*> CopyTo(Zone* zone) {
+    DCHECK_LE(end_, buffer_.size());
+    T** data = zone->NewArray<T*>(length());
+    if (length() != 0) {
+      MemCopy(data, &buffer_[start_], length() * sizeof(T*));
+    }
+    return Vector<T*>(data, length());
+  }
+
+  void Add(T* value) {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.push_back(value);
+    ++end_;
+  }
+
+  void AddAll(const ZonePtrList<T>& list) {
+    DCHECK_EQ(buffer_.size(), end_);
+    buffer_.reserve(buffer_.size() + list.length());
+    for (int i = 0; i < list.length(); i++) {
+      buffer_.push_back(list.at(i));
+    }
+    end_ += list.length();
+  }
+
+  using iterator = T**;
+  inline iterator begin() const {
+    return reinterpret_cast<T**>(buffer_.data() + start_);
+  }
+  inline iterator end() const {
+    return reinterpret_cast<T**>(buffer_.data() + end_);
+  }
+
+ private:
+  std::vector<void*>& buffer_;
+  size_t start_;
+  size_t end_;
 };
 
-typedef base::PointerTemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
+using ZoneHashMap = base::PointerTemplateHashMapImpl<ZoneAllocationPolicy>;
 
-typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
-    CustomMatcherZoneHashMap;
+using CustomMatcherZoneHashMap =
+    base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>;
 
 }  // namespace internal
 }  // namespace v8

@@ -16,7 +16,7 @@ use configdata;
 
 my $asm = $ARGV[0];
 
-unless ($asm eq "asm" or $asm eq "no-asm") {
+unless ($asm eq "asm" or $asm eq "asm_avx2" or $asm eq "no-asm") {
   die "Error: $asm is invalid argument";
 }
 my $arch = $ARGV[1];
@@ -25,15 +25,8 @@ my $arch = $ARGV[1];
 my $nasm_banner = `nasm -v`;
 die "Error: nasm is not installed." if (!$nasm_banner);
 
-my $nasm_version_min = 2.11;
-my ($nasm_version) = ($nasm_banner =~/^NASM version ([0-9]\.[0-9][0-9])+/);
-if ($nasm_version < $nasm_version_min) {
-  die "Error: nasm version $nasm_version is too old." .
-    "$nasm_version_min or higher is required.";
-}
-
 # gas version check
-my $gas_version_min = 2.26;
+my $gas_version_min = 2.30;
 my $gas_banner = `gcc -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`;
 my ($gas_version) = ($gas_banner =~/GNU assembler version ([2-9]\.[0-9]+)/);
 if ($gas_version < $gas_version_min) {
@@ -53,7 +46,7 @@ my $makefile = $is_win ? "../config/Makefile_$arch": "Makefile";
 # Generate arch dependent header files with Makefile
 my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
-my $cmd1 = "cd ../openssl; make -f $makefile build_generated $buildinf $progs;";
+my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
@@ -115,6 +108,20 @@ foreach my $src (@generated_srcs) {
   system("$cmd") == 0 or die "Error in system($cmd)";
 }
 
+$target{'lib_cppflags'} =~ s/-D//g;
+my @lib_cppflags = split(/ /, $target{'lib_cppflags'});
+
+my @cflags = ();
+push(@cflags, @{$config{'cflags'}});
+push(@cflags, @{$config{'CFLAGS'}});
+push(@cflags, $target{'cflags'});
+push(@cflags, $target{'CFLAGS'});
+
+# AIX has own assembler not GNU as that does not support --noexecstack
+if ($arch =~ /aix/) {
+  @cflags = grep $_ ne '-Wa,--noexecstack', @cflags;
+}
+
 # Create openssl.gypi
 my $template =
     Text::Template->new(TYPE => 'FILE',
@@ -129,8 +136,10 @@ my $gypi = $template->fill_in(
         generated_srcs => \@generated_srcs,
         config => \%config,
         target => \%target,
+        cflags => \@cflags,
         asm => \$asm,
         arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
     });
 
@@ -151,7 +160,10 @@ my $clgypi = $cltemplate->fill_in(
         libapps_srcs => \@libapps_srcs,
         config => \%config,
         target => \%target,
+        cflags => \@cflags,
+        asm => \$asm,
         arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
     });
 

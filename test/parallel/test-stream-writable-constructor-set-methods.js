@@ -12,7 +12,9 @@ w.on('error', common.expectsError({
   message: 'The _write() method is not implemented'
 }));
 
-w.end(Buffer.from('blerg'));
+const bufferBlerg = Buffer.from('blerg');
+
+w.end(bufferBlerg);
 
 const _write = common.mustCall((chunk, _, next) => {
   next();
@@ -28,10 +30,10 @@ const w2 = new Writable({ write: _write, writev: _writev });
 strictEqual(w2._write, _write);
 strictEqual(w2._writev, _writev);
 
-w2.write(Buffer.from('blerg'));
+w2.write(bufferBlerg);
 
 w2.cork();
-w2.write(Buffer.from('blerg'));
-w2.write(Buffer.from('blerg'));
+w2.write(bufferBlerg);
+w2.write(bufferBlerg);
 
 w2.end();

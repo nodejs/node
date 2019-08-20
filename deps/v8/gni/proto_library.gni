@@ -1,0 +1,229 @@
+# Copyright 2019 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build_overrides/build.gni")
+
+# This file should not be pulled in chromium builds.
+assert(!build_with_chromium)
+
+template("proto_library") {
+  assert(defined(invoker.sources))
+  proto_sources = invoker.sources
+
+  set_sources_assignment_filter([])
+
+  if (host_os == "win") {
+    host_executable_suffix = ".exe"
+  } else {
+    host_executable_suffix = ""
+  }
+
+  # All the proto imports should be relative to the project root.
+  proto_in_dir = "//"
+  if (defined(invoker.proto_in_dir)) {
+    proto_in_dir = invoker.proto_in_dir
+  }
+  assert(defined(invoker.proto_out_dir),
+         "proto_out_dir must be explicitly defined")
+  proto_out_dir = invoker.proto_out_dir
+
+  # We don't support generate_python in the standalone build, but still must
+  # check that the caller sets this to false. This is because when building in
+  # the chromium tree, chromium's proto_library.gni in chrome (!= this) defaults
+  # generate_python = true.
+  assert(defined(invoker.generate_python) && !invoker.generate_python)
+
+  # If false will not generate the default .pb.{cc,h} files. Used for custom
+  # codegen plugins.
+  generate_cc = true
+  if (defined(invoker.generate_cc)) {
+    generate_cc = invoker.generate_cc
+  }
+
+  generate_descriptor = ""
+  if (defined(invoker.generate_descriptor)) {
+    generate_descriptor = invoker.generate_descriptor
+  }
+
+  if (defined(invoker.generator_plugin_label)) {
+    plugin_host_label = invoker.generator_plugin_label + "($host_toolchain)"
+    plugin_path =
+        get_label_info(plugin_host_label, "root_out_dir") + "/" +
+        get_label_info(plugin_host_label, "name") + host_executable_suffix
+    generate_with_plugin = true
+  } else if (defined(invoker.generator_plugin_script)) {
+    plugin_path = invoker.generator_plugin_script
+    generate_with_plugin = true
+  } else {
+    generate_with_plugin = false
+  }
+
+  if (generate_with_plugin) {
+    if (defined(invoker.generator_plugin_suffix)) {
+      generator_plugin_suffixes = [
+        "${invoker.generator_plugin_suffix}.h",
+        "${invoker.generator_plugin_suffix}.cc",
+      ]
+    } else {
+      generator_plugin_suffixes = invoker.generator_plugin_suffixes
+    }
+  }
+
+  cc_out_dir = "$root_gen_dir/" + proto_out_dir
+  rel_cc_out_dir = rebase_path(cc_out_dir, root_build_dir)
+
+  protos = rebase_path(proto_sources, proto_in_dir)
+  protogens = []
+
+  if (generate_descriptor != "") {
+    protogens += [ "$root_gen_dir/" + generate_descriptor ]
+  }
+
+  foreach(proto, protos) {
+    proto_dir = get_path_info(proto, "dir")
+    proto_name = get_path_info(proto, "name")
+    proto_path = proto_dir + "/" + proto_name
+
+    if (generate_cc) {
+      protogens += [
+        "$cc_out_dir/$proto_path.pb.h",
+        "$cc_out_dir/$proto_path.pb.cc",
+      ]
+    }
+    if (generate_with_plugin) {
+      foreach(suffix, generator_plugin_suffixes) {
+        protogens += [ "$cc_out_dir/${proto_path}${suffix}" ]
+      }
+    }
+  }
+
+  config_name = "${target_name}_config"
+  action_name = "${target_name}_gen"
+  source_set_name = target_name
+
+  config(config_name) {
+    include_dirs = [ cc_out_dir ]
+  }
+
+  # The XXX_gen action that generates the .pb.{cc,h} files.
+  action(action_name) {
+    visibility = [ ":$source_set_name" ]
+    script = "//build/gn_run_binary.py"
+    sources = proto_sources
+    outputs = get_path_info(protogens, "abspath")
+
+    protoc_label = "//:protoc($host_toolchain)"
+    protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
+                  host_executable_suffix
+    args = [
+      # Path should be rebased because |root_build_dir| for current toolchain
+      # may be different from |root_out_dir| of protoc built on host toolchain.
+      "./" + rebase_path(protoc_path, root_build_dir),
+      "--proto_path",
+      rebase_path(proto_in_dir, root_build_dir),
+    ]
+    if (generate_cc) {
+      args += [
+        "--cpp_out",
+        rel_cc_out_dir,
+      ]
+    }
+    if (generate_descriptor != "") {
+      args += [
+        "--include_imports",
+        "--descriptor_set_out",
+        rebase_path("$root_gen_dir/" + generate_descriptor, root_build_dir),
+      ]
+    }
+
+    if (generate_with_plugin) {
+      plugin_path_rebased = rebase_path(plugin_path, root_build_dir)
+      plugin_out_args = ""
+      if (defined(invoker.generator_plugin_options)) {
+        plugin_out_args += invoker.generator_plugin_options
+      }
+      plugin_out_args += ":$rel_cc_out_dir"
+
+      args += [
+        "--plugin=protoc-gen-plugin=$plugin_path_rebased",
+        "--plugin_out=$plugin_out_args",
+      ]
+    }
+
+    args += rebase_path(proto_sources, root_build_dir)
+
+    inputs = [
+      protoc_path,
+    ]
+
+    deps = [
+      protoc_label,
+    ]
+    if (generate_with_plugin) {
+      inputs += [ plugin_path ]
+      if (defined(plugin_host_label)) {
+        # Action depends on native generator plugin but for host toolchain only.
+        deps += [ plugin_host_label ]
+      }
+    }
+
+    if (defined(invoker.proto_deps)) {
+      deps += invoker.proto_deps
+    }
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+  }  # action "${target_name}_gen"
+
+  # The source_set that builds the generated .pb.cc files.
+  source_set(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "defines",
+                             "include_dirs",
+                             "public_configs",
+                             "testonly",
+                             "visibility",
+                           ])
+
+    # Exclude the config.descriptor file which is an output for some reason.
+    set_sources_assignment_filter([ "*.descriptor" ])
+    sources = get_target_outputs(":$action_name")
+    set_sources_assignment_filter(sources_assignment_filter)
+
+    # configs -= [ "//gn/standalone:extra_warnings" ]
+    if (defined(invoker.extra_configs)) {
+      configs += invoker.extra_configs
+    }
+
+    if (!defined(invoker.public_configs)) {
+      public_configs = []
+    }
+
+    public_configs += [
+      "//:protobuf_gen_config",
+      ":$config_name",
+    ]
+
+    # Use protobuf_full only for tests.
+    if (defined(invoker.use_protobuf_full) &&
+        invoker.use_protobuf_full == true) {
+      deps = [
+        "//:protobuf_full",
+      ]
+    } else {
+      deps = [
+        "//:protobuf_lite",
+      ]
+    }
+
+    deps += [ ":$action_name" ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    if (defined(invoker.link_deps)) {
+      deps += invoker.link_deps
+    }
+  }  # source_set(target_name)
+}  # template

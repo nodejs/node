@@ -40,13 +40,13 @@ const server = http.Server(function(req, res) {
   req.on('data', (d) => {
     measuredSize += d.length;
     for (let j = 0; j < d.length; j++) {
-      assert.strictEqual(buffer[i], d[j]);
+      assert.strictEqual(d[j], buffer[i]);
       i++;
     }
   });
 
   req.on('end', common.mustCall(() => {
-    assert.strictEqual(bufferSize, measuredSize);
+    assert.strictEqual(measuredSize, bufferSize);
     res.writeHead(200);
     res.write('thanks');
     res.end();
@@ -64,7 +64,7 @@ server.listen(0, common.mustCall(() => {
     let data = '';
     res.on('data', (chunk) => data += chunk);
     res.on('end', common.mustCall(() => {
-      assert.strictEqual('thanks', data);
+      assert.strictEqual(data, 'thanks');
     }));
   }));
   req.end(buffer);

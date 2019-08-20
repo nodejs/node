@@ -10,6 +10,7 @@ function foo(a) {
 
 var a = new Array(4);
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(undefined, foo(a));
 assertEquals(undefined, foo(a));
 %OptimizeFunctionOnNextCall(foo);

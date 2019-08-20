@@ -13,5 +13,5 @@ const cmd = `"${nodePath}" "${script}" | head -2`;
 exec(cmd, common.mustCall(function(err, stdout, stderr) {
   assert.ifError(err);
   const lines = stdout.split('\n');
-  assert.strictEqual(3, lines.length);
+  assert.strictEqual(lines.length, 3);
 }));

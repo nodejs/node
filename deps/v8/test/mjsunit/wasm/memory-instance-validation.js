@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --expose-gc
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // This test verifies that when instances are exported, Gc'ed, the other
@@ -18,7 +17,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {

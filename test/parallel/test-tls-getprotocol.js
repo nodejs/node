@@ -17,8 +17,9 @@ const clientConfigs = [
 ];
 
 const serverConfig = {
-  key: fixtures.readSync('/keys/agent2-key.pem'),
-  cert: fixtures.readSync('/keys/agent2-cert.pem')
+  secureProtocol: 'TLS_method',
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {

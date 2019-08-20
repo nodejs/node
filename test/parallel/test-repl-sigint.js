@@ -4,6 +4,8 @@ if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
 }
+if (!common.isMainThread)
+  common.skip('No signal handling available in Workers');
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;
@@ -35,9 +37,10 @@ child.stdout.once('data', common.mustCall(() => {
 
 child.on('close', function(code) {
   assert.strictEqual(code, 0);
+  const expected = 'Script execution was interrupted by `SIGINT`';
   assert.ok(
-    stdout.includes('Script execution interrupted.\n'),
-    `Expected stdout to contain "Script execution interrupted.", got ${stdout}`
+    stdout.includes(expected),
+    `Expected stdout to contain "${expected}", got ${stdout}`
   );
   assert.ok(
     stdout.includes('42042\n'),

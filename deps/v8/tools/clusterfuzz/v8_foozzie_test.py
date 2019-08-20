@@ -41,8 +41,9 @@ class ConfigTest(unittest.TestCase):
           '--first-config=ignition',
           '--second-config=ignition_turbo',
           '--second-d8=d8',
+          '--second-config-extra-flags=--stress-scavenge=100',
         ],
-        v8_fuzz_config.Config('foo', Rng()).choose_foozzie_flags(),
+        v8_fuzz_config.Config('foo', Rng(), 42).choose_foozzie_flags(),
     )
 
 
@@ -113,10 +114,11 @@ otherfile.js: TypeError: undefined is not a constructor
 
 
 def cut_verbose_output(stdout):
-  return '\n'.join(stdout.split('\n')[2:])
+  # This removes first lines containing d8 commands.
+  return '\n'.join(stdout.split('\n')[4:])
 
 
-def run_foozzie(first_d8, second_d8):
+def run_foozzie(first_d8, second_d8, *extra_flags):
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
@@ -125,23 +127,34 @@ def run_foozzie(first_d8, second_d8):
     '--first-config', 'ignition',
     '--second-config', 'ignition_turbo',
     os.path.join(TEST_DATA, 'fuzz-123.js'),
-  ])
+  ] + list(extra_flags))
 
 
 class SystemTest(unittest.TestCase):
   def testSyntaxErrorDiffPass(self):
-    stdout = run_foozzie('test_d8_1.py', 'test_d8_2.py')
+    stdout = run_foozzie('test_d8_1.py', 'test_d8_2.py', '--skip-sanity-checks')
     self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
 
   def testDifferentOutputFail(self):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('test_d8_1.py', 'test_d8_3.py')
+      run_foozzie('test_d8_1.py', 'test_d8_3.py', '--skip-sanity-checks',
+                  '--first-config-extra-flags=--flag1',
+                  '--first-config-extra-flags=--flag2=0',
+                  '--second-config-extra-flags=--flag3')
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertEquals(expected_output, cut_verbose_output(e.output))
 
+  def testSanityCheck(self):
+    with open(os.path.join(TEST_DATA, 'sanity_check_output.txt')) as f:
+      expected_output = f.read()
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie('test_d8_1.py', 'test_d8_3.py')
+    e = ctx.exception
+    self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEquals(expected_output, e.output)
 
 if __name__ == '__main__':
   unittest.main()

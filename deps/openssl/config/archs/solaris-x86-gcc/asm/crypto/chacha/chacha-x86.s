@@ -1,4 +1,3 @@
-.file	"chacha-x86.s"
 .text
 .globl	ChaCha20_ctr32
 .type	ChaCha20_ctr32,@function

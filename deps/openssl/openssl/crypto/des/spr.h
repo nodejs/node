@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-OPENSSL_GLOBAL const DES_LONG DES_SPtrans[8][64] = {
+const DES_LONG DES_SPtrans[8][64] = {
     {
         /* nibble 0 */
         0x02080800L, 0x00080000L, 0x02000002L, 0x02080802L,

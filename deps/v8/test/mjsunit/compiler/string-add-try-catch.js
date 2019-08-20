@@ -4,6 +4,9 @@
 
 // Flags: --allow-natives-syntax
 
+// Test that string concatenation overflow (going over string max length)
+// is handled gracefully, i.e. an error is thrown
+
 var a = "a".repeat(%StringMaxLength());
 
 (function() {
@@ -15,6 +18,7 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);
@@ -31,6 +35,64 @@ var a = "a".repeat(%StringMaxLength());
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
+  foo("a");
+  foo("a");
+  %OptimizeFunctionOnNextCall(foo);
+  foo("a");
+  assertInstanceof(foo(a), RangeError);
+})();
+
+(function() {
+  function foo(a, b) {
+    try {
+      return "0123456789012".concat(a);
+    } catch (e) {
+      return e;
+    }
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  foo("a");
+  foo("a");
+  %OptimizeFunctionOnNextCall(foo);
+  foo("a");
+  assertInstanceof(foo(a), RangeError);
+})();
+
+var obj = {
+  toString: function() {
+    throw new Error('toString has thrown');
+  }
+};
+
+(function() {
+  function foo(a, b) {
+    try {
+      return "0123456789012" + obj;
+    } catch (e) {
+      return e;
+    }
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  foo("a");
+  foo("a");
+  %OptimizeFunctionOnNextCall(foo);
+  foo("a");
+  assertInstanceof(foo(a), Error);
+})();
+
+(function() {
+  function foo(a, b) {
+    try {
+      return a + 123;
+    } catch (e) {
+      return e;
+    }
+  }
+
+  %PrepareFunctionForOptimization(foo);
   foo("a");
   foo("a");
   %OptimizeFunctionOnNextCall(foo);

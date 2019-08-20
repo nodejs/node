@@ -4,78 +4,59 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments.h"
-#include "src/elements.h"
-#include "src/factory.h"
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
-RUNTIME_FUNCTION(Runtime_IsJSProxy) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSProxy());
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  return proxy->handler();
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  return proxy->target();
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, on_non_existent, 3);
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
                                                         &success, holder);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
-  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::GetProperty(
+                   &it, static_cast<OnNonExistent>(on_non_existent->value())));
 }
 
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 4);
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
                                                         &success, holder);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
-  Maybe<bool> result = Object::SetSuperProperty(
-      &it, value, language_mode, Object::MAY_BE_STORE_FROM_KEYED);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  Maybe<bool> result =
+      Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -93,7 +74,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyGetSetTrapResult) {
                                         JSProxy::AccessKind(access_kind)));
 }
 
-RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
+RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
@@ -101,7 +82,19 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
 
   Maybe<bool> result = JSProxy::CheckHasTrap(isolate, name, target);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_CheckProxyDeleteTrapResult) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+
+  Maybe<bool> result = JSProxy::CheckDeleteTrap(isolate, name, target);
+  if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 

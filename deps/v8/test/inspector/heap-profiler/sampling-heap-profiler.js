@@ -38,11 +38,20 @@
   const size4 = nodeSize(profile4.result.profile.head);
   InspectorTest.log('Allocated size did not change after stopping:', size4 === size3);
 
+  const sample = profile4.result.profile.samples.find(s => s.size > 400000);
+  const hasSample = hasNode(n => n.id === sample.nodeId && n.callFrame.functionName === 'allocateChunk',
+                            profile4.result.profile.head);
+  InspectorTest.log('Sample found: ' + hasSample);
+
   InspectorTest.log('Successfully finished');
   InspectorTest.completeTest();
 
   function nodeSize(node) {
     return node.children.reduce((res, child) => res + nodeSize(child),
                                 node.callFrame.functionName === 'allocateChunk' ? node.selfSize : 0);
+  }
+
+  function hasNode(predicate, node) {
+    return predicate(node) || node.children.some(hasNode.bind(null, predicate));
   }
 })();

@@ -87,56 +87,67 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
-%NeverOptimizeFunction(construct_smis);
-%NeverOptimizeFunction(construct_doubles);
-%NeverOptimizeFunction(convert_mixed);
-for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
+%EnsureFeedbackVectorForFunction(test_osr_elements_kind);
+function test_osr_elements_kind() {
+  %NeverOptimizeFunction(construct_smis);
+  %NeverOptimizeFunction(construct_doubles);
+  %NeverOptimizeFunction(convert_mixed);
+  for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
 
-// This code exists to eliminate the learning influence of AllocationSites
-// on the following tests.
-var __sequence = 0;
-function make_array_string() {
-  this.__sequence = this.__sequence + 1;
-  return "/* " + this.__sequence + " */  [0, 0, 0];"
+  // This code exists to eliminate the learning influence of AllocationSites
+  // on the following tests.
+  var __sequence = 0;
+  function make_array_string() {
+    this.__sequence = this.__sequence + 1;
+    return "/* " + this.__sequence + " */  [0, 0, 0];"
+  }
+  function make_array() {
+    return eval(make_array_string());
+  }
+
+  %EnsureFeedbackVectorForFunction(construct_smis);
+  function construct_smis() {
+    var a = make_array();
+    a[0] = 0;  // Send the COW array map to the steak house.
+    assertKind(elements_kind.fast_smi_only, a);
+    return a;
+  }
+
+  %EnsureFeedbackVectorForFunction(construct_doubles);
+  function construct_doubles() {
+    var a = construct_smis();
+    a[0] = 1.5;
+    assertKind(elements_kind.fast_double, a);
+    return a;
+  }
+
+  // Test transition chain SMI->DOUBLE->FAST (optimized function will
+  // transition to FAST directly).
+  %EnsureFeedbackVectorForFunction(convert_mixed);
+  function convert_mixed(array, value, kind) {
+    array[1] = value;
+    assertKind(kind, array);
+    assertEquals(value, array[1]);
+  }
+  smis = construct_smis();
+  convert_mixed(smis, 1.5, elements_kind.fast_double);
+
+  doubles = construct_doubles();
+  convert_mixed(doubles, "three", elements_kind.fast);
+
+  convert_mixed(construct_smis(), "three", elements_kind.fast);
+  convert_mixed(construct_doubles(), "three", elements_kind.fast);
+
+  if (%ICsAreEnabled()) {
+    // Test that allocation sites allocate correct elements kind initially based
+    // on previous transitions.
+    smis = construct_smis();
+    doubles = construct_doubles();
+    convert_mixed(smis, 1, elements_kind.fast);
+    convert_mixed(doubles, 1, elements_kind.fast);
+    assertTrue(%HaveSameMap(smis, doubles));
+  }
 }
-function make_array() {
-  return eval(make_array_string());
-}
-
-function construct_smis() {
-  var a = make_array();
-  a[0] = 0;  // Send the COW array map to the steak house.
-  assertKind(elements_kind.fast_smi_only, a);
-  return a;
-}
-function construct_doubles() {
-  var a = construct_smis();
-  a[0] = 1.5;
-  assertKind(elements_kind.fast_double, a);
-  return a;
-}
-
-// Test transition chain SMI->DOUBLE->FAST (optimized function will
-// transition to FAST directly).
-function convert_mixed(array, value, kind) {
-  array[1] = value;
-  assertKind(kind, array);
-  assertEquals(value, array[1]);
-}
-smis = construct_smis();
-convert_mixed(smis, 1.5, elements_kind.fast_double);
-
-doubles = construct_doubles();
-convert_mixed(doubles, "three", elements_kind.fast);
-
-convert_mixed(construct_smis(), "three", elements_kind.fast);
-convert_mixed(construct_doubles(), "three", elements_kind.fast);
-
-smis = construct_smis();
-doubles = construct_doubles();
-convert_mixed(smis, 1, elements_kind.fast);
-convert_mixed(doubles, 1, elements_kind.fast);
-assertTrue(%HaveSameMap(smis, doubles));
 
 // Throw away type information in the ICs for next stress run.
 gc();

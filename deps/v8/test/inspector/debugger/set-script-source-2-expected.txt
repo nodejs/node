@@ -1,38 +1,38 @@
 Tests Debugger.setScriptSource
 
 Running test: addLineAfter
-var x = 1;
+var x = a;
 #debugger;
-return x + 2;
+return x + b;
 
 ---
 Break location after LiveEdit:
-var x = 1;
+var x = a;
 #debugger;
 var x = 3;
 
 stackChanged: true
 Protocol.Debugger.stepInto
-function foo() {
-var x = #1;
+function foo(a,b,c) {
+var x = #a;
 debugger;
 
 
 Running test: addLineBefore
-var x = 1;
+var x = a;
 #debugger;
-return x + 2;
+return x + b;
 
 ---
 Break location after LiveEdit:
-var x = 1;
-var x = #3;
+var x = a;
+#var x = 3;
 debugger;
 
 stackChanged: true
 Protocol.Debugger.stepInto
-function foo() {
-var x = #1;
+function foo(a,b,c) {
+var x = #a;
 var x = 3;
 
 
@@ -62,12 +62,12 @@ var x = 1;
 ---
 Break location after LiveEdit:
 function boo() {
-var x = #3;
+#var x = 3;
 debugger;
 
 stackChanged: true
 Protocol.Debugger.stepInto
-var x = 3;
-#debugger;
-var x = 1;
+function boo() {
+var x = #3;
+debugger;
 

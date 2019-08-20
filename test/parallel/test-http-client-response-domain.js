@@ -30,7 +30,7 @@ let d;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// first fire up a simple HTTP server
+// First fire up a simple HTTP server
 const server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end();
@@ -44,8 +44,8 @@ server.listen(common.PIPE, function() {
 
 function test() {
 
-  d.on('error', common.mustCall(function(err) {
-    assert.strictEqual('should be caught by domain', err.message);
+  d.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'should be caught by domain');
   }));
 
   const req = http.get({

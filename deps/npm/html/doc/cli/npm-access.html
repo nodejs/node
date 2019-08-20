@@ -17,10 +17,12 @@ npm access restricted [&lt;package&gt;]
 npm access grant &lt;read-only|read-write&gt; &lt;scope:team&gt; [&lt;package&gt;]
 npm access revoke &lt;scope:team&gt; [&lt;package&gt;]
 
+npm access 2fa-required [&lt;package&gt;]
+npm access 2fa-not-required [&lt;package&gt;]
+
 npm access ls-packages [&lt;user&gt;|&lt;scope&gt;|&lt;scope:team&gt;]
 npm access ls-collaborators [&lt;package&gt; [&lt;user&gt;]]
-npm access edit [&lt;package&gt;]
-</code></pre><h2 id="description">DESCRIPTION</h2>
+npm access edit [&lt;package&gt;]</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Used to set access controls on private packages.</p>
 <p>For all of the subcommands, <code>npm access</code> will perform actions on the packages
 in the current working directory if no package name is passed to the
@@ -32,6 +34,10 @@ Set a package to be either publicly accessible or restricted.</p>
 <li><p>grant / revoke:
 Add or remove the ability of users and teams to have read-only or read-write
 access to a package.</p>
+</li>
+<li><p>2fa-required / 2fa-not-required:
+Configure whether a package requires that anyone publishing it have two-factor
+authentication enabled on their account.</p>
 </li>
 <li><p>ls-packages:
 Show all of the packages a user or a team is able to access, along with the
@@ -69,6 +75,7 @@ with an HTTP 402 status code (logically enough), unless you use
 <p>Management of teams and team memberships is done with the <code>npm team</code> command.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
+<li><a href="https://npm.im/libnpmaccess"><code>libnpmaccess</code></a></li>
 <li><a href="../cli/npm-team.html">npm-team(1)</a></li>
 <li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
 <li><a href="../misc/npm-config.html">npm-config(7)</a></li>
@@ -86,5 +93,5 @@ with an HTTP 402 status code (logically enough), unless you use
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-access &mdash; npm@5.6.0</p>
+<p id="footer">npm-access &mdash; npm@6.10.2</p>
 

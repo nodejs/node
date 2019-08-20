@@ -23,12 +23,8 @@
 #include "task.h"
 #include <string.h>
 
-#ifndef MAXHOSTNAMELEN
-# define MAXHOSTNAMELEN 256
-#endif
-
 TEST_IMPL(gethostname) {
-  char buf[MAXHOSTNAMELEN + 1];
+  char buf[UV_MAXHOSTNAMESIZE];
   size_t size;
   size_t enobufs_size;
   int r;
@@ -52,7 +48,7 @@ TEST_IMPL(gethostname) {
   ASSERT(enobufs_size > 1);
 
   /* Successfully get the hostname */
-  size = MAXHOSTNAMELEN + 1;
+  size = UV_MAXHOSTNAMESIZE;
   r = uv_os_gethostname(buf, &size);
   ASSERT(r == 0);
   ASSERT(size > 1 && size == strlen(buf));

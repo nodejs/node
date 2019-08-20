@@ -676,18 +676,16 @@ StringHttpRequest kSampleRequests[kSampleSize] = {
   StringHttpRequest("/", "localhost", "yahoo.com", "firefox")
 };
 
-
-bool ProcessEntries(v8::Platform* platform, HttpRequestProcessor* processor,
-                    int count, StringHttpRequest* reqs) {
+bool ProcessEntries(v8::Isolate* isolate, v8::Platform* platform,
+                    HttpRequestProcessor* processor, int count,
+                    StringHttpRequest* reqs) {
   for (int i = 0; i < count; i++) {
     bool result = processor->Process(&reqs[i]);
-    while (v8::platform::PumpMessageLoop(platform, Isolate::GetCurrent()))
-      continue;
+    while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
     if (!result) return false;
   }
   return true;
 }
-
 
 void PrintMap(map<string, string>* m) {
   for (map<string, string>::iterator i = m->begin(); i != m->end(); i++) {
@@ -727,7 +725,9 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Error initializing processor.\n");
     return 1;
   }
-  if (!ProcessEntries(platform.get(), &processor, kSampleSize, kSampleRequests))
+  if (!ProcessEntries(isolate, platform.get(), &processor, kSampleSize,
+                      kSampleRequests)) {
     return 1;
+  }
   PrintMap(&output);
 }

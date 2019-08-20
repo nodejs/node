@@ -26,7 +26,7 @@
 #define NGHTTP2_STREAM_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include <nghttp2/nghttp2.h>
@@ -130,7 +130,8 @@ typedef enum {
   /* "http" or "https" scheme */
   NGHTTP2_HTTP_FLAG_SCHEME_HTTP = 1 << 13,
   /* set if final response is expected */
-  NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14
+  NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14,
+  NGHTTP2_HTTP_FLAG__PROTOCOL = 1 << 15,
 } nghttp2_http_flag;
 
 struct nghttp2_stream {
@@ -147,9 +148,9 @@ struct nghttp2_stream {
   /* Received body so far */
   int64_t recv_content_length;
   /* Base last_cycle for direct descendent streams. */
-  uint32_t descendant_last_cycle;
+  uint64_t descendant_last_cycle;
   /* Next scheduled time to sent item */
-  uint32_t cycle;
+  uint64_t cycle;
   /* Next seq used for direct descendant streams */
   uint64_t descendant_next_seq;
   /* Secondary key for prioritization to break a tie for cycle.  This

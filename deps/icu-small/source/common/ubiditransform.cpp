@@ -146,7 +146,7 @@ static UBool
 action_reorder(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     ubidi_writeReordered(pTransform->pBidi, pTransform->dest, pTransform->destSize,
-            pTransform->reorderingOptions, pErrorCode);
+            static_cast<uint16_t>(pTransform->reorderingOptions), pErrorCode);
 
     *pTransform->pDestLength = pTransform->srcLength;
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
@@ -393,9 +393,9 @@ resolveBaseDirection(const UChar *text, uint32_t length,
     switch (*pInLevel) {
         case UBIDI_DEFAULT_LTR:
         case UBIDI_DEFAULT_RTL: {
-            UBiDiLevel level = ubidi_getBaseDirection(text, length);
-            *pInLevel = level != UBIDI_NEUTRAL ? level
-                    : *pInLevel == UBIDI_DEFAULT_RTL ? RTL : LTR;
+            UBiDiLevel level = static_cast<UBiDiLevel>(ubidi_getBaseDirection(text, length));
+            *pInLevel = static_cast<UBiDiLevel>(level != UBIDI_NEUTRAL) ? level
+                    : *pInLevel == UBIDI_DEFAULT_RTL ? static_cast<UBiDiLevel>(RTL) : static_cast<UBiDiLevel>(LTR);
             break;
         }
         default:

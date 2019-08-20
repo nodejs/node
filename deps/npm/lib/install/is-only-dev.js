@@ -29,7 +29,9 @@ function andIsOnlyDev (name, seen) {
     } else {
       if (seen.has(req)) return true
       seen.add(req)
-      return isOnlyDev(req, seen)
+      const result = isOnlyDev(req, seen)
+      seen.delete(req)
+      return result
     }
   }
 }

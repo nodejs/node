@@ -10,6 +10,7 @@
     return Number.parseInt(x + 1);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(1));
   %OptimizeFunctionOnNextCall(foo);
@@ -22,6 +23,7 @@
     return Number.parseInt(x + 1, 0);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(1));
   %OptimizeFunctionOnNextCall(foo);
@@ -34,6 +36,7 @@
     return Number.parseInt(x + 1, 10);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(1));
   %OptimizeFunctionOnNextCall(foo);
@@ -46,6 +49,7 @@
     return Number.parseInt(x + 1, undefined);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo(0));
   assertEquals(2, foo(1));
   %OptimizeFunctionOnNextCall(foo);

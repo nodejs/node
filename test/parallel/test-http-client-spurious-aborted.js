@@ -52,7 +52,7 @@ function download() {
     _handle._close = res.socket._handle.close;
     _handle.close = function(callback) {
       _handle._close();
-      // set readable to true even though request is complete
+      // Set readable to true even though request is complete
       if (res.complete) res.readable = true;
       callback();
     };
@@ -67,7 +67,7 @@ function download() {
       assert.strictEqual(aborted, abortRequest);
       finishCountdown.dec();
       if (finishCountdown.remaining === 0) return;
-      abortRequest = false; // next one should be a good response
+      abortRequest = false; // Next one should be a good response
       download();
     });
   });

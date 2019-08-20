@@ -3,6 +3,9 @@ const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different async IDs');
+
 const initCalls = [];
 const resolveCalls = [];
 
@@ -18,11 +21,9 @@ async_hooks.createHook({
 }).enable();
 
 const a = Promise.resolve(42);
-const b = a.then(common.mustCall());
+a.then(common.mustCall());
 
 assert.strictEqual(initCalls[0].triggerId, 1);
 assert.strictEqual(initCalls[0].resource.isChainedPromise, false);
-assert.strictEqual(initCalls[0].resource.promise, a);
 assert.strictEqual(initCalls[1].triggerId, initCalls[0].id);
 assert.strictEqual(initCalls[1].resource.isChainedPromise, true);
-assert.strictEqual(initCalls[1].resource.promise, b);

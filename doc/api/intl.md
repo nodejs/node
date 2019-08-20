@@ -20,7 +20,7 @@ programs. Some of them are:
 - [`require('buffer').transcode()`][]
 - More accurate [REPL][] line editing
 - [`require('util').TextDecoder`][]
-- [RegExp Unicode Property Escapes][]
+- [`RegExp` Unicode Property Escapes][]
 
 Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
 in native C/C++ code. However, some of them require a very large ICU data file
@@ -36,7 +36,7 @@ To control how ICU is used in Node.js, four `configure` options are available
 during compilation. Additional details on how to compile Node.js are documented
 in [BUILDING.md][].
 
-- `--with-intl=none` / `--without-intl`
+- `--with-intl=none`/`--without-intl`
 - `--with-intl=system-icu`
 - `--with-intl=small-icu` (default)
 - `--with-intl=full-icu`
@@ -57,7 +57,7 @@ option:
 | [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full       |
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
 | [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
-| [RegExp Unicode Property Escapes][]     | none (invalid RegExp error)       | full                         | full                   | full       |
+| [`RegExp` Unicode Property Escapes][]   | none (invalid `RegExp` error)     | full                         | full                   | full       |
 
 The "(not locale-aware)" designation denotes that the function carries out its
 operation just like the non-`Locale` version of the function, if one
@@ -133,7 +133,7 @@ through either:
 
 ICU is able to automatically find and load a variety of data formats, but the
 data must be appropriate for the ICU version, and the file correctly named.
-The most common name for the data file is `icudt5X[bl].dat`, where `5X` denotes
+The most common name for the data file is `icudt6X[bl].dat`, where `6X` denotes
 the intended ICU version, and `b` or `l` indicates the system's endianness.
 Check ["ICU Data"][] article in the ICU User Guide for other supported formats
 and more details on ICU data in general.
@@ -194,23 +194,23 @@ to be helpful:
 ["ICU Data"]: http://userguide.icu-project.org/icudata
 [`--icu-data-dir`]: cli.html#cli_icu_data_dir_file
 [`Date.prototype.toLocaleString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString
-[`Intl`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl
 [`Intl.DateTimeFormat`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+[`Intl`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl
 [`NODE_ICU_DATA`]: cli.html#cli_node_icu_data_file
 [`Number.prototype.toLocaleString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toLocaleString
-[`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
-[`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
+[`RegExp` Unicode Property Escapes]: https://github.com/tc39/proposal-regexp-unicode-property-escapes
 [`String.prototype.localeCompare()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
-[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
+[`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
+[`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
 [BUILDING.md#full-icu]: https://github.com/nodejs/node/blob/master/BUILDING.md#build-with-full-icu-support-all-locales-supported-by-icu
+[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
-[ICU]: http://icu-project.org/
+[ICU]: http://site.icu-project.org/
 [REPL]: repl.html#repl_repl
-[RegExp Unicode Property Escapes]: https://github.com/tc39/proposal-regexp-unicode-property-escapes
 [Test262]: https://github.com/tc39/test262/tree/master/test/intl402
 [WHATWG URL parser]: url.html#url_the_whatwg_url_api
 [btest402]: https://github.com/srl295/btest402

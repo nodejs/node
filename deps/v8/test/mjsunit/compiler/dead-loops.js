@@ -80,6 +80,7 @@ var loops = [loop1, loop2, loop3, loop4, loop5, loop6, loop7, loop8];
 
 for (var i = 0; i < loops.length; i++) {
   var f = loops[i];
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

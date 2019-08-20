@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
@@ -6,7 +7,8 @@ if (common.isWindows)
 const assert = require('assert');
 const net = require('net');
 const path = require('path');
-const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+const { internalBinding } = require('internal/test/binding');
+const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -68,7 +70,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
   })
   .on('error', function(err) {
     console.error(err);
-    assert.fail(null, null, `[Pipe server]${err}`);
+    assert.fail(`[Pipe server]${err}`);
   })
   .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
     const getSocketOpt = (index) => {
@@ -92,7 +94,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
       console.error(`[Pipe]Sending data through fd ${oldHandle.fd}`);
       this.on('error', function(err) {
         console.error(err);
-        assert.fail(null, null, `[Pipe Client]${err}`);
+        assert.fail(`[Pipe Client]${err}`);
       });
     });
 

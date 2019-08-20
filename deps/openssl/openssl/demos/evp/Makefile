@@ -17,4 +17,7 @@ aesccm: aesccm.o
 aesgcm: aesgcm.o
 
 aesccm aesgcm:
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+clean:
+	$(RM) aesccm aesgcm *.o

@@ -10,8 +10,8 @@ tmpdir.refresh();
 const fixtures = require('../common/fixtures');
 const https = require('https');
 const options = {
-  cert: fixtures.readSync('test_cert.pem'),
-  key: fixtures.readSync('test_key.pem')
+  cert: fixtures.readKey('rsa_cert.crt'),
+  key: fixtures.readKey('rsa_private.pem')
 };
 
 const server = https.createServer(options, common.mustCall((req, res) => {

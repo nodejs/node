@@ -1,0 +1,83 @@
+{
+  "_from": "agentkeepalive@^3.4.1",
+  "_id": "agentkeepalive@3.5.2",
+  "_inBundle": false,
+  "_integrity": "sha512-e0L/HNe6qkQ7H19kTlRRqUibEAwDK5AFk6y3PtMsuut2VAH6+Q4xZml1tNDJD7kSAyqmbG/K08K5WEJYtUrSlQ==",
+  "_location": "/agentkeepalive",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "agentkeepalive@^3.4.1",
+    "name": "agentkeepalive",
+    "escapedName": "agentkeepalive",
+    "rawSpec": "^3.4.1",
+    "saveSpec": null,
+    "fetchSpec": "^3.4.1"
+  },
+  "_requiredBy": [
+    "/make-fetch-happen"
+  ],
+  "_resolved": "https://registry.npmjs.org/agentkeepalive/-/agentkeepalive-3.5.2.tgz",
+  "_shasum": "a113924dd3fa24a0bc3b78108c450c2abee00f67",
+  "_spec": "agentkeepalive@^3.4.1",
+  "_where": "/Users/isaacs/dev/npm/cli/node_modules/make-fetch-happen",
+  "author": {
+    "name": "fengmk2",
+    "email": "fengmk2@gmail.com",
+    "url": "https://fengmk2.com"
+  },
+  "browser": "browser.js",
+  "bugs": {
+    "url": "https://github.com/node-modules/agentkeepalive/issues"
+  },
+  "bundleDependencies": false,
+  "ci": {
+    "version": "4, 6, 8, 10"
+  },
+  "dependencies": {
+    "humanize-ms": "^1.2.1"
+  },
+  "deprecated": false,
+  "description": "Missing keepalive http.Agent",
+  "devDependencies": {
+    "autod": "^3.0.1",
+    "egg-bin": "^1.11.1",
+    "egg-ci": "^1.8.0",
+    "eslint": "^4.19.1",
+    "eslint-config-egg": "^6.0.0",
+    "pedding": "^1.1.0"
+  },
+  "engines": {
+    "node": ">= 4.0.0"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "browser.js",
+    "lib"
+  ],
+  "homepage": "https://github.com/node-modules/agentkeepalive#readme",
+  "keywords": [
+    "http",
+    "https",
+    "agent",
+    "keepalive",
+    "agentkeepalive"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "agentkeepalive",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/node-modules/agentkeepalive.git"
+  },
+  "scripts": {
+    "autod": "autod",
+    "ci": "npm run lint && npm run cov",
+    "cov": "egg-bin cov",
+    "lint": "eslint lib test index.js",
+    "test": "egg-bin test"
+  },
+  "version": "3.5.2"
+}

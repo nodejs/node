@@ -37,14 +37,19 @@ function h() { return f.apply(void 0, arguments); }
 
 var foo = 42;
 
+%PrepareFunctionForOptimization(f);
+f();
+%OptimizeFunctionOnNextCall(f);
+f();
+
+%PrepareFunctionForOptimization(g);
 for (var i = 0; i < 3; i++) assertEquals(42, g());
 %OptimizeFunctionOnNextCall(g);
-%OptimizeFunctionOnNextCall(f);
 assertEquals(42, g());
 
+%PrepareFunctionForOptimization(h);
 for (var i = 0; i < 3; i++) assertEquals(42, h());
 %OptimizeFunctionOnNextCall(h);
-%OptimizeFunctionOnNextCall(f);
 assertEquals(42, h());
 
 var G1 = 21;
@@ -58,7 +63,7 @@ function u() {
 Number.prototype.foo = 42;
 delete Number.prototype.foo;
 
+%PrepareFunctionForOptimization(u);
 for (var i = 0; i < 3; i++) assertEquals(void 0, u());
 %OptimizeFunctionOnNextCall(u);
-%OptimizeFunctionOnNextCall(f);
 assertEquals(void 0, u());

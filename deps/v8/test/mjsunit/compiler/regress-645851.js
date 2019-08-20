@@ -11,9 +11,11 @@ function f() {
       sum = sum + 1;
       %OptimizeOsr();
       if (sum == 2) return;
+      %PrepareFunctionForOptimization(f);
     }
   }
   return sum;
 }
 
+%PrepareFunctionForOptimization(f);
 f();

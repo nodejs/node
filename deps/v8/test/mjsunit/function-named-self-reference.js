@@ -33,13 +33,14 @@ var fn = function fn(val) {
   %OptimizeFunctionOnNextCall(fn);
 
   function run(val) {
-    var res =  fn((val + 1) << 1);
+    var res = fn(val + 1 << 1);
 
     return res;
   }
 
   return run(0);
-}
-
+};
+;
+%PrepareFunctionForOptimization(fn);
 var res = fn();
 assertEquals(res, 2);

@@ -94,7 +94,6 @@ INTERESTING_OLD_GEN_KEYS="\
   clear.slots_buffer \
   clear.store_buffer \
   clear.string_table \
-  clear.weak_cells \
   clear.weak_collections \
   clear.weak_lists \
   evacuate.candidates \

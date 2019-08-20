@@ -36,7 +36,7 @@ server.listen(0, options.host, function() {
   options.port = this.address().port;
   const req = http.request(options);
   req.on('error', function() {
-    // this space is intentionally left blank
+    // This space is intentionally left blank
   });
   req.on('close', common.mustCall(() => server.close()));
 

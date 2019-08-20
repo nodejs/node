@@ -30,7 +30,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
       keys_[i] = Thread::CreateThreadLocalKey();
     }
   }
-  ~ThreadLocalStorageTest() {
+  ~ThreadLocalStorageTest() override {
     for (size_t i = 0; i < arraysize(keys_); ++i) {
       Thread::DeleteThreadLocalKey(keys_[i]);
     }

@@ -1,5 +1,5 @@
-*%(basename)s:9: SyntaxError: The requested module 'modules-import6.js' does not provide an export named 'c'
-import {c} from "modules-import6.js";
+*%(basename)s:7: SyntaxError: The requested module 'modules-import6.mjs' does not provide an export named 'c'
+import {c} from "modules-import6.mjs";
         ^
-SyntaxError: The requested module 'modules-import6.js' does not provide an export named 'c'
+SyntaxError: The requested module 'modules-import6.mjs' does not provide an export named 'c'
 

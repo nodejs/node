@@ -38,10 +38,14 @@ function f() {
 }
 
 shouldDeopt = false;
+%PrepareFunctionForOptimization(dummy_opt);
 f();
 f();
-
-%OptimizeFunctionOnNextCall(f);
 %OptimizeFunctionOnNextCall(dummy_opt);
+f();
+%PrepareFunctionForOptimization(f);
+f();
+%OptimizeFunctionOnNextCall(f);
+
 shouldDeopt = true;
 assertEquals(2, f());

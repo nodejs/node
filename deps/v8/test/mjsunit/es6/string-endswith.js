@@ -417,3 +417,13 @@ assertThrows(function() {
 }, TypeError);
 re[Symbol.match] = false;
 assertEquals(false, "".startsWith(re));
+
+let didThrow = false;
+try {
+  "".endsWith(/./);
+} catch (err) {
+  didThrow = true;
+  assertEquals(err.name, "TypeError");
+  assertEquals(err.message, "First argument to String.prototype.endsWith must not be a regular expression");
+}
+assertTrue(didThrow);

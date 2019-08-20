@@ -12,6 +12,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow comparisons where both sides are exactly the same",
             category: "Best Practices",

@@ -10,16 +10,16 @@ const hooks = initHooks();
 hooks.enable();
 
 function onchange() { }
-// install first file watcher
+// Install first file watcher
 fs.watchFile(__filename, onchange);
 
-// install second file watcher
+// Install second file watcher
 fs.watchFile(commonPath, onchange);
 
-// remove first file watcher
+// Remove first file watcher
 fs.unwatchFile(__filename);
 
-// remove second file watcher
+// Remove second file watcher
 fs.unwatchFile(commonPath);
 
 process.on('exit', onexit);

@@ -21,7 +21,7 @@ function listener(event, exec_state, event_data, data) {
   } catch (e) {
     exception = e;
     print(e);
-  }
+  }                                               // B34
 };
 
 Debug.setListener(listener);
@@ -41,7 +41,7 @@ function test() {
   function f2([
                 a,                                // B7
                 b = id(3)                         // B8
-              ]) {
+             ]) {
     assertEquals([4, 3], [a, b]);                 // B11
   }                                               // B12
   f2([4]);                                        // B6
@@ -49,7 +49,7 @@ function test() {
   function f3({
                 x: a,                             // B14
                 y: b                              // B15
-              }) {
+             }) {
     assertEquals([5, 6], [a, b]);                 // B16
   }                                               // B17
   f3({y: 6, x: 5});                               // B13
@@ -60,7 +60,7 @@ function test() {
                   b,                              // B20
                   c,                              // B21
                 }
-              ]) {
+              ]) {                                // B19
     assertEquals([2, 4, 6], [a, b, c]);           // B22
   }                                               // B23
   f4([2, {c: 6, b: 4}]);                          // B18
@@ -98,12 +98,12 @@ function test() {
   }
 
   var {
-    x: a,
-    y: b = 9
+    x: a,                                         // B47
+    y: b = 9                                      // B48
   } = { x: 4 };                                   // B46
-  assertEquals([4, 9], [a, b]);                   // B47
-}                                                 // B48
+  assertEquals([4, 9], [a, b]);                   // B49
+}                                                 // B50
 
 test();
-Debug.setListener(null);                          // B49
+Debug.setListener(null);                          // B51
 assertNull(exception);

@@ -12,7 +12,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: false,
-    send: common.mustNotCall()
+    _send: common.mustNotCall()
   });
 
   const list = new SocketListReceive(child, key);
@@ -24,7 +24,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: common.mustCall((msg) => {
+    _send: common.mustCall((msg) => {
       assert.strictEqual(msg.cmd, 'NODE_SOCKET_ALL_CLOSED');
       assert.strictEqual(msg.key, key);
     })
@@ -38,7 +38,7 @@ const key = 'test-key';
 {
   const child = Object.assign(new EventEmitter(), {
     connected: true,
-    send: common.mustCall((msg) => {
+    _send: common.mustCall((msg) => {
       assert.strictEqual(msg.cmd, 'NODE_SOCKET_COUNT');
       assert.strictEqual(msg.key, key);
       assert.strictEqual(msg.count, 0);

@@ -12,7 +12,7 @@ function main({ n, argc, listeners }) {
   const ee = new EventEmitter();
 
   for (var k = 0; k < listeners; k += 1)
-    ee.on('dummy', function() {});
+    ee.on('dummy', () => {});
 
   var i;
   switch (argc) {

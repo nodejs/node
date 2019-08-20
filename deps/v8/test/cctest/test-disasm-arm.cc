@@ -26,50 +26,72 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <stdlib.h>
+#include <cinttypes>
+#include <cstdlib>
 
-#include "src/assembler-inl.h"
-#include "src/boxed-float.h"
+// The C++ style guide recommends using <re2> instead of <regex>. However, the
+// former isn't available in V8.
+#include <regex>  // NOLINT(build/c++11)
+
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/double.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
-#include "src/v8.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
+#include "src/init/v8.h"
+#include "src/numbers/double.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/boxed-float.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
 
+enum UseRegex { kRawString, kRegexString };
+
 template <typename... S>
-bool DisassembleAndCompare(byte* begin, S... expected_strings) {
+bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
+                           S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   EmbeddedVector<char, 128> buffer;
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
-  byte* end = begin + (n_expected * Assembler::kInstrSize);
+  byte* end = begin + (n_expected * kInstrSize);
 
   std::vector<std::string> disassembly;
   for (byte* pc = begin; pc < end;) {
     pc += disasm.InstructionDecode(buffer, pc);
-    disassembly.emplace_back(buffer.start());
+    disassembly.emplace_back(buffer.begin());
   }
 
   bool test_passed = true;
 
   for (size_t i = 0; i < disassembly.size(); i++) {
-    if (expected_disassembly[i] != disassembly[i]) {
-      fprintf(stderr,
-              "expected: \n"
-              "%s\n"
-              "disassembled: \n"
-              "%s\n\n",
-              expected_disassembly[i].c_str(), disassembly[i].c_str());
-      test_passed = false;
+    if (use_regex == kRawString) {
+      if (expected_disassembly[i] != disassembly[i]) {
+        fprintf(stderr,
+                "expected: \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
+    } else {
+      DCHECK_EQ(use_regex, kRegexString);
+      if (!std::regex_match(disassembly[i],
+                            std::regex(expected_disassembly[i]))) {
+        fprintf(stderr,
+                "expected (regex): \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
     }
   }
 
@@ -85,26 +107,32 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                          \
-  CcTest::InitializeVM();                                 \
-  Isolate* isolate = CcTest::i_isolate();                  \
-  HandleScope scope(isolate);                             \
-  byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
-  Assembler assm(isolate, buffer, 4*1024);                \
+#define SET_UP()                                             \
+  CcTest::InitializeVM();                                    \
+  Isolate* isolate = CcTest::i_isolate();                    \
+  HandleScope scope(isolate);                                \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
-
 
 // This macro assembles one instruction using the preallocated assembler and
 // disassembles the generated instruction, comparing the output to the expected
 // value. If the comparison fails an error message is printed, but the test
 // continues to run until the end.
-#define COMPARE(asm_, ...)                                                \
-  {                                                                       \
-    int pc_offset = assm.pc_offset();                                     \
-    byte* progcounter = &buffer[pc_offset];                               \
-    assm.asm_;                                                            \
-    if (!DisassembleAndCompare(progcounter, __VA_ARGS__)) failure = true; \
+#define BASE_COMPARE(asm_, use_regex, ...)                             \
+  {                                                                    \
+    int pc_offset = assm.pc_offset();                                  \
+    byte* progcounter = &buffer[pc_offset];                            \
+    assm.asm_;                                                         \
+    if (!DisassembleAndCompare(progcounter, use_regex, __VA_ARGS__)) { \
+      failure = true;                                                  \
+    }                                                                  \
   }
+
+#define COMPARE(asm_, ...) BASE_COMPARE(asm_, kRawString, __VA_ARGS__)
+
+#define COMPARE_REGEX(asm_, ...) BASE_COMPARE(asm_, kRegexString, __VA_ARGS__)
 
 // Force emission of any pending literals into a pool.
 #define EMIT_PENDING_LITERALS() \
@@ -113,9 +141,9 @@ bool DisassembleAndCompare(byte* begin, S... expected_strings) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN() \
-if (failure) { \
-    V8_Fatal(__FILE__, __LINE__, "ARM Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                           \
+  if (failure) {                               \
+    FATAL("ARM Disassembler tests failed.\n"); \
   }
 
 // clang-format off
@@ -457,6 +485,9 @@ TEST(Type3) {
 
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
+
+    COMPARE(rev(r1, r2), "e6bf1f32       rev r1, r2");
+    COMPARE(rev(r10, ip), "e6bfaf3c       rev r10, ip");
   }
 
   COMPARE(usat(r0, 1, Operand(r1)),
@@ -646,14 +677,14 @@ TEST(Vfp) {
     COMPARE(vmov(s3, Float32(13.0f)),
             "eef21a0a       vmov.f32 s3, #13");
 
-    COMPARE(vmov(d0, VmovIndexLo, r0),
+    COMPARE(vmov(NeonS32, d0, 0, r0),
             "ee000b10       vmov.32 d0[0], r0");
-    COMPARE(vmov(d0, VmovIndexHi, r0),
+    COMPARE(vmov(NeonS32, d0, 1, r0),
             "ee200b10       vmov.32 d0[1], r0");
 
-    COMPARE(vmov(r2, VmovIndexLo, d15),
+    COMPARE(vmov(NeonS32, r2, d15, 0),
             "ee1f2b10       vmov.32 r2, d15[0]");
-    COMPARE(vmov(r3, VmovIndexHi, d14),
+    COMPARE(vmov(NeonS32, r3, d14, 1),
             "ee3e3b10       vmov.32 r3, d14[1]");
 
     COMPARE(vldr(s0, r0, 0),
@@ -807,9 +838,9 @@ TEST(Vfp) {
       COMPARE(vmov(d30, Double(16.0)),
               "eef3eb00       vmov.f64 d30, #16");
 
-      COMPARE(vmov(d31, VmovIndexLo, r7),
+      COMPARE(vmov(NeonS32, d31, 0, r7),
               "ee0f7b90       vmov.32 d31[0], r7");
-      COMPARE(vmov(d31, VmovIndexHi, r7),
+      COMPARE(vmov(NeonS32, d31, 1, r7),
               "ee2f7b90       vmov.32 d31[1], r7");
 
       COMPARE(vldr(d25, r0, 0),
@@ -1482,13 +1513,16 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
 
   const char *expected_string_template =
     (offset >= 0) ?
-    "e59f0%03x       ldr r0, [pc, #+%d] (addr %p)" :
-    "e51f0%03x       ldr r0, [pc, #%d] (addr %p)";
+    "e59f0%03x       ldr r0, [pc, #+%d] (addr 0x%08" PRIxPTR ")" :
+    "e51f0%03x       ldr r0, [pc, #%d] (addr 0x%08" PRIxPTR ")";
   char expected_string[80];
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
-           abs(offset), offset,
-           progcounter + Instruction::kPCReadOffset + offset);
-  if (!DisassembleAndCompare(progcounter, expected_string)) *failure = true;
+    abs(offset), offset,
+    reinterpret_cast<uintptr_t>(
+      progcounter + Instruction::kPcLoadDelta + offset));
+  if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
+    *failure = true;
+  }
 }
 
 
@@ -1584,6 +1618,9 @@ TEST(LoadStoreExclusive) {
   COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
   COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
   COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
+  COMPARE(ldrexd(r0, r1, r2), "e1b20f9f       ldrexd r0, [r2]");
+  COMPARE(strexd(r0, r2, r3, r4),
+          "e1a40f92       strexd r0, r2, [r4]");
 
   VERIFY_RUN();
 }
@@ -1591,17 +1628,31 @@ TEST(LoadStoreExclusive) {
 TEST(SplitAddImmediate) {
   SET_UP();
 
-  // Re-use the destination as a scratch.
-  COMPARE(add(r0, r1, Operand(0x12345678)),
-          "e3050678       movw r0, #22136",
-          "e3410234       movt r0, #4660",
-          "e0810000       add r0, r1, r0");
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Re-use the destination as a scratch.
+    COMPARE(add(r0, r1, Operand(0x12345678)),
+            "e3050678       movw r0, #22136",
+            "e3410234       movt r0, #4660",
+            "e0810000       add r0, r1, r0");
 
-  // Use ip as a scratch.
-  COMPARE(add(r0, r0, Operand(0x12345678)),
-          "e305c678       movw ip, #22136",
-          "e341c234       movt ip, #4660",
-          "e080000c       add r0, r0, ip");
+    // Use ip as a scratch.
+    COMPARE(add(r0, r0, Operand(0x12345678)),
+            "e305c678       movw ip, #22136",
+            "e341c234       movt ip, #4660",
+            "e080000c       add r0, r0, ip");
+  } else {
+    // Re-use the destination as a scratch.
+    COMPARE_REGEX(add(r0, r1, Operand(0x12345678)),
+                  "e59f0[0-9a-f]{3}       "
+                      "ldr r0, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e0810000       add r0, r1, r0");
+
+    // Use ip as a scratch.
+    COMPARE_REGEX(add(r0, r0, Operand(0x12345678)),
+                  "e59fc[0-9a-f]{3}       "
+                      "ldr ip, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e080000c       add r0, r0, ip");
+  }
 
   // If ip is not available, split the operation into multiple additions.
   {

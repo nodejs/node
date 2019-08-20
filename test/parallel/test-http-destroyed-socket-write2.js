@@ -69,8 +69,7 @@ server.listen(0, function() {
     }
 
 
-    assert.strictEqual(req.output.length, 0);
-    assert.strictEqual(req.outputEncodings.length, 0);
+    assert.strictEqual(req.outputData.length, 0);
     server.close();
   }));
 

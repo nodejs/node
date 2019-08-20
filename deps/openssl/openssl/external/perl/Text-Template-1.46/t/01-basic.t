@@ -33,12 +33,12 @@ if (defined($template)) {
 $n++;
 
 # (3) Fill in template from file
-$X::v = "abc";
+$X::v = "abc";	
 $resultX = <<EOM;
 We will put value of \$v (which is "abc") here -> abc
 We will evaluate 1+1 here -> 2
 EOM
-$Y::v = "ABC";
+$Y::v = "ABC";	
 $resultY = <<EOM;
 We will put value of \$v (which is "abc") here -> ABC
 We will evaluate 1+1 here -> 2
@@ -74,7 +74,7 @@ $n++;
 
 # (6) test creation of template from filehandle
 if (open (TMPL, "< $TEMPFILE")) {
-  $template = new Text::Template ('type' => 'FILEHANDLE',
+  $template = new Text::Template ('type' => 'FILEHANDLE', 
 				  'source' => *TMPL);
   if (defined($template)) {
     print "ok $n\n";
@@ -109,9 +109,9 @@ if (open (TMPL, "< $TEMPFILE")) {
 
 
 # (9) test creation of template from array
-$template = new Text::Template
-    ('type' => 'ARRAY',
-     'source' => [
+$template = new Text::Template 
+    ('type' => 'ARRAY', 
+     'source' => [ 
 		  'We will put value of $v (which is "abc") here -> {$v}',
 		  "\n",
 		  'We will evaluate 1+1 here -> {1+1}',
@@ -209,7 +209,7 @@ for ($i=0; $i<@tests; $i+=2) {
 # MJD 20010827
 # (28) test creation of template from filehandle
 if (open (TMPL, "< $TEMPFILE")) {
-  $template = new Text::Template ('type' => 'FILEHANDLE',
+  $template = new Text::Template ('type' => 'FILEHANDLE', 
 				  'source' => \*TMPL);
   if (defined($template)) {
     print "ok $n\n";

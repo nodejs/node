@@ -95,9 +95,11 @@
 # Haswell	12.2	9.28(+31%)  7.80(+56%)	    7.66    5.40(+42%)
 # Skylake	11.4	9.03(+26%)  7.70(+48%)      7.25    5.20(+40%)
 # Bulldozer	21.1	13.6(+54%)  13.6(+54%(***)) 13.5    8.58(+57%)
+# Ryzen		11.0	9.02(+22%)  2.05(+440%)     7.05    5.67(+20%)
 # VIA Nano	23.0	16.5(+39%)  -		    14.7    -
 # Atom		23.0	18.9(+22%)  -		    14.7    -
 # Silvermont	27.4	20.6(+33%)  -               17.5    -
+# Knights L	27.4	21.0(+30%)  19.6(+40%)	    17.5    12.8(+37%)
 # Goldmont	18.9	14.3(+32%)  4.16(+350%)     12.0    -
 #
 # (*)	whichever best applicable, including SHAEXT;
@@ -176,7 +178,7 @@ $Tbl="%rbp";
 $_ctx="16*$SZ+0*8(%rsp)";
 $_inp="16*$SZ+1*8(%rsp)";
 $_end="16*$SZ+2*8(%rsp)";
-$_rsp="16*$SZ+3*8(%rsp)";
+$_rsp="`16*$SZ+3*8`(%rsp)";
 $framesz="16*$SZ+4*8";
 
 
@@ -269,6 +271,7 @@ $code=<<___;
 .type	$func,\@function,3
 .align	16
 $func:
+.cfi_startproc
 ___
 $code.=<<___ if ($SZ==4 || $avx);
 	lea	OPENSSL_ia32cap_P(%rip),%r11
@@ -301,13 +304,20 @@ $code.=<<___ if ($SZ==4);
 	jnz	.Lssse3_shortcut
 ___
 $code.=<<___;
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	shl	\$4,%rdx		# num*16
 	sub	\$$framesz,%rsp
 	lea	($inp,%rdx,$SZ),%rdx	# inp+num*16*$SZ
@@ -315,7 +325,8 @@ $code.=<<___;
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%r11,$_rsp		# save copy of %rsp
+	mov	%rax,$_rsp		# save copy of %rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 .Lprologue:
 
 	mov	$SZ*0($ctx),$A
@@ -382,15 +393,24 @@ $code.=<<___;
 	jb	.Lloop
 
 	mov	$_rsp,%rsi
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+.cfi_def_cfa	%rsi,8
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue:
 	ret
+.cfi_endproc
 .size	$func,.-$func
 ___
 
@@ -760,14 +780,22 @@ $code.=<<___;
 .type	${func}_ssse3,\@function,3
 .align	64
 ${func}_ssse3:
+.cfi_startproc
 .Lssse3_shortcut:
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	shl	\$4,%rdx		# num*16
 	sub	\$`$framesz+$win64*16*4`,%rsp
 	lea	($inp,%rdx,$SZ),%rdx	# inp+num*16*$SZ
@@ -775,7 +803,8 @@ ${func}_ssse3:
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%r11,$_rsp		# save copy of %rsp
+	mov	%rax,$_rsp		# save copy of %rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,16*$SZ+32(%rsp)
@@ -1074,6 +1103,7 @@ $code.=<<___;
 	jb	.Lloop_ssse3
 
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 ___
 $code.=<<___ if ($win64);
 	movaps	16*$SZ+32(%rsp),%xmm6
@@ -1082,15 +1112,23 @@ $code.=<<___ if ($win64);
 	movaps	16*$SZ+80(%rsp),%xmm9
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_ssse3:
 	ret
+.cfi_endproc
 .size	${func}_ssse3,.-${func}_ssse3
 ___
 }
@@ -1104,14 +1142,22 @@ $code.=<<___;
 .type	${func}_xop,\@function,3
 .align	64
 ${func}_xop:
+.cfi_startproc
 .Lxop_shortcut:
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	shl	\$4,%rdx		# num*16
 	sub	\$`$framesz+$win64*16*($SZ==4?4:6)`,%rsp
 	lea	($inp,%rdx,$SZ),%rdx	# inp+num*16*$SZ
@@ -1119,7 +1165,8 @@ ${func}_xop:
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%r11,$_rsp		# save copy of %rsp
+	mov	%rax,$_rsp		# save copy of %rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,16*$SZ+32(%rsp)
@@ -1446,6 +1493,7 @@ $code.=<<___;
 	jb	.Lloop_xop
 
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -1459,15 +1507,23 @@ $code.=<<___ if ($win64 && $SZ>4);
 	movaps	16*$SZ+112(%rsp),%xmm11
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_xop:
 	ret
+.cfi_endproc
 .size	${func}_xop,.-${func}_xop
 ___
 }
@@ -1480,14 +1536,22 @@ $code.=<<___;
 .type	${func}_avx,\@function,3
 .align	64
 ${func}_avx:
+.cfi_startproc
 .Lavx_shortcut:
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	shl	\$4,%rdx		# num*16
 	sub	\$`$framesz+$win64*16*($SZ==4?4:6)`,%rsp
 	lea	($inp,%rdx,$SZ),%rdx	# inp+num*16*$SZ
@@ -1495,7 +1559,8 @@ ${func}_avx:
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%r11,$_rsp		# save copy of %rsp
+	mov	%rax,$_rsp		# save copy of %rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,16*$SZ+32(%rsp)
@@ -1754,6 +1819,7 @@ $code.=<<___;
 	jb	.Lloop_avx
 
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -1767,15 +1833,23 @@ $code.=<<___ if ($win64 && $SZ>4);
 	movaps	16*$SZ+112(%rsp),%xmm11
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx:
 	ret
+.cfi_endproc
 .size	${func}_avx,.-${func}_avx
 ___
 
@@ -1783,7 +1857,7 @@ if ($avx>1) {{
 ######################################################################
 # AVX2+BMI code path
 #
-my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp 
+my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp
 my $PUSH8=8*2*$SZ;
 use integer;
 
@@ -1831,14 +1905,22 @@ $code.=<<___;
 .type	${func}_avx2,\@function,3
 .align	64
 ${func}_avx2:
+.cfi_startproc
 .Lavx2_shortcut:
+	mov	%rsp,%rax		# copy %rsp
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
-	mov	%rsp,%r11		# copy %rsp
+.cfi_push	%r15
 	sub	\$`2*$SZ*$rounds+4*8+$win64*16*($SZ==4?4:6)`,%rsp
 	shl	\$4,%rdx		# num*16
 	and	\$-256*$SZ,%rsp		# align stack frame
@@ -1847,7 +1929,8 @@ ${func}_avx2:
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%r11,$_rsp		# save copy of %rsp
+	mov	%rax,$_rsp		# save copy of %rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,16*$SZ+32(%rsp)
@@ -2128,6 +2211,7 @@ $code.=<<___;
 .Ldone_avx2:
 	lea	($Tbl),%rsp
 	mov	$_rsp,%rsi
+.cfi_def_cfa	%rsi,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -2141,15 +2225,23 @@ $code.=<<___ if ($win64 && $SZ>4);
 	movaps	16*$SZ+112(%rsp),%xmm11
 ___
 $code.=<<___;
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue_avx2:
 	ret
+.cfi_endproc
 .size	${func}_avx2,.-${func}_avx2
 ___
 }}
@@ -2209,7 +2301,6 @@ ___
 $code.=<<___;
 	mov	%rax,%rsi		# put aside Rsp
 	mov	16*$SZ+3*8(%rax),%rax	# pull $_rsp
-	lea	48(%rax),%rax
 
 	mov	-8(%rax),%rbx
 	mov	-16(%rax),%rbp

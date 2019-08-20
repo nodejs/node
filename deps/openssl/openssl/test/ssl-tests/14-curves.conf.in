@@ -17,7 +17,7 @@ my @curves = ("sect163k1", "sect163r1", "sect163r2", "sect193r1",
               "secp160r2", "secp192k1", "prime192v1", "secp224k1",
               "secp224r1", "secp256k1", "prime256v1", "secp384r1",
               "secp521r1", "brainpoolP256r1", "brainpoolP384r1",
-              "brainpoolP512r1", "X25519");
+              "brainpoolP512r1", "X25519", "X448");
 
 our @tests = ();
 
@@ -25,12 +25,15 @@ sub generate_tests() {
     foreach (0..$#curves) {
         my $curve = $curves[$_];
         push @tests, {
-	    name => "curve-${curve}",
+            name => "curve-${curve}",
             server => {
-                "Curves" => $curve
+                "Curves" => $curve,
+                # TODO(TLS1.3): Can we get this to work for TLSv1.3?
+                "MaxProtocol" => "TLSv1.2"
             },
             client => {
-		"CipherString" => "ECDHE",
+                "CipherString" => "ECDHE",
+                "MaxProtocol" => "TLSv1.2",
                 "Curves" => $curve
             },
             test   => {

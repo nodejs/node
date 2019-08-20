@@ -1,4 +1,4 @@
-import { message } from './message';
+import { message } from './message.mjs';
 
 var t = 1;
 var k = 1;
@@ -6,7 +6,7 @@ console.log(message, 5);
 while (t > 0) {
   if (t++ === 1000) {
     t = 0;
-    console.log(`Outputed message #${k++}`);
+    console.log(`Outputted message #${k++}`);
   }
 }
 process.exit(55);

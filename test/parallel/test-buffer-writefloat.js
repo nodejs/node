@@ -50,8 +50,18 @@ assert.strictEqual(buffer.readFloatLE(4), -Infinity);
 
 buffer.writeFloatBE(NaN, 0);
 buffer.writeFloatLE(NaN, 4);
-assert.ok(buffer.equals(
-  new Uint8Array([ 0x7F, 0xC0, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x7F ])));
+
+// JS only knows a single NaN but there exist two platform specific
+// implementations. Therefore, allow both quiet and signalling NaNs.
+if (buffer[1] === 0xBF) {
+  assert.ok(
+    buffer.equals(new Uint8Array(
+      [ 0x7F, 0xBF, 0xFF, 0xFF, 0xFF, 0xFF, 0xBF, 0x7F ])));
+} else {
+  assert.ok(
+    buffer.equals(new Uint8Array(
+      [ 0x7F, 0xC0, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x7F ])));
+}
 
 assert.ok(Number.isNaN(buffer.readFloatBE(0)));
 assert.ok(Number.isNaN(buffer.readFloatLE(4)));
@@ -70,8 +80,8 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
       () => small[fn](11.11, 0),
       {
         code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-        name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
-        message: 'Attempt to write outside buffer bounds'
+        name: 'RangeError',
+        message: 'Attempt to access memory outside buffer bounds'
       });
 
     ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
@@ -86,7 +96,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
         () => buffer[fn](23, offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
                    `It must be >= 0 and <= 4. Received ${offset}`
         }
@@ -98,7 +108,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
         () => buffer[fn](42, offset),
         {
           code: 'ERR_OUT_OF_RANGE',
-          name: 'RangeError [ERR_OUT_OF_RANGE]',
+          name: 'RangeError',
           message: 'The value of "offset" is out of range. ' +
                    `It must be an integer. Received ${offset}`
         });

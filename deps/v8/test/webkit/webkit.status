@@ -35,6 +35,14 @@
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
+
+  # This test tries to sort very large array. Array#sort pre-processing does
+  # not support huge sparse Arrays, so this test runs a very long time.
+  # https://crbug.com/v8/8714
+  'array-sort-small-sparse-array-with-large-length': [SKIP],
+
+  # Slow tests.
+  'dfg-double-vote-fuzz': [PASS, SLOW],
 }],  # ALWAYS
 ['system == windows', {
   # Exceeds call stack on windows after MSVS2017 switch.
@@ -49,17 +57,18 @@
   # Too slow with --enable-slow-asserts.
   'array-iterate-backwards': [SKIP],
 }],  # 'mode == debug'
-['simulator', {
+['simulator_run', {
   # Skip tests that timeout with turbofan.
   'array-iterate-backwards': [PASS, NO_VARIANTS],
   'function-apply-aliased': [SKIP],
 
   # Skip tests that are too slow for simulators.
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'simulator'
-['arch == arm64 and simulator_run', {
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == arm64 and simulator_run'
+}],  # 'simulator_run'
+['mode == debug and simulator_run', {
+  # Too slow on debug simulators.
+  'dfg-inline-function-dot-caller': [SKIP],
+}],  # 'mode == debug and simulator_run'
 ['dcheck_always_on == True and (arch == arm or arch == arm64)', {
   # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
   'reentrant-caching': [SKIP],
@@ -68,10 +77,6 @@
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == mips'
-['(arch == ppc or arch == ppc64) and simulator_run', {
-  # Too slow.
-  'dfg-int-overflow-in-loop': [SKIP],
-}], # 'arch == ppc or arch == ppc64'
 ['arch == s390 or arch == s390x', {
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
@@ -109,6 +114,12 @@
 }],  # arch == arm64 and msan
 
 ##############################################################################
+['variant in [nooptimization, stress, stress_js_bg_compile_wasm_code_gc] and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'dfg-double-vote-fuzz': [SKIP],
+}],  # variant in [nooptimization, stress, stress_js_bg_compile_wasm_code_gc] and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],
@@ -116,14 +127,19 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_i18n == True', {
   'fast/js/string-capitalization': [FAIL],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ##############################################################################
 ]

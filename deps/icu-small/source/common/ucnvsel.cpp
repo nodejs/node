@@ -41,6 +41,7 @@
 #include "propsvec.h"
 #include "uassert.h"
 #include "ucmndata.h"
+#include "udataswp.h"
 #include "uenumimp.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -72,7 +73,7 @@ static void generateSelectorData(UConverterSelector* result,
   // set errorValue to all-ones
   for (int32_t col = 0; col < columns; col++) {
     upvec_setValue(upvec, UPVEC_ERROR_VALUE_CP, UPVEC_ERROR_VALUE_CP,
-                   col, ~0, ~0, status);
+                   col, static_cast<uint32_t>(~0), static_cast<uint32_t>(~0), status);
   }
 
   for (int32_t i = 0; i < result->encodingsCount; ++i) {
@@ -109,7 +110,7 @@ static void generateSelectorData(UConverterSelector* result,
         // this will be reached for the converters that fill the set with
         // strings. Those should be ignored by our system
       } else {
-        upvec_setValue(upvec, start_char, end_char, column, ~0, mask,
+        upvec_setValue(upvec, start_char, end_char, column, static_cast<uint32_t>(~0), mask,
                        status);
       }
     }
@@ -130,7 +131,7 @@ static void generateSelectorData(UConverterSelector* result,
       uset_getItem(excludedCodePoints, j, &start_char, &end_char, NULL, 0,
                    status);
       for (int32_t col = 0; col < columns; col++) {
-        upvec_setValue(upvec, start_char, end_char, col, ~0, ~0,
+        upvec_setValue(upvec, start_char, end_char, col, static_cast<uint32_t>(~0), static_cast<uint32_t>(~0),
                       status);
       }
     }
@@ -684,7 +685,7 @@ static int16_t countOnes(uint32_t* mask, int32_t len) {
       ent &= ent - 1; // clear the least significant bit set
     }
   }
-  return totalOnes;
+  return static_cast<int16_t>(totalOnes);
 }
 
 

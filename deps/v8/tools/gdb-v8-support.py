@@ -25,12 +25,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import re
 import tempfile
 import os
 import subprocess
 import time
-
+import gdb
 
 kSmiTag = 0
 kSmiTagSize = 1

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,235 +11,325 @@
 #include <string.h>
 #include <stdlib.h>
 #include <openssl/opensslv.h>
+#include <openssl/ssl.h>
+#include <openssl/ossl_typ.h>
+#include "internal/dso_conf.h"
 
-/* The test is only currently implemented for DSO_DLFCN and DSO_WIN32 */
-#if defined(DSO_DLFCN) || defined(DSO_WIN32)
+typedef void DSO;
 
-#define SSL_CTX_NEW "SSL_CTX_new"
-#define SSL_CTX_FREE "SSL_CTX_free"
-#define TLS_METHOD "TLS_method"
-
-#define ERR_GET_ERROR "ERR_get_error"
-#define OPENSSL_VERSION_NUM_FUNC "OpenSSL_version_num"
-
-typedef struct ssl_ctx_st SSL_CTX;
-typedef struct ssl_method_st SSL_METHOD;
 typedef const SSL_METHOD * (*TLS_method_t)(void);
 typedef SSL_CTX * (*SSL_CTX_new_t)(const SSL_METHOD *meth);
 typedef void (*SSL_CTX_free_t)(SSL_CTX *);
-
+typedef int (*OPENSSL_init_crypto_t)(uint64_t, void *);
+typedef int (*OPENSSL_atexit_t)(void (*handler)(void));
 typedef unsigned long (*ERR_get_error_t)(void);
 typedef unsigned long (*OpenSSL_version_num_t)(void);
+typedef DSO * (*DSO_dsobyaddr_t)(void (*addr)(void), int flags);
+typedef int (*DSO_free_t)(DSO *dso);
 
-static TLS_method_t TLS_method;
-static SSL_CTX_new_t SSL_CTX_new;
-static SSL_CTX_free_t SSL_CTX_free;
+typedef enum test_types_en {
+    CRYPTO_FIRST,
+    SSL_FIRST,
+    JUST_CRYPTO,
+    DSO_REFTEST,
+    NO_ATEXIT
+} TEST_TYPE;
 
-static ERR_get_error_t ERR_get_error;
-static OpenSSL_version_num_t OpenSSL_version_num;
+static TEST_TYPE test_type;
+static const char *path_crypto;
+static const char *path_ssl;
+static const char *path_atexit;
 
 #ifdef DSO_DLFCN
 
 # include <dlfcn.h>
 
-typedef void * SHLIB;
-typedef void * SHLIB_SYM;
 # define SHLIB_INIT NULL
+
+typedef void *SHLIB;
+typedef void *SHLIB_SYM;
 
 static int shlib_load(const char *filename, SHLIB *lib)
 {
-    *lib = dlopen(filename, RTLD_GLOBAL | RTLD_LAZY);
-
-    if (*lib == NULL)
-        return 0;
-
-    return 1;
+    int dl_flags = (RTLD_GLOBAL|RTLD_LAZY);
+#ifdef _AIX
+    if (filename[strlen(filename) - 1] == ')')
+        dl_flags |= RTLD_MEMBER;
+#endif
+    *lib = dlopen(filename, dl_flags);
+    return *lib == NULL ? 0 : 1;
 }
 
 static int shlib_sym(SHLIB lib, const char *symname, SHLIB_SYM *sym)
 {
     *sym = dlsym(lib, symname);
-
     return *sym != NULL;
 }
 
 static int shlib_close(SHLIB lib)
 {
-    if (dlclose(lib) != 0)
-        return 0;
-
-    return 1;
+    return dlclose(lib) != 0 ? 0 : 1;
 }
+#endif
 
-#elif defined(DSO_WIN32)
+#ifdef DSO_WIN32
 
 # include <windows.h>
 
-typedef HINSTANCE SHLIB;
-typedef void * SHLIB_SYM;
 # define SHLIB_INIT 0
+
+typedef HINSTANCE SHLIB;
+typedef void *SHLIB_SYM;
 
 static int shlib_load(const char *filename, SHLIB *lib)
 {
     *lib = LoadLibraryA(filename);
-    if (*lib == NULL)
-        return 0;
-
-    return 1;
+    return *lib == NULL ? 0 : 1;
 }
 
 static int shlib_sym(SHLIB lib, const char *symname, SHLIB_SYM *sym)
 {
     *sym = (SHLIB_SYM)GetProcAddress(lib, symname);
-
     return *sym != NULL;
 }
 
 static int shlib_close(SHLIB lib)
 {
-    if (FreeLibrary(lib) == 0)
-        return 0;
-
-    return 1;
+    return FreeLibrary(lib) == 0 ? 0 : 1;
 }
-
 #endif
 
-# define CRYPTO_FIRST_OPT    "-crypto_first"
-# define SSL_FIRST_OPT       "-ssl_first"
-# define JUST_CRYPTO_OPT     "-just_crypto"
 
-enum test_types_en {
-    CRYPTO_FIRST,
-    SSL_FIRST,
-    JUST_CRYPTO
-};
+#if defined(DSO_DLFCN) || defined(DSO_WIN32)
 
-int main(int argc, char **argv)
+static int atexit_handler_done = 0;
+
+static void atexit_handler(void)
 {
-    SHLIB ssllib = SHLIB_INIT, cryptolib = SHLIB_INIT;
+    FILE *atexit_file = fopen(path_atexit, "w");
+
+    if (atexit_file == NULL)
+        return;
+
+    fprintf(atexit_file, "atexit() run\n");
+    fclose(atexit_file);
+    atexit_handler_done++;
+}
+
+static int test_lib(void)
+{
+    SHLIB ssllib = SHLIB_INIT;
+    SHLIB cryptolib = SHLIB_INIT;
     SSL_CTX *ctx;
     union {
-        void (*func) (void);
+        void (*func)(void);
         SHLIB_SYM sym;
-    } tls_method_sym, ssl_ctx_new_sym, ssl_ctx_free_sym, err_get_error_sym,
-    openssl_version_num_sym;
-    enum test_types_en test_type;
-    int i;
+    } symbols[3];
+    TLS_method_t myTLS_method;
+    SSL_CTX_new_t mySSL_CTX_new;
+    SSL_CTX_free_t mySSL_CTX_free;
+    ERR_get_error_t myERR_get_error;
+    OpenSSL_version_num_t myOpenSSL_version_num;
+    OPENSSL_atexit_t myOPENSSL_atexit;
+    int result = 0;
 
-    if (argc != 4) {
-        printf("Unexpected number of arguments\n");
-        return 1;
+    switch (test_type) {
+    case JUST_CRYPTO:
+    case DSO_REFTEST:
+    case NO_ATEXIT:
+    case CRYPTO_FIRST:
+        if (!shlib_load(path_crypto, &cryptolib)) {
+            fprintf(stderr, "Failed to load libcrypto\n");
+            goto end;
+        }
+        if (test_type != CRYPTO_FIRST)
+            break;
+        /* Fall through */
+
+    case SSL_FIRST:
+        if (!shlib_load(path_ssl, &ssllib)) {
+            fprintf(stderr, "Failed to load libssl\n");
+            goto end;
+        }
+        if (test_type != SSL_FIRST)
+            break;
+        if (!shlib_load(path_crypto, &cryptolib)) {
+            fprintf(stderr, "Failed to load libcrypto\n");
+            goto end;
+        }
+        break;
     }
 
-    if (strcmp(argv[1], CRYPTO_FIRST_OPT) == 0) {
-        test_type = CRYPTO_FIRST;
-    } else if (strcmp(argv[1], SSL_FIRST_OPT) == 0) {
-            test_type = SSL_FIRST;
-    } else if (strcmp(argv[1], JUST_CRYPTO_OPT) == 0) {
-            test_type = JUST_CRYPTO;
-    } else {
-        printf("Unrecognised argument\n");
-        return 1;
-    }
+    if (test_type == NO_ATEXIT) {
+        OPENSSL_init_crypto_t myOPENSSL_init_crypto;
 
-    for (i = 0; i < 2; i++) {
-        if ((i == 0 && (test_type == CRYPTO_FIRST
-                       || test_type == JUST_CRYPTO))
-               || (i == 1 && test_type == SSL_FIRST)) {
-            if (!shlib_load(argv[2], &cryptolib)) {
-                printf("Unable to load libcrypto\n");
-                return 1;
-            }
+        if (!shlib_sym(cryptolib, "OPENSSL_init_crypto", &symbols[0].sym)) {
+            fprintf(stderr, "Failed to load OPENSSL_init_crypto symbol\n");
+            goto end;
         }
-        if ((i == 0 && test_type == SSL_FIRST)
-                || (i == 1 && test_type == CRYPTO_FIRST)) {
-            if (!shlib_load(argv[3], &ssllib)) {
-                printf("Unable to load libssl\n");
-                return 1;
-            }
+        myOPENSSL_init_crypto = (OPENSSL_init_crypto_t)symbols[0].func;
+        if (!myOPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, NULL)) {
+            fprintf(stderr, "Failed to initialise libcrypto\n");
+            goto end;
         }
     }
 
-    if (test_type != JUST_CRYPTO) {
-        if (!shlib_sym(ssllib, TLS_METHOD, &tls_method_sym.sym)
-                || !shlib_sym(ssllib, SSL_CTX_NEW, &ssl_ctx_new_sym.sym)
-                || !shlib_sym(ssllib, SSL_CTX_FREE, &ssl_ctx_free_sym.sym)) {
-            printf("Unable to load ssl symbols\n");
-            return 1;
+    if (test_type != JUST_CRYPTO
+            && test_type != DSO_REFTEST
+            && test_type != NO_ATEXIT) {
+        if (!shlib_sym(ssllib, "TLS_method", &symbols[0].sym)
+                || !shlib_sym(ssllib, "SSL_CTX_new", &symbols[1].sym)
+                || !shlib_sym(ssllib, "SSL_CTX_free", &symbols[2].sym)) {
+            fprintf(stderr, "Failed to load libssl symbols\n");
+            goto end;
         }
-
-        TLS_method = (TLS_method_t)tls_method_sym.func;
-        SSL_CTX_new = (SSL_CTX_new_t)ssl_ctx_new_sym.func;
-        SSL_CTX_free = (SSL_CTX_free_t)ssl_ctx_free_sym.func;
-
-        ctx = SSL_CTX_new(TLS_method());
+        myTLS_method = (TLS_method_t)symbols[0].func;
+        mySSL_CTX_new = (SSL_CTX_new_t)symbols[1].func;
+        mySSL_CTX_free = (SSL_CTX_free_t)symbols[2].func;
+        ctx = mySSL_CTX_new(myTLS_method());
         if (ctx == NULL) {
-            printf("Unable to create SSL_CTX\n");
-            return 1;
+            fprintf(stderr, "Failed to create SSL_CTX\n");
+            goto end;
         }
-        SSL_CTX_free(ctx);
+        mySSL_CTX_free(ctx);
     }
 
-    if (!shlib_sym(cryptolib, ERR_GET_ERROR, &err_get_error_sym.sym)
-            || !shlib_sym(cryptolib, OPENSSL_VERSION_NUM_FUNC,
-                          &openssl_version_num_sym.sym)) {
-        printf("Unable to load crypto symbols\n");
-        return 1;
+    if (!shlib_sym(cryptolib, "ERR_get_error", &symbols[0].sym)
+           || !shlib_sym(cryptolib, "OpenSSL_version_num", &symbols[1].sym)
+           || !shlib_sym(cryptolib, "OPENSSL_atexit", &symbols[2].sym)) {
+        fprintf(stderr, "Failed to load libcrypto symbols\n");
+        goto end;
+    }
+    myERR_get_error = (ERR_get_error_t)symbols[0].func;
+    if (myERR_get_error() != 0) {
+        fprintf(stderr, "Unexpected ERR_get_error() response\n");
+        goto end;
     }
 
-    ERR_get_error = (ERR_get_error_t)err_get_error_sym.func;
-    OpenSSL_version_num = (OpenSSL_version_num_t)openssl_version_num_sym.func;
-
-    if (ERR_get_error() != 0) {
-        printf("Unexpected error in error queue\n");
-        return 1;
+    myOpenSSL_version_num = (OpenSSL_version_num_t)symbols[1].func;
+    if (myOpenSSL_version_num()  != OPENSSL_VERSION_NUMBER) {
+        fprintf(stderr, "Invalid library version number\n");
+        goto end;
     }
 
+    myOPENSSL_atexit = (OPENSSL_atexit_t)symbols[2].func;
+    if (!myOPENSSL_atexit(atexit_handler)) {
+        fprintf(stderr, "Failed to register atexit handler\n");
+        goto end;
+    }
+
+    if (test_type == DSO_REFTEST) {
+# ifdef DSO_DLFCN
+        DSO_dsobyaddr_t myDSO_dsobyaddr;
+        DSO_free_t myDSO_free;
+
+        /*
+         * This is resembling the code used in ossl_init_base() and
+         * OPENSSL_atexit() to block unloading the library after dlclose().
+         * We are not testing this on Windows, because it is done there in a
+         * completely different way. Especially as a call to DSO_dsobyaddr()
+         * will always return an error, because DSO_pathbyaddr() is not
+         * implemented there.
+         */
+        if (!shlib_sym(cryptolib, "DSO_dsobyaddr", &symbols[0].sym)
+                || !shlib_sym(cryptolib, "DSO_free", &symbols[1].sym)) {
+            fprintf(stderr, "Unable to load DSO symbols\n");
+            goto end;
+        }
+
+        myDSO_dsobyaddr = (DSO_dsobyaddr_t)symbols[0].func;
+        myDSO_free = (DSO_free_t)symbols[1].func;
+
+        {
+            DSO *hndl;
+            /* use known symbol from crypto module */
+            hndl = myDSO_dsobyaddr((void (*)(void))myERR_get_error, 0);
+            if (hndl == NULL) {
+                fprintf(stderr, "DSO_dsobyaddr() failed\n");
+                goto end;
+            }
+            myDSO_free(hndl);
+        }
+# endif /* DSO_DLFCN */
+    }
+
+    if (!shlib_close(cryptolib)) {
+        fprintf(stderr, "Failed to close libcrypto\n");
+        goto end;
+    }
+
+    if (test_type == CRYPTO_FIRST || test_type == SSL_FIRST) {
+        if (!shlib_close(ssllib)) {
+            fprintf(stderr, "Failed to close libssl\n");
+            goto end;
+        }
+    }
+
+# if defined(OPENSSL_NO_PINSHARED) \
+    && defined(__GLIBC__) \
+    && defined(__GLIBC_PREREQ) \
+    && defined(OPENSSL_SYS_LINUX)
+#  if __GLIBC_PREREQ(2, 3)
     /*
-     * The bits that COMPATIBILITY_MASK lets through MUST be the same in
-     * the library and in the application.
-     * The bits that are masked away MUST be a larger or equal number in
-     * the library compared to the application.
+     * If we didn't pin the so then we are hopefully on a platform that supports
+     * running atexit() on so unload. If not we might crash. We know this is
+     * true on linux since glibc 2.2.3
      */
-# define COMPATIBILITY_MASK 0xfff00000L
-    if ((OpenSSL_version_num() & COMPATIBILITY_MASK)
-        != (OPENSSL_VERSION_NUMBER & COMPATIBILITY_MASK)) {
-        printf("Unexpected library version loaded\n");
-        return 1;
+    if (test_type != NO_ATEXIT && atexit_handler_done != 1) {
+        fprintf(stderr, "atexit() handler did not run\n");
+        goto end;
     }
+#  endif
+# endif
 
-    if ((OpenSSL_version_num() & ~COMPATIBILITY_MASK)
-        < (OPENSSL_VERSION_NUMBER & ~COMPATIBILITY_MASK)) {
-        printf("Unexpected library version loaded\n");
-        return 1;
-    }
-
-    for (i = 0; i < 2; i++) {
-        if ((i == 0 && test_type == CRYPTO_FIRST)
-                || (i == 1 && test_type == SSL_FIRST)) {
-            if (!shlib_close(ssllib)) {
-                printf("Unable to close libssl\n");
-                return 1;
-            }
-        }
-        if ((i == 0 && (test_type == SSL_FIRST
-                       || test_type == JUST_CRYPTO))
-                || (i == 1 && test_type == CRYPTO_FIRST)) {
-            if (!shlib_close(cryptolib)) {
-                printf("Unable to close libcrypto\n");
-                return 1;
-            }
-        }
-    }
-
-    printf("Success\n");
-    return 0;
-}
-#else
-int main(void)
-{
-    printf("Test not implemented on this platform\n");
-    return 0;
+    result = 1;
+end:
+    return result;
 }
 #endif
+
+
+/*
+ * shlibloadtest should not use the normal test framework because we don't want
+ * it to link against libcrypto (which the framework uses). The point of the
+ * test is to check dynamic loading and unloading of libcrypto/libssl.
+ */
+int main(int argc, char *argv[])
+{
+    const char *p;
+
+    if (argc != 5) {
+        fprintf(stderr, "Incorrect number of arguments\n");
+        return 1;
+    }
+
+    p = argv[1];
+
+    if (strcmp(p, "-crypto_first") == 0) {
+        test_type = CRYPTO_FIRST;
+    } else if (strcmp(p, "-ssl_first") == 0) {
+        test_type = SSL_FIRST;
+    } else if (strcmp(p, "-just_crypto") == 0) {
+        test_type = JUST_CRYPTO;
+    } else if (strcmp(p, "-dso_ref") == 0) {
+        test_type = DSO_REFTEST;
+    } else if (strcmp(p, "-no_atexit") == 0) {
+        test_type = NO_ATEXIT;
+    } else {
+        fprintf(stderr, "Unrecognised argument\n");
+        return 1;
+    }
+    path_crypto = argv[2];
+    path_ssl = argv[3];
+    path_atexit = argv[4];
+    if (path_crypto == NULL || path_ssl == NULL) {
+        fprintf(stderr, "Invalid libcrypto/libssl path\n");
+        return 1;
+    }
+
+#if defined(DSO_DLFCN) || defined(DSO_WIN32)
+    if (!test_lib())
+        return 1;
+#endif
+    return 0;
+}

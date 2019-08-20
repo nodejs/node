@@ -16,7 +16,7 @@ class InspectedContext;
 class V8InspectorImpl;
 
 // Console API
-// https://console.spec.whatwg.org/#console-interface
+// https://console.spec.whatwg.org/#console-namespace
 class V8Console : public v8::debug::ConsoleDelegate {
  public:
   v8::Local<v8::Object> createCommandLineAPI(v8::Local<v8::Context> context,
@@ -78,20 +78,18 @@ class V8Console : public v8::debug::ConsoleDelegate {
              const v8::debug::ConsoleContext& consoleContext) override;
   void Count(const v8::debug::ConsoleCallArguments&,
              const v8::debug::ConsoleContext& consoleContext) override;
+  void CountReset(const v8::debug::ConsoleCallArguments&,
+                  const v8::debug::ConsoleContext& consoleContext) override;
   void Assert(const v8::debug::ConsoleCallArguments&,
               const v8::debug::ConsoleContext& consoleContext) override;
-  void MarkTimeline(const v8::debug::ConsoleCallArguments&,
-                    const v8::debug::ConsoleContext& consoleContext) override;
   void Profile(const v8::debug::ConsoleCallArguments&,
                const v8::debug::ConsoleContext& consoleContext) override;
   void ProfileEnd(const v8::debug::ConsoleCallArguments&,
                   const v8::debug::ConsoleContext& consoleContext) override;
-  void Timeline(const v8::debug::ConsoleCallArguments&,
-                const v8::debug::ConsoleContext& consoleContext) override;
-  void TimelineEnd(const v8::debug::ConsoleCallArguments&,
-                   const v8::debug::ConsoleContext& consoleContext) override;
   void Time(const v8::debug::ConsoleCallArguments&,
             const v8::debug::ConsoleContext& consoleContext) override;
+  void TimeLog(const v8::debug::ConsoleCallArguments&,
+               const v8::debug::ConsoleContext& consoleContext) override;
   void TimeEnd(const v8::debug::ConsoleCallArguments&,
                const v8::debug::ConsoleContext& consoleContext) override;
   void TimeStamp(const v8::debug::ConsoleCallArguments&,

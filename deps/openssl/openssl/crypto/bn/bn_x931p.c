@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,10 +62,10 @@ int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
         return 0;
 
     BN_CTX_start(ctx);
-    if (!p1)
+    if (p1 == NULL)
         p1 = BN_CTX_get(ctx);
 
-    if (!p2)
+    if (p2 == NULL)
         p2 = BN_CTX_get(ctx);
 
     t = BN_CTX_get(ctx);
@@ -173,7 +173,7 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
      * - 1. By setting the top two bits we ensure that the lower bound is
      * exceeded.
      */
-    if (!BN_rand(Xp, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
+    if (!BN_priv_rand(Xp, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
         goto err;
 
     BN_CTX_start(ctx);
@@ -182,10 +182,12 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
         goto err;
 
     for (i = 0; i < 1000; i++) {
-        if (!BN_rand(Xq, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
+        if (!BN_priv_rand(Xq, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
             goto err;
+
         /* Check that |Xp - Xq| > 2^(nbits - 100) */
-        BN_sub(t, Xp, Xq);
+        if (!BN_sub(t, Xp, Xq))
+            goto err;
         if (BN_num_bits(t) > (nbits - 100))
             break;
     }
@@ -225,9 +227,9 @@ int BN_X931_generate_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
     if (Xp1 == NULL || Xp2 == NULL)
         goto error;
 
-    if (!BN_rand(Xp1, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
+    if (!BN_priv_rand(Xp1, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
         goto error;
-    if (!BN_rand(Xp2, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
+    if (!BN_priv_rand(Xp2, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
         goto error;
     if (!BN_X931_derive_prime_ex(p, p1, p2, Xp, Xp1, Xp2, e, ctx, cb))
         goto error;

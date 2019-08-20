@@ -4,9 +4,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Module, createContext } = require('vm');
-
-common.crashOnUnhandledRejection();
+const { SourceTextModule, createContext } = require('vm');
+const util = require('util');
 
 (async function test1() {
   const context = createContext({
@@ -14,7 +13,7 @@ common.crashOnUnhandledRejection();
     baz: undefined,
     typeofProcess: undefined,
   });
-  const m = new Module(
+  const m = new SourceTextModule(
     'baz = foo; typeofProcess = typeof process; typeof Object;',
     { context }
   );
@@ -34,7 +33,7 @@ common.crashOnUnhandledRejection();
 }());
 
 (async () => {
-  const m = new Module(
+  const m = new SourceTextModule(
     'global.vmResult = "foo"; Object.prototype.toString.call(process);'
   );
   await m.link(common.mustNotCall());
@@ -46,9 +45,48 @@ common.crashOnUnhandledRejection();
 })();
 
 (async () => {
-  const m = new Module('while (true) {}');
+  const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   m.instantiate();
   await m.evaluate({ timeout: 500 })
     .then(() => assert(false), () => {});
 })();
+
+// Check the generated url for each module
+(async () => {
+  const context1 = createContext({ });
+  const context2 = createContext({ });
+
+  const m1 = new SourceTextModule('1', { context: context1 });
+  assert.strictEqual(m1.url, 'vm:module(0)');
+  const m2 = new SourceTextModule('2', { context: context1 });
+  assert.strictEqual(m2.url, 'vm:module(1)');
+  const m3 = new SourceTextModule('3', { context: context2 });
+  assert.strictEqual(m3.url, 'vm:module(0)');
+})();
+
+// Check inspection of the instance
+{
+  const context = createContext({ foo: 'bar' });
+  const m = new SourceTextModule('1', { context });
+
+  assert.strictEqual(
+    util.inspect(m),
+    "SourceTextModule {\n  status: 'uninstantiated',\n  linkingStatus:" +
+    " 'unlinked',\n  url: 'vm:module(0)',\n  context: { foo: 'bar' }\n}"
+  );
+  assert.strictEqual(
+    m[util.inspect.custom].call(Object.create(null)),
+    'SourceTextModule {\n  status: undefined,\n  linkingStatus: undefined,' +
+    '\n  url: undefined,\n  context: undefined\n}'
+  );
+  assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
+}
+
+// Check dependencies getter returns same object every time
+{
+  const m = new SourceTextModule('');
+  const dep = m.dependencySpecifiers;
+  assert.notStrictEqual(dep, undefined);
+  assert.strictEqual(dep, m.dependencySpecifiers);
+}

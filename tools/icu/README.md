@@ -92,9 +92,9 @@ make clean
 tools/license-builder.sh
 ```
 
-- Now, fix the default URL for the `full-icu` build in `/configure`, in
-the `configure_intl()` function. It should match the ICU URL used in the
-first step.  When this is done, the following should build with full ICU.
+- Update the URL and hash for the full ICU file in `tools/icu/current_ver.dep`.
+It should match the ICU URL used in the first step.  When this is done, the
+following should build with full ICU.
 
 ```shell
 # clean up
@@ -104,7 +104,7 @@ make
 make test-ci
 ```
 
-- commit the change to `configure` along with the updated `LICENSE` file.
+- commit the change to `tools/icu/current_ver.dep` and `LICENSE` files.
 
   - Note: To simplify review, I often will “pre-land” this patch, meaning that
   I run the patch through `curl -L https://github.com/nodejs/node/pull/xxx.patch

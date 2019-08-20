@@ -64,7 +64,8 @@ void uv_dlclose(uv_lib_t* lib) {
 
 
 int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr) {
-  *ptr = (void*) GetProcAddress(lib->handle, name);
+  /* Cast though integer to suppress pedantic warning about forbidden cast. */
+  *ptr = (void*)(uintptr_t) GetProcAddress(lib->handle, name);
   return uv__dlerror(lib, "", *ptr ? 0 : GetLastError());
 }
 
@@ -75,8 +76,9 @@ const char* uv_dlerror(const uv_lib_t* lib) {
 
 
 static void uv__format_fallback_error(uv_lib_t* lib, int errorno){
-  DWORD_PTR args[1] = { (DWORD_PTR) errorno };
-  LPSTR fallback_error = "error: %1!d!";
+  static const CHAR fallback_error[] = "error: %1!d!";
+  DWORD_PTR args[1];
+  args[0] = (DWORD_PTR) errorno;
 
   FormatMessageA(FORMAT_MESSAGE_FROM_STRING |
                  FORMAT_MESSAGE_ARGUMENT_ARRAY |
@@ -107,7 +109,8 @@ static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno) {
                        MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
                        (LPSTR) &lib->errmsg, 0, NULL);
 
-  if (!res && GetLastError() == ERROR_MUI_FILE_NOT_FOUND) {
+  if (!res && (GetLastError() == ERROR_MUI_FILE_NOT_FOUND ||
+               GetLastError() == ERROR_RESOURCE_TYPE_NOT_FOUND)) {
     res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                          FORMAT_MESSAGE_FROM_SYSTEM |
                          FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,

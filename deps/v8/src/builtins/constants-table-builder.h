@@ -5,10 +5,10 @@
 #ifndef V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 #define V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 
-#include "src/allocation.h"
 #include "src/base/macros.h"
-#include "src/handles.h"
-#include "src/identity-map.h"
+#include "src/utils/allocation.h"
+#include "src/utils/identity-map.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -24,9 +24,15 @@ class BuiltinsConstantsTableBuilder final {
  public:
   explicit BuiltinsConstantsTableBuilder(Isolate* isolate);
 
-  // Returns the index within the builtins constants list for the given object,
-  // possibly adding the object to the cache. Objects are deduplicated.
+  // Returns the index within the builtins constants table for the given
+  // object, possibly adding the object to the table. Objects are deduplicated.
   uint32_t AddObject(Handle<Object> object);
+
+  // Self-references during code generation start out by referencing a handle
+  // with a temporary dummy object. Once the final Code object exists, such
+  // entries in the constants map must be patched up.
+  void PatchSelfReference(Handle<Object> self_reference,
+                          Handle<Code> code_object);
 
   // Should be called after all affected code (e.g. builtins and bytecode
   // handlers) has been generated.
@@ -36,10 +42,10 @@ class BuiltinsConstantsTableBuilder final {
   Isolate* isolate_;
 
   // Maps objects to corresponding indices within the constants list.
-  typedef IdentityMap<uint32_t, FreeStoreAllocationPolicy> ConstantsMap;
+  using ConstantsMap = IdentityMap<uint32_t, FreeStoreAllocationPolicy>;
   ConstantsMap map_;
 
-  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder)
+  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder);
 };
 
 }  // namespace internal

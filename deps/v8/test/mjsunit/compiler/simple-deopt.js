@@ -61,6 +61,7 @@ obj.g = g;
 function k(o) {
   return o.g();
 }
+%PrepareFunctionForOptimization(k);
 for (var i = 0; i < 5; i++) k(obj);
 %OptimizeFunctionOnNextCall(k);
 k(obj);
@@ -92,6 +93,7 @@ assertEquals('lit[42]', LiteralToStack(42));
 var str = "abc";
 var r;
 function CallCharAt(n) { return str.charAt(n); }
+%PrepareFunctionForOptimization(CallCharAt);
 for (var i = 0; i < 5; i++) {
   r = CallCharAt(0);
 }

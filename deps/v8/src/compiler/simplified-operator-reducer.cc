@@ -10,7 +10,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -33,15 +33,18 @@ Decision DecideObjectIsSmi(Node* const input) {
 }  // namespace
 
 SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
-                                                     JSGraph* jsgraph)
-    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
+                                                     JSGraph* jsgraph,
+                                                     JSHeapBroker* broker)
+    : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
 
-SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
+SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
+      // TODO(neis): Provide HeapObjectRefMatcher?
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) return ReplaceBoolean(false);
       if (m.Is(factory()->false_value())) return ReplaceBoolean(true);
@@ -57,7 +60,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(m.Value()->BooleanValue());
+      if (m.HasValue()) {
+        return ReplaceInt32(m.Ref(broker()).BooleanValue());
+      }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
     }
@@ -253,14 +258,10 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
 }
 
 Factory* SimplifiedOperatorReducer::factory() const {
-  return isolate()->factory();
+  return jsgraph()->isolate()->factory();
 }
 
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
-
-Isolate* SimplifiedOperatorReducer::isolate() const {
-  return jsgraph()->isolate();
-}
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

@@ -63,7 +63,9 @@
 
 
 {{## def.nonEmptySchema:_schema:
-  it.util.schemaHasRules(_schema, it.RULES.all)
+  (it.opts.strictKeywords
+    ? typeof _schema == 'object' && Object.keys(_schema).length > 0
+    : it.util.schemaHasRules(_schema, it.RULES.all))
 #}}
 
 

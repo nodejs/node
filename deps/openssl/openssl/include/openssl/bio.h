@@ -18,6 +18,7 @@
 # include <stdarg.h>
 
 # include <openssl/crypto.h>
+# include <openssl/bioerr.h>
 
 # ifndef OPENSSL_NO_SCTP
 #  include <openssl/e_os2.h>
@@ -87,6 +88,7 @@ extern "C" {
 # define BIO_CTRL_SET_CALLBACK   14/* opt - set callback function */
 # define BIO_CTRL_GET_CALLBACK   15/* opt - set callback function */
 
+# define BIO_CTRL_PEEK           29/* BIO_f_buffer special */
 # define BIO_CTRL_SET_FILENAME   30/* BIO_s_file special */
 
 /* dgram BIO stuff */
@@ -236,8 +238,15 @@ void BIO_clear_flags(BIO *b, int flags);
 
 typedef long (*BIO_callback_fn)(BIO *b, int oper, const char *argp, int argi,
                                 long argl, long ret);
+typedef long (*BIO_callback_fn_ex)(BIO *b, int oper, const char *argp,
+                                   size_t len, int argi,
+                                   long argl, int ret, size_t *processed);
 BIO_callback_fn BIO_get_callback(const BIO *b);
 void BIO_set_callback(BIO *b, BIO_callback_fn callback);
+
+BIO_callback_fn_ex BIO_get_callback_ex(const BIO *b);
+void BIO_set_callback_ex(BIO *b, BIO_callback_fn_ex callback);
+
 char *BIO_get_callback_arg(const BIO *b);
 void BIO_set_callback_arg(BIO *b, char *arg);
 
@@ -359,9 +368,12 @@ struct bio_dgram_sctp_prinfo {
 #  define BIO_FAMILY_IPANY                        256
 
 /* BIO_s_connect() */
-#  define BIO_set_conn_hostname(b,name) BIO_ctrl(b,BIO_C_SET_CONNECT,0,(char *)name)
-#  define BIO_set_conn_port(b,port)     BIO_ctrl(b,BIO_C_SET_CONNECT,1,(char *)port)
-#  define BIO_set_conn_address(b,addr)  BIO_ctrl(b,BIO_C_SET_CONNECT,2,(char *)addr)
+#  define BIO_set_conn_hostname(b,name) BIO_ctrl(b,BIO_C_SET_CONNECT,0, \
+                                                 (char *)(name))
+#  define BIO_set_conn_port(b,port)     BIO_ctrl(b,BIO_C_SET_CONNECT,1, \
+                                                 (char *)(port))
+#  define BIO_set_conn_address(b,addr)  BIO_ctrl(b,BIO_C_SET_CONNECT,2, \
+                                                 (char *)(addr))
 #  define BIO_set_conn_ip_family(b,f)   BIO_int_ctrl(b,BIO_C_SET_CONNECT,3,f)
 #  define BIO_get_conn_hostname(b)      ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_CONNECT,0))
 #  define BIO_get_conn_port(b)          ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_CONNECT,1))
@@ -370,15 +382,18 @@ struct bio_dgram_sctp_prinfo {
 #  define BIO_set_conn_mode(b,n)        BIO_ctrl(b,BIO_C_SET_CONNECT_MODE,(n),NULL)
 
 /* BIO_s_accept() */
-#  define BIO_set_accept_name(b,name)   BIO_ctrl(b,BIO_C_SET_ACCEPT,0,(char *)name)
-#  define BIO_set_accept_port(b,port)   BIO_ctrl(b,BIO_C_SET_ACCEPT,1,(char *)port)
+#  define BIO_set_accept_name(b,name)   BIO_ctrl(b,BIO_C_SET_ACCEPT,0, \
+                                                 (char *)(name))
+#  define BIO_set_accept_port(b,port)   BIO_ctrl(b,BIO_C_SET_ACCEPT,1, \
+                                                 (char *)(port))
 #  define BIO_get_accept_name(b)        ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_ACCEPT,0))
 #  define BIO_get_accept_port(b)        ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_ACCEPT,1))
 #  define BIO_get_peer_name(b)          ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_ACCEPT,2))
 #  define BIO_get_peer_port(b)          ((const char *)BIO_ptr_ctrl(b,BIO_C_GET_ACCEPT,3))
 /* #define BIO_set_nbio(b,n)    BIO_ctrl(b,BIO_C_SET_NBIO,(n),NULL) */
 #  define BIO_set_nbio_accept(b,n)      BIO_ctrl(b,BIO_C_SET_ACCEPT,2,(n)?(void *)"a":NULL)
-#  define BIO_set_accept_bios(b,bio)    BIO_ctrl(b,BIO_C_SET_ACCEPT,3,(char *)bio)
+#  define BIO_set_accept_bios(b,bio)    BIO_ctrl(b,BIO_C_SET_ACCEPT,3, \
+                                                 (char *)(bio))
 #  define BIO_set_accept_ip_family(b,f) BIO_int_ctrl(b,BIO_C_SET_ACCEPT,4,f)
 #  define BIO_get_accept_ip_family(b)   BIO_ctrl(b,BIO_C_GET_ACCEPT,4,NULL)
 
@@ -398,11 +413,11 @@ struct bio_dgram_sctp_prinfo {
 
 /* BIO_s_datagram(), BIO_s_fd(), BIO_s_socket(), BIO_s_accept() and BIO_s_connect() */
 # define BIO_set_fd(b,fd,c)      BIO_int_ctrl(b,BIO_C_SET_FD,c,fd)
-# define BIO_get_fd(b,c)         BIO_ctrl(b,BIO_C_GET_FD,0,(char *)c)
+# define BIO_get_fd(b,c)         BIO_ctrl(b,BIO_C_GET_FD,0,(char *)(c))
 
 /* BIO_s_file() */
-# define BIO_set_fp(b,fp,c)      BIO_ctrl(b,BIO_C_SET_FILE_PTR,c,(char *)fp)
-# define BIO_get_fp(b,fpp)       BIO_ctrl(b,BIO_C_GET_FILE_PTR,0,(char *)fpp)
+# define BIO_set_fp(b,fp,c)      BIO_ctrl(b,BIO_C_SET_FILE_PTR,c,(char *)(fp))
+# define BIO_get_fp(b,fpp)       BIO_ctrl(b,BIO_C_GET_FILE_PTR,0,(char *)(fpp))
 
 /* BIO_s_fd() and BIO_s_file() */
 # define BIO_seek(b,ofs) (int)BIO_ctrl(b,BIO_C_FILE_SEEK,ofs,NULL)
@@ -420,7 +435,7 @@ struct bio_dgram_sctp_prinfo {
 int BIO_read_filename(BIO *b, const char *name);
 # else
 #  define BIO_read_filename(b,name) (int)BIO_ctrl(b,BIO_C_SET_FILENAME, \
-                BIO_CLOSE|BIO_FP_READ,(char *)name)
+                BIO_CLOSE|BIO_FP_READ,(char *)(name))
 # endif
 # define BIO_write_filename(b,name) (int)BIO_ctrl(b,BIO_C_SET_FILENAME, \
                 BIO_CLOSE|BIO_FP_WRITE,name)
@@ -435,8 +450,8 @@ int BIO_read_filename(BIO *b, const char *name);
  * next_bio field in the bio.  So when you free the BIO, make sure you are
  * doing a BIO_free_all() to catch the underlying BIO.
  */
-# define BIO_set_ssl(b,ssl,c)    BIO_ctrl(b,BIO_C_SET_SSL,c,(char *)ssl)
-# define BIO_get_ssl(b,sslp)     BIO_ctrl(b,BIO_C_GET_SSL,0,(char *)sslp)
+# define BIO_set_ssl(b,ssl,c)    BIO_ctrl(b,BIO_C_SET_SSL,c,(char *)(ssl))
+# define BIO_get_ssl(b,sslp)     BIO_ctrl(b,BIO_C_GET_SSL,0,(char *)(sslp))
 # define BIO_set_ssl_mode(b,client)      BIO_ctrl(b,BIO_C_SSL_MODE,client,NULL)
 # define BIO_set_ssl_renegotiate_bytes(b,num) \
         BIO_ctrl(b,BIO_C_SET_SSL_RENEGOTIATE_BYTES,num,NULL)
@@ -446,11 +461,12 @@ int BIO_read_filename(BIO *b, const char *name);
         BIO_ctrl(b,BIO_C_SET_SSL_RENEGOTIATE_TIMEOUT,seconds,NULL)
 
 /* defined in evp.h */
-/* #define BIO_set_md(b,md)     BIO_ctrl(b,BIO_C_SET_MD,1,(char *)md) */
+/* #define BIO_set_md(b,md)     BIO_ctrl(b,BIO_C_SET_MD,1,(char *)(md)) */
 
-# define BIO_get_mem_data(b,pp)  BIO_ctrl(b,BIO_CTRL_INFO,0,(char *)pp)
-# define BIO_set_mem_buf(b,bm,c) BIO_ctrl(b,BIO_C_SET_BUF_MEM,c,(char *)bm)
-# define BIO_get_mem_ptr(b,pp)   BIO_ctrl(b,BIO_C_GET_BUF_MEM_PTR,0,(char *)pp)
+# define BIO_get_mem_data(b,pp)  BIO_ctrl(b,BIO_CTRL_INFO,0,(char *)(pp))
+# define BIO_set_mem_buf(b,bm,c) BIO_ctrl(b,BIO_C_SET_BUF_MEM,c,(char *)(bm))
+# define BIO_get_mem_ptr(b,pp)   BIO_ctrl(b,BIO_C_GET_BUF_MEM_PTR,0, \
+                                          (char *)(pp))
 # define BIO_set_mem_eof_return(b,v) \
                                 BIO_ctrl(b,BIO_C_SET_BUF_MEM_EOF_RETURN,v,NULL)
 
@@ -480,6 +496,7 @@ size_t BIO_ctrl_wpending(BIO *b);
 
 /* For the BIO_f_buffer() type */
 # define BIO_buffer_get_num_lines(b) BIO_ctrl(b,BIO_CTRL_GET,0,NULL)
+# define BIO_buffer_peek(b,s,l) BIO_ctrl(b,BIO_CTRL_PEEK,(l),(s))
 
 /* For BIO_s_bio() */
 # define BIO_set_write_buf_size(b,size) (int)BIO_ctrl(b,BIO_C_SET_WRITE_BUF_SIZE,size,NULL)
@@ -496,17 +513,17 @@ int BIO_ctrl_reset_read_request(BIO *b);
 
 /* ctrl macros for dgram */
 # define BIO_ctrl_dgram_connect(b,peer)  \
-                     (int)BIO_ctrl(b,BIO_CTRL_DGRAM_CONNECT,0, (char *)peer)
+                     (int)BIO_ctrl(b,BIO_CTRL_DGRAM_CONNECT,0, (char *)(peer))
 # define BIO_ctrl_set_connected(b,peer) \
-         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SET_CONNECTED, 0, (char *)peer)
+         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SET_CONNECTED, 0, (char *)(peer))
 # define BIO_dgram_recv_timedout(b) \
          (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, NULL)
 # define BIO_dgram_send_timedout(b) \
          (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_SEND_TIMER_EXP, 0, NULL)
 # define BIO_dgram_get_peer(b,peer) \
-         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)peer)
+         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)(peer))
 # define BIO_dgram_set_peer(b,peer) \
-         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SET_PEER, 0, (char *)peer)
+         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_SET_PEER, 0, (char *)(peer))
 # define BIO_dgram_get_mtu_overhead(b) \
          (unsigned int)BIO_ctrl((b), BIO_CTRL_DGRAM_GET_MTU_OVERHEAD, 0, NULL)
 
@@ -542,9 +559,11 @@ void BIO_set_shutdown(BIO *a, int shut);
 int BIO_get_shutdown(BIO *a);
 void BIO_vfree(BIO *a);
 int BIO_up_ref(BIO *a);
-int BIO_read(BIO *b, void *data, int len);
+int BIO_read(BIO *b, void *data, int dlen);
+int BIO_read_ex(BIO *b, void *data, size_t dlen, size_t *readbytes);
 int BIO_gets(BIO *bp, char *buf, int size);
-int BIO_write(BIO *b, const void *data, int len);
+int BIO_write(BIO *b, const void *data, int dlen);
+int BIO_write_ex(BIO *b, const void *data, size_t dlen, size_t *written);
 int BIO_puts(BIO *bp, const char *buf);
 int BIO_indent(BIO *b, int indent, int max);
 long BIO_ctrl(BIO *bp, int cmd, long larg, void *parg);
@@ -655,6 +674,9 @@ enum BIO_lookup_type {
 int BIO_lookup(const char *host, const char *service,
                enum BIO_lookup_type lookup_type,
                int family, int socktype, BIO_ADDRINFO **res);
+int BIO_lookup_ex(const char *host, const char *service,
+                  int lookup_type, int family, int socktype, int protocol,
+                  BIO_ADDRINFO **res);
 int BIO_sock_error(int sock);
 int BIO_socket_ioctl(int fd, long type, void *arg);
 int BIO_socket_nbio(int fd, int mode);
@@ -687,6 +709,7 @@ int BIO_sock_info(int sock,
 
 int BIO_socket(int domain, int socktype, int protocol, int options);
 int BIO_connect(int sock, const BIO_ADDR *addr, int options);
+int BIO_bind(int sock, const BIO_ADDR *addr, int options);
 int BIO_listen(int sock, const BIO_ADDR *addr, int options);
 int BIO_accept_ex(int accept_sock, BIO_ADDR *addr, int options);
 int BIO_closesocket(int sock);
@@ -712,139 +735,68 @@ void BIO_copy_next_retry(BIO *b);
  * long BIO_ghbn_ctrl(int cmd,int iarg,char *parg);
  */
 
-# ifdef __GNUC__
-#  define __bio_h__attr__ __attribute__
-# else
-#  define __bio_h__attr__(x)
+# define ossl_bio__attr__(x)
+# if defined(__GNUC__) && defined(__STDC_VERSION__) \
+    && !defined(__APPLE__)
+    /*
+     * Because we support the 'z' modifier, which made its appearance in C99,
+     * we can't use __attribute__ with pre C99 dialects.
+     */
+#  if __STDC_VERSION__ >= 199901L
+#   undef ossl_bio__attr__
+#   define ossl_bio__attr__ __attribute__
+#   if __GNUC__*10 + __GNUC_MINOR__ >= 44
+#    define ossl_bio__printf__ __gnu_printf__
+#   else
+#    define ossl_bio__printf__ __printf__
+#   endif
+#  endif
 # endif
 int BIO_printf(BIO *bio, const char *format, ...)
-__bio_h__attr__((__format__(__printf__, 2, 3)));
+ossl_bio__attr__((__format__(ossl_bio__printf__, 2, 3)));
 int BIO_vprintf(BIO *bio, const char *format, va_list args)
-__bio_h__attr__((__format__(__printf__, 2, 0)));
+ossl_bio__attr__((__format__(ossl_bio__printf__, 2, 0)));
 int BIO_snprintf(char *buf, size_t n, const char *format, ...)
-__bio_h__attr__((__format__(__printf__, 3, 4)));
+ossl_bio__attr__((__format__(ossl_bio__printf__, 3, 4)));
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
-__bio_h__attr__((__format__(__printf__, 3, 0)));
-# undef __bio_h__attr__
+ossl_bio__attr__((__format__(ossl_bio__printf__, 3, 0)));
+# undef ossl_bio__attr__
+# undef ossl_bio__printf__
 
 
 BIO_METHOD *BIO_meth_new(int type, const char *name);
 void BIO_meth_free(BIO_METHOD *biom);
-int (*BIO_meth_get_write(BIO_METHOD *biom)) (BIO *, const char *, int);
+int (*BIO_meth_get_write(const BIO_METHOD *biom)) (BIO *, const char *, int);
+int (*BIO_meth_get_write_ex(const BIO_METHOD *biom)) (BIO *, const char *, size_t,
+                                                size_t *);
 int BIO_meth_set_write(BIO_METHOD *biom,
                        int (*write) (BIO *, const char *, int));
-int (*BIO_meth_get_read(BIO_METHOD *biom)) (BIO *, char *, int);
+int BIO_meth_set_write_ex(BIO_METHOD *biom,
+                       int (*bwrite) (BIO *, const char *, size_t, size_t *));
+int (*BIO_meth_get_read(const BIO_METHOD *biom)) (BIO *, char *, int);
+int (*BIO_meth_get_read_ex(const BIO_METHOD *biom)) (BIO *, char *, size_t, size_t *);
 int BIO_meth_set_read(BIO_METHOD *biom,
                       int (*read) (BIO *, char *, int));
-int (*BIO_meth_get_puts(BIO_METHOD *biom)) (BIO *, const char *);
+int BIO_meth_set_read_ex(BIO_METHOD *biom,
+                         int (*bread) (BIO *, char *, size_t, size_t *));
+int (*BIO_meth_get_puts(const BIO_METHOD *biom)) (BIO *, const char *);
 int BIO_meth_set_puts(BIO_METHOD *biom,
                       int (*puts) (BIO *, const char *));
-int (*BIO_meth_get_gets(BIO_METHOD *biom)) (BIO *, char *, int);
+int (*BIO_meth_get_gets(const BIO_METHOD *biom)) (BIO *, char *, int);
 int BIO_meth_set_gets(BIO_METHOD *biom,
                       int (*gets) (BIO *, char *, int));
-long (*BIO_meth_get_ctrl(BIO_METHOD *biom)) (BIO *, int, long, void *);
+long (*BIO_meth_get_ctrl(const BIO_METHOD *biom)) (BIO *, int, long, void *);
 int BIO_meth_set_ctrl(BIO_METHOD *biom,
                       long (*ctrl) (BIO *, int, long, void *));
-int (*BIO_meth_get_create(BIO_METHOD *bion)) (BIO *);
+int (*BIO_meth_get_create(const BIO_METHOD *bion)) (BIO *);
 int BIO_meth_set_create(BIO_METHOD *biom, int (*create) (BIO *));
-int (*BIO_meth_get_destroy(BIO_METHOD *biom)) (BIO *);
+int (*BIO_meth_get_destroy(const BIO_METHOD *biom)) (BIO *);
 int BIO_meth_set_destroy(BIO_METHOD *biom, int (*destroy) (BIO *));
-long (*BIO_meth_get_callback_ctrl(BIO_METHOD *biom))
+long (*BIO_meth_get_callback_ctrl(const BIO_METHOD *biom))
                                  (BIO *, int, BIO_info_cb *);
 int BIO_meth_set_callback_ctrl(BIO_METHOD *biom,
                                long (*callback_ctrl) (BIO *, int,
                                                       BIO_info_cb *));
-
-/* BEGIN ERROR CODES */
-/*
- * The following lines are auto generated by the script mkerr.pl. Any changes
- * made after this point may be overwritten when the script is next run.
- */
-
-int ERR_load_BIO_strings(void);
-
-/* Error codes for the BIO functions. */
-
-/* Function codes. */
-# define BIO_F_ACPT_STATE                                 100
-# define BIO_F_ADDR_STRINGS                               134
-# define BIO_F_BIO_ACCEPT                                 101
-# define BIO_F_BIO_ACCEPT_EX                              137
-# define BIO_F_BIO_ADDR_NEW                               144
-# define BIO_F_BIO_CALLBACK_CTRL                          131
-# define BIO_F_BIO_CONNECT                                138
-# define BIO_F_BIO_CTRL                                   103
-# define BIO_F_BIO_GETS                                   104
-# define BIO_F_BIO_GET_HOST_IP                            106
-# define BIO_F_BIO_GET_NEW_INDEX                          102
-# define BIO_F_BIO_GET_PORT                               107
-# define BIO_F_BIO_LISTEN                                 139
-# define BIO_F_BIO_LOOKUP                                 135
-# define BIO_F_BIO_MAKE_PAIR                              121
-# define BIO_F_BIO_METH_NEW                               146
-# define BIO_F_BIO_NEW                                    108
-# define BIO_F_BIO_NEW_FILE                               109
-# define BIO_F_BIO_NEW_MEM_BUF                            126
-# define BIO_F_BIO_NREAD                                  123
-# define BIO_F_BIO_NREAD0                                 124
-# define BIO_F_BIO_NWRITE                                 125
-# define BIO_F_BIO_NWRITE0                                122
-# define BIO_F_BIO_PARSE_HOSTSERV                         136
-# define BIO_F_BIO_PUTS                                   110
-# define BIO_F_BIO_READ                                   111
-# define BIO_F_BIO_SOCKET                                 140
-# define BIO_F_BIO_SOCKET_NBIO                            142
-# define BIO_F_BIO_SOCK_INFO                              141
-# define BIO_F_BIO_SOCK_INIT                              112
-# define BIO_F_BIO_WRITE                                  113
-# define BIO_F_BUFFER_CTRL                                114
-# define BIO_F_CONN_CTRL                                  127
-# define BIO_F_CONN_STATE                                 115
-# define BIO_F_DGRAM_SCTP_READ                            132
-# define BIO_F_DGRAM_SCTP_WRITE                           133
-# define BIO_F_FILE_CTRL                                  116
-# define BIO_F_FILE_READ                                  130
-# define BIO_F_LINEBUFFER_CTRL                            129
-# define BIO_F_MEM_WRITE                                  117
-# define BIO_F_SSL_NEW                                    118
-
-/* Reason codes. */
-# define BIO_R_ACCEPT_ERROR                               100
-# define BIO_R_ADDRINFO_ADDR_IS_NOT_AF_INET               141
-# define BIO_R_AMBIGUOUS_HOST_OR_SERVICE                  129
-# define BIO_R_BAD_FOPEN_MODE                             101
-# define BIO_R_BROKEN_PIPE                                124
-# define BIO_R_CONNECT_ERROR                              103
-# define BIO_R_GETHOSTBYNAME_ADDR_IS_NOT_AF_INET          107
-# define BIO_R_GETSOCKNAME_ERROR                          132
-# define BIO_R_GETSOCKNAME_TRUNCATED_ADDRESS              133
-# define BIO_R_GETTING_SOCKTYPE                           134
-# define BIO_R_INVALID_ARGUMENT                           125
-# define BIO_R_INVALID_SOCKET                             135
-# define BIO_R_IN_USE                                     123
-# define BIO_R_LISTEN_V6_ONLY                             136
-# define BIO_R_LOOKUP_RETURNED_NOTHING                    142
-# define BIO_R_MALFORMED_HOST_OR_SERVICE                  130
-# define BIO_R_NBIO_CONNECT_ERROR                         110
-# define BIO_R_NO_ACCEPT_ADDR_OR_SERVICE_SPECIFIED        143
-# define BIO_R_NO_HOSTNAME_OR_SERVICE_SPECIFIED           144
-# define BIO_R_NO_PORT_DEFINED                            113
-# define BIO_R_NO_SUCH_FILE                               128
-# define BIO_R_NULL_PARAMETER                             115
-# define BIO_R_UNABLE_TO_BIND_SOCKET                      117
-# define BIO_R_UNABLE_TO_CREATE_SOCKET                    118
-# define BIO_R_UNABLE_TO_KEEPALIVE                        137
-# define BIO_R_UNABLE_TO_LISTEN_SOCKET                    119
-# define BIO_R_UNABLE_TO_NODELAY                          138
-# define BIO_R_UNABLE_TO_REUSEADDR                        139
-# define BIO_R_UNAVAILABLE_IP_FAMILY                      145
-# define BIO_R_UNINITIALIZED                              120
-# define BIO_R_UNKNOWN_INFO_TYPE                          140
-# define BIO_R_UNSUPPORTED_IP_FAMILY                      146
-# define BIO_R_UNSUPPORTED_METHOD                         121
-# define BIO_R_UNSUPPORTED_PROTOCOL_FAMILY                131
-# define BIO_R_WRITE_TO_READ_ONLY_BIO                     126
-# define BIO_R_WSASTARTUP                                 122
 
 # ifdef  __cplusplus
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,10 +12,17 @@
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include "evp_locl.h"
+#include "internal/evp_int.h"
 
-static unsigned char conv_ascii2bin(unsigned char a);
+static unsigned char conv_ascii2bin(unsigned char a,
+                                    const unsigned char *table);
+static int evp_encodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+                               const unsigned char *f, int dlen);
+static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+                               const unsigned char *f, int n);
+
 #ifndef CHARSET_EBCDIC
-# define conv_bin2ascii(a)       (data_bin2ascii[(a)&0x3f])
+# define conv_bin2ascii(a, table)       ((table)[(a)&0x3f])
 #else
 /*
  * We assume that PEM encoded files are EBCDIC files (i.e., printable text
@@ -23,7 +30,7 @@ static unsigned char conv_ascii2bin(unsigned char a);
  * (text) format again. (No need for conversion in the conv_bin2ascii macro,
  * as the underlying textstring data_bin2ascii[] is already EBCDIC)
  */
-# define conv_bin2ascii(a)       (data_bin2ascii[(a)&0x3f])
+# define conv_bin2ascii(a, table)       ((table)[(a)&0x3f])
 #endif
 
 /*-
@@ -38,8 +45,13 @@ static unsigned char conv_ascii2bin(unsigned char a);
 #define CHUNKS_PER_LINE (64/4)
 #define CHAR_PER_LINE   (64+1)
 
-static const unsigned char data_bin2ascii[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-abcdefghijklmnopqrstuvwxyz0123456789+/";
+static const unsigned char data_bin2ascii[65] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/* SRP uses a different base64 alphabet */
+static const unsigned char srpdata_bin2ascii[65] =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz./";
+
 
 /*-
  * 0xF0 is a EOLN
@@ -76,20 +88,39 @@ static const unsigned char data_ascii2bin[128] = {
     0x31, 0x32, 0x33, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 };
 
+static const unsigned char srpdata_ascii2bin[128] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xE0, 0xF0, 0xFF, 0xFF, 0xF1, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xE0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF2, 0x3E, 0x3F,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF,
+    0xFF, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20,
+    0x21, 0x22, 0x23, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A,
+    0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32,
+    0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A,
+    0x3B, 0x3C, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
 #ifndef CHARSET_EBCDIC
-static unsigned char conv_ascii2bin(unsigned char a)
+static unsigned char conv_ascii2bin(unsigned char a, const unsigned char *table)
 {
     if (a & 0x80)
         return B64_ERROR;
-    return data_ascii2bin[a];
+    return table[a];
 }
 #else
-static unsigned char conv_ascii2bin(unsigned char a)
+static unsigned char conv_ascii2bin(unsigned char a, const unsigned char *table)
 {
     a = os_toascii[a];
     if (a & 0x80)
         return B64_ERROR;
-    return data_ascii2bin[a];
+    return table[a];
 }
 #endif
 
@@ -115,11 +146,17 @@ int EVP_ENCODE_CTX_num(EVP_ENCODE_CTX *ctx)
     return ctx->num;
 }
 
+void evp_encode_ctx_set_flags(EVP_ENCODE_CTX *ctx, unsigned int flags)
+{
+    ctx->flags = flags;
+}
+
 void EVP_EncodeInit(EVP_ENCODE_CTX *ctx)
 {
     ctx->length = 48;
     ctx->num = 0;
     ctx->line_num = 0;
+    ctx->flags = 0;
 }
 
 int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
@@ -142,21 +179,27 @@ int EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
         memcpy(&(ctx->enc_data[ctx->num]), in, i);
         in += i;
         inl -= i;
-        j = EVP_EncodeBlock(out, ctx->enc_data, ctx->length);
+        j = evp_encodeblock_int(ctx, out, ctx->enc_data, ctx->length);
         ctx->num = 0;
         out += j;
-        *(out++) = '\n';
+        total = j;
+        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0) {
+            *(out++) = '\n';
+            total++;
+        }
         *out = '\0';
-        total = j + 1;
     }
     while (inl >= ctx->length && total <= INT_MAX) {
-        j = EVP_EncodeBlock(out, in, ctx->length);
+        j = evp_encodeblock_int(ctx, out, in, ctx->length);
         in += ctx->length;
         inl -= ctx->length;
         out += j;
-        *(out++) = '\n';
+        total += j;
+        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0) {
+            *(out++) = '\n';
+            total++;
+        }
         *out = '\0';
-        total += j + 1;
     }
     if (total > INT_MAX) {
         /* Too much output data! */
@@ -176,35 +219,43 @@ void EVP_EncodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl)
     unsigned int ret = 0;
 
     if (ctx->num != 0) {
-        ret = EVP_EncodeBlock(out, ctx->enc_data, ctx->num);
-        out[ret++] = '\n';
+        ret = evp_encodeblock_int(ctx, out, ctx->enc_data, ctx->num);
+        if ((ctx->flags & EVP_ENCODE_CTX_NO_NEWLINES) == 0)
+            out[ret++] = '\n';
         out[ret] = '\0';
         ctx->num = 0;
     }
     *outl = ret;
 }
 
-int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int dlen)
+static int evp_encodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+                               const unsigned char *f, int dlen)
 {
     int i, ret = 0;
     unsigned long l;
+    const unsigned char *table;
+
+    if (ctx != NULL && (ctx->flags & EVP_ENCODE_CTX_USE_SRP_ALPHABET) != 0)
+        table = srpdata_bin2ascii;
+    else
+        table = data_bin2ascii;
 
     for (i = dlen; i > 0; i -= 3) {
         if (i >= 3) {
             l = (((unsigned long)f[0]) << 16L) |
                 (((unsigned long)f[1]) << 8L) | f[2];
-            *(t++) = conv_bin2ascii(l >> 18L);
-            *(t++) = conv_bin2ascii(l >> 12L);
-            *(t++) = conv_bin2ascii(l >> 6L);
-            *(t++) = conv_bin2ascii(l);
+            *(t++) = conv_bin2ascii(l >> 18L, table);
+            *(t++) = conv_bin2ascii(l >> 12L, table);
+            *(t++) = conv_bin2ascii(l >> 6L, table);
+            *(t++) = conv_bin2ascii(l, table);
         } else {
             l = ((unsigned long)f[0]) << 16L;
             if (i == 2)
                 l |= ((unsigned long)f[1] << 8L);
 
-            *(t++) = conv_bin2ascii(l >> 18L);
-            *(t++) = conv_bin2ascii(l >> 12L);
-            *(t++) = (i == 1) ? '=' : conv_bin2ascii(l >> 6L);
+            *(t++) = conv_bin2ascii(l >> 18L, table);
+            *(t++) = conv_bin2ascii(l >> 12L, table);
+            *(t++) = (i == 1) ? '=' : conv_bin2ascii(l >> 6L, table);
             *(t++) = '=';
         }
         ret += 4;
@@ -212,16 +263,21 @@ int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int dlen)
     }
 
     *t = '\0';
-    return (ret);
+    return ret;
+}
+
+int EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int dlen)
+{
+    return evp_encodeblock_int(NULL, t, f, dlen);
 }
 
 void EVP_DecodeInit(EVP_ENCODE_CTX *ctx)
 {
-    /* Only ctx->num is used during decoding. */
+    /* Only ctx->num and ctx->flags are used during decoding. */
     ctx->num = 0;
     ctx->length = 0;
     ctx->line_num = 0;
-    ctx->expect_nl = 0;
+    ctx->flags = 0;
 }
 
 /*-
@@ -249,6 +305,7 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 {
     int seof = 0, eof = 0, rv = -1, ret = 0, i, v, tmp, n, decoded_len;
     unsigned char *d;
+    const unsigned char *table;
 
     n = ctx->num;
     d = ctx->enc_data;
@@ -265,9 +322,14 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
         goto end;
     }
 
+    if ((ctx->flags & EVP_ENCODE_CTX_USE_SRP_ALPHABET) != 0)
+        table = srpdata_ascii2bin;
+    else
+        table = data_ascii2bin;
+
     for (i = 0; i < inl; i++) {
         tmp = *(in++);
-        v = conv_ascii2bin(tmp);
+        v = conv_ascii2bin(tmp, table);
         if (v == B64_ERROR) {
             rv = -1;
             goto end;
@@ -307,7 +369,7 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
         }
 
         if (n == 64) {
-            decoded_len = EVP_DecodeBlock(out, d, n);
+            decoded_len = evp_decodeblock_int(ctx, out, d, n);
             n = 0;
             if (decoded_len < 0 || eof > decoded_len) {
                 rv = -1;
@@ -326,7 +388,7 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 tail:
     if (n > 0) {
         if ((n & 3) == 0) {
-            decoded_len = EVP_DecodeBlock(out, d, n);
+            decoded_len = evp_decodeblock_int(ctx, out, d, n);
             n = 0;
             if (decoded_len < 0 || eof > decoded_len) {
                 rv = -1;
@@ -345,16 +407,23 @@ end:
     /* Legacy behaviour. This should probably rather be zeroed on error. */
     *outl = ret;
     ctx->num = n;
-    return (rv);
+    return rv;
 }
 
-int EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n)
+static int evp_decodeblock_int(EVP_ENCODE_CTX *ctx, unsigned char *t,
+                               const unsigned char *f, int n)
 {
     int i, ret = 0, a, b, c, d;
     unsigned long l;
+    const unsigned char *table;
+
+    if (ctx != NULL && (ctx->flags & EVP_ENCODE_CTX_USE_SRP_ALPHABET) != 0)
+        table = srpdata_ascii2bin;
+    else
+        table = data_ascii2bin;
 
     /* trim white space from the start of the line. */
-    while ((conv_ascii2bin(*f) == B64_WS) && (n > 0)) {
+    while ((conv_ascii2bin(*f, table) == B64_WS) && (n > 0)) {
         f++;
         n--;
     }
@@ -363,19 +432,19 @@ int EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n)
      * strip off stuff at the end of the line ascii2bin values B64_WS,
      * B64_EOLN, B64_EOLN and B64_EOF
      */
-    while ((n > 3) && (B64_NOT_BASE64(conv_ascii2bin(f[n - 1]))))
+    while ((n > 3) && (B64_NOT_BASE64(conv_ascii2bin(f[n - 1], table))))
         n--;
 
     if (n % 4 != 0)
-        return (-1);
+        return -1;
 
     for (i = 0; i < n; i += 4) {
-        a = conv_ascii2bin(*(f++));
-        b = conv_ascii2bin(*(f++));
-        c = conv_ascii2bin(*(f++));
-        d = conv_ascii2bin(*(f++));
+        a = conv_ascii2bin(*(f++), table);
+        b = conv_ascii2bin(*(f++), table);
+        c = conv_ascii2bin(*(f++), table);
+        d = conv_ascii2bin(*(f++), table);
         if ((a & 0x80) || (b & 0x80) || (c & 0x80) || (d & 0x80))
-            return (-1);
+            return -1;
         l = ((((unsigned long)a) << 18L) |
              (((unsigned long)b) << 12L) |
              (((unsigned long)c) << 6L) | (((unsigned long)d)));
@@ -384,7 +453,12 @@ int EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n)
         *(t++) = (unsigned char)(l) & 0xff;
         ret += 3;
     }
-    return (ret);
+    return ret;
+}
+
+int EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n)
+{
+    return evp_decodeblock_int(NULL, t, f, n);
 }
 
 int EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl)
@@ -393,12 +467,12 @@ int EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl)
 
     *outl = 0;
     if (ctx->num != 0) {
-        i = EVP_DecodeBlock(out, ctx->enc_data, ctx->num);
+        i = evp_decodeblock_int(ctx, out, ctx->enc_data, ctx->num);
         if (i < 0)
-            return (-1);
+            return -1;
         ctx->num = 0;
         *outl = i;
-        return (1);
+        return 1;
     } else
-        return (1);
+        return 1;
 }

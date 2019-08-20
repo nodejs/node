@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
-#include "src/counters.h"
-#include "src/json-parser.h"
-#include "src/json-stringifier.h"
-#include "src/objects-inl.h"
+#include "src/json/json-parser.h"
+#include "src/json/json-stringifier.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,22 +20,21 @@ BUILTIN(JsonParse) {
   Handle<String> string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
                                      Object::ToString(isolate, source));
-  string = String::Flatten(string);
+  string = String::Flatten(isolate, string);
   RETURN_RESULT_OR_FAILURE(
-      isolate, string->IsSeqOneByteString()
-                   ? JsonParser<true>::Parse(isolate, string, reviver)
-                   : JsonParser<false>::Parse(isolate, string, reviver));
+      isolate, String::IsOneByteRepresentationUnderneath(*string)
+                   ? JsonParser<uint8_t>::Parse(isolate, string, reviver)
+                   : JsonParser<uint16_t>::Parse(isolate, string, reviver));
 }
 
 // ES6 section 24.3.2 JSON.stringify.
 BUILTIN(JsonStringify) {
   HandleScope scope(isolate);
-  JsonStringifier stringifier(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<Object> replacer = args.atOrUndefined(isolate, 2);
   Handle<Object> indent = args.atOrUndefined(isolate, 3);
   RETURN_RESULT_OR_FAILURE(isolate,
-                           stringifier.Stringify(object, replacer, indent));
+                           JsonStringify(isolate, object, replacer, indent));
 }
 
 }  // namespace internal

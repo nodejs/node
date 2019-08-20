@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-bigint
+// Flags: --allow-natives-syntax
 
 'use strict'
 
@@ -56,6 +56,10 @@ const six = BigInt(6);
   assertSame(BigInt(42n), 42n);
   assertSame(BigInt(Object(42n)), 42n);
   assertSame(BigInt(2**53 - 1), 9007199254740991n);
+  assertSame(BigInt(2**53), 9007199254740992n);
+  assertSame(BigInt(2**1000), 2n ** 1000n);
+  assertSame(BigInt(3.0755851989071915e29), 307558519890719151276406341632n);
+  assertSame(BigInt(-1e50), -0x446c3b15f992680000000000000000000000000000n);
   assertSame(BigInt(Object(2**53 - 1)), 9007199254740991n);
   assertSame(BigInt([]), 0n);
 }{
@@ -64,8 +68,6 @@ const six = BigInt(6);
   assertThrows(() => BigInt(+Infinity), RangeError);
   assertThrows(() => BigInt(4.00000001), RangeError);
   assertThrows(() => BigInt(Object(4.00000001)), RangeError);
-  assertThrows(() => BigInt(2**53), RangeError);
-  assertThrows(() => BigInt(2**1000), RangeError);
 }
 
 // BigInt.prototype[Symbol.toStringTag]

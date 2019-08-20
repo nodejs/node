@@ -4,9 +4,9 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
@@ -28,7 +28,7 @@ TEST_F(WasmModuleBuilderTest, Regression_647329) {
   // Test crashed with asan.
   ZoneBuffer buffer(zone());
   const size_t kSize = ZoneBuffer::kInitialSize * 3 + 4096 + 100;
-  byte data[kSize];
+  byte data[kSize] = {0};
   buffer.write(data, kSize);
 }
 

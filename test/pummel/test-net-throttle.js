@@ -34,21 +34,21 @@ const body = 'C'.repeat(N);
 
 console.log(`start server on port ${common.PORT}`);
 
-const server = net.createServer(function(connection) {
+const server = net.createServer((connection) => {
   connection.write(body.slice(0, part_N));
   connection.write(body.slice(part_N, 2 * part_N));
-  assert.strictEqual(false, connection.write(body.slice(2 * part_N, N)));
+  assert.strictEqual(connection.write(body.slice(2 * part_N, N)), false);
   console.log(`bufferSize: ${connection.bufferSize}`, 'expecting', N);
   assert.ok(connection.bufferSize >= 0 &&
             connection.writableLength <= N);
   connection.end();
 });
 
-server.listen(common.PORT, function() {
+server.listen(common.PORT, () => {
   let paused = false;
   const client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
-  client.on('data', function(d) {
+  client.on('data', (d) => {
     chars_recved += d.length;
     console.log(`got ${chars_recved}`);
     if (!paused) {
@@ -57,7 +57,7 @@ server.listen(common.PORT, function() {
       paused = true;
       console.log('pause');
       const x = chars_recved;
-      setTimeout(function() {
+      setTimeout(() => {
         assert.strictEqual(chars_recved, x);
         client.resume();
         console.log('resume');
@@ -66,14 +66,14 @@ server.listen(common.PORT, function() {
     }
   });
 
-  client.on('end', function() {
+  client.on('end', () => {
     server.close();
     client.end();
   });
 });
 
 
-process.on('exit', function() {
-  assert.strictEqual(N, chars_recved);
-  assert.strictEqual(true, npauses > 2);
+process.on('exit', () => {
+  assert.strictEqual(chars_recved, N);
+  assert.strictEqual(npauses > 2, true);
 });

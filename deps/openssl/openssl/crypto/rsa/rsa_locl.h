@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,14 +8,30 @@
  */
 
 #include <openssl/rsa.h>
+#include "internal/refcount.h"
+
+#define RSA_MAX_PRIME_NUM       5
+#define RSA_MIN_MODULUS_BITS    512
+
+typedef struct rsa_prime_info_st {
+    BIGNUM *r;
+    BIGNUM *d;
+    BIGNUM *t;
+    /* save product of primes prior to this one */
+    BIGNUM *pp;
+    BN_MONT_CTX *m;
+} RSA_PRIME_INFO;
+
+DECLARE_ASN1_ITEM(RSA_PRIME_INFO)
+DEFINE_STACK_OF(RSA_PRIME_INFO)
 
 struct rsa_st {
     /*
      * The first parameter is used to pickup errors where this is passed
-     * instead of aEVP_PKEY, it is set to 0
+     * instead of an EVP_PKEY, it is set to 0
      */
     int pad;
-    long version;
+    int32_t version;
     const RSA_METHOD *meth;
     /* functional reference if 'meth' is ENGINE-provided */
     ENGINE *engine;
@@ -27,9 +43,13 @@ struct rsa_st {
     BIGNUM *dmp1;
     BIGNUM *dmq1;
     BIGNUM *iqmp;
+    /* for multi-prime RSA, defined in RFC 8017 */
+    STACK_OF(RSA_PRIME_INFO) *prime_infos;
+    /* If a PSS only key this contains the parameter restrictions */
+    RSA_PSS_PARAMS *pss;
     /* be careful using this if the RSA structure is shared */
     CRYPTO_EX_DATA ex_data;
-    int references;
+    CRYPTO_REF_COUNT references;
     int flags;
     /* Used to cache montgomery values */
     BN_MONT_CTX *_method_mod_n;
@@ -88,9 +108,25 @@ struct rsa_meth_st {
      * things as "builtin software" implementations.
      */
     int (*rsa_keygen) (RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
+    int (*rsa_multi_prime_keygen) (RSA *rsa, int bits, int primes,
+                                   BIGNUM *e, BN_GENCB *cb);
 };
 
 extern int int_rsa_verify(int dtype, const unsigned char *m,
                           unsigned int m_len, unsigned char *rm,
                           size_t *prm_len, const unsigned char *sigbuf,
                           size_t siglen, RSA *rsa);
+/* Macros to test if a pkey or ctx is for a PSS key */
+#define pkey_is_pss(pkey) (pkey->ameth->pkey_id == EVP_PKEY_RSA_PSS)
+#define pkey_ctx_is_pss(ctx) (ctx->pmeth->pkey_id == EVP_PKEY_RSA_PSS)
+
+RSA_PSS_PARAMS *rsa_pss_params_create(const EVP_MD *sigmd,
+                                      const EVP_MD *mgf1md, int saltlen);
+int rsa_pss_get_param(const RSA_PSS_PARAMS *pss, const EVP_MD **pmd,
+                      const EVP_MD **pmgf1md, int *psaltlen);
+/* internal function to clear and free multi-prime parameters */
+void rsa_multip_info_free_ex(RSA_PRIME_INFO *pinfo);
+void rsa_multip_info_free(RSA_PRIME_INFO *pinfo);
+RSA_PRIME_INFO *rsa_multip_info_new(void);
+int rsa_multip_calc_product(RSA *rsa);
+int rsa_multip_cap(int bits);

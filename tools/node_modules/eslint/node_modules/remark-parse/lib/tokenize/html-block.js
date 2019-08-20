@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:html-block
- * @fileoverview Tokenise block HTML.
- */
-
 'use strict';
 
 var openCloseTag = require('../util/html').openCloseTag;
@@ -17,7 +9,6 @@ var C_SPACE = ' ';
 var C_NEWLINE = '\n';
 var C_LT = '<';
 
-/* Tokenise block HTML. */
 function blockHTML(eat, value, silent) {
   var self = this;
   var blocks = self.options.blocks;

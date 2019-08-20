@@ -13,11 +13,21 @@ foreach $src (@libcrypto_srcs) {
 } -%%    ],
     'openssl_defines_%%-$arch-%%': [
 %%- foreach $define (@{$config{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@lib_cppflags) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$target{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$config{lib_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
     'openssl_cflags_%%-$arch-%%': [
-      '%%-$target{cflags}-%%',
-    ],
+%%- foreach $cflag (@cflags) {
+      $OUT .= "      '$cflag',\n";
+} -%%    ],
     'openssl_ex_libs_%%-$arch-%%': [
       '%%-$target{ex_libs}-%%',
     ],

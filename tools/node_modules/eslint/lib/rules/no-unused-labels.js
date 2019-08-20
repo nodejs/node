@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unused labels",
             category: "Best Practices",
@@ -20,7 +22,11 @@ module.exports = {
 
         schema: [],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unused: "'{{name}}:' is defined but never used."
+        }
     },
 
     create(context) {
@@ -52,7 +58,7 @@ module.exports = {
             if (!scopeInfo.used) {
                 context.report({
                     node: node.label,
-                    message: "'{{name}}:' is defined but never used.",
+                    messageId: "unused",
                     data: node.label,
                     fix(fixer) {
 

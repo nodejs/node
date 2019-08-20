@@ -8,7 +8,7 @@ var rimraf = require('rimraf')
 var writeFileSync = require('fs').writeFileSync
 var common = require('../common-tap.js')
 
-var base = path.join(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var cycle = path.join(base, 'cycle')
 
 var cycleJSON = {
@@ -17,7 +17,7 @@ var cycleJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   dependencies: {
     'cycle': '*'

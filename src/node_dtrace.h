@@ -24,7 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_internals.h"
+#include "env.h"
+#include "v8.h"
 
 extern "C" {
 /*
@@ -75,7 +76,7 @@ typedef struct {
 
 namespace node {
 
-void InitDTrace(Environment* env, v8::Local<v8::Object> target);
+void InitDTrace(Environment* env);
 
 }  // namespace node
 

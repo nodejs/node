@@ -9,8 +9,8 @@ a.__proto__ = null;
 
 function get(a) {
   return a.length;
-}
-
+};
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
@@ -19,8 +19,9 @@ assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteLength;
-}
-
+};
+;
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
@@ -29,8 +30,9 @@ assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteOffset;
-}
-
+};
+;
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
@@ -38,74 +40,82 @@ assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 
 (function() {
-  "use strict";
+"use strict";
 
-  class MyTypedArray extends Int32Array {
-    get length() {
-      return "length";
-    }
+class MyTypedArray extends Int32Array {
+  get length() {
+    return "length";
   }
+}
 
-  a = new MyTypedArray();
+a = new MyTypedArray();
 
-  get = function(a) {
-    return a.length;
-  }
+get = function(a) {
+  return a.length;
+};
+;
+%PrepareFunctionForOptimization(get);
+assertEquals("length", get(a));
+assertEquals("length", get(a));
+assertEquals("length", get(a));
+%OptimizeFunctionOnNextCall(get);
+assertEquals("length", get(a));
 
-  assertEquals("length", get(a));
-  assertEquals("length", get(a));
-  assertEquals("length", get(a));
-  %OptimizeFunctionOnNextCall(get);
-  assertEquals("length", get(a));
+a.__proto__ = null;
 
-  a.__proto__ = null;
-
-  get = function(a) {
-    return a.length;
-  }
-
-  assertEquals(undefined, get(a));
-  assertEquals(undefined, get(a));
-  assertEquals(undefined, get(a));
-  %OptimizeFunctionOnNextCall(get);
-  assertEquals(undefined, get(a));
+get = function(a) {
+  return a.length;
+};
+;
+%PrepareFunctionForOptimization(get);
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
+%OptimizeFunctionOnNextCall(get);
+assertEquals(undefined, get(a));
 })();
 
 (function() {
-  "use strict";
+"use strict";
 
-  class MyTypedArray extends Int32Array {
-    constructor(length) {
-      super(length);
-    }
+class MyTypedArray extends Int32Array {
+  constructor(length) {
+    super(length);
   }
+}
 
-  a = new MyTypedArray(1024);
+a = new MyTypedArray(1024);
 
-  get = function(a) {
-    return a.length;
-  }
-
-  assertEquals(1024, get(a));
-  assertEquals(1024, get(a));
-  assertEquals(1024, get(a));
-  %OptimizeFunctionOnNextCall(get);
-  assertEquals(1024, get(a));
+get = function(a) {
+  return a.length;
+};
+;
+%PrepareFunctionForOptimization(get);
+assertEquals(1024, get(a));
+assertEquals(1024, get(a));
+assertEquals(1024, get(a));
+%OptimizeFunctionOnNextCall(get);
+assertEquals(1024, get(a));
 })();
 
 (function() {
-  "use strict";
-  var a = new Uint8Array(4);
-  Object.defineProperty(a, "length", {get: function() { return "blah"; }});
-  get = function(a) {
-    return a.length;
+"use strict";
+var a = new Uint8Array(4);
+Object.defineProperty(a, 'length', {
+  get: function() {
+    return 'blah';
   }
-
-  assertEquals("blah", get(a));
-  assertEquals("blah", get(a));
-  assertEquals("blah", get(a));
-  %OptimizeFunctionOnNextCall(get);
-  assertEquals("blah", get(a));
+});
+get = function(a) {
+  return a.length;
+};
+;
+%PrepareFunctionForOptimization(get);
+assertEquals("blah", get(a));
+assertEquals("blah", get(a));
+assertEquals("blah", get(a));
+%OptimizeFunctionOnNextCall(get);
+assertEquals("blah", get(a));
 })();
 
 // Ensure we can delete length, byteOffset, byteLength.
@@ -120,8 +130,9 @@ a = new Int32Array(100);
 
 get = function(a) {
   return a.length;
-}
-
+};
+;
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
@@ -130,8 +141,9 @@ assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteLength;
-}
-
+};
+;
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
@@ -140,8 +152,9 @@ assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteOffset;
-}
-
+};
+;
+%PrepareFunctionForOptimization(get);
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));
 assertEquals(undefined, get(a));

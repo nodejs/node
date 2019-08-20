@@ -16,7 +16,7 @@ function main({ accessMethod, param, n }) {
     throw new Error(`Unknown method ${accessMethod}`);
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     params[accessMethod](param);
   bench.end(n);
 }

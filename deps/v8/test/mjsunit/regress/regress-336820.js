@@ -28,11 +28,10 @@
 // Flags: --max-old-space-size=1600
 
 assertThrows((function() {
-  s = "Hello World!\n";
-  while (true) {
-    x = new Array();
-    x[0] = s;
-    x[1000] = s;
-    x[1000000] = s;
-    s = x.join("::");
-  }}), RangeError);
+  let str = "a".repeat(1e7);
+  let arr = new Array(2000);
+  for (let i = 0; i < 200; ++i) {
+    arr[i*10] = str;
+  }
+  let res = arr.join(':');
+}), RangeError);

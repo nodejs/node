@@ -7,10 +7,13 @@
 function f(n) {
   "use asm";
   var a = [];
-  function g() { return x }
+  function g() {
+    return x;
+  };
   for (var i = 0; i < n; ++i) {
     var x = i;
     a[i] = g;
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
   }

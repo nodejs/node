@@ -10,10 +10,9 @@
 #include <string>
 
 #include "include/v8.h"
-#include "src/factory.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/regexp/jsregexp.h"
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"
+#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 // This is a hexdump of test/fuzzer/regexp_builtins/mjsunit.js generated using
@@ -62,9 +61,8 @@ enum RegExpBuiltin {
 REGEXP_BUILTINS(CASE)
 #undef CASE
 
-v8::Local<v8::String> v8_str(const char* s) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), s,
-                                 v8::NewStringType::kNormal)
+v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* s) {
+  return v8::String::NewFromUtf8(isolate, s, v8::NewStringType::kNormal)
       .ToLocalChecked();
 }
 
@@ -72,7 +70,7 @@ v8::MaybeLocal<v8::Value> CompileRun(v8::Local<v8::Context> context,
                                      const char* source) {
   v8::Local<v8::Script> script;
   v8::MaybeLocal<v8::Script> maybe_script =
-      v8::Script::Compile(context, v8_str(source));
+      v8::Script::Compile(context, v8_str(context->GetIsolate(), source));
 
   if (!maybe_script.ToLocal(&script)) return v8::MaybeLocal<v8::Value>();
   return script->Run(context);
@@ -104,7 +102,7 @@ std::string NaiveEscape(const std::string& input, char escaped_char) {
   }
   // Disallow trailing backslashes as they mess with our naive source string
   // concatenation.
-  if (out.back() == '\\') out.back() = '_';
+  if (!out.empty() && out.back() == '\\') out.back() = '_';
 
   return out;
 }
@@ -243,7 +241,7 @@ std::string PickLimitForSplit(FuzzerArgs* args) {
 }
 
 std::string GenerateRandomFlags(FuzzerArgs* args) {
-  constexpr size_t kFlagCount = JSRegExp::FlagCount();
+  constexpr size_t kFlagCount = JSRegExp::kFlagCount;
   CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 1));
   STATIC_ASSERT((1 << kFlagCount) - 1 < 0xFF);
 
@@ -317,15 +315,21 @@ std::string GenerateSourceString(FuzzerArgs* args, const std::string& test) {
      << "const slow = test();\n"
      << "%SetForceSlowPath(false);\n";
   // clang-format on
-  return ss.str();
+
+  std::string source = ss.str();
+  if (kVerbose) {
+    fprintf(stderr, "Generated source:\n```\n%s\n```\n", source.c_str());
+  }
+
+  return source;
 }
 
-void PrintExceptionMessage(v8::TryCatch* try_catch) {
+void PrintExceptionMessage(v8::Isolate* isolate, v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
   static const int kBufferLength = 256;
   char buffer[kBufferLength + 1];
   try_catch->Message()->Get()->WriteOneByte(
-      reinterpret_cast<uint8_t*>(&buffer[0]), 0, kBufferLength);
+      isolate, reinterpret_cast<uint8_t*>(&buffer[0]), 0, kBufferLength);
   fprintf(stderr, "%s\n", buffer);
 }
 
@@ -338,9 +342,10 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
       "assertEquals(fast.re.lastIndex, slow.re.lastIndex);\n";
 
   v8::Local<v8::Value> result;
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(args->isolate));
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(args->isolate);
+  v8::TryCatch try_catch(isolate);
   if (!CompileRun(args->context, source.c_str()).ToLocal(&result)) {
-    PrintExceptionMessage(&try_catch);
+    PrintExceptionMessage(isolate, &try_catch);
     args->isolate->clear_pending_exception();
     return false;
   }
@@ -350,14 +355,15 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
 
 void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
   v8::Local<v8::Value> result;
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(args->isolate));
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(args->isolate);
+  v8::TryCatch try_catch(isolate);
   if (!CompileRun(args->context, source.c_str()).ToLocal(&result)) {
     args->isolate->clear_pending_exception();
     // No need to verify result if an exception was thrown here, since that
     // implies a syntax error somewhere in the pattern or string. We simply
     // ignore those.
     if (kVerbose) {
-      PrintExceptionMessage(&try_catch);
+      PrintExceptionMessage(isolate, &try_catch);
       fprintf(stderr, "Failed to run script:\n```\n%s\n```\n", source.c_str());
     }
     return;
@@ -367,8 +373,7 @@ void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
     uint32_t hash = StringHasher::HashSequentialString(
         args->input_data, static_cast<int>(args->input_length),
         kRegExpBuiltinsFuzzerHashSeed);
-    V8_Fatal(__FILE__, __LINE__,
-             "!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
+    FATAL("!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
   }
 }
 

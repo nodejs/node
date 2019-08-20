@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint
-
 var buffer = new ArrayBuffer(64);
 var dataview = new DataView(buffer, 8, 24);
 var bytes = new Uint8Array(buffer);
@@ -67,6 +65,16 @@ assertEquals(0xab, bytes[22]);
 assertEquals(0x89, bytes[23]);
 assertEquals(b2, dataview.getBigInt64(8, true));
 assertEquals(0x89abcdef01234568n, dataview.getBigUint64(8, true));
+
+var b3 = -0x8000000000000000n; // The int64_t minimum value.
+dataview.setBigInt64(8, b3);
+assertEquals(b3, dataview.getBigInt64(8));
+assertEquals(-b3, dataview.getBigUint64(8));
+
+var b4 = 0x8000000000000000n;
+dataview.setBigInt64(8, b4);
+assertEquals(-b4, dataview.getBigInt64(8));
+assertEquals(b4, dataview.getBigUint64(8));
 
 assertThrows(() => dataview.setBigInt64(0, 1), TypeError);
 assertThrows(() => dataview.setBigUint64(0, 1), TypeError);

@@ -13,13 +13,18 @@
  */
 
 #include <openssl/conf.h>
+#include <openssl/err.h>
 #include "fuzzer.h"
 
-int FuzzerInitialize(int *argc, char ***argv) {
+int FuzzerInitialize(int *argc, char ***argv)
+{
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+    ERR_get_state();
     return 1;
 }
 
-int FuzzerTestOneInput(const uint8_t *buf, size_t len) {
+int FuzzerTestOneInput(const uint8_t *buf, size_t len)
+{
     CONF *conf;
     BIO *in;
     long eline;
@@ -33,6 +38,11 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len) {
     NCONF_load_bio(conf, in, &eline);
     NCONF_free(conf);
     BIO_free(in);
+    ERR_clear_error();
 
     return 0;
+}
+
+void FuzzerCleanup(void)
+{
 }

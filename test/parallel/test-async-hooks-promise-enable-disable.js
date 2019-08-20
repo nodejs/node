@@ -4,11 +4,8 @@ const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const EXPECTED_INITS = 2;
-let p_resource = null;
 let p_er = null;
 let p_inits = 0;
-
-common.crashOnUnhandledRejection();
 
 // Not useful to place common.mustCall() around 'exit' event b/c it won't be
 // able to check it anyway.
@@ -25,7 +22,6 @@ const mustCallInit = common.mustCall(function init(id, type, tid, resource) {
   if (type !== 'PROMISE')
     return;
   p_inits++;
-  p_resource = resource.promise;
 }, EXPECTED_INITS);
 
 const hook = async_hooks.createHook({
@@ -38,7 +34,6 @@ new Promise(common.mustCall((res) => {
 })).then(common.mustCall((val) => {
   hook.enable().enable();
   const p = new Promise((res) => res(val));
-  assert.strictEqual(p, p_resource);
   hook.disable();
   return p;
 })).then(common.mustCall((val2) => {

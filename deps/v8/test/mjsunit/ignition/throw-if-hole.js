@@ -11,10 +11,14 @@ function f(b) {
 }
 
 f(0);
+assertThrows(() => {f(1)}, ReferenceError);
+
+%PrepareFunctionForOptimization(f);
+f(0);
 f(0);
 %OptimizeFunctionOnNextCall(f);
 f(0);
 assertOptimized(f);
 // Check that hole checks are handled correctly in optimized code.
-assertThrowsEquals(() => {f(1)}, ReferenceError());
+assertThrows(() => {f(1)}, ReferenceError);
 assertOptimized(f);

@@ -36,11 +36,11 @@ target.on('message', common.mustCall(function(buf) {
   }
 }, 2));
 
-target.on('listening', function() {
+target.on('listening', common.mustCall(function() {
   // Second .send() call should not throw a bind error.
   const port = this.address().port;
   source.send(Buffer.from('abc'), 0, 3, port, '127.0.0.1');
   source.send(Buffer.from('def'), 0, 3, port, '127.0.0.1');
-});
+}));
 
 target.bind(0);

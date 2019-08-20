@@ -8,5 +8,6 @@ var x = 42;
 function foo(s) { return x + s; }
 function bar(s, t) { return foo(s, t, 13); }
 
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(42 + 12, bar(12));

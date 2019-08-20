@@ -245,15 +245,15 @@ tests.forEach((testCase) => {
 
 // BMP code point
 assert.strictEqual(punycode.ucs2.encode([0x61]), 'a');
-// supplementary code point (surrogate pair)
+// Supplementary code point (surrogate pair)
 assert.strictEqual(punycode.ucs2.encode([0x1D306]), '\uD834\uDF06');
 // high surrogate
 assert.strictEqual(punycode.ucs2.encode([0xD800]), '\uD800');
-// high surrogate followed by non-surrogates
+// High surrogate followed by non-surrogates
 assert.strictEqual(punycode.ucs2.encode([0xD800, 0x61, 0x62]), '\uD800ab');
 // low surrogate
 assert.strictEqual(punycode.ucs2.encode([0xDC00]), '\uDC00');
-// low surrogate followed by non-surrogates
+// Low surrogate followed by non-surrogates
 assert.strictEqual(punycode.ucs2.encode([0xDC00, 0x61, 0x62]), '\uDC00ab');
 
 assert.strictEqual(errors, 0);

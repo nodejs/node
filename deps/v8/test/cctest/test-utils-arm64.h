@@ -28,13 +28,10 @@
 #ifndef V8_ARM64_TEST_UTILS_ARM64_H_
 #define V8_ARM64_TEST_UTILS_ARM64_H_
 
-#include "src/v8.h"
+#include "src/codegen/arm64/utils-arm64.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
-
-#include "src/arm64/macro-assembler-arm64.h"
-#include "src/arm64/utils-arm64.h"
-#include "src/macro-assembler.h"
-
 
 namespace v8 {
 namespace internal {
@@ -209,7 +206,8 @@ bool Equal128(uint64_t expected_h, uint64_t expected_l,
 
 bool EqualNzcv(uint32_t expected, uint32_t result);
 
-bool EqualRegisters(const RegisterDump* a, const RegisterDump* b);
+// Compares two RegisterDumps, only comparing registers that V8 uses.
+bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b);
 
 // Create an array of type {RegType}, size {Size}, filled with {NoReg}.
 template <typename RegType, size_t Size>

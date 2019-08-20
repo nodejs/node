@@ -16,7 +16,7 @@ const timer = setInterval(common.mustCall(() => {
   if (--N === 0) {
     clearInterval(timer);
     timer._onTimeout =
-      common.mustNotCall('Unrefd interal fired after being cleared');
+      common.mustNotCall('Unrefd interval fired after being cleared');
     clearTimeout(keepOpen);
   }
 }, N), 1);

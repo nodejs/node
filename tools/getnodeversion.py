@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import re
 
@@ -17,4 +18,4 @@ for line in f:
   if re.match('^#define NODE_PATCH_VERSION', line):
     patch = line.split()[2]
 
-print '%(major)s.%(minor)s.%(patch)s'% locals()
+print('%(major)s.%(minor)s.%(patch)s'% locals())

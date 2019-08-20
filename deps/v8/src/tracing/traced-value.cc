@@ -5,7 +5,8 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
+#include "src/numbers/conversions.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace tracing {
@@ -26,15 +27,23 @@ const bool kStackTypeArray = true;
 
 void EscapeAndAppendString(const char* value, std::string* result) {
   *result += '"';
-  char number_buffer[10];
   while (*value) {
-    char c = *value++;
+    unsigned char c = *value++;
     switch (c) {
-      case '\t':
-        *result += "\\t";
+      case '\b':
+        *result += "\\b";
+        break;
+      case '\f':
+        *result += "\\f";
         break;
       case '\n':
         *result += "\\n";
+        break;
+      case '\r':
+        *result += "\\r";
+        break;
+      case '\t':
+        *result += "\\t";
         break;
       case '\"':
         *result += "\\\"";
@@ -43,10 +52,10 @@ void EscapeAndAppendString(const char* value, std::string* result) {
         *result += "\\\\";
         break;
       default:
-        if (c < '\x20') {
-          base::OS::SNPrintF(
-              number_buffer, arraysize(number_buffer), "\\u%04X",
-              static_cast<unsigned>(static_cast<unsigned char>(c)));
+        if (c < '\x20' || c == '\x7F') {
+          char number_buffer[8];
+          base::OS::SNPrintF(number_buffer, arraysize(number_buffer), "\\u%04X",
+                             static_cast<unsigned>(c));
           *result += number_buffer;
         } else {
           *result += c;
@@ -58,6 +67,7 @@ void EscapeAndAppendString(const char* value, std::string* result) {
 
 }  // namespace
 
+// static
 std::unique_ptr<TracedValue> TracedValue::Create() {
   return std::unique_ptr<TracedValue>(new TracedValue());
 }
@@ -95,6 +105,14 @@ void TracedValue::SetString(const char* name, const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
   EscapeAndAppendString(value, &data_);
+}
+
+void TracedValue::SetValue(const char* name, TracedValue* value) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
+  WriteName(name);
+  std::string tmp;
+  value->AppendAsTraceFormat(&tmp);
+  data_ += tmp;
 }
 
 void TracedValue::BeginDictionary(const char* name) {

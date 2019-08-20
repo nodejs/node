@@ -11,9 +11,8 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
-#include "src/heap/heap-inl.h"
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -31,35 +30,27 @@ class ValueHelper {
 
   void CheckFloat64Constant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckNumberConstant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kNumberConstant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckInt32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
   void CheckUint32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
-  void CheckHeapConstant(HeapObject* expected, Node* node) {
+  void CheckHeapConstant(HeapObject expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *OpParameter<Handle<HeapObject>>(node));
-  }
-
-  void CheckTrue(Node* node) {
-    CheckHeapConstant(isolate_->heap()->true_value(), node);
-  }
-
-  void CheckFalse(Node* node) {
-    CheckHeapConstant(isolate_->heap()->false_value(), node);
+    CHECK_EQ(expected, *HeapConstantOf(node->op()));
   }
 
   static constexpr float float32_array[] = {
@@ -326,14 +317,9 @@ class ValueHelper {
   }
 };
 
-// Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
-// Watch out, these macros aren't hygenic; they pollute your scope. Thanks STL.
-#define FOR_INPUTS(ctype, itype, var)                             \
-  Vector<const ctype> var##_vec =                                 \
-      ::v8::internal::compiler::ValueHelper::itype##_vector();    \
-  for (Vector<const ctype>::iterator var = var##_vec.begin(),     \
-                                     var##_end = var##_vec.end(); \
-       var != var##_end; ++var)
+// Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
+#define FOR_INPUTS(ctype, itype, var) \
+  for (ctype var : ::v8::internal::compiler::ValueHelper::itype##_vector())
 
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
 #define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)
@@ -350,36 +336,42 @@ class ValueHelper {
 
 #define FOR_UINT32_SHIFTS(var) for (uint32_t var = 0; var < 32; var++)
 
-// TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
-static inline void CheckFloatEq(volatile float x, volatile float y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-    CHECK_EQ(std::signbit(x), std::signbit(y));
+template <typename type>
+struct FloatCompareWrapper {
+  type value;
+  explicit FloatCompareWrapper(type x) : value(x) {}
+  bool operator==(FloatCompareWrapper<type> const& other) const {
+    return std::isnan(value)
+               ? std::isnan(other.value)
+               : value == other.value &&
+                     std::signbit(value) == std::signbit(other.value);
   }
+};
+
+template <typename type>
+std::ostream& operator<<(std::ostream& out, FloatCompareWrapper<type> wrapper) {
+  uint8_t bytes[sizeof(type)];
+  memcpy(bytes, &wrapper.value, sizeof(type));
+  out << wrapper.value << " (0x";
+  const char* kHexDigits = "0123456789ABCDEF";
+  for (unsigned i = 0; i < sizeof(type); ++i) {
+    out << kHexDigits[bytes[i] >> 4] << kHexDigits[bytes[i] & 15];
+  }
+  return out << ")";
 }
 
-#define CHECK_FLOAT_EQ(lhs, rhs)                      \
-  do {                                                \
-    volatile float tmp = lhs;                         \
-    ::v8::internal::compiler::CheckFloatEq(tmp, rhs); \
-  } while (0)
+#define CHECK_FLOAT_EQ(lhs, rhs)                                               \
+  do {                                                                         \
+    using FloatWrapper = ::v8::internal::compiler::FloatCompareWrapper<float>; \
+    CHECK_EQ(FloatWrapper(lhs), FloatWrapper(rhs));                            \
+  } while (false)
 
-static inline void CheckDoubleEq(volatile double x, volatile double y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-    CHECK_EQ(std::signbit(x), std::signbit(y));
-  }
-}
-
-#define CHECK_DOUBLE_EQ(lhs, rhs)                      \
-  do {                                                 \
-    volatile double tmp = lhs;                         \
-    ::v8::internal::compiler::CheckDoubleEq(tmp, rhs); \
-  } while (0)
+#define CHECK_DOUBLE_EQ(lhs, rhs)                              \
+  do {                                                         \
+    using DoubleWrapper =                                      \
+        ::v8::internal::compiler::FloatCompareWrapper<double>; \
+    CHECK_EQ(DoubleWrapper(lhs), DoubleWrapper(rhs));          \
+  } while (false)
 
 }  // namespace compiler
 }  // namespace internal

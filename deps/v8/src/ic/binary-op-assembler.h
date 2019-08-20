@@ -6,7 +6,7 @@
 #define V8_IC_BINARY_OP_ASSEMBLER_H_
 
 #include <functional>
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,7 @@ class CodeAssemblerState;
 
 class BinaryOpAssembler : public CodeStubAssembler {
  public:
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
 
   explicit BinaryOpAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
@@ -48,8 +48,8 @@ class BinaryOpAssembler : public CodeStubAssembler {
                                           bool rhs_is_smi);
 
  private:
-  typedef std::function<Node*(Node*, Node*, Variable*)> SmiOperation;
-  typedef std::function<Node*(Node*, Node*)> FloatOperation;
+  using SmiOperation = std::function<Node*(Node*, Node*, Variable*)>;
+  using FloatOperation = std::function<Node*(Node*, Node*)>;
 
   Node* Generate_BinaryOperationWithFeedback(
       Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,

@@ -32,6 +32,7 @@ function foo() {
   return 1 > 5;
 };
 
+%PrepareFunctionForOptimization(foo);
 try { foo() } catch(e) {}
 try { foo() } catch(e) {}
 %OptimizeFunctionOnNextCall(foo);

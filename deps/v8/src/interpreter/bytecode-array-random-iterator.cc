@@ -3,19 +3,29 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/bytecode-array-random-iterator.h"
-#include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
 BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
+    std::unique_ptr<AbstractBytecodeArray> bytecode_array, Zone* zone)
+    : BytecodeArrayAccessor(std::move(bytecode_array), 0), offsets_(zone) {
+  Initialize();
+}
+
+BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
     Handle<BytecodeArray> bytecode_array, Zone* zone)
     : BytecodeArrayAccessor(bytecode_array, 0), offsets_(zone) {
+  Initialize();
+}
+
+void BytecodeArrayRandomIterator::Initialize() {
   // Run forwards through the bytecode array to determine the offset of each
   // bytecode.
-  while (current_offset() < bytecode_array->length()) {
+  while (current_offset() < bytecode_array()->length()) {
     offsets_.push_back(current_offset());
     SetOffset(current_offset() + current_bytecode_size());
   }

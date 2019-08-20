@@ -10,9 +10,12 @@ if (!common.hasCrypto)
 
 const tls = require('tls');
 
+// Renegotiation as a protocol feature was dropped after TLS1.2.
+tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
+
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = tls.Server(options, common.mustCall((socket) => {
@@ -45,28 +48,50 @@ server.listen(0, common.mustCall(() => {
     rejectUnauthorized: false,
     port
   };
-  const client =
-    tls.connect(options, common.mustCall(() => {
-      client.write('');
-      // Negotiation is still permitted for this first
-      // attempt. This should succeed.
-      client.renegotiate(
-        { rejectUnauthorized: false },
-        common.mustCall(() => {
-          // Once renegotiation completes, we write some
-          // data to the socket, which triggers the on
-          // data event on the server. After that data
-          // is received, disableRenegotiation is called.
-          client.write('data', common.mustCall(() => {
-            client.write('');
-            // This second renegotiation attempt should fail
-            // and the callback should never be invoked. The
-            // server will simply drop the connection after
-            // emitting the error.
-            client.renegotiate(
-              { rejectUnauthorized: false },
-              common.mustNotCall());
-          }));
-        }));
+  const client = tls.connect(options, common.mustCall(() => {
+
+    common.expectsError(() => client.renegotiate(), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+    });
+
+    common.expectsError(() => client.renegotiate(common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+    });
+
+    common.expectsError(() => client.renegotiate({}, false), {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+    });
+
+    common.expectsError(() => client.renegotiate({}, null), {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+    });
+
+
+    // Negotiation is still permitted for this first
+    // attempt. This should succeed.
+    let ok = client.renegotiate(options, common.mustCall((err) => {
+      assert.ifError(err);
+      // Once renegotiation completes, we write some
+      // data to the socket, which triggers the on
+      // data event on the server. After that data
+      // is received, disableRenegotiation is called.
+      client.write('data', common.mustCall(() => {
+        // This second renegotiation attempt should fail
+        // and the callback should never be invoked. The
+        // server will simply drop the connection after
+        // emitting the error.
+        ok = client.renegotiate(options, common.mustNotCall());
+        assert.strictEqual(ok, true);
+      }));
     }));
+    assert.strictEqual(ok, true);
+    client.on('secureConnect', common.mustCall(() => {
+    }));
+    client.on('secure', common.mustCall(() => {
+    }));
+  }));
 }));

@@ -93,3 +93,4 @@ openssl ca -revoke rev.pem -crl_reason superseded \
 # Generate another CRL
 $OPENSSL ca -gencrl -keyfile root.pem -cert root.pem -config ca.cnf \
 		-md sha1 -crldays 1 -out crl2.pem
+

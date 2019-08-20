@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -413,7 +413,7 @@ __ecp_nistz256_add:
 	! if a+b >= modulus, subtract modulus.
 	!
 	! But since comparison implies subtraction, we subtract
-	! modulus and then add it back if subraction borrowed.
+	! modulus and then add it back if subtraction borrowed.
 
 	subcc	@acc[0],-1,@acc[0]
 	subccc	@acc[1],-1,@acc[1]
@@ -1531,13 +1531,13 @@ ecp_nistz256_scatter_w7:
 	ld	[$inp],%l0
 	add	$inp,4,$inp
 	subcc	$index,1,$index
-	stb	%l0,[$out+64*0-1]
+	stb	%l0,[$out+64*0]
 	srl	%l0,8,%l1
-	stb	%l1,[$out+64*1-1]
+	stb	%l1,[$out+64*1]
 	srl	%l0,16,%l2
-	stb	%l2,[$out+64*2-1]
+	stb	%l2,[$out+64*2]
 	srl	%l0,24,%l3
-	stb	%l3,[$out+64*3-1]
+	stb	%l3,[$out+64*3]
 	bne	.Loop_scatter_w7
 	add	$out,64*4,$out
 
@@ -1592,7 +1592,7 @@ ___
 ########################################################################
 # Following subroutines are VIS3 counterparts of those above that
 # implement ones found in ecp_nistz256.c. Key difference is that they
-# use 128-bit muliplication and addition with 64-bit carry, and in order
+# use 128-bit multiplication and addition with 64-bit carry, and in order
 # to do that they perform conversion from uin32_t[8] to uint64_t[4] upon
 # entry and vice versa on return.
 #
@@ -1977,7 +1977,7 @@ $code.=<<___;
 	 srlx	$acc0,32,$t1
 	addxccc	$acc3,$t2,$acc2		! +=acc[0]*0xFFFFFFFF00000001
 	 sub	$acc0,$t0,$t2		! acc0*0xFFFFFFFF00000001, low part
-	addxc	%g0,$t3,$acc3		! cant't overflow
+	addxc	%g0,$t3,$acc3		! can't overflow
 ___
 }
 $code.=<<___;

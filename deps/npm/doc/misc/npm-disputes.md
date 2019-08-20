@@ -39,7 +39,7 @@ some other user wants to use that name. Here are some common ways that happens
    really has to be updated. Alice works for Foo Inc, the makers of the
    critically acclaimed and widely-marketed `foo` JavaScript toolkit framework.
    They publish it to npm as `foojs`, but people are routinely confused when
-   `npm install `foo`` is some different thing.
+   `npm install foo` is some different thing.
 4. Yusuf writes a parser for the widely-known `foo` file format, because he
    needs it for work. Then, he gets a new job, and never updates the prototype.
    Later on, Alice writes a much more complete `foo` parser, but can't publish,
@@ -102,8 +102,8 @@ here to help.**
 
 If you think another npm publisher is infringing your trademark, such as by
 using a confusingly similar package name, email <abuse@npmjs.com> with a link to
-the package or user account on [https://npmjs.com](https://npmjs.com). Attach a
-copy of your trademark registration certificate.
+the package or user account on [https://www.npmjs.com/](https://www.npmjs.com/).
+Attach a copy of your trademark registration certificate.
 
 If we see that the package's publisher is intentionally misleading others by
 misusing your registered mark without permission, we will transfer the package
@@ -114,7 +114,7 @@ metadata.
 ## CHANGES
 
 This is a living document and may be updated from time to time. Please refer to
-the [git history for this document](https://github.com/npm/npm/commits/master/doc/misc/npm-disputes.md)
+the [git history for this document](https://github.com/npm/cli/commits/latest/doc/misc/npm-disputes.md)
 to view the changes.
 
 ## LICENSE

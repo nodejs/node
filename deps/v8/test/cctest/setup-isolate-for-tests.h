@@ -5,7 +5,7 @@
 #ifndef V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
 #define V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
 
-#include "src/setup-isolate.h"
+#include "src/init/setup-isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -14,11 +14,9 @@ class SetupIsolateDelegateForTests : public SetupIsolateDelegate {
  public:
   explicit SetupIsolateDelegateForTests(bool create_heap_objects)
       : SetupIsolateDelegate(create_heap_objects) {}
-  virtual ~SetupIsolateDelegateForTests() {}
+  ~SetupIsolateDelegateForTests() override = default;
 
   void SetupBuiltins(Isolate* isolate) override;
-
-  void SetupInterpreter(interpreter::Interpreter* interpreter) override;
 
   bool SetupHeap(Heap* heap) override;
 };

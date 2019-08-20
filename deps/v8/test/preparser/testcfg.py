@@ -37,6 +37,14 @@ class VariantsGenerator(testsuite.VariantsGenerator):
     return self._standard_variant
 
 
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    for file in os.listdir(self.suite.root):
+      if file.endswith(".pyt"):
+        yield file[:-4]
+
+
+# TODO(tmrts): refactor the python template parsing then use the TestLoader.
 class TestSuite(testsuite.TestSuite):
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
@@ -63,16 +71,20 @@ class TestSuite(testsuite.TestSuite):
   def ListTests(self):
     result = []
 
-    # Find all .pyt files in this directory.
-    filenames = [f[:-4] for f in os.listdir(self.root) if f.endswith(".pyt")]
-    filenames.sort()
-    for f in filenames:
+    filenames = self._test_loader._list_test_filenames()
+    for f in sorted(filenames):
       self._ParsePythonTestTemplates(result, f)
+
+    # TODO: remove after converting to use a full TestLoader
+    self._test_loader.test_count_estimation = len(result)
     return result
 
   def _create_test(self, path, source, template_flags):
-    return super(TestSuite, self)._create_test(
-        path, source=source, template_flags=template_flags)
+    return self._test_loader._create_test(
+        path, self, source=source, template_flags=template_flags)
+
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
@@ -81,7 +93,7 @@ class TestSuite(testsuite.TestSuite):
     return VariantsGenerator
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, suite, path, name, test_config, source, template_flags):
     super(TestCase, self).__init__(suite, path, name, test_config)
 

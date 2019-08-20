@@ -8,6 +8,7 @@
 #include "node_platform.h"
 #include "v8-platform.h"
 #include "trace_event_common.h"
+#include <atomic>
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -118,10 +119,20 @@ enum CategoryGroupEnabledFlags {
   node::tracing::TraceEventHelper::GetTracingController()       \
       ->UpdateTraceEventDuration
 
+// Adds a metadata event to the trace log. The |AppendValueAsTraceFormat| method
+// on the convertable value will be called at flush time.
+// TRACE_EVENT_API_ADD_METADATA_EVENT(
+//     const unsigned char* category_group_enabled,
+//     const char* event_name,
+//     const char* arg_name,
+//     std::unique_ptr<ConvertableToTraceFormat> arg_value)
+#define TRACE_EVENT_API_ADD_METADATA_EVENT node::tracing::AddMetadataEvent
+
 // Defines atomic operations used internally by the tracing system.
-#define TRACE_EVENT_API_ATOMIC_WORD intptr_t
-#define TRACE_EVENT_API_ATOMIC_LOAD(var) (var)
-#define TRACE_EVENT_API_ATOMIC_STORE(var, value) (var) = (value)
+#define TRACE_EVENT_API_ATOMIC_WORD std::atomic<intptr_t>
+#define TRACE_EVENT_API_ATOMIC_WORD_VALUE intptr_t
+#define TRACE_EVENT_API_ATOMIC_LOAD(var) (var).load()
+#define TRACE_EVENT_API_ATOMIC_STORE(var, value) (var).store(value)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -148,12 +159,12 @@ enum CategoryGroupEnabledFlags {
     category_group_enabled =                                                 \
         TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);          \
     TRACE_EVENT_API_ATOMIC_STORE(                                            \
-        atomic, reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD>(               \
+        atomic, reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD_VALUE>(         \
                     category_group_enabled));                                \
   }
 
 #define INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group)             \
-  static TRACE_EVENT_API_ATOMIC_WORD INTERNAL_TRACE_EVENT_UID(atomic) = 0; \
+  static TRACE_EVENT_API_ATOMIC_WORD INTERNAL_TRACE_EVENT_UID(atomic) {0}; \
   const uint8_t* INTERNAL_TRACE_EVENT_UID(category_group_enabled);         \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO_CUSTOM_VARIABLES(                 \
       category_group, INTERNAL_TRACE_EVENT_UID(atomic),                    \
@@ -259,6 +270,16 @@ enum CategoryGroupEnabledFlags {
     }                                                                        \
   } while (0)
 
+#define INTERNAL_TRACE_EVENT_METADATA_ADD(category_group, name, ...)  \
+  do { \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group); \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) { \
+      TRACE_EVENT_API_ADD_METADATA_EVENT( \
+          INTERNAL_TRACE_EVENT_UID(category_group_enabled), name, \
+          ##__VA_ARGS__); \
+    } \
+  } while(0)
+
 // Enter and leave a context based on the current scope.
 #define INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
   struct INTERNAL_TRACE_EVENT_UID(ScopedContext) {                         \
@@ -289,10 +310,13 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-class TraceEventHelper {
+// Extern (for now) because embedders need access to TraceEventHelper.
+// Refs: https://github.com/nodejs/node/pull/28724
+class NODE_EXTERN TraceEventHelper {
  public:
-  static v8::TracingController* GetTracingController();
-  static void SetTracingController(v8::TracingController* controller);
+  static TracingController* GetTracingController();
+  static Agent* GetAgent();
+  static void SetAgent(Agent* agent);
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -468,6 +492,26 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
       arg_names, arg_types, arg_values, arg_convertables, flags, timestamp);
 }
 
+static V8_INLINE void AddMetadataEventImpl(
+    const uint8_t* category_group_enabled, const char* name, int32_t num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values, unsigned int flags) {
+  std::unique_ptr<v8::ConvertableToTraceFormat> arg_convertibles[2];
+  if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertibles[0].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[0])));
+  }
+  if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertibles[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[1])));
+  }
+  node::tracing::TracingController* controller =
+      node::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddMetadataEvent(
+      category_group_enabled, name, num_args, arg_names, arg_types, arg_values,
+      arg_convertibles, flags);
+}
+
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
@@ -610,6 +654,19 @@ static V8_INLINE uint64_t AddTraceEventWithTimestamp(
   return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags, timestamp);
+}
+
+template <class ARG1_TYPE>
+static V8_INLINE void AddMetadataEvent(
+    const uint8_t* category_group_enabled, const char* name,
+    const char* arg1_name, ARG1_TYPE&& arg1_val) {
+  const int num_args = 1;
+  uint8_t arg_type;
+  uint64_t arg_value;
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
+  AddMetadataEventImpl(
+      category_group_enabled, name, num_args, &arg1_name, &arg_type, &arg_value,
+      TRACE_EVENT_FLAG_NONE);
 }
 
 // Used by TRACE_EVENTx macros. Do not use directly.

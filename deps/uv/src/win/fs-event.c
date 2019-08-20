@@ -83,7 +83,7 @@ static void uv_relative_path(const WCHAR* filename,
 static int uv_split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
   size_t len, i;
- 
+
   if (filename == NULL) {
     if (dir != NULL)
       *dir = NULL;
@@ -215,11 +215,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
         uv__free(long_path);
         long_path = NULL;
       }
-    }
 
-    if (long_path) {
-      uv__free(pathw);
-      pathw = long_path;
+      if (long_path) {
+        uv__free(pathw);
+        pathw = long_path;
+      }
     }
 
     dir_to_watch = pathw;
@@ -230,8 +230,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
      */
 
     /* Convert to short path. */
-    short_path = short_path_buffer;
-    if (!GetShortPathNameW(pathw, short_path, ARRAY_SIZE(short_path))) {
+    if (GetShortPathNameW(pathw,
+                          short_path_buffer,
+                          ARRAY_SIZE(short_path_buffer))) {
+      short_path = short_path_buffer;
+    } else {
       short_path = NULL;
     }
 
@@ -419,7 +422,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
    * - We are not active, just ignore the callback
    */
   if (!uv__is_active(handle)) {
-    if (handle->flags & UV__HANDLE_CLOSING) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
       uv_want_endgame(loop, (uv_handle_t*) handle);
     }
     return;
@@ -543,7 +546,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         }
 
         offset = file_info->NextEntryOffset;
-      } while (offset && !(handle->flags & UV__HANDLE_CLOSING));
+      } while (offset && !(handle->flags & UV_HANDLE_CLOSING));
     } else {
       handle->cb(handle, NULL, UV_CHANGE, 0);
     }
@@ -552,7 +555,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     handle->cb(handle, NULL, 0, uv_translate_sys_error(err));
   }
 
-  if (!(handle->flags & UV__HANDLE_CLOSING)) {
+  if (!(handle->flags & UV_HANDLE_CLOSING)) {
     uv_fs_event_queue_readdirchanges(loop, handle);
   } else {
     uv_want_endgame(loop, (uv_handle_t*)handle);
@@ -573,7 +576,7 @@ void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
 
 
 void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
-  if ((handle->flags & UV__HANDLE_CLOSING) && !handle->req_pending) {
+  if ((handle->flags & UV_HANDLE_CLOSING) && !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
 
     if (handle->buffer) {

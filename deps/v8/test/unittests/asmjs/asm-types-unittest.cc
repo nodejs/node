@@ -63,12 +63,12 @@ class AsmTypeTest : public TestWithZone {
 
   class FunctionTypeBuilder {
    public:
-    FunctionTypeBuilder(FunctionTypeBuilder&& b)
+    FunctionTypeBuilder(FunctionTypeBuilder&& b) V8_NOEXCEPT
         : function_type_(b.function_type_) {
       b.function_type_ = nullptr;
     }
 
-    FunctionTypeBuilder& operator=(FunctionTypeBuilder&& b) {
+    FunctionTypeBuilder& operator=(FunctionTypeBuilder&& b) V8_NOEXCEPT {
       if (this != &b) {
         function_type_ = b.function_type_;
         b.function_type_ = nullptr;
@@ -203,7 +203,7 @@ TEST_F(AsmTypeTest, SaneParentsMap) {
         << Type::CamelName()->Name() << ", parents "                       \
         << reinterpret_cast<void*>(parents) << ", type "                   \
         << static_cast<void*>(Type::CamelName());                          \
-  } while (0);
+  } while (false);
   FOR_EACH_ASM_VALUE_TYPE_LIST(V)
 #undef V
 }
@@ -212,7 +212,7 @@ TEST_F(AsmTypeTest, Names) {
 #define V(CamelName, string_name, number, parent_types)         \
   do {                                                          \
     EXPECT_THAT(Type::CamelName()->Name(), StrEq(string_name)); \
-  } while (0);
+  } while (false);
   FOR_EACH_ASM_VALUE_TYPE_LIST(V)
 #undef V
 
@@ -250,7 +250,7 @@ TEST_F(AsmTypeTest, IsExactly) {
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
     for (size_t jj = 0; jj < arraysize(test_types); ++jj) {
-      EXPECT_EQ(ii == jj, test_types[ii]->IsExactly(test_types[jj]))
+      EXPECT_EQ(ii == jj, AsmType::IsExactly(test_types[ii], test_types[jj]))
           << test_types[ii]->Name()
           << ((ii == jj) ? " is not exactly " : " is exactly ")
           << test_types[jj]->Name();

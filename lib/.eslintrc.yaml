@@ -1,15 +1,24 @@
+env:
+  es6: true
+
 rules:
+  prefer-object-spread: error
+  no-buffer-constructor: error
+  no-restricted-globals:
+    - error
+    - name: JSON
+      message: "Use `const { JSON } = primordials;` instead of the global."
+    - name: Math
+      message: "Use `const { Math } = primordials;` instead of the global."
+    - name: Object
+      message: "Use `const { Object } = primordials;` instead of the global."
+    - name: Reflect
+      message: "Use `const { Reflect } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
-    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']"
-      message: "Please replace `assert.doesNotThrow()` and add a comment next to the code instead."
-    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='rejects'][arguments.length<2]"
-      message: "assert.rejects() must be invoked with at least two arguments."
-    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])"
-      message: "Use an object as second argument of assert.throws()"
-    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]"
-      message: "assert.throws() must be invoked with at least two arguments."
+    - selector: "CallExpression[callee.object.name='assert']:not([callee.property.name='ok']):not([callee.property.name='fail']):not([callee.property.name='ifError'])"
+      message: "Please only use simple assertions in ./lib"
     - selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]"
       message: "setTimeout() must be invoked with at least two arguments."
     - selector: "CallExpression[callee.name='setInterval'][arguments.length<2]"
@@ -19,13 +28,14 @@ rules:
     # Config specific to lib
     - selector: "NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError)$/])"
       message: "Use an error exported by the internal/errors module."
+    - selector: "CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']"
+      message: "Please use `require('internal/errors').hideStackFrames()` instead."
   # Custom rules in tools/eslint-rules
-  node-core/require-buffer: error
-  node-core/buffer-constructor: error
-  node-core/no-let-in-for-declaration: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
 globals:
+  Intl: false
+  # Assertions
   CHECK: false
   CHECK_EQ: false
   CHECK_GE: false
@@ -40,3 +50,11 @@ globals:
   DCHECK_LE: false
   DCHECK_LT: false
   DCHECK_NE: false
+  # Parameters passed to internal modules
+  global: false
+  require: false
+  process: false
+  exports: false
+  module: false
+  internalBinding: false
+  primordials: false

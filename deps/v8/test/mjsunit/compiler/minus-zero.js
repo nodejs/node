@@ -31,6 +31,7 @@ function add(x, y) {
   return x + y;
 }
 
+%PrepareFunctionForOptimization(add);
 assertEquals(0, add(0, 0));
 assertEquals(0, add(0, 0));
 %OptimizeFunctionOnNextCall(add);
@@ -41,6 +42,7 @@ function testsin() {
   assertEquals(-0, Math.sin(-0));
 }
 
+%PrepareFunctionForOptimization(testsin);
 testsin();
 testsin();
 %OptimizeFunctionOnNextCall(testsin);
@@ -51,6 +53,7 @@ function testfloor() {
   assertEquals(-0, Math.floor(-0));
 }
 
+%PrepareFunctionForOptimization(testfloor);
 testfloor();
 testfloor();
 %OptimizeFunctionOnNextCall(testfloor);
@@ -63,6 +66,7 @@ function add(a, b) {
   return a + b;
 }
 
+%PrepareFunctionForOptimization(add);
 assertEquals(1, 1/add(double_one, 0));
 assertEquals(1, 1/add(0, double_one));
 %OptimizeFunctionOnNextCall(add);

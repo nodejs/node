@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --mock-arraybuffer-allocator
 
 (function TestBufferByteLengthNonSmi() {
-  var non_smi_byte_length = %_MaxSmi() + 1;
+  var non_smi_byte_length = %MaxSmi() + 1;
 
   var buffer = new ArrayBuffer(non_smi_byte_length);
 
@@ -20,7 +20,7 @@
 })();
 
 (function TestByteOffsetNonSmi() {
-  var non_smi_byte_length = %_MaxSmi() + 11;
+  var non_smi_byte_length = %MaxSmi() + 11;
 
   var buffer = new ArrayBuffer(non_smi_byte_length);
 

@@ -15,14 +15,20 @@ class B extends A {
     }
   }
 }
+// No feedback case
+test = new B(0);
+assertThrows(() => {new B(1)}, ReferenceError);
 
+// Ensure Feedback
+%PrepareFunctionForOptimization(B);
+%EnsureFeedbackVectorForFunction(A);
 test = new B(0);
 test = new B(0);
-assertThrowsEquals(() => {new B(1)}, ReferenceError());
-assertThrowsEquals(() => {new B(1)}, ReferenceError());
+assertThrows(() => {new B(1)}, ReferenceError);
+assertThrows(() => {new B(1)}, ReferenceError);
 %OptimizeFunctionOnNextCall(B);
 test = new B(0);
 assertOptimized(B);
 // Check that hole checks are handled correctly in optimized code.
-assertThrowsEquals(() => {new B(1)}, ReferenceError());
+assertThrows(() => {new B(1)}, ReferenceError);
 assertOptimized(B);

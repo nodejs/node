@@ -1,9 +1,13 @@
+#include "string_decoder.h"  // NOLINT(build/include_inline)
 #include "string_decoder-inl.h"
-#include "string_bytes.h"
-#include "node_internals.h"
+
+#include "env-inl.h"
 #include "node_buffer.h"
+#include "string_bytes.h"
+#include "util.h"
 
 using v8::Array;
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
@@ -30,16 +34,6 @@ MaybeLocal<String> MakeString(Isolate* isolate,
         data,
         v8::NewStringType::kNormal,
         length);
-  } else if (encoding == UCS2) {
-#ifdef DEBUG
-    CHECK_EQ(reinterpret_cast<uintptr_t>(data) % 2, 0);
-    CHECK_EQ(length % 2, 0);
-#endif
-    ret = StringBytes::Encode(
-        isolate,
-        reinterpret_cast<const uint16_t*>(data),
-        length / 2,
-        &error);
   } else {
     ret = StringBytes::Encode(
         isolate,
@@ -54,9 +48,7 @@ MaybeLocal<String> MakeString(Isolate* isolate,
     isolate->ThrowException(error);
   }
 
-#ifdef DEBUG
-  CHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
-#endif
+  DCHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
   return ret.FromMaybe(Local<Value>()).As<String>();
 }
 
@@ -81,16 +73,17 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
                kIncompleteCharactersEnd);
       if (Encoding() == UTF8) {
         // For UTF-8, we need special treatment to align with the V8 decoder:
-        // If an incomplete character is found at a chunk boundary, we turn
-        // that character into a single invalid one.
+        // If an incomplete character is found at a chunk boundary, we use
+        // its remainder and pass it to V8 as-is.
         for (size_t i = 0; i < nread && i < MissingBytes(); ++i) {
           if ((data[i] & 0xC0) != 0x80) {
             // This byte is not a continuation byte even though it should have
-            // been one.
-            // Act as if there was a 1-byte incomplete character, which does
-            // not make sense but works here because we know it's invalid.
+            // been one. We stop decoding of the incomplete character at this
+            // point (but still use the rest of the incomplete bytes from this
+            // chunk) and assume that the new, unexpected byte starts a new one.
             state_[kMissingBytes] = 0;
-            state_[kBufferedBytes] = 1;
+            memcpy(IncompleteCharacterBuffer() + BufferedBytes(), data, i);
+            state_[kBufferedBytes] += i;
             data += i;
             nread -= i;
             break;
@@ -132,11 +125,9 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
       body = !prepend.IsEmpty() ? prepend : String::Empty(isolate);
       prepend = Local<String>();
     } else {
-#ifdef DEBUG
       // If not, that means is no character left to finish at this point.
-      CHECK_EQ(MissingBytes(), 0);
-      CHECK_EQ(BufferedBytes(), 0);
-#endif
+      DCHECK_EQ(MissingBytes(), 0);
+      DCHECK_EQ(BufferedBytes(), 0);
 
       // See whether there is a character that we may have to cut off and
       // finish when receiving the next chunk.
@@ -145,9 +136,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
         // This means we'll need to figure out where the character to which
         // the byte belongs begins.
         for (size_t i = nread - 1; ; --i) {
-#ifdef DEBUG
-          CHECK_LT(i, nread);
-#endif
+          DCHECK_LT(i, nread);
           state_[kBufferedBytes]++;
           if ((data[i] & 0xC0) == 0x80) {
             // This byte does not start a character (a "trailing" byte).
@@ -226,7 +215,7 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
     if (prepend.IsEmpty()) {
       return body;
     } else {
-      return String::Concat(prepend, body);
+      return String::Concat(isolate, prepend, body);
     }
   } else {
     CHECK(Encoding() == ASCII || Encoding() == HEX || Encoding() == LATIN1);
@@ -266,10 +255,14 @@ namespace {
 void DecodeData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
-  CHECK_NE(decoder, nullptr);
-  size_t nread = Buffer::Length(args[1]);
+  CHECK_NOT_NULL(decoder);
+
+  CHECK(args[1]->IsArrayBufferView());
+  ArrayBufferViewContents<char> content(args[1].As<ArrayBufferView>());
+  size_t length = content.length();
+
   MaybeLocal<String> ret =
-      decoder->DecodeData(args.GetIsolate(), Buffer::Data(args[1]), &nread);
+      decoder->DecodeData(args.GetIsolate(), content.data(), &length);
   if (!ret.IsEmpty())
     args.GetReturnValue().Set(ret.ToLocalChecked());
 }
@@ -277,7 +270,7 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
 void FlushData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
-  CHECK_NE(decoder, nullptr);
+  CHECK_NOT_NULL(decoder);
   MaybeLocal<String> ret = decoder->FlushData(args.GetIsolate());
   if (!ret.IsEmpty())
     args.GetReturnValue().Set(ret.ToLocalChecked());
@@ -285,7 +278,8 @@ void FlushData(const FunctionCallbackInfo<Value>& args) {
 
 void InitializeStringDecoder(Local<Object> target,
                              Local<Value> unused,
-                             Local<Context> context) {
+                             Local<Context> context,
+                             void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
@@ -316,11 +310,11 @@ void InitializeStringDecoder(Local<Object> target,
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "encodings"),
-              encodings).FromJust();
+              encodings).Check();
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "kSize"),
-              Integer::New(isolate, sizeof(StringDecoder))).FromJust();
+              Integer::New(isolate, sizeof(StringDecoder))).Check();
 
   env->SetMethod(target, "decode", DecodeData);
   env->SetMethod(target, "flush", FlushData);

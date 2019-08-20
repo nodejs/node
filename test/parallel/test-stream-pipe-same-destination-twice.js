@@ -20,15 +20,15 @@ const { PassThrough, Writable } = require('stream');
   passThrough.pipe(dest);
 
   assert.strictEqual(passThrough._events.data.length, 2);
-  assert.strictEqual(passThrough._readableState.pipesCount, 2);
+  assert.strictEqual(passThrough._readableState.pipes.length, 2);
   assert.strictEqual(passThrough._readableState.pipes[0], dest);
   assert.strictEqual(passThrough._readableState.pipes[1], dest);
 
   passThrough.unpipe(dest);
 
   assert.strictEqual(passThrough._events.data.length, 1);
-  assert.strictEqual(passThrough._readableState.pipesCount, 1);
-  assert.strictEqual(passThrough._readableState.pipes, dest);
+  assert.strictEqual(passThrough._readableState.pipes.length, 1);
+  assert.deepStrictEqual(passThrough._readableState.pipes, [dest]);
 
   passThrough.write('foobar');
   passThrough.pipe(dest);
@@ -47,7 +47,7 @@ const { PassThrough, Writable } = require('stream');
   passThrough.pipe(dest);
 
   assert.strictEqual(passThrough._events.data.length, 2);
-  assert.strictEqual(passThrough._readableState.pipesCount, 2);
+  assert.strictEqual(passThrough._readableState.pipes.length, 2);
   assert.strictEqual(passThrough._readableState.pipes[0], dest);
   assert.strictEqual(passThrough._readableState.pipes[1], dest);
 
@@ -64,7 +64,7 @@ const { PassThrough, Writable } = require('stream');
   passThrough.pipe(dest);
 
   assert.strictEqual(passThrough._events.data.length, 2);
-  assert.strictEqual(passThrough._readableState.pipesCount, 2);
+  assert.strictEqual(passThrough._readableState.pipes.length, 2);
   assert.strictEqual(passThrough._readableState.pipes[0], dest);
   assert.strictEqual(passThrough._readableState.pipes[1], dest);
 
@@ -72,7 +72,7 @@ const { PassThrough, Writable } = require('stream');
   passThrough.unpipe(dest);
 
   assert.strictEqual(passThrough._events.data, undefined);
-  assert.strictEqual(passThrough._readableState.pipesCount, 0);
+  assert.strictEqual(passThrough._readableState.pipes.length, 0);
 
   passThrough.write('foobar');
 }

@@ -29,7 +29,7 @@
 
 var ab = new ArrayBuffer(8);
 var i_view = new Int32Array(ab);
-i_view[0] = %GetHoleNaNUpper()
+i_view[0] = %GetHoleNaNUpper();
 i_view[1] = %GetHoleNaNLower();
 var doubles = new Float64Array(ab);  // kHoleNaN
 assertTrue(isNaN(doubles[0]));
@@ -42,8 +42,8 @@ assertTrue(%HasDoubleElements(array));
 function boom(index) {
   array[index] = doubles[0];
   return array[index];
-}
-
+};
+%PrepareFunctionForOptimization(boom);
 assertTrue(isNaN(boom(0)));
 assertTrue(isNaN(boom(0)));
 assertTrue(isNaN(boom(0)));

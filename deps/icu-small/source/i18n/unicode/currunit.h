@@ -38,19 +38,34 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
  public:
     /**
      * Default constructor.  Initializes currency code to "XXX" (no currency).
-     * @draft ICU 60
+     * @stable ICU 60
      */
     CurrencyUnit();
 
     /**
      * Construct an object with the given ISO currency code.
-     * @param isoCode the 3-letter ISO 4217 currency code; must not be
-     * NULL and must have length 3
+     *
+     * @param isoCode the 3-letter ISO 4217 currency code; must have
+     * length 3 and need not be NUL-terminated. If NULL, the currency
+     * is initialized to the unknown currency XXX.
      * @param ec input-output error code. If the isoCode is invalid,
      * then this will be set to a failing value.
      * @stable ICU 3.0
      */
     CurrencyUnit(ConstChar16Ptr isoCode, UErrorCode &ec);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Construct an object with the given ISO currency code.
+     *
+     * @param isoCode the 3-letter ISO 4217 currency code; must have
+     * length 3. If invalid, the currency is initialized to XXX.
+     * @param ec input-output error code. If the isoCode is invalid,
+     * then this will be set to a failing value.
+     * @draft ICU 64
+     */
+    CurrencyUnit(StringPiece isoCode, UErrorCode &ec);
+#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Copy constructor
@@ -58,17 +73,15 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      */
     CurrencyUnit(const CurrencyUnit& other);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Copy constructor from MeasureUnit. This constructor allows you to
      * restore a CurrencyUnit that was sliced to MeasureUnit.
      *
      * @param measureUnit The MeasureUnit to copy from.
      * @param ec Set to a failing value if the MeasureUnit is not a currency.
-     * @draft ICU 60
+     * @stable ICU 60
      */
     CurrencyUnit(const MeasureUnit& measureUnit, UErrorCode &ec);
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Assignment operator

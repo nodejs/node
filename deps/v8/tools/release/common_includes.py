@@ -26,6 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import datetime
 import httplib
@@ -56,6 +59,13 @@ RELEASE_WORKDIR = "/tmp/v8-release-scripts-work-dir/"
 # V8 base directory.
 V8_BASE = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Add our copy of depot_tools to the PATH as many scripts use tools from there,
+# e.g. git-cl, fetch, git-new-branch etc, and we can not depend on depot_tools
+# being in the PATH on the LUCI bots.
+path_to_depot_tools = os.path.join(V8_BASE, 'third_party', 'depot_tools')
+new_path = path_to_depot_tools + os.pathsep + os.environ.get('PATH')
+os.environ['PATH'] = new_path
 
 
 def TextToFile(text, file_name):
@@ -192,8 +202,8 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   cwd = cwd or os.getcwd()
   # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
-  print "Command: %s" % cmd_line
-  print "in %s" % cwd
+  print("Command: %s" % cmd_line)
+  print("in %s" % cwd)
   sys.stdout.flush()
   try:
     if pipe:
@@ -265,8 +275,8 @@ class SideEffectHandler(object):  # pragma: no cover
     try:
       return json.loads(data)
     except:
-      print data
-      print "ERROR: Could not read response. Is your key valid?"
+      print(data)
+      print("ERROR: Could not read response. Is your key valid?")
       raise
 
   def Sleep(self, seconds):
@@ -441,7 +451,7 @@ class Step(GitRecipesMixin):
     if not self._state and os.path.exists(state_file):
       self._state.update(json.loads(FileToText(state_file)))
 
-    print ">>> Step %d: %s" % (self._number, self._text)
+    print(">>> Step %d: %s" % (self._number, self._text))
     try:
       return self.RunStep()
     finally:
@@ -477,16 +487,16 @@ class Step(GitRecipesMixin):
           raise Exception("Retried too often. Giving up. Reason: %s" %
                           str(got_exception))
         wait_time = wait_plan.pop()
-        print "Waiting for %f seconds." % wait_time
+        print("Waiting for %f seconds." % wait_time)
         self._side_effect_handler.Sleep(wait_time)
-        print "Retrying..."
+        print("Retrying...")
       else:
         return result
 
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
     if self._options.force_readline_defaults and default is not None:
-      print "%s (forced)" % default
+      print("%s (forced)" % default)
       return default
     else:
       return self._side_effect_handler.ReadLine()
@@ -522,8 +532,8 @@ class Step(GitRecipesMixin):
 
   def Die(self, msg=""):
     if msg != "":
-      print "Error: %s" % msg
-    print "Exiting"
+      print("Error: %s" % msg)
+    print("Exiting")
     raise Exception(msg)
 
   def DieNoManualMode(self, msg=""):
@@ -532,7 +542,7 @@ class Step(GitRecipesMixin):
       self.Die(msg)
 
   def Confirm(self, msg):
-    print "%s [Y/n] " % msg,
+    print("%s [Y/n] " % msg, end=' ')
     answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
@@ -542,7 +552,7 @@ class Step(GitRecipesMixin):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
           self.GitDeleteBranch(name, cwd=cwd)
-          print "Branch %s deleted." % name
+          print("Branch %s deleted." % name)
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
@@ -605,10 +615,10 @@ class Step(GitRecipesMixin):
            "change the headline of the uploaded CL.")
     answer = ""
     while answer != "LGTM":
-      print "> ",
+      print("> ", end=' ')
       answer = self.ReadLine(None if self._options.wait_for_lgtm else "LGTM")
       if answer != "LGTM":
-        print "That was not 'LGTM'."
+        print("That was not 'LGTM'.")
 
   def WaitForResolvingConflicts(self, patch_file):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
@@ -620,8 +630,8 @@ class Step(GitRecipesMixin):
       if answer == "ABORT":
         self.Die("Applying the patch failed.")
       if answer != "":
-        print "That was not 'RESOLVED' or 'ABORT'."
-      print "> ",
+        print("That was not 'RESOLVED' or 'ABORT'.")
+      print("> ", end=' ')
       answer = self.ReadLine()
 
   # Takes a file containing the patch to apply as first argument.
@@ -760,16 +770,26 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
+    reviewer = None
     if self._options.reviewer:
-      print "Using account %s for review." % self._options.reviewer
+      print("Using account %s for review." % self._options.reviewer)
       reviewer = self._options.reviewer
-    else:
-      print "Please enter the email address of a V8 reviewer for your patch: ",
+
+    tbr_reviewer = None
+    if self._options.tbr_reviewer:
+      print("Using account %s for TBR review." % self._options.tbr_reviewer)
+      tbr_reviewer = self._options.tbr_reviewer
+
+    if not reviewer and not tbr_reviewer:
+      print(
+        "Please enter the email address of a V8 reviewer for your patch: ",
+        end=' ')
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    self.GitUpload(reviewer, self._options.author, self._options.force_upload,
+
+    self.GitUpload(reviewer, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc)
+                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -822,6 +842,8 @@ class ScriptsBase(object):
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
+    parser.add_argument("--tbr-reviewer", "--tbr", default="",
+                        help="The account name to be used for TBR reviews.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
@@ -837,7 +859,7 @@ class ScriptsBase(object):
 
     # Process common options.
     if options.step < 0:  # pragma: no cover
-      print "Bad step number %d" % options.step
+      print("Bad step number %d" % options.step)
       parser.print_help()
       return None
 
@@ -865,6 +887,11 @@ class ScriptsBase(object):
     options = self.MakeOptions(args)
     if not options:
       return 1
+
+    # Ensure temp dir exists for state files.
+    state_dir = os.path.dirname(self._config["PERSISTFILE_BASENAME"])
+    if not os.path.exists(state_dir):
+      os.makedirs(state_dir)
 
     state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if options.step == 0 and os.path.exists(state_file):

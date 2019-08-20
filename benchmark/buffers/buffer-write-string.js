@@ -3,36 +3,40 @@
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   encoding: [
-    '', 'utf8', 'ascii', 'hex', 'UCS-2', 'utf16le', 'latin1', 'binary'
+    '', 'utf8', 'ascii', 'hex', 'utf16le', 'latin1',
   ],
   args: [ '', 'offset', 'offset+length' ],
-  len: [10, 2048],
-  n: [1e7]
+  len: [2048],
+  n: [1e6]
 });
 
 function main({ len, n, encoding, args }) {
-  const string = 'a'.repeat(len);
+  let string;
+  let start = 0;
   const buf = Buffer.allocUnsafe(len);
 
   var i;
 
   switch (args) {
     case 'offset':
+      string = 'a'.repeat(Math.floor(len / 2));
+      start = len - string.length;
       if (encoding) {
         bench.start();
         for (i = 0; i < n; ++i) {
-          buf.write(string, 0, encoding);
+          buf.write(string, start, encoding);
         }
         bench.end(n);
       } else {
         bench.start();
         for (i = 0; i < n; ++i) {
-          buf.write(string, 0);
+          buf.write(string, start);
         }
         bench.end(n);
       }
       break;
     case 'offset+length':
+      string = 'a'.repeat(len);
       if (encoding) {
         bench.start();
         for (i = 0; i < n; ++i) {
@@ -48,6 +52,7 @@ function main({ len, n, encoding, args }) {
       }
       break;
     default:
+      string = 'a'.repeat(len);
       if (encoding) {
         bench.start();
         for (i = 0; i < n; ++i) {

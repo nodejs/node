@@ -60,13 +60,8 @@ Running test: testPreciseCountCoverage
                             }
                             [2] : {
                                 count : 7
-                                endOffset : 71
-                                startOffset : 41
-                            }
-                            [3] : {
-                                count : 0
                                 endOffset : 72
-                                startOffset : 71
+                                startOffset : 41
                             }
                         ]
                     }
@@ -89,11 +84,6 @@ Running test: testPreciseCountCoverage
                                 count : 1
                                 endOffset : 208
                                 startOffset : 177
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 207
-                                startOffset : 206
                             }
                         ]
                     }
@@ -173,13 +163,8 @@ Running test: testPreciseCountCoverageIncremental
                             }
                             [2] : {
                                 count : 7
-                                endOffset : 71
-                                startOffset : 41
-                            }
-                            [3] : {
-                                count : 0
                                 endOffset : 72
-                                startOffset : 71
+                                startOffset : 41
                             }
                         ]
                     }
@@ -202,11 +187,6 @@ Running test: testPreciseCountCoverageIncremental
                                 count : 1
                                 endOffset : 208
                                 startOffset : 177
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 207
-                                startOffset : 206
                             }
                         ]
                     }
@@ -241,7 +221,7 @@ Running test: testPreciseCountCoverageIncremental
     result : {
         result : {
             type : string
-            value : unoptimized
+            value : optimized
         }
     }
 }
@@ -267,13 +247,8 @@ Running test: testPreciseCountCoverageIncremental
                             }
                             [2] : {
                                 count : 10945
-                                endOffset : 71
-                                startOffset : 41
-                            }
-                            [3] : {
-                                count : 0
                                 endOffset : 72
-                                startOffset : 71
+                                startOffset : 41
                             }
                         ]
                     }
@@ -287,14 +262,14 @@ Running test: testPreciseCountCoverageIncremental
                                 startOffset : 74
                             }
                             [1] : {
-                                count : 0
+                                count : 1
                                 endOffset : 156
                                 startOffset : 143
                             }
                             [2] : {
-                                count : 0
-                                endOffset : 174
-                                startOffset : 173
+                                count : 1
+                                endOffset : 172
+                                startOffset : 157
                             }
                         ]
                     }
@@ -776,11 +751,6 @@ Running test: testPreciseBinaryCoverage
                                 endOffset : 73
                                 startOffset : 1
                             }
-                            [1] : {
-                                count : 0
-                                endOffset : 72
-                                startOffset : 71
-                            }
                         ]
                     }
                     [2] : {
@@ -802,11 +772,6 @@ Running test: testPreciseBinaryCoverage
                                 count : 1
                                 endOffset : 208
                                 startOffset : 177
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 207
-                                startOffset : 206
                             }
                         ]
                     }
@@ -852,22 +817,6 @@ Running test: testPreciseBinaryCoverage
             [0] : {
                 functions : [
                     [0] : {
-                        functionName : fib
-                        isBlockCoverage : true
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 73
-                                startOffset : 1
-                            }
-                            [1] : {
-                                count : 1
-                                endOffset : 71
-                                startOffset : 32
-                            }
-                        ]
-                    }
-                    [1] : {
                         functionName : is_optimized
                         isBlockCoverage : true
                         ranges : [
@@ -875,11 +824,6 @@ Running test: testPreciseBinaryCoverage
                                 count : 1
                                 endOffset : 175
                                 startOffset : 74
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 174
-                                startOffset : 173
                             }
                         ]
                     }
@@ -969,11 +913,6 @@ Running test: testPreciseCountCoveragePartial
                                 endOffset : 224
                                 startOffset : 10
                             }
-                            [1] : {
-                                count : 0
-                                endOffset : 223
-                                startOffset : 222
-                            }
                         ]
                     }
                     [2] : {
@@ -984,11 +923,6 @@ Running test: testPreciseCountCoveragePartial
                                 count : 1
                                 endOffset : 176
                                 startOffset : 31
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 175
-                                startOffset : 172
                             }
                         ]
                     }
@@ -1001,11 +935,6 @@ Running test: testPreciseCountCoveragePartial
                                 endOffset : 172
                                 startOffset : 64
                             }
-                            [1] : {
-                                count : 0
-                                endOffset : 171
-                                startOffset : 166
-                            }
                         ]
                     }
                     [4] : {
@@ -1016,11 +945,6 @@ Running test: testPreciseCountCoveragePartial
                                 count : 1
                                 endOffset : 166
                                 startOffset : 99
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 165
-                                startOffset : 158
                             }
                         ]
                     }
@@ -1067,11 +991,6 @@ Running test: testPreciseCountCoveragePartial
                                 count : 1
                                 endOffset : 172
                                 startOffset : 64
-                            }
-                            [1] : {
-                                count : 0
-                                endOffset : 171
-                                startOffset : 166
                             }
                         ]
                     }

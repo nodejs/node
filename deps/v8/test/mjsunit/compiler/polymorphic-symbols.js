@@ -13,6 +13,7 @@
     {[symbol]: 3, d: 4}
   ];
   function foo(o) { return o[symbol]; }
+  %PrepareFunctionForOptimization(foo);
   for (let i = 0; i < OBJS.length; ++i) {
     assertEquals(i, foo(OBJS[i]));
     assertEquals(i, foo(OBJS[i]));
@@ -33,6 +34,7 @@
     {[symbol]: 3, d: 4}
   ];
   function foo(o) { o[symbol] = o; }
+  %PrepareFunctionForOptimization(foo);
   for (let i = 0; i < OBJS.length; ++i) {
     foo(OBJS[i]);
     foo(OBJS[i]);

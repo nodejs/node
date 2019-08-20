@@ -11,7 +11,7 @@ const { kSocket } = require('internal/http2/util');
 
 const server = h2.createServer();
 
-// we use the lower-level API here
+// We use the lower-level API here
 server.on('stream', common.mustCall(onStream));
 
 function onStream(stream) {
@@ -41,14 +41,20 @@ server.on('listening', common.mustCall(() => {
   // The client may have an ECONNRESET error here depending on the operating
   // system, due mainly to differences in the timing of socket closing. Do
   // not wrap this in a common mustCall.
-  client.on('error', () => {});
+  client.on('error', (err) => {
+    if (err.code !== 'ECONNRESET')
+      throw err;
+  });
   client.on('close', common.mustCall());
 
   const req = client.request({ ':method': 'POST' });
   // The client may have an ECONNRESET error here depending on the operating
   // system, due mainly to differences in the timing of socket closing. Do
   // not wrap this in a common mustCall.
-  req.on('error', () => {});
+  req.on('error', (err) => {
+    if (err.code !== 'ECONNRESET')
+      throw err;
+  });
 
   req.on('aborted', common.mustCall());
   req.resume();

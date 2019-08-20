@@ -37,7 +37,7 @@ if (cluster.isWorker) {
   const servers = 2;
   const serverPorts = new Set();
 
-  // test a single TCP server
+  // Test a single TCP server
   const testConnection = (port, cb) => {
     const socket = net.connect(port, '127.0.0.1', () => {
       // buffer result
@@ -52,7 +52,7 @@ if (cluster.isWorker) {
     });
   };
 
-  // test both servers created in the cluster
+  // Test both servers created in the cluster
   const testCluster = (cb) => {
     let done = 0;
     const portsArray = Array.from(serverPorts);
@@ -68,7 +68,7 @@ if (cluster.isWorker) {
     }
   };
 
-  // start two workers and execute callback when both is listening
+  // Start two workers and execute callback when both is listening
   const startCluster = (cb) => {
     const workers = 8;
     let online = 0;
@@ -92,7 +92,7 @@ if (cluster.isWorker) {
       testCluster(common.mustCall(() => {
         // 3. disconnect cluster
         cluster.disconnect(common.mustCall(() => {
-          // run test again to confirm cleanup
+          // Run test again to confirm cleanup
           if (again) {
             test();
           }

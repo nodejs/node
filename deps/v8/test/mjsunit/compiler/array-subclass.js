@@ -10,13 +10,29 @@
 
   function foo() { return new A; }
 
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with small constant length.
@@ -26,13 +42,29 @@
 
   function foo() { return new A(L); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with large constant length.
@@ -42,13 +74,29 @@
 
   function foo() { return new A(L); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with known boolean.
@@ -57,16 +105,32 @@
 
   function foo() { return new A(true); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with known string.
@@ -75,16 +139,32 @@
 
   function foo() { return new A(""); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with known object.
@@ -94,17 +174,32 @@
 
   function foo() { return new A(O); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-})();
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);})();
 
 // Test Array subclass default constructor with known small integers.
 (function() {
@@ -112,17 +207,33 @@
 
   function foo() { return new A(1, 2, 3); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1, foo()[0]);
-  assertEquals(2, foo()[1]);
-  assertEquals(3, foo()[2]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1, foo()[0]);
-  assertEquals(2, foo()[1]);
-  assertEquals(3, foo()[2]);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1, foo()[0]);
+    assertEquals(2, foo()[1]);
+    assertEquals(3, foo()[2]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1, foo()[0]);
+    assertEquals(2, foo()[1]);
+    assertEquals(3, foo()[2]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with known numbers.
@@ -131,17 +242,33 @@
 
   function foo() { return new A(1.1, 2.2, 3.3); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1.1, foo()[0]);
-  assertEquals(2.2, foo()[1]);
-  assertEquals(3.3, foo()[2]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1.1, foo()[0]);
-  assertEquals(2.2, foo()[1]);
-  assertEquals(3.3, foo()[2]);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1.1, foo()[0]);
+    assertEquals(2.2, foo()[1]);
+    assertEquals(3.3, foo()[2]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1.1, foo()[0]);
+    assertEquals(2.2, foo()[1]);
+    assertEquals(3.3, foo()[2]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass default constructor with known strings.
@@ -150,19 +277,35 @@
 
   function foo() { return new A("a", "b", "c", "d"); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(4, foo().length);
-  assertEquals("a", foo()[0]);
-  assertEquals("b", foo()[1]);
-  assertEquals("c", foo()[2]);
-  assertEquals("d", foo()[3]);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(4, foo().length);
-  assertEquals("a", foo()[0]);
-  assertEquals("b", foo()[1]);
-  assertEquals("c", foo()[2]);
-  assertEquals("d", foo()[3]);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(4, foo().length);
+    assertEquals("a", foo()[0]);
+    assertEquals("b", foo()[1]);
+    assertEquals("c", foo()[2]);
+    assertEquals("d", foo()[3]);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(4, foo().length);
+    assertEquals("a", foo()[0]);
+    assertEquals("b", foo()[1]);
+    assertEquals("c", foo()[2]);
+    assertEquals("d", foo()[3]);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with no parameters.
@@ -176,17 +319,32 @@
 
   function foo() { return new A; }
 
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(0, foo().length);
-  assertEquals(1, foo().bar);
-})();
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(0, foo().length);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);})();
 
 // Test Array subclass constructor with small constant length.
 (function() {
@@ -200,16 +358,32 @@
 
   function foo() { return new A(L); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with large constant length.
@@ -224,16 +398,32 @@
 
   function foo() { return new A(L); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(L, foo().length);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(L, foo().length);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known boolean.
@@ -247,19 +437,35 @@
 
   function foo() { return new A(true); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals(true, foo()[0]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals(true, foo()[0]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known string.
@@ -273,19 +479,35 @@
 
   function foo() { return new A(""); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertEquals("", foo()[0]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertEquals("", foo()[0]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known object.
@@ -300,19 +522,35 @@
 
   function foo() { return new A(O); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-  assertEquals(1, foo().bar);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(1, foo().length);
-  assertSame(O, foo()[0]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+    assertEquals(1, foo().bar);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(1, foo().length);
+    assertSame(O, foo()[0]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known small integers.
@@ -326,19 +564,35 @@
 
   function foo() { return new A(1, 2, 3); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1, foo()[0]);
-  assertEquals(2, foo()[1]);
-  assertEquals(3, foo()[2]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1, foo()[0]);
-  assertEquals(2, foo()[1]);
-  assertEquals(3, foo()[2]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1, foo()[0]);
+    assertEquals(2, foo()[1]);
+    assertEquals(3, foo()[2]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1, foo()[0]);
+    assertEquals(2, foo()[1]);
+    assertEquals(3, foo()[2]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known numbers.
@@ -352,19 +606,35 @@
 
   function foo() { return new A(1.1, 2.2, 3.3); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1.1, foo()[0]);
-  assertEquals(2.2, foo()[1]);
-  assertEquals(3.3, foo()[2]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(3, foo().length);
-  assertEquals(1.1, foo()[0]);
-  assertEquals(2.2, foo()[1]);
-  assertEquals(3.3, foo()[2]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1.1, foo()[0]);
+    assertEquals(2.2, foo()[1]);
+    assertEquals(3.3, foo()[2]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(3, foo().length);
+    assertEquals(1.1, foo()[0]);
+    assertEquals(2.2, foo()[1]);
+    assertEquals(3.3, foo()[2]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();
 
 // Test Array subclass constructor with known strings.
@@ -378,19 +648,35 @@
 
   function foo() { return new A("a", "b", "c", "d"); }
 
-  assertInstanceof(foo(), A);
-  assertEquals(4, foo().length);
-  assertEquals("a", foo()[0]);
-  assertEquals("b", foo()[1]);
-  assertEquals("c", foo()[2]);
-  assertEquals("d", foo()[3]);
-  assertEquals(1, foo().bar);
-  %OptimizeFunctionOnNextCall(foo);
-  assertInstanceof(foo(), A);
-  assertEquals(4, foo().length);
-  assertEquals("a", foo()[0]);
-  assertEquals("b", foo()[1]);
-  assertEquals("c", foo()[2]);
-  assertEquals("d", foo()[3]);
-  assertEquals(1, foo().bar);
+  function test(foo) {
+    %PrepareFunctionForOptimization(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(4, foo().length);
+    assertEquals("a", foo()[0]);
+    assertEquals("b", foo()[1]);
+    assertEquals("c", foo()[2]);
+    assertEquals("d", foo()[3]);
+    assertEquals(1, foo().bar);
+    %OptimizeFunctionOnNextCall(foo);
+    assertInstanceof(foo(), A);
+    assertEquals(4, foo().length);
+    assertEquals("a", foo()[0]);
+    assertEquals("b", foo()[1]);
+    assertEquals("c", foo()[2]);
+    assertEquals("d", foo()[3]);
+    assertEquals(1, foo().bar);
+  }
+  test(foo);
+
+  // Non-extensible
+  function fooPreventExtensions() { return Object.preventExtensions(foo()); }
+  test(fooPreventExtensions);
+
+  // Sealed
+  function fooSeal() { return Object.seal(foo()); }
+  test(fooSeal);
+
+  // Frozen
+  function fooFreeze() { return Object.freeze(foo()); }
+  test(fooFreeze);
 })();

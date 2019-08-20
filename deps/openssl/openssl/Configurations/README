@@ -38,20 +38,43 @@ In each table entry, the following keys are significant:
         sys_id          => System identity for systems where that
                            is difficult to determine automatically.
 
-        cc              => The compiler command, usually one of "cc",
+        enable          => Enable specific configuration features.
+                           This MUST be an array of words.
+        disable         => Disable specific configuration features.
+                           This MUST be an array of words.
+                           Note: if the same feature is both enabled
+                           and disabled, disable wins.
+
+        as              => The assembler command.  This is not always
+                           used (for example on Unix, where the C
+                           compiler is used instead).
+        asflags         => Default assembler command flags [4].
+        cpp             => The C preprocessor command, normally not
+                           given, as the build file defaults are
+                           usually good enough.
+        cppflags        => Default C preprocessor flags [4].
+        defines         => As an alternative, macro definitions may be
+                           given here instead of in `cppflags' [4].
+                           If given here, they MUST be as an array of
+                           the string such as "MACRO=value", or just
+                           "MACRO" for definitions without value.
+        includes        => As an alternative, inclusion directories
+                           may be given here instead of in `cppflags'
+                           [4].  If given here, the MUST be an array
+                           of strings, one directory specification
+                           each.
+        cc              => The C compiler command, usually one of "cc",
                            "gcc" or "clang".  This command is normally
                            also used to link object files and
                            libraries into the final program.
-        cflags          => Flags that are used at all times when
-                           compiling.
-        defines         => As an alternative, macro definitions may be
-                           present here instead of in `cflags'.  If
-                           given here, they MUST be as an array of the
-                           string such as "MACRO=value", or just
-                           "MACRO" for definitions without value.
-        shared_cflag    => Extra compilation flags used when
-                           compiling for shared libraries, typically
-                           something like "-fPIC".
+        cxx             => The C++ compiler command, usually one of
+                           "c++", "g++" or "clang++".  This command is
+                           also used when linking a program where at
+                           least one of the object file is made from
+                           C++ source.
+        cflags          => Defaults C compiler flags [4].
+        cxxflags        => Default  C++ compiler flags [4].  If unset,
+                           it gets the same value as cflags.
 
         (linking is a complex thing, see [3] below)
         ld              => Linker command, usually not defined
@@ -59,20 +82,34 @@ In each table entry, the following keys are significant:
                            instead).
                            (NOTE: this is here for future use, it's
                            not implemented yet)
-        lflags          => Flags that are used when linking apps.
-        shared_ldflag   => Flags that are used when linking shared
-                           or dynamic libraries.
-        plib_lflags     => Extra linking flags to appear just before
-                           the libraries on the command line.
+        lflags          => Default flags used when linking apps,
+                           shared libraries or DSOs [4].
         ex_libs         => Extra libraries that are needed when
-                           linking.
+                           linking shared libraries, DSOs or programs.
+                           The value is also assigned to Libs.private
+                           in $(libdir)/pkgconfig/libcrypto.pc.
+
+        shared_cppflags => Extra C preprocessor flags used when
+                           processing C files for shared libraries.
+        shared_cflag    => Extra C compiler flags used when compiling
+                           for shared libraries, typically something
+                           like "-fPIC".
+        shared_ldflag   => Extra linking flags used when linking
+                           shared libraries.
+        module_cppflags
+        module_cflags
+        module_ldflags  => Has the same function as the corresponding
+                           `shared_' attributes, but for building DSOs.
+                           When unset, they get the same values as the
+                           corresponding `shared_' attributes.
 
         ar              => The library archive command, the default is
                            "ar".
                            (NOTE: this is here for future use, it's
                            not implemented yet)
         arflags         => Flags to be used with the library archive
-                           command.
+                           command.  On Unix, this includes the
+                           command letter, 'r' by default.
 
         ranlib          => The library archive indexing command, the
                            default is 'ranlib' it it exists.
@@ -128,7 +165,7 @@ In each table entry, the following keys are significant:
                            that use dlopen() et al but do not have
                            fcntl.h), "DL" (shl_load() et al), "WIN32"
                            and "VMS".
-        perlasm_scheme  => The perlasm method used to created the
+        perlasm_scheme  => The perlasm method used to create the
                            assembler files used when compiling with
                            assembler implementations.
         shared_target   => The shared library building method used.
@@ -189,8 +226,14 @@ In each table entry, the following keys are significant:
                                                 export vars as
                                                 accessor functions.
 
-        apps_extra_src  => Extra source to build apps/openssl, as
-                           needed by the target.
+        apps_aux_src    => Extra source to build apps/openssl and other
+                           apps, as needed by the target and that can be
+                           collected in a library.
+        apps_init_src   => Init source to build apps/openssl and other
+                           apps, as needed by the target.  This code
+                           cannot be placed in a library, as the rest
+                           of the code isn't expected to link to it
+                           explicitly.
         cpuid_asm_src   => assembler implementation of cpuid code as
                            well as OPENSSL_cleanse().
                            Default to mem_clr.c
@@ -308,18 +351,20 @@ In each table entry, the following keys are significant:
     of this file):
 
     shared libraries:
-        {ld} $(CFLAGS) {shared_ldflag} -shared -o libfoo.so \
-            -Wl,--whole-archive libfoo.a -Wl,--no-whole-archive \
-            {plib_lflags} -lcrypto {ex_libs}
+        {ld} $(CFLAGS) {lflags} {shared_ldflag} -o libfoo.so \
+            foo/something.o foo/somethingelse.o {ex_libs}
 
     shared objects:
-        {ld} $(CFLAGS) {shared_ldflag} -shared -o libeng.so \
-            blah1.o blah2.o {plib_lflags} -lcrypto {ex_libs}
+        {ld} $(CFLAGS) {lflags} {module_ldflags} -o libeng.so \
+            blah1.o blah2.o -lcrypto {ex_libs}
 
     applications:
         {ld} $(CFLAGS) {lflags} -o app \
-            app1.o utils.o {plib_lflags} -lssl -lcrypto {ex_libs}
+            app1.o utils.o -lssl -lcrypto {ex_libs}
 
+[4] There are variants of these attribute, prefixed with `lib_',
+    `dso_' or `bin_'.  Those variants replace the unprefixed attribute
+    when building library, DSO or program modules specifically.
 
 Historically, the target configurations came in form of a string with
 values separated by colons.  This use is deprecated.  The string form
@@ -377,14 +422,16 @@ source as well.  However, the files given through SOURCE are expected
 to be located in the source tree while files given through DEPEND are
 expected to be located in the build tree)
 
-For some libraries, we maintain files with public symbols and their
-slot in a transfer vector (important on some platforms).  It can be
-declared like this:
+It's also possible to depend on static libraries explicitly:
 
-    ORDINALS[libcrypto]=crypto
+    DEPEND[foo]=libsomething.a
+    DEPEND[libbar]=libsomethingelse.a
 
-The value is not the name of the file in question, but rather the
-argument to util/mkdef.pl that indicates which file to use.
+This should be rarely used, and care should be taken to make sure it's
+only used when supported.  For example, native Windows build doesn't
+support building static libraries and DLLs at the same time, so using
+static libraries on Windows can only be done when configured
+'no-shared'.
 
 One some platforms, shared libraries come with a name that's different
 from their static counterpart.  That's declared as follows:
@@ -398,7 +445,7 @@ library:
 
     RENAME[libfoo]=libbar
 
-That lines has "libfoo" get renamed to "libbar".  While it makes no
+That line has "libfoo" renamed to "libbar".  While it makes no
 sense at all to just have a rename like that (why not just use
 "libbar" everywhere?), it does make sense when it can be used
 conditionally.  See a little further below for an example.
@@ -420,8 +467,8 @@ others, that's done as follows:
     GENERATE[bar.s]=asm/bar.S
 
 The value of each GENERATE line is a command line or part of it.
-Configure places no rules on the command line, except the the first
-item muct be the generator file.  It is, however, entirely up to the
+Configure places no rules on the command line, except that the first
+item must be the generator file.  It is, however, entirely up to the
 build file template to define exactly how those command lines should
 be handled, how the output is captured and so on.
 
@@ -475,7 +522,7 @@ not to generate them with the use of OVERRIDES, for example:
     OVERRIDES=bar.o
     BEGINRAW[Makefile(unix)]
     bar.o: bar.c
-	$(CC) $(CFLAGS) -DSPECIAL -c -o $@ $<
+    	$(CC) $(CFLAGS) -DSPECIAL -c -o $@ $<
     ENDRAW[Makefile(unix)]
 
 See the documentation further up for more information on configuration
@@ -623,8 +670,7 @@ They are all expected to return a string with the lines they produce.
                         libobj2shlib(shlib => "PATH/TO/shlibfile",
                                      lib => "PATH/TO/libfile",
                                      objs => [ "PATH/TO/objectfile", ... ],
-                                     deps => [ "PATH/TO/otherlibfile", ... ],
-                                     ordinals => [ "word", "/PATH/TO/ordfile" ]);
+                                     deps => [ "PATH/TO/otherlibfile", ... ]);
 
                   'lib' has the intended library file name *without*
                   extension, libobj2shlib is expected to add that.
@@ -633,11 +679,7 @@ They are all expected to return a string with the lines they produce.
                   libraries (also *without* extension) this library
                   needs to be linked with.  'objs' has the list of
                   object files (also *without* extension) to build
-                  this library.  'ordinals' MAY be present, and when
-                  it is, its value is an array where the word is
-                  "crypto" or "ssl" and the file is one of the ordinal
-                  files util/libeay.num or util/ssleay.num in the
-                  source directory.
+                  this library.
 
                   This function has a choice; it can use the
                   corresponding static library as input to make the

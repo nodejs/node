@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,8 +44,9 @@ int RSA_X931_derive_ex(RSA *rsa, BIGNUM *p1, BIGNUM *p2, BIGNUM *q1,
         rsa->e = BN_dup(e);
         if (!rsa->e)
             goto err;
-    } else
+    } else {
         e = rsa->e;
+    }
 
     /*
      * If not all parameters present only calculate what we can. This allows
@@ -127,11 +128,12 @@ int RSA_X931_derive_ex(RSA *rsa, BIGNUM *p1, BIGNUM *p2, BIGNUM *q1,
 
     /* calculate inverse of q mod p */
     rsa->iqmp = BN_mod_inverse(NULL, rsa->q, rsa->p, ctx2);
+    if (rsa->iqmp == NULL)
+        goto err;
 
     ret = 1;
  err:
-    if (ctx)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     BN_CTX_free(ctx2);
 
@@ -185,8 +187,7 @@ int RSA_X931_generate_key_ex(RSA *rsa, int bits, const BIGNUM *e,
     ok = 1;
 
  error:
-    if (ctx)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
 
     if (ok)

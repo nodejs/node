@@ -32,24 +32,25 @@ let zlibPairs = [
   [zlib.Gzip, zlib.Gunzip],
   [zlib.Deflate, zlib.Unzip],
   [zlib.Gzip, zlib.Unzip],
-  [zlib.DeflateRaw, zlib.InflateRaw]
+  [zlib.DeflateRaw, zlib.InflateRaw],
+  [zlib.BrotliCompress, zlib.BrotliDecompress],
 ];
 
-// how fast to trickle through the slowstream
+// How fast to trickle through the slowstream
 let trickle = [128, 1024, 1024 * 1024];
 
-// tunable options for zlib classes.
+// Tunable options for zlib classes.
 
 // several different chunk sizes
 let chunkSize = [128, 1024, 1024 * 16, 1024 * 1024];
 
-// this is every possible value.
+// This is every possible value.
 let level = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 let windowBits = [8, 9, 10, 11, 12, 13, 14, 15];
 let memLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 let strategy = [0, 1, 2, 3, 4];
 
-// it's nice in theory to test every combination, but it
+// It's nice in theory to test every combination, but it
 // takes WAY too long.  Maybe a pummel test could do this?
 if (!process.env.PUMMEL) {
   trickle = [1024];
@@ -73,7 +74,7 @@ testFiles.forEach(common.mustCall((file) => {
 }, testFiles.length));
 
 
-// stream that saves everything
+// Stream that saves everything
 class BufferStream extends stream.Stream {
   constructor() {
     super();
@@ -143,7 +144,7 @@ class SlowStream extends stream.Stream {
   }
 
   end(chunk) {
-    // walk over the chunk in blocks.
+    // Walk over the chunk in blocks.
     this.chunk = chunk;
     this.length = chunk.length;
     this.resume();
@@ -173,7 +174,7 @@ zlib.createDeflateRaw({ windowBits: 8 });
         () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))));
 }
 
-// for each of the files, make sure that compressing and
+// For each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
 // of the options set above.
 
@@ -196,7 +197,7 @@ testKeys.forEach(common.mustCall((file) => {
                 const ss = new SlowStream(trickle);
                 const buf = new BufferStream();
 
-                // verify that the same exact buffer comes out the other end.
+                // Verify that the same exact buffer comes out the other end.
                 buf.on('data', common.mustCall((c) => {
                   const msg = `${file} ${chunkSize} ${
                     JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
@@ -209,7 +210,7 @@ testKeys.forEach(common.mustCall((file) => {
                   }
                 }));
 
-                // the magic happens here.
+                // The magic happens here.
                 ss.pipe(def).pipe(inf).pipe(buf);
                 ss.end(test);
               }, zlibPairs.length));

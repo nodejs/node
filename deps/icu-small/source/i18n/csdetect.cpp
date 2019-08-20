@@ -36,9 +36,9 @@ U_NAMESPACE_BEGIN
 
 struct CSRecognizerInfo : public UMemory {
     CSRecognizerInfo(CharsetRecognizer *recognizer, UBool isDefaultEnabled)
-        : recognizer(recognizer), isDefaultEnabled(isDefaultEnabled) {};
+        : recognizer(recognizer), isDefaultEnabled(isDefaultEnabled) {}
 
-    ~CSRecognizerInfo() {delete recognizer;};
+    ~CSRecognizerInfo() {delete recognizer;}
 
     CharsetRecognizer *recognizer;
     UBool isDefaultEnabled;

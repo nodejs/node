@@ -82,9 +82,9 @@ static int closed_connections = 0;
 static int valid_writable_wakeups = 0;
 static int spurious_writable_wakeups = 0;
 
-#if !defined(_AIX) && !defined(__MVS__)
+#if !defined(__sun) && !defined(_AIX) && !defined(__MVS__)
 static int disconnects = 0;
-#endif /* !_AIX  && !__MVS__ */
+#endif /* !__sun && !_AIX  && !__MVS__ */
 
 static int got_eagain(void) {
 #ifdef _WIN32
@@ -391,7 +391,7 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
       new_events &= ~UV_WRITABLE;
     }
   }
-#if !defined(_AIX) && !defined(__MVS__)
+#if !defined(__sun) && !defined(_AIX) && !defined(__MVS__)
   if (events & UV_DISCONNECT) {
     context->got_disconnect = 1;
     ++disconnects;
@@ -399,9 +399,9 @@ static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
   }
 
   if (context->got_fin && context->sent_fin && context->got_disconnect) {
-#else /* _AIX  && __MVS__ */
+#else /* __sun && _AIX  && __MVS__ */
   if (context->got_fin && context->sent_fin) {
-#endif /* !_AIX && !__MVS__  */
+#endif /* !__sun && !_AIX && !__MVS__  */
     /* Sent and received FIN. Close and destroy context. */
     close_socket(context->sock);
     destroy_connection_context(context);
@@ -569,7 +569,7 @@ static void start_poll_test(void) {
          spurious_writable_wakeups > 20);
 
   ASSERT(closed_connections == NUM_CLIENTS * 2);
-#if !defined(_AIX) && !defined(__MVS__)
+#if !defined(__sun) && !defined(_AIX) && !defined(__MVS__)
   ASSERT(disconnects == NUM_CLIENTS * 2);
 #endif
   MAKE_VALGRIND_HAPPY();

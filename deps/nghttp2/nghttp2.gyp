@@ -12,13 +12,13 @@
       'defines': [
         'BUILDING_NGHTTP2',
         'NGHTTP2_STATICLIB',
+        'HAVE_CONFIG_H',
       ],
       'conditions': [
         ['OS=="win"', {
           'defines': [
             'WIN32',
             '_WINDOWS',
-            'HAVE_CONFIG_H',
           ],
           'msvs_settings': {
             'VCCLCompilerTool': {

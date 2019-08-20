@@ -1,0 +1,83 @@
+{
+  "_from": "byte-size@5.0.1",
+  "_id": "byte-size@5.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-/XuKeqWocKsYa/cBY1YbSJSWWqTi4cFgr9S6OyM7PBaPbr9zvNGwWP33vt0uqGhwDdN+y3yhbXVILEUpnwEWGw==",
+  "_location": "/byte-size",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "byte-size@5.0.1",
+    "name": "byte-size",
+    "escapedName": "byte-size",
+    "rawSpec": "5.0.1",
+    "saveSpec": null,
+    "fetchSpec": "5.0.1"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/byte-size/-/byte-size-5.0.1.tgz",
+  "_shasum": "4b651039a5ecd96767e71a3d7ed380e48bed4191",
+  "_spec": "byte-size@5.0.1",
+  "_where": "/Users/aeschright/code/cli",
+  "author": {
+    "name": "Lloyd Brookes",
+    "email": "75pound@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/75lb/byte-size/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Raul Perez",
+      "email": "repejota@gmail.com",
+      "url": "http://repejota.com"
+    }
+  ],
+  "deprecated": false,
+  "description": "Convert a bytes (and octets) value to a more human-readable format. Choose between metric or IEC units.",
+  "devDependencies": {
+    "coveralls": "^3.0.2",
+    "jsdoc-to-markdown": "^4.0.1",
+    "rollup": "^0.68.1",
+    "test-runner": "^0.5.1"
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "files": [
+    "index.mjs",
+    "dist/index.js"
+  ],
+  "homepage": "https://github.com/75lb/byte-size#readme",
+  "keywords": [
+    "convert",
+    "bytes",
+    "octet",
+    "size",
+    "human",
+    "readable",
+    "metric",
+    "IEC"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "name": "byte-size",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/75lb/byte-size.git"
+  },
+  "scripts": {
+    "cover": "istanbul cover ./node_modules/.bin/test-runner test.js && cat coverage/lcov.info | ./node_modules/.bin/coveralls",
+    "dist": "rollup -c dist/index.config.js",
+    "docs": "jsdoc2md -t README.hbs dist/index.js > README.md; echo",
+    "test": "npm run test:js && npm run test:mjs",
+    "test:js": "rollup -c dist/test.config.js && node dist/test.js",
+    "test:mjs": "node --experimental-modules test/test.mjs"
+  },
+  "version": "5.0.1"
+}

@@ -1,0 +1,157 @@
+Tests that Runtime can properly release objects and object groups.
+
+Running test: testReleaseObject
+Evaluating 'var a = {x:3};'
+Evaluating 'var b = {x:4};'
+Evaluate 'this' for object a
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Evaluate 'this' for object b
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Release "a"
+Evaluate 'this' for object a
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+Evaluate 'this' for object b
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Release "b"
+Evaluate 'this' for object a
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+Evaluate 'this' for object b
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+
+Running test: testReleaseObjectInvalid
+ReleaseObject with invalid params.
+{
+    error : {
+        code : -32602
+        data : objectId: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}
+
+Running test: testObjectGroups
+Evaluating 'var a = {x:3};'
+Evaluating 'var b = {x:4};'
+Evaluate "a" in objectGroup "x"
+Evaluate "b" in objectGroup "y"
+Evaluate 'this' for object a
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Evaluate 'this' for object b
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Release objectGroup "x"
+Evaluate 'this' for object a
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+Evaluate 'this' for object b
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Release objectGroup "y"
+Evaluate 'this' for object a
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+Evaluate 'this' for object b
+{
+    error : {
+        code : -32000
+        message : Could not find object with given id
+    }
+    id : <messageId>
+}
+
+Running test: testReleaseObjectGroupInvalid
+ReleaseObjectGroup with invalid params
+{
+    error : {
+        code : -32602
+        data : objectGroup: string value expected
+        message : Invalid parameters
+    }
+    id : <messageId>
+}

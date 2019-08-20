@@ -14,6 +14,9 @@ function tests() {
   assertEquals(3, countArgs(...[1.1, 2, 3]));                     // Double
   assertEquals(4, countArgs(...[1.1, 2, , 3]));                   // HoleyDouble
   assertEquals(3, countArgs(...[{valueOf: () => 0}, 1.1, '2']));  // Object
+  assertEquals(3, countArgs(...Object.freeze([{valueOf: () => 0}, 1.1, '2'])));  // Frozen Object
+  assertEquals(3, countArgs(...Object.seal([{valueOf: () => 0}, 1.1, '2'])));  // Sealed Object
+  assertEquals(3, countArgs(...Object.preventExtensions([{valueOf: () => 0}, 1.1, '2'])));  // Non-extensible Object
   assertEquals(
       4, countArgs(...[{valueOf: () => 0}, 1.1, , '2']));  // HoleyObject
 
@@ -27,6 +30,7 @@ function tests() {
   assertEquals(0, countArgs(...arguments));
 }
 
+%PrepareFunctionForOptimization(tests);
 tests();
 tests();
 %OptimizeFunctionOnNextCall(tests);
@@ -38,6 +42,7 @@ function testRest(...args) {
   assertEquals(4, countArgs(1, ...args));
   assertEquals(5, countArgs(1, 2, ...args));
 }
+%PrepareFunctionForOptimization(testRest);
 testRest(1, 2, 3);
 testRest(1, 2, 3);
 %OptimizeFunctionOnNextCall(testRest);
@@ -51,6 +56,7 @@ function testRestAndArgs(a, b, ...args) {
   assertEquals(4, countArgs(1, a, b, ...args));
   assertEquals(5, countArgs(1, 2, a, b, ...args));
 }
+%PrepareFunctionForOptimization(testRestAndArgs);
 testRestAndArgs(1, 2, 3);
 testRestAndArgs(1, 2, 3);
 %OptimizeFunctionOnNextCall(testRestAndArgs);
@@ -63,6 +69,7 @@ function testArgumentsStrict() {
   assertEquals(4, countArgs(1, ...arguments));
   assertEquals(5, countArgs(1, 2, ...arguments));
 }
+%PrepareFunctionForOptimization(testArgumentsStrict);
 testArgumentsStrict(1, 2, 3);
 testArgumentsStrict(1, 2, 3);
 %OptimizeFunctionOnNextCall(testArgumentsStrict);
@@ -74,6 +81,7 @@ function testArgumentsSloppy() {
   assertEquals(4, countArgs(1, ...arguments));
   assertEquals(5, countArgs(1, 2, ...arguments));
 }
+%PrepareFunctionForOptimization(testArgumentsSloppy);
 testArgumentsSloppy(1, 2, 3);
 testArgumentsSloppy(1, 2, 3);
 %OptimizeFunctionOnNextCall(testArgumentsSloppy);

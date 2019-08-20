@@ -966,6 +966,7 @@ assertTrue(
 obj2 = Object.create(obj1);
 obj3 = Object.create(obj2);
 
+%PrepareFunctionForOptimization(testGetterOnProto);
 testGetterOnProto(111, obj3);
 testGetterOnProto(111, obj3);
 %OptimizeFunctionOnNextCall(testGetterOnProto);
@@ -974,6 +975,7 @@ testGetterOnProto(111, obj3);
 
 assertTrue(Reflect.defineProperty(obj1, "quebec", { get: anotherGetter }));
 
+%PrepareFunctionForOptimization(testGetterOnProto);
 testGetterOnProto(222, obj3);
 testGetterOnProto(222, obj3);
 %OptimizeFunctionOnNextCall(testGetterOnProto);
@@ -997,6 +999,7 @@ assertTrue(
 obj2 = Object.create(obj1);
 obj3 = Object.create(obj2);
 
+%PrepareFunctionForOptimization(testSetterOnProto);
 testSetterOnProto(445, obj3);
 testSetterOnProto(445, obj3);
 %OptimizeFunctionOnNextCall(testSetterOnProto);
@@ -1005,6 +1008,7 @@ testSetterOnProto(445, obj3);
 
 assertTrue(Reflect.defineProperty(obj1, "romeo", { set: anotherSetter }));
 
+%PrepareFunctionForOptimization(testSetterOnProto);
 testSetterOnProto(446, obj3);
 testSetterOnProto(446, obj3);
 %OptimizeFunctionOnNextCall(testSetterOnProto);
@@ -1023,6 +1027,7 @@ assertTrue(Reflect.defineProperty(obj1, "sierra",
 obj2 = Object.create(obj1);
 obj3 = Object.create(obj2);
 
+%PrepareFunctionForOptimization(testSetterOnProtoStrict);
 testSetterOnProtoStrict(obj3);
 testSetterOnProtoStrict(obj3);
 %OptimizeFunctionOnNextCall(testSetterOnProtoStrict);
@@ -1051,6 +1056,7 @@ function Assign(o) {
 
 function C() {}
 
+%PrepareFunctionForOptimization(Assign);
 Assign(new C);
 Assign(new C);
 %OptimizeFunctionOnNextCall(Assign);

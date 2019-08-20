@@ -46,7 +46,7 @@ let pushedNull = false;
 r._read = function(n) {
   assert(!pushedNull, '_read after null push');
 
-  // every third chunk is fast
+  // Every third chunk is fast
   push(!(chunks % 3));
 
   function push(fast) {
@@ -86,13 +86,7 @@ w._write = function(chunk, encoding, cb) {
 };
 
 r.on('end', common.mustCall(function() {
-  common.expectsError(function() {
-    r.unshift(Buffer.allocUnsafe(1));
-  }, {
-    code: 'ERR_STREAM_UNSHIFT_AFTER_END_EVENT',
-    type: Error,
-    message: 'stream.unshift() after end event'
-  });
+  r.unshift(Buffer.allocUnsafe(1));
   w.end();
 }));
 
@@ -106,7 +100,7 @@ r.on('readable', function() {
 });
 
 w.on('finish', common.mustCall(function() {
-  // each chunk should start with 1234, and then be asfdasdfasdf...
+  // Each chunk should start with 1234, and then be asfdasdfasdf...
   // The first got pulled out before the first unshift('1234'), so it's
   // lacking that piece.
   assert.strictEqual(written[0], 'asdfasdfas');

@@ -1,9 +1,9 @@
 // Flags: --no-warnings
 'use strict';
 
+const common = require('../common');
 const vm = require('vm');
 const assert = require('assert');
-const common = require('../common');
 
 if (new Error().stack.includes('node_modules'))
   common.skip('test does not work when inside `node_modules` directory');

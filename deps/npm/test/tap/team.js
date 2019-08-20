@@ -22,17 +22,45 @@ test('team create basic', function (t) {
     deleted: null
   }
   server.put('/-/org/myorg/team', JSON.stringify({
-    name: teamData.name
+    name: teamData.name,
+    description: null
   })).reply(200, teamData)
   common.npm([
     'team', 'create', 'myorg:' + teamData.name,
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'error',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
     t.equal(stderr, '', 'no error output')
-    t.same(JSON.parse(stdout), teamData)
+    t.same(JSON.parse(stdout), {created: true, team: `myorg:${teamData.name}`})
+    t.end()
+  })
+})
+
+test('team create (allow optional @ prefix on scope)', function (t) {
+  var teamData = {
+    name: 'test',
+    scope_id: 1234,
+    created: '2015-07-23T18:07:49.959Z',
+    updated: '2015-07-23T18:07:49.959Z',
+    deleted: null
+  }
+  server.put('/-/org/myorg/team', JSON.stringify({
+    name: teamData.name,
+    description: null
+  })).reply(200, teamData)
+  common.npm([
+    'team', 'create', '@myorg:' + teamData.name,
+    '--registry', common.registry,
+    '--loglevel', 'silent',
+    '--json'
+  ], {}, function (err, code, stdout, stderr) {
+    t.ifError(err, 'npm team')
+    t.equal(code, 0, 'exited OK')
+    t.equal(stderr, '', 'no error output')
+    t.same(JSON.parse(stdout), {created: true, team: `myorg:${teamData.name}`})
     t.end()
   })
 })
@@ -49,12 +77,13 @@ test('team destroy', function (t) {
   common.npm([
     'team', 'destroy', 'myorg:' + teamData.name,
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'silent',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
     t.equal(stderr, '', 'no error output')
-    t.same(JSON.parse(stdout), teamData)
+    t.same(JSON.parse(stdout), {deleted: true, team: `myorg:${teamData.name}`})
     t.end()
   })
 })
@@ -63,11 +92,12 @@ test('team add', function (t) {
   var user = 'zkat'
   server.put('/-/team/myorg/myteam/user', JSON.stringify({
     user: user
-  })).reply(200)
+  })).reply(200, {})
   common.npm([
     'team', 'add', 'myorg:myteam', user,
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'error',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
@@ -80,11 +110,12 @@ test('team rm', function (t) {
   var user = 'zkat'
   server.delete('/-/team/myorg/myteam/user', JSON.stringify({
     user: user
-  })).reply(200)
+  })).reply(200, {})
   common.npm([
     'team', 'rm', 'myorg:myteam', user,
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'silent',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
@@ -99,7 +130,8 @@ test('team ls (on org)', function (t) {
   common.npm([
     'team', 'ls', 'myorg',
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'silent',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
@@ -115,12 +147,13 @@ test('team ls (on team)', function (t) {
   common.npm([
     'team', 'ls', 'myorg:myteam',
     '--registry', common.registry,
-    '--loglevel', 'silent'
+    '--loglevel', 'silent',
+    '--json'
   ], {}, function (err, code, stdout, stderr) {
     t.ifError(err, 'npm team')
     t.equal(code, 0, 'exited OK')
     t.equal(stderr, '', 'no error output')
-    t.same(JSON.parse(stdout), users)
+    t.same(JSON.parse(stdout).sort(), users.sort())
     t.end()
   })
 })

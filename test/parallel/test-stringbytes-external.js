@@ -22,15 +22,15 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-// minimum string size to overflow into external string space
+// Minimum string size to overflow into external string space
 const EXTERN_APEX = 0xFBEE9;
 
-// manually controlled string for checking binary output
+// Manually controlled string for checking binary output
 let ucs2_control = 'a\u0000';
 let write_str = 'a';
 
 
-// first do basic checks
+// First do basic checks
 let b = Buffer.from(write_str, 'ucs2');
 // first check latin1
 let c = b.toString('latin1');
@@ -43,46 +43,46 @@ assert.strictEqual(b[0], 0x61);
 assert.strictEqual(b[1], 0);
 assert.strictEqual(ucs2_control, c);
 
-// now create big strings
+// Now create big strings
 const size = 1 << 20;
 write_str = write_str.repeat(size);
 ucs2_control = ucs2_control.repeat(size);
 
-// check resultant buffer and output string
+// Check resultant buffer and output string
 b = Buffer.from(write_str, 'ucs2');
-// check fist Buffer created from write string
+// Check fist Buffer created from write string
 for (let i = 0; i < b.length; i += 2) {
   assert.strictEqual(b[i], 0x61);
   assert.strictEqual(b[i + 1], 0);
 }
 
-// create another string to create an external string
+// Create another string to create an external string
 const b_ucs = b.toString('ucs2');
 
-// check control against external binary string
+// Check control against external binary string
 const l_bin = b.toString('latin1');
 assert.strictEqual(ucs2_control, l_bin);
 
-// check control against external binary string
+// Check control against external binary string
 const b_bin = b.toString('binary');
 assert.strictEqual(ucs2_control, b_bin);
 
-// create buffer copy from external
+// Create buffer copy from external
 const c_bin = Buffer.from(l_bin, 'latin1');
 const c_ucs = Buffer.from(b_ucs, 'ucs2');
-// make sure they're the same length
+// Make sure they're the same length
 assert.strictEqual(c_bin.length, c_ucs.length);
-// make sure Buffers from externals are the same
+// Make sure Buffers from externals are the same
 for (let i = 0; i < c_bin.length; i++) {
   assert.strictEqual(c_bin[i], c_ucs[i]);
 }
-// check resultant strings
+// Check resultant strings
 assert.strictEqual(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
 assert.strictEqual(c_bin.toString('latin1'), ucs2_control);
 assert.strictEqual(c_ucs.toString('latin1'), ucs2_control);
 
 
-// now let's test BASE64 and HEX encoding/decoding
+// Now let's test BASE64 and HEX encoding/decoding
 const RADIOS = 2;
 const PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
 const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
@@ -96,12 +96,12 @@ const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     const pumped_string2 = slice2.toString('hex');
     const decoded = Buffer.from(pumped_string, 'hex');
 
-    // the string are the same?
+    // The string are the same?
     for (let k = 0; k < pumped_string.length; ++k) {
       assert.strictEqual(pumped_string[k], pumped_string2[k]);
     }
 
-    // the recoded buffer is the same?
+    // The recoded buffer is the same?
     for (let i = 0; i < decoded.length; ++i) {
       assert.strictEqual(datum[i], decoded[i]);
     }
@@ -117,12 +117,12 @@ const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     const pumped_string2 = slice2.toString('base64');
     const decoded = Buffer.from(pumped_string, 'base64');
 
-    // the string are the same?
+    // The string are the same?
     for (let k = 0; k < pumped_string.length - 3; ++k) {
       assert.strictEqual(pumped_string[k], pumped_string2[k]);
     }
 
-    // the recoded buffer is the same?
+    // The recoded buffer is the same?
     for (let i = 0; i < decoded.length; ++i) {
       assert.strictEqual(datum[i], decoded[i]);
     }

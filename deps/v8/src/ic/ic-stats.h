@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/v8-internal.h"  // For Address.
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 
@@ -58,16 +59,18 @@ class ICStats {
     DCHECK(pos_ >= 0 && pos_ < MAX_IC_INFO);
     return ic_infos_[pos_];
   }
-  const char* GetOrCacheScriptName(Script* script);
-  const char* GetOrCacheFunctionName(JSFunction* function);
+  const char* GetOrCacheScriptName(Script script);
+  const char* GetOrCacheFunctionName(JSFunction function);
   V8_INLINE static ICStats* instance() { return instance_.Pointer(); }
 
  private:
   static base::LazyInstance<ICStats>::type instance_;
   base::Atomic32 enabled_;
   std::vector<ICInfo> ic_infos_;
-  std::unordered_map<Script*, std::unique_ptr<char[]>> script_name_map_;
-  std::unordered_map<JSFunction*, std::unique_ptr<char[]>> function_name_map_;
+  // Keys are Script pointers; uses raw Address to keep includes light.
+  std::unordered_map<Address, std::unique_ptr<char[]>> script_name_map_;
+  // Keys are JSFunction pointers; uses raw Address to keep includes light.
+  std::unordered_map<Address, std::unique_ptr<char[]>> function_name_map_;
   int pos_;
 };
 

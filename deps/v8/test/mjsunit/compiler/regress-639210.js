@@ -31,8 +31,10 @@ var m = (function m() {
 
 m.init();
 
+%PrepareFunctionForOptimization(m.load);
 %OptimizeFunctionOnNextCall(m.load);
 assertEquals(2, m.load());
 
+%PrepareFunctionForOptimization(m.store);
 %OptimizeFunctionOnNextCall(m.store);
 assertEquals(0.1, m.store(1));

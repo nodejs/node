@@ -11,11 +11,15 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 class StoreStoreElimination final {
  public:
-  static void Run(JSGraph* js_graph, Zone* temp_zone);
+  static void Run(JSGraph* js_graph, TickCounter* tick_counter,
+                  Zone* temp_zone);
 };
 
 }  // namespace compiler

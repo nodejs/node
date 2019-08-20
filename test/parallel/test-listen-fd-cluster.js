@@ -47,14 +47,14 @@ process.on('exit', function() {
   assert.ok(ok);
 });
 
-// spawn the parent, and listen for it to tell us the pid of the cluster.
+// Spawn the parent, and listen for it to tell us the pid of the cluster.
 // WARNING: This is an example of listening on some arbitrary FD number
 // that has already been bound elsewhere in advance.  However, binding
 // server handles to stdio fd's is NOT a good or reliable way to do
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
 test(function(parent, port) {
-  // now make sure that we can request to the worker, then kill it.
+  // Now make sure that we can request to the worker, then kill it.
   http.get({
     server: 'localhost',
     port: port,
@@ -65,7 +65,7 @@ test(function(parent, port) {
       s += c.toString();
     });
     res.on('end', function() {
-      // kill the worker before we start doing asserts.
+      // Kill the worker before we start doing asserts.
       // it's really annoying when tests leave orphans!
       parent.kill();
       parent.on('exit', function() {
@@ -136,7 +136,7 @@ function master() {
 
 function worker() {
   console.error('worker, about to create server and listen on fd=3');
-  // start a server on fd=3
+  // Start a server on fd=3
   http.createServer(function(req, res) {
     console.error('request on worker');
     console.error('%s %s', req.method, req.url, req.headers);

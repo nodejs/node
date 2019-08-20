@@ -16,7 +16,7 @@ function main({ type, n }) {
   const input = inputs[type] || '';
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
+  for (let i = 0; i < n; i += 1)
     url.parse(input);
   bench.end(n);
 }

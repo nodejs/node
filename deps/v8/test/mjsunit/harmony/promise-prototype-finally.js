@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-promise-finally --allow-natives-syntax
+// Flags: --allow-natives-syntax
+
+load('test/mjsunit/test-async.js');
 
 assertThrows(() => Promise.prototype.finally.call(5), TypeError);
 

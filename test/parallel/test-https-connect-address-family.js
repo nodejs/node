@@ -37,7 +37,7 @@ const https = require('https');
     };
     // Will fail with ECONNREFUSED if the address family is not honored.
     https.get(options, common.mustCall(function() {
-      assert.strictEqual('::1', this.socket.remoteAddress);
+      assert.strictEqual(this.socket.remoteAddress, hostAddrIPv6);
       this.destroy();
     }));
   }));

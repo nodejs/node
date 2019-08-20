@@ -2,6 +2,7 @@
 
 const BB = require('bluebird')
 
+const figgyPudding = require('figgy-pudding')
 const fs = require('fs')
 const index = require('./lib/entry-index')
 const memo = require('./lib/memoization')
@@ -10,6 +11,12 @@ const pipeline = require('mississippi').pipeline
 const read = require('./lib/content/read')
 const through = require('mississippi').through
 
+const GetOpts = figgyPudding({
+  integrity: {},
+  memoize: {},
+  size: {}
+})
+
 module.exports = function get (cache, key, opts) {
   return getData(false, cache, key, opts)
 }
@@ -17,11 +24,11 @@ module.exports.byDigest = function getByDigest (cache, digest, opts) {
   return getData(true, cache, digest, opts)
 }
 function getData (byDigest, cache, key, opts) {
-  opts = opts || {}
+  opts = GetOpts(opts)
   const memoized = (
     byDigest
-    ? memo.get.byDigest(cache, key, opts)
-    : memo.get(cache, key, opts)
+      ? memo.get.byDigest(cache, key, opts)
+      : memo.get(cache, key, opts)
   )
   if (memoized && opts.memoize !== false) {
     return BB.resolve(byDigest ? memoized : {
@@ -56,9 +63,58 @@ function getData (byDigest, cache, key, opts) {
   })
 }
 
+module.exports.sync = function get (cache, key, opts) {
+  return getDataSync(false, cache, key, opts)
+}
+module.exports.sync.byDigest = function getByDigest (cache, digest, opts) {
+  return getDataSync(true, cache, digest, opts)
+}
+function getDataSync (byDigest, cache, key, opts) {
+  opts = GetOpts(opts)
+  const memoized = (
+    byDigest
+      ? memo.get.byDigest(cache, key, opts)
+      : memo.get(cache, key, opts)
+  )
+  if (memoized && opts.memoize !== false) {
+    return byDigest ? memoized : {
+      metadata: memoized.entry.metadata,
+      data: memoized.data,
+      integrity: memoized.entry.integrity,
+      size: memoized.entry.size
+    }
+  }
+  const entry = !byDigest && index.find.sync(cache, key, opts)
+  if (!entry && !byDigest) {
+    throw new index.NotFoundError(cache, key)
+  }
+  const data = read.sync(
+    cache,
+    byDigest ? key : entry.integrity,
+    {
+      integrity: opts.integrity,
+      size: opts.size
+    }
+  )
+  const res = byDigest
+    ? data
+    : {
+      metadata: entry.metadata,
+      data: data,
+      size: entry.size,
+      integrity: entry.integrity
+    }
+  if (opts.memoize && byDigest) {
+    memo.put.byDigest(cache, key, res, opts)
+  } else if (opts.memoize) {
+    memo.put(cache, entry, res.data, opts)
+  }
+  return res
+}
+
 module.exports.stream = getStream
 function getStream (cache, key, opts) {
-  opts = opts || {}
+  opts = GetOpts(opts)
   let stream = through()
   const memoized = memo.get(cache, key, opts)
   if (memoized && opts.memoize !== false) {
@@ -91,7 +147,6 @@ function getStream (cache, key, opts) {
     } else {
       memoStream = through()
     }
-    opts.size = opts.size == null ? entry.size : opts.size
     stream.emit('metadata', entry.metadata)
     stream.emit('integrity', entry.integrity)
     stream.emit('size', entry.size)
@@ -101,17 +156,19 @@ function getStream (cache, key, opts) {
       ev === 'size' && cb(entry.size)
     })
     pipe(
-      read.readStream(cache, entry.integrity, opts),
+      read.readStream(cache, entry.integrity, opts.concat({
+        size: opts.size == null ? entry.size : opts.size
+      })),
       memoStream,
       stream
     )
-  }, err => stream.emit('error', err))
+  }).catch(err => stream.emit('error', err))
   return stream
 }
 
 module.exports.stream.byDigest = getStreamDigest
 function getStreamDigest (cache, integrity, opts) {
-  opts = opts || {}
+  opts = GetOpts(opts)
   const memoized = memo.get.byDigest(cache, integrity, opts)
   if (memoized && opts.memoize !== false) {
     const stream = through()
@@ -143,7 +200,7 @@ function getStreamDigest (cache, integrity, opts) {
 
 module.exports.info = info
 function info (cache, key, opts) {
-  opts = opts || {}
+  opts = GetOpts(opts)
   const memoized = memo.get(cache, key, opts)
   if (memoized && opts.memoize !== false) {
     return BB.resolve(memoized.entry)
@@ -161,7 +218,7 @@ module.exports.copy.byDigest = function cpDigest (cache, digest, dest, opts) {
   return copy(true, cache, digest, dest, opts)
 }
 function copy (byDigest, cache, key, dest, opts) {
-  opts = opts || {}
+  opts = GetOpts(opts)
   if (read.copy) {
     return (
       byDigest ? BB.resolve(null) : index.find(cache, key, opts)
@@ -180,11 +237,11 @@ function copy (byDigest, cache, key, dest, opts) {
   } else {
     return getData(byDigest, cache, key, opts).then(res => {
       return fs.writeFileAsync(dest, byDigest ? res : res.data)
-      .then(() => byDigest ? key : {
-        metadata: res.metadata,
-        size: res.size,
-        integrity: res.integrity
-      })
+        .then(() => byDigest ? key : {
+          metadata: res.metadata,
+          size: res.size,
+          integrity: res.integrity
+        })
     })
   }
 }

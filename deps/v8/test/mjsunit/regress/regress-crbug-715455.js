@@ -20,6 +20,6 @@ for (var i = 0; i < test_set.length; ++i) {
   src = src.replace(/MODULE/g, "Module" + i);
   src = src.replace(/LIMIT/g, test_set[i]);
   var module = eval("(" + src + ")");
-  assertDoesNotThrow(module(this).f());
+  module(this).f();
   assertFalse(%IsAsmWasmCode(module));
 }

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-function-tostring
-
 var prefix = "/*before*/";
 var suffix = "/*after*/";
 
@@ -140,6 +138,30 @@ assertEquals("function () { [native code] }",
              new Proxy(async function*() { hidden }, {}).toString());
 assertEquals("function () { [native code] }",
              new Proxy({ method() { hidden } }.method, {}).toString());
+
+// Assert that we return a NativeFunction for script that has too large an
+// offset between function token position and start position for us to return
+// an exact representation of the source code.
+function testLongFunctionTokenOffset(functionType) {
+  var expected = "function f() { [native code] }";
+  // Spec requires that we return something that will cause eval to throws if we
+  // can't reproduce the function's source code.
+  assertThrows(() => eval(expected), SyntaxError);
+
+  var functionSource = functionType + " ".repeat(65535) + " f(){}";
+
+  // Function declaration
+  eval(functionSource);
+  assertEquals(expected, f.toString());
+
+  // Function expression
+  var f = eval("(" + functionSource + ")");
+  assertEquals(expected, f.toString());
+}
+testLongFunctionTokenOffset("function");
+testLongFunctionTokenOffset("function*");
+testLongFunctionTokenOffset("async function");
+testLongFunctionTokenOffset("async function*");
 
 // Non-callable proxies still throw.
 assertThrows(() => Function.prototype.toString.call(new Proxy({}, {})),

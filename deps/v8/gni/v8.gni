@@ -31,11 +31,21 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
+  # Enables raw heap snapshots containing internals. Used for debugging memory
+  # on platform and embedder level.
+  v8_enable_raw_heap_snapshots = false
+
   # Enable the snapshot feature, for fast context creation.
-  # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
+  # https://v8.dev/blog/custom-startup-snapshots
   # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
   # https://803591
-  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
+  # On Mac hosts, 32-bit builds targeting Windows can't use snapshots, see
+  # https://crbug.com/794838
+  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64") &&
+                    !(is_win && host_os == "mac" && target_cpu == "x86")
+
+  # Enable several snapshots side-by-side (e.g. default and for trusted code).
+  v8_use_multi_snapshots = false
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
@@ -50,12 +60,27 @@ declare_args() {
 
   # Enable monolithic static library for embedders.
   v8_monolithic = false
+
+  # Expose symbols for dynamic linking.
+  v8_expose_symbols = false
+
+  # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
+  # currently implemented.
+  v8_use_perfetto = false
 }
 
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # a snapshot is used and if we're not on ios.
   v8_use_external_startup_data = v8_use_snapshot && !is_ios
+}
+
+if (v8_use_multi_snapshots) {
+  # Silently disable multi snapshots if they're incompatible with the current
+  # build configuration. This allows us to set v8_use_multi_snapshots=true on
+  # all bots, and e.g. no-snapshot bots will automatically do the right thing.
+  v8_use_multi_snapshots =
+      v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
 }
 
 if (v8_enable_backtrace == "") {
@@ -67,7 +92,7 @@ if (v8_enable_backtrace == "") {
 # subdirectories.
 v8_path_prefix = get_path_info("../", "abspath")
 
-v8_inspector_js_protocol = v8_path_prefix + "/src/inspector/js_protocol.json"
+v8_inspector_js_protocol = v8_path_prefix + "/include/js_protocol.pdl"
 
 ###############################################################################
 # Templates
@@ -88,7 +113,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (is_posix && !is_android && !using_sanitizer) {
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
@@ -102,7 +127,8 @@ if (v8_code_coverage && !is_clang) {
   ]
 }
 
-if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
+if ((is_posix || is_fuchsia) &&
+    (v8_enable_backtrace || v8_monolithic || v8_expose_symbols)) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }
@@ -113,34 +139,42 @@ if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 
+if (!build_with_chromium && is_clang) {
+  v8_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
+}
+
 # All templates should be kept in sync.
 template("v8_source_set") {
   if (defined(invoker.split_count) && invoker.split_count > 1 &&
       defined(v8_static_library) && v8_static_library && is_win) {
-    link_target_type = "split_static_library"
+    link_target_type = "jumbo_split_static_library"
   } else if (defined(v8_static_library) && v8_static_library) {
-    link_target_type = "static_library"
+    link_target_type = "jumbo_static_library"
   } else {
-    if (use_jumbo_build) {
-      link_target_type = "jumbo_source_set"
-    } else {
-      link_target_type = "source_set"
-    }
+    link_target_type = "jumbo_source_set"
   }
   target(link_target_type, target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
     configs -= v8_remove_configs
     configs += v8_add_configs
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
+    configs += invoker.configs
   }
 }
 
 template("v8_header_set") {
   jumbo_source_set(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
+    configs += invoker.configs
   }
 }
 
@@ -152,12 +186,12 @@ template("v8_executable") {
                              "configs",
                              "remove_configs",
                            ])
+    configs -= v8_remove_configs
+    configs += v8_add_configs
     if (defined(invoker.remove_configs)) {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
-    configs -= v8_remove_configs
-    configs += v8_add_configs
     if (is_linux) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
@@ -180,9 +214,9 @@ template("v8_executable") {
 template("v8_component") {
   component(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
+    configs += invoker.configs
   }
 }
 
@@ -190,8 +224,9 @@ template("v8_static_library") {
   static_library(target_name) {
     complete_static_lib = true
     forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
     configs -= v8_remove_configs
+    configs -= [ "//build/config/compiler:thin_archive" ]
     configs += v8_add_configs
+    configs += invoker.configs
   }
 }

@@ -45,6 +45,7 @@ function test_do_not_assert_on_non_int32(vector, base) {
   }
   return r;
 }
+%PrepareFunctionForOptimization(test_do_not_assert_on_non_int32);
 test_do_not_assert_on_non_int32(v,1);
 test_do_not_assert_on_non_int32(v,1);
 test_do_not_assert_on_non_int32(v,"a");
@@ -86,7 +87,7 @@ function check_test_base(a, base, condition) {
   }
 }
 
-
+%PrepareFunctionForOptimization(test_base);
 test_base(a, 1, true);
 test_base(a, 2, true);
 test_base(a, 1, false);
@@ -100,6 +101,7 @@ check_test_base(a, 3, false);
 // Test that we deopt on failed bounds checks.
 var dictionary_map_array = new Int32Array(128);
 test_base(dictionary_map_array, 5, true);
+%PrepareFunctionForOptimization(test_base);
 test_base(dictionary_map_array, 6, true);
 test_base(dictionary_map_array, 5, false);
 test_base(dictionary_map_array, 6, false);
@@ -109,6 +111,7 @@ assertUnoptimized(test_base);
 
 // Forget about the dictionary_map_array's map.
 %ClearFunctionFeedback(test_base);
+%PrepareFunctionForOptimization(test_base);
 
 test_base(a, 5, true);
 test_base(a, 6, true);
@@ -153,6 +156,7 @@ function check_test_minus(base,cond) {
   }
 }
 
+%PrepareFunctionForOptimization(test_minus);
 test_minus(5,true);
 test_minus(6,true);
 %OptimizeFunctionOnNextCall(test_minus);
@@ -168,6 +172,7 @@ function short_test(a, i) {
   a[i + 9] = 0;
   a[i - 10] = 0;
 }
+%PrepareFunctionForOptimization(short_test);
 short_test(short_a, 50);
 short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
@@ -190,6 +195,7 @@ function test_phi(a, base, check) {
   result += a[index - 1];
   return result;
 }
+%PrepareFunctionForOptimization(test_phi);
 var result_phi = 0;
 result_phi = test_phi(data_phi, 3,  true);
 assertEquals(12, result_phi);
@@ -218,6 +224,7 @@ function test_composition(a, base0, check) {
 
   return result;
 }
+%PrepareFunctionForOptimization(test_composition);
 var result_composition = 0;
 result_composition = test_composition(data_composition_long, 2);
 assertEquals(19, result_composition);

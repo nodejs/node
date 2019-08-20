@@ -630,6 +630,34 @@
 })();
 
 
+// Array.prototype.includes accesses out-of-bounds if length is changed late.
+(function () {
+  let arr = [1, 2, 3];
+  assertTrue(arr.includes(undefined, {
+    toString: function () {
+      arr.length = 0;
+      return 0;
+    }
+  }));
+
+  arr = [1, 2, 3];
+  assertFalse(arr.includes(undefined, {
+    toString: function () {
+      arr.length = 0;
+      return 10;
+    }
+  }));
+
+  arr = [1, 2, 3];
+  assertFalse(arr.includes(4, {
+    toString: function () {
+      arr.push(4);
+      return 0;
+    }
+  }));
+})();
+
+
 // Array.prototype.includes should use the SameValueZero algorithm to compare
 (function() {
   assertTrue([1, 2, 3].includes(2));

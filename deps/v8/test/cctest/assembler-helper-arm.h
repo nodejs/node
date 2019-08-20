@@ -7,25 +7,25 @@
 
 #include <functional>
 
-#include "src/handles.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
 
 // TODO(arm): Refine these signatures per test case, they can have arbitrary
 // return and argument types and arbitrary number of arguments.
-using F_iiiii = Object*(int x, int p1, int p2, int p3, int p4);
-using F_piiii = Object*(void* p0, int p1, int p2, int p3, int p4);
-using F_ppiii = Object*(void* p0, void* p1, int p2, int p3, int p4);
-using F_pppii = Object*(void* p0, void* p1, void* p2, int p3, int p4);
-using F_ippii = Object*(int p0, void* p1, void* p2, int p3, int p4);
+using F_iiiii = void*(int x, int p1, int p2, int p3, int p4);
+using F_piiii = void*(void* p0, int p1, int p2, int p3, int p4);
+using F_ppiii = void*(void* p0, void* p1, int p2, int p3, int p4);
+using F_pppii = void*(void* p0, void* p1, void* p2, int p3, int p4);
+using F_ippii = void*(int p0, void* p1, void* p2, int p3, int p4);
 
-Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble);
+Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble);
 
 template <typename Signature>
 GeneratedCode<Signature> AssembleCode(
-    std::function<void(Assembler&)> assemble) {
+    std::function<void(MacroAssembler&)> assemble) {
   return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
 }
 

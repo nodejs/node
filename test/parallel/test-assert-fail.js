@@ -8,11 +8,13 @@ assert.throws(
   () => { assert.fail(); },
   {
     code: 'ERR_ASSERTION',
-    name: 'AssertionError [ERR_ASSERTION]',
+    name: 'AssertionError',
     message: 'Failed',
-    operator: undefined,
+    operator: 'fail',
     actual: undefined,
-    expected: undefined
+    expected: undefined,
+    generatedMessage: true,
+    stack: /Failed/
   }
 );
 
@@ -21,11 +23,12 @@ assert.throws(() => {
   assert.fail('custom message');
 }, {
   code: 'ERR_ASSERTION',
-  name: 'AssertionError [ERR_ASSERTION]',
+  name: 'AssertionError',
   message: 'custom message',
-  operator: undefined,
+  operator: 'fail',
   actual: undefined,
-  expected: undefined
+  expected: undefined,
+  generatedMessage: false
 });
 
 // One arg = Error

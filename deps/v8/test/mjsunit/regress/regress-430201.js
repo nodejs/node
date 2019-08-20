@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc --nostress-incremental-marking
+// Flags: --stress-compaction
 
 var array_1 = [];
 
-%SetFlags("--stress-compaction");
 for (var a = 0; a < 10000; a++) { array_1[a * 100] = 0; }
 
 gc();

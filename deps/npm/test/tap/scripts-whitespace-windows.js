@@ -8,9 +8,9 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'scripts-whitespace-windows')
+var pkg = common.pkg
 var tmp = path.resolve(pkg, 'tmp')
-var cache = path.resolve(pkg, 'cache')
+var cache = common.cache
 var dep = path.resolve(pkg, 'dep')
 
 var EXEC_OPTS = { cwd: pkg }
@@ -21,7 +21,7 @@ var json = {
   description: 'a test',
   repository: 'git://github.com/robertkowalski/bogus',
   scripts: {
-    foo: 'foo --title \"Analysis of\" --recurse -d report src'
+    foo: 'foo --title "Analysis of" --recurse -d report src'
   },
   dependencies: {
     'scripts-whitespace-windows-dep': '0.0.1'
@@ -34,8 +34,6 @@ var dependency = {
   version: '0.0.1',
   bin: [ 'bin/foo' ]
 }
-
-var extend = Object.assign || require('util')._extend
 
 var foo = function () { /*
 #!/usr/bin/env node
@@ -65,7 +63,7 @@ test('setup', function (t) {
 
   common.npm(['i', dep], {
     cwd: pkg,
-    env: extend({
+    env: Object.assign({
       npm_config_cache: cache,
       npm_config_tmp: tmp,
       npm_config_prefix: pkg,

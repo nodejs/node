@@ -7,8 +7,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>  // For abort.
 #include <memory>
 #include <string>
+
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace v8 {
 
@@ -51,6 +54,15 @@ class TaskRunner {
   virtual void PostTask(std::unique_ptr<Task> task) = 0;
 
   /**
+   * Schedules a task to be invoked by this TaskRunner. The TaskRunner
+   * implementation takes ownership of |task|. The |task| cannot be nested
+   * within other task executions.
+   *
+   * Requires that |TaskRunner::NonNestableTasksEnabled()| is true.
+   */
+  virtual void PostNonNestableTask(std::unique_ptr<Task> task) {}
+
+  /**
    * Schedules a task to be invoked by this TaskRunner. The task is scheduled
    * after the given number of seconds |delay_in_seconds|. The TaskRunner
    * implementation takes ownership of |task|.
@@ -59,9 +71,20 @@ class TaskRunner {
                                double delay_in_seconds) = 0;
 
   /**
+   * Schedules a task to be invoked by this TaskRunner. The task is scheduled
+   * after the given number of seconds |delay_in_seconds|. The TaskRunner
+   * implementation takes ownership of |task|. The |task| cannot be nested
+   * within other task executions.
+   *
+   * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
+   */
+  virtual void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
+                                          double delay_in_seconds) {}
+
+  /**
    * Schedules an idle task to be invoked by this TaskRunner. The task is
    * scheduled when the embedder is idle. Requires that
-   * TaskRunner::SupportsIdleTasks(isolate) is true. Idle tasks may be reordered
+   * |TaskRunner::IdleTasksEnabled()| is true. Idle tasks may be reordered
    * relative to other task types and may be starved for an arbitrarily long
    * time if no idle time is available. The TaskRunner implementation takes
    * ownership of |task|.
@@ -73,10 +96,19 @@ class TaskRunner {
    */
   virtual bool IdleTasksEnabled() = 0;
 
+  /**
+   * Returns true if non-nestable tasks are enabled for this TaskRunner.
+   */
+  virtual bool NonNestableTasksEnabled() const { return false; }
+
+  /**
+   * Returns true if non-nestable delayed tasks are enabled for this TaskRunner.
+   */
+  virtual bool NonNestableDelayedTasksEnabled() const { return false; }
+
   TaskRunner() = default;
   virtual ~TaskRunner() = default;
 
- private:
   TaskRunner(const TaskRunner&) = delete;
   TaskRunner& operator=(const TaskRunner&) = delete;
 };
@@ -204,6 +236,7 @@ class PageAllocator {
    */
   enum Permission {
     kNoAccess,
+    kRead,
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
@@ -232,6 +265,13 @@ class PageAllocator {
    */
   virtual bool SetPermissions(void* address, size_t length,
                               Permission permissions) = 0;
+
+  /**
+   * Frees memory in the given [address, address + size) range. address and size
+   * should be operating system page-aligned. The next write to this
+   * memory area brings the memory transparently back.
+   */
+  virtual bool DiscardSystemPages(void* address, size_t size) { return true; }
 };
 
 /**
@@ -242,16 +282,6 @@ class PageAllocator {
  */
 class Platform {
  public:
-  /**
-   * This enum is used to indicate whether a task is potentially long running,
-   * or causes a long wait. The embedder might want to use this hint to decide
-   * whether to execute the task on a dedicated thread.
-   */
-  enum ExpectedRuntime {
-    kShortRunningTask,
-    kLongRunningTask
-  };
-
   virtual ~Platform() = default;
 
   /**
@@ -286,52 +316,60 @@ class Platform {
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
-   * Gets the number of threads that are used to execute background tasks. Is
-   * used to estimate the number of tasks a work package should be split into.
-   * A return value of 0 means that there are no background threads available.
-   * Note that a value of 0 won't prohibit V8 from posting tasks using
-   * |CallOnBackgroundThread|.
+   * Gets the number of worker threads used by
+   * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
+   * of tasks a work package should be split into. A return value of 0 means
+   * that there are no worker threads available. Note that a value of 0 won't
+   * prohibit V8 from posting tasks using |CallOnWorkerThread|.
    */
-  virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
+  virtual int NumberOfWorkerThreads() = 0;
 
   /**
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * This function should only be called from a foreground thread.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate) {
-    // TODO(ahaas): Make this function abstract after it got implemented on all
-    // platforms.
-    return {};
+      Isolate* isolate) = 0;
+
+  /**
+   * Schedules a task to be invoked on a worker thread.
+   */
+  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) = 0;
+
+  /**
+   * Schedules a task that blocks the main thread to be invoked with
+   * high-priority on a worker thread.
+   */
+  virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a high
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
   }
 
   /**
-   * Returns a TaskRunner which can be used to post a task on a background.
-   * This function should only be called from a foreground thread.
+   * Schedules a task to be invoked with low-priority on a worker thread.
    */
-  virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
-      Isolate* isolate) {
-    // TODO(ahaas): Make this function abstract after it got implemented on all
-    // platforms.
-    return {};
+  virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a low
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
   }
 
   /**
-   * Schedules a task to be invoked on a background thread. |expected_runtime|
-   * indicates that the task will run a long time. The Platform implementation
-   * takes ownership of |task|. There is no guarantee about order of execution
-   * of tasks wrt order of scheduling, nor is there a guarantee about the
-   * thread the task will be run on.
+   * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
+   * expires.
    */
-  virtual void CallOnBackgroundThread(Task* task,
-                                      ExpectedRuntime expected_runtime) = 0;
+  virtual void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
+                                         double delay_in_seconds) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
    * |isolate|. Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.
    */
-  virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallOnForegroundThread(Isolate* isolate, Task* task)) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -339,8 +377,10 @@ class Platform {
    * Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.
    */
-  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                             double delay_in_seconds) = 0;
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                                 double delay_in_seconds)) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -350,15 +390,18 @@ class Platform {
    * starved for an arbitrarily long time if no idle time is available.
    * The definition of "foreground" is opaque to V8.
    */
-  virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
-    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallIdleOnForegroundThread(Isolate* isolate,
+                                              IdleTask* task)) {
+    // This must be overriden if |IdleTasksEnabled()|.
+    abort();
   }
 
   /**
    * Returns true if idle tasks are enabled for the given |isolate|.
    */
   virtual bool IdleTasksEnabled(Isolate* isolate) {
-    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
     return false;
   }
 
@@ -390,13 +433,27 @@ class Platform {
    */
   virtual TracingController* GetTracingController() = 0;
 
+  /**
+   * Tells the embedder to generate and upload a crashdump during an unexpected
+   * but non-critical scenario.
+   */
+  virtual void DumpWithoutCrashing() {}
+
+  /**
+   * Lets the embedder to add crash keys.
+   */
+  virtual void AddCrashKey(int id, const char* name, uintptr_t value) {
+    // "noop" is a valid implementation if the embedder doesn't care to log
+    // additional data for crashes.
+  }
+
  protected:
   /**
    * Default implementation of current wall-clock time in milliseconds
    * since epoch. Useful for implementing |CurrentClockTimeMillis| if
    * nothing special needed.
    */
-  static double SystemClockTimeMillis();
+  V8_EXPORT static double SystemClockTimeMillis();
 };
 
 }  // namespace v8

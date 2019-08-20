@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include "internal/ctype.h"
 #include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/asn1.h>
@@ -19,23 +20,34 @@
 
 int i2d_ASN1_OBJECT(const ASN1_OBJECT *a, unsigned char **pp)
 {
-    unsigned char *p;
+    unsigned char *p, *allocated = NULL;
     int objsize;
 
     if ((a == NULL) || (a->data == NULL))
-        return (0);
+        return 0;
 
     objsize = ASN1_object_size(0, a->length, V_ASN1_OBJECT);
     if (pp == NULL || objsize == -1)
         return objsize;
 
-    p = *pp;
+    if (*pp == NULL) {
+        if ((p = allocated = OPENSSL_malloc(objsize)) == NULL) {
+            ASN1err(ASN1_F_I2D_ASN1_OBJECT, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+    } else {
+        p = *pp;
+    }
+
     ASN1_put_object(&p, 0, a->length, V_ASN1_OBJECT, V_ASN1_UNIVERSAL);
     memcpy(p, a->data, a->length);
-    p += a->length;
 
-    *pp = p;
-    return (objsize);
+    /*
+     * If a new buffer was allocated, just return it back.
+     * If not, return the incremented buffer pointer.
+     */
+    *pp = allocated != NULL ? allocated : p + a->length;
+    return objsize;
 }
 
 int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
@@ -48,7 +60,7 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
     BIGNUM *bl = NULL;
 
     if (num == 0)
-        return (0);
+        return 0;
     else if (num == -1)
         num = strlen(buf);
 
@@ -84,7 +96,7 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
             c = *(p++);
             if ((c == ' ') || (c == '.'))
                 break;
-            if ((c < '0') || (c > '9')) {
+            if (!ossl_isdigit(c)) {
                 ASN1err(ASN1_F_A2D_ASN1_OBJECT, ASN1_R_INVALID_DIGIT);
                 goto err;
             }
@@ -157,12 +169,12 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
     if (tmp != ftmp)
         OPENSSL_free(tmp);
     BN_free(bl);
-    return (len);
+    return len;
  err:
     if (tmp != ftmp)
         OPENSSL_free(tmp);
     BN_free(bl);
-    return (0);
+    return 0;
 }
 
 int i2t_ASN1_OBJECT(char *buf, int buf_len, const ASN1_OBJECT *a)
@@ -176,12 +188,13 @@ int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a)
     int i;
 
     if ((a == NULL) || (a->data == NULL))
-        return (BIO_write(bp, "NULL", 4));
+        return BIO_write(bp, "NULL", 4);
     i = i2t_ASN1_OBJECT(buf, sizeof(buf), a);
     if (i > (int)(sizeof(buf) - 1)) {
-        p = OPENSSL_malloc(i + 1);
-        if (p == NULL)
+        if ((p = OPENSSL_malloc(i + 1)) == NULL) {
+            ASN1err(ASN1_F_I2A_ASN1_OBJECT, ERR_R_MALLOC_FAILURE);
             return -1;
+        }
         i2t_ASN1_OBJECT(p, i + 1, a);
     }
     if (i <= 0) {
@@ -192,7 +205,7 @@ int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a)
     BIO_write(bp, p, i);
     if (p != buf)
         OPENSSL_free(p);
-    return (i);
+    return i;
 }
 
 ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
@@ -220,7 +233,7 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     return ret;
  err:
     ASN1err(ASN1_F_D2I_ASN1_OBJECT, i);
-    return (NULL);
+    return NULL;
 }
 
 ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
@@ -280,7 +293,7 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     if ((a == NULL) || ((*a) == NULL) ||
         !((*a)->flags & ASN1_OBJECT_FLAG_DYNAMIC)) {
         if ((ret = ASN1_OBJECT_new()) == NULL)
-            return (NULL);
+            return NULL;
     } else
         ret = (*a);
 
@@ -311,12 +324,12 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     if (a != NULL)
         (*a) = ret;
     *pp = p;
-    return (ret);
+    return ret;
  err:
     ASN1err(ASN1_F_C2I_ASN1_OBJECT, i);
     if ((a == NULL) || (*a != ret))
         ASN1_OBJECT_free(ret);
-    return (NULL);
+    return NULL;
 }
 
 ASN1_OBJECT *ASN1_OBJECT_new(void)
@@ -326,10 +339,10 @@ ASN1_OBJECT *ASN1_OBJECT_new(void)
     ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
         ASN1err(ASN1_F_ASN1_OBJECT_NEW, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
     ret->flags = ASN1_OBJECT_FLAG_DYNAMIC;
-    return (ret);
+    return ret;
 }
 
 void ASN1_OBJECT_free(ASN1_OBJECT *a)
@@ -366,5 +379,5 @@ ASN1_OBJECT *ASN1_OBJECT_create(int nid, unsigned char *data, int len,
     o.length = len;
     o.flags = ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS |
         ASN1_OBJECT_FLAG_DYNAMIC_DATA;
-    return (OBJ_dup(&o));
+    return OBJ_dup(&o);
 }

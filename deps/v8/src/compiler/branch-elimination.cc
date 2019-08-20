@@ -21,7 +21,7 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       zone_(zone),
       dead_(js_graph->Dead()) {}
 
-BranchElimination::~BranchElimination() {}
+BranchElimination::~BranchElimination() = default;
 
 
 Reduction BranchElimination::Reduce(Node* node) {
@@ -61,12 +61,16 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   bool condition_value;
   // If we know the condition we can discard the branch.
   if (from_input.LookupCondition(condition, &branch, &condition_value)) {
-    // Mark the branch as a safety check.
+    // Mark the branch as a safety check if necessary.
     // Check if {branch} is dead because we might have a stale side-table entry.
-    if (IsSafetyCheckOf(node->op()) == IsSafetyCheck::kSafetyCheck &&
-        !branch->IsDead()) {
-      NodeProperties::ChangeOp(branch,
-                               common()->MarkAsSafetyCheck(branch->op()));
+    if (!branch->IsDead() && branch->opcode() != IrOpcode::kDead) {
+      IsSafetyCheck branch_safety = IsSafetyCheckOf(branch->op());
+      IsSafetyCheck combined_safety =
+          CombineSafetyChecks(branch_safety, IsSafetyCheckOf(node->op()));
+      if (branch_safety != combined_safety) {
+        NodeProperties::ChangeOp(
+            branch, common()->MarkAsSafetyCheck(branch->op(), combined_safety));
+      }
     }
 
     for (Node* const use : node->uses()) {
@@ -107,9 +111,12 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   Node* branch;
   if (conditions.LookupCondition(condition, &branch, &condition_value)) {
     // Mark the branch as a safety check.
-    if (p.is_safety_check() == IsSafetyCheck::kSafetyCheck) {
-      NodeProperties::ChangeOp(branch,
-                               common()->MarkAsSafetyCheck(branch->op()));
+    IsSafetyCheck branch_safety = IsSafetyCheckOf(branch->op());
+    IsSafetyCheck combined_safety =
+        CombineSafetyChecks(branch_safety, p.is_safety_check());
+    if (branch_safety != combined_safety) {
+      NodeProperties::ChangeOp(
+          branch, common()->MarkAsSafetyCheck(branch->op(), combined_safety));
     }
 
     // If we know the condition we can discard the branch.
@@ -240,13 +247,15 @@ bool BranchElimination::ControlPathConditions::LookupCondition(
     }
   }
   return false;
-  }
+}
 
-  Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
 
-  CommonOperatorBuilder* BranchElimination::common() const {
-    return jsgraph()->common();
-  }
+Isolate* BranchElimination::isolate() const { return jsgraph()->isolate(); }
+
+CommonOperatorBuilder* BranchElimination::common() const {
+  return jsgraph()->common();
+}
 
 }  // namespace compiler
 }  // namespace internal

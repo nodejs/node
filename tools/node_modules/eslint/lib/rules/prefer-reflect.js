@@ -11,15 +11,18 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `Reflect` methods where applicable",
             category: "ECMAScript 6",
             recommended: false,
-            replacedBy: [],
             url: "https://eslint.org/docs/rules/prefer-reflect"
         },
 
         deprecated: true,
+
+        replacedBy: [],
 
         schema: [
             {
@@ -98,7 +101,7 @@ module.exports = {
             CallExpression(node) {
                 const methodName = (node.callee.property || {}).name;
                 const isReflectCall = (node.callee.object || {}).name === "Reflect";
-                const hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
+                const hasReflectSubsitute = Object.prototype.hasOwnProperty.call(reflectSubsitutes, methodName);
                 const userConfiguredException = exceptions.indexOf(methodName) !== -1;
 
                 if (hasReflectSubsitute && !isReflectCall && !userConfiguredException) {

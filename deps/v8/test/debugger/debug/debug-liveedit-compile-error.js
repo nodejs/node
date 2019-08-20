@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 Debug = debug.Debug
 
@@ -34,23 +35,16 @@ eval("var something1 = 25; \n"
 
 assertEquals("Cat", ChooseAnimal());
 
-var script = Debug.findScript(ChooseAnimal);
+var new_source =
+    Debug.scriptSource(ChooseAnimal).replace('Cat', 'Cap\' + ) + \'bara');
+print('new source: ' + new_source);
 
-var orig_animal = "Cat";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + ) + 'bara";
-
-var change_log = new Array();
 var caught_exception = null;
 try {
-  Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
-      orig_animal.length, new_animal_patch, change_log);
+  %LiveEditPatchScript(ChooseAnimal, new_source);
 } catch (e) {
   caught_exception = e;
 }
 
 assertNotNull(caught_exception);
-assertEquals("Unexpected token )",
-    caught_exception.details.syntaxErrorMessage);
-
-assertEquals(2, caught_exception.details.position.start.line);
+assertEquals('LiveEdit failed: COMPILE_ERROR', caught_exception);

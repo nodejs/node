@@ -15,6 +15,7 @@ function Error()  {
   return arguments.length;
 }
 
+%PrepareFunctionForOptimization(f);
 assertThrows(function() { f(true); });
 assertThrows(function() { f(false); });
 %OptimizeFunctionOnNextCall(f);

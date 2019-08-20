@@ -1,15 +1,20 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const tty = require('tty');
-const uv = process.binding('uv');
+const { internalBinding } = require('internal/test/binding');
+const {
+  UV_EBADF,
+  UV_EINVAL
+} = internalBinding('uv');
 const assert = require('assert');
 
 assert.throws(
   () => new tty.WriteStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    name: 'RangeError [ERR_INVALID_FD]',
+    name: 'RangeError',
     message: '"fd" must be a positive integer: -1'
   }
 );
@@ -18,7 +23,7 @@ assert.throws(
   const info = {
     code: common.isWindows ? 'EBADF' : 'EINVAL',
     message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
-    errno: common.isWindows ? uv.UV_EBADF : uv.UV_EINVAL,
+    errno: common.isWindows ? UV_EBADF : UV_EINVAL,
     syscall: 'uv_tty_init'
   };
 
@@ -33,7 +38,7 @@ assert.throws(
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      name: 'SystemError',
       message,
       info
     }
@@ -46,7 +51,7 @@ assert.throws(
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      name: 'SystemError [ERR_TTY_INIT_FAILED]',
+      name: 'SystemError',
       message,
       info
     });
@@ -56,7 +61,7 @@ assert.throws(
   () => new tty.ReadStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    name: 'RangeError [ERR_INVALID_FD]',
+    name: 'RangeError',
     message: '"fd" must be a positive integer: -1'
   }
 );

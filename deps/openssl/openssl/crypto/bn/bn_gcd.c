@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
     BN_CTX_start(ctx);
     a = BN_CTX_get(ctx);
     b = BN_CTX_get(ctx);
-    if (a == NULL || b == NULL)
+    if (b == NULL)
         goto err;
 
     if (BN_copy(a, in_a) == NULL)
@@ -48,7 +48,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
  err:
     BN_CTX_end(ctx);
     bn_check_top(r);
-    return (ret);
+    return ret;
 }
 
 static BIGNUM *euclid(BIGNUM *a, BIGNUM *b)
@@ -111,9 +111,9 @@ static BIGNUM *euclid(BIGNUM *a, BIGNUM *b)
             goto err;
     }
     bn_check_top(a);
-    return (a);
+    return a;
  err:
-    return (NULL);
+    return NULL;
 }
 
 /* solves ax == 1 (mod n) */
@@ -140,7 +140,14 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
     BIGNUM *ret = NULL;
     int sign;
 
-    if (pnoinv)
+    /* This is invalid input so we don't worry about constant time here */
+    if (BN_abs_is_word(n, 1) || BN_is_zero(n)) {
+        if (pnoinv != NULL)
+            *pnoinv = 1;
+        return NULL;
+    }
+
+    if (pnoinv != NULL)
         *pnoinv = 0;
 
     if ((BN_get_flags(a, BN_FLG_CONSTTIME) != 0)
@@ -441,7 +448,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
         BN_free(R);
     BN_CTX_end(ctx);
     bn_check_top(ret);
-    return (ret);
+    return ret;
 }
 
 /*
@@ -612,5 +619,5 @@ static BIGNUM *BN_mod_inverse_no_branch(BIGNUM *in,
         BN_free(R);
     BN_CTX_end(ctx);
     bn_check_top(ret);
-    return (ret);
+    return ret;
 }

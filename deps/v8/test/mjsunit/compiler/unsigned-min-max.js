@@ -10,6 +10,7 @@ function umin(a, b) {
   return Math.min(a, b);
 }
 
+%PrepareFunctionForOptimization(umin);
 umin(1, 1);
 umin(2, 2);
 %OptimizeFunctionOnNextCall(umin);
@@ -26,6 +27,7 @@ function umax(a, b) {
   return Math.max(a, b);
 }
 
+%PrepareFunctionForOptimization(umax);
 umax(1, 1);
 umax(2, 2);
 %OptimizeFunctionOnNextCall(umax);

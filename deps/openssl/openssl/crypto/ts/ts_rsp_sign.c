@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,15 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "e_os.h"
 #include "internal/cryptlib.h"
-
-#if defined(OPENSSL_SYS_UNIX)
-# include <sys/time.h>
-#endif
 
 #include <openssl/objects.h>
 #include <openssl/ts.h>
 #include <openssl/pkcs7.h>
+#include <openssl/crypto.h>
 #include "ts_lcl.h"
 
 static ASN1_INTEGER *def_serial_cb(struct TS_resp_ctx *, void *);
@@ -35,7 +33,16 @@ static ESS_SIGNING_CERT *ess_SIGNING_CERT_new_init(X509 *signcert,
                                                    STACK_OF(X509) *certs);
 static ESS_CERT_ID *ess_CERT_ID_new_init(X509 *cert, int issuer_needed);
 static int ts_TST_INFO_content_new(PKCS7 *p7);
-static int ESS_add_signing_cert(PKCS7_SIGNER_INFO *si, ESS_SIGNING_CERT *sc);
+static int ess_add_signing_cert(PKCS7_SIGNER_INFO *si, ESS_SIGNING_CERT *sc);
+
+static ESS_SIGNING_CERT_V2 *ess_signing_cert_v2_new_init(const EVP_MD *hash_alg,
+                                                         X509 *signcert,
+                                                         STACK_OF(X509)
+                                                         *certs);
+static ESS_CERT_ID_V2 *ess_cert_id_v2_new_init(const EVP_MD *hash_alg,
+                                               X509 *cert, int issuer_needed);
+static int ess_add_signing_cert_v2(PKCS7_SIGNER_INFO *si,
+                                   ESS_SIGNING_CERT_V2 *sc);
 
 static ASN1_GENERALIZEDTIME
 *TS_RESP_set_genTime_with_precision(ASN1_GENERALIZEDTIME *, long, long,
@@ -110,7 +117,7 @@ static int def_extension_cb(struct TS_resp_ctx *ctx, X509_EXTENSION *ext,
 
 /* TS_RESP_CTX management functions. */
 
-TS_RESP_CTX *TS_RESP_CTX_new()
+TS_RESP_CTX *TS_RESP_CTX_new(void)
 {
     TS_RESP_CTX *ctx;
 
@@ -628,6 +635,7 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
     PKCS7 *p7 = NULL;
     PKCS7_SIGNER_INFO *si;
     STACK_OF(X509) *certs;      /* Certificates to include in sc. */
+    ESS_SIGNING_CERT_V2 *sc2 = NULL;
     ESS_SIGNING_CERT *sc = NULL;
     ASN1_OBJECT *oid;
     BIO *p7bio = NULL;
@@ -671,11 +679,25 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
     }
 
     certs = ctx->flags & TS_ESS_CERT_ID_CHAIN ? ctx->certs : NULL;
-    if ((sc = ess_SIGNING_CERT_new_init(ctx->signer_cert, certs)) == NULL)
-        goto err;
-    if (!ESS_add_signing_cert(si, sc)) {
-        TSerr(TS_F_TS_RESP_SIGN, TS_R_ESS_ADD_SIGNING_CERT_ERROR);
-        goto err;
+    if (ctx->ess_cert_id_digest == NULL
+        || ctx->ess_cert_id_digest == EVP_sha1()) {
+        if ((sc = ess_SIGNING_CERT_new_init(ctx->signer_cert, certs)) == NULL)
+            goto err;
+
+        if (!ess_add_signing_cert(si, sc)) {
+            TSerr(TS_F_TS_RESP_SIGN, TS_R_ESS_ADD_SIGNING_CERT_ERROR);
+            goto err;
+        }
+    } else {
+        sc2 = ess_signing_cert_v2_new_init(ctx->ess_cert_id_digest,
+                                           ctx->signer_cert, certs);
+        if (sc2 == NULL)
+            goto err;
+
+        if (!ess_add_signing_cert_v2(si, sc2)) {
+            TSerr(TS_F_TS_RESP_SIGN, TS_R_ESS_ADD_SIGNING_CERT_V2_ERROR);
+            goto err;
+        }
     }
 
     if (!ts_TST_INFO_content_new(p7))
@@ -703,6 +725,7 @@ static int ts_RESP_sign(TS_RESP_CTX *ctx)
                                          "Error during signature "
                                          "generation.");
     BIO_free_all(p7bio);
+    ESS_SIGNING_CERT_V2_free(sc2);
     ESS_SIGNING_CERT_free(sc);
     PKCS7_free(p7);
     return ret;
@@ -806,7 +829,7 @@ static int ts_TST_INFO_content_new(PKCS7 *p7)
     return 0;
 }
 
-static int ESS_add_signing_cert(PKCS7_SIGNER_INFO *si, ESS_SIGNING_CERT *sc)
+static int ess_add_signing_cert(PKCS7_SIGNER_INFO *si, ESS_SIGNING_CERT *sc)
 {
     ASN1_STRING *seq = NULL;
     unsigned char *p, *pp = NULL;
@@ -835,12 +858,136 @@ static int ESS_add_signing_cert(PKCS7_SIGNER_INFO *si, ESS_SIGNING_CERT *sc)
     return 0;
 }
 
-static ASN1_GENERALIZEDTIME
-*TS_RESP_set_genTime_with_precision(ASN1_GENERALIZEDTIME *asn1_time,
-                                    long sec, long usec, unsigned precision)
+static ESS_SIGNING_CERT_V2 *ess_signing_cert_v2_new_init(const EVP_MD *hash_alg,
+                                                         X509 *signcert,
+                                                         STACK_OF(X509) *certs)
+{
+    ESS_CERT_ID_V2 *cid = NULL;
+    ESS_SIGNING_CERT_V2 *sc = NULL;
+    int i;
+
+    if ((sc = ESS_SIGNING_CERT_V2_new()) == NULL)
+        goto err;
+    if ((cid = ess_cert_id_v2_new_init(hash_alg, signcert, 0)) == NULL)
+        goto err;
+    if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid))
+        goto err;
+    cid = NULL;
+
+    for (i = 0; i < sk_X509_num(certs); ++i) {
+        X509 *cert = sk_X509_value(certs, i);
+
+        if ((cid = ess_cert_id_v2_new_init(hash_alg, cert, 1)) == NULL)
+            goto err;
+        if (!sk_ESS_CERT_ID_V2_push(sc->cert_ids, cid))
+            goto err;
+        cid = NULL;
+    }
+
+    return sc;
+ err:
+    ESS_SIGNING_CERT_V2_free(sc);
+    ESS_CERT_ID_V2_free(cid);
+    TSerr(TS_F_ESS_SIGNING_CERT_V2_NEW_INIT, ERR_R_MALLOC_FAILURE);
+    return NULL;
+}
+
+static ESS_CERT_ID_V2 *ess_cert_id_v2_new_init(const EVP_MD *hash_alg,
+                                               X509 *cert, int issuer_needed)
+{
+    ESS_CERT_ID_V2 *cid = NULL;
+    GENERAL_NAME *name = NULL;
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len = sizeof(hash);
+    X509_ALGOR *alg = NULL;
+
+    memset(hash, 0, sizeof(hash));
+
+    if ((cid = ESS_CERT_ID_V2_new()) == NULL)
+        goto err;
+
+    if (hash_alg != EVP_sha256()) {
+        alg = X509_ALGOR_new();
+        if (alg == NULL)
+            goto err;
+        X509_ALGOR_set_md(alg, hash_alg);
+        if (alg->algorithm == NULL)
+            goto err;
+        cid->hash_alg = alg;
+        alg = NULL;
+    } else {
+        cid->hash_alg = NULL;
+    }
+
+    if (!X509_digest(cert, hash_alg, hash, &hash_len))
+        goto err;
+
+    if (!ASN1_OCTET_STRING_set(cid->hash, hash, hash_len))
+        goto err;
+
+    if (issuer_needed) {
+        if ((cid->issuer_serial = ESS_ISSUER_SERIAL_new()) == NULL)
+            goto err;
+        if ((name = GENERAL_NAME_new()) == NULL)
+            goto err;
+        name->type = GEN_DIRNAME;
+        if ((name->d.dirn = X509_NAME_dup(X509_get_issuer_name(cert))) == NULL)
+            goto err;
+        if (!sk_GENERAL_NAME_push(cid->issuer_serial->issuer, name))
+            goto err;
+        name = NULL;            /* Ownership is lost. */
+        ASN1_INTEGER_free(cid->issuer_serial->serial);
+        cid->issuer_serial->serial =
+                ASN1_INTEGER_dup(X509_get_serialNumber(cert));
+        if (cid->issuer_serial->serial == NULL)
+            goto err;
+    }
+
+    return cid;
+ err:
+    X509_ALGOR_free(alg);
+    GENERAL_NAME_free(name);
+    ESS_CERT_ID_V2_free(cid);
+    TSerr(TS_F_ESS_CERT_ID_V2_NEW_INIT, ERR_R_MALLOC_FAILURE);
+    return NULL;
+}
+
+static int ess_add_signing_cert_v2(PKCS7_SIGNER_INFO *si,
+                                   ESS_SIGNING_CERT_V2 *sc)
+{
+    ASN1_STRING *seq = NULL;
+    unsigned char *p, *pp = NULL;
+    int len = i2d_ESS_SIGNING_CERT_V2(sc, NULL);
+
+    if ((pp = OPENSSL_malloc(len)) == NULL) {
+        TSerr(TS_F_ESS_ADD_SIGNING_CERT_V2, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    p = pp;
+    i2d_ESS_SIGNING_CERT_V2(sc, &p);
+    if ((seq = ASN1_STRING_new()) == NULL || !ASN1_STRING_set(seq, pp, len)) {
+        TSerr(TS_F_ESS_ADD_SIGNING_CERT_V2, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    OPENSSL_free(pp);
+    pp = NULL;
+    return PKCS7_add_signed_attribute(si,
+                                      NID_id_smime_aa_signingCertificateV2,
+                                      V_ASN1_SEQUENCE, seq);
+ err:
+    ASN1_STRING_free(seq);
+    OPENSSL_free(pp);
+    return 0;
+}
+
+static ASN1_GENERALIZEDTIME *TS_RESP_set_genTime_with_precision(
+        ASN1_GENERALIZEDTIME *asn1_time, long sec, long usec,
+        unsigned precision)
 {
     time_t time_sec = (time_t)sec;
-    struct tm *tm = NULL;
+    struct tm *tm = NULL, tm_result;
     char genTime_str[17 + TS_MAX_CLOCK_PRECISION_DIGITS];
     char *p = genTime_str;
     char *p_end = genTime_str + sizeof(genTime_str);
@@ -848,7 +995,7 @@ static ASN1_GENERALIZEDTIME
     if (precision > TS_MAX_CLOCK_PRECISION_DIGITS)
         goto err;
 
-    if ((tm = gmtime(&time_sec)) == NULL)
+    if ((tm = OPENSSL_gmtime(&time_sec, &tm_result)) == NULL)
         goto err;
 
     /*
@@ -901,4 +1048,10 @@ static ASN1_GENERALIZEDTIME
  err:
     TSerr(TS_F_TS_RESP_SET_GENTIME_WITH_PRECISION, TS_R_COULD_NOT_SET_TIME);
     return NULL;
+}
+
+int TS_RESP_CTX_set_ess_cert_id_digest(TS_RESP_CTX *ctx, const EVP_MD *md)
+{
+    ctx->ess_cert_id_digest = md;
+    return 1;
 }

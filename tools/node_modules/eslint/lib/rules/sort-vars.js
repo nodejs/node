@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require variables within the same declaration block to be sorted",
             category: "Stylistic Issues",
@@ -23,7 +25,8 @@ module.exports = {
                 type: "object",
                 properties: {
                     ignoreCase: {
-                        type: "boolean"
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false

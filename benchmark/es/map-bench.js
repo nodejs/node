@@ -6,7 +6,7 @@ const assert = require('assert');
 const bench = common.createBenchmark(main, {
   method: [
     'object', 'nullProtoObject', 'nullProtoLiteralObject', 'storageObject',
-    'fakeMap', 'map'
+    'fakeMap', 'map',
   ],
   n: [1e6]
 });

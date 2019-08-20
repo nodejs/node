@@ -1,14 +1,25 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-const icu = process.binding('icu');
+const { internalBinding } = require('internal/test/binding');
+const icu = internalBinding('icu');
 const assert = require('assert');
 
+// Test hasConverter method
+assert(icu.hasConverter('utf-8'),
+       'hasConverter should report coverter exists for utf-8');
+assert(!icu.hasConverter('x'),
+       'hasConverter should report coverter does not exist for x');
+
 const tests = require('../fixtures/url-idna.js');
-const wptToASCIITests = require('../fixtures/url-toascii.js');
+const fixtures = require('../common/fixtures');
+const wptToASCIITests = require(
+  fixtures.path('wpt', 'url', 'resources', 'toascii.json')
+);
 
 {
   for (const [i, { ascii, unicode }] of tests.entries()) {
@@ -22,8 +33,6 @@ const wptToASCIITests = require('../fixtures/url-toascii.js');
 }
 
 {
-  const errMessage = /^Error: Cannot convert name to ASCII$/;
-
   for (const [i, test] of wptToASCIITests.entries()) {
     if (typeof test === 'string')
       continue; // skip comments
@@ -32,8 +41,14 @@ const wptToASCIITests = require('../fixtures/url-toascii.js');
     if (comment)
       caseComment += ` (${comment})`;
     if (output === null) {
-      assert.throws(() => icu.toASCII(input),
-                    errMessage, `ToASCII ${caseComment}`);
+      common.expectsError(
+        () => icu.toASCII(input),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          type: TypeError,
+          message: 'Cannot convert name to ASCII'
+        }
+      );
       icu.toASCII(input, true); // Should not throw.
     } else {
       assert.strictEqual(icu.toASCII(input), output, `ToASCII ${caseComment}`);

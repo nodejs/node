@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!--
 Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
@@ -5,6 +6,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 -->
 
 <head>
+<meta charset="utf-8">
+<title>V8 Parse Processor</title>
 <style>
   html {
     font-family: monospace;
@@ -62,30 +65,62 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     overflow-y: scroll;
   }
 
-
   .funktion {
   }
 
+  .script-size {
+    display: inline-flex;
+    background-color: #505050;
+    border-radius: 3px;
+    padding: 3px;
+    margin: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-decoration: none;
+    color: white;
+  }
+  .script-size.eval {
+    background-color: #ee6300fc;
+  }
+  .script-size.streaming {
+    background-color: #008aff;
+  }
+  .script-size.deserialized {
+    background-color: #1fad00fc;
+  }
+
+  .script-details {
+    padding-right: 5px;
+    margin-right: 4px;
+  }
+  /* all but the last need a border  */
+  .script-details:nth-last-child(n+2) {
+    border-right: 1px white solid;
+  }
+
+  .script-details.id {
+    min-width: 2em;
+    text-align: right;
+  }
 </style>
-<script src="./splaytree.js" type="text/javascript"></script>
-<script src="./codemap.js" type="text/javascript"></script>
-<script src="./csvparser.js" type="text/javascript"></script>
-<script src="./consarray.js" type="text/javascript"></script>
-<script src="./profile.js" type="text/javascript"></script>
-<script src="./profile_view.js" type="text/javascript"></script>
-<script src="./logreader.js" type="text/javascript"></script>
-<script src="./arguments.js" type="text/javascript"></script>
-<script src="./parse-processor.js" type="text/javascript"></script>
-<script src="./SourceMap.js" type="text/javascript"></script>
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-<script type="text/javascript">
+<script src="./splaytree.js"></script>
+<script src="./codemap.js"></script>
+<script src="./csvparser.js"></script>
+<script src="./consarray.js"></script>
+<script src="./profile.js"></script>
+<script src="./profile_view.js"></script>
+<script src="./logreader.js"></script>
+<script src="./arguments.js"></script>
+<script src="./parse-processor.js"></script>
+<script src="./SourceMap.js"></script>
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
 "use strict";
 google.charts.load('current', {packages: ['corechart']});
 
 function $(query) {
   return document.querySelector(query);
 }
-
 
 function loadFile() {
   let files = $('#uploadInput').files;
@@ -149,19 +184,20 @@ function text(string) {
 }
 
 function delay(t) {
-  return new Promise(resolve = > setTimeout(resolve, t));
+  return new Promise(resolve => setTimeout(resolve, t));
 }
 
 function renderParseResults(parseProcessor) {
   let result = $('#result');
   // clear out all existing result pages;
   result.innerHTML = '';
-  const start = parseProcessor.firstEvent;
-  const end = parseProcessor.lastEvent;
+  const start = parseProcessor.firstEventTimestamp;
+  const end = parseProcessor.lastEventTimestamp;
   renderScript(result, parseProcessor.totalScript, start, end);
   // Build up the graphs lazily to keep the page responsive.
   parseProcessor.scripts.forEach(
       script => renderScript(result, script, start, end));
+  renderScriptSizes(parseProcessor);
   // Install an intersection observer to lazily load the graphs when the script
   // div becomes visible for the first time.
   var io = new IntersectionObserver((entries, observer) => {
@@ -172,10 +208,9 @@ function renderParseResults(parseProcessor) {
       appendGraph(target.script, target, start, end);
       observer.unobserve(entry.target);
     });
-  }, {});
+  }, {rootMargin: '400px'});
   document.querySelectorAll('.script').forEach(div => io.observe(div));
 }
-
 
 const kTimeFactor = 10;
 const kHeight = 20;
@@ -189,32 +224,69 @@ function renderScript(result, script, start, end) {
   scriptDiv.script = script;
 
   let scriptTitle = h3();
-  if (script.file) scriptTitle.appendChild(a(script.file, script.file));
-  let anchor = a("", ' id=' + script.id);
+  let anchor = a("", 'Script #' + script.id);
   anchor.name = "script"+script.id
   scriptTitle.appendChild(anchor);
   scriptDiv.appendChild(scriptTitle);
+  if (script.file) scriptTitle.appendChild(a(script.file, script.file));
   let summary = createNode('pre', 'script-details');
   summary.appendChild(text(script.summary));
   scriptDiv.appendChild(summary);
   result.appendChild(scriptDiv);
-  return scriptDiv;
+}
+
+function renderScriptSizes(parseProcessor) {
+  let scriptsDiv = $('#scripts');
+  parseProcessor.scripts.forEach(
+    script => {
+      let scriptDiv = a('#script'+script.id, '', 'script-size');
+      let scriptId = div('script-details');
+      scriptId.classList.add('id');
+      scriptId.innerText = script.id;
+      scriptDiv.appendChild(scriptId);
+      let scriptSize = div('script-details');
+      scriptSize.innerText = BYTES(script.bytesTotal);
+      scriptDiv.appendChild(scriptSize);
+      let scriptUrl = div('script-details');
+      if (script.isEval) {
+        scriptUrl.innerText = "eval";
+        scriptDiv.classList.add('eval');
+      } else {
+        scriptUrl.innerText = script.file.split("/").pop();
+      }
+      if (script.isStreamingCompiled ) {
+        scriptDiv.classList.add('streaming');
+      } else if (script.deserializationTimestamp > 0) {
+        scriptDiv.classList.add('deserialized');
+      }
+      scriptDiv.appendChild(scriptUrl);
+      scriptDiv.style.width = script.bytesTotal * 0.001;
+      scriptsDiv.appendChild(scriptDiv);
+    });
 }
 
 const kMaxTime = 120 * kSecondsToMillis;
 // Resolution of the graphs
 const kTimeIncrement = 1;
 const kSelectionTimespan = 2;
+// TODO(cbruni): support compilation cache hit.
 const series = [
-//    ['firstParseEvent', 'Any Parse Event'],
+    ['firstParseEvent', 'Any Parse', 'area'],
+    ['execution', '1st Exec', 'area'],
+    ['firstCompileEvent', 'Any Compile', 'area'],
+    ['compile', 'Eager Compile'],
+    ['lazyCompile', 'Lazy Compile'],
     ['parse', 'Parsing'],
-//    ['preparse', 'Preparsing'],
-//    ['resolution', 'Preparsing with Var. Resolution'],
-    ['lazyCompile', 'Lazy Compilation'],
-    ['compile', 'Eager Compilation'],
-    ['execution', 'First Execution'],
+    ['preparse', 'Preparse'],
+    ['resolution', 'Preparse with Var. Resolution'],
+    ['deserialization', 'Deserialization'],
+    ['optimization', 'Optimize'],
 ];
 const metricNames = series.map(each => each[0]);
+// Display cumulative values (useuful for bytes).
+const kCumulative = true;
+// Include durations in the graphs.
+const kUseDuration = false;
 
 
 function appendGraph(script, parentNode, start, end) {
@@ -223,27 +295,34 @@ function appendGraph(script, parentNode, start, end) {
 
   console.time(timerLabel);
   let data = new google.visualization.DataTable();
-  data.addColumn('number', 'Time');
+  data.addColumn('number', 'Duration');
   // The series are interleave bytes processed, time spent and thus have two
   // different vAxes.
   let seriesOptions = [];
-  series.forEach(each => {
-    let description = each[1];
+  let colors = ['#4D4D4D', '#fff700', '#5DA5DA', '#FAA43A', '#60BD68',
+      '#F17CB0', '#B2912F', '#B276B2', '#DECF3F', '#F15854'];
+  series.forEach(([metric, description, type]) => {
+    let color = colors.shift();
     // Add the bytes column.
-    data.addColumn('number', description + ' Bytes');
-    seriesOptions.push({targetAxisIndex: 0});
+    data.addColumn('number', description);
+    let options = {targetAxisIndex: 0, color: color};
+    if (type == 'area') options.type = 'area';
+    seriesOptions.push(options)
     // Add the time column.
-    data.addColumn('number', description + ' Time');
-    seriesOptions.push({targetAxisIndex: 1, lineDashStyle: [3, 2]});
+    if (kUseDuration) {
+      data.addColumn('number', description + ' Duration');
+      seriesOptions.push(
+          {targetAxisIndex: 1, color: color, lineDashStyle: [3, 2]});
+    }
   });
-  // The first entry contains the total.
-  seriesOptions[0].type = 'area';
 
   const maxTime = Math.min(kMaxTime, end);
   console.time('metrics');
   let metricValues =
-    script.getAccumulatedTimeMetrics(metricNames , 0, maxTime, kTimeIncrement);
+    script.getAccumulatedTimeMetrics(metricNames , 0, maxTime, kTimeIncrement,
+        kCumulative, kUseDuration);
   console.timeEnd('metrics');
+  // Make sure that the series added to the graph matches the returned values.
   console.assert(metricValues[0].length == seriesOptions.length + 1);
   data.addRows(metricValues);
 
@@ -257,11 +336,11 @@ function appendGraph(script, parentNode, start, end) {
     },
     vAxes: {
       0: {title: 'Bytes Touched', format: 'short'},
-      1: {title: 'Time', format: '#,###ms'}
+      1: {title: 'Duration', format: '#,###ms'}
     },
     height: 400,
     width: 1000,
-    chartArea: {left: '5%', top: '15%', width: "85%", height: "75%"},
+    chartArea: {left: 70, top: 0, right: 160, height: "90%"},
     // The first series should be a area chart (total bytes touched),
     series: seriesOptions,
     // everthing else is a line.
@@ -275,9 +354,9 @@ function appendGraph(script, parentNode, start, end) {
   google.visualization.events.addListener(chart, 'select',
       () => selectGraphPointHandler(chart, data, script, parentNode));
   chart.draw(data, options);
+  // Add event listeners
   console.timeEnd(timerLabel);
 }
-
 
 function selectGraphPointHandler(chart, data, script, parentNode) {
   let selection = chart.getSelection();
@@ -285,17 +364,19 @@ function selectGraphPointHandler(chart, data, script, parentNode) {
   // Display a list of funktions with events at the given time.
   let {row, column} = selection[0];
   if (row === null|| column === null) return;
-  let name = series[((column-1)/2) | 0][0];
+  const kEntrySize = kUseDuration ? 2 : 1;
+  let [metric, description] = series[((column-1)/ kEntrySize) | 0];
   let time = data.getValue(row, 0);
   let funktions = script.getFunktionsAtTime(
-        time * kSecondsToMillis, kSelectionTimespan, name);
+        time * kSecondsToMillis, kSelectionTimespan, metric);
   let oldList = parentNode.querySelector('.funktion-list');
-  parentNode.replaceChild(createFunktionList(name, time, funktions), oldList);
+  parentNode.replaceChild(
+      createFunktionList(metric, description, time, funktions), oldList);
 }
 
-function createFunktionList(metric, time, funktions) {
+function createFunktionList(metric, description, time, funktions) {
   let container = createNode('div', 'funktion-list');
-  container.appendChild(h3('Changes of ' + metric + ' at ' +
+  container.appendChild(h3('Changes of "' + description + '" at ' +
         time + 's: ' + funktions.length));
   let listNode = createNode('ul');
   funktions.forEach(funktion => {
@@ -311,8 +392,6 @@ function createFunktionList(metric, time, funktions) {
   container.appendChild(listNode);
   return container;
 }
-
-
 </script>
 </head>
 
@@ -326,9 +405,13 @@ function createFunktionList(metric, time, funktions) {
   <h2>Data</h2>
   <form name="fileForm">
     <p>
-      <input id="uploadInput" type="file" name="files" onchange="loadFile();"> trace entries: <span id="count">0</span>
+      <input id="uploadInput" type="file" name="files" onchange="loadFile();" accept=".log"> trace entries: <span id="count">0</span>
     </p>
   </form>
+
+
+  <h2>Scripts</h2>
+  <div id="scripts"></div>
 
   <h2>Result</h2>
   <div id="result"></div>

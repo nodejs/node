@@ -6,9 +6,9 @@
 #define V8_COMPILER_JS_INTRINSIC_LOWERING_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -32,60 +32,52 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
-  ~JSIntrinsicLowering() final {}
+  ~JSIntrinsicLowering() final = default;
 
   const char* reducer_name() const override { return "JSIntrinsicLowering"; }
 
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceCopyDataProperties(Node* node);
   Reduction ReduceCreateIterResultObject(Node* node);
-  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceCreateJSGeneratorObject(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
-  Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
   Reduction ReduceAsyncFunctionAwaitCaught(Node* node);
   Reduction ReduceAsyncFunctionAwaitUncaught(Node* node);
+  Reduction ReduceAsyncFunctionEnter(Node* node);
+  Reduction ReduceAsyncFunctionReject(Node* node);
+  Reduction ReduceAsyncFunctionResolve(Node* node);
   Reduction ReduceAsyncGeneratorAwaitCaught(Node* node);
   Reduction ReduceAsyncGeneratorAwaitUncaught(Node* node);
   Reduction ReduceAsyncGeneratorReject(Node* node);
   Reduction ReduceAsyncGeneratorResolve(Node* node);
   Reduction ReduceAsyncGeneratorYield(Node* node);
-  Reduction ReduceGeneratorSaveInputForAwait(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
-  Reduction ReduceRejectPromise(Node* node);
-  Reduction ReduceResolvePromise(Node* node);
-  Reduction ReduceToInteger(Node* node);
+  Reduction ReduceTurbofanStaticAssert(Node* node);
   Reduction ReduceToLength(Node* node);
-  Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
-  Reduction ReduceGetSuperConstructor(Node* node);
-
-  // TODO(turbofan): typedarray.js support; drop once TypedArrays are
-  // converted to proper CodeStubAssembler based builtins.
-  Reduction ReduceArrayBufferViewField(Node* node, FieldAccess const& access);
-  Reduction ReduceArrayBufferViewWasNeutered(Node* node);
-  Reduction ReduceMaxSmi(Node* node);
-
-  // TODO(turbofan): collection.js support; drop once Maps and Sets are
-  // converted to proper CodeStubAssembler based builtins.
-  Reduction ReduceTheHole(Node* node);
-
-  Reduction ReduceStringMaxLength(Node* node);
+  Reduction ReduceIncBlockCounter(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
                    Node* d);
+
+  enum FrameStateFlag {
+    kNeedsFrameState,
+    kDoesNotNeedFrameState,
+  };
   Reduction Change(Node* node, Callable const& callable,
-                   int stack_parameter_count);
+                   int stack_parameter_count,
+                   enum FrameStateFlag frame_state_flag = kNeedsFrameState);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

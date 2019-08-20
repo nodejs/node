@@ -1,10 +1,5 @@
 import module from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter(str =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
-
 export function dynamicInstantiate(url) {
   const builtinInstance = module._load(url.substr(5));
   const builtinExports = ['default', ...Object.keys(builtinInstance)];
@@ -19,7 +14,7 @@ export function dynamicInstantiate(url) {
 }
 
 export function resolve(specifier, base, defaultResolver) {
-  if (builtins.has(specifier)) {
+  if (module.builtinModules.includes(specifier)) {
     return {
       url: `node:${specifier}`,
       format: 'dynamic'

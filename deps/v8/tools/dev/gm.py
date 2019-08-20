@@ -10,10 +10,11 @@ Uses Goma by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
-    gm.py [<arch>].[<mode>].[<target>] [testname...]
+    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...]
 
 All arguments are optional. Most combinations should work, e.g.:
-    gm.py ia32.debug x64.release d8
+    gm.py ia32.debug x64.release x64.release-my-custom-opts d8
+    gm.py android_arm.release.check
     gm.py x64 mjsunit/foo cctest/test-bar/*
 """
 # See HELP below for additional documentation.
@@ -21,17 +22,20 @@ All arguments are optional. Most combinations should work, e.g.:
 from __future__ import print_function
 import errno
 import os
-import pty
 import re
 import subprocess
 import sys
+
+USE_PTY = "linux" in sys.platform
+if USE_PTY:
+  import pty
 
 BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "s390", "s390x"]
+          "s390", "s390x", "android_arm", "android_arm64"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -39,8 +43,8 @@ MODES = ["release", "debug", "optdebug"]
 # Modes that get built/run when you don't specify any.
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
-TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "mkgrokdump",
-           "generate-bytecode-expectations", "inspector-test"]
+TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
+           "mkgrokdump", "generate-bytecode-expectations", "inspector-test"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -60,13 +64,14 @@ ACTIONS = {
 HELP = """<arch> can be any of: %(arches)s
 <mode> can be any of: %(modes)s
 <target> can be any of:
- - cctest, d8, unittests, v8_fuzzers (build respective binary)
+ - %(targets)s (build respective binary)
  - all (build all binaries)
  - tests (build test binaries)
  - check (build test binaries, run most tests)
  - checkall (build all binaries, run more tests)
 """ % {"arches": " ".join(ARCHES),
-       "modes": " ".join(MODES)}
+       "modes": " ".join(MODES),
+       "targets": ", ".join(TARGETS)}
 
 TESTSUITES_TARGETS = {"benchmarks": "d8",
               "cctest": "cctest",
@@ -80,6 +85,7 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
               "preparser": "d8",
               "test262": "d8",
               "unittests": "unittests",
+              "wasm-api-tests": "wasm_api_tests",
               "webkit": "d8"}
 
 OUTDIR = "out"
@@ -119,6 +125,7 @@ symbol_level = 2
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
@@ -131,6 +138,7 @@ symbol_level = 1
 use_goma = {GOMA}
 goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
+v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
 """.replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
@@ -200,6 +208,16 @@ def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
   return os.path.join(OUTDIR, subdir)
 
+def PrepareMksnapshotCmdline(orig_cmdline, path):
+  result = "gdb --args %s/mksnapshot " % path
+  for w in orig_cmdline.split(" "):
+    if w.startswith("gen/") or w.startswith("snapshot_blob"):
+      result += ("%(path)s%(sep)s%(arg)s " %
+                 {"path": path, "sep": os.sep, "arg": w})
+    else:
+      result += "%s " % w
+  return result
+
 class Config(object):
   def __init__(self, arch, mode, targets, tests=[]):
     self.arch = arch
@@ -212,51 +230,64 @@ class Config(object):
     self.tests.update(tests)
 
   def GetTargetCpu(self):
+    if self.arch == "android_arm": return "target_cpu = \"arm\""
+    if self.arch == "android_arm64": return "target_cpu = \"arm64\""
     cpu = "x86"
     if "64" in self.arch or self.arch == "s390x":
       cpu = "x64"
     return "target_cpu = \"%s\"" % cpu
 
   def GetV8TargetCpu(self):
+    if self.arch == "android_arm": return "\nv8_target_cpu = \"arm\""
+    if self.arch == "android_arm64": return "\nv8_target_cpu = \"arm64\""
     if self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
                      "s390", "s390x"):
       return "\nv8_target_cpu = \"%s\"" % self.arch
     return ""
 
+  def GetTargetOS(self):
+    if self.arch in ("android_arm", "android_arm64"):
+      return "\ntarget_os = \"android\""
+    return ""
+
   def GetGnArgs(self):
-    template = ARGS_TEMPLATES[self.mode]
-    arch_specific = self.GetTargetCpu() + self.GetV8TargetCpu()
+    # Use only substring before first '-' as the actual mode
+    mode = re.match("([^-]+)", self.mode).group(1)
+    template = ARGS_TEMPLATES[mode]
+    arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
+                     self.GetTargetOS())
     return template % arch_specific
 
   def Build(self):
     path = GetPath(self.arch, self.mode)
     args_gn = os.path.join(path, "args.gn")
+    build_ninja = os.path.join(path, "build.ninja")
     if not os.path.exists(path):
       print("# mkdir -p %s" % path)
       os.makedirs(path)
     if not os.path.exists(args_gn):
       _Write(args_gn, self.GetGnArgs())
+    if not os.path.exists(build_ninja):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
-    if "linux" not in sys.platform:
+    if not USE_PTY:
       return _Call("autoninja -C %s %s" % (path, targets))
 
     return_code, output = _CallWithOutput("autoninja -C %s %s" %
                                           (path, targets))
-    if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+    if return_code != 0 and "FAILED:" in output and "snapshot_blob" in output:
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""
+      cmdline = re.compile("python ../../tools/run.py ./mksnapshot (.*)")
+      orig_cmdline = cmdline.search(output).group(1).strip()
+      cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
-      _Call("gdb -args %(path)s/mksnapshot "
-            "--startup_src %(path)s/gen/snapshot.cc "
-            "--random-seed 314159265 "
-            "--startup-blob %(path)s/snapshot_blob.bin"
-            "%(extra)s"% {"path": path, "extra": extra_opt})
+      _Call(cmdline)
     return return_code
 
   def RunTests(self):
@@ -265,8 +296,9 @@ class Config(object):
       tests = ""
     else:
       tests = " ".join(self.tests)
-    return _Call("tools/run-tests.py --arch=%s --mode=%s %s" %
-                 (self.arch, self.mode, tests))
+    return _Call('"%s" ' % sys.executable +
+                 os.path.join("tools", "run-tests.py") +
+                 " --outdir=%s %s" % (GetPath(self.arch, self.mode), tests))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:
@@ -334,6 +366,8 @@ class ArgumentParser(object):
         targets.append(word)
       elif word in ACTIONS:
         actions.append(word)
+      elif any(map(lambda x: word.startswith(x + "-"), MODES)):
+        modes.append(word)
       else:
         print("Didn't understand: %s" % word)
         sys.exit(1)

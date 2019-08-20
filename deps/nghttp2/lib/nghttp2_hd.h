@@ -26,7 +26,7 @@
 #define NGHTTP2_HD_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include <nghttp2/nghttp2.h>
@@ -111,6 +111,7 @@ typedef enum {
   NGHTTP2_TOKEN_KEEP_ALIVE,
   NGHTTP2_TOKEN_PROXY_CONNECTION,
   NGHTTP2_TOKEN_UPGRADE,
+  NGHTTP2_TOKEN__PROTOCOL,
 } nghttp2_token;
 
 struct nghttp2_hd_entry;

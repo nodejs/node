@@ -7,7 +7,8 @@
 
 #include "src/objects/name.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/map-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,69 +16,53 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(Symbol)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 
-ACCESSORS(Symbol, name, Object, kNameOffset)
-SMI_ACCESSORS(Symbol, flags, kFlagsOffset)
-BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
-BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)
-BOOL_ACCESSORS(Symbol, flags, is_public, kPublicBit)
-BOOL_ACCESSORS(Symbol, flags, is_interesting_symbol, kInterestingSymbolBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
+                    Symbol::IsWellKnownSymbolBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_public, Symbol::IsPublicBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
+                    Symbol::IsInterestingSymbolBit)
 
-TYPE_CHECKER(Symbol, SYMBOL_TYPE)
-
-bool Symbol::is_private_field() const {
-  bool value = BooleanBit::get(flags(), kPrivateFieldBit);
+bool Symbol::is_private_name() const {
+  bool value = Symbol::IsPrivateNameBit::decode(flags());
   DCHECK_IMPLIES(value, is_private());
   return value;
 }
 
-void Symbol::set_is_private_field() {
-  int old_value = flags();
+void Symbol::set_is_private_name() {
   // TODO(gsathya): Re-order the bits to have these next to each other
   // and just do the bit shifts once.
-  set_flags(BooleanBit::set(old_value, kPrivateBit, true) |
-            BooleanBit::set(old_value, kPrivateFieldBit, true));
+  set_flags(Symbol::IsPrivateBit::update(flags(), true));
+  set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
-bool Name::IsUniqueName() const {
-  uint32_t type = map()->instance_type();
-  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
-         (kStringTag | kNotInternalizedTag);
+DEF_GETTER(Name, IsUniqueName, bool) {
+  uint32_t type = map(isolate).instance_type();
+  bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
+                (kStringTag | kNotInternalizedTag);
+  SLOW_DCHECK(result == HeapObject::IsUniqueName());
+  return result;
 }
 
-uint32_t Name::hash_field() {
-  return READ_UINT32_FIELD(this, kHashFieldOffset);
-}
-
-void Name::set_hash_field(uint32_t value) {
-  WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
-#if V8_HOST_ARCH_64_BIT
-#if V8_TARGET_LITTLE_ENDIAN
-  WRITE_UINT32_FIELD(this, kHashFieldSlot + kInt32Size, 0);
-#else
-  WRITE_UINT32_FIELD(this, kHashFieldSlot, 0);
-#endif
-#endif
-}
-
-bool Name::Equals(Name* other) {
-  if (other == this) return true;
-  if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
-      this->IsSymbol() || other->IsSymbol()) {
+bool Name::Equals(Name other) {
+  if (other == *this) return true;
+  if ((this->IsInternalizedString() && other.IsInternalizedString()) ||
+      this->IsSymbol() || other.IsSymbol()) {
     return false;
   }
-  return String::cast(this)->SlowEquals(String::cast(other));
+  return String::cast(*this).SlowEquals(String::cast(other));
 }
 
-bool Name::Equals(Handle<Name> one, Handle<Name> two) {
+bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
   if (one.is_identical_to(two)) return true;
   if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
       one->IsSymbol() || two->IsSymbol()) {
     return false;
   }
-  return String::SlowEquals(Handle<String>::cast(one),
+  return String::SlowEquals(isolate, Handle<String>::cast(one),
                             Handle<String>::cast(two));
 }
 
@@ -92,26 +77,26 @@ uint32_t Name::Hash() {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(this)->ComputeAndSetHash();
+  return String::cast(*this).ComputeAndSetHash();
 }
 
-bool Name::IsInterestingSymbol() const {
-  return IsSymbol() && Symbol::cast(this)->is_interesting_symbol();
+DEF_GETTER(Name, IsInterestingSymbol, bool) {
+  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
 }
 
-bool Name::IsPrivate() {
-  return this->IsSymbol() && Symbol::cast(this)->is_private();
+DEF_GETTER(Name, IsPrivate, bool) {
+  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
 }
 
-bool Name::IsPrivateField() {
-  bool is_private_field =
-      this->IsSymbol() && Symbol::cast(this)->is_private_field();
-  DCHECK_IMPLIES(is_private_field, IsPrivate());
-  return is_private_field;
+DEF_GETTER(Name, IsPrivateName, bool) {
+  bool is_private_name =
+      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
+  DCHECK_IMPLIES(is_private_name, IsPrivate());
+  return is_private_name;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString() && String::cast(this)->AsArrayIndex(index);
+  return IsString() && String::cast(*this).AsArrayIndex(index);
 }
 
 // static

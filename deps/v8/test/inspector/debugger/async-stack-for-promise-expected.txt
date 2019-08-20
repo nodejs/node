@@ -101,11 +101,11 @@ foo1 (test.js:156:4)
 complex (test.js:202:5)
 (anonymous) (testComplex.js:0:0)
 
-p.then (test.js:207:8)
+(anonymous) (test.js:207:8)
 -- Promise.then --
-p.then (test.js:206:8)
+(anonymous) (test.js:206:8)
 -- Promise.then --
-setTimeout (test.js:205:6)
+(anonymous) (test.js:205:6)
 -- setTimeout --
 complex (test.js:204:2)
 (anonymous) (testComplex.js:0:0)

@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// verify that stdout is never read from.
+// Verify that stdout is never read from.
 const net = require('net');
 const read = net.Socket.prototype.read;
 
@@ -59,7 +59,7 @@ function parent() {
 }
 
 function child() {
-  // should not be reading *ever* in here.
+  // Should not be reading *ever* in here.
   net.Socket.prototype.read = function() {
     throw new Error('no reading allowed in child');
   };

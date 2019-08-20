@@ -27,12 +27,58 @@
 
 [
 [ALWAYS, {
-  # TODO(jochen): The following test is flaky.
+# TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=7481
+  'collator/check-kf-option': [FAIL],
+  'collator/check-kn-option': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=9312
+  'regress-9312': [FAIL],
+
+  # Slow tests.
+  'regress-903566': [PASS, SLOW],
 }],  # ALWAYS
 
-['variant == wasm_traps', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == wasm_traps
+}],  # variant == no_wasm_traps
 
+['system == windows', {
+  # noi18n cannot turn on ICU backend for Date
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+
+  # Unable to change locale on Windows:
+  'default_locale': [SKIP],
+
+  # Unable to change locale and TZ on Windows:
+  'regress-7770': [SKIP],
+}],  # system == windows'
+
+['system == android', {
+  # Android's ICU data file does not have the Chinese/Japanese dictionary
+  # required for the test to pass.
+  'break-iterator/zh-break': [SKIP],
+  # Unable to change locale on Android:
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+  'default_locale': [SKIP],
+  # Unable to change locale and TZ on Android:
+  'regress-7770': [SKIP],
+  # 'bn' locale is not included in Android.
+  'relative-time-format/resolved-options-nu-extended': [FAIL],
+}],  # 'system == android'
+
+##############################################################################
+['variant == stress', {
+  # Too slow.
+  'regress-903566': [SKIP],
+}],  # 'variant == stress'
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 ]

@@ -48,6 +48,8 @@ function isShadowed(scope, node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `require()` calls to be placed at top-level module scope",
             category: "Node.js and CommonJS",
@@ -55,7 +57,10 @@ module.exports = {
             url: "https://eslint.org/docs/rules/global-require"
         },
 
-        schema: []
+        schema: [],
+        messages: {
+            unexpected: "Unexpected require()."
+        }
     },
 
     create(context) {
@@ -67,7 +72,7 @@ module.exports = {
                     const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.indexOf(parent.type) > -1);
 
                     if (!isGoodRequire) {
-                        context.report({ node, message: "Unexpected require()." });
+                        context.report({ node, messageId: "unexpected" });
                     }
                 }
             }

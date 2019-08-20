@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -7,6 +8,8 @@ const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
 const fixtures = require('../common/fixtures');
+const { internalBinding } = require('internal/test/binding');
+const { fipsMode } = internalBinding('config');
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
@@ -24,7 +27,7 @@ const CNF_FIPS_OFF = fixtures.path('openssl_fips_disabled.cnf');
 let num_children_ok = 0;
 
 function compiledWithFips() {
-  return process.config.variables.openssl_fips ? true : false;
+  return fipsMode ? true : false;
 }
 
 function sharedOpenSSL() {
@@ -54,7 +57,7 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
       assert.ok(response.includes(expectedOutput));
     } else {
       // Normal path where we expect either FIPS enabled or disabled.
-      assert.strictEqual(expectedOutput, Number(response));
+      assert.strictEqual(Number(response), expectedOutput);
     }
     childOk(child);
   }

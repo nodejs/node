@@ -21,9 +21,22 @@ struct SourceRange {
   static SourceRange OpenEnded(int32_t start) {
     return SourceRange(start, kNoSourcePosition);
   }
-  static SourceRange ContinuationOf(const SourceRange& that) {
-    return that.IsEmpty() ? Empty() : OpenEnded(that.end);
+  static SourceRange ContinuationOf(const SourceRange& that,
+                                    int end = kNoSourcePosition) {
+    return that.IsEmpty() ? Empty() : SourceRange(that.end, end);
   }
+
+  static constexpr int kFunctionLiteralSourcePosition = -2;
+  STATIC_ASSERT(kFunctionLiteralSourcePosition == kNoSourcePosition - 1);
+
+  // Source ranges associated with a function literal do not contain real
+  // source positions; instead, they are created with special marker values.
+  // These are later recognized and rewritten during processing in
+  // Coverage::Collect().
+  static SourceRange FunctionLiteralMarkerRange() {
+    return {kFunctionLiteralSourcePosition, kFunctionLiteralSourcePosition};
+  }
+
   int32_t start, end;
 };
 
@@ -34,6 +47,7 @@ struct SourceRange {
   V(Block)                       \
   V(CaseClause)                  \
   V(Conditional)                 \
+  V(FunctionLiteral)             \
   V(IfStatement)                 \
   V(IterationStatement)          \
   V(JumpStatement)               \
@@ -56,8 +70,10 @@ enum class SourceRangeKind {
 
 class AstNodeSourceRanges : public ZoneObject {
  public:
-  virtual ~AstNodeSourceRanges() {}
+  virtual ~AstNodeSourceRanges() = default;
   virtual SourceRange GetRange(SourceRangeKind kind) = 0;
+  virtual bool HasRange(SourceRangeKind kind) = 0;
+  virtual void RemoveContinuationRange() { UNREACHABLE(); }
 };
 
 class BinaryOperationSourceRanges final : public AstNodeSourceRanges {
@@ -65,9 +81,13 @@ class BinaryOperationSourceRanges final : public AstNodeSourceRanges {
   explicit BinaryOperationSourceRanges(const SourceRange& right_range)
       : right_range_(right_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK_EQ(kind, SourceRangeKind::kRight);
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     return right_range_;
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kRight;
   }
 
  private:
@@ -79,9 +99,18 @@ class ContinuationSourceRanges : public AstNodeSourceRanges {
   explicit ContinuationSourceRanges(int32_t continuation_position)
       : continuation_position_(continuation_position) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK_EQ(kind, SourceRangeKind::kContinuation);
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     return SourceRange::OpenEnded(continuation_position_);
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kContinuation;
+  }
+
+  void RemoveContinuationRange() override {
+    DCHECK(HasRange(SourceRangeKind::kContinuation));
+    continuation_position_ = kNoSourcePosition;
   }
 
  private:
@@ -99,9 +128,13 @@ class CaseClauseSourceRanges final : public AstNodeSourceRanges {
   explicit CaseClauseSourceRanges(const SourceRange& body_range)
       : body_range_(body_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK_EQ(kind, SourceRangeKind::kBody);
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     return body_range_;
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kBody;
   }
 
  private:
@@ -114,7 +147,8 @@ class ConditionalSourceRanges final : public AstNodeSourceRanges {
                                    const SourceRange& else_range)
       : then_range_(then_range), else_range_(else_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     switch (kind) {
       case SourceRangeKind::kThen:
         return then_range_;
@@ -125,9 +159,25 @@ class ConditionalSourceRanges final : public AstNodeSourceRanges {
     }
   }
 
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kThen || kind == SourceRangeKind::kElse;
+  }
+
  private:
   SourceRange then_range_;
   SourceRange else_range_;
+};
+
+class FunctionLiteralSourceRanges final : public AstNodeSourceRanges {
+ public:
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
+    return SourceRange::FunctionLiteralMarkerRange();
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kBody;
+  }
 };
 
 class IfStatementSourceRanges final : public AstNodeSourceRanges {
@@ -136,13 +186,15 @@ class IfStatementSourceRanges final : public AstNodeSourceRanges {
                                    const SourceRange& else_range)
       : then_range_(then_range), else_range_(else_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     switch (kind) {
       case SourceRangeKind::kElse:
         return else_range_;
       case SourceRangeKind::kThen:
         return then_range_;
       case SourceRangeKind::kContinuation: {
+        if (!has_continuation_) return SourceRange::Empty();
         const SourceRange& trailing_range =
             else_range_.IsEmpty() ? then_range_ : else_range_;
         return SourceRange::ContinuationOf(trailing_range);
@@ -152,9 +204,20 @@ class IfStatementSourceRanges final : public AstNodeSourceRanges {
     }
   }
 
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kThen || kind == SourceRangeKind::kElse ||
+           kind == SourceRangeKind::kContinuation;
+  }
+
+  void RemoveContinuationRange() override {
+    DCHECK(HasRange(SourceRangeKind::kContinuation));
+    has_continuation_ = false;
+  }
+
  private:
   SourceRange then_range_;
   SourceRange else_range_;
+  bool has_continuation_ = true;
 };
 
 class IterationStatementSourceRanges final : public AstNodeSourceRanges {
@@ -162,19 +225,32 @@ class IterationStatementSourceRanges final : public AstNodeSourceRanges {
   explicit IterationStatementSourceRanges(const SourceRange& body_range)
       : body_range_(body_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     switch (kind) {
       case SourceRangeKind::kBody:
         return body_range_;
       case SourceRangeKind::kContinuation:
+        if (!has_continuation_) return SourceRange::Empty();
         return SourceRange::ContinuationOf(body_range_);
       default:
         UNREACHABLE();
     }
   }
 
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kBody ||
+           kind == SourceRangeKind::kContinuation;
+  }
+
+  void RemoveContinuationRange() override {
+    DCHECK(HasRange(SourceRangeKind::kContinuation));
+    has_continuation_ = false;
+  }
+
  private:
   SourceRange body_range_;
+  bool has_continuation_ = true;
 };
 
 class JumpStatementSourceRanges final : public ContinuationSourceRanges {
@@ -198,7 +274,8 @@ class NaryOperationSourceRanges final : public AstNodeSourceRanges {
   void AddRange(const SourceRange& range) { ranges_.push_back(range); }
   size_t RangeCount() const { return ranges_.size(); }
 
-  SourceRange GetRange(SourceRangeKind kind) { UNREACHABLE(); }
+  SourceRange GetRange(SourceRangeKind kind) override { UNREACHABLE(); }
+  bool HasRange(SourceRangeKind kind) override { return false; }
 
  private:
   ZoneVector<SourceRange> ranges_;
@@ -227,19 +304,32 @@ class TryCatchStatementSourceRanges final : public AstNodeSourceRanges {
   explicit TryCatchStatementSourceRanges(const SourceRange& catch_range)
       : catch_range_(catch_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     switch (kind) {
       case SourceRangeKind::kCatch:
         return catch_range_;
       case SourceRangeKind::kContinuation:
+        if (!has_continuation_) return SourceRange::Empty();
         return SourceRange::ContinuationOf(catch_range_);
       default:
         UNREACHABLE();
     }
   }
 
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kCatch ||
+           kind == SourceRangeKind::kContinuation;
+  }
+
+  void RemoveContinuationRange() override {
+    DCHECK(HasRange(SourceRangeKind::kContinuation));
+    has_continuation_ = false;
+  }
+
  private:
   SourceRange catch_range_;
+  bool has_continuation_ = true;
 };
 
 class TryFinallyStatementSourceRanges final : public AstNodeSourceRanges {
@@ -247,19 +337,32 @@ class TryFinallyStatementSourceRanges final : public AstNodeSourceRanges {
   explicit TryFinallyStatementSourceRanges(const SourceRange& finally_range)
       : finally_range_(finally_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
     switch (kind) {
       case SourceRangeKind::kFinally:
         return finally_range_;
       case SourceRangeKind::kContinuation:
+        if (!has_continuation_) return SourceRange::Empty();
         return SourceRange::ContinuationOf(finally_range_);
       default:
         UNREACHABLE();
     }
   }
 
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kFinally ||
+           kind == SourceRangeKind::kContinuation;
+  }
+
+  void RemoveContinuationRange() override {
+    DCHECK(HasRange(SourceRangeKind::kContinuation));
+    has_continuation_ = false;
+  }
+
  private:
   SourceRange finally_range_;
+  bool has_continuation_ = true;
 };
 
 // Maps ast node pointers to associated source ranges. The parser creates these

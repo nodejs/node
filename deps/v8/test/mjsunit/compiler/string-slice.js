@@ -7,6 +7,7 @@
 (function() {
   function foo(s) { return s.slice(-1); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals('', foo(''));
   assertEquals('a', foo('a'));
   assertEquals('b', foo('ab'));
@@ -21,6 +22,7 @@
 (function() {
   function foo(s) { return s.slice(-1, undefined); }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals('', foo(''));
   assertEquals('a', foo('a'));
   assertEquals('b', foo('ab'));

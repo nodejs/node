@@ -67,7 +67,6 @@ static inline void Decode(uint8_t byte, State* state, uint32_t* buffer) {
       0,  0,  36, 36, 0,  0,  0,  0,  0,  0, 0,  0,   // 4-byte mid/high = 96
   };
 
-  DCHECK_NE(*state, State::kReject);
   uint8_t type = transitions[byte];
   *state = static_cast<State>(states[*state + type]);
   *buffer = (*buffer << 6) | (byte & (0x7F >> (type >> 1)));

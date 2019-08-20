@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,47 +16,68 @@ namespace internal {
 
 class ClassLiteral;
 
-// BoilerplateDescription is a list of properties consisting of name value
+// ObjectBoilerplateDescription is a list of properties consisting of name value
 // pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
 // computed names that are not
 // in the list.
-class BoilerplateDescription : public FixedArray {
+// TODO(ishell): Don't derive from FixedArray as it already has its own map.
+class ObjectBoilerplateDescription : public FixedArray {
  public:
-  Object* name(int index) const;
-  Object* value(int index) const;
+  inline Object name(int index) const;
+  inline Object name(Isolate* isolate, int index) const;
+
+  inline Object value(int index) const;
+  inline Object value(Isolate* isolate, int index) const;
+
+  inline void set_key_value(int index, Object key, Object value);
 
   // The number of boilerplate properties.
-  int size() const;
+  inline int size() const;
 
   // Number of boilerplate properties and properties with computed names.
-  int backing_store_size() const;
+  inline int backing_store_size() const;
+  inline void set_backing_store_size(int backing_store_size);
 
-  void set_backing_store_size(Isolate* isolate, int backing_store_size);
+  // Used to encode ObjectLiteral::Flags for nested object literals
+  // Stored as the first element of the fixed array
+  DECL_INT_ACCESSORS(flags)
+  static const int kLiteralTypeOffset = 0;
+  static const int kDescriptionStartIndex = 1;
 
-  DECL_CAST(BoilerplateDescription)
+  DECL_CAST(ObjectBoilerplateDescription)
+  DECL_VERIFIER(ObjectBoilerplateDescription)
+  DECL_PRINTER(ObjectBoilerplateDescription)
 
  private:
-  bool has_number_of_properties() const;
+  inline bool has_number_of_properties() const;
+
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray);
 };
 
-// Pair of {ElementsKind} and an array of constant values for {ArrayLiteral}
-// expressions. Used to communicate with the runtime for literal boilerplate
-// creation within the {Runtime_CreateArrayLiteral} method.
-class ConstantElementsPair : public Tuple2 {
+class ArrayBoilerplateDescription : public Struct {
  public:
-  DECL_INT_ACCESSORS(elements_kind)
-  DECL_ACCESSORS(constant_values, FixedArrayBase)
+  // store constant_elements of a fixed array
+  DECL_ACCESSORS(constant_elements, FixedArrayBase)
+
+  inline ElementsKind elements_kind() const;
+  inline void set_elements_kind(ElementsKind kind);
 
   inline bool is_empty() const;
 
-  DECL_CAST(ConstantElementsPair)
+  DECL_CAST(ArrayBoilerplateDescription)
+  // Dispatched behavior.
+  DECL_PRINTER(ArrayBoilerplateDescription)
+  DECL_VERIFIER(ArrayBoilerplateDescription)
+  void BriefPrintDetails(std::ostream& os);
 
-  static const int kElementsKindOffset = kValue1Offset;
-  static const int kConstantValuesOffset = kValue2Offset;
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      HeapObject::kHeaderSize,
+      TORQUE_GENERATED_ARRAY_BOILERPLATE_DESCRIPTION_FIELDS)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);
+  DECL_INT_ACCESSORS(flags)
+  OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription, Struct);
 };
 
 class ClassBoilerplate : public FixedArray {
@@ -105,12 +126,12 @@ class ClassBoilerplate : public FixedArray {
   static void AddToPropertiesTemplate(Isolate* isolate,
                                       Handle<NameDictionary> dictionary,
                                       Handle<Name> name, int key_index,
-                                      ValueKind value_kind, Object* value);
+                                      ValueKind value_kind, Object value);
 
   static void AddToElementsTemplate(Isolate* isolate,
                                     Handle<NumberDictionary> dictionary,
                                     uint32_t key, int key_index,
-                                    ValueKind value_kind, Object* value);
+                                    ValueKind value_kind, Object value);
 
   static Handle<ClassBoilerplate> BuildClassBoilerplate(Isolate* isolate,
                                                         ClassLiteral* expr);
@@ -130,6 +151,8 @@ class ClassBoilerplate : public FixedArray {
 
  private:
   DECL_INT_ACCESSORS(flags)
+
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray);
 };
 
 }  // namespace internal

@@ -13,6 +13,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/x509_vfy.h>
 #include "internal/x509_int.h"
+#include "internal/tsan_assist.h"
 
 static void x509v3_cache_extensions(X509 *x);
 
@@ -78,11 +79,9 @@ int X509_check_purpose(X509 *x, int id, int ca)
 {
     int idx;
     const X509_PURPOSE *pt;
-    if (!(x->ex_flags & EXFLAG_SET)) {
-        CRYPTO_THREAD_write_lock(x->lock);
-        x509v3_cache_extensions(x);
-        CRYPTO_THREAD_unlock(x->lock);
-    }
+
+    x509v3_cache_extensions(x);
+
     /* Return if side-effect only call */
     if (id == -1)
         return 1;
@@ -135,13 +134,14 @@ int X509_PURPOSE_get_by_id(int purpose)
 {
     X509_PURPOSE tmp;
     int idx;
+
     if ((purpose >= X509_PURPOSE_MIN) && (purpose <= X509_PURPOSE_MAX))
         return purpose - X509_PURPOSE_MIN;
-    tmp.purpose = purpose;
-    if (!xptable)
+    if (xptable == NULL)
         return -1;
+    tmp.purpose = purpose;
     idx = sk_X509_PURPOSE_find(xptable, &tmp);
-    if (idx == -1)
+    if (idx < 0)
         return -1;
     return idx + X509_PURPOSE_COUNT;
 }
@@ -352,10 +352,20 @@ static void x509v3_cache_extensions(X509 *x)
     ASN1_BIT_STRING *ns;
     EXTENDED_KEY_USAGE *extusage;
     X509_EXTENSION *ex;
-
     int i;
-    if (x->ex_flags & EXFLAG_SET)
+
+#ifdef tsan_ld_acq
+    /* fast lock-free check, see end of the function for details. */
+    if (tsan_ld_acq((TSAN_QUALIFIER int *)&x->ex_cached))
         return;
+#endif
+
+    CRYPTO_THREAD_write_lock(x->lock);
+    if (x->ex_flags & EXFLAG_SET) {
+        CRYPTO_THREAD_unlock(x->lock);
+        return;
+    }
+
     X509_digest(x, EVP_sha1(), x->sha1_hash, NULL);
     /* V1 should mean no extensions ... */
     if (!X509_get_version(x))
@@ -488,7 +498,17 @@ static void x509v3_cache_extensions(X509 *x)
             break;
         }
     }
+    x509_init_sig_info(x);
     x->ex_flags |= EXFLAG_SET;
+#ifdef tsan_st_rel
+    tsan_st_rel((TSAN_QUALIFIER int *)&x->ex_cached, 1);
+    /*
+     * Above store triggers fast lock-free check in the beginning of the
+     * function. But one has to ensure that the structure is "stable", i.e.
+     * all stores are visible on all processors. Hence the release fence.
+     */
+#endif
+    CRYPTO_THREAD_unlock(x->lock);
 }
 
 /*-
@@ -541,11 +561,7 @@ void X509_set_proxy_pathlen(X509 *x, long l)
 
 int X509_check_ca(X509 *x)
 {
-    if (!(x->ex_flags & EXFLAG_SET)) {
-        CRYPTO_THREAD_write_lock(x->lock);
-        x509v3_cache_extensions(x);
-        CRYPTO_THREAD_unlock(x->lock);
-    }
+    x509v3_cache_extensions(x);
 
     return check_ca(x);
 }
@@ -759,6 +775,7 @@ int X509_check_issued(X509 *issuer, X509 *subject)
     if (X509_NAME_cmp(X509_get_subject_name(issuer),
                       X509_get_issuer_name(subject)))
         return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+
     x509v3_cache_extensions(issuer);
     x509v3_cache_extensions(subject);
 

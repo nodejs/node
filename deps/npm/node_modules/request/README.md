@@ -187,7 +187,7 @@ var formData = {
   // Pass a simple key-value pair
   my_field: 'my_value',
   // Pass data via Buffers
-  my_buffer: new Buffer([1, 2, 3]),
+  my_buffer: Buffer.from([1, 2, 3]),
   // Pass data via Streams
   my_file: fs.createReadStream(__dirname + '/unicycle.jpg'),
   // Pass multiple values /w an Array
@@ -221,7 +221,7 @@ For advanced cases, you can access the form-data object itself via `r.form()`. T
 var r = request.post('http://service.com/upload', function optionalCallback(err, httpResponse, body) {...})
 var form = r.form();
 form.append('my_field', 'my_value');
-form.append('my_buffer', new Buffer([1, 2, 3]));
+form.append('my_buffer', Buffer.from([1, 2, 3]));
 form.append('custom_file', fs.createReadStream(__dirname + '/unicycle.jpg'), {filename: 'unicycle.jpg'});
 ```
 See the [form-data README](https://github.com/form-data/form-data) for more information & examples.
@@ -772,7 +772,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 - `auth` - a hash containing values `user` || `username`, `pass` || `password`, and `sendImmediately` (optional). See documentation above.
 - `oauth` - options for OAuth HMAC-SHA1 signing. See documentation above.
 - `hawk` - options for [Hawk signing](https://github.com/hueniverse/hawk). The `credentials` key must contain the necessary signing info, [see hawk docs for details](https://github.com/hueniverse/hawk#usage-example).
-- `aws` - `object` containing AWS signing information. Should have the properties `key`, `secret`, and optionally `session` (note that this only works for services that require session as part of the canonical string). Also requires the property `bucket`, unless you’re specifying your `bucket` as part of the path, or the request doesn’t use a bucket (i.e. GET Services). If you want to use AWS sign version 4 use the parameter `sign_version` with value `4` otherwise the default is version 2. **Note:** you need to `npm install aws4` first.
+- `aws` - `object` containing AWS signing information. Should have the properties `key`, `secret`, and optionally `session` (note that this only works for services that require session as part of the canonical string). Also requires the property `bucket`, unless you’re specifying your `bucket` as part of the path, or the request doesn’t use a bucket (i.e. GET Services). If you want to use AWS sign version 4 use the parameter `sign_version` with value `4` otherwise the default is version 2. If you are using SigV4, you can also include a `service` property that specifies the service name. **Note:** you need to `npm install aws4` first.
 - `httpSignature` - options for the [HTTP Signature Scheme](https://github.com/joyent/node-http-signature/blob/master/http_signing.md) using [Joyent's library](https://github.com/joyent/node-http-signature). The `keyId` and `key` properties must be specified. See the docs for other options.
 
 ---

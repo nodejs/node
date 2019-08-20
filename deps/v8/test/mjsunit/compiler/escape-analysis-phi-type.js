@@ -16,6 +16,7 @@ function f(x) {
   return res;
 }
 
+%PrepareFunctionForOptimization(f);
 f(0);
 f(1);
 f(0);

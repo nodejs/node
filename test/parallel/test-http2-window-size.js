@@ -10,7 +10,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-common.crashOnUnhandledRejection();
 
 // Given a list of buffers and an initial window size, have a server write
 // each buffer to the HTTP2 Writable stream, and let the client verify that
@@ -90,7 +89,7 @@ const initialWindowSizeList = [
   (1 << 8) - 1,
   1 << 8,
   1 << 17,
-  undefined // use default window size which is (1 << 16) - 1
+  undefined // Use default window size which is (1 << 16) - 1
 ];
 
 // Call `run` on each element in the cartesian product of buffersList and

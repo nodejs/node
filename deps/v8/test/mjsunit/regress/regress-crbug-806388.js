@@ -5,10 +5,7 @@
 // Flags: --allow-natives-syntax --enable-slow-asserts --expose-gc
 
 class Derived extends Array {
-    constructor(a) {
-      // Syntax Error.
-      const a = 1;
-    }
+    constructor(a) { throw "error" }
 }
 
 // Derived is not a subclass of RegExp

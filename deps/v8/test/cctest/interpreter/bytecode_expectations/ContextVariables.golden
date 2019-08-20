@@ -11,15 +11,16 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
   /*   70 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -31,17 +32,18 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 15
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   45 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   45 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -53,19 +55,20 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 18
+bytecode array length: 19
 bytecodes: [
-                B(CreateFunctionContext), U8(2),
+                B(CreateFunctionContext), U8(0), U8(2),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
   /*   53 S> */ B(LdaSmi), I8(2),
   /*   53 E> */ B(StaCurrentContextSlot), U8(5),
-  /*   56 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   56 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
   /*   91 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -77,18 +80,19 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 18
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(1),
+  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(0),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   77 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -102,26 +106,26 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 29
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+                B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
   /*   30 E> */ B(StackCheck),
   /*   56 S> */ B(LdaSmi), I8(1),
   /*   56 E> */ B(StaCurrentContextSlot), U8(4),
-                B(Ldar), R(closure),
-                B(CreateBlockContext), U8(0),
+                B(CreateBlockContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
   /*   69 S> */ B(LdaSmi), I8(2),
   /*   69 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   72 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   72 S> */ B(CreateClosure), U8(2), U8(0), U8(2),
   /*  101 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
@@ -131,265 +135,265 @@ handlers: [
 ---
 snippet: "
   'use strict';
-  var a0 = 0;
-  var a1 = 0;
-  var a2 = 0;
-  var a3 = 0;
-  var a4 = 0;
-  var a5 = 0;
-  var a6 = 0;
-  var a7 = 0;
-  var a8 = 0;
-  var a9 = 0;
-  var a10 = 0;
-  var a11 = 0;
-  var a12 = 0;
-  var a13 = 0;
-  var a14 = 0;
-  var a15 = 0;
-  var a16 = 0;
-  var a17 = 0;
-  var a18 = 0;
-  var a19 = 0;
-  var a20 = 0;
-  var a21 = 0;
-  var a22 = 0;
-  var a23 = 0;
-  var a24 = 0;
-  var a25 = 0;
-  var a26 = 0;
-  var a27 = 0;
-  var a28 = 0;
-  var a29 = 0;
-  var a30 = 0;
-  var a31 = 0;
-  var a32 = 0;
-  var a33 = 0;
-  var a34 = 0;
-  var a35 = 0;
-  var a36 = 0;
-  var a37 = 0;
-  var a38 = 0;
-  var a39 = 0;
-  var a40 = 0;
-  var a41 = 0;
-  var a42 = 0;
-  var a43 = 0;
-  var a44 = 0;
-  var a45 = 0;
-  var a46 = 0;
-  var a47 = 0;
-  var a48 = 0;
-  var a49 = 0;
-  var a50 = 0;
-  var a51 = 0;
-  var a52 = 0;
-  var a53 = 0;
-  var a54 = 0;
-  var a55 = 0;
-  var a56 = 0;
-  var a57 = 0;
-  var a58 = 0;
-  var a59 = 0;
-  var a60 = 0;
-  var a61 = 0;
-  var a62 = 0;
-  var a63 = 0;
-  var a64 = 0;
-  var a65 = 0;
-  var a66 = 0;
-  var a67 = 0;
-  var a68 = 0;
-  var a69 = 0;
-  var a70 = 0;
-  var a71 = 0;
-  var a72 = 0;
-  var a73 = 0;
-  var a74 = 0;
-  var a75 = 0;
-  var a76 = 0;
-  var a77 = 0;
-  var a78 = 0;
-  var a79 = 0;
-  var a80 = 0;
-  var a81 = 0;
-  var a82 = 0;
-  var a83 = 0;
-  var a84 = 0;
-  var a85 = 0;
-  var a86 = 0;
-  var a87 = 0;
-  var a88 = 0;
-  var a89 = 0;
-  var a90 = 0;
-  var a91 = 0;
-  var a92 = 0;
-  var a93 = 0;
-  var a94 = 0;
-  var a95 = 0;
-  var a96 = 0;
-  var a97 = 0;
-  var a98 = 0;
-  var a99 = 0;
-  var a100 = 0;
-  var a101 = 0;
-  var a102 = 0;
-  var a103 = 0;
-  var a104 = 0;
-  var a105 = 0;
-  var a106 = 0;
-  var a107 = 0;
-  var a108 = 0;
-  var a109 = 0;
-  var a110 = 0;
-  var a111 = 0;
-  var a112 = 0;
-  var a113 = 0;
-  var a114 = 0;
-  var a115 = 0;
-  var a116 = 0;
-  var a117 = 0;
-  var a118 = 0;
-  var a119 = 0;
-  var a120 = 0;
-  var a121 = 0;
-  var a122 = 0;
-  var a123 = 0;
-  var a124 = 0;
-  var a125 = 0;
-  var a126 = 0;
-  var a127 = 0;
-  var a128 = 0;
-  var a129 = 0;
-  var a130 = 0;
-  var a131 = 0;
-  var a132 = 0;
-  var a133 = 0;
-  var a134 = 0;
-  var a135 = 0;
-  var a136 = 0;
-  var a137 = 0;
-  var a138 = 0;
-  var a139 = 0;
-  var a140 = 0;
-  var a141 = 0;
-  var a142 = 0;
-  var a143 = 0;
-  var a144 = 0;
-  var a145 = 0;
-  var a146 = 0;
-  var a147 = 0;
-  var a148 = 0;
-  var a149 = 0;
-  var a150 = 0;
-  var a151 = 0;
-  var a152 = 0;
-  var a153 = 0;
-  var a154 = 0;
-  var a155 = 0;
-  var a156 = 0;
-  var a157 = 0;
-  var a158 = 0;
-  var a159 = 0;
-  var a160 = 0;
-  var a161 = 0;
-  var a162 = 0;
-  var a163 = 0;
-  var a164 = 0;
-  var a165 = 0;
-  var a166 = 0;
-  var a167 = 0;
-  var a168 = 0;
-  var a169 = 0;
-  var a170 = 0;
-  var a171 = 0;
-  var a172 = 0;
-  var a173 = 0;
-  var a174 = 0;
-  var a175 = 0;
-  var a176 = 0;
-  var a177 = 0;
-  var a178 = 0;
-  var a179 = 0;
-  var a180 = 0;
-  var a181 = 0;
-  var a182 = 0;
-  var a183 = 0;
-  var a184 = 0;
-  var a185 = 0;
-  var a186 = 0;
-  var a187 = 0;
-  var a188 = 0;
-  var a189 = 0;
-  var a190 = 0;
-  var a191 = 0;
-  var a192 = 0;
-  var a193 = 0;
-  var a194 = 0;
-  var a195 = 0;
-  var a196 = 0;
-  var a197 = 0;
-  var a198 = 0;
-  var a199 = 0;
-  var a200 = 0;
-  var a201 = 0;
-  var a202 = 0;
-  var a203 = 0;
-  var a204 = 0;
-  var a205 = 0;
-  var a206 = 0;
-  var a207 = 0;
-  var a208 = 0;
-  var a209 = 0;
-  var a210 = 0;
-  var a211 = 0;
-  var a212 = 0;
-  var a213 = 0;
-  var a214 = 0;
-  var a215 = 0;
-  var a216 = 0;
-  var a217 = 0;
-  var a218 = 0;
-  var a219 = 0;
-  var a220 = 0;
-  var a221 = 0;
-  var a222 = 0;
-  var a223 = 0;
-  var a224 = 0;
-  var a225 = 0;
-  var a226 = 0;
-  var a227 = 0;
-  var a228 = 0;
-  var a229 = 0;
-  var a230 = 0;
-  var a231 = 0;
-  var a232 = 0;
-  var a233 = 0;
-  var a234 = 0;
-  var a235 = 0;
-  var a236 = 0;
-  var a237 = 0;
-  var a238 = 0;
-  var a239 = 0;
-  var a240 = 0;
-  var a241 = 0;
-  var a242 = 0;
-  var a243 = 0;
-  var a244 = 0;
-  var a245 = 0;
-  var a246 = 0;
-  var a247 = 0;
-  var a248 = 0;
-  var a249 = 0;
+  var a896 = 0;
+  var a897 = 0;
+  var a898 = 0;
+  var a899 = 0;
+  var a900 = 0;
+  var a901 = 0;
+  var a902 = 0;
+  var a903 = 0;
+  var a904 = 0;
+  var a905 = 0;
+  var a906 = 0;
+  var a907 = 0;
+  var a908 = 0;
+  var a909 = 0;
+  var a910 = 0;
+  var a911 = 0;
+  var a912 = 0;
+  var a913 = 0;
+  var a914 = 0;
+  var a915 = 0;
+  var a916 = 0;
+  var a917 = 0;
+  var a918 = 0;
+  var a919 = 0;
+  var a920 = 0;
+  var a921 = 0;
+  var a922 = 0;
+  var a923 = 0;
+  var a924 = 0;
+  var a925 = 0;
+  var a926 = 0;
+  var a927 = 0;
+  var a928 = 0;
+  var a929 = 0;
+  var a930 = 0;
+  var a931 = 0;
+  var a932 = 0;
+  var a933 = 0;
+  var a934 = 0;
+  var a935 = 0;
+  var a936 = 0;
+  var a937 = 0;
+  var a938 = 0;
+  var a939 = 0;
+  var a940 = 0;
+  var a941 = 0;
+  var a942 = 0;
+  var a943 = 0;
+  var a944 = 0;
+  var a945 = 0;
+  var a946 = 0;
+  var a947 = 0;
+  var a948 = 0;
+  var a949 = 0;
+  var a950 = 0;
+  var a951 = 0;
+  var a952 = 0;
+  var a953 = 0;
+  var a954 = 0;
+  var a955 = 0;
+  var a956 = 0;
+  var a957 = 0;
+  var a958 = 0;
+  var a959 = 0;
+  var a960 = 0;
+  var a961 = 0;
+  var a962 = 0;
+  var a963 = 0;
+  var a964 = 0;
+  var a965 = 0;
+  var a966 = 0;
+  var a967 = 0;
+  var a968 = 0;
+  var a969 = 0;
+  var a970 = 0;
+  var a971 = 0;
+  var a972 = 0;
+  var a973 = 0;
+  var a974 = 0;
+  var a975 = 0;
+  var a976 = 0;
+  var a977 = 0;
+  var a978 = 0;
+  var a979 = 0;
+  var a980 = 0;
+  var a981 = 0;
+  var a982 = 0;
+  var a983 = 0;
+  var a984 = 0;
+  var a985 = 0;
+  var a986 = 0;
+  var a987 = 0;
+  var a988 = 0;
+  var a989 = 0;
+  var a990 = 0;
+  var a991 = 0;
+  var a992 = 0;
+  var a993 = 0;
+  var a994 = 0;
+  var a995 = 0;
+  var a996 = 0;
+  var a997 = 0;
+  var a998 = 0;
+  var a999 = 0;
+  var a1000 = 0;
+  var a1001 = 0;
+  var a1002 = 0;
+  var a1003 = 0;
+  var a1004 = 0;
+  var a1005 = 0;
+  var a1006 = 0;
+  var a1007 = 0;
+  var a1008 = 0;
+  var a1009 = 0;
+  var a1010 = 0;
+  var a1011 = 0;
+  var a1012 = 0;
+  var a1013 = 0;
+  var a1014 = 0;
+  var a1015 = 0;
+  var a1016 = 0;
+  var a1017 = 0;
+  var a1018 = 0;
+  var a1019 = 0;
+  var a1020 = 0;
+  var a1021 = 0;
+  var a1022 = 0;
+  var a1023 = 0;
+  var a1024 = 0;
+  var a1025 = 0;
+  var a1026 = 0;
+  var a1027 = 0;
+  var a1028 = 0;
+  var a1029 = 0;
+  var a1030 = 0;
+  var a1031 = 0;
+  var a1032 = 0;
+  var a1033 = 0;
+  var a1034 = 0;
+  var a1035 = 0;
+  var a1036 = 0;
+  var a1037 = 0;
+  var a1038 = 0;
+  var a1039 = 0;
+  var a1040 = 0;
+  var a1041 = 0;
+  var a1042 = 0;
+  var a1043 = 0;
+  var a1044 = 0;
+  var a1045 = 0;
+  var a1046 = 0;
+  var a1047 = 0;
+  var a1048 = 0;
+  var a1049 = 0;
+  var a1050 = 0;
+  var a1051 = 0;
+  var a1052 = 0;
+  var a1053 = 0;
+  var a1054 = 0;
+  var a1055 = 0;
+  var a1056 = 0;
+  var a1057 = 0;
+  var a1058 = 0;
+  var a1059 = 0;
+  var a1060 = 0;
+  var a1061 = 0;
+  var a1062 = 0;
+  var a1063 = 0;
+  var a1064 = 0;
+  var a1065 = 0;
+  var a1066 = 0;
+  var a1067 = 0;
+  var a1068 = 0;
+  var a1069 = 0;
+  var a1070 = 0;
+  var a1071 = 0;
+  var a1072 = 0;
+  var a1073 = 0;
+  var a1074 = 0;
+  var a1075 = 0;
+  var a1076 = 0;
+  var a1077 = 0;
+  var a1078 = 0;
+  var a1079 = 0;
+  var a1080 = 0;
+  var a1081 = 0;
+  var a1082 = 0;
+  var a1083 = 0;
+  var a1084 = 0;
+  var a1085 = 0;
+  var a1086 = 0;
+  var a1087 = 0;
+  var a1088 = 0;
+  var a1089 = 0;
+  var a1090 = 0;
+  var a1091 = 0;
+  var a1092 = 0;
+  var a1093 = 0;
+  var a1094 = 0;
+  var a1095 = 0;
+  var a1096 = 0;
+  var a1097 = 0;
+  var a1098 = 0;
+  var a1099 = 0;
+  var a1100 = 0;
+  var a1101 = 0;
+  var a1102 = 0;
+  var a1103 = 0;
+  var a1104 = 0;
+  var a1105 = 0;
+  var a1106 = 0;
+  var a1107 = 0;
+  var a1108 = 0;
+  var a1109 = 0;
+  var a1110 = 0;
+  var a1111 = 0;
+  var a1112 = 0;
+  var a1113 = 0;
+  var a1114 = 0;
+  var a1115 = 0;
+  var a1116 = 0;
+  var a1117 = 0;
+  var a1118 = 0;
+  var a1119 = 0;
+  var a1120 = 0;
+  var a1121 = 0;
+  var a1122 = 0;
+  var a1123 = 0;
+  var a1124 = 0;
+  var a1125 = 0;
+  var a1126 = 0;
+  var a1127 = 0;
+  var a1128 = 0;
+  var a1129 = 0;
+  var a1130 = 0;
+  var a1131 = 0;
+  var a1132 = 0;
+  var a1133 = 0;
+  var a1134 = 0;
+  var a1135 = 0;
+  var a1136 = 0;
+  var a1137 = 0;
+  var a1138 = 0;
+  var a1139 = 0;
+  var a1140 = 0;
+  var a1141 = 0;
+  var a1142 = 0;
+  var a1143 = 0;
+  var a1144 = 0;
+  var a1145 = 0;
   eval();
   var b = 100;
   return b
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 787
+bytecode array length: 788
 bytecodes: [
-                B(CreateFunctionContext), U8(254),
+                B(CreateFunctionContext), U8(0), U8(254),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(4),
@@ -398,515 +402,516 @@ bytecodes: [
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(5),
   /*   30 E> */ B(StackCheck),
-  /*   57 S> */ B(LdaZero),
-  /*   57 E> */ B(StaCurrentContextSlot), U8(6),
-  /*   69 S> */ B(LdaZero),
-  /*   69 E> */ B(StaCurrentContextSlot), U8(7),
-  /*   81 S> */ B(LdaZero),
-  /*   81 E> */ B(StaCurrentContextSlot), U8(8),
-  /*   93 S> */ B(LdaZero),
-  /*   93 E> */ B(StaCurrentContextSlot), U8(9),
-  /*  105 S> */ B(LdaZero),
-  /*  105 E> */ B(StaCurrentContextSlot), U8(10),
-  /*  117 S> */ B(LdaZero),
-  /*  117 E> */ B(StaCurrentContextSlot), U8(11),
+  /*   59 S> */ B(LdaZero),
+  /*   59 E> */ B(StaCurrentContextSlot), U8(6),
+  /*   73 S> */ B(LdaZero),
+  /*   73 E> */ B(StaCurrentContextSlot), U8(7),
+  /*   87 S> */ B(LdaZero),
+  /*   87 E> */ B(StaCurrentContextSlot), U8(8),
+  /*  101 S> */ B(LdaZero),
+  /*  101 E> */ B(StaCurrentContextSlot), U8(9),
+  /*  115 S> */ B(LdaZero),
+  /*  115 E> */ B(StaCurrentContextSlot), U8(10),
   /*  129 S> */ B(LdaZero),
-  /*  129 E> */ B(StaCurrentContextSlot), U8(12),
-  /*  141 S> */ B(LdaZero),
-  /*  141 E> */ B(StaCurrentContextSlot), U8(13),
-  /*  153 S> */ B(LdaZero),
-  /*  153 E> */ B(StaCurrentContextSlot), U8(14),
-  /*  165 S> */ B(LdaZero),
-  /*  165 E> */ B(StaCurrentContextSlot), U8(15),
-  /*  178 S> */ B(LdaZero),
-  /*  178 E> */ B(StaCurrentContextSlot), U8(16),
-  /*  191 S> */ B(LdaZero),
-  /*  191 E> */ B(StaCurrentContextSlot), U8(17),
-  /*  204 S> */ B(LdaZero),
-  /*  204 E> */ B(StaCurrentContextSlot), U8(18),
-  /*  217 S> */ B(LdaZero),
-  /*  217 E> */ B(StaCurrentContextSlot), U8(19),
-  /*  230 S> */ B(LdaZero),
-  /*  230 E> */ B(StaCurrentContextSlot), U8(20),
-  /*  243 S> */ B(LdaZero),
-  /*  243 E> */ B(StaCurrentContextSlot), U8(21),
-  /*  256 S> */ B(LdaZero),
-  /*  256 E> */ B(StaCurrentContextSlot), U8(22),
+  /*  129 E> */ B(StaCurrentContextSlot), U8(11),
+  /*  143 S> */ B(LdaZero),
+  /*  143 E> */ B(StaCurrentContextSlot), U8(12),
+  /*  157 S> */ B(LdaZero),
+  /*  157 E> */ B(StaCurrentContextSlot), U8(13),
+  /*  171 S> */ B(LdaZero),
+  /*  171 E> */ B(StaCurrentContextSlot), U8(14),
+  /*  185 S> */ B(LdaZero),
+  /*  185 E> */ B(StaCurrentContextSlot), U8(15),
+  /*  199 S> */ B(LdaZero),
+  /*  199 E> */ B(StaCurrentContextSlot), U8(16),
+  /*  213 S> */ B(LdaZero),
+  /*  213 E> */ B(StaCurrentContextSlot), U8(17),
+  /*  227 S> */ B(LdaZero),
+  /*  227 E> */ B(StaCurrentContextSlot), U8(18),
+  /*  241 S> */ B(LdaZero),
+  /*  241 E> */ B(StaCurrentContextSlot), U8(19),
+  /*  255 S> */ B(LdaZero),
+  /*  255 E> */ B(StaCurrentContextSlot), U8(20),
   /*  269 S> */ B(LdaZero),
-  /*  269 E> */ B(StaCurrentContextSlot), U8(23),
-  /*  282 S> */ B(LdaZero),
-  /*  282 E> */ B(StaCurrentContextSlot), U8(24),
-  /*  295 S> */ B(LdaZero),
-  /*  295 E> */ B(StaCurrentContextSlot), U8(25),
-  /*  308 S> */ B(LdaZero),
-  /*  308 E> */ B(StaCurrentContextSlot), U8(26),
-  /*  321 S> */ B(LdaZero),
-  /*  321 E> */ B(StaCurrentContextSlot), U8(27),
-  /*  334 S> */ B(LdaZero),
-  /*  334 E> */ B(StaCurrentContextSlot), U8(28),
-  /*  347 S> */ B(LdaZero),
-  /*  347 E> */ B(StaCurrentContextSlot), U8(29),
-  /*  360 S> */ B(LdaZero),
-  /*  360 E> */ B(StaCurrentContextSlot), U8(30),
-  /*  373 S> */ B(LdaZero),
-  /*  373 E> */ B(StaCurrentContextSlot), U8(31),
-  /*  386 S> */ B(LdaZero),
-  /*  386 E> */ B(StaCurrentContextSlot), U8(32),
-  /*  399 S> */ B(LdaZero),
-  /*  399 E> */ B(StaCurrentContextSlot), U8(33),
-  /*  412 S> */ B(LdaZero),
-  /*  412 E> */ B(StaCurrentContextSlot), U8(34),
-  /*  425 S> */ B(LdaZero),
-  /*  425 E> */ B(StaCurrentContextSlot), U8(35),
-  /*  438 S> */ B(LdaZero),
-  /*  438 E> */ B(StaCurrentContextSlot), U8(36),
+  /*  269 E> */ B(StaCurrentContextSlot), U8(21),
+  /*  283 S> */ B(LdaZero),
+  /*  283 E> */ B(StaCurrentContextSlot), U8(22),
+  /*  297 S> */ B(LdaZero),
+  /*  297 E> */ B(StaCurrentContextSlot), U8(23),
+  /*  311 S> */ B(LdaZero),
+  /*  311 E> */ B(StaCurrentContextSlot), U8(24),
+  /*  325 S> */ B(LdaZero),
+  /*  325 E> */ B(StaCurrentContextSlot), U8(25),
+  /*  339 S> */ B(LdaZero),
+  /*  339 E> */ B(StaCurrentContextSlot), U8(26),
+  /*  353 S> */ B(LdaZero),
+  /*  353 E> */ B(StaCurrentContextSlot), U8(27),
+  /*  367 S> */ B(LdaZero),
+  /*  367 E> */ B(StaCurrentContextSlot), U8(28),
+  /*  381 S> */ B(LdaZero),
+  /*  381 E> */ B(StaCurrentContextSlot), U8(29),
+  /*  395 S> */ B(LdaZero),
+  /*  395 E> */ B(StaCurrentContextSlot), U8(30),
+  /*  409 S> */ B(LdaZero),
+  /*  409 E> */ B(StaCurrentContextSlot), U8(31),
+  /*  423 S> */ B(LdaZero),
+  /*  423 E> */ B(StaCurrentContextSlot), U8(32),
+  /*  437 S> */ B(LdaZero),
+  /*  437 E> */ B(StaCurrentContextSlot), U8(33),
   /*  451 S> */ B(LdaZero),
-  /*  451 E> */ B(StaCurrentContextSlot), U8(37),
-  /*  464 S> */ B(LdaZero),
-  /*  464 E> */ B(StaCurrentContextSlot), U8(38),
-  /*  477 S> */ B(LdaZero),
-  /*  477 E> */ B(StaCurrentContextSlot), U8(39),
-  /*  490 S> */ B(LdaZero),
-  /*  490 E> */ B(StaCurrentContextSlot), U8(40),
-  /*  503 S> */ B(LdaZero),
-  /*  503 E> */ B(StaCurrentContextSlot), U8(41),
-  /*  516 S> */ B(LdaZero),
-  /*  516 E> */ B(StaCurrentContextSlot), U8(42),
-  /*  529 S> */ B(LdaZero),
-  /*  529 E> */ B(StaCurrentContextSlot), U8(43),
-  /*  542 S> */ B(LdaZero),
-  /*  542 E> */ B(StaCurrentContextSlot), U8(44),
-  /*  555 S> */ B(LdaZero),
-  /*  555 E> */ B(StaCurrentContextSlot), U8(45),
-  /*  568 S> */ B(LdaZero),
-  /*  568 E> */ B(StaCurrentContextSlot), U8(46),
-  /*  581 S> */ B(LdaZero),
-  /*  581 E> */ B(StaCurrentContextSlot), U8(47),
-  /*  594 S> */ B(LdaZero),
-  /*  594 E> */ B(StaCurrentContextSlot), U8(48),
-  /*  607 S> */ B(LdaZero),
-  /*  607 E> */ B(StaCurrentContextSlot), U8(49),
-  /*  620 S> */ B(LdaZero),
-  /*  620 E> */ B(StaCurrentContextSlot), U8(50),
+  /*  451 E> */ B(StaCurrentContextSlot), U8(34),
+  /*  465 S> */ B(LdaZero),
+  /*  465 E> */ B(StaCurrentContextSlot), U8(35),
+  /*  479 S> */ B(LdaZero),
+  /*  479 E> */ B(StaCurrentContextSlot), U8(36),
+  /*  493 S> */ B(LdaZero),
+  /*  493 E> */ B(StaCurrentContextSlot), U8(37),
+  /*  507 S> */ B(LdaZero),
+  /*  507 E> */ B(StaCurrentContextSlot), U8(38),
+  /*  521 S> */ B(LdaZero),
+  /*  521 E> */ B(StaCurrentContextSlot), U8(39),
+  /*  535 S> */ B(LdaZero),
+  /*  535 E> */ B(StaCurrentContextSlot), U8(40),
+  /*  549 S> */ B(LdaZero),
+  /*  549 E> */ B(StaCurrentContextSlot), U8(41),
+  /*  563 S> */ B(LdaZero),
+  /*  563 E> */ B(StaCurrentContextSlot), U8(42),
+  /*  577 S> */ B(LdaZero),
+  /*  577 E> */ B(StaCurrentContextSlot), U8(43),
+  /*  591 S> */ B(LdaZero),
+  /*  591 E> */ B(StaCurrentContextSlot), U8(44),
+  /*  605 S> */ B(LdaZero),
+  /*  605 E> */ B(StaCurrentContextSlot), U8(45),
+  /*  619 S> */ B(LdaZero),
+  /*  619 E> */ B(StaCurrentContextSlot), U8(46),
   /*  633 S> */ B(LdaZero),
-  /*  633 E> */ B(StaCurrentContextSlot), U8(51),
-  /*  646 S> */ B(LdaZero),
-  /*  646 E> */ B(StaCurrentContextSlot), U8(52),
-  /*  659 S> */ B(LdaZero),
-  /*  659 E> */ B(StaCurrentContextSlot), U8(53),
-  /*  672 S> */ B(LdaZero),
-  /*  672 E> */ B(StaCurrentContextSlot), U8(54),
-  /*  685 S> */ B(LdaZero),
-  /*  685 E> */ B(StaCurrentContextSlot), U8(55),
-  /*  698 S> */ B(LdaZero),
-  /*  698 E> */ B(StaCurrentContextSlot), U8(56),
-  /*  711 S> */ B(LdaZero),
-  /*  711 E> */ B(StaCurrentContextSlot), U8(57),
-  /*  724 S> */ B(LdaZero),
-  /*  724 E> */ B(StaCurrentContextSlot), U8(58),
-  /*  737 S> */ B(LdaZero),
-  /*  737 E> */ B(StaCurrentContextSlot), U8(59),
-  /*  750 S> */ B(LdaZero),
-  /*  750 E> */ B(StaCurrentContextSlot), U8(60),
-  /*  763 S> */ B(LdaZero),
-  /*  763 E> */ B(StaCurrentContextSlot), U8(61),
-  /*  776 S> */ B(LdaZero),
-  /*  776 E> */ B(StaCurrentContextSlot), U8(62),
-  /*  789 S> */ B(LdaZero),
-  /*  789 E> */ B(StaCurrentContextSlot), U8(63),
-  /*  802 S> */ B(LdaZero),
-  /*  802 E> */ B(StaCurrentContextSlot), U8(64),
+  /*  633 E> */ B(StaCurrentContextSlot), U8(47),
+  /*  647 S> */ B(LdaZero),
+  /*  647 E> */ B(StaCurrentContextSlot), U8(48),
+  /*  661 S> */ B(LdaZero),
+  /*  661 E> */ B(StaCurrentContextSlot), U8(49),
+  /*  675 S> */ B(LdaZero),
+  /*  675 E> */ B(StaCurrentContextSlot), U8(50),
+  /*  689 S> */ B(LdaZero),
+  /*  689 E> */ B(StaCurrentContextSlot), U8(51),
+  /*  703 S> */ B(LdaZero),
+  /*  703 E> */ B(StaCurrentContextSlot), U8(52),
+  /*  717 S> */ B(LdaZero),
+  /*  717 E> */ B(StaCurrentContextSlot), U8(53),
+  /*  731 S> */ B(LdaZero),
+  /*  731 E> */ B(StaCurrentContextSlot), U8(54),
+  /*  745 S> */ B(LdaZero),
+  /*  745 E> */ B(StaCurrentContextSlot), U8(55),
+  /*  759 S> */ B(LdaZero),
+  /*  759 E> */ B(StaCurrentContextSlot), U8(56),
+  /*  773 S> */ B(LdaZero),
+  /*  773 E> */ B(StaCurrentContextSlot), U8(57),
+  /*  787 S> */ B(LdaZero),
+  /*  787 E> */ B(StaCurrentContextSlot), U8(58),
+  /*  801 S> */ B(LdaZero),
+  /*  801 E> */ B(StaCurrentContextSlot), U8(59),
   /*  815 S> */ B(LdaZero),
-  /*  815 E> */ B(StaCurrentContextSlot), U8(65),
-  /*  828 S> */ B(LdaZero),
-  /*  828 E> */ B(StaCurrentContextSlot), U8(66),
-  /*  841 S> */ B(LdaZero),
-  /*  841 E> */ B(StaCurrentContextSlot), U8(67),
-  /*  854 S> */ B(LdaZero),
-  /*  854 E> */ B(StaCurrentContextSlot), U8(68),
-  /*  867 S> */ B(LdaZero),
-  /*  867 E> */ B(StaCurrentContextSlot), U8(69),
-  /*  880 S> */ B(LdaZero),
-  /*  880 E> */ B(StaCurrentContextSlot), U8(70),
-  /*  893 S> */ B(LdaZero),
-  /*  893 E> */ B(StaCurrentContextSlot), U8(71),
-  /*  906 S> */ B(LdaZero),
-  /*  906 E> */ B(StaCurrentContextSlot), U8(72),
-  /*  919 S> */ B(LdaZero),
-  /*  919 E> */ B(StaCurrentContextSlot), U8(73),
-  /*  932 S> */ B(LdaZero),
-  /*  932 E> */ B(StaCurrentContextSlot), U8(74),
-  /*  945 S> */ B(LdaZero),
-  /*  945 E> */ B(StaCurrentContextSlot), U8(75),
-  /*  958 S> */ B(LdaZero),
-  /*  958 E> */ B(StaCurrentContextSlot), U8(76),
-  /*  971 S> */ B(LdaZero),
-  /*  971 E> */ B(StaCurrentContextSlot), U8(77),
-  /*  984 S> */ B(LdaZero),
-  /*  984 E> */ B(StaCurrentContextSlot), U8(78),
+  /*  815 E> */ B(StaCurrentContextSlot), U8(60),
+  /*  829 S> */ B(LdaZero),
+  /*  829 E> */ B(StaCurrentContextSlot), U8(61),
+  /*  843 S> */ B(LdaZero),
+  /*  843 E> */ B(StaCurrentContextSlot), U8(62),
+  /*  857 S> */ B(LdaZero),
+  /*  857 E> */ B(StaCurrentContextSlot), U8(63),
+  /*  871 S> */ B(LdaZero),
+  /*  871 E> */ B(StaCurrentContextSlot), U8(64),
+  /*  885 S> */ B(LdaZero),
+  /*  885 E> */ B(StaCurrentContextSlot), U8(65),
+  /*  899 S> */ B(LdaZero),
+  /*  899 E> */ B(StaCurrentContextSlot), U8(66),
+  /*  913 S> */ B(LdaZero),
+  /*  913 E> */ B(StaCurrentContextSlot), U8(67),
+  /*  927 S> */ B(LdaZero),
+  /*  927 E> */ B(StaCurrentContextSlot), U8(68),
+  /*  941 S> */ B(LdaZero),
+  /*  941 E> */ B(StaCurrentContextSlot), U8(69),
+  /*  955 S> */ B(LdaZero),
+  /*  955 E> */ B(StaCurrentContextSlot), U8(70),
+  /*  969 S> */ B(LdaZero),
+  /*  969 E> */ B(StaCurrentContextSlot), U8(71),
+  /*  983 S> */ B(LdaZero),
+  /*  983 E> */ B(StaCurrentContextSlot), U8(72),
   /*  997 S> */ B(LdaZero),
-  /*  997 E> */ B(StaCurrentContextSlot), U8(79),
-  /* 1010 S> */ B(LdaZero),
-  /* 1010 E> */ B(StaCurrentContextSlot), U8(80),
-  /* 1023 S> */ B(LdaZero),
-  /* 1023 E> */ B(StaCurrentContextSlot), U8(81),
-  /* 1036 S> */ B(LdaZero),
-  /* 1036 E> */ B(StaCurrentContextSlot), U8(82),
-  /* 1049 S> */ B(LdaZero),
-  /* 1049 E> */ B(StaCurrentContextSlot), U8(83),
-  /* 1062 S> */ B(LdaZero),
-  /* 1062 E> */ B(StaCurrentContextSlot), U8(84),
-  /* 1075 S> */ B(LdaZero),
-  /* 1075 E> */ B(StaCurrentContextSlot), U8(85),
-  /* 1088 S> */ B(LdaZero),
-  /* 1088 E> */ B(StaCurrentContextSlot), U8(86),
-  /* 1101 S> */ B(LdaZero),
-  /* 1101 E> */ B(StaCurrentContextSlot), U8(87),
-  /* 1114 S> */ B(LdaZero),
-  /* 1114 E> */ B(StaCurrentContextSlot), U8(88),
-  /* 1127 S> */ B(LdaZero),
-  /* 1127 E> */ B(StaCurrentContextSlot), U8(89),
-  /* 1140 S> */ B(LdaZero),
-  /* 1140 E> */ B(StaCurrentContextSlot), U8(90),
-  /* 1153 S> */ B(LdaZero),
-  /* 1153 E> */ B(StaCurrentContextSlot), U8(91),
-  /* 1166 S> */ B(LdaZero),
-  /* 1166 E> */ B(StaCurrentContextSlot), U8(92),
+  /*  997 E> */ B(StaCurrentContextSlot), U8(73),
+  /* 1011 S> */ B(LdaZero),
+  /* 1011 E> */ B(StaCurrentContextSlot), U8(74),
+  /* 1025 S> */ B(LdaZero),
+  /* 1025 E> */ B(StaCurrentContextSlot), U8(75),
+  /* 1039 S> */ B(LdaZero),
+  /* 1039 E> */ B(StaCurrentContextSlot), U8(76),
+  /* 1053 S> */ B(LdaZero),
+  /* 1053 E> */ B(StaCurrentContextSlot), U8(77),
+  /* 1067 S> */ B(LdaZero),
+  /* 1067 E> */ B(StaCurrentContextSlot), U8(78),
+  /* 1081 S> */ B(LdaZero),
+  /* 1081 E> */ B(StaCurrentContextSlot), U8(79),
+  /* 1095 S> */ B(LdaZero),
+  /* 1095 E> */ B(StaCurrentContextSlot), U8(80),
+  /* 1109 S> */ B(LdaZero),
+  /* 1109 E> */ B(StaCurrentContextSlot), U8(81),
+  /* 1123 S> */ B(LdaZero),
+  /* 1123 E> */ B(StaCurrentContextSlot), U8(82),
+  /* 1137 S> */ B(LdaZero),
+  /* 1137 E> */ B(StaCurrentContextSlot), U8(83),
+  /* 1151 S> */ B(LdaZero),
+  /* 1151 E> */ B(StaCurrentContextSlot), U8(84),
+  /* 1165 S> */ B(LdaZero),
+  /* 1165 E> */ B(StaCurrentContextSlot), U8(85),
   /* 1179 S> */ B(LdaZero),
-  /* 1179 E> */ B(StaCurrentContextSlot), U8(93),
-  /* 1192 S> */ B(LdaZero),
-  /* 1192 E> */ B(StaCurrentContextSlot), U8(94),
-  /* 1205 S> */ B(LdaZero),
-  /* 1205 E> */ B(StaCurrentContextSlot), U8(95),
-  /* 1218 S> */ B(LdaZero),
-  /* 1218 E> */ B(StaCurrentContextSlot), U8(96),
-  /* 1231 S> */ B(LdaZero),
-  /* 1231 E> */ B(StaCurrentContextSlot), U8(97),
-  /* 1244 S> */ B(LdaZero),
-  /* 1244 E> */ B(StaCurrentContextSlot), U8(98),
-  /* 1257 S> */ B(LdaZero),
-  /* 1257 E> */ B(StaCurrentContextSlot), U8(99),
-  /* 1270 S> */ B(LdaZero),
-  /* 1270 E> */ B(StaCurrentContextSlot), U8(100),
-  /* 1283 S> */ B(LdaZero),
-  /* 1283 E> */ B(StaCurrentContextSlot), U8(101),
-  /* 1296 S> */ B(LdaZero),
-  /* 1296 E> */ B(StaCurrentContextSlot), U8(102),
-  /* 1309 S> */ B(LdaZero),
-  /* 1309 E> */ B(StaCurrentContextSlot), U8(103),
-  /* 1322 S> */ B(LdaZero),
-  /* 1322 E> */ B(StaCurrentContextSlot), U8(104),
-  /* 1335 S> */ B(LdaZero),
-  /* 1335 E> */ B(StaCurrentContextSlot), U8(105),
-  /* 1349 S> */ B(LdaZero),
-  /* 1349 E> */ B(StaCurrentContextSlot), U8(106),
-  /* 1363 S> */ B(LdaZero),
-  /* 1363 E> */ B(StaCurrentContextSlot), U8(107),
-  /* 1377 S> */ B(LdaZero),
-  /* 1377 E> */ B(StaCurrentContextSlot), U8(108),
-  /* 1391 S> */ B(LdaZero),
-  /* 1391 E> */ B(StaCurrentContextSlot), U8(109),
-  /* 1405 S> */ B(LdaZero),
-  /* 1405 E> */ B(StaCurrentContextSlot), U8(110),
-  /* 1419 S> */ B(LdaZero),
-  /* 1419 E> */ B(StaCurrentContextSlot), U8(111),
-  /* 1433 S> */ B(LdaZero),
-  /* 1433 E> */ B(StaCurrentContextSlot), U8(112),
-  /* 1447 S> */ B(LdaZero),
-  /* 1447 E> */ B(StaCurrentContextSlot), U8(113),
-  /* 1461 S> */ B(LdaZero),
-  /* 1461 E> */ B(StaCurrentContextSlot), U8(114),
-  /* 1475 S> */ B(LdaZero),
-  /* 1475 E> */ B(StaCurrentContextSlot), U8(115),
-  /* 1489 S> */ B(LdaZero),
-  /* 1489 E> */ B(StaCurrentContextSlot), U8(116),
-  /* 1503 S> */ B(LdaZero),
-  /* 1503 E> */ B(StaCurrentContextSlot), U8(117),
-  /* 1517 S> */ B(LdaZero),
-  /* 1517 E> */ B(StaCurrentContextSlot), U8(118),
+  /* 1179 E> */ B(StaCurrentContextSlot), U8(86),
+  /* 1193 S> */ B(LdaZero),
+  /* 1193 E> */ B(StaCurrentContextSlot), U8(87),
+  /* 1207 S> */ B(LdaZero),
+  /* 1207 E> */ B(StaCurrentContextSlot), U8(88),
+  /* 1221 S> */ B(LdaZero),
+  /* 1221 E> */ B(StaCurrentContextSlot), U8(89),
+  /* 1235 S> */ B(LdaZero),
+  /* 1235 E> */ B(StaCurrentContextSlot), U8(90),
+  /* 1249 S> */ B(LdaZero),
+  /* 1249 E> */ B(StaCurrentContextSlot), U8(91),
+  /* 1263 S> */ B(LdaZero),
+  /* 1263 E> */ B(StaCurrentContextSlot), U8(92),
+  /* 1277 S> */ B(LdaZero),
+  /* 1277 E> */ B(StaCurrentContextSlot), U8(93),
+  /* 1291 S> */ B(LdaZero),
+  /* 1291 E> */ B(StaCurrentContextSlot), U8(94),
+  /* 1305 S> */ B(LdaZero),
+  /* 1305 E> */ B(StaCurrentContextSlot), U8(95),
+  /* 1319 S> */ B(LdaZero),
+  /* 1319 E> */ B(StaCurrentContextSlot), U8(96),
+  /* 1333 S> */ B(LdaZero),
+  /* 1333 E> */ B(StaCurrentContextSlot), U8(97),
+  /* 1347 S> */ B(LdaZero),
+  /* 1347 E> */ B(StaCurrentContextSlot), U8(98),
+  /* 1361 S> */ B(LdaZero),
+  /* 1361 E> */ B(StaCurrentContextSlot), U8(99),
+  /* 1375 S> */ B(LdaZero),
+  /* 1375 E> */ B(StaCurrentContextSlot), U8(100),
+  /* 1389 S> */ B(LdaZero),
+  /* 1389 E> */ B(StaCurrentContextSlot), U8(101),
+  /* 1403 S> */ B(LdaZero),
+  /* 1403 E> */ B(StaCurrentContextSlot), U8(102),
+  /* 1417 S> */ B(LdaZero),
+  /* 1417 E> */ B(StaCurrentContextSlot), U8(103),
+  /* 1431 S> */ B(LdaZero),
+  /* 1431 E> */ B(StaCurrentContextSlot), U8(104),
+  /* 1445 S> */ B(LdaZero),
+  /* 1445 E> */ B(StaCurrentContextSlot), U8(105),
+  /* 1459 S> */ B(LdaZero),
+  /* 1459 E> */ B(StaCurrentContextSlot), U8(106),
+  /* 1473 S> */ B(LdaZero),
+  /* 1473 E> */ B(StaCurrentContextSlot), U8(107),
+  /* 1487 S> */ B(LdaZero),
+  /* 1487 E> */ B(StaCurrentContextSlot), U8(108),
+  /* 1501 S> */ B(LdaZero),
+  /* 1501 E> */ B(StaCurrentContextSlot), U8(109),
+  /* 1516 S> */ B(LdaZero),
+  /* 1516 E> */ B(StaCurrentContextSlot), U8(110),
   /* 1531 S> */ B(LdaZero),
-  /* 1531 E> */ B(StaCurrentContextSlot), U8(119),
-  /* 1545 S> */ B(LdaZero),
-  /* 1545 E> */ B(StaCurrentContextSlot), U8(120),
-  /* 1559 S> */ B(LdaZero),
-  /* 1559 E> */ B(StaCurrentContextSlot), U8(121),
-  /* 1573 S> */ B(LdaZero),
-  /* 1573 E> */ B(StaCurrentContextSlot), U8(122),
-  /* 1587 S> */ B(LdaZero),
-  /* 1587 E> */ B(StaCurrentContextSlot), U8(123),
-  /* 1601 S> */ B(LdaZero),
-  /* 1601 E> */ B(StaCurrentContextSlot), U8(124),
-  /* 1615 S> */ B(LdaZero),
-  /* 1615 E> */ B(StaCurrentContextSlot), U8(125),
-  /* 1629 S> */ B(LdaZero),
-  /* 1629 E> */ B(StaCurrentContextSlot), U8(126),
-  /* 1643 S> */ B(LdaZero),
-  /* 1643 E> */ B(StaCurrentContextSlot), U8(127),
-  /* 1657 S> */ B(LdaZero),
-  /* 1657 E> */ B(StaCurrentContextSlot), U8(128),
-  /* 1671 S> */ B(LdaZero),
-  /* 1671 E> */ B(StaCurrentContextSlot), U8(129),
-  /* 1685 S> */ B(LdaZero),
-  /* 1685 E> */ B(StaCurrentContextSlot), U8(130),
-  /* 1699 S> */ B(LdaZero),
-  /* 1699 E> */ B(StaCurrentContextSlot), U8(131),
-  /* 1713 S> */ B(LdaZero),
-  /* 1713 E> */ B(StaCurrentContextSlot), U8(132),
-  /* 1727 S> */ B(LdaZero),
-  /* 1727 E> */ B(StaCurrentContextSlot), U8(133),
+  /* 1531 E> */ B(StaCurrentContextSlot), U8(111),
+  /* 1546 S> */ B(LdaZero),
+  /* 1546 E> */ B(StaCurrentContextSlot), U8(112),
+  /* 1561 S> */ B(LdaZero),
+  /* 1561 E> */ B(StaCurrentContextSlot), U8(113),
+  /* 1576 S> */ B(LdaZero),
+  /* 1576 E> */ B(StaCurrentContextSlot), U8(114),
+  /* 1591 S> */ B(LdaZero),
+  /* 1591 E> */ B(StaCurrentContextSlot), U8(115),
+  /* 1606 S> */ B(LdaZero),
+  /* 1606 E> */ B(StaCurrentContextSlot), U8(116),
+  /* 1621 S> */ B(LdaZero),
+  /* 1621 E> */ B(StaCurrentContextSlot), U8(117),
+  /* 1636 S> */ B(LdaZero),
+  /* 1636 E> */ B(StaCurrentContextSlot), U8(118),
+  /* 1651 S> */ B(LdaZero),
+  /* 1651 E> */ B(StaCurrentContextSlot), U8(119),
+  /* 1666 S> */ B(LdaZero),
+  /* 1666 E> */ B(StaCurrentContextSlot), U8(120),
+  /* 1681 S> */ B(LdaZero),
+  /* 1681 E> */ B(StaCurrentContextSlot), U8(121),
+  /* 1696 S> */ B(LdaZero),
+  /* 1696 E> */ B(StaCurrentContextSlot), U8(122),
+  /* 1711 S> */ B(LdaZero),
+  /* 1711 E> */ B(StaCurrentContextSlot), U8(123),
+  /* 1726 S> */ B(LdaZero),
+  /* 1726 E> */ B(StaCurrentContextSlot), U8(124),
   /* 1741 S> */ B(LdaZero),
-  /* 1741 E> */ B(StaCurrentContextSlot), U8(134),
-  /* 1755 S> */ B(LdaZero),
-  /* 1755 E> */ B(StaCurrentContextSlot), U8(135),
-  /* 1769 S> */ B(LdaZero),
-  /* 1769 E> */ B(StaCurrentContextSlot), U8(136),
-  /* 1783 S> */ B(LdaZero),
-  /* 1783 E> */ B(StaCurrentContextSlot), U8(137),
-  /* 1797 S> */ B(LdaZero),
-  /* 1797 E> */ B(StaCurrentContextSlot), U8(138),
-  /* 1811 S> */ B(LdaZero),
-  /* 1811 E> */ B(StaCurrentContextSlot), U8(139),
-  /* 1825 S> */ B(LdaZero),
-  /* 1825 E> */ B(StaCurrentContextSlot), U8(140),
-  /* 1839 S> */ B(LdaZero),
-  /* 1839 E> */ B(StaCurrentContextSlot), U8(141),
-  /* 1853 S> */ B(LdaZero),
-  /* 1853 E> */ B(StaCurrentContextSlot), U8(142),
-  /* 1867 S> */ B(LdaZero),
-  /* 1867 E> */ B(StaCurrentContextSlot), U8(143),
-  /* 1881 S> */ B(LdaZero),
-  /* 1881 E> */ B(StaCurrentContextSlot), U8(144),
-  /* 1895 S> */ B(LdaZero),
-  /* 1895 E> */ B(StaCurrentContextSlot), U8(145),
-  /* 1909 S> */ B(LdaZero),
-  /* 1909 E> */ B(StaCurrentContextSlot), U8(146),
-  /* 1923 S> */ B(LdaZero),
-  /* 1923 E> */ B(StaCurrentContextSlot), U8(147),
-  /* 1937 S> */ B(LdaZero),
-  /* 1937 E> */ B(StaCurrentContextSlot), U8(148),
+  /* 1741 E> */ B(StaCurrentContextSlot), U8(125),
+  /* 1756 S> */ B(LdaZero),
+  /* 1756 E> */ B(StaCurrentContextSlot), U8(126),
+  /* 1771 S> */ B(LdaZero),
+  /* 1771 E> */ B(StaCurrentContextSlot), U8(127),
+  /* 1786 S> */ B(LdaZero),
+  /* 1786 E> */ B(StaCurrentContextSlot), U8(128),
+  /* 1801 S> */ B(LdaZero),
+  /* 1801 E> */ B(StaCurrentContextSlot), U8(129),
+  /* 1816 S> */ B(LdaZero),
+  /* 1816 E> */ B(StaCurrentContextSlot), U8(130),
+  /* 1831 S> */ B(LdaZero),
+  /* 1831 E> */ B(StaCurrentContextSlot), U8(131),
+  /* 1846 S> */ B(LdaZero),
+  /* 1846 E> */ B(StaCurrentContextSlot), U8(132),
+  /* 1861 S> */ B(LdaZero),
+  /* 1861 E> */ B(StaCurrentContextSlot), U8(133),
+  /* 1876 S> */ B(LdaZero),
+  /* 1876 E> */ B(StaCurrentContextSlot), U8(134),
+  /* 1891 S> */ B(LdaZero),
+  /* 1891 E> */ B(StaCurrentContextSlot), U8(135),
+  /* 1906 S> */ B(LdaZero),
+  /* 1906 E> */ B(StaCurrentContextSlot), U8(136),
+  /* 1921 S> */ B(LdaZero),
+  /* 1921 E> */ B(StaCurrentContextSlot), U8(137),
+  /* 1936 S> */ B(LdaZero),
+  /* 1936 E> */ B(StaCurrentContextSlot), U8(138),
   /* 1951 S> */ B(LdaZero),
-  /* 1951 E> */ B(StaCurrentContextSlot), U8(149),
-  /* 1965 S> */ B(LdaZero),
-  /* 1965 E> */ B(StaCurrentContextSlot), U8(150),
-  /* 1979 S> */ B(LdaZero),
-  /* 1979 E> */ B(StaCurrentContextSlot), U8(151),
-  /* 1993 S> */ B(LdaZero),
-  /* 1993 E> */ B(StaCurrentContextSlot), U8(152),
-  /* 2007 S> */ B(LdaZero),
-  /* 2007 E> */ B(StaCurrentContextSlot), U8(153),
-  /* 2021 S> */ B(LdaZero),
-  /* 2021 E> */ B(StaCurrentContextSlot), U8(154),
-  /* 2035 S> */ B(LdaZero),
-  /* 2035 E> */ B(StaCurrentContextSlot), U8(155),
-  /* 2049 S> */ B(LdaZero),
-  /* 2049 E> */ B(StaCurrentContextSlot), U8(156),
-  /* 2063 S> */ B(LdaZero),
-  /* 2063 E> */ B(StaCurrentContextSlot), U8(157),
-  /* 2077 S> */ B(LdaZero),
-  /* 2077 E> */ B(StaCurrentContextSlot), U8(158),
-  /* 2091 S> */ B(LdaZero),
-  /* 2091 E> */ B(StaCurrentContextSlot), U8(159),
-  /* 2105 S> */ B(LdaZero),
-  /* 2105 E> */ B(StaCurrentContextSlot), U8(160),
-  /* 2119 S> */ B(LdaZero),
-  /* 2119 E> */ B(StaCurrentContextSlot), U8(161),
-  /* 2133 S> */ B(LdaZero),
-  /* 2133 E> */ B(StaCurrentContextSlot), U8(162),
-  /* 2147 S> */ B(LdaZero),
-  /* 2147 E> */ B(StaCurrentContextSlot), U8(163),
+  /* 1951 E> */ B(StaCurrentContextSlot), U8(139),
+  /* 1966 S> */ B(LdaZero),
+  /* 1966 E> */ B(StaCurrentContextSlot), U8(140),
+  /* 1981 S> */ B(LdaZero),
+  /* 1981 E> */ B(StaCurrentContextSlot), U8(141),
+  /* 1996 S> */ B(LdaZero),
+  /* 1996 E> */ B(StaCurrentContextSlot), U8(142),
+  /* 2011 S> */ B(LdaZero),
+  /* 2011 E> */ B(StaCurrentContextSlot), U8(143),
+  /* 2026 S> */ B(LdaZero),
+  /* 2026 E> */ B(StaCurrentContextSlot), U8(144),
+  /* 2041 S> */ B(LdaZero),
+  /* 2041 E> */ B(StaCurrentContextSlot), U8(145),
+  /* 2056 S> */ B(LdaZero),
+  /* 2056 E> */ B(StaCurrentContextSlot), U8(146),
+  /* 2071 S> */ B(LdaZero),
+  /* 2071 E> */ B(StaCurrentContextSlot), U8(147),
+  /* 2086 S> */ B(LdaZero),
+  /* 2086 E> */ B(StaCurrentContextSlot), U8(148),
+  /* 2101 S> */ B(LdaZero),
+  /* 2101 E> */ B(StaCurrentContextSlot), U8(149),
+  /* 2116 S> */ B(LdaZero),
+  /* 2116 E> */ B(StaCurrentContextSlot), U8(150),
+  /* 2131 S> */ B(LdaZero),
+  /* 2131 E> */ B(StaCurrentContextSlot), U8(151),
+  /* 2146 S> */ B(LdaZero),
+  /* 2146 E> */ B(StaCurrentContextSlot), U8(152),
   /* 2161 S> */ B(LdaZero),
-  /* 2161 E> */ B(StaCurrentContextSlot), U8(164),
-  /* 2175 S> */ B(LdaZero),
-  /* 2175 E> */ B(StaCurrentContextSlot), U8(165),
-  /* 2189 S> */ B(LdaZero),
-  /* 2189 E> */ B(StaCurrentContextSlot), U8(166),
-  /* 2203 S> */ B(LdaZero),
-  /* 2203 E> */ B(StaCurrentContextSlot), U8(167),
-  /* 2217 S> */ B(LdaZero),
-  /* 2217 E> */ B(StaCurrentContextSlot), U8(168),
-  /* 2231 S> */ B(LdaZero),
-  /* 2231 E> */ B(StaCurrentContextSlot), U8(169),
-  /* 2245 S> */ B(LdaZero),
-  /* 2245 E> */ B(StaCurrentContextSlot), U8(170),
-  /* 2259 S> */ B(LdaZero),
-  /* 2259 E> */ B(StaCurrentContextSlot), U8(171),
-  /* 2273 S> */ B(LdaZero),
-  /* 2273 E> */ B(StaCurrentContextSlot), U8(172),
-  /* 2287 S> */ B(LdaZero),
-  /* 2287 E> */ B(StaCurrentContextSlot), U8(173),
-  /* 2301 S> */ B(LdaZero),
-  /* 2301 E> */ B(StaCurrentContextSlot), U8(174),
-  /* 2315 S> */ B(LdaZero),
-  /* 2315 E> */ B(StaCurrentContextSlot), U8(175),
-  /* 2329 S> */ B(LdaZero),
-  /* 2329 E> */ B(StaCurrentContextSlot), U8(176),
-  /* 2343 S> */ B(LdaZero),
-  /* 2343 E> */ B(StaCurrentContextSlot), U8(177),
-  /* 2357 S> */ B(LdaZero),
-  /* 2357 E> */ B(StaCurrentContextSlot), U8(178),
+  /* 2161 E> */ B(StaCurrentContextSlot), U8(153),
+  /* 2176 S> */ B(LdaZero),
+  /* 2176 E> */ B(StaCurrentContextSlot), U8(154),
+  /* 2191 S> */ B(LdaZero),
+  /* 2191 E> */ B(StaCurrentContextSlot), U8(155),
+  /* 2206 S> */ B(LdaZero),
+  /* 2206 E> */ B(StaCurrentContextSlot), U8(156),
+  /* 2221 S> */ B(LdaZero),
+  /* 2221 E> */ B(StaCurrentContextSlot), U8(157),
+  /* 2236 S> */ B(LdaZero),
+  /* 2236 E> */ B(StaCurrentContextSlot), U8(158),
+  /* 2251 S> */ B(LdaZero),
+  /* 2251 E> */ B(StaCurrentContextSlot), U8(159),
+  /* 2266 S> */ B(LdaZero),
+  /* 2266 E> */ B(StaCurrentContextSlot), U8(160),
+  /* 2281 S> */ B(LdaZero),
+  /* 2281 E> */ B(StaCurrentContextSlot), U8(161),
+  /* 2296 S> */ B(LdaZero),
+  /* 2296 E> */ B(StaCurrentContextSlot), U8(162),
+  /* 2311 S> */ B(LdaZero),
+  /* 2311 E> */ B(StaCurrentContextSlot), U8(163),
+  /* 2326 S> */ B(LdaZero),
+  /* 2326 E> */ B(StaCurrentContextSlot), U8(164),
+  /* 2341 S> */ B(LdaZero),
+  /* 2341 E> */ B(StaCurrentContextSlot), U8(165),
+  /* 2356 S> */ B(LdaZero),
+  /* 2356 E> */ B(StaCurrentContextSlot), U8(166),
   /* 2371 S> */ B(LdaZero),
-  /* 2371 E> */ B(StaCurrentContextSlot), U8(179),
-  /* 2385 S> */ B(LdaZero),
-  /* 2385 E> */ B(StaCurrentContextSlot), U8(180),
-  /* 2399 S> */ B(LdaZero),
-  /* 2399 E> */ B(StaCurrentContextSlot), U8(181),
-  /* 2413 S> */ B(LdaZero),
-  /* 2413 E> */ B(StaCurrentContextSlot), U8(182),
-  /* 2427 S> */ B(LdaZero),
-  /* 2427 E> */ B(StaCurrentContextSlot), U8(183),
-  /* 2441 S> */ B(LdaZero),
-  /* 2441 E> */ B(StaCurrentContextSlot), U8(184),
-  /* 2455 S> */ B(LdaZero),
-  /* 2455 E> */ B(StaCurrentContextSlot), U8(185),
-  /* 2469 S> */ B(LdaZero),
-  /* 2469 E> */ B(StaCurrentContextSlot), U8(186),
-  /* 2483 S> */ B(LdaZero),
-  /* 2483 E> */ B(StaCurrentContextSlot), U8(187),
-  /* 2497 S> */ B(LdaZero),
-  /* 2497 E> */ B(StaCurrentContextSlot), U8(188),
-  /* 2511 S> */ B(LdaZero),
-  /* 2511 E> */ B(StaCurrentContextSlot), U8(189),
-  /* 2525 S> */ B(LdaZero),
-  /* 2525 E> */ B(StaCurrentContextSlot), U8(190),
-  /* 2539 S> */ B(LdaZero),
-  /* 2539 E> */ B(StaCurrentContextSlot), U8(191),
-  /* 2553 S> */ B(LdaZero),
-  /* 2553 E> */ B(StaCurrentContextSlot), U8(192),
-  /* 2567 S> */ B(LdaZero),
-  /* 2567 E> */ B(StaCurrentContextSlot), U8(193),
+  /* 2371 E> */ B(StaCurrentContextSlot), U8(167),
+  /* 2386 S> */ B(LdaZero),
+  /* 2386 E> */ B(StaCurrentContextSlot), U8(168),
+  /* 2401 S> */ B(LdaZero),
+  /* 2401 E> */ B(StaCurrentContextSlot), U8(169),
+  /* 2416 S> */ B(LdaZero),
+  /* 2416 E> */ B(StaCurrentContextSlot), U8(170),
+  /* 2431 S> */ B(LdaZero),
+  /* 2431 E> */ B(StaCurrentContextSlot), U8(171),
+  /* 2446 S> */ B(LdaZero),
+  /* 2446 E> */ B(StaCurrentContextSlot), U8(172),
+  /* 2461 S> */ B(LdaZero),
+  /* 2461 E> */ B(StaCurrentContextSlot), U8(173),
+  /* 2476 S> */ B(LdaZero),
+  /* 2476 E> */ B(StaCurrentContextSlot), U8(174),
+  /* 2491 S> */ B(LdaZero),
+  /* 2491 E> */ B(StaCurrentContextSlot), U8(175),
+  /* 2506 S> */ B(LdaZero),
+  /* 2506 E> */ B(StaCurrentContextSlot), U8(176),
+  /* 2521 S> */ B(LdaZero),
+  /* 2521 E> */ B(StaCurrentContextSlot), U8(177),
+  /* 2536 S> */ B(LdaZero),
+  /* 2536 E> */ B(StaCurrentContextSlot), U8(178),
+  /* 2551 S> */ B(LdaZero),
+  /* 2551 E> */ B(StaCurrentContextSlot), U8(179),
+  /* 2566 S> */ B(LdaZero),
+  /* 2566 E> */ B(StaCurrentContextSlot), U8(180),
   /* 2581 S> */ B(LdaZero),
-  /* 2581 E> */ B(StaCurrentContextSlot), U8(194),
-  /* 2595 S> */ B(LdaZero),
-  /* 2595 E> */ B(StaCurrentContextSlot), U8(195),
-  /* 2609 S> */ B(LdaZero),
-  /* 2609 E> */ B(StaCurrentContextSlot), U8(196),
-  /* 2623 S> */ B(LdaZero),
-  /* 2623 E> */ B(StaCurrentContextSlot), U8(197),
-  /* 2637 S> */ B(LdaZero),
-  /* 2637 E> */ B(StaCurrentContextSlot), U8(198),
-  /* 2651 S> */ B(LdaZero),
-  /* 2651 E> */ B(StaCurrentContextSlot), U8(199),
-  /* 2665 S> */ B(LdaZero),
-  /* 2665 E> */ B(StaCurrentContextSlot), U8(200),
-  /* 2679 S> */ B(LdaZero),
-  /* 2679 E> */ B(StaCurrentContextSlot), U8(201),
-  /* 2693 S> */ B(LdaZero),
-  /* 2693 E> */ B(StaCurrentContextSlot), U8(202),
-  /* 2707 S> */ B(LdaZero),
-  /* 2707 E> */ B(StaCurrentContextSlot), U8(203),
-  /* 2721 S> */ B(LdaZero),
-  /* 2721 E> */ B(StaCurrentContextSlot), U8(204),
-  /* 2735 S> */ B(LdaZero),
-  /* 2735 E> */ B(StaCurrentContextSlot), U8(205),
-  /* 2749 S> */ B(LdaZero),
-  /* 2749 E> */ B(StaCurrentContextSlot), U8(206),
-  /* 2763 S> */ B(LdaZero),
-  /* 2763 E> */ B(StaCurrentContextSlot), U8(207),
-  /* 2777 S> */ B(LdaZero),
-  /* 2777 E> */ B(StaCurrentContextSlot), U8(208),
+  /* 2581 E> */ B(StaCurrentContextSlot), U8(181),
+  /* 2596 S> */ B(LdaZero),
+  /* 2596 E> */ B(StaCurrentContextSlot), U8(182),
+  /* 2611 S> */ B(LdaZero),
+  /* 2611 E> */ B(StaCurrentContextSlot), U8(183),
+  /* 2626 S> */ B(LdaZero),
+  /* 2626 E> */ B(StaCurrentContextSlot), U8(184),
+  /* 2641 S> */ B(LdaZero),
+  /* 2641 E> */ B(StaCurrentContextSlot), U8(185),
+  /* 2656 S> */ B(LdaZero),
+  /* 2656 E> */ B(StaCurrentContextSlot), U8(186),
+  /* 2671 S> */ B(LdaZero),
+  /* 2671 E> */ B(StaCurrentContextSlot), U8(187),
+  /* 2686 S> */ B(LdaZero),
+  /* 2686 E> */ B(StaCurrentContextSlot), U8(188),
+  /* 2701 S> */ B(LdaZero),
+  /* 2701 E> */ B(StaCurrentContextSlot), U8(189),
+  /* 2716 S> */ B(LdaZero),
+  /* 2716 E> */ B(StaCurrentContextSlot), U8(190),
+  /* 2731 S> */ B(LdaZero),
+  /* 2731 E> */ B(StaCurrentContextSlot), U8(191),
+  /* 2746 S> */ B(LdaZero),
+  /* 2746 E> */ B(StaCurrentContextSlot), U8(192),
+  /* 2761 S> */ B(LdaZero),
+  /* 2761 E> */ B(StaCurrentContextSlot), U8(193),
+  /* 2776 S> */ B(LdaZero),
+  /* 2776 E> */ B(StaCurrentContextSlot), U8(194),
   /* 2791 S> */ B(LdaZero),
-  /* 2791 E> */ B(StaCurrentContextSlot), U8(209),
-  /* 2805 S> */ B(LdaZero),
-  /* 2805 E> */ B(StaCurrentContextSlot), U8(210),
-  /* 2819 S> */ B(LdaZero),
-  /* 2819 E> */ B(StaCurrentContextSlot), U8(211),
-  /* 2833 S> */ B(LdaZero),
-  /* 2833 E> */ B(StaCurrentContextSlot), U8(212),
-  /* 2847 S> */ B(LdaZero),
-  /* 2847 E> */ B(StaCurrentContextSlot), U8(213),
-  /* 2861 S> */ B(LdaZero),
-  /* 2861 E> */ B(StaCurrentContextSlot), U8(214),
-  /* 2875 S> */ B(LdaZero),
-  /* 2875 E> */ B(StaCurrentContextSlot), U8(215),
-  /* 2889 S> */ B(LdaZero),
-  /* 2889 E> */ B(StaCurrentContextSlot), U8(216),
-  /* 2903 S> */ B(LdaZero),
-  /* 2903 E> */ B(StaCurrentContextSlot), U8(217),
-  /* 2917 S> */ B(LdaZero),
-  /* 2917 E> */ B(StaCurrentContextSlot), U8(218),
-  /* 2931 S> */ B(LdaZero),
-  /* 2931 E> */ B(StaCurrentContextSlot), U8(219),
-  /* 2945 S> */ B(LdaZero),
-  /* 2945 E> */ B(StaCurrentContextSlot), U8(220),
-  /* 2959 S> */ B(LdaZero),
-  /* 2959 E> */ B(StaCurrentContextSlot), U8(221),
-  /* 2973 S> */ B(LdaZero),
-  /* 2973 E> */ B(StaCurrentContextSlot), U8(222),
-  /* 2987 S> */ B(LdaZero),
-  /* 2987 E> */ B(StaCurrentContextSlot), U8(223),
+  /* 2791 E> */ B(StaCurrentContextSlot), U8(195),
+  /* 2806 S> */ B(LdaZero),
+  /* 2806 E> */ B(StaCurrentContextSlot), U8(196),
+  /* 2821 S> */ B(LdaZero),
+  /* 2821 E> */ B(StaCurrentContextSlot), U8(197),
+  /* 2836 S> */ B(LdaZero),
+  /* 2836 E> */ B(StaCurrentContextSlot), U8(198),
+  /* 2851 S> */ B(LdaZero),
+  /* 2851 E> */ B(StaCurrentContextSlot), U8(199),
+  /* 2866 S> */ B(LdaZero),
+  /* 2866 E> */ B(StaCurrentContextSlot), U8(200),
+  /* 2881 S> */ B(LdaZero),
+  /* 2881 E> */ B(StaCurrentContextSlot), U8(201),
+  /* 2896 S> */ B(LdaZero),
+  /* 2896 E> */ B(StaCurrentContextSlot), U8(202),
+  /* 2911 S> */ B(LdaZero),
+  /* 2911 E> */ B(StaCurrentContextSlot), U8(203),
+  /* 2926 S> */ B(LdaZero),
+  /* 2926 E> */ B(StaCurrentContextSlot), U8(204),
+  /* 2941 S> */ B(LdaZero),
+  /* 2941 E> */ B(StaCurrentContextSlot), U8(205),
+  /* 2956 S> */ B(LdaZero),
+  /* 2956 E> */ B(StaCurrentContextSlot), U8(206),
+  /* 2971 S> */ B(LdaZero),
+  /* 2971 E> */ B(StaCurrentContextSlot), U8(207),
+  /* 2986 S> */ B(LdaZero),
+  /* 2986 E> */ B(StaCurrentContextSlot), U8(208),
   /* 3001 S> */ B(LdaZero),
-  /* 3001 E> */ B(StaCurrentContextSlot), U8(224),
-  /* 3015 S> */ B(LdaZero),
-  /* 3015 E> */ B(StaCurrentContextSlot), U8(225),
-  /* 3029 S> */ B(LdaZero),
-  /* 3029 E> */ B(StaCurrentContextSlot), U8(226),
-  /* 3043 S> */ B(LdaZero),
-  /* 3043 E> */ B(StaCurrentContextSlot), U8(227),
-  /* 3057 S> */ B(LdaZero),
-  /* 3057 E> */ B(StaCurrentContextSlot), U8(228),
-  /* 3071 S> */ B(LdaZero),
-  /* 3071 E> */ B(StaCurrentContextSlot), U8(229),
-  /* 3085 S> */ B(LdaZero),
-  /* 3085 E> */ B(StaCurrentContextSlot), U8(230),
-  /* 3099 S> */ B(LdaZero),
-  /* 3099 E> */ B(StaCurrentContextSlot), U8(231),
-  /* 3113 S> */ B(LdaZero),
-  /* 3113 E> */ B(StaCurrentContextSlot), U8(232),
-  /* 3127 S> */ B(LdaZero),
-  /* 3127 E> */ B(StaCurrentContextSlot), U8(233),
-  /* 3141 S> */ B(LdaZero),
-  /* 3141 E> */ B(StaCurrentContextSlot), U8(234),
-  /* 3155 S> */ B(LdaZero),
-  /* 3155 E> */ B(StaCurrentContextSlot), U8(235),
-  /* 3169 S> */ B(LdaZero),
-  /* 3169 E> */ B(StaCurrentContextSlot), U8(236),
-  /* 3183 S> */ B(LdaZero),
-  /* 3183 E> */ B(StaCurrentContextSlot), U8(237),
-  /* 3197 S> */ B(LdaZero),
-  /* 3197 E> */ B(StaCurrentContextSlot), U8(238),
+  /* 3001 E> */ B(StaCurrentContextSlot), U8(209),
+  /* 3016 S> */ B(LdaZero),
+  /* 3016 E> */ B(StaCurrentContextSlot), U8(210),
+  /* 3031 S> */ B(LdaZero),
+  /* 3031 E> */ B(StaCurrentContextSlot), U8(211),
+  /* 3046 S> */ B(LdaZero),
+  /* 3046 E> */ B(StaCurrentContextSlot), U8(212),
+  /* 3061 S> */ B(LdaZero),
+  /* 3061 E> */ B(StaCurrentContextSlot), U8(213),
+  /* 3076 S> */ B(LdaZero),
+  /* 3076 E> */ B(StaCurrentContextSlot), U8(214),
+  /* 3091 S> */ B(LdaZero),
+  /* 3091 E> */ B(StaCurrentContextSlot), U8(215),
+  /* 3106 S> */ B(LdaZero),
+  /* 3106 E> */ B(StaCurrentContextSlot), U8(216),
+  /* 3121 S> */ B(LdaZero),
+  /* 3121 E> */ B(StaCurrentContextSlot), U8(217),
+  /* 3136 S> */ B(LdaZero),
+  /* 3136 E> */ B(StaCurrentContextSlot), U8(218),
+  /* 3151 S> */ B(LdaZero),
+  /* 3151 E> */ B(StaCurrentContextSlot), U8(219),
+  /* 3166 S> */ B(LdaZero),
+  /* 3166 E> */ B(StaCurrentContextSlot), U8(220),
+  /* 3181 S> */ B(LdaZero),
+  /* 3181 E> */ B(StaCurrentContextSlot), U8(221),
+  /* 3196 S> */ B(LdaZero),
+  /* 3196 E> */ B(StaCurrentContextSlot), U8(222),
   /* 3211 S> */ B(LdaZero),
-  /* 3211 E> */ B(StaCurrentContextSlot), U8(239),
-  /* 3225 S> */ B(LdaZero),
-  /* 3225 E> */ B(StaCurrentContextSlot), U8(240),
-  /* 3239 S> */ B(LdaZero),
-  /* 3239 E> */ B(StaCurrentContextSlot), U8(241),
-  /* 3253 S> */ B(LdaZero),
-  /* 3253 E> */ B(StaCurrentContextSlot), U8(242),
-  /* 3267 S> */ B(LdaZero),
-  /* 3267 E> */ B(StaCurrentContextSlot), U8(243),
-  /* 3281 S> */ B(LdaZero),
-  /* 3281 E> */ B(StaCurrentContextSlot), U8(244),
-  /* 3295 S> */ B(LdaZero),
-  /* 3295 E> */ B(StaCurrentContextSlot), U8(245),
-  /* 3309 S> */ B(LdaZero),
-  /* 3309 E> */ B(StaCurrentContextSlot), U8(246),
-  /* 3323 S> */ B(LdaZero),
-  /* 3323 E> */ B(StaCurrentContextSlot), U8(247),
-  /* 3337 S> */ B(LdaZero),
-  /* 3337 E> */ B(StaCurrentContextSlot), U8(248),
-  /* 3351 S> */ B(LdaZero),
-  /* 3351 E> */ B(StaCurrentContextSlot), U8(249),
-  /* 3365 S> */ B(LdaZero),
-  /* 3365 E> */ B(StaCurrentContextSlot), U8(250),
-  /* 3379 S> */ B(LdaZero),
-  /* 3379 E> */ B(StaCurrentContextSlot), U8(251),
-  /* 3393 S> */ B(LdaZero),
-  /* 3393 E> */ B(StaCurrentContextSlot), U8(252),
-  /* 3407 S> */ B(LdaZero),
-  /* 3407 E> */ B(StaCurrentContextSlot), U8(253),
+  /* 3211 E> */ B(StaCurrentContextSlot), U8(223),
+  /* 3226 S> */ B(LdaZero),
+  /* 3226 E> */ B(StaCurrentContextSlot), U8(224),
+  /* 3241 S> */ B(LdaZero),
+  /* 3241 E> */ B(StaCurrentContextSlot), U8(225),
+  /* 3256 S> */ B(LdaZero),
+  /* 3256 E> */ B(StaCurrentContextSlot), U8(226),
+  /* 3271 S> */ B(LdaZero),
+  /* 3271 E> */ B(StaCurrentContextSlot), U8(227),
+  /* 3286 S> */ B(LdaZero),
+  /* 3286 E> */ B(StaCurrentContextSlot), U8(228),
+  /* 3301 S> */ B(LdaZero),
+  /* 3301 E> */ B(StaCurrentContextSlot), U8(229),
+  /* 3316 S> */ B(LdaZero),
+  /* 3316 E> */ B(StaCurrentContextSlot), U8(230),
+  /* 3331 S> */ B(LdaZero),
+  /* 3331 E> */ B(StaCurrentContextSlot), U8(231),
+  /* 3346 S> */ B(LdaZero),
+  /* 3346 E> */ B(StaCurrentContextSlot), U8(232),
+  /* 3361 S> */ B(LdaZero),
+  /* 3361 E> */ B(StaCurrentContextSlot), U8(233),
+  /* 3376 S> */ B(LdaZero),
+  /* 3376 E> */ B(StaCurrentContextSlot), U8(234),
+  /* 3391 S> */ B(LdaZero),
+  /* 3391 E> */ B(StaCurrentContextSlot), U8(235),
+  /* 3406 S> */ B(LdaZero),
+  /* 3406 E> */ B(StaCurrentContextSlot), U8(236),
   /* 3421 S> */ B(LdaZero),
-  /* 3421 E> */ B(StaCurrentContextSlot), U8(254),
-  /* 3435 S> */ B(LdaZero),
-  /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
-  /* 3438 S> */ B(LdaGlobal), U8(0), U8(0),
+  /* 3421 E> */ B(StaCurrentContextSlot), U8(237),
+  /* 3436 S> */ B(LdaZero),
+  /* 3436 E> */ B(StaCurrentContextSlot), U8(238),
+  /* 3451 S> */ B(LdaZero),
+  /* 3451 E> */ B(StaCurrentContextSlot), U8(239),
+  /* 3466 S> */ B(LdaZero),
+  /* 3466 E> */ B(StaCurrentContextSlot), U8(240),
+  /* 3481 S> */ B(LdaZero),
+  /* 3481 E> */ B(StaCurrentContextSlot), U8(241),
+  /* 3496 S> */ B(LdaZero),
+  /* 3496 E> */ B(StaCurrentContextSlot), U8(242),
+  /* 3511 S> */ B(LdaZero),
+  /* 3511 E> */ B(StaCurrentContextSlot), U8(243),
+  /* 3526 S> */ B(LdaZero),
+  /* 3526 E> */ B(StaCurrentContextSlot), U8(244),
+  /* 3541 S> */ B(LdaZero),
+  /* 3541 E> */ B(StaCurrentContextSlot), U8(245),
+  /* 3556 S> */ B(LdaZero),
+  /* 3556 E> */ B(StaCurrentContextSlot), U8(246),
+  /* 3571 S> */ B(LdaZero),
+  /* 3571 E> */ B(StaCurrentContextSlot), U8(247),
+  /* 3586 S> */ B(LdaZero),
+  /* 3586 E> */ B(StaCurrentContextSlot), U8(248),
+  /* 3601 S> */ B(LdaZero),
+  /* 3601 E> */ B(StaCurrentContextSlot), U8(249),
+  /* 3616 S> */ B(LdaZero),
+  /* 3616 E> */ B(StaCurrentContextSlot), U8(250),
+  /* 3631 S> */ B(LdaZero),
+  /* 3631 E> */ B(StaCurrentContextSlot), U8(251),
+  /* 3646 S> */ B(LdaZero),
+  /* 3646 E> */ B(StaCurrentContextSlot), U8(252),
+  /* 3661 S> */ B(LdaZero),
+  /* 3661 E> */ B(StaCurrentContextSlot), U8(253),
+  /* 3676 S> */ B(LdaZero),
+  /* 3676 E> */ B(StaCurrentContextSlot), U8(254),
+  /* 3691 S> */ B(LdaZero),
+  /* 3691 E> */ B(StaCurrentContextSlot), U8(255),
+  /* 3694 S> */ B(LdaGlobal), U8(1), U8(0),
                 B(Star), R(2),
-  /* 3438 E> */ B(CallUndefinedReceiver0), R(2), U8(2),
-  /* 3454 S> */ B(LdaSmi), I8(100),
-  /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
-  /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),
-  /* 3467 S> */ B(Return),
+  /* 3694 E> */ B(CallUndefinedReceiver0), R(2), U8(2),
+  /* 3710 S> */ B(LdaSmi), I8(100),
+  /* 3710 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
+  /* 3715 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),
+  /* 3723 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
 ]
 handlers: [

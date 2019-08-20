@@ -25,13 +25,13 @@
 require('../common');
 const assert = require('assert');
 
-// timeouts call the callback directly from cc, so need to make sure the
+// Timeouts call the callback directly from cc, so need to make sure the
 // domain will be used regardless
-setTimeout(function() {
+setTimeout(() => {
   const domain = require('domain');
   const d = domain.create();
-  d.run(function() {
-    process.nextTick(function() {
+  d.run(() => {
+    process.nextTick(() => {
       console.trace('in nexttick', process.domain === d);
       assert.strictEqual(process.domain, d);
     });

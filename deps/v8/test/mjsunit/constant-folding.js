@@ -147,7 +147,6 @@ function test() {
   switch(3) {
     case 5:
       assertUnreachable();
-      break;
     case 3:
       j = 13;
     default:
@@ -158,7 +157,6 @@ function test() {
     case 9:
       j = 19;
       assertUnreachable();
-      break;
   }
   assertEquals(17, j, "switch with constant value");
 }

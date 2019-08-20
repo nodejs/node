@@ -178,7 +178,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         memmove(buf->buffer,buf->currentPos,offset* sizeof(UChar));
     }
 
-#if UCBUF_DEBUG
+#ifdef UCBUF_DEBUG
     memset(pTarget+offset,0xff,sizeof(UChar)*(MAX_IN_BUF-offset));
 #endif
     if(buf->isBuffered){
@@ -295,7 +295,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         }
         outputWritten = (int32_t)(target - pTarget);
 
-#if UCBUF_DEBUG
+#ifdef UCBUF_DEBUG
         {
             int i;
             target = pTarget;

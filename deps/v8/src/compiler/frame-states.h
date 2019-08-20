@@ -6,9 +6,9 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/builtins/builtins.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +17,7 @@ namespace compiler {
 
 class JSGraph;
 class Node;
+class SharedFunctionInfoRef;
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
@@ -60,12 +61,15 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kInterpretedFunction,  // Represents an InterpretedFrame.
-  kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
-  kConstructStub,        // Represents a ConstructStubFrame.
-  kBuiltinContinuation,  // Represents a continuation to a stub.
-  kJavaScriptBuiltinContinuation  // Represents a continuation to a JavaScipt
-                                  // builtin.
+  kInterpretedFunction,            // Represents an InterpretedFrame.
+  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
+  kConstructStub,                  // Represents a ConstructStubFrame.
+  kBuiltinContinuation,            // Represents a continuation to a stub.
+  kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
+                                   // builtin.
+  kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
+                                           // JavaScipt builtin with a catch
+                                           // handler.
 };
 
 class FrameStateFunctionInfo {
@@ -85,7 +89,8 @@ class FrameStateFunctionInfo {
 
   static bool IsJSFunctionType(FrameStateType type) {
     return type == FrameStateType::kInterpretedFunction ||
-           type == FrameStateType::kJavaScriptBuiltinContinuation;
+           type == FrameStateType::kJavaScriptBuiltinContinuation ||
+           type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
   }
 
  private:
@@ -143,7 +148,7 @@ static const int kFrameStateFunctionInput = 4;
 static const int kFrameStateOuterStateInput = 5;
 static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
-enum class ContinuationFrameStateMode { EAGER, LAZY };
+enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 
 Node* CreateStubBuiltinContinuationFrameState(
     JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
@@ -151,10 +156,14 @@ Node* CreateStubBuiltinContinuationFrameState(
     ContinuationFrameStateMode mode);
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
+
+Node* CreateGenericLazyDeoptContinuationFrameState(
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
+    Node* context, Node* receiver, Node* outer_frame_state);
 
 }  // namespace compiler
 }  // namespace internal
