@@ -28,7 +28,7 @@ function rimrafSync(pathname, { spawn = true } = {}) {
   if (spawn && process.platform === 'win32' && st.isDirectory()) {
     try {
       // Try `rmdir` first.
-      execSync(`rmdir /q /s ${pathname}`, { timout: 1000 });
+      execSync(`rmdir /q /s ${pathname}`, { timeout: 1000 });
     } catch (e) {
       // Attempt failed. Log and carry on.
       debug(e);

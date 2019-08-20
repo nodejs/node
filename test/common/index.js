@@ -401,7 +401,7 @@ function canCreateSymLink() {
                                  'System32', 'whoami.exe');
 
     try {
-      const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
+      const output = execSync(`${whoamiPath} /priv`, { timeout: 1000 });
       return output.includes('SeCreateSymbolicLinkPrivilege');
     } catch {
       return false;
