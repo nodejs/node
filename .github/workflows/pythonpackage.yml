@@ -6,10 +6,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      fail-fast: false
+      max-parallel: 2
       matrix:
         # GitHub Actions / build (2.7) successful in 1h 30m 7s
-        python-version: [3.7]  # [2.7, 3.5, 3.6,, 3.7] 
+        python-version: [2.7, 3.7]  # [2.7, 3.5, 3.6,, 3.7] 
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
@@ -24,6 +25,7 @@ jobs:
       run: |
         make lint
     - name: make test
+      continue-on-error: true
       run: |
         python ./configure.py
         make test
