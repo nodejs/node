@@ -28,7 +28,6 @@ common.expectWarning(
   'WriteStream.prototype.open() is deprecated', 'DEP0XXX');
 const s = fs.createWriteStream(`${tmpdir.path}/out`);
 s.open();
-s.destroy();
 
 // Allow overriding open().
 fs.WriteStream.prototype.open = common.mustCall();
