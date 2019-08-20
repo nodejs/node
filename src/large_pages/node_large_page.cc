@@ -305,7 +305,7 @@ static bool IsSuperPagesEnabled() {
 // 2: This function should not call any function(s) that might be moved.
 // a. map a new area and copy the original code there
 // b. mmap using the start address with MAP_FIXED so we get exactly
-//    the same virtual address
+//    the same virtual address (except on macOS).
 // c. madvise with MADV_HUGE_PAGE
 // d. If successful copy the code there and unmap the original region
 int
@@ -331,6 +331,9 @@ MoveTextRegionToLargePages(const text_region& r) {
     PrintSystemError(errno);
     return -1;
   }
+  OnScopeLeave munmap_on_return([nmem, size]() {
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
+  });
 
   memcpy(nmem, r.from, size);
 
@@ -344,7 +347,6 @@ MoveTextRegionToLargePages(const text_region& r) {
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
   if (tmem == MAP_FAILED) {
     PrintSystemError(errno);
-    munmap(nmem, size);
     return -1;
   }
 
@@ -355,11 +357,6 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (ret == -1) {
       PrintSystemError(errno);
     }
-    ret = munmap(nmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
-
     return -1;
   }
 #elif defined(__FreeBSD__)
@@ -369,17 +366,20 @@ MoveTextRegionToLargePages(const text_region& r) {
               MAP_ALIGNED_SUPER, -1 , 0);
   if (tmem == MAP_FAILED) {
     PrintSystemError(errno);
-    munmap(nmem, size);
     return -1;
   }
 #elif defined(__APPLE__)
+  // There is not enough room to reserve the mapping close
+  // to the region address so we content to give a hint
+  // without forcing the new address being closed to.
+  // We explicitally gives all permission since we plan
+  // to write into it.
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS,
               VM_FLAGS_SUPERPAGE_SIZE_2MB, 0);
   if (tmem == MAP_FAILED) {
     PrintSystemError(errno);
-    munmap(nmem, size);
     return -1;
   }
   memcpy(tmem, nmem, size);
@@ -387,10 +387,6 @@ MoveTextRegionToLargePages(const text_region& r) {
   if (ret == -1) {
     PrintSystemError(errno);
     ret = munmap(tmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
-    ret = munmap(nmem, size);
     if (ret == -1) {
       PrintSystemError(errno);
     }
@@ -408,19 +404,8 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (ret == -1) {
       PrintSystemError(errno);
     }
-    ret = munmap(nmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
     return -1;
   }
-
-  // Release the old/temporary mapped region
-  ret = munmap(nmem, size);
-  if (ret == -1) {
-    PrintSystemError(errno);
-  }
-
   return ret;
 }
 

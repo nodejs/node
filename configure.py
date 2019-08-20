@@ -1048,7 +1048,7 @@ def configure_node(o):
       raise Exception(
         'Large pages are supported only x64 platform.')
     if flavor == 'mac':
-      print("macOS server with 32GB or more is recommended")
+      info('macOS server with 32GB or more is recommended')
     if flavor == 'linux':
       # Example full version string: 2.6.32-696.28.1.el6.x86_64
       FULL_KERNEL_VERSION=os.uname()[2]
