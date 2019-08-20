@@ -52,7 +52,7 @@ following scripts:
 Additionally, arbitrary scripts can be executed by running `npm
 run-script <stage>`. *Pre* and *post* commands with matching
 names will be run for those as well (e.g. `premyscript`, `myscript`,
-`postmyscript`). Scripts from dependencies can be run with
+`postmyscript`). Scripts from dependencies can be run with 
 `npm explore <pkg> -- npm run <stage>`.
 
 ## PREPUBLISH AND PREPARE
@@ -143,8 +143,8 @@ The package.json fields are tacked onto the `npm_package_` prefix. So,
 for instance, if you had `{"name":"foo", "version":"1.2.5"}` in your
 package.json file, then your package scripts would have the
 `npm_package_name` environment variable set to "foo", and the
-`npm_package_version` set to "1.2.5".  You can access these variables
-in your code with `process.env.npm_package_name` and
+`npm_package_version` set to "1.2.5".  You can access these variables 
+in your code with `process.env.npm_package_name` and 
 `process.env.npm_package_version`, and so on for other fields.
 
 ### configuration

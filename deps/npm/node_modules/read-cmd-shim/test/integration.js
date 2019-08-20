@@ -28,7 +28,7 @@ test('async-read-no-shbang', function (t) {
   t.plan(2)
   readCmdShim(testShimCmd, function (er, dest) {
     t.error(er)
-    t.is(dest, '..\\basic.js')
+    t.is(dest, '..\\integration.js')
     t.done()
   })
 })
@@ -36,7 +36,7 @@ test('async-read-no-shbang', function (t) {
 test('sync-read-no-shbang', function (t) {
   t.plan(1)
   var dest = readCmdShim.sync(testShimCmd)
-  t.is(dest, '..\\basic.js')
+  t.is(dest, '..\\integration.js')
   t.done()
 })
 
@@ -60,7 +60,7 @@ test('async-read-no-shbang-cygwin', function (t) {
   t.plan(2)
   readCmdShim(testShim, function (er, dest) {
     t.error(er)
-    t.is(dest, '../basic.js')
+    t.is(dest, '../integration.js')
     t.done()
   })
 })
@@ -68,7 +68,7 @@ test('async-read-no-shbang-cygwin', function (t) {
 test('sync-read-no-shbang-cygwin', function (t) {
   t.plan(1)
   var dest = readCmdShim.sync(testShim)
-  t.is(dest, '../basic.js')
+  t.is(dest, '../integration.js')
   t.done()
 })
 

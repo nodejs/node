@@ -50,8 +50,12 @@ function inflateShrinkwrap (topPath, tree, swdeps, opts) {
 
   return BB.each(Object.keys(swdeps), (name) => {
     const sw = swdeps[name]
-    const dependencies = sw.dependencies || {}
     const requested = realizeShrinkwrapSpecifier(name, sw, topPath)
+    // We should not muck about in the node_modules folder of
+    // symlinked packages.  Treat its dependencies as if they
+    // were empty, since it's none of our business.
+    const dependencies = requested.type === 'directory' ? {}
+      : sw.dependencies || {}
     return inflatableChild(
       onDisk[name], name, topPath, tree, sw, requested, opts
     ).then((child) => {
@@ -141,6 +145,10 @@ function isGit (sw) {
 }
 
 function makeFakeChild (name, topPath, tree, sw, requested) {
+  // We should not muck about in the node_modules folder of
+  // symlinked packages.  Treat its dependencies as if they
+  // were empty, since it's none of our business.
+  const isDirectory = requested.type === 'directory'
   const from = sw.from || requested.raw
   const pkg = {
     name: name,
@@ -156,7 +164,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
     _spec: requested.rawSpec,
     _where: topPath,
     _args: [[requested.toString(), topPath]],
-    dependencies: sw.requires
+    dependencies: isDirectory ? {} : sw.requires
   }
 
   if (!sw.bundled) {
@@ -167,16 +175,16 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   }
   const child = createChild({
     package: pkg,
-    loaded: false,
+    loaded: isDirectory,
     parent: tree,
     children: [],
     fromShrinkwrap: requested,
     fakeChild: sw,
     fromBundle: sw.bundled ? tree.fromBundle || tree : null,
     path: childPath(tree.path, pkg),
-    realpath: requested.type === 'directory' ? requested.fetchSpec : childPath(tree.realpath, pkg),
+    realpath: isDirectory ? requested.fetchSpec : childPath(tree.realpath, pkg),
     location: (tree.location === '/' ? '' : tree.location + '/') + pkg.name,
-    isLink: requested.type === 'directory',
+    isLink: isDirectory,
     isInLink: tree.isLink || tree.isInLink,
     swRequires: sw.requires
   })
@@ -195,7 +203,7 @@ function fetchChild (topPath, tree, sw, requested) {
     var isLink = pkg._requested.type === 'directory'
     const child = createChild({
       package: pkg,
-      loaded: false,
+      loaded: isLink,
       parent: tree,
       fromShrinkwrap: requested,
       path: childPath(tree.path, pkg),
