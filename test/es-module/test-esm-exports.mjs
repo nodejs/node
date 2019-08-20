@@ -1,9 +1,10 @@
-// Flags: --experimental-modules
+// Flags: --experimental-modules --experimental-resolve-self
 
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
+import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
 [requireFixture, importFixture].forEach((loadFixture) => {
   const isRequire = loadFixture === requireFixture;
@@ -97,6 +98,24 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     strictEqual(err.code, isRequire ? 'ERR_INVALID_FILE_URL_PATH' :
       'ERR_MODULE_NOT_FOUND');
   }));
+});
+
+const { requireFromInside, importFromInside } = fromInside;
+[importFromInside, requireFromInside].forEach((loadFromInside) => {
+  const validSpecifiers = new Map([
+    // A file not visible from outside of the package
+    ['../not-exported.js', { default: 'not-exported' }],
+    // Part of the public interface
+    ['@pkgexports/name/valid-cjs', { default: 'asdf' }],
+  ]);
+  for (const [validSpecifier, expected] of validSpecifiers) {
+    if (validSpecifier === null) continue;
+
+    loadFromInside(validSpecifier)
+      .then(mustCall((actual) => {
+        deepStrictEqual({ ...actual }, expected);
+      }));
+  }
 });
 
 function assertStartsWith(actual, expected) {

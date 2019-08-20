@@ -578,6 +578,7 @@ Maybe<std::string> ReadIfFile(const std::string& path) {
 using Exists = PackageConfig::Exists;
 using IsValid = PackageConfig::IsValid;
 using HasMain = PackageConfig::HasMain;
+using HasName = PackageConfig::HasName;
 using PackageType = PackageConfig::PackageType;
 
 Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
@@ -600,6 +601,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
   if (source.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
         PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
+                        HasName::No, "",
                         PackageType::None, Global<Value>() });
     return Just(&entry.first->second);
   }
@@ -620,6 +622,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
         !pkg_json_v->ToObject(context).ToLocal(&pkg_json)) {
       env->package_json_cache.emplace(path,
           PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "",
+                          HasName::No, "",
                           PackageType::None, Global<Value>() });
       std::string msg = "Invalid JSON in " + path +
           " imported from " + base.ToFilePath();
@@ -637,6 +640,18 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
     }
     Utf8Value main_utf8(isolate, pkg_main);
     main_std.assign(std::string(*main_utf8, main_utf8.length()));
+  }
+
+  Local<Value> pkg_name;
+  HasName has_name = HasName::No;
+  std::string name_std;
+  if (pkg_json->Get(env->context(), env->name_string()).ToLocal(&pkg_name)) {
+    if (pkg_name->IsString()) {
+      has_name = HasName::Yes;
+
+      Utf8Value name_utf8(isolate, pkg_name);
+      name_std.assign(std::string(*name_utf8, name_utf8.length()));
+    }
   }
 
   PackageType pkg_type = PackageType::None;
@@ -659,12 +674,14 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
 
     auto entry = env->package_json_cache.emplace(path,
         PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
+                        has_name, name_std,
                         pkg_type, std::move(exports) });
     return Just(&entry.first->second);
   }
 
   auto entry = env->package_json_cache.emplace(path,
       PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
+                      has_name, name_std,
                       pkg_type, Global<Value>() });
   return Just(&entry.first->second);
 }
@@ -694,6 +711,7 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
   }
   auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
   PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
+                  HasName::No, "",
                   PackageType::None, Global<Value>() });
   const PackageConfig* pcfg = &entry.first->second;
   return Just(pcfg);
@@ -1119,6 +1137,62 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   return Nothing<URL>();
 }
 
+Maybe<URL> ResolveSelf(Environment* env,
+                       const std::string& specifier,
+                       const URL& base) {
+  if (!env->options()->experimental_resolve_self) {
+    return Nothing<URL>();
+  }
+
+  const PackageConfig* pcfg;
+  if (GetPackageScopeConfig(env, base, base).To(&pcfg) &&
+      pcfg->exists == Exists::Yes) {
+    // TODO(jkrems): Find a way to forward the pair/iterator already generated
+    // while executing GetPackageScopeConfig
+    URL pjson_url("");
+    bool found_pjson = false;
+    for (auto it = env->package_json_cache.begin();
+          it != env->package_json_cache.end();
+          ++it) {
+      if (&it->second == pcfg) {
+        pjson_url = URL::FromFilePath(it->first);
+        found_pjson = true;
+      }
+    }
+
+    if (!found_pjson) {
+      return Nothing<URL>();
+    }
+
+    // "If specifier starts with pcfg name"
+    std::string subpath;
+    if (specifier.rfind(pcfg->name, 0)) {
+      // We know now: specifier is either equal to name or longer.
+      if (specifier == subpath) {
+        subpath = "";
+      } else if (specifier[pcfg->name.length()] == '/') {
+        // Return everything after the slash
+        subpath = "." + specifier.substr(pcfg->name.length() + 1);
+      } else {
+        // The specifier is neither the name of the package nor a subpath of it
+        return Nothing<URL>();
+      }
+    }
+
+    if (found_pjson && !subpath.length()) {
+      return PackageMainResolve(env, pjson_url, *pcfg, base);
+    } else if (found_pjson) {
+      if (!pcfg->exports.IsEmpty()) {
+        return PackageExportsResolve(env, pjson_url, subpath, *pcfg, base);
+      } else {
+        return FinalizeResolution(env, URL(subpath, pjson_url), base);
+      }
+    }
+  }
+
+  return Nothing<URL>();
+}
+
 Maybe<URL> PackageResolve(Environment* env,
                           const std::string& specifier,
                           const URL& base) {
@@ -1191,6 +1265,11 @@ Maybe<URL> PackageResolve(Environment* env,
     CHECK(false);
     // Cross-platform root check.
   } while (pjson_path.length() != last_path.length());
+
+  Maybe<URL> self_url = ResolveSelf(env, specifier, base);
+  if (self_url.IsJust()) {
+    return self_url;
+  }
 
   std::string msg = "Cannot find package '" + pkg_name +
       "' imported from " + base.ToFilePath();

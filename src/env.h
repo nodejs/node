@@ -93,12 +93,15 @@ struct PackageConfig {
   enum class Exists { Yes, No };
   enum class IsValid { Yes, No };
   enum class HasMain { Yes, No };
+  enum class HasName { Yes, No };
   enum PackageType : uint32_t { None = 0, CommonJS, Module };
 
   const Exists exists;
   const IsValid is_valid;
   const HasMain has_main;
   const std::string main;
+  const HasName has_name;
+  const std::string name;
   const PackageType type;
 
   v8::Global<v8::Value> exports;
