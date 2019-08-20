@@ -357,7 +357,7 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "value" argument must be one of type string, ' +
+      message: 'The "value" argument must be one of type number, string, ' +
                `Buffer, or Uint8Array. Received type ${typeof val}`
     }
   );
