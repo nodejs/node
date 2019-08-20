@@ -326,6 +326,13 @@ class ByteSource {
   const char* get() const;
   size_t size() const;
 
+  inline operator bool() const {
+    return data_ != nullptr;
+  }
+
+  static ByteSource Allocated(char* data, size_t size);
+  static ByteSource Foreign(const char* data, size_t size);
+
   static ByteSource FromStringOrBuffer(Environment* env,
                                        v8::Local<v8::Value> value);
 
@@ -350,9 +357,6 @@ class ByteSource {
   size_t size_ = 0;
 
   ByteSource(const char* data, char* allocated_data, size_t size);
-
-  static ByteSource Allocated(char* data, size_t size);
-  static ByteSource Foreign(const char* data, size_t size);
 };
 
 enum PKEncodingType {
@@ -628,7 +632,8 @@ class SignBase : public BaseObject {
     kSignNotInitialised,
     kSignUpdate,
     kSignPrivateKey,
-    kSignPublicKey
+    kSignPublicKey,
+    kSignMalformedSignature
   } Error;
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
@@ -649,6 +654,10 @@ class SignBase : public BaseObject {
   EVPMDPointer mdctx_;
 };
 
+enum DSASigEnc {
+  kSigEncDER, kSigEncP1363
+};
+
 class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -666,7 +675,8 @@ class Sign : public SignBase {
   SignResult SignFinal(
       const ManagedEVPPKey& pkey,
       int padding,
-      const v8::Maybe<int>& saltlen);
+      const v8::Maybe<int>& saltlen,
+      DSASigEnc dsa_sig_enc);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
