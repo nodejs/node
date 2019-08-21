@@ -2951,11 +2951,10 @@ Url {
 added: v8.4.0
 -->
 
+* Extends: {Stream}
+
 This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
-
-The response inherits from [Stream][], and additionally implements the
-following:
 
 #### Event: 'close'
 <!-- YAML
@@ -3481,7 +3480,6 @@ following additional properties:
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
 [Readable Stream]: stream.html#stream_class_stream_readable
-[Stream]: stream.html#stream_stream
 [Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'connect'`]: #http2_event_connect
