@@ -16,8 +16,10 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
     : public BytecodeArrayAccessor {
  public:
-  explicit BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array,
-                                       Zone* zone);
+  BytecodeArrayRandomIterator(
+      std::unique_ptr<AbstractBytecodeArray> bytecode_array, Zone* zone);
+
+  BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array, Zone* zone);
 
   BytecodeArrayRandomIterator& operator++() {
     ++current_index_;
@@ -66,6 +68,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
   ZoneVector<int> offsets_;
   int current_index_;
 
+  void Initialize();
   void UpdateOffsetFromIndex();
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayRandomIterator);

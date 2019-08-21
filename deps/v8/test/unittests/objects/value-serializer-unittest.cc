@@ -2885,5 +2885,68 @@ TEST_F(ValueSerializerTestWithLimitedMemory, FailIfNoMemoryInWriteHostObject) {
   EXPECT_TRUE(EvaluateScriptForInput("gotA")->IsFalse());
 }
 
+// We only have basic tests and tests for .stack here, because we have more
+// comprehensive tests as web platform tests.
+TEST_F(ValueSerializerTest, RoundTripError) {
+  Local<Value> value = RoundTripTest("Error('hello')");
+  ASSERT_TRUE(value->IsObject());
+  Local<Object> error = value.As<Object>();
+
+  Local<Value> name;
+  Local<Value> message;
+
+  {
+    Context::Scope scope(deserialization_context());
+    EXPECT_EQ(error->GetPrototype(), Exception::Error(String::Empty(isolate()))
+                                         .As<Object>()
+                                         ->GetPrototype());
+  }
+  ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("name"))
+                  .ToLocal(&name));
+  ASSERT_TRUE(name->IsString());
+  EXPECT_EQ(Utf8Value(name), "Error");
+
+  ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("message"))
+                  .ToLocal(&message));
+  ASSERT_TRUE(message->IsString());
+  EXPECT_EQ(Utf8Value(message), "hello");
+}
+
+TEST_F(ValueSerializerTest, DefaultErrorStack) {
+  Local<Value> value =
+      RoundTripTest("function hkalkcow() { return Error(); } hkalkcow();");
+  ASSERT_TRUE(value->IsObject());
+  Local<Object> error = value.As<Object>();
+
+  Local<Value> stack;
+  ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("stack"))
+                  .ToLocal(&stack));
+  ASSERT_TRUE(stack->IsString());
+  EXPECT_NE(Utf8Value(stack).find("hkalkcow"), std::string::npos);
+}
+
+TEST_F(ValueSerializerTest, ModifiedErrorStack) {
+  Local<Value> value = RoundTripTest("let e = Error(); e.stack = 'hello'; e");
+  ASSERT_TRUE(value->IsObject());
+  Local<Object> error = value.As<Object>();
+
+  Local<Value> stack;
+  ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("stack"))
+                  .ToLocal(&stack));
+  ASSERT_TRUE(stack->IsString());
+  EXPECT_EQ(Utf8Value(stack), "hello");
+}
+
+TEST_F(ValueSerializerTest, NonStringErrorStack) {
+  Local<Value> value = RoundTripTest("let e = Error(); e.stack = 17; e");
+  ASSERT_TRUE(value->IsObject());
+  Local<Object> error = value.As<Object>();
+
+  Local<Value> stack;
+  ASSERT_TRUE(error->Get(deserialization_context(), StringFromUtf8("stack"))
+                  .ToLocal(&stack));
+  EXPECT_TRUE(stack->IsUndefined());
+}
+
 }  // namespace
 }  // namespace v8

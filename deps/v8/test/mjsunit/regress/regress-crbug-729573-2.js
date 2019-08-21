@@ -12,9 +12,11 @@ function bar(x) {
 function foo(f) {
   var a = bar.bind(42, 1);
   return f() ? 0 : a;
+};
+%PrepareFunctionForOptimization(foo);
+function t() {
+  return true;
 }
-
-function t() { return true; }
 
 assertEquals(0, foo(t));
 assertEquals(0, foo(t));

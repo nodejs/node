@@ -1093,11 +1093,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOSRNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ mov(r9, Operand(0));
   __ strh(r9, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kOSRNestingLevelOffset));
+                              BytecodeArray::kOsrNestingLevelOffset));
 
   // Load the initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
@@ -1509,13 +1509,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ ldr(fp, MemOperand(
                  sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
 
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ Pop(scratch);
+  Register builtin = temps.Acquire();
+  __ Pop(builtin);
   __ add(sp, sp,
          Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(lr);
-  __ add(pc, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(builtin);
+  __ bx(builtin);
 }
 }  // namespace
 
@@ -2577,7 +2580,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      __ stop("Unexpected alignment");
+      __ stop();
       __ bind(&alignment_as_expected);
     }
   }
@@ -2606,7 +2609,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CompareRoot(r3, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ b(eq, &okay);
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 
@@ -2835,19 +2838,25 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == r1 || function_address == r2);
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Move(r9, ExternalReference::is_profiling_address(isolate));
   __ ldrb(r9, MemOperand(r9, 0));
   __ cmp(r9, Operand(0));
-  __ b(eq, &profiler_disabled);
-
-  // Additional parameter is the address of the actual callback.
-  __ Move(r3, thunk_ref);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  __ Move(r3, function_address);
+  __ b(ne, &profiler_enabled);
+  __ Move(r9, ExternalReference::address_of_runtime_stats_flag());
+  __ ldr(r9, MemOperand(r9, 0));
+  __ cmp(r9, Operand(0));
+  __ b(ne, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ Move(r3, function_address);
+    __ b(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual callback.
+    __ Move(r3, thunk_ref);
+  }
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.

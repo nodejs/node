@@ -17,6 +17,7 @@ function foo(a) {
 }
 
 const a = [1, 2, 3];
+%PrepareFunctionForOptimization(foo);
 assertTrue(foo(a));
 assertTrue(foo(a));
 %OptimizeFunctionOnNextCall(foo);

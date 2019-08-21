@@ -29,8 +29,9 @@
 
 var foo = {bar: -2};
 function crash() {
-  return !(foo.bar++);
-}
+  return !foo.bar++;
+};
+%PrepareFunctionForOptimization(crash);
 assertFalse(crash());
 assertEquals(-1, foo.bar);
 %OptimizeFunctionOnNextCall(crash);

@@ -4,12 +4,11 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/codegen/assembler.h"
-#include "src/codegen/mips/assembler-mips-inl.h"
-#include "src/codegen/mips/assembler-mips.h"
-#include "src/execution/frame-constants.h"
-
 #include "src/execution/mips/frame-constants-mips.h"
+
+#include "src/codegen/mips/assembler-mips-inl.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 
 namespace v8 {
 namespace internal {

@@ -40,8 +40,8 @@
     %DebugPrint(arguments[0]);
     forceDeopt + 1;
     return arguments[0];
-  }
-
+  };
+  %PrepareFunctionForOptimization(inner);
   assertEquals(1, inner(1));
   assertEquals(1, inner(1));
   %OptimizeFunctionOnNextCall(inner);
@@ -68,8 +68,8 @@
 
   function outer(x) {
     return inner(x);
-  }
-
+  };
+  %PrepareFunctionForOptimization(outer);
   assertEquals(1, outer(1));
   assertEquals(1, outer(1));
   %OptimizeFunctionOnNextCall(outer);
@@ -84,7 +84,7 @@
 
 (function () {
   var forceDeopt = 0;
-  function inner(x,y,z) {
+  function inner(x, y, z) {
     "use strict";
     x = 3;
     // Do not remove this %DebugPrint as it makes sure the deopt happens
@@ -97,13 +97,13 @@
   function middle(x) {
     "use strict";
     x = 2;
-    return inner(10*x, 20*x, 30*x) + arguments[0];
+    return inner(10 * x, 20 * x, 30 * x) + arguments[0];
   }
 
   function outer(x) {
-   return middle(x);
-  }
-
+    return middle(x);
+  };
+  %PrepareFunctionForOptimization(outer);
   assertEquals(21, outer(1));
   assertEquals(21, outer(1));
   %OptimizeFunctionOnNextCall(outer);

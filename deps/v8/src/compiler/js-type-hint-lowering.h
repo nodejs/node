@@ -153,7 +153,8 @@ class JSTypeHintLowering {
 
  private:
   friend class JSSpeculativeBinopBuilder;
-  Node* TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect, Node* control,
+  Node* TryBuildSoftDeopt(FeedbackNexus& nexus,  // NOLINT(runtime/references)
+                          Node* effect, Node* control,
                           DeoptimizeReason reson) const;
 
   JSGraph* jsgraph() const { return jsgraph_; }

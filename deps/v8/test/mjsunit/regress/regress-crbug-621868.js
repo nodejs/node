@@ -10,10 +10,10 @@ function f(a) {  // First parameter is tagged.
 
 function g() {
   f();
-  var d = {x : f()};
+  var d = {x: f()};
   return [d];
-}
-
+};
+%PrepareFunctionForOptimization(g);
 g();
 g();
 %OptimizeFunctionOnNextCall(g);

@@ -104,16 +104,7 @@ void StoreBuffer::InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
 
 void StoreBuffer::DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
                                                 Address start, Address end) {
-  // In GC the store buffer has to be empty at any time.
-  DCHECK(store_buffer->Empty());
-  DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
-  Page* page = Page::FromAddress(start);
-  if (end) {
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                           SlotSet::PREFREE_EMPTY_BUCKETS);
-  } else {
-    RememberedSet<OLD_TO_NEW>::Remove(page, start);
-  }
+  UNREACHABLE();
 }
 
 void StoreBuffer::InsertDuringGarbageCollection(StoreBuffer* store_buffer,

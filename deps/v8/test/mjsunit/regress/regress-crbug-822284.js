@@ -10,11 +10,11 @@ function foo(a) {
 }
 
 // Add '1' to the number to string table (as SeqString).
+%PrepareFunctionForOptimization(foo);
 String.fromCharCode(49);
-
 // Turn the SeqString into a ThinString via forced internalization.
 const o = {};
-o[(1).toString()] = 1;
+o[1..toString()] = 1;
 
 assertEquals(49, foo(1));
 assertEquals(49, foo(1));

@@ -50,21 +50,21 @@ Check that exceptionThrown is supported by test runner.
             columnNumber : 1
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token }
+                description : SyntaxError: Unexpected token '}'
                 objectId : <objectId>
                 preview : {
-                    description : SyntaxError: Unexpected token }
+                    description : SyntaxError: Unexpected token '}'
                     overflow : false
                     properties : [
                         [0] : {
                             name : stack
                             type : string
-                            value : SyntaxError: Unexpected token }
+                            value : SyntaxError: Unexpected token '}'
                         }
                         [1] : {
                             name : message
                             type : string
-                            value : Unexpected token }
+                            value : Unexpected token '}'
                         }
                     ]
                     subtype : error
@@ -77,7 +77,7 @@ Check that exceptionThrown is supported by test runner.
             executionContextId : <executionContextId>
             lineNumber : 0
             scriptId : <scriptId>
-            text : Uncaught SyntaxError: Unexpected token }
+            text : Uncaught SyntaxError: Unexpected token '}'
         }
         timestamp : <timestamp>
     }

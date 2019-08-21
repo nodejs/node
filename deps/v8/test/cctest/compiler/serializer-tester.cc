@@ -264,7 +264,7 @@ TEST(SerializeUnconditionalJump) {
       "function f() {"
       "  function p() {};"
       "  function q() {};"
-      "  if (a) g(q);"
+      "  if (a) q();"
       "  else g(p);"
       "  return p;"
       "};"
@@ -272,6 +272,20 @@ TEST(SerializeUnconditionalJump) {
       "var p = f();"
       "%EnsureFeedbackVectorForFunction(p);"
       "f(); return f;");
+}
+
+TEST(MergeJumpTargetEnvironment) {
+  CheckForSerializedInlinee(
+      "function f() {"
+      "  let g;"
+      "  while (true) {"
+      "    if (g === undefined) {g = ()=>1; break;} else {g = ()=>2; break};"
+      "  };"
+      "  g(); return g;"
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "%EnsureFeedbackVectorForFunction(f());"
+      "f(); return f;");  // Two calls to f to make g() megamorhpic.
 }
 
 }  // namespace compiler

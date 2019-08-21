@@ -48,9 +48,6 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # TODO(gc): Temporarily disabled in the GC branch.
-  'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
-
   # We do not yet shrink weak maps after they have been emptied by the GC
   'test-weakmaps/Shrinking': [FAIL],
   'test-weaksets/WeakSet_Shrinking': [FAIL],
@@ -83,9 +80,6 @@
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
-
-  # BUG(v8:9057). Flaky, maybe only on UBSan
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
 
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
@@ -202,6 +196,12 @@
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
+
+##############################################################################
+['no_snap == True and system != windows and mode == debug', {
+  # BUG(v8:9400).
+  'test-heap/Regress615489': [SKIP],
+}], # 'no_snap == True and system != windows and mode == debug'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -374,14 +374,6 @@
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
   'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
-
-##############################################################################
-['system == aix and arch == ppc64', {
-
-  # BUG 2857
-  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
-
-}],  # 'system == aix and arch == ppc64'
 
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {

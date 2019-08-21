@@ -86,5 +86,17 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
+RUNTIME_FUNCTION(Runtime_CheckProxyDeleteTrapResult) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+
+  Maybe<bool> result = JSProxy::CheckDeleteTrap(isolate, name, target);
+  if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
 }  // namespace internal
 }  // namespace v8

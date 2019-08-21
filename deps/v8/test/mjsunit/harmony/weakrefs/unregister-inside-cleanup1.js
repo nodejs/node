@@ -8,7 +8,8 @@ let cleanup_call_count = 0;
 let cleanup_holdings_count = 0;
 let cleanup = function(iter) {
   // Unregister before we've iterated through the holdings.
-  fg.unregister(key);
+  let success = fg.unregister(key);
+  assertTrue(success);
 
   for (wc of iter) {
     ++cleanup_holdings_count;

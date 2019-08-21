@@ -26,7 +26,7 @@ namespace {
 
 static Handle<JSFunction> GetFunction(const char* name) {
   v8::MaybeLocal<v8::Value> v8_f = CcTest::global()->Get(
-      v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str(name));
+      CcTest::isolate()->GetCurrentContext(), v8_str(name));
   Handle<JSFunction> f =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
   return f;

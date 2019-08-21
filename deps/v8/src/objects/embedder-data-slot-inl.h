@@ -7,7 +7,7 @@
 
 #include "src/objects/embedder-data-slot.h"
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/js-objects-inl.h"
@@ -77,7 +77,7 @@ bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
   // fields (external pointers, doubles and BigInt data) are only kTaggedSize
   // aligned so we have to use unaligned pointer friendly way of accessing them
   // in order to avoid undefined behavior in C++ code.
-  Address raw_value = ReadUnalignedValue<Address>(address());
+  Address raw_value = base::ReadUnalignedValue<Address>(address());
 #else
   Address raw_value = *location();
 #endif
@@ -103,7 +103,7 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   // fields (external pointers, doubles and BigInt data) are only kTaggedSize
   // aligned so we have to use unaligned pointer friendly way of accessing them
   // in order to avoid undefined behavior in C++ code.
-  return ReadUnalignedValue<Address>(address());
+  return base::ReadUnalignedValue<Address>(address());
 #else
   return *location();
 #endif

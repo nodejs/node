@@ -75,9 +75,15 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       break;
     case Code::BYTECODE_HANDLER:
       SetFlag(kCalledWithCodeStartRegister);
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
       break;
     case Code::BUILTIN:
     case Code::STUB:
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       MarkAsSourcePositionsEnabled();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
@@ -177,6 +183,8 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_TO_JS;
     case Code::WASM_INTERPRETER_ENTRY:
       return StackFrame::WASM_INTERPRETER_ENTRY;
+    case Code::C_WASM_ENTRY:
+      return StackFrame::C_WASM_ENTRY;
     default:
       UNIMPLEMENTED();
       return StackFrame::NONE;
@@ -206,7 +214,7 @@ bool OptimizedCompilationInfo::has_native_context() const {
   return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-Context OptimizedCompilationInfo::native_context() const {
+NativeContext OptimizedCompilationInfo::native_context() const {
   DCHECK(has_native_context());
   return closure()->native_context();
 }
@@ -234,6 +242,8 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (FLAG_trace_turbo) SetFlag(kTraceTurboJson);
   if (FLAG_trace_turbo_graph) SetFlag(kTraceTurboGraph);
   if (FLAG_trace_turbo_scheduled) SetFlag(kTraceTurboScheduled);
+  if (FLAG_trace_turbo_alloc) SetFlag(kTraceTurboAllocation);
+  if (FLAG_trace_heap_broker) SetFlag(kTraceHeapBroker);
 }
 
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(

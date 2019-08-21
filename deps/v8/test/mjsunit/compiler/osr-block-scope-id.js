@@ -28,6 +28,7 @@ function foo() {
 
 
 function check() {
+  %PrepareFunctionForOptimization(foo);
   var r = foo();
   assertEquals(45, r.pop());
   for (var i = 9; i >= 0; i--) {

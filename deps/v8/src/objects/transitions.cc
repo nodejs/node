@@ -226,7 +226,7 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
   PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
   Map target = SearchTransition(*name, kData, attributes);
   if (target.is_null()) return MaybeHandle<Map>();
-  PropertyDetails details = target.GetLastDescriptorDetails();
+  PropertyDetails details = target.GetLastDescriptorDetails(isolate_);
   DCHECK_EQ(attributes, details.attributes());
   DCHECK_EQ(kData, details.kind());
   if (requested_location == kFieldOnly && details.location() != kField) {

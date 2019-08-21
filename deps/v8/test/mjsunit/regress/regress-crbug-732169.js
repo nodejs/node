@@ -7,6 +7,7 @@
 (function TestGeneratorMaterialization() {
   function* f([x]) { yield x }
   // No warm-up of {f} to trigger soft deopt.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   var gen = f([23]);
   assertEquals("[object Generator]", gen.toString());
@@ -22,6 +23,7 @@
     return gen;
   }
   function h() { f() }
+  %PrepareFunctionForOptimization(h);
   // Enough warm-up to make {p} an in-object property.
   for (var i = 0; i < 100; ++i) { g(); h(); }
   %OptimizeFunctionOnNextCall(h);

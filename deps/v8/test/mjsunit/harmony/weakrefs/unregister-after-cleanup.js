@@ -36,7 +36,8 @@ let timeout_func = function() {
   assertEquals(1, cleanup_holdings_count);
 
   // Unregister an already iterated over weak reference.
-  fg.unregister(key);
+  let success = fg.unregister(key);
+  assertFalse(success);
 
   // Assert that it didn't do anything.
   setTimeout(() => { assertEquals(1, cleanup_call_count); }, 0);

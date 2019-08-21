@@ -38,7 +38,10 @@ assertFalse(isAlwaysOptimize());
 function f() {
   do {
     do {
-      for (var i = 0; i < 10; i++) %OptimizeOsr();
+      for (var i = 0; i < 10; i++) {
+        %OptimizeOsr();
+        %PrepareFunctionForOptimization(f);
+      }
       // Note: this check can't be wrapped in a function, because
       // calling that function causes a deopt from lack of call
       // feedback.
@@ -70,7 +73,10 @@ function g() {
             do {
               do {
                 do {
-                  for (var i = 0; i < 10; i++) %OptimizeOsr();
+                  for (var i = 0; i < 10; i++) {
+                    %OptimizeOsr();
+                    %PrepareFunctionForOptimization(g);
+                  }
                   var opt_status = %GetOptimizationStatus(g);
                   assertTrue(
                     (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||

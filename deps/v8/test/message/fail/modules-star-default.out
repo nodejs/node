@@ -1,5 +1,5 @@
-*modules-import4.js:8: SyntaxError: The requested module 'modules-import4.js' does not provide an export named 'c'
-export {c as a} from "modules-import4.js";
+*modules-import4.mjs:6: SyntaxError: The requested module 'modules-import4.mjs' does not provide an export named 'c'
+export {c as a} from "modules-import4.mjs";
         ^^^^^^
-SyntaxError: The requested module 'modules-import4.js' does not provide an export named 'c'
+SyntaxError: The requested module 'modules-import4.mjs' does not provide an export named 'c'
 

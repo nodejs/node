@@ -645,6 +645,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);
 
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
   return module_object;
 }
 

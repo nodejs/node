@@ -12,6 +12,30 @@
 namespace v8 {
 namespace internal {
 
+// TODO(goszczycki): Move this somewhere every file in src/snapshot can use it.
+// The spaces suported by the serializer. Spaces after LO_SPACE (NEW_LO_SPACE
+// and CODE_LO_SPACE) are not supported.
+enum class SnapshotSpace {
+  kReadOnlyHeap = RO_SPACE,
+  kNew = NEW_SPACE,
+  kOld = OLD_SPACE,
+  kCode = CODE_SPACE,
+  kMap = MAP_SPACE,
+  kLargeObject = LO_SPACE,
+  kNumberOfPreallocatedSpaces = kCode + 1,
+  kNumberOfSpaces = kLargeObject + 1,
+  kSpecialValueSpace = kNumberOfSpaces,
+  // Number of spaces which should be allocated by the heap. Eventually
+  // kReadOnlyHeap will move to the end of this enum and this will be equal to
+  // it.
+  kNumberOfHeapSpaces = kNumberOfSpaces,
+};
+
+constexpr bool IsPreAllocatedSpace(SnapshotSpace space) {
+  return static_cast<int>(space) <
+         static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
+}
+
 class SerializerReference {
  private:
   enum SpecialValueType {
@@ -21,33 +45,32 @@ class SerializerReference {
     kBuiltinReference,
   };
 
-  static const int kSpecialValueSpace = LAST_SPACE + 1;
-  STATIC_ASSERT(kSpecialValueSpace < (1 << kSpaceTagSize));
+  STATIC_ASSERT(static_cast<int>(SnapshotSpace::kSpecialValueSpace) <
+                (1 << kSpaceTagSize));
 
   SerializerReference(SpecialValueType type, uint32_t value)
-      : bitfield_(SpaceBits::encode(kSpecialValueSpace) |
+      : bitfield_(SpaceBits::encode(SnapshotSpace::kSpecialValueSpace) |
                   SpecialValueTypeBits::encode(type)),
         value_(value) {}
 
  public:
   SerializerReference() : SerializerReference(kInvalidValue, 0) {}
 
-  SerializerReference(uint32_t space, uint32_t chunk_index,
+  SerializerReference(SnapshotSpace space, uint32_t chunk_index,
                       uint32_t chunk_offset)
       : bitfield_(SpaceBits::encode(space) |
                   ChunkIndexBits::encode(chunk_index)),
         value_(chunk_offset) {}
 
-  static SerializerReference BackReference(AllocationSpace space,
+  static SerializerReference BackReference(SnapshotSpace space,
                                            uint32_t chunk_index,
                                            uint32_t chunk_offset) {
     DCHECK(IsAligned(chunk_offset, kObjectAlignment));
-    DCHECK_LT(space, LO_SPACE);
     return SerializerReference(space, chunk_index, chunk_offset);
   }
 
   static SerializerReference MapReference(uint32_t index) {
-    return SerializerReference(MAP_SPACE, 0, index);
+    return SerializerReference(SnapshotSpace::kMap, 0, index);
   }
 
   static SerializerReference OffHeapBackingStoreReference(uint32_t index) {
@@ -55,7 +78,7 @@ class SerializerReference {
   }
 
   static SerializerReference LargeObjectReference(uint32_t index) {
-    return SerializerReference(LO_SPACE, 0, index);
+    return SerializerReference(SnapshotSpace::kLargeObject, 0, index);
   }
 
   static SerializerReference AttachedReference(uint32_t index) {
@@ -67,17 +90,17 @@ class SerializerReference {
   }
 
   bool is_valid() const {
-    return SpaceBits::decode(bitfield_) != kSpecialValueSpace ||
+    return SpaceBits::decode(bitfield_) != SnapshotSpace::kSpecialValueSpace ||
            SpecialValueTypeBits::decode(bitfield_) != kInvalidValue;
   }
 
   bool is_back_reference() const {
-    return SpaceBits::decode(bitfield_) <= LAST_SPACE;
+    return SpaceBits::decode(bitfield_) != SnapshotSpace::kSpecialValueSpace;
   }
 
-  AllocationSpace space() const {
+  SnapshotSpace space() const {
     DCHECK(is_back_reference());
-    return static_cast<AllocationSpace>(SpaceBits::decode(bitfield_));
+    return SpaceBits::decode(bitfield_);
   }
 
   uint32_t chunk_offset() const {
@@ -86,17 +109,17 @@ class SerializerReference {
   }
 
   uint32_t chunk_index() const {
-    DCHECK(space() != MAP_SPACE && space() != LO_SPACE);
+    DCHECK(IsPreAllocatedSpace(space()));
     return ChunkIndexBits::decode(bitfield_);
   }
 
   uint32_t map_index() const {
-    DCHECK_EQ(MAP_SPACE, SpaceBits::decode(bitfield_));
+    DCHECK_EQ(SnapshotSpace::kMap, SpaceBits::decode(bitfield_));
     return value_;
   }
 
   bool is_off_heap_backing_store_reference() const {
-    return SpaceBits::decode(bitfield_) == kSpecialValueSpace &&
+    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
            SpecialValueTypeBits::decode(bitfield_) == kOffHeapBackingStore;
   }
 
@@ -106,12 +129,12 @@ class SerializerReference {
   }
 
   uint32_t large_object_index() const {
-    DCHECK_EQ(LO_SPACE, SpaceBits::decode(bitfield_));
+    DCHECK_EQ(SnapshotSpace::kLargeObject, SpaceBits::decode(bitfield_));
     return value_;
   }
 
   bool is_attached_reference() const {
-    return SpaceBits::decode(bitfield_) == kSpecialValueSpace &&
+    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
            SpecialValueTypeBits::decode(bitfield_) == kAttachedReference;
   }
 
@@ -121,7 +144,7 @@ class SerializerReference {
   }
 
   bool is_builtin_reference() const {
-    return SpaceBits::decode(bitfield_) == kSpecialValueSpace &&
+    return SpaceBits::decode(bitfield_) == SnapshotSpace::kSpecialValueSpace &&
            SpecialValueTypeBits::decode(bitfield_) == kBuiltinReference;
   }
 
@@ -131,7 +154,7 @@ class SerializerReference {
   }
 
  private:
-  class SpaceBits : public BitField<int, 0, kSpaceTagSize> {};
+  class SpaceBits : public BitField<SnapshotSpace, 0, kSpaceTagSize> {};
   class ChunkIndexBits
       : public BitField<uint32_t, SpaceBits::kNext, 32 - kSpaceTagSize> {};
   class SpecialValueTypeBits

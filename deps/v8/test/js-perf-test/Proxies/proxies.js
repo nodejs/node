@@ -506,3 +506,161 @@ newBenchmark("HasInIdiom", {
     return result === 20 * SOME_NUMBER;
   }
 });
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("IsExtensibleWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.isExtensible(p);
+    }
+    return value;
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("IsExtensibleWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      isExtensible: function(target) {
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.isExtensible(p);
+    }
+    return value;
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("PreventExtensionsWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.preventExtensions(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("PreventExtensionsWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      preventExtensions: function(target) {
+        Object.preventExtensions(target);
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.preventExtensions(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetPrototypeOfWithoutTrap", {
+  setup() {
+    p = new Proxy({}, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.getPrototypeOf(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetPrototypeOfWithTrap", {
+  setup() {
+    p = new Proxy({}, {
+      getPrototypeOf: function(target) {
+        return Array.prototype;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.getPrototypeOf(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("SetPrototypeOfWithoutTrap", {
+  setup() {
+    var obj = { x: 1 };
+    obj.__proto__ = {};
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.setPrototypeOf(p, [1]);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("SetPrototypeOfWithTrap", {
+  setup() {
+    var obj = { x: 1 };
+    obj.__proto__ = {};
+    p = new Proxy(obj, {
+      setPrototypeOf: function(target, proto) {
+        Object.setPrototypeOf(target, proto);
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.setPrototypeOf(p, [1]);
+    }
+    return value;
+  },
+  teardown() {}
+});

@@ -17,8 +17,8 @@ var v3 = {};
 function f() {
   v3 = v2;
   g();
-}
-
+};
+%PrepareFunctionForOptimization(f);
 assertThrows(g);
 %OptimizeFunctionOnNextCall(f);
 assertThrows(f);

@@ -11,6 +11,7 @@ function foo(a) {
 this.x = 0;
 delete x;
 
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);
@@ -19,6 +20,7 @@ assertEquals(undefined, v);
 
 Object.freeze(this);
 
+%PrepareFunctionForOptimization(foo);
 foo(4);
 foo(5);
 %OptimizeFunctionOnNextCall(foo);

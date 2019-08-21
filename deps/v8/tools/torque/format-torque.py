@@ -51,6 +51,7 @@ def preprocess(input):
       r'\1_OtheSaLi', input)
   input = re.sub(r'@if\(', r'@iF(', input)
   input = re.sub(r'@export', r'@eXpOrT', input)
+  input = re.sub(r'js-implicit[ \n]+', r'jS_iMpLiCiT_', input)
 
   # Special handing of '%' for intrinsics, turn the percent
   # into a unicode character so that it gets treated as part of the
@@ -88,6 +89,8 @@ def postprocess(output):
   output = re.sub(r'@iF\(', r'@if(', output)
   output = re.sub(r'@eXpOrT',
       r"@export", output)
+  output = re.sub(r'jS_iMpLiCiT_',
+      r"js-implicit ", output)
 
   while True:
     old = output
@@ -117,14 +120,14 @@ def process(filename, lint, should_format):
     print("error code " + str(rc) + " running clang-format. Exiting...")
     sys.exit(rc);
 
-  if lint:
-    if (output != original_input):
+  if (output != original_input):
+    if lint:
       print(filename + ' requires formatting', file=sys.stderr)
 
-  if should_format:
-    output_file = open(filename, 'w')
-    output_file.write(output);
-    output_file.close()
+    if should_format:
+      output_file = open(filename, 'w')
+      output_file.write(output);
+      output_file.close()
 
 def print_usage():
   print('format-torque -i file1[, file2[, ...]]')

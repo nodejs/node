@@ -30,6 +30,7 @@
 function f() {
   var sum = 0;
   for (var i = 0; i < 10; i++) {
+    %PrepareFunctionForOptimization(f);
     for (var j = 0; j < 10; j++) {
       var x = i + 2;
       var y = x + 5;

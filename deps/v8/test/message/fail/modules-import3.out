@@ -1,5 +1,5 @@
-*%(basename)s:7: SyntaxError: The requested module 'modules-import3.js' does not provide an export named 'default'
-import foo from "modules-import3.js";
+*%(basename)s:5: SyntaxError: The requested module 'modules-import3.mjs' does not provide an export named 'default'
+import foo from "modules-import3.mjs";
        ^^^
-SyntaxError: The requested module 'modules-import3.js' does not provide an export named 'default'
+SyntaxError: The requested module 'modules-import3.mjs' does not provide an export named 'default'
 

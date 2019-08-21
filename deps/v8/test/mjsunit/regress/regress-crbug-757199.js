@@ -16,12 +16,12 @@ function g(v) {
 }
 function f() {
   g(obj1);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 obj1.x = 0;
 f();
 
-obj1.__defineGetter__("x", function() {});
+obj1.__defineGetter__('x', function() {});
 
 g(obj2);
 

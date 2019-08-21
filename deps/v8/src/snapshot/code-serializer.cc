@@ -96,22 +96,22 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
 }
 
 bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
-  PagedSpace* read_only_space = isolate()->heap()->read_only_space();
-  if (!read_only_space->Contains(obj)) return false;
+  if (!ReadOnlyHeap::Contains(obj)) return false;
 
-  // For objects in RO_SPACE, never serialize the object, but instead create a
-  // back reference that encodes the page number as the chunk_index and the
-  // offset within the page as the chunk_offset.
+  // For objects on the read-only heap, never serialize the object, but instead
+  // create a back reference that encodes the page number as the chunk_index and
+  // the offset within the page as the chunk_offset.
   Address address = obj.address();
   Page* page = Page::FromAddress(address);
   uint32_t chunk_index = 0;
+  ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   for (Page* p : *read_only_space) {
     if (p == page) break;
     ++chunk_index;
   }
   uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
-  SerializerReference back_reference =
-      SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
+  SerializerReference back_reference = SerializerReference::BackReference(
+      SnapshotSpace::kReadOnlyHeap, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);
   CHECK(SerializeBackReference(obj));
   return true;

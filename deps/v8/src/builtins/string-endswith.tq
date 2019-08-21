@@ -28,12 +28,13 @@ namespace string {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
   transitioning javascript builtin StringPrototypeEndsWith(
-      context: Context, receiver: Object, ...arguments): Boolean {
+      js-implicit context: Context, receiver: Object)(...arguments): Boolean {
     const searchString: Object = arguments[0];
     const endPosition: Object = arguments[1];
+    const kBuiltinName: constexpr string = 'String.prototype.endsWith';
 
     // 1. Let O be ? RequireObjectCoercible(this value).
-    const object: Object = RequireObjectCoercible(receiver);
+    const object: Object = RequireObjectCoercible(receiver, kBuiltinName);
 
     // 2. Let S be ? ToString(O).
     const string: String = ToString_Inline(context, object);
@@ -41,7 +42,7 @@ namespace string {
     // 3. Let isRegExp be ? IsRegExp(searchString).
     // 4. If isRegExp is true, throw a TypeError exception.
     if (IsRegExp(searchString)) {
-      ThrowTypeError(kFirstArgumentNotRegExp, 'String.prototype.endsWith');
+      ThrowTypeError(kFirstArgumentNotRegExp, kBuiltinName);
     }
 
     // 5. Let searchStr be ? ToString(searchString).
@@ -63,7 +64,7 @@ namespace string {
     const searchLength: Smi = searchStr.length_smi;
 
     // 10. Let start be end - searchLength.
-    let start = end - searchLength;
+    const start = end - searchLength;
 
     // 11. If start is less than 0, return false.
     if (start < 0) return False;

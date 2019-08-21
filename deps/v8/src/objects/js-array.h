@@ -132,7 +132,8 @@ class JSArray : public JSObject {
   OBJECT_CONSTRUCTORS(JSArray, JSObject);
 };
 
-Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
+                                       Handle<Context> native_context,
                                        Handle<Map> initial_map);
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
@@ -178,6 +179,9 @@ class JSArrayIterator : public JSObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
+
+ private:
+  DECL_INT_ACCESSORS(raw_kind)
 
   OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
 };

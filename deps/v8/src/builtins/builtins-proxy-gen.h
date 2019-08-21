@@ -17,19 +17,21 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   explicit ProxiesCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* AllocateProxy(Node* target, Node* handler, Node* context);
-  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
+  TNode<JSProxy> AllocateProxy(TNode<Context> context, TNode<JSReceiver> target,
+                               TNode<JSReceiver> handler);
+  TNode<JSFunction> AllocateProxyRevokeFunction(TNode<Context> context,
+                                                TNode<JSProxy> proxy);
 
-  // Get JSNewTarget parameter for ProxyConstructor builtin (Torque).
-  // TODO(v8:9120): Remove this once torque support exists
-  Node* GetProxyConstructorJSNewTarget();
+  void CheckGetSetTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                             TNode<JSProxy> proxy, TNode<Name> name,
+                             TNode<Object> trap_result,
+                             JSProxy::AccessKind access_kind);
 
-  Node* CheckGetSetTrapResult(Node* context, Node* target, Node* proxy,
-                              Node* name, Node* trap_result,
-                              JSProxy::AccessKind access_kind);
+  void CheckHasTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                          TNode<JSProxy> proxy, TNode<Name> name);
 
-  Node* CheckHasTrapResult(Node* context, Node* target, Node* proxy,
-                           Node* name);
+  void CheckDeleteTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                             TNode<JSProxy> proxy, TNode<Name> name);
 
  protected:
   enum ProxyRevokeFunctionContextSlot {
@@ -37,9 +39,10 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
     kProxyContextLength,
   };
 
-  Node* AllocateJSArrayForCodeStubArguments(Node* context,
-                                            CodeStubArguments& args, Node* argc,
-                                            ParameterMode mode);
+  Node* AllocateJSArrayForCodeStubArguments(
+      Node* context,
+      CodeStubArguments& args,  // NOLINT(runtime/references)
+      Node* argc, ParameterMode mode);
 
  private:
   Node* CreateProxyRevokeFunctionContext(Node* proxy, Node* native_context);

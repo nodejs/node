@@ -270,9 +270,9 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       // bytecode_array might be garbage, so don't actually dereference it. We
       // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
       // which has a heap access in its DCHECK.
-      i::Address bytecode_array = i::Memory<i::Address>(
+      i::Address bytecode_array = base::Memory<i::Address>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);
-      i::Address bytecode_offset = i::Memory<i::Address>(
+      i::Address bytecode_offset = base::Memory<i::Address>(
           frame->fp() + i::InterpreterFrameConstants::kBytecodeOffsetFromFp);
 
       // If the bytecode array is a heap object and the bytecode offset is a

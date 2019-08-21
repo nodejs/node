@@ -11,9 +11,9 @@ function deepEquals(a, b) {
     return true;
   }
   if (typeof a != typeof b) return false;
-  if (typeof a == "number");
-  if (typeof a !== "object" && typeof a !== "function")
-    return false;
+  if (typeof a == 'number')
+    ;
+  if (typeof a !== "object" && typeof a !== "function") return false;
   var objectClass = classOf();
   if (b) return false;
   if (objectClass === "RegExp") {;
@@ -29,8 +29,8 @@ function deepEquals(a, b) {
     }
     return true;
   }
-  if (objectClass == "String" || objectClass == "Number" ||
-      objectClass == "Boolean" || objectClass == "Date") {
+  if (objectClass == 'String' || objectClass == 'Number' ||
+      objectClass == 'Boolean' || objectClass == 'Date') {
     if (a.valueOf()) return false;
   };
 }
@@ -88,7 +88,9 @@ function __f_6() {
   equals();
   __v_9[0] = -1000000000000;
   equals(__v_6[0]);
-}
+};
+%PrepareFunctionForOptimization(__f_6);
 __f_6();
-__f_6(); %OptimizeFunctionOnNextCall(__f_6);
+__f_6();
+%OptimizeFunctionOnNextCall(__f_6);
 __f_6();

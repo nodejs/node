@@ -34,7 +34,7 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
 
   EmbedderHeapTracer::TraceSummary summary;
   remote_tracer_->TraceEpilogue(&summary);
-  remote_stats_.allocated_size = summary.allocated_size;
+  remote_stats_.used_size = summary.allocated_size;
   // Force a check next time increased memory is reported. This allows for
   // setting limits close to actual heap sizes.
   remote_stats_.allocated_size_limit_for_check = 0;
@@ -118,6 +118,10 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
   heap->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
+  if (heap->AllocationLimitOvershotByLargeMargin()) {
+    heap->FinalizeIncrementalMarkingAtomically(
+        i::GarbageCollectionReason::kExternalFinalize);
+  }
 }
 
 }  // namespace internal

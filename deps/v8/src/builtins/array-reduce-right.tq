@@ -4,8 +4,9 @@
 
 namespace array {
   transitioning javascript builtin
-  ArrayReduceRightPreLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, length: Object): Object {
+  ArrayReduceRightPreLoopEagerDeoptContinuation(
+      js-implicit context: Context,
+      receiver: Object)(callback: Object, length: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -21,12 +22,13 @@ namespace array {
     // the hole. The continuation stub will search for the initial non-hole
     // element, rightly throwing an exception if not found.
     return ArrayReduceRightLoopContinuation(
-        jsreceiver, callbackfn, Hole, jsreceiver, 0, numberLength);
+        jsreceiver, callbackfn, TheHole, jsreceiver, 0, numberLength);
   }
 
   transitioning javascript builtin
-  ArrayReduceRightLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, initialK: Object, length: Object,
+  ArrayReduceRightLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, initialK: Object, length: Object,
       accumulator: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -45,27 +47,28 @@ namespace array {
   }
 
   transitioning javascript builtin
-  ArrayReduceRightLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, initialK: Object, length: Object,
+  ArrayReduceRightLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, initialK: Object, length: Object,
       result: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
 
     // The accumulator is the result from the callback call which just occured.
-    let r = ArrayReduceRightLoopContinuation(
+    const r = ArrayReduceRightLoopContinuation(
         jsreceiver, callbackfn, result, jsreceiver, numberK, numberLength);
     return r;
   }
 
   transitioning builtin ArrayReduceRightLoopContinuation(implicit context:
                                                              Context)(
-      receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
-      o: JSReceiver, initialK: Number, length: Number): Object {
+      _receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
+      o: JSReceiver, initialK: Number, _length: Number): Object {
     let accumulator = initialAccumulator;
 
     // 8b and 9. Repeat, while k >= 0
@@ -82,7 +85,7 @@ namespace array {
         // 8b iii and 9c i. Let kValue be ? Get(O, Pk).
         const value: Object = GetProperty(o, k);
 
-        if (accumulator == Hole) {
+        if (accumulator == TheHole) {
           // 8b iii 1.
           accumulator = value;
         } else {
@@ -99,7 +102,7 @@ namespace array {
     // 8c. if kPresent is false, throw a TypeError exception.
     // If the accumulator is discovered with the sentinel hole value,
     // this means kPresent is false.
-    if (accumulator == Hole) {
+    if (accumulator == TheHole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
@@ -111,9 +114,9 @@ namespace array {
       labels Bailout(Number, Object) {
     let accumulator = initialAccumulator;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
-    let fastO =
-        Cast<FastJSArray>(o) otherwise goto Bailout(len - 1, accumulator);
-    let fastOW = NewFastJSArrayWitness(fastO);
+    const fastO = Cast<FastJSArrayForRead>(o)
+        otherwise goto Bailout(len - 1, accumulator);
+    let fastOW = NewFastJSArrayForReadWitness(fastO);
 
     // Build a fast loop over the array.
     for (let k: Smi = smiLen - 1; k >= 0; k--) {
@@ -123,7 +126,7 @@ namespace array {
       if (k >= fastOW.Get().length) goto Bailout(k, accumulator);
 
       const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
-      if (accumulator == Hole) {
+      if (accumulator == TheHole) {
         accumulator = value;
       } else {
         accumulator = Call(
@@ -131,7 +134,7 @@ namespace array {
             fastOW.Get());
       }
     }
-    if (accumulator == Hole) {
+    if (accumulator == TheHole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
@@ -139,12 +142,10 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduceRight
   transitioning javascript builtin
-  ArrayReduceRight(implicit context: Context)(receiver: Object, ...arguments):
-      Object {
+  ArrayReduceRight(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.reduceRight');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -162,7 +163,8 @@ namespace array {
       // exception. (This case is handled at the end of
       // ArrayReduceRightLoopContinuation).
 
-      const initialValue: Object = arguments.length > 1 ? arguments[1] : Hole;
+      const initialValue: Object =
+          arguments.length > 1 ? arguments[1] : TheHole;
 
       try {
         return FastArrayReduceRight(o, len, callbackfn, initialValue)
@@ -175,9 +177,6 @@ namespace array {
     }
     label NoCallableError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.reduceRight');
     }
   }
 }

@@ -228,7 +228,9 @@ static const UChar32 offsetsFromUTF8[6] = {0x00000000UL,
                                            static_cast<UChar32>(0xFA082080UL),
                                            static_cast<UChar32>(0x82082080UL)};
 
-static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
+static inline UChar32 readUTF8Sequence(
+    const char*& sequence,  // NOLINT(runtime/references)
+    size_t length) {
   UChar32 character = 0;
 
   // The cases all fall through.
@@ -334,7 +336,8 @@ ConversionResult convertUTF8ToUTF16(const char** sourceStart,
 
 // Helper to write a three-byte UTF-8 code point to the buffer, caller must
 // check room is available.
-static inline void putUTF8Triple(char*& buffer, UChar ch) {
+static inline void putUTF8Triple(char*& buffer,  // NOLINT(runtime/references)
+                                 UChar ch) {
   *buffer++ = static_cast<char>(((ch >> 12) & 0x0F) | 0xE0);
   *buffer++ = static_cast<char>(((ch >> 6) & 0x3F) | 0x80);
   *buffer++ = static_cast<char>((ch & 0x3F) | 0x80);

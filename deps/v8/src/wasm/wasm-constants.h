@@ -26,9 +26,9 @@ enum ValueTypeCode : uint8_t {
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
   kLocalS128 = 0x7b,
-  kLocalAnyFunc = 0x70,
+  kLocalFuncRef = 0x70,
   kLocalAnyRef = 0x6f,
-  kLocalExceptRef = 0x68,
+  kLocalExnRef = 0x68,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
@@ -105,6 +105,8 @@ using WasmCodePosition = int;
 constexpr WasmCodePosition kNoCodePosition = -1;
 
 constexpr uint32_t kExceptionAttribute = 0;
+
+constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
 
 }  // namespace wasm
 }  // namespace internal

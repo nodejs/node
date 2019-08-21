@@ -54,7 +54,7 @@ template <class Derived>
 Object SmallOrderedHashTable<Derived>::KeyAt(int entry) const {
   DCHECK_LT(entry, Capacity());
   Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
-  return READ_FIELD(*this, entry_offset);
+  return TaggedField<Object>::load(*this, entry_offset);
 }
 
 template <class Derived>
@@ -63,7 +63,7 @@ Object SmallOrderedHashTable<Derived>::GetDataEntry(int entry,
   DCHECK_LT(entry, Capacity());
   DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
   Offset entry_offset = GetDataEntryOffset(entry, relative_index);
-  return READ_FIELD(*this, entry_offset);
+  return TaggedField<Object>::load(*this, entry_offset);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,

@@ -8,7 +8,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 
 #include "src/base/cpu.h"
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 
@@ -246,7 +246,7 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
 }
 
 Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
-  return GetCompressedEmbeddedObject(ReadUnalignedValue<int32_t>(pc));
+  return GetEmbeddedObject(ReadUnalignedValue<uint32_t>(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {

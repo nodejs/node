@@ -19,8 +19,8 @@ let key = {"k": "this is the key"};
   fg.register(object, "my holdings", key);
 
   // Clear the WeakCell before the GC has a chance to discover it.
-  let return_value = fg.unregister(key);
-  assertEquals(undefined, return_value);
+  let success = fg.unregister(key);
+  assertTrue(success);
 
   // object goes out of scope.
 })();

@@ -7,7 +7,7 @@ Enabling Runtime Domain.
             columnNumber : 12
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected token ;
+                description : SyntaxError: Unexpected token ';'
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -16,7 +16,7 @@ Enabling Runtime Domain.
             executionContextId : <executionContextId>
             lineNumber : 1
             scriptId : <scriptId>
-            text : Uncaught SyntaxError: Unexpected token ;
+            text : Uncaught SyntaxError: Unexpected token ';'
             url : syntaxError.js
         }
         timestamp : <timestamp>

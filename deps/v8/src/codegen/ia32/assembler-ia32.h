@@ -542,6 +542,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cmpxchg8b(Operand dst);
 
   // Memory Fence
+  void mfence();
   void lfence();
 
   void pause();

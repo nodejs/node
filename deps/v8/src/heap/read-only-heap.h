@@ -5,7 +5,10 @@
 #ifndef V8_HEAP_READ_ONLY_HEAP_H_
 #define V8_HEAP_READ_ONLY_HEAP_H_
 
+#include <utility>
+
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
@@ -44,7 +47,8 @@ class ReadOnlyHeap final {
   // Gets read-only roots from an appropriate root list: shared read-only root
   // list if the shared read-only heap has been initialized or the isolate
   // specific roots table.
-  V8_EXPORT_PRIVATE static ReadOnlyRoots GetReadOnlyRoots(HeapObject object);
+  V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
+      HeapObject object);
 
   // Clears any shared read-only heap artifacts for testing, forcing read-only
   // heap to be re-created on next set up.
@@ -60,6 +64,8 @@ class ReadOnlyHeap final {
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
  private:
+  using Checksum = std::pair<uint32_t, uint32_t>;
+
   // Creates a new read-only heap and attaches it to the provided isolate.
   static ReadOnlyHeap* CreateAndAttachToIsolate(Isolate* isolate);
   // Runs the read-only deserailizer and calls InitFromIsolate to complete
@@ -76,18 +82,25 @@ class ReadOnlyHeap final {
   std::vector<Object> read_only_object_cache_;
 
 #ifdef V8_SHARED_RO_HEAP
+#ifdef DEBUG
+  // The checksum of the blob the read-only heap was deserialized from, if any.
+  base::Optional<Checksum> read_only_blob_checksum_;
+#endif  // DEBUG
+
   Address read_only_roots_[kEntriesCount];
-#endif
+
+  V8_EXPORT_PRIVATE static ReadOnlyHeap* shared_ro_heap_;
+#endif  // V8_SHARED_RO_HEAP
 
   explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
   DISALLOW_COPY_AND_ASSIGN(ReadOnlyHeap);
 };
 
 // This class enables iterating over all read-only heap objects.
-class V8_EXPORT_PRIVATE ReadOnlyHeapIterator {
+class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
  public:
-  explicit ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap);
-  explicit ReadOnlyHeapIterator(ReadOnlySpace* ro_space);
+  explicit ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap);
+  explicit ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space);
 
   HeapObject Next();
 

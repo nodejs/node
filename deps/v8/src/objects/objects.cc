@@ -25,13 +25,13 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/common/message-template.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/execution/microtask-queue.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -104,7 +104,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/parsing/preparse-data.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
@@ -115,6 +115,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
+
+#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -209,8 +212,8 @@ Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
     DCHECK(object->FitsRepresentation(representation));
     return object;
   }
-  return isolate->factory()->NewHeapNumber(
-      MutableHeapNumber::cast(*object).value());
+  return isolate->factory()->NewHeapNumberFromBits(
+      MutableHeapNumber::cast(*object).value_as_bits());
 }
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
@@ -242,7 +245,7 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
         isolate);
   }
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-  Handle<JSValue>::cast(result)->set_value(*object);
+  Handle<JSPrimitiveWrapper>::cast(result)->set_value(*object);
   return result;
 }
 
@@ -2387,9 +2390,9 @@ void DescriptorArray::GeneralizeAllFields() {
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
       details = details.CopyWithConstness(PropertyConstness::kMutable);
-      SetValue(i, FieldType::Any());
+      SetValue(i, MaybeObject::FromObject(FieldType::Any()));
     }
-    set(ToDetailsIndex(i), MaybeObject::FromObject(details.AsSmi()));
+    SetDetails(i, details);
   }
 }
 
@@ -3043,27 +3046,34 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   }
 
   // Enforce the invariant.
+  return JSProxy::CheckDeleteTrap(isolate, name, target);
+}
+
+Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, Handle<Name> name,
+                                     Handle<JSReceiver> target) {
+  // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
-  Maybe<bool> owned =
+  Maybe<bool> target_found =
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
-  MAYBE_RETURN(owned, Nothing<bool>());
-  if (owned.FromJust()) {
+  MAYBE_RETURN(target_found, Nothing<bool>());
+  // 11. If targetDesc is undefined, return true.
+  if (target_found.FromJust()) {
+    // 12. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
     if (!target_desc.configurable()) {
-      isolate->Throw(*factory->NewTypeError(
+      isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyDeletePropertyNonConfigurable, name));
       return Nothing<bool>();
     }
     // 13. Let extensibleTarget be ? IsExtensible(target).
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 14. If extensibleTarget is false, throw a TypeError exception.
-    Maybe<bool> extensible = JSReceiver::IsExtensible(target);
-    MAYBE_RETURN(extensible, Nothing<bool>());
-    if (!extensible.FromJust()) {
-      isolate->Throw(*factory->NewTypeError(
+    if (!extensible_target.FromJust()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyDeletePropertyNonExtensible, name));
       return Nothing<bool>();
     }
   }
-
   return Just(true);
 }
 
@@ -3269,7 +3279,11 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
                                      new_len_desc, should_throw);
   }
   // 13. If oldLenDesc.[[Writable]] is false, return false.
-  if (!old_len_desc.writable()) {
+  if (!old_len_desc.writable() ||
+      // Also handle the {configurable: true} case since we later use
+      // JSArray::SetLength instead of OrdinaryDefineOwnProperty to change
+      // the length, and it doesn't have access to the descriptor anymore.
+      new_len_desc->configurable()) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                    NewTypeError(MessageTemplate::kRedefineDisallowed,
                                 isolate->factory()->length_string()));
@@ -4294,8 +4308,10 @@ bool DescriptorArray::IsEqualTo(DescriptorArray other) {
   if (number_of_all_descriptors() != other.number_of_all_descriptors()) {
     return false;
   }
-  for (int i = 0; i < number_of_all_descriptors(); ++i) {
-    if (get(i) != other.get(i)) return false;
+  for (int i = 0; i < number_of_descriptors(); ++i) {
+    if (GetKey(i) != other.GetKey(i)) return false;
+    if (GetDetails(i).AsSmi() != other.GetDetails(i).AsSmi()) return false;
+    if (GetValue(i) != other.GetValue(i)) return false;
   }
   return true;
 }
@@ -4500,7 +4516,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   return value;
 }
 
-Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
+                                       Handle<Context> native_context,
                                        Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
@@ -4512,13 +4529,12 @@ Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
        i < kFastElementsKindCount; ++i) {
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-    Map maybe_elements_transition = current_map->ElementsTransitionMap();
+    Map maybe_elements_transition = current_map->ElementsTransitionMap(isolate);
     if (!maybe_elements_transition.is_null()) {
-      new_map = handle(maybe_elements_transition, native_context->GetIsolate());
+      new_map = handle(maybe_elements_transition, isolate);
     } else {
-      new_map =
-          Map::CopyAsElementsKind(native_context->GetIsolate(), current_map,
-                                  next_kind, INSERT_TRANSITION);
+      new_map = Map::CopyAsElementsKind(isolate, current_map, next_kind,
+                                        INSERT_TRANSITION);
     }
     DCHECK_EQ(next_kind, new_map->elements_kind());
     native_context->set(Context::ArrayMapIndex(next_kind), *new_map);
@@ -4855,22 +4871,12 @@ std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue(
 const char* SharedFunctionInfo::kTraceScope =
     "v8::internal::SharedFunctionInfo";
 
-uint64_t SharedFunctionInfo::TraceID() const {
-  // TODO(bmeurer): We use a combination of Script ID and function literal
-  // ID (within the Script) to uniquely identify SharedFunctionInfos. This
-  // can add significant overhead, and we should probably find a better way
-  // to uniquely identify SharedFunctionInfos over time.
+uint64_t SharedFunctionInfo::TraceID(FunctionLiteral* literal) const {
+  int literal_id =
+      literal ? literal->function_literal_id() : function_literal_id();
   Script script = Script::cast(this->script());
-  WeakFixedArray script_functions = script.shared_function_infos();
-  for (int i = 0; i < script_functions.length(); ++i) {
-    HeapObject script_function;
-    if (script_functions.Get(i).GetHeapObjectIfWeak(&script_function) &&
-        script_function.address() == address()) {
-      return (static_cast<uint64_t>(script.id() + 1) << 32) |
-             (static_cast<uint64_t>(i));
-    }
-  }
-  UNREACHABLE();
+  return (static_cast<uint64_t>(script.id() + 1) << 32) |
+         (static_cast<uint64_t>(literal_id));
 }
 
 std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::TraceIDRef()
@@ -4946,21 +4952,17 @@ WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script script)
-    : ScriptIterator(isolate, handle(script.shared_function_infos(), isolate)) {
-}
+    : ScriptIterator(handle(script.shared_function_infos(), isolate)) {}
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(
-    Isolate* isolate, Handle<WeakFixedArray> shared_function_infos)
-    : isolate_(isolate),
-      shared_function_infos_(shared_function_infos),
-      index_(0) {}
+    Handle<WeakFixedArray> shared_function_infos)
+    : shared_function_infos_(shared_function_infos), index_(0) {}
 
 SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject raw = shared_function_infos_->Get(index_++);
     HeapObject heap_object;
-    if (!raw->GetHeapObject(&heap_object) ||
-        heap_object.IsUndefined(isolate_)) {
+    if (!raw->GetHeapObject(&heap_object) || heap_object.IsUndefined()) {
       continue;
     }
     return SharedFunctionInfo::cast(heap_object);
@@ -4968,13 +4970,15 @@ SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   return SharedFunctionInfo();
 }
 
-void SharedFunctionInfo::ScriptIterator::Reset(Script script) {
-  shared_function_infos_ = handle(script.shared_function_infos(), isolate_);
+void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
+                                               Script script) {
+  shared_function_infos_ = handle(script.shared_function_infos(), isolate);
   index_ = 0;
 }
 
 SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
-    : script_iterator_(isolate),
+    : isolate_(isolate),
+      script_iterator_(isolate),
       noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
       sfi_iterator_(isolate, script_iterator_.Next()) {}
 
@@ -4986,7 +4990,7 @@ SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
     if (!next.is_null()) return SharedFunctionInfo::cast(next);
     Script next_script = script_iterator_.Next();
     if (next_script.is_null()) return SharedFunctionInfo();
-    sfi_iterator_.Reset(next_script);
+    sfi_iterator_.Reset(isolate_, next_script);
   }
 }
 
@@ -5148,7 +5152,6 @@ void SharedFunctionInfo::DiscardCompiled(
       handle(shared_info->inferred_name(), isolate);
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
-  int function_literal_id = shared_info->FunctionLiteralId(isolate);
 
   shared_info->DiscardCompiledMetadata(isolate);
 
@@ -5163,8 +5166,7 @@ void SharedFunctionInfo::DiscardCompiled(
     // validity checks, since we're performing the unusual task of decompiling.
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            inferred_name_val, start_position, end_position,
-            function_literal_id);
+            inferred_name_val, start_position, end_position);
     shared_info->set_function_data(*data);
   }
 }
@@ -5273,28 +5275,6 @@ bool SharedFunctionInfo::IsInlineable() {
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 
-int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
-  DisallowHeapAllocation no_gc;
-
-  Object script_obj = script();
-  if (!script_obj.IsScript()) return kFunctionLiteralIdInvalid;
-
-  WeakFixedArray shared_info_list =
-      Script::cast(script_obj).shared_function_infos();
-  SharedFunctionInfo::ScriptIterator iterator(
-      isolate,
-      Handle<WeakFixedArray>(reinterpret_cast<Address*>(&shared_info_list)));
-
-  for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
-       shared = iterator.Next()) {
-    if (shared == *this) {
-      return iterator.CurrentIndex();
-    }
-  }
-
-  return kFunctionLiteralIdInvalid;
-}
-
 // Output the source code without any allocation in the heap.
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   const SharedFunctionInfo s = v.value;
@@ -5365,6 +5345,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_is_wrapped(lit->is_wrapped());
+  shared_info->set_function_literal_id(lit->function_literal_id());
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
@@ -5409,7 +5390,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
       Handle<UncompiledData> data =
           isolate->factory()->NewUncompiledDataWithPreparseData(
               lit->inferred_name(), lit->start_position(), lit->end_position(),
-              lit->function_literal_id(), preparse_data);
+              preparse_data);
       shared_info->set_uncompiled_data(*data);
       needs_position_info = false;
     }
@@ -5418,8 +5399,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (needs_position_info) {
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            lit->inferred_name(), lit->start_position(), lit->end_position(),
-            lit->function_literal_id());
+            lit->inferred_name(), lit->start_position(), lit->end_position());
     shared_info->set_uncompiled_data(*data);
   }
 }
@@ -5510,21 +5490,6 @@ int SharedFunctionInfo::EndPosition() const {
   return kNoSourcePosition;
 }
 
-int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
-  // Fast path for the common case when the SFI is uncompiled and so the
-  // function literal id is already in the uncompiled data.
-  if (HasUncompiledData() && uncompiled_data().has_function_literal_id()) {
-    int id = uncompiled_data().function_literal_id();
-    // Make sure the id is what we should have found with the slow path.
-    DCHECK_EQ(id, FindIndexInScript(isolate));
-    return id;
-  }
-
-  // Otherwise, search for the function in the SFI's script's function list,
-  // and return its index in that list.
-  return FindIndexInScript(isolate);
-}
-
 void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
   Object maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info.IsScopeInfo()) {
@@ -5559,16 +5524,6 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
       !shared_info->GetBytecodeArray().HasSourcePositionTable()) {
     Compiler::CollectSourcePositions(isolate, shared_info);
   }
-}
-
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
 }
 
 // static
@@ -6128,42 +6083,14 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
 
 namespace {
 
-constexpr JSRegExp::Flag kCharFlagValues[] = {
-    JSRegExp::kGlobal,      // g
-    JSRegExp::kInvalid,     // h
-    JSRegExp::kIgnoreCase,  // i
-    JSRegExp::kInvalid,     // j
-    JSRegExp::kInvalid,     // k
-    JSRegExp::kInvalid,     // l
-    JSRegExp::kMultiline,   // m
-    JSRegExp::kInvalid,     // n
-    JSRegExp::kInvalid,     // o
-    JSRegExp::kInvalid,     // p
-    JSRegExp::kInvalid,     // q
-    JSRegExp::kInvalid,     // r
-    JSRegExp::kDotAll,      // s
-    JSRegExp::kInvalid,     // t
-    JSRegExp::kUnicode,     // u
-    JSRegExp::kInvalid,     // v
-    JSRegExp::kInvalid,     // w
-    JSRegExp::kInvalid,     // x
-    JSRegExp::kSticky,      // y
-};
-
-constexpr JSRegExp::Flag CharToFlag(uc16 flag_char) {
-  return (flag_char < 'g' || flag_char > 'y')
-             ? JSRegExp::kInvalid
-             : kCharFlagValues[flag_char - 'g'];
-}
-
 JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
                                       bool* success) {
-  STATIC_ASSERT(CharToFlag('g') == JSRegExp::kGlobal);
-  STATIC_ASSERT(CharToFlag('i') == JSRegExp::kIgnoreCase);
-  STATIC_ASSERT(CharToFlag('m') == JSRegExp::kMultiline);
-  STATIC_ASSERT(CharToFlag('s') == JSRegExp::kDotAll);
-  STATIC_ASSERT(CharToFlag('u') == JSRegExp::kUnicode);
-  STATIC_ASSERT(CharToFlag('y') == JSRegExp::kSticky);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('s') == JSRegExp::kDotAll);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('u') == JSRegExp::kUnicode);
+  STATIC_ASSERT(JSRegExp::FlagFromChar('y') == JSRegExp::kSticky);
 
   int length = flags->length();
   if (length == 0) {
@@ -6171,14 +6098,14 @@ JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
     return JSRegExp::kNone;
   }
   // A longer flags string cannot be valid.
-  if (length > JSRegExp::FlagCount()) return JSRegExp::Flags(0);
+  if (length > JSRegExp::kFlagCount) return JSRegExp::Flags(0);
   // Initialize {value} to {kInvalid} to allow 2-in-1 duplicate/invalid check.
   JSRegExp::Flags value = JSRegExp::kInvalid;
   if (flags->IsSeqOneByteString()) {
     DisallowHeapAllocation no_gc;
     SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
     for (int i = 0; i < length; i++) {
-      JSRegExp::Flag flag = CharToFlag(seq_flags.Get(i));
+      JSRegExp::Flag flag = JSRegExp::FlagFromChar(seq_flags.Get(i));
       // Duplicate or invalid flag.
       if (value & flag) return JSRegExp::Flags(0);
       value |= flag;
@@ -6188,7 +6115,7 @@ JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
     DisallowHeapAllocation no_gc;
     String::FlatContent flags_content = flags->GetFlatContent(no_gc);
     for (int i = 0; i < length; i++) {
-      JSRegExp::Flag flag = CharToFlag(flags_content.Get(i));
+      JSRegExp::Flag flag = JSRegExp::FlagFromChar(flags_content.Get(i));
       // Duplicate or invalid flag.
       if (value & flag) return JSRegExp::Flags(0);
       value |= flag;
@@ -6224,15 +6151,20 @@ template <typename Char>
 int CountRequiredEscapes(Handle<String> source) {
   DisallowHeapAllocation no_gc;
   int escapes = 0;
+  bool in_char_class = false;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
     if (c == '\\') {
       // Escape. Skip next character;
       i++;
-    } else if (c == '/') {
+    } else if (c == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       escapes++;
+    } else if (c == '[') {
+      in_char_class = true;
+    } else if (c == ']') {
+      in_char_class = false;
     } else if (c == '\n') {
       escapes++;
     } else if (c == '\r') {
@@ -6245,6 +6177,7 @@ int CountRequiredEscapes(Handle<String> source) {
       DCHECK(!unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c)));
     }
   }
+  DCHECK(!in_char_class);
   return escapes;
 }
 
@@ -6262,16 +6195,19 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
-  // TODO(v8:1982): Fully implement
-  // https://tc39.github.io/ecma262/#sec-escaperegexppattern
+  bool in_char_class = false;
   while (s < src.length()) {
     if (src[s] == '\\') {
       // Escape. Copy this and next character.
       dst[d++] = src[s++];
       if (s == src.length()) break;
-    } else if (src[s] == '/') {
+    } else if (src[s] == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
+    } else if (src[s] == '[') {
+      in_char_class = true;
+    } else if (src[s] == ']') {
+      in_char_class = false;
     } else if (src[s] == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
@@ -6292,6 +6228,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
     dst[d++] = src[s++];
   }
   DCHECK_EQ(result->length(), d);
+  DCHECK(!in_char_class);
   return result;
 }
 
@@ -6348,12 +6285,12 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   source = String::Flatten(isolate, source);
 
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source, flags),
+                      JSRegExp);
+
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source), JSRegExp);
-
-  RETURN_ON_EXCEPTION(
-      isolate, RegExpImpl::Compile(isolate, regexp, source, flags), JSRegExp);
 
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
@@ -6701,8 +6638,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(isolate, *result);
-      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(*result);
+      cons->set_second(ReadOnlyRoots(isolate).empty_string());
     } else if (string->IsSlicedString()) {
       STATIC_ASSERT(static_cast<int>(ConsString::kSize) ==
                     static_cast<int>(SlicedString::kSize));
@@ -6713,8 +6650,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
                             : isolate->factory()->cons_string_map();
       string->set_map(*map);
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(isolate, *result);
-      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(*result);
+      cons->set_second(ReadOnlyRoots(isolate).empty_string());
     }
   }
   return result;
@@ -7925,9 +7862,13 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
 
 // static
 void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
+                                            const char* cell_name,
                                             Handle<PropertyCell> cell,
                                             Handle<Object> new_value) {
   if (cell->value() != *new_value) {
+    if (FLAG_trace_protector_invalidation) {
+      isolate->TraceProtectorInvalidation(cell_name);
+    }
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
@@ -8127,7 +8068,9 @@ HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
                                                        int additionalCapacity);
 
 void JSFinalizationGroup::Cleanup(
-    Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {
+    Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
+    Handle<Object> cleanup) {
+  DCHECK(cleanup->IsCallable());
   // It's possible that the cleared_cells list is empty, since
   // FinalizationGroup.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.
@@ -8145,7 +8088,6 @@ void JSFinalizationGroup::Cleanup(
               Handle<AllocationSite>::null()));
       iterator->set_finalization_group(*finalization_group);
     }
-    Handle<Object> cleanup(finalization_group->cleanup(), isolate);
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     v8::Local<v8::Value> result;

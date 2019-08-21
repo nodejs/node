@@ -11,7 +11,7 @@
 # Flags of x64,ignition:
 --correctness-fuzzer-suppressions --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --noopt --liftoff --no-wasm-tier-up
 # Flags of x64,ignition_turbo:
---correctness-fuzzer-suppressions --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --stress-scavenge=100
+--correctness-fuzzer-suppressions --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345
 #
 # Difference:
 - unknown

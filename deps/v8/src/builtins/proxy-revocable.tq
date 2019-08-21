@@ -7,17 +7,13 @@
 namespace proxy {
 
   extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
-      Object, Object): JSFunction;
-  macro AllocateProxyRevokeFunction(implicit context: Context)(proxy: JSProxy):
-      JSFunction {
-    return AllocateProxyRevokeFunction(proxy, context);
-  }
+      implicit context: Context)(JSProxy): JSFunction;
 
   // Proxy.revocable(target, handler)
   // https://tc39.github.io/ecma262/#sec-proxy.revocable
   transitioning javascript builtin
   ProxyRevocable(
-      context: Context, receiver: Object, target: Object,
+      context: Context, _receiver: Object, target: Object,
       handler: Object): JSProxyRevocableResult {
     try {
       const targetJSReceiver =

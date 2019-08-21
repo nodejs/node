@@ -21,9 +21,9 @@
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/source-text-module.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -512,17 +512,18 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   // Load receiver.
   Node* recv = LoadRegisterAtOperandIndex(0);
 
-  // Load the name.
-  // TODO(jgruber): Not needed for monomorphic smi handler constant/field case.
-  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* context = GetContext();
+  // Load the name and context lazily.
+  LazyNode<Name> name = [=] {
+    return CAST(LoadConstantPoolEntryAtOperandIndex(1));
+  };
+  LazyNode<Context> context = [=] { return CAST(GetContext()); };
 
   Label done(this);
   Variable var_result(this, MachineRepresentation::kTagged);
   ExitPoint exit_point(this, &done, &var_result);
 
-  AccessorAssembler::LoadICParameters params(context, recv, name, smi_slot,
-                                             feedback_vector);
+  AccessorAssembler::LazyLoadICParameters params(context, recv, name, smi_slot,
+                                                 feedback_vector);
   AccessorAssembler accessor_asm(state());
   accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
 
@@ -735,7 +736,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports =
-        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);
@@ -746,7 +747,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_import);
   {
     TNode<FixedArray> regular_imports =
-        CAST(LoadObjectField(module, Module::kRegularImportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularImportsOffset));
     // The actual array index is (-cell_index - 1).
     Node* import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     Node* cell = LoadFixedArrayElement(regular_imports, import_index);
@@ -777,7 +778,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports =
-        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);
@@ -2336,7 +2337,7 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Node* relative_jump = BytecodeOperandUImmWord(0);
   Node* loop_depth = BytecodeOperandImm(1);
-  Node* osr_level = LoadOSRNestingLevel();
+  Node* osr_level = LoadOsrNestingLevel();
 
   // Check if OSR points at the given {loop_depth} are armed by comparing it to
   // the current {osr_level} loaded from the header of the BytecodeArray.

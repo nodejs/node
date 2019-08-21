@@ -7,7 +7,7 @@ namespace math {
   extern macro Float64Acos(float64): float64;
 
   transitioning javascript builtin
-  MathAcos(context: Context, receiver: Object, x: Object): Number {
+  MathAcos(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Acos(value));
   }
@@ -16,7 +16,7 @@ namespace math {
   extern macro Float64Acosh(float64): float64;
 
   transitioning javascript builtin
-  MathAcosh(context: Context, receiver: Object, x: Object): Number {
+  MathAcosh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Acosh(value));
   }
@@ -25,7 +25,7 @@ namespace math {
   extern macro Float64Asin(float64): float64;
 
   transitioning javascript builtin
-  MathAsin(context: Context, receiver: Object, x: Object): Number {
+  MathAsin(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Asin(value));
   }
@@ -34,7 +34,7 @@ namespace math {
   extern macro Float64Asinh(float64): float64;
 
   transitioning javascript builtin
-  MathAsinh(context: Context, receiver: Object, x: Object): Number {
+  MathAsinh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Asinh(value));
   }
@@ -43,7 +43,7 @@ namespace math {
   extern macro Float64Atan(float64): float64;
 
   transitioning javascript builtin
-  MathAtan(context: Context, receiver: Object, x: Object): Number {
+  MathAtan(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Atan(value));
   }
@@ -52,7 +52,7 @@ namespace math {
   extern macro Float64Atan2(float64, float64): float64;
 
   transitioning javascript builtin
-  MathAtan2(context: Context, receiver: Object, y: Object, x: Object): Number {
+  MathAtan2(context: Context, _receiver: Object, y: Object, x: Object): Number {
     const yValue = Convert<float64>(ToNumber_Inline(context, y));
     const xValue = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Atan2(yValue, xValue));
@@ -62,7 +62,7 @@ namespace math {
   extern macro Float64Atanh(float64): float64;
 
   transitioning javascript builtin
-  MathAtanh(context: Context, receiver: Object, x: Object): Number {
+  MathAtanh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Atanh(value));
   }
@@ -71,7 +71,7 @@ namespace math {
   extern macro Float64Cbrt(float64): float64;
 
   transitioning javascript builtin
-  MathCbrt(context: Context, receiver: Object, x: Object): Number {
+  MathCbrt(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Cbrt(value));
   }
@@ -80,7 +80,7 @@ namespace math {
   extern macro Word32Clz(int32): int32;
 
   transitioning javascript builtin
-  MathClz32(context: Context, receiver: Object, x: Object): Number {
+  MathClz32(context: Context, _receiver: Object, x: Object): Number {
     const num = ToNumber_Inline(context, x);
 
     let value: int32;
@@ -100,7 +100,7 @@ namespace math {
   extern macro Float64Cos(float64): float64;
 
   transitioning javascript builtin
-  MathCos(context: Context, receiver: Object, x: Object): Number {
+  MathCos(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Cos(value));
   }
@@ -109,7 +109,7 @@ namespace math {
   extern macro Float64Cosh(float64): float64;
 
   transitioning javascript builtin
-  MathCosh(context: Context, receiver: Object, x: Object): Number {
+  MathCosh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Cosh(value));
   }
@@ -118,7 +118,7 @@ namespace math {
   extern macro Float64Exp(float64): float64;
 
   transitioning javascript builtin
-  MathExp(context: Context, receiver: Object, x: Object): Number {
+  MathExp(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Exp(value));
   }
@@ -127,14 +127,14 @@ namespace math {
   extern macro Float64Expm1(float64): float64;
 
   transitioning javascript builtin
-  MathExpm1(context: Context, receiver: Object, x: Object): Number {
+  MathExpm1(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Expm1(value));
   }
 
   // ES6 #sec-math.fround
   transitioning javascript builtin
-  MathFround(context: Context, receiver: Object, x: Object): Number {
+  MathFround(context: Context, _receiver: Object, x: Object): Number {
     const x32 = Convert<float32>(ToNumber_Inline(context, x));
     const x64 = Convert<float64>(x32);
     return Convert<Number>(x64);
@@ -144,7 +144,7 @@ namespace math {
   extern macro Float64Log(float64): float64;
 
   transitioning javascript builtin
-  MathLog(context: Context, receiver: Object, x: Object): Number {
+  MathLog(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Log(value));
   }
@@ -153,7 +153,7 @@ namespace math {
   extern macro Float64Log1p(float64): float64;
 
   transitioning javascript builtin
-  MathLog1p(context: Context, receiver: Object, x: Object): Number {
+  MathLog1p(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Log1p(value));
   }
@@ -162,7 +162,7 @@ namespace math {
   extern macro Float64Log10(float64): float64;
 
   transitioning javascript builtin
-  MathLog10(context: Context, receiver: Object, x: Object): Number {
+  MathLog10(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Log10(value));
   }
@@ -171,7 +171,7 @@ namespace math {
   extern macro Float64Log2(float64): float64;
 
   transitioning javascript builtin
-  MathLog2(context: Context, receiver: Object, x: Object): Number {
+  MathLog2(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Log2(value));
   }
@@ -180,14 +180,14 @@ namespace math {
   extern macro Float64Sin(float64): float64;
 
   transitioning javascript builtin
-  MathSin(context: Context, receiver: Object, x: Object): Number {
+  MathSin(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Sin(value));
   }
 
   // ES6 #sec-math.sign
   transitioning javascript builtin
-  MathSign(context: Context, receiver: Object, x: Object): Number {
+  MathSign(context: Context, _receiver: Object, x: Object): Number {
     const num = ToNumber_Inline(context, x);
     const value = Convert<float64>(num);
 
@@ -204,7 +204,7 @@ namespace math {
   extern macro Float64Sinh(float64): float64;
 
   transitioning javascript builtin
-  MathSinh(context: Context, receiver: Object, x: Object): Number {
+  MathSinh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Sinh(value));
   }
@@ -213,7 +213,7 @@ namespace math {
   extern macro Float64Sqrt(float64): float64;
 
   transitioning javascript builtin
-  MathSqrt(context: Context, receiver: Object, x: Object): Number {
+  MathSqrt(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Sqrt(value));
   }
@@ -222,7 +222,7 @@ namespace math {
   extern macro Float64Tan(float64): float64;
 
   transitioning javascript builtin
-  MathTan(context: Context, receiver: Object, x: Object): Number {
+  MathTan(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Tan(value));
   }
@@ -231,7 +231,7 @@ namespace math {
   extern macro Float64Tanh(float64): float64;
 
   transitioning javascript builtin
-  MathTanh(context: Context, receiver: Object, x: Object): Number {
+  MathTanh(context: Context, _receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Tanh(value));
   }

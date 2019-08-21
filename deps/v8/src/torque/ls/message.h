@@ -73,7 +73,7 @@ class Message : public BaseJsonAccessor {
     value_ = JsonValue::From(JsonObject{});
     set_jsonrpc("2.0");
   }
-  explicit Message(JsonValue& value) : value_(std::move(value)) {
+  explicit Message(JsonValue value) : value_(std::move(value)) {
     CHECK(value_.tag == JsonValue::OBJECT);
   }
 
@@ -241,7 +241,7 @@ class Location : public NestedJsonAccessor {
   JSON_OBJECT_ACCESSORS(Range, range)
 
   void SetTo(SourcePosition position) {
-    set_uri(SourceFileMap::GetSource(position.source));
+    set_uri(SourceFileMap::AbsolutePath(position.source));
     range().start().set_line(position.start.line);
     range().start().set_character(position.start.column);
     range().end().set_line(position.end.line);
@@ -323,7 +323,7 @@ class SymbolInformation : public NestedJsonAccessor {
 template <class T>
 class Request : public Message {
  public:
-  explicit Request(JsonValue& value) : Message(value) {}
+  explicit Request(JsonValue value) : Message(std::move(value)) {}
   Request() : Message() {}
 
   JSON_INT_ACCESSORS(id)
@@ -341,7 +341,7 @@ using DocumentSymbolRequest = Request<DocumentSymbolParams>;
 template <class T>
 class Response : public Message {
  public:
-  explicit Response(JsonValue& value) : Message(value) {}
+  explicit Response(JsonValue value) : Message(std::move(value)) {}
   Response() : Message() {}
 
   JSON_INT_ACCESSORS(id)
@@ -355,7 +355,7 @@ using GotoDefinitionResponse = Response<Location>;
 template <class T>
 class ResponseArrayResult : public Message {
  public:
-  explicit ResponseArrayResult(JsonValue& value) : Message(value) {}
+  explicit ResponseArrayResult(JsonValue value) : Message(std::move(value)) {}
   ResponseArrayResult() : Message() {}
 
   JSON_INT_ACCESSORS(id)

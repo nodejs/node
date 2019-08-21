@@ -25,7 +25,7 @@ assertEquals([], [...map.keys()]);
 assertEquals([], [...map.values()]);
 assertEquals([], [...iterator]);
 
-assertFalse(%SetIteratorProtector());
+assertTrue(%SetIteratorProtector());
 assertEquals([1,2,3], [...set]);
 assertEquals([[1,1],[2,2],[3,3]], [...set.entries()]);
 assertEquals([1,2,3], [...set.keys()]);

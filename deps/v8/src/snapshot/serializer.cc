@@ -27,7 +27,7 @@ Serializer::Serializer(Isolate* isolate)
       allocator_(this) {
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
-    for (int space = 0; space < LAST_SPACE; ++space) {
+    for (int space = 0; space < kNumberOfSpaces; ++space) {
       instance_type_count_[space] = NewArray<int>(kInstanceTypes);
       instance_type_size_[space] = NewArray<size_t>(kInstanceTypes);
       for (int i = 0; i < kInstanceTypes; i++) {
@@ -36,7 +36,7 @@ Serializer::Serializer(Isolate* isolate)
       }
     }
   } else {
-    for (int space = 0; space < LAST_SPACE; ++space) {
+    for (int space = 0; space < kNumberOfSpaces; ++space) {
       instance_type_count_[space] = nullptr;
       instance_type_size_[space] = nullptr;
     }
@@ -47,7 +47,7 @@ Serializer::Serializer(Isolate* isolate)
 Serializer::~Serializer() {
   if (code_address_map_ != nullptr) delete code_address_map_;
 #ifdef OBJECT_PRINT
-  for (int space = 0; space < LAST_SPACE; ++space) {
+  for (int space = 0; space < kNumberOfSpaces; ++space) {
     if (instance_type_count_[space] != nullptr) {
       DeleteArray(instance_type_count_[space]);
       DeleteArray(instance_type_size_[space]);
@@ -57,10 +57,11 @@ Serializer::~Serializer() {
 }
 
 #ifdef OBJECT_PRINT
-void Serializer::CountInstanceType(Map map, int size, AllocationSpace space) {
+void Serializer::CountInstanceType(Map map, int size, SnapshotSpace space) {
+  const int space_number = static_cast<int>(space);
   int instance_type = map.instance_type();
-  instance_type_count_[space][instance_type]++;
-  instance_type_size_[space][instance_type] += size;
+  instance_type_count_[space_number][instance_type]++;
+  instance_type_size_[space_number][instance_type] += size;
 }
 #endif  // OBJECT_PRINT
 
@@ -73,7 +74,7 @@ void Serializer::OutputStatistics(const char* name) {
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
 #define PRINT_INSTANCE_TYPE(Name)                                             \
-  for (int space = 0; space < LAST_SPACE; ++space) {                          \
+  for (int space = 0; space < kNumberOfSpaces; ++space) {                     \
     if (instance_type_count_[space][Name]) {                                  \
       PrintF("%10d %10zu  %-10s %s\n", instance_type_count_[space][Name],     \
              instance_type_size_[space][Name],                                \
@@ -173,8 +174,8 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
     }
 
     PutAlignmentPrefix(obj);
-    AllocationSpace space = reference.space();
-    sink_.Put(kBackref + space, "BackRef");
+    SnapshotSpace space = reference.space();
+    sink_.Put(kBackref + static_cast<int>(space), "BackRef");
     PutBackReference(obj, reference);
   }
   return true;
@@ -221,11 +222,11 @@ void Serializer::PutBackReference(HeapObject object,
                                   SerializerReference reference) {
   DCHECK(allocator()->BackReferenceIsAlreadyAllocated(reference));
   switch (reference.space()) {
-    case MAP_SPACE:
+    case SnapshotSpace::kMap:
       sink_.PutInt(reference.map_index(), "BackRefMapIndex");
       break;
 
-    case LO_SPACE:
+    case SnapshotSpace::kLargeObject:
       sink_.PutInt(reference.large_object_index(), "BackRefLargeObjectIndex");
       break;
 
@@ -255,9 +256,9 @@ int Serializer::PutAlignmentPrefix(HeapObject object) {
   return 0;
 }
 
-void Serializer::PutNextChunk(int space) {
+void Serializer::PutNextChunk(SnapshotSpace space) {
   sink_.Put(kNextChunk, "NextChunk");
-  sink_.Put(space, "NextChunkSpace");
+  sink_.Put(static_cast<int>(space), "NextChunkSpace");
 }
 
 void Serializer::PutRepeat(int repeat_count) {
@@ -298,7 +299,7 @@ Code Serializer::CopyCode(Code code) {
       reinterpret_cast<Address>(&code_buffer_.front())));
 }
 
-void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
+void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
                                                      int size, Map map) {
   if (serializer_->code_address_map_) {
     const char* code_name =
@@ -307,22 +308,23 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
         CodeNameEvent(object_.address(), sink_->Position(), code_name));
   }
 
+  const int space_number = static_cast<int>(space);
   SerializerReference back_reference;
-  if (space == LO_SPACE) {
-    sink_->Put(kNewObject + space, "NewLargeObject");
+  if (space == SnapshotSpace::kLargeObject) {
+    sink_->Put(kNewObject + space_number, "NewLargeObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
     CHECK(!object_.IsCode());
     back_reference = serializer_->allocator()->AllocateLargeObject(size);
-  } else if (space == MAP_SPACE) {
+  } else if (space == SnapshotSpace::kMap) {
     DCHECK_EQ(Map::kSize, size);
     back_reference = serializer_->allocator()->AllocateMap();
-    sink_->Put(kNewObject + space, "NewMap");
+    sink_->Put(kNewObject + space_number, "NewMap");
     // This is redundant, but we include it anyways.
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
   } else {
     int fill = serializer_->PutAlignmentPrefix(object_);
     back_reference = serializer_->allocator()->Allocate(space, size + fill);
-    sink_->Put(kNewObject + space, "NewObject");
+    sink_->Put(kNewObject + space_number, "NewObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
   }
 
@@ -468,8 +470,9 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
         ExternalTwoByteString::cast(string).resource()->data());
   }
 
-  AllocationSpace space =
-      (allocation_size > kMaxRegularHeapObjectSize) ? LO_SPACE : OLD_SPACE;
+  SnapshotSpace space = (allocation_size > kMaxRegularHeapObjectSize)
+                            ? SnapshotSpace::kLargeObject
+                            : SnapshotSpace::kOld;
   SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.
@@ -534,8 +537,8 @@ void Serializer::ObjectSerializer::Serialize() {
     SerializeExternalString();
     return;
   } else if (!ReadOnlyHeap::Contains(object_)) {
-    // Only clear padding for strings outside RO_SPACE. RO_SPACE should have
-    // been cleared elsewhere.
+    // Only clear padding for strings outside the read-only heap. Read-only heap
+    // should have been cleared elsewhere.
     if (object_.IsSeqOneByteString()) {
       // Clear padding bytes at the end. Done here to avoid having to do this
       // at allocation sites in generated code.
@@ -568,11 +571,21 @@ void Serializer::ObjectSerializer::Serialize() {
 void Serializer::ObjectSerializer::SerializeObject() {
   int size = object_.Size();
   Map map = object_.map();
-  AllocationSpace space =
-      MemoryChunk::FromHeapObject(object_)->owner()->identity();
-  // Young generation large objects are tenured.
-  if (space == NEW_LO_SPACE) {
-    space = LO_SPACE;
+  SnapshotSpace space;
+  if (ReadOnlyHeap::Contains(object_)) {
+    space = SnapshotSpace::kReadOnlyHeap;
+  } else {
+    AllocationSpace heap_space =
+        MemoryChunk::FromHeapObject(object_)->owner_identity();
+    // Large code objects are not supported and cannot be expressed by
+    // SnapshotSpace.
+    DCHECK_NE(heap_space, CODE_LO_SPACE);
+    // Young generation large objects are tenured.
+    if (heap_space == NEW_LO_SPACE) {
+      space = SnapshotSpace::kLargeObject;
+    } else {
+      space = static_cast<SnapshotSpace>(heap_space);
+    }
   }
   SerializePrologue(space, size, map);
 
@@ -612,7 +625,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   bytes_processed_so_far_ = kTaggedSize;
 
   serializer_->PutAlignmentPrefix(object_);
-  sink_->Put(kNewObject + back_reference.space(), "deferred object");
+  sink_->Put(kNewObject + static_cast<int>(back_reference.space()),
+             "deferred object");
   serializer_->PutBackReference(object_, back_reference);
   sink_->PutInt(size >> kTaggedSizeLog2, "deferred object size");
 

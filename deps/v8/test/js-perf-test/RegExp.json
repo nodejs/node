@@ -24,6 +24,7 @@
         "base_test.js",
         "base.js",
         "case_test.js",
+        "complex_case_test.js",
         "ctor.js",
         "exec.js",
         "flags.js",
@@ -44,6 +45,7 @@
       "results_regexp": "^%s\\-RegExp\\(Score\\): (.+)$",
       "tests": [
         {"name": "CaseInsensitiveTest"},
+        {"name": "ComplexCaseInsensitiveTest"},
         {"name": "Ctor"},
         {"name": "Exec"},
         {"name": "Flags"},

@@ -212,7 +212,7 @@ snippet: "
   async function* f() { for (let x of [42]) yield x }
   f();
 "
-frame size: 20
+frame size: 21
 parameter count: 1
 bytecode array length: 372
 bytecodes: [
@@ -298,15 +298,15 @@ bytecodes: [
                 B(Star), R(17),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(18),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(18),
-                B(LdaConstant), U8(12),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(19),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(18), U8(2),
+                B(LdaConstant), U8(12),
+                B(Star), R(20),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(19), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(18),
                 B(CallProperty0), R(17), R(9), U8(15),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(19),
@@ -401,7 +401,7 @@ handlers: [
   [20, 318, 326],
   [23, 282, 284],
   [93, 180, 188],
-  [234, 247, 249],
+  [214, 247, 249],
 ]
 
 ---

@@ -7,8 +7,8 @@
 
 #include "src/objects/code.h"
 
+#include "src/base/memory.h"
 #include "src/codegen/code-desc.h"
-#include "src/common/v8memory.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/dictionary.h"
@@ -29,7 +29,7 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -39,12 +39,6 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
-CAST_ACCESSOR(SourcePositionTableWithFrameCache)
-
-ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-          kSourcePositionTableOffset)
-ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          SimpleNumberDictionary, kStackFrameCacheOffset)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -331,7 +325,9 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  return ByteArray::unchecked_cast(READ_FIELD(*this, kRelocationInfoOffset));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return ByteArray::unchecked_cast(
+      TaggedField<HeapObject, kRelocationInfoOffset>::load(isolate, *this));
 }
 
 byte* Code::relocation_start() const {
@@ -575,7 +571,7 @@ Code Code::GetCodeFromTargetAddress(Address address) {
 }
 
 Code Code::GetObjectFromEntryAddress(Address location_of_address) {
-  Address code_entry = Memory<Address>(location_of_address);
+  Address code_entry = base::Memory<Address>(location_of_address);
   HeapObject code = HeapObject::FromAddress(code_entry - Code::kHeaderSize);
   // Unchecked cast because we can't rely on the map currently
   // not being a forwarding pointer.
@@ -622,32 +618,32 @@ void BytecodeArray::set(int index, byte value) {
   WriteField<byte>(kHeaderSize + index * kCharSize, value);
 }
 
-void BytecodeArray::set_frame_size(int frame_size) {
+void BytecodeArray::set_frame_size(int32_t frame_size) {
   DCHECK_GE(frame_size, 0);
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
-  WriteField<int>(kFrameSizeOffset, frame_size);
+  WriteField<int32_t>(kFrameSizeOffset, frame_size);
 }
 
-int BytecodeArray::frame_size() const {
-  return ReadField<int>(kFrameSizeOffset);
+int32_t BytecodeArray::frame_size() const {
+  return ReadField<int32_t>(kFrameSizeOffset);
 }
 
 int BytecodeArray::register_count() const {
-  return frame_size() / kSystemPointerSize;
+  return static_cast<int>(frame_size()) / kSystemPointerSize;
 }
 
-void BytecodeArray::set_parameter_count(int number_of_parameters) {
+void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
   DCHECK_GE(number_of_parameters, 0);
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  WriteField<int>(kParameterSizeOffset,
+  WriteField<int32_t>(kParameterSizeOffset,
                   (number_of_parameters << kSystemPointerSizeLog2));
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
     const {
-  int register_operand =
-      ReadField<int>(kIncomingNewTargetOrGeneratorRegisterOffset);
+  int32_t register_operand =
+      ReadField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset);
   if (register_operand == 0) {
     return interpreter::Register::invalid_value();
   } else {
@@ -658,24 +654,24 @@ interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
 void BytecodeArray::set_incoming_new_target_or_generator_register(
     interpreter::Register incoming_new_target_or_generator_register) {
   if (!incoming_new_target_or_generator_register.is_valid()) {
-    WriteField<int>(kIncomingNewTargetOrGeneratorRegisterOffset, 0);
+    WriteField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset, 0);
   } else {
     DCHECK(incoming_new_target_or_generator_register.index() <
            register_count());
     DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
-    WriteField<int>(kIncomingNewTargetOrGeneratorRegisterOffset,
+    WriteField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset,
                     incoming_new_target_or_generator_register.ToOperand());
   }
 }
 
 int BytecodeArray::osr_loop_nesting_level() const {
-  return ReadField<int8_t>(kOSRNestingLevelOffset);
+  return ReadField<int8_t>(kOsrNestingLevelOffset);
 }
 
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
   STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  WriteField<int8_t>(kOSRNestingLevelOffset, depth);
+  WriteField<int8_t>(kOsrNestingLevelOffset, depth);
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
@@ -691,10 +687,10 @@ void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
   RELAXED_WRITE_INT8_FIELD(*this, kBytecodeAgeOffset, static_cast<int8_t>(age));
 }
 
-int BytecodeArray::parameter_count() const {
+int32_t BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  return ReadField<int>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
+  return ReadField<int32_t>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
@@ -745,7 +741,9 @@ ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
   Object maybe_table = source_position_table();
-  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray() ||
+      maybe_table.IsException())
+    return;
   DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
                                 .source_position_table());

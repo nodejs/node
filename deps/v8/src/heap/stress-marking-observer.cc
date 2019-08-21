@@ -9,14 +9,14 @@ namespace v8 {
 namespace internal {
 
 // TODO(majeski): meaningful step_size
-StressMarkingObserver::StressMarkingObserver(Heap& heap)
+StressMarkingObserver::StressMarkingObserver(Heap* heap)
     : AllocationObserver(64), heap_(heap) {}
 
 void StressMarkingObserver::Step(int bytes_allocated, Address soon_object,
                                  size_t size) {
-  heap_.StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
-                                                          kNoGCCallbackFlags);
-  heap_.incremental_marking()->EnsureBlackAllocated(soon_object, size);
+  heap_->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
+                                                           kNoGCCallbackFlags);
+  heap_->incremental_marking()->EnsureBlackAllocated(soon_object, size);
 }
 
 }  // namespace internal

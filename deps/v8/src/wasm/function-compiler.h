@@ -18,6 +18,7 @@ namespace internal {
 
 class AssemblerBuffer;
 class Counters;
+class OptimizedCompilationJob;
 
 namespace wasm {
 
@@ -34,6 +35,10 @@ class WasmInstructionBuffer final {
 
   static std::unique_ptr<WasmInstructionBuffer> New();
 
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
+
  private:
   WasmInstructionBuffer() = delete;
   DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
@@ -42,6 +47,12 @@ class WasmInstructionBuffer final {
 struct WasmCompilationResult {
  public:
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
+
+  enum Kind : int8_t {
+    kFunction,
+    kWasmToJsWrapper,
+    kInterpreterEntry,
+  };
 
   bool succeeded() const { return code_desc.buffer != nullptr; }
   bool failed() const { return !succeeded(); }
@@ -53,9 +64,10 @@ struct WasmCompilationResult {
   uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
-  int func_index;
+  int func_index = static_cast<int>(kAnonymousFuncIndex);
   ExecutionTier requested_tier;
   ExecutionTier result_tier;
+  Kind kind = kFunction;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -77,6 +89,14 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
+  WasmCompilationResult ExecuteFunctionCompilation(
+      WasmEngine* wasm_engine, CompilationEnv* env,
+      const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+      Counters* counters, WasmFeatures* detected);
+
+  WasmCompilationResult ExecuteImportWrapperCompilation(WasmEngine* engine,
+                                                        CompilationEnv* env);
+
   int func_index_;
   ExecutionTier tier_;
 };
@@ -85,6 +105,24 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 // efficiently pass it by value.
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
 STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
+
+class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
+ public:
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, FunctionSig* sig,
+                                 bool is_import);
+  ~JSToWasmWrapperCompilationUnit();
+
+  void Prepare(Isolate* isolate);
+  void Execute();
+  Handle<Code> Finalize(Isolate* isolate);
+
+  // Run a compilation unit synchronously.
+  static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, FunctionSig* sig,
+                                             bool is_import);
+
+ private:
+  std::unique_ptr<OptimizedCompilationJob> job_;
+};
 
 }  // namespace wasm
 }  // namespace internal

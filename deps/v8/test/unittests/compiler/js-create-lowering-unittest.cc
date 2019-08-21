@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-create-lowering.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
@@ -43,7 +44,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, broker(),
                              zone());
     return reducer.Reduce(node);

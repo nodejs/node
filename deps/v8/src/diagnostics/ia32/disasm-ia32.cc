@@ -184,6 +184,24 @@ void InstructionTable::AddJumpConditionalShort() {
   }
 }
 
+namespace {
+int8_t Imm8(const uint8_t* data) {
+  return *reinterpret_cast<const int8_t*>(data);
+}
+uint8_t Imm8_U(const uint8_t* data) {
+  return *reinterpret_cast<const uint8_t*>(data);
+}
+int16_t Imm16(const uint8_t* data) {
+  return *reinterpret_cast<const int16_t*>(data);
+}
+uint16_t Imm16_U(const uint8_t* data) {
+  return *reinterpret_cast<const uint16_t*>(data);
+}
+int32_t Imm32(const uint8_t* data) {
+  return *reinterpret_cast<const int32_t*>(data);
+}
+}  // namespace
+
 // The IA32 disassembler implementation.
 class DisassemblerIA32 {
  public:
@@ -373,8 +391,7 @@ int DisassemblerIA32::PrintRightOperandHelper(
   switch (mod) {
     case 0:
       if (rm == ebp) {
-        int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 1);
-        AppendToBuffer("[0x%x]", disp);
+        AppendToBuffer("[0x%x]", Imm32(modrmp + 1));
         return 5;
       } else if (rm == esp) {
         byte sib = *(modrmp + 1);
@@ -384,7 +401,7 @@ int DisassemblerIA32::PrintRightOperandHelper(
           AppendToBuffer("[%s]", (this->*register_name)(rm));
           return 2;
         } else if (base == ebp) {
-          int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 2);
+          int32_t disp = Imm32(modrmp + 2);
           AppendToBuffer("[%s*%d%s0x%x]", (this->*register_name)(index),
                          1 << scale, disp < 0 ? "-" : "+",
                          disp < 0 ? -disp : disp);
@@ -409,8 +426,7 @@ int DisassemblerIA32::PrintRightOperandHelper(
         byte sib = *(modrmp + 1);
         int scale, index, base;
         get_sib(sib, &scale, &index, &base);
-        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2)
-                            : *reinterpret_cast<int8_t*>(modrmp + 2);
+        int disp = mod == 2 ? Imm32(modrmp + 2) : Imm8(modrmp + 2);
         if (index == base && index == rm /*esp*/ && scale == 0 /*times_1*/) {
           AppendToBuffer("[%s%s0x%x]", (this->*register_name)(rm),
                          disp < 0 ? "-" : "+", disp < 0 ? -disp : disp);
@@ -422,8 +438,7 @@ int DisassemblerIA32::PrintRightOperandHelper(
         return mod == 2 ? 6 : 3;
       } else {
         // No sib.
-        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1)
-                            : *reinterpret_cast<int8_t*>(modrmp + 1);
+        int disp = mod == 2 ? Imm32(modrmp + 1) : Imm8(modrmp + 1);
         AppendToBuffer("[%s%s0x%x]", (this->*register_name)(rm),
                        disp < 0 ? "-" : "+", disp < 0 ? -disp : disp);
         return mod == 2 ? 5 : 2;
@@ -517,7 +532,7 @@ int DisassemblerIA32::PrintImmediateOp(byte* data) {
     AppendToBuffer(",0x%x", *(data + 1 + count));
     return 1 + count + 1 /*int8*/;
   } else {
-    AppendToBuffer(",0x%x", *reinterpret_cast<int32_t*>(data + 1 + count));
+    AppendToBuffer(",0x%x", Imm32(data + 1 + count));
     return 1 + count + 4 /*int32_t*/;
   }
 }
@@ -557,7 +572,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
   AppendToBuffer("%s ", mnem);
   int count = PrintRightOperand(data);
   if (regop == 0) {
-    AppendToBuffer(",0x%x", *reinterpret_cast<int32_t*>(data + count));
+    AppendToBuffer(",0x%x", Imm32(data + count));
     count += 4;
   }
   return 1 + count;
@@ -627,7 +642,7 @@ int DisassemblerIA32::JumpShort(byte* data) {
 int DisassemblerIA32::JumpConditional(byte* data, const char* comment) {
   DCHECK_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
-  byte* dest = data + *reinterpret_cast<int32_t*>(data + 2) + 6;
+  byte* dest = data + Imm32(data + 2) + 6;
   const char* mnem = jump_conditional_mnem[cond];
   AppendToBuffer("%s %s", mnem, NameOfAddress(dest));
   if (comment != nullptr) {
@@ -775,56 +790,53 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vpblendw %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(current));
+        AppendToBuffer(",%d", Imm8_U(current));
         current++;
         break;
       case 0x0F:
         AppendToBuffer("vpalignr %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(current));
+        AppendToBuffer(",%d", Imm8_U(current));
         current++;
         break;
       case 0x14:
         AppendToBuffer("vpextrb ");
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                       *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(current));
         current++;
         break;
       case 0x15:
         AppendToBuffer("vpextrw ");
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                       *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(current));
         current++;
         break;
       case 0x16:
         AppendToBuffer("vpextrd ");
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                       *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(current));
         current++;
         break;
       case 0x20:
         AppendToBuffer("vpinsrb %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       case 0x21:
         AppendToBuffer("vinsertps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       case 0x22:
         AppendToBuffer("vpinsrd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       default:
@@ -872,7 +884,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
       case 0x70:
         AppendToBuffer("vpshuflw %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       case 0x7C:
@@ -933,7 +945,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
       case 0x70:
         AppendToBuffer("vpshufhw %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       case 0x7f:
@@ -1173,7 +1185,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
       case 0x70:
         AppendToBuffer("vpshufd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
       case 0x71:
@@ -1197,7 +1209,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vpinsrw %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightOperand(current);
-        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
@@ -1615,8 +1627,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case MOVE_REG_INSTR: {
-        byte* addr =
-            reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
+        byte* addr = reinterpret_cast<byte*>(Imm32(data + 1));
         AppendToBuffer("mov %s,%s", NameOfCPURegister(*data & 0x07),
                        NameOfAddress(addr));
         data += 5;
@@ -1624,15 +1635,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       }
 
       case CALL_JUMP_INSTR: {
-        byte* addr = data + *reinterpret_cast<int32_t*>(data + 1) + 5;
+        byte* addr = data + Imm32(data + 1) + 5;
         AppendToBuffer("%s %s", idesc.mnem, NameOfAddress(addr));
         data += 5;
         break;
       }
 
       case SHORT_IMMEDIATE_INSTR: {
-        byte* addr =
-            reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data + 1));
+        byte* addr = reinterpret_cast<byte*>(Imm32(data + 1));
         AppendToBuffer("%s eax,%s", idesc.mnem, NameOfAddress(addr));
         data += 5;
         break;
@@ -1656,7 +1666,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   if (!processed) {
     switch (*data) {
       case 0xC2:
-        AppendToBuffer("ret 0x%x", *reinterpret_cast<uint16_t*>(data + 1));
+        AppendToBuffer("ret 0x%x", Imm16_U(data + 1));
         data += 3;
         break;
 
@@ -1670,7 +1680,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0x69: {
         data++;
         data += PrintOperands("imul", REG_OPER_OP_ORDER, data);
-        AppendToBuffer(",%d", *reinterpret_cast<int32_t*>(data));
+        AppendToBuffer(",%d", Imm32(data));
         data += 4;
       } break;
 
@@ -1860,6 +1870,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
           data += PrintRightOperand(data);
+        } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xF0) {
+          AppendToBuffer("mfence");
+          data += 3;
         } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xE8) {
           AppendToBuffer("lfence");
           data += 3;
@@ -1920,8 +1933,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else {
           AppendToBuffer("%s ", "mov");
           data += PrintRightOperand(data);
-          int32_t imm = *reinterpret_cast<int32_t*>(data);
-          AppendToBuffer(",0x%x", imm);
+          AppendToBuffer(",0x%x", Imm32(data));
           data += 4;
         }
       } break;
@@ -1980,8 +1992,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data++;
           AppendToBuffer("cmpw ");
           data += PrintRightOperand(data);
-          int imm = *reinterpret_cast<int16_t*>(data);
-          AppendToBuffer(",0x%x", imm);
+          AppendToBuffer(",0x%x", Imm16(data));
           data += 2;
         } else if (*data == 0x87) {
           data++;
@@ -2005,15 +2016,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data++;
           AppendToBuffer("%s ", "mov_w");
           data += PrintRightOperand(data);
-          int imm = *reinterpret_cast<int16_t*>(data);
-          AppendToBuffer(",0x%x", imm);
+          AppendToBuffer(",0x%x", Imm16(data));
           data += 2;
         } else if (*data == 0xF7) {
           data++;
           AppendToBuffer("%s ", "test_w");
           data += PrintRightOperand(data);
-          int imm = *reinterpret_cast<int16_t*>(data);
-          AppendToBuffer(",0x%x", imm);
+          AppendToBuffer(",0x%x", Imm16(data));
           data += 2;
         } else if (*data == 0x0F) {
           data++;
@@ -2062,7 +2071,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
               data += PrintRightXMMOperand(data);
-              AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(data));
+              AppendToBuffer(",%d", Imm8_U(data));
               data++;
             } else if (*data == 0x0F) {
               data++;
@@ -2070,7 +2079,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
               data += PrintRightXMMOperand(data);
-              AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(data));
+              AppendToBuffer(",%d", Imm8_U(data));
               data++;
             } else if (*data == 0x14) {
               data++;
@@ -2078,8 +2087,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pextrb ");
               data += PrintRightOperand(data);
-              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                             *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(data));
               data++;
             } else if (*data == 0x15) {
               data++;
@@ -2087,8 +2095,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pextrw ");
               data += PrintRightOperand(data);
-              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                             *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(data));
               data++;
             } else if (*data == 0x16) {
               data++;
@@ -2096,8 +2103,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pextrd ");
               data += PrintRightOperand(data);
-              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop),
-                             *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), Imm8(data));
               data++;
             } else if (*data == 0x17) {
               data++;
@@ -2113,7 +2119,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pinsrb %s,", NameOfXMMRegister(regop));
               data += PrintRightOperand(data);
-              AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%d", Imm8(data));
               data++;
             } else if (*data == 0x21) {
               data++;
@@ -2121,7 +2127,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
               data += PrintRightXMMOperand(data);
-              AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%d", Imm8(data));
               data++;
             } else if (*data == 0x22) {
               data++;
@@ -2129,7 +2135,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pinsrd %s,", NameOfXMMRegister(regop));
               data += PrintRightOperand(data);
-              AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+              AppendToBuffer(",%d", Imm8(data));
               data++;
             } else {
               UnimplementedInstruction();
@@ -2193,7 +2199,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pshufd %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-            AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+            AppendToBuffer(",%d", Imm8(data));
             data++;
           } else if (*data == 0x90) {
             data++;
@@ -2257,7 +2263,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pinsrw %s,", NameOfXMMRegister(regop));
             data += PrintRightOperand(data);
-            AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+            AppendToBuffer(",%d", Imm8(data));
             data++;
           } else if (*data == 0xE7) {
             data++;
@@ -2309,22 +2315,22 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       } break;
 
       case 0x68:
-        AppendToBuffer("push 0x%x", *reinterpret_cast<int32_t*>(data + 1));
+        AppendToBuffer("push 0x%x", Imm32(data + 1));
         data += 5;
         break;
 
       case 0x6A:
-        AppendToBuffer("push 0x%x", *reinterpret_cast<int8_t*>(data + 1));
+        AppendToBuffer("push 0x%x", Imm8(data + 1));
         data += 2;
         break;
 
       case 0xA8:
-        AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data + 1));
+        AppendToBuffer("test al,0x%x", Imm8_U(data + 1));
         data += 2;
         break;
 
       case 0xA9:
-        AppendToBuffer("test eax,0x%x", *reinterpret_cast<int32_t*>(data + 1));
+        AppendToBuffer("test eax,0x%x", Imm32(data + 1));
         data += 5;
         break;
 
@@ -2377,7 +2383,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pshuflw %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-            AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+            AppendToBuffer(",%d", Imm8(data));
             data++;
           } else {
             const char* mnem = "?";
@@ -2477,7 +2483,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pshufhw %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-            AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+            AppendToBuffer(",%d", Imm8(data));
             data++;
           } else if (b2 == 0x7F) {
             AppendToBuffer("movdqu ");

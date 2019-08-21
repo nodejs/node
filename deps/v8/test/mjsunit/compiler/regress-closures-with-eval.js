@@ -29,6 +29,7 @@
 
 // Verifies that closures in presence of eval work fine.
 function withEval(expr, filter) {
+  %PrepareFunctionForOptimization(filter);
   function walk(v) {
     for (var i in v) {
       for (var i in v) {}

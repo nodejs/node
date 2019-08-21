@@ -351,7 +351,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
-    : AssemblerBase(options, std::move(buffer)) {
+    : AssemblerBase(options, std::move(buffer)),
+      scratch_register_list_(ip.bit()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
@@ -636,8 +637,7 @@ void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound) {
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-s390.h .
-void Assembler::stop(const char* msg, Condition cond, int32_t code,
-                     CRegister cr) {
+void Assembler::stop(Condition cond, int32_t code, CRegister cr) {
   if (cond != al) {
     Label skip;
     b(NegateCondition(cond), &skip, Label::kNear);
@@ -831,6 +831,23 @@ void Assembler::EmitRelocations() {
   }
 }
 
+UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
+    : assembler_(assembler),
+      old_available_(*assembler->GetScratchRegisterList()) {}
+
+UseScratchRegisterScope::~UseScratchRegisterScope() {
+  *assembler_->GetScratchRegisterList() = old_available_;
+}
+
+Register UseScratchRegisterScope::Acquire() {
+  RegList* available = assembler_->GetScratchRegisterList();
+  DCHECK_NOT_NULL(available);
+  DCHECK_NE(*available, 0);
+  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
+  Register reg = Register::from_code(index);
+  *available &= ~reg.bit();
+  return reg;
+}
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_TARGET_ARCH_S390

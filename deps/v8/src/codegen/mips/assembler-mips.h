@@ -558,7 +558,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Break / Trap instructions.
   void break_(uint32_t code, bool break_as_stop = false);
-  void stop(const char* msg, uint32_t code = kMaxStopCode);
+  void stop(uint32_t code = kMaxStopCode);
   void tge(Register rs, Register rt, uint16_t code);
   void tgeu(Register rs, Register rt, uint16_t code);
   void tlt(Register rs, Register rt, uint16_t code);
@@ -1478,11 +1478,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
   static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
-  static void UnpackTargetAddress(uint32_t address, int16_t& lui_offset,
-                                  int16_t& jic_offset);
-  static void UnpackTargetAddressUnsigned(uint32_t address,
-                                          uint32_t& lui_offset,
-                                          uint32_t& jic_offset);
+  static void UnpackTargetAddress(
+      uint32_t address, int16_t& lui_offset,  // NOLINT(runtime/references)
+      int16_t& jic_offset);                   // NOLINT(runtime/references)
+  static void UnpackTargetAddressUnsigned(
+      uint32_t address,
+      uint32_t& lui_offset,   // NOLINT(runtime/references)
+      uint32_t& jic_offset);  // NOLINT(runtime/references)
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1513,7 +1515,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand& src,
+      MemOperand& src,  // NOLINT(runtime/references)
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 

@@ -6,11 +6,12 @@
 
 function Migrator(o) {
   return o.foo;
-}
+};
+%PrepareFunctionForOptimization(Migrator);
 function Loader(o) {
   return o[0];
-}
-
+};
+%PrepareFunctionForOptimization(Loader);
 var first_smi_array = [1];
 var second_smi_array = [2];
 var first_object_array = ["first"];

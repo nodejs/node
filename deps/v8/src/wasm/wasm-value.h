@@ -5,7 +5,7 @@
 #ifndef V8_WASM_WASM_VALUE_H_
 #define V8_WASM_WASM_VALUE_H_
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/handles/handles.h"
 #include "src/utils/boxed-float.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -15,10 +15,12 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define FOREACH_SIMD_TYPE(V) \
-  V(float, float4, f32x4, 4) \
-  V(int32_t, int4, i32x4, 4) \
-  V(int16_t, int8, i16x8, 8) \
+#define FOREACH_SIMD_TYPE(V)  \
+  V(double, float2, f64x2, 2) \
+  V(float, float4, f32x4, 4)  \
+  V(int64_t, int2, i64x2, 2)  \
+  V(int32_t, int4, i32x4, 4)  \
+  V(int16_t, int8, i16x8, 8)  \
   V(int8_t, int16, i8x16, 16)
 
 #define DEFINE_SIMD_TYPE(cType, sType, name, kSize) \
@@ -35,12 +37,12 @@ class Simd128 {
       val_[i] = 0;
     }
   }
-#define DEFINE_SIMD_TYPE_SPECIFIC_METHODS(cType, sType, name, size)    \
-  explicit Simd128(sType val) {                                        \
-    WriteUnalignedValue<sType>(reinterpret_cast<Address>(val_), val);  \
-  }                                                                    \
-  sType to_##name() {                                                  \
-    return ReadUnalignedValue<sType>(reinterpret_cast<Address>(val_)); \
+#define DEFINE_SIMD_TYPE_SPECIFIC_METHODS(cType, sType, name, size)          \
+  explicit Simd128(sType val) {                                              \
+    base::WriteUnalignedValue<sType>(reinterpret_cast<Address>(val_), val);  \
+  }                                                                          \
+  sType to_##name() {                                                        \
+    return base::ReadUnalignedValue<sType>(reinterpret_cast<Address>(val_)); \
   }
   FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
@@ -73,18 +75,20 @@ class WasmValue {
  public:
   WasmValue() : type_(kWasmStmt), bit_pattern_{} {}
 
-#define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)                   \
-  explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} {             \
-    static_assert(sizeof(ctype) <= sizeof(bit_pattern_),                       \
-                  "size too big for WasmValue");                               \
-    WriteUnalignedValue<ctype>(reinterpret_cast<Address>(bit_pattern_), v);    \
-  }                                                                            \
-  ctype to_##name() const {                                                    \
-    DCHECK_EQ(localtype, type_);                                               \
-    return to_##name##_unchecked();                                            \
-  }                                                                            \
-  ctype to_##name##_unchecked() const {                                        \
-    return ReadUnalignedValue<ctype>(reinterpret_cast<Address>(bit_pattern_)); \
+#define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)                  \
+  explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} {            \
+    static_assert(sizeof(ctype) <= sizeof(bit_pattern_),                      \
+                  "size too big for WasmValue");                              \
+    base::WriteUnalignedValue<ctype>(reinterpret_cast<Address>(bit_pattern_), \
+                                     v);                                      \
+  }                                                                           \
+  ctype to_##name() const {                                                   \
+    DCHECK_EQ(localtype, type_);                                              \
+    return to_##name##_unchecked();                                           \
+  }                                                                           \
+  ctype to_##name##_unchecked() const {                                       \
+    return base::ReadUnalignedValue<ctype>(                                   \
+        reinterpret_cast<Address>(bit_pattern_));                             \
   }
   FOREACH_WASMVAL_TYPE(DEFINE_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_TYPE_SPECIFIC_METHODS

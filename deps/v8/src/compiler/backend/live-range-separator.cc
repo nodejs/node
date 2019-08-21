@@ -9,15 +9,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(...)                             \
-  do {                                         \
-    if (FLAG_trace_alloc) PrintF(__VA_ARGS__); \
+#define TRACE_COND(cond, ...)      \
+  do {                             \
+    if (cond) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace {
 
 void CreateSplinter(TopLevelLiveRange* range, RegisterAllocationData* data,
-                    LifetimePosition first_cut, LifetimePosition last_cut) {
+                    LifetimePosition first_cut, LifetimePosition last_cut,
+                    bool trace_alloc) {
   DCHECK(!range->IsSplinter());
   // We can ignore ranges that live solely in deferred blocks.
   // If a range ends right at the end of a deferred block, it is marked by
@@ -49,9 +50,10 @@ void CreateSplinter(TopLevelLiveRange* range, RegisterAllocationData* data,
       range->SetSplinter(splinter);
     }
     Zone* zone = data->allocation_zone();
-    TRACE("creating splinter %d for range %d between %d and %d\n",
-          range->splinter()->vreg(), range->vreg(), start.ToInstructionIndex(),
-          end.ToInstructionIndex());
+    TRACE_COND(trace_alloc,
+               "creating splinter %d for range %d between %d and %d\n",
+               range->splinter()->vreg(), range->vreg(),
+               start.ToInstructionIndex(), end.ToInstructionIndex());
     range->Splinter(start, end, zone);
   }
 }
@@ -102,7 +104,8 @@ void SplinterLiveRange(TopLevelLiveRange* range, RegisterAllocationData* data) {
             current_block->last_instruction_index());
       } else {
         if (first_cut.IsValid()) {
-          CreateSplinter(range, data, first_cut, last_cut);
+          CreateSplinter(range, data, first_cut, last_cut,
+                         data->is_trace_alloc());
           first_cut = LifetimePosition::Invalid();
           last_cut = LifetimePosition::Invalid();
         }
@@ -116,7 +119,8 @@ void SplinterLiveRange(TopLevelLiveRange* range, RegisterAllocationData* data) {
     // have to connect blocks anyway, so we can also splinter to the end of the
     // block, too.
     if (first_cut.IsValid()) {
-      CreateSplinter(range, data, first_cut, interval_end);
+      CreateSplinter(range, data, first_cut, interval_end,
+                     data->is_trace_alloc());
       first_cut = LifetimePosition::Invalid();
       last_cut = LifetimePosition::Invalid();
     }
@@ -186,7 +190,7 @@ void LiveRangeMerger::Merge() {
   }
 }
 
-#undef TRACE
+#undef TRACE_COND
 
 }  // namespace compiler
 }  // namespace internal

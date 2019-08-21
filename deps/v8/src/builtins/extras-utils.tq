@@ -8,17 +8,18 @@ namespace extras_utils {
   extern runtime PromiseStatus(Context, Object): Smi;
 
   javascript builtin ExtrasUtilsCreatePrivateSymbol(
-      context: Context, receiver: Object, ...arguments): HeapObject {
+      js-implicit context: Context,
+      receiver: Object)(...arguments): HeapObject {
     return CreatePrivateSymbol(context, arguments[0]);
   }
 
   javascript builtin ExtrasUtilsMarkPromiseAsHandled(
-      context: Context, receiver: Object, ...arguments): Undefined {
+      js-implicit context: Context, receiver: Object)(...arguments): Undefined {
     return PromiseMarkAsHandled(context, arguments[0]);
   }
 
   javascript builtin ExtrasUtilsPromiseState(
-      context: Context, receiver: Object, ...arguments): Smi {
+      js-implicit context: Context, receiver: Object)(...arguments): Smi {
     return PromiseStatus(context, arguments[0]);
   }
 }

@@ -14,8 +14,8 @@ function f() {
     a.x += b.x;
   }
   return a.x;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 new p(0.1);  // make 'x' mutable box double field in p.
 
 assertEquals(3, f());

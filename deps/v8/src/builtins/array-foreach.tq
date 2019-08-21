@@ -4,8 +4,9 @@
 
 namespace array_foreach {
   transitioning javascript builtin
-  ArrayForEachLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+  ArrayForEachLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object,
       length: Object): Object {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -21,9 +22,10 @@ namespace array_foreach {
   }
 
   transitioning javascript builtin
-  ArrayForEachLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, result: Object): Object {
+  ArrayForEachLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object, length: Object,
+      _result: Object): Object {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -38,9 +40,9 @@ namespace array_foreach {
   }
 
   transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      array: Object, o: JSReceiver, initialK: Number, len: Number,
-      to: Object): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _array: Object, o: JSReceiver, initialK: Number, len: Number,
+      _to: Object): Object {
     // variables {array} and {to} are ignored.
 
     // 5. Let k be 0.
@@ -72,7 +74,7 @@ namespace array_foreach {
       labels Bailout(Smi) {
     let k: Smi = 0;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
     let fastOW = NewFastJSArrayWitness(fastO);
 
     // Build a fast loop over the smi array.
@@ -90,11 +92,10 @@ namespace array_foreach {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
   transitioning javascript builtin
-  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
+  ArrayForEach(js-implicit context: Context, receiver: Object)(...arguments):
+      Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.forEach');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -126,9 +127,6 @@ namespace array_foreach {
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.forEach');
     }
   }
 }

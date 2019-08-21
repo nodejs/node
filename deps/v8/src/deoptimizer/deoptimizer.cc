@@ -159,7 +159,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_.IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
-    Context native_context = function_.context().native_context();
+    NativeContext native_context = function_.context().native_context();
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
@@ -270,10 +270,10 @@ class ActivationsFinder : public ThreadVisitor {
 
 // Move marked code from the optimized code list to the deoptimized code list,
 // and replace pc on the stack for codes marked for deoptimization.
-void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
+void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   DisallowHeapAllocation no_allocation;
 
-  Isolate* isolate = context.GetIsolate();
+  Isolate* isolate = native_context.GetIsolate();
   Code topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
@@ -315,7 +315,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
   // Move marked code from the optimized code list to the deoptimized code list.
   // Walk over all optimized code objects in this native context.
   Code prev;
-  Object element = context.OptimizedCodeListHead();
+  Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
     CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
@@ -329,12 +329,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
         prev.set_next_code_link(next);
       } else {
         // There was no previous node, the next node is the new head.
-        context.SetOptimizedCodeListHead(next);
+        native_context.SetOptimizedCodeListHead(next);
       }
 
       // Move the code to the _deoptimized_ code list.
-      code.set_next_code_link(context.DeoptimizedCodeListHead());
-      context.SetDeoptimizedCodeListHead(code);
+      code.set_next_code_link(native_context.DeoptimizedCodeListHead());
+      native_context.SetDeoptimizedCodeListHead(code);
     } else {
       // Not marked; preserve this element.
       prev = code;
@@ -373,7 +373,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
@@ -393,15 +393,15 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   // For all contexts, deoptimize code already marked.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
   }
 }
 
-void Deoptimizer::MarkAllCodeForContext(Context context) {
-  Object element = context.OptimizedCodeListHead();
-  Isolate* isolate = context.GetIsolate();
+void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
+  Object element = native_context.OptimizedCodeListHead();
+  Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
     CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
@@ -590,7 +590,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   // Count all entries in the deoptimizing code list of every context.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
@@ -633,6 +633,12 @@ bool ShouldPadArguments(int arg_count) {
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
+  // When we call this function, the return address of the previous frame has
+  // been removed from the stack by GenerateDeoptimizationEntries() so the stack
+  // is not iterable by the SafeStackFrameIterator.
+#if V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK
+  DCHECK_EQ(0, isolate()->isolate_data()->stack_is_iterable());
+#endif
   base::ElapsedTimer timer;
 
   // Determine basic deoptimization information.  The optimized frame is
@@ -661,10 +667,6 @@ void Deoptimizer::DoComputeOutputFrames() {
           fp_address + CommonFrameConstants::kConstantPoolOffset);
     }
   }
-
-  StackGuard* const stack_guard = isolate()->stack_guard();
-  CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
-           stack_guard->real_jslimit());
 
   if (trace_scope_ != nullptr) {
     timer.Start();
@@ -723,7 +725,6 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Translate each output frame.
   int frame_index = 0;  // output_frame_index
-  size_t total_output_frame_size = 0;
   for (size_t i = 0; i < count; ++i, ++frame_index) {
     // Read the ast node id, function, and frame height for this output frame.
     TranslatedFrame* translated_frame = &(translated_state_.frames()[i]);
@@ -759,7 +760,6 @@ void Deoptimizer::DoComputeOutputFrames() {
         FATAL("invalid frame");
         break;
     }
-    total_output_frame_size += output_[frame_index]->GetFrameSize();
   }
 
   FrameDescription* topmost = output_[count - 1];
@@ -779,14 +779,6 @@ void Deoptimizer::DoComputeOutputFrames() {
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
            caller_frame_top_, ms);
   }
-
-  // TODO(jgruber,neis):
-  // The situation that the output frames do not fit into the stack space should
-  // be prevented by an optimized function's initial stack check: That check
-  // must fail if the (interpreter) frames generated upon deoptimization of the
-  // function would overflow the stack.
-  CHECK_GT(static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
-           stack_guard->real_jslimit());
 }
 
 void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
@@ -1364,20 +1356,24 @@ bool Deoptimizer::BuiltinContinuationModeIsWithCatch(
   UNREACHABLE();
 }
 
-StackFrame::Type Deoptimizer::BuiltinContinuationModeToFrameType(
-    BuiltinContinuationMode mode) {
+namespace {
+
+StackFrame::Type BuiltinContinuationModeToFrameType(
+    Deoptimizer::BuiltinContinuationMode mode) {
   switch (mode) {
-    case BuiltinContinuationMode::STUB:
+    case Deoptimizer::BuiltinContinuationMode::STUB:
       return StackFrame::BUILTIN_CONTINUATION;
-    case BuiltinContinuationMode::JAVASCRIPT:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION;
-    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
-    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
   }
   UNREACHABLE();
 }
+
+}  // namespace
 
 Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
     BuiltinContinuationMode mode, bool must_handle_result) {
@@ -1438,7 +1434,7 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 //    +-------------------------+
 //    |         context         |<- this non-standard context slot contains
 //    +-------------------------+   the context, even for non-JS builtins.
-//    |     builtin address     |
+//    |      builtin index      |
 //    +-------------------------+
 //    | builtin input GPR reg0  |<- populated from deopt FrameState using
 //    +-------------------------+   the builtin's CallInterfaceDescriptor
@@ -1663,7 +1659,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                                    "builtin JavaScript context\n");
 
   // The builtin to continue to.
-  frame_writer.PushRawObject(builtin, "builtin address\n");
+  frame_writer.PushRawObject(Smi::FromInt(builtin.builtin_index()),
+                             "builtin index\n");
 
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
@@ -3037,12 +3034,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-#if defined(V8_COMPRESS_POINTERS)
-      Address uncompressed_value = DecompressTaggedAny(
-          isolate()->isolate_root(), static_cast<uint32_t>(value));
-#else
-      Address uncompressed_value = value;
-#endif
+      Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
@@ -3165,12 +3157,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
-#if defined(V8_COMPRESS_POINTERS)
-      Address uncompressed_value = DecompressTaggedAny(
-          isolate()->isolate_root(), static_cast<uint32_t>(value));
-#else
-      Address uncompressed_value = value;
-#endif
+      Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
@@ -3282,6 +3269,15 @@ int TranslatedState::CreateNextTranslatedValue(
   }
 
   FATAL("We should never get here - unexpected deopt info.");
+}
+
+Address TranslatedState::DecompressIfNeeded(intptr_t value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return DecompressTaggedAny(isolate()->isolate_root(),
+                               static_cast<uint32_t>(value));
+  } else {
+    return value;
+  }
 }
 
 TranslatedState::TranslatedState(const JavaScriptFrame* frame) {

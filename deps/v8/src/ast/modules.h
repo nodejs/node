@@ -13,13 +13,13 @@ namespace internal {
 
 
 class AstRawString;
-class ModuleInfo;
-class ModuleInfoEntry;
+class SourceTextModuleInfo;
+class SourceTextModuleInfoEntry;
 class PendingCompilationErrorHandler;
 
-class ModuleDescriptor : public ZoneObject {
+class SourceTextModuleDescriptor : public ZoneObject {
  public:
-  explicit ModuleDescriptor(Zone* zone)
+  explicit SourceTextModuleDescriptor(Zone* zone)
       : module_requests_(zone),
         special_exports_(zone),
         namespace_imports_(zone),
@@ -84,9 +84,9 @@ class ModuleDescriptor : public ZoneObject {
     const AstRawString* import_name;
 
     // The module_request value records the order in which modules are
-    // requested. It also functions as an index into the ModuleInfo's array of
-    // module specifiers and into the Module's array of requested modules.  A
-    // negative value means no module request.
+    // requested. It also functions as an index into the SourceTextModuleInfo's
+    // array of module specifiers and into the Module's array of requested
+    // modules.  A negative value means no module request.
     int module_request;
 
     // Import/export entries that are associated with a MODULE-allocated
@@ -107,7 +107,7 @@ class ModuleDescriptor : public ZoneObject {
           module_request(-1),
           cell_index(0) {}
 
-    Handle<ModuleInfoEntry> Serialize(Isolate* isolate) const;
+    Handle<SourceTextModuleInfoEntry> Serialize(Isolate* isolate) const;
   };
 
   enum CellIndexKind { kInvalid, kExport, kImport };

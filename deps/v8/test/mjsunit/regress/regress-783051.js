@@ -4,7 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
-function f() { return Math.abs([][0]); }
+function f() {
+  return Math.abs([][0]);
+};
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

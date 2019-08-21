@@ -14,13 +14,21 @@ function nest(body, name, depth) {
     body = body + "}"
   }
 
-  return body.replace(new RegExp("function " + name + "\\(\\) {"),
-                      "function " + name + "_" + x + "() {\n" + header);
+  // Replace function name
+  var new_func = body.replace(new RegExp("function " + name + "\\(\\) {"),
+                  "function " + name + "_" + x + "() {\n" + header);
+
+  // Replace PrepareForOptimize
+  return new_func.replace(new RegExp("%PrepareFunctionForOptimization\\(" + name + "\\);"),
+                  "%PrepareFunctionForOptimization(" + name + "_" + x + ");");
 }
 
 function test(expected, func, depth) {
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
 
   var orig = func.toString();
@@ -28,10 +36,12 @@ function test(expected, func, depth) {
   for (var depth = 1; depth < 4; depth++) {
     var body = nest(orig, name, depth);
     func = eval("(" + body + ")");
-    %PrepareFunctionForOptimization(func);
 
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
   }
 }
@@ -43,6 +53,7 @@ function foo() {
     for (var i = 0; i < 10; i++) {
       %OptimizeOsr();
       sum += i;
+      %PrepareFunctionForOptimization(foo);
     }
     result = sum;
   }
@@ -57,6 +68,7 @@ function bar() {
   for (var i = 0; i < 10; i++) {
     %OptimizeOsr();
     sum += i;
+    %PrepareFunctionForOptimization(bar);
   }
   return sum;
 }
@@ -87,6 +99,7 @@ function row() {
       %OptimizeOsr();
       sum = i;
       i = i + 1 | 0;
+      %PrepareFunctionForOptimization(row);
     }
   }
   return 11;
@@ -100,6 +113,7 @@ function nub() {
   while (i < 2) {
     %OptimizeOsr();
     i++;
+    %PrepareFunctionForOptimization(nub);
   }
   return i;
 }
@@ -115,6 +129,7 @@ function kub() {
     %OptimizeOsr();
     i++;
     result = x;
+    %PrepareFunctionForOptimization(kub);
   }
   return result;
 }

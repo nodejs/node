@@ -30,26 +30,26 @@ MessageLocation PendingCompilationErrorHandler::MessageDetails::GetLocation(
   return MessageLocation(script, start_position_, end_position_);
 }
 
-void PendingCompilationErrorHandler::ReportMessageAt(
-    int start_position, int end_position, MessageTemplate message,
-    const char* arg, ParseErrorType error_type) {
+void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
+                                                     int end_position,
+                                                     MessageTemplate message,
+                                                     const char* arg) {
   if (has_pending_error_) return;
   has_pending_error_ = true;
 
   error_details_ =
       MessageDetails(start_position, end_position, message, nullptr, arg);
-  error_type_ = error_type;
 }
 
-void PendingCompilationErrorHandler::ReportMessageAt(
-    int start_position, int end_position, MessageTemplate message,
-    const AstRawString* arg, ParseErrorType error_type) {
+void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
+                                                     int end_position,
+                                                     MessageTemplate message,
+                                                     const AstRawString* arg) {
   if (has_pending_error_) return;
   has_pending_error_ = true;
 
   error_details_ =
       MessageDetails(start_position, end_position, message, arg, nullptr);
-  error_type_ = error_type;
 }
 
 void PendingCompilationErrorHandler::ReportWarningAt(int start_position,
@@ -97,17 +97,8 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<Object> error;
-  switch (error_type_) {
-    case kReferenceError:
-      error = factory->NewReferenceError(error_details_.message(), argument);
-      break;
-    case kSyntaxError:
-      error = factory->NewSyntaxError(error_details_.message(), argument);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  Handle<Object> error =
+      factory->NewSyntaxError(error_details_.message(), argument);
 
   if (!error->IsJSObject()) {
     isolate->Throw(*error, &location);

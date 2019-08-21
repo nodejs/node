@@ -1,4 +1,4 @@
-*%(basename)s:9: SyntaxError: Duplicate export of 'x'
+*%(basename)s:7: SyntaxError: Duplicate export of 'x'
 export {y as z, y as x, y};
                 ^^^^^^
 SyntaxError: Duplicate export of 'x'

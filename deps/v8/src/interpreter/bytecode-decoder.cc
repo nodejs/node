@@ -42,9 +42,11 @@ int32_t BytecodeDecoder::DecodeSignedOperand(Address operand_start,
     case OperandSize::kByte:
       return *reinterpret_cast<const int8_t*>(operand_start);
     case OperandSize::kShort:
-      return static_cast<int16_t>(ReadUnalignedUInt16(operand_start));
+      return static_cast<int16_t>(
+          base::ReadUnalignedValue<uint16_t>(operand_start));
     case OperandSize::kQuad:
-      return static_cast<int32_t>(ReadUnalignedUInt32(operand_start));
+      return static_cast<int32_t>(
+          base::ReadUnalignedValue<uint32_t>(operand_start));
     case OperandSize::kNone:
       UNREACHABLE();
   }
@@ -60,9 +62,9 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
     case OperandSize::kByte:
       return *reinterpret_cast<const uint8_t*>(operand_start);
     case OperandSize::kShort:
-      return ReadUnalignedUInt16(operand_start);
+      return base::ReadUnalignedValue<uint16_t>(operand_start);
     case OperandSize::kQuad:
-      return ReadUnalignedUInt32(operand_start);
+      return base::ReadUnalignedValue<uint32_t>(operand_start);
     case OperandSize::kNone:
       UNREACHABLE();
   }

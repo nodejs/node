@@ -32,10 +32,10 @@ var test_id = 0;
 function testTrunc(expected, input) {
   var test = new Function('n',
                           '"' + (test_id++) + '";return Math.trunc(n)');
-  assertEquals(expected, test(input));
-  assertEquals(expected, test(input));
-  assertEquals(expected, test(input));
   %PrepareFunctionForOptimization(test);
+  assertEquals(expected, test(input));
+  assertEquals(expected, test(input));
+  assertEquals(expected, test(input));
   %OptimizeFunctionOnNextCall(test);
   assertEquals(expected, test(input));
 

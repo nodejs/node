@@ -12,12 +12,14 @@ function fastaRandom(n, table) {
     %OptimizeOsr();
     line[0] = n;
     n--;
+    %PrepareFunctionForOptimization(fastaRandom);
   }
 }
-%PrepareFunctionForOptimization(fastaRandom);
 
 print("---BEGIN 1");
+%PrepareFunctionForOptimization(fastaRandom);
 assertEquals(undefined, fastaRandom(6, null));
 print("---BEGIN 2");
+%PrepareFunctionForOptimization(fastaRandom);
 assertEquals(undefined, fastaRandom(6, null));
 print("---END");

@@ -11,6 +11,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
@@ -826,9 +827,10 @@ class FunctionDataMap : public ThreadVisitor {
 
   void Fill(Isolate* isolate, Address* restart_frame_fp) {
     {
-      HeapIterator iterator(isolate->heap(), HeapIterator::kFilterUnreachable);
-      for (HeapObject obj = iterator.next(); !obj.is_null();
-           obj = iterator.next()) {
+      HeapObjectIterator iterator(isolate->heap(),
+                                  HeapObjectIterator::kFilterUnreachable);
+      for (HeapObject obj = iterator.Next(); !obj.is_null();
+           obj = iterator.Next()) {
         if (obj.IsSharedFunctionInfo()) {
           SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
           FunctionData* data = nullptr;
@@ -851,7 +853,7 @@ class FunctionDataMap : public ThreadVisitor {
       }
     }
     FunctionData::StackPosition stack_position =
-        isolate->debug()->break_frame_id() == StackFrame::NO_ID
+        isolate->debug()->break_frame_id() == StackFrameId::NO_ID
             ? FunctionData::PATCHABLE
             : FunctionData::ABOVE_BREAK_FRAME;
     for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
@@ -936,10 +938,10 @@ class FunctionDataMap : public ThreadVisitor {
   std::map<FuncId, FunctionData> map_;
 };
 
-bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
-                    Handle<Script> new_script,
-                    FunctionDataMap& function_data_map,
-                    debug::LiveEditResult* result) {
+bool CanPatchScript(
+    const LiteralMap& changed, Handle<Script> script, Handle<Script> new_script,
+    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
+    debug::LiveEditResult* result) {
   debug::LiveEditResult::Status status = debug::LiveEditResult::OK;
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
@@ -970,9 +972,10 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
   return true;
 }
 
-bool CanRestartFrame(Isolate* isolate, Address fp,
-                     FunctionDataMap& function_data_map,
-                     const LiteralMap& changed, debug::LiveEditResult* result) {
+bool CanRestartFrame(
+    Isolate* isolate, Address fp,
+    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
+    const LiteralMap& changed, debug::LiveEditResult* result) {
   DCHECK_GT(fp, 0);
   StackFrame* restart_frame = nullptr;
   StackFrameIterator it(isolate);
@@ -1118,13 +1121,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     UpdatePositions(isolate, sfi, diffs);
 
     sfi->set_script(*new_script);
-    if (sfi->HasUncompiledData()) {
-      sfi->uncompiled_data().set_function_literal_id(
-          mapping.second->function_literal_id());
-    }
+    sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos().Set(
         mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
-    DCHECK_EQ(sfi->FunctionLiteralId(isolate),
+    DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
 
     // Save the new start_position -> id mapping, so that we can recover it when
@@ -1222,7 +1222,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     std::set<int> start_positions;
     for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
       DCHECK_EQ(sfi.script(), *new_script);
-      DCHECK_EQ(sfi.FunctionLiteralId(isolate), it.CurrentIndex());
+      DCHECK_EQ(sfi.function_literal_id(), it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
       if (sfi.is_toplevel()) {
@@ -1242,7 +1242,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
             SharedFunctionInfo::cast(constants.get(i));
         DCHECK_EQ(inner_sfi.script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
-                                 .Get(inner_sfi.FunctionLiteralId(isolate))
+                                 .Get(inner_sfi.function_literal_id())
                                  ->GetHeapObject());
       }
     }
@@ -1273,8 +1273,8 @@ void LiveEdit::InitializeThreadLocal(Debug* debug) {
 bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   if (!LiveEdit::kFrameDropperSupported) return false;
   Isolate* isolate = frame->isolate();
-  StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
-  bool break_frame_found = break_frame_id == StackFrame::NO_ID;
+  StackFrameId break_frame_id = isolate->debug()->break_frame_id();
+  bool break_frame_found = break_frame_id == StackFrameId::NO_ID;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* current = it.frame();
     break_frame_found = break_frame_found || break_frame_id == current->id();

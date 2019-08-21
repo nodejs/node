@@ -25,6 +25,7 @@ class JSCollectionIterator : public JSObject {
   DECL_ACCESSORS(index, Object)
 
   void JSCollectionIteratorPrint(std::ostream& os, const char* name);
+  DECL_VERIFIER(JSCollectionIterator)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSCOLLECTION_ITERATOR_FIELDS)

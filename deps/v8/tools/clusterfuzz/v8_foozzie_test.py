@@ -39,10 +39,11 @@ class ConfigTest(unittest.TestCase):
     self.assertEqual(
         [
           '--first-config=ignition',
-          '--second-config=ignition_turbo_no_ic',
+          '--second-config=ignition_turbo',
           '--second-d8=d8',
+          '--second-config-extra-flags=--stress-scavenge=100',
         ],
-        v8_fuzz_config.Config('foo', Rng()).choose_foozzie_flags(),
+        v8_fuzz_config.Config('foo', Rng(), 42).choose_foozzie_flags(),
     )
 
 
@@ -138,7 +139,10 @@ class SystemTest(unittest.TestCase):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('test_d8_1.py', 'test_d8_3.py', '--skip-sanity-checks')
+      run_foozzie('test_d8_1.py', 'test_d8_3.py', '--skip-sanity-checks',
+                  '--first-config-extra-flags=--flag1',
+                  '--first-config-extra-flags=--flag2=0',
+                  '--second-config-extra-flags=--flag3')
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertEquals(expected_output, cut_verbose_output(e.output))

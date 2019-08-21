@@ -7,6 +7,7 @@
 
 #include "src/codegen/label.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
@@ -206,7 +207,12 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // FAILURE: Matching failed.
   // SUCCESS: Matching succeeded, and the output array has been filled with
   //        capture positions.
-  enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
+  enum Result {
+    FAILURE = RegExp::kInternalRegExpFailure,
+    SUCCESS = RegExp::kInternalRegExpSuccess,
+    EXCEPTION = RegExp::kInternalRegExpException,
+    RETRY = RegExp::kInternalRegExpRetry,
+  };
 
   NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone);
   ~NativeRegExpMacroAssembler() override;

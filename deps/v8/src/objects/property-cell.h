@@ -47,7 +47,7 @@ class PropertyCell : public HeapObject {
   static Handle<PropertyCell> InvalidateEntry(
       Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry);
 
-  static void SetValueWithInvalidation(Isolate* isolate,
+  static void SetValueWithInvalidation(Isolate* isolate, const char* cell_name,
                                        Handle<PropertyCell> cell,
                                        Handle<Object> new_value);
 

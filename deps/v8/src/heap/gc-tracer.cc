@@ -18,9 +18,9 @@ namespace internal {
 
 static size_t CountTotalHolesSize(Heap* heap) {
   size_t holes_size = 0;
-  PagedSpaces spaces(heap);
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  PagedSpaceIterator spaces(heap);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
     holes_size += space->Waste() + space->Available();
   }
@@ -150,9 +150,11 @@ GCTracer::GCTracer(Heap* heap)
       allocation_time_ms_(0.0),
       new_space_allocation_counter_bytes_(0),
       old_generation_allocation_counter_bytes_(0),
+      embedder_allocation_counter_bytes_(0),
       allocation_duration_since_gc_(0.0),
       new_space_allocation_in_bytes_since_gc_(0),
       old_generation_allocation_in_bytes_since_gc_(0),
+      embedder_allocation_in_bytes_since_gc_(0),
       combined_mark_compact_speed_cache_(0.0),
       start_counter_(0),
       average_mutator_duration_(0),
@@ -264,6 +266,12 @@ void GCTracer::Start(GarbageCollector collector,
     counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
   } else {
     counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
+
+    if (FLAG_trace_gc_freelists) {
+      PrintIsolate(heap_->isolate(),
+                   "FreeLists statistics before collection:\n");
+      heap_->PrintFreeListsStats();
+    }
   }
 }
 
@@ -374,6 +382,14 @@ void GCTracer::Stop(GarbageCollector collector) {
     TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
                          TRACE_EVENT_SCOPE_THREAD, "stats",
                          TRACE_STR_COPY(heap_stats.str().c_str()));
+  }
+}
+
+void GCTracer::NotifySweepingCompleted() {
+  if (FLAG_trace_gc_freelists) {
+    PrintIsolate(heap_->isolate(),
+                 "FreeLists statistics after sweeping completed:\n");
+    heap_->PrintFreeListsStats();
   }
 }
 
@@ -948,10 +964,9 @@ double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
 }
 
 double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
-  if (recorded_embedder_speed_ != 0.0) {
-    return recorded_embedder_speed_;
-  }
-  return kConservativeSpeedInBytesPerMillisecond;
+  // Note: Returning 0 is ok here as callers check for whether embedder speeds
+  // have been recorded at all.
+  return recorded_embedder_speed_;
 }
 
 double GCTracer::ScavengeSpeedInBytesPerMillisecond(

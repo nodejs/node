@@ -6,8 +6,8 @@
 #include "src/builtins/builtins.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {

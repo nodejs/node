@@ -50,6 +50,7 @@
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/compiler/node.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -60,11 +61,13 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -217,8 +220,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
@@ -240,6 +241,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(*this).JSGeneratorObjectPrint(os);
       break;
@@ -270,8 +273,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(*this).JSGlobalObjectPrint(os);
       break;
-    case JS_VALUE_TYPE:
-      JSValue::cast(*this).JSValuePrint(os);
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      JSPrimitiveWrapper::cast(*this).JSPrimitiveWrapperPrint(os);
       break;
     case JS_DATE_TYPE:
       JSDate::cast(*this).JSDatePrint(os);
@@ -413,6 +416,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case SCOPE_INFO_TYPE:
       ScopeInfo::cast(*this).ScopeInfoPrint(os);
+      break;
+    case SOURCE_TEXT_MODULE_TYPE:
+      SourceTextModule::cast(*this).SourceTextModulePrint(os);
+      break;
+    case SYNTHETIC_MODULE_TYPE:
+      SyntheticModule::cast(*this).SyntheticModulePrint(os);
       break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
@@ -1191,8 +1200,8 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
   }
 }
 
-void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, *this, "JSValue");
+void JSPrimitiveWrapper::JSPrimitiveWrapperPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, *this, "JSPrimitiveWrapper");
   os << "\n - value: " << Brief(value());
   JSObjectPrintBody(os, *this);
 }
@@ -1730,8 +1739,9 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestPrint(
   os << "\n";
 }
 
-void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "ModuleInfoEntry");
+void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SourceTextModuleInfoEntry");
   os << "\n - export_name: " << Brief(export_name());
   os << "\n - local_name: " << Brief(local_name());
   os << "\n - import_name: " << Brief(import_name());
@@ -1742,16 +1752,37 @@ void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+static void PrintModuleFields(Module module, std::ostream& os) {
+  os << "\n - exports: " << Brief(module.exports());
+  os << "\n - status: " << module.status();
+  os << "\n - exception: " << Brief(module.exception());
+}
+
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Module");
+  if (this->IsSourceTextModule()) {
+    SourceTextModule::cast(*this).SourceTextModulePrint(os);
+  } else if (this->IsSyntheticModule()) {
+    SyntheticModule::cast(*this).SyntheticModulePrint(os);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SourceTextModule");
+  PrintModuleFields(*this, os);
   os << "\n - origin: " << Brief(script().GetNameOrSourceURL());
   os << "\n - code: " << Brief(code());
-  os << "\n - exports: " << Brief(exports());
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
-  os << "\n - status: " << status();
-  os << "\n - exception: " << Brief(exception());
+  os << "\n";
+}
+
+void SyntheticModule::SyntheticModulePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SyntheticModule");
+  PrintModuleFields(*this, os);
+  os << "\n - export_names: " << Brief(export_names());
   os << "\n";
 }
 
@@ -2040,6 +2071,20 @@ void WasmCapiFunctionData::WasmCapiFunctionDataPrint(
   os << "\n";
 }
 
+void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmIndirectFunctionTable");
+  os << "\n - size: " << size();
+  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
+  os << "\n - targets: " << static_cast<void*>(targets());
+  if (has_managed_native_allocations()) {
+    os << "\n - managed_native_allocations: "
+       << Brief(managed_native_allocations());
+  }
+  os << "\n - refs: " << Brief(refs());
+  os << "\n";
+}
+
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ObjectTemplateInfo");
   os << "\n - tag: " << Brief(tag());
@@ -2167,7 +2212,7 @@ void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {  // NOLINT
   os << "\n - locale: " << Brief(locale());
   os << "\n - type: " << TypeAsString();
   os << "\n - icu plural rules: " << Brief(icu_plural_rules());
-  os << "\n - icu decimal format: " << Brief(icu_decimal_format());
+  os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   JSObjectPrintBody(os, *this);
 }
 
@@ -2483,7 +2528,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_stable()) os << "\n - stable_map";
   if (is_migration_target()) os << "\n - migration_target";
   if (is_dictionary_map()) os << "\n - dictionary_map";
-  if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
   if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
@@ -2511,10 +2555,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     layout_descriptor().ShortPrint(os);
   }
 
-  Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (GetIsolateFromWritableObject(*this, &isolate)) {
+  if (!IsReadOnlyHeapObject(*this)) {
+    Isolate* isolate = GetIsolateFromWritableObject(*this);
     DisallowHeapAllocation no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
@@ -2811,4 +2855,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     transitions.PrintTransitionTree();
 #endif
   }
+}
+
+V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
+  reinterpret_cast<i::compiler::Node*>(object)->Print();
 }

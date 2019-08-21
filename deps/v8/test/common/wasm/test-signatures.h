@@ -27,7 +27,7 @@ class TestSignatures {
         sig_i_dd(1, 2, kIntDoubleTypes4),
         sig_i_r(1, 1, kIntAnyRefTypes4),
         sig_i_rr(1, 2, kIntAnyRefTypes4),
-        sig_i_a(1, 1, kIntAnyFuncTypes4),
+        sig_i_a(1, 1, kIntFuncRefTypes4),
         sig_l_v(1, 0, kLongTypes4),
         sig_l_l(1, 1, kLongTypes4),
         sig_l_ll(1, 2, kLongTypes4),
@@ -55,18 +55,18 @@ class TestSignatures {
     for (int i = 0; i < 4; i++) kFloatTypes4[i] = kWasmF32;
     for (int i = 0; i < 4; i++) kDoubleTypes4[i] = kWasmF64;
     for (int i = 0; i < 4; i++) kRefTypes4[i] = kWasmAnyRef;
-    for (int i = 0; i < 4; i++) kFuncTypes4[i] = kWasmAnyFunc;
+    for (int i = 0; i < 4; i++) kFuncTypes4[i] = kWasmFuncRef;
     for (int i = 1; i < 4; i++) kIntLongTypes4[i] = kWasmI64;
     for (int i = 1; i < 4; i++) kIntFloatTypes4[i] = kWasmF32;
     for (int i = 1; i < 4; i++) kIntDoubleTypes4[i] = kWasmF64;
     for (int i = 1; i < 4; i++) kIntAnyRefTypes4[i] = kWasmAnyRef;
-    for (int i = 1; i < 4; i++) kIntAnyFuncTypes4[i] = kWasmAnyFunc;
+    for (int i = 1; i < 4; i++) kIntFuncRefTypes4[i] = kWasmFuncRef;
     for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kWasmS128;
     kIntLongTypes4[0] = kWasmI32;
     kIntFloatTypes4[0] = kWasmI32;
     kIntDoubleTypes4[0] = kWasmI32;
     kIntAnyRefTypes4[0] = kWasmI32;
-    kIntAnyFuncTypes4[0] = kWasmI32;
+    kIntFuncRefTypes4[0] = kWasmI32;
     kSimd128IntTypes4[1] = kWasmI32;
   }
 
@@ -129,7 +129,7 @@ class TestSignatures {
   ValueType kIntFloatTypes4[4];
   ValueType kIntDoubleTypes4[4];
   ValueType kIntAnyRefTypes4[4];
-  ValueType kIntAnyFuncTypes4[4];
+  ValueType kIntFuncRefTypes4[4];
   ValueType kSimd128IntTypes4[4];
 
   FunctionSig sig_i_v;

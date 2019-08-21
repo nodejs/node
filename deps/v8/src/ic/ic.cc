@@ -29,9 +29,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/struct-inl.h"
-#ifdef V8_TRACE_FEEDBACK_UPDATES
 #include "src/utils/ostreams.h"
-#endif  // V8_TRACE_FEEDBACK_UPDATES
 #include "src/execution/runtime-profiler.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime-utils.h"
@@ -89,7 +87,6 @@ const char* GetModifier(KeyedAccessStoreMode mode) {
 
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
-  if (HostIsDeoptimizedCode()) return;
   State new_state =
       (state() == NO_FEEDBACK) ? NO_FEEDBACK : nexus()->ic_state();
   TraceIC(type, name, state(), new_state);
@@ -126,20 +123,21 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     return;
   }
 
+  JavaScriptFrameIterator it(isolate());
+  JavaScriptFrame* frame = it.frame();
+  JSFunction function = frame->function();
+
   ICStats::instance()->Begin();
   ICInfo& ic_info = ICStats::instance()->Current();
   ic_info.type = keyed_prefix ? "Keyed" : "";
   ic_info.type += type;
 
-  Object maybe_function =
-      Object(Memory<Address>(fp_ + JavaScriptFrameConstants::kFunctionOffset));
-  DCHECK(maybe_function.IsJSFunction());
-  JSFunction function = JSFunction::cast(maybe_function);
   int code_offset = 0;
   if (function.IsInterpreted()) {
-    code_offset = InterpretedFrame::GetBytecodeOffset(fp());
+    code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
   } else {
-    code_offset = static_cast<int>(pc() - function.code().InstructionStart());
+    code_offset =
+        static_cast<int>(frame->pc() - function.code().InstructionStart());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(
       function, function.abstract_code(), code_offset);
@@ -170,54 +168,9 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
       target_maps_set_(false),
       slow_stub_reason_(nullptr),
       nexus_(vector, slot) {
-  // To improve the performance of the (much used) IC code, we unfold a few
-  // levels of the stack frame iteration code. This yields a ~35% speedup when
-  // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
-  const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
-  Address* constant_pool = nullptr;
-  if (FLAG_enable_embedded_constant_pool) {
-    constant_pool = reinterpret_cast<Address*>(
-        entry + ExitFrameConstants::kConstantPoolOffset);
-  }
-  Address* pc_address =
-      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-  Address fp = Memory<Address>(entry + ExitFrameConstants::kCallerFPOffset);
-#ifdef DEBUG
-  StackFrameIterator it(isolate);
-  for (int i = 0; i < 1; i++) it.Advance();
-  StackFrame* frame = it.frame();
-  DCHECK(fp == frame->fp() && pc_address == frame->pc_address());
-#endif
-  // For interpreted functions, some bytecode handlers construct a
-  // frame. We have to skip the constructed frame to find the interpreted
-  // function's frame. Check if the there is an additional frame, and if there
-  // is skip this frame. However, the pc should not be updated. The call to
-  // ICs happen from bytecode handlers.
-  intptr_t frame_marker =
-      Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
-  if (frame_marker == StackFrame::TypeToMarker(StackFrame::STUB)) {
-    fp = Memory<Address>(fp + TypedFrameConstants::kCallerFPOffset);
-  }
-  fp_ = fp;
-  if (FLAG_enable_embedded_constant_pool) {
-    constant_pool_address_ = constant_pool;
-  }
-  pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
   old_state_ = state_;
-}
-
-JSFunction IC::GetHostFunction() const {
-  // Compute the JavaScript frame for the frame pointer of this IC
-  // structure. We need this to be able to find the function
-  // corresponding to the frame.
-  StackFrameIterator it(isolate());
-  while (it.frame()->fp() != this->fp()) it.Advance();
-  JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
-  // Find the function on the stack and both the active code for the
-  // function and the original code.
-  return frame->function();
 }
 
 static void LookupForRead(LookupIterator* it, bool is_has_property) {
@@ -262,14 +215,14 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
   // monomorphic.
   if (IsGlobalIC()) return true;
 
-  maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
+  MaybeObjectHandle maybe_handler = nexus()->FindHandlerForMap(receiver_map());
 
   // The current map wasn't handled yet. There's no reason to stay monomorphic,
   // *unless* we're moving from a deprecated map to its replacement, or
   // to a more general elements kind.
   // TODO(verwaest): Check if the current map is actually what the old map
   // would transition to.
-  if (maybe_handler_.is_null()) {
+  if (maybe_handler.is_null()) {
     if (!receiver_map()->IsJSObjectMap()) return false;
     Map first_map = FirstTargetMap();
     if (first_map.is_null()) return false;
@@ -320,27 +273,23 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
       isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
 }
 
-// static
-void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
-                           JSFunction host_function, const char* reason) {
-  FeedbackVector vector = nexus->vector();
-  FeedbackSlot slot = nexus->slot();
-  OnFeedbackChanged(isolate, vector, slot, host_function, reason);
+void IC::OnFeedbackChanged(const char* reason) {
+  vector_set_ = true;
+  FeedbackVector vector = nexus()->vector();
+  FeedbackSlot slot = nexus()->slot();
+  OnFeedbackChanged(isolate(), vector, slot, reason);
 }
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
-                           FeedbackSlot slot, JSFunction host_function,
-                           const char* reason) {
+                           FeedbackSlot slot, const char* reason) {
   if (FLAG_trace_opt_verbose) {
-    // TODO(leszeks): The host function is only needed for this print, we could
-    // remove it as a parameter if we're of with removing this trace (or only
-    // tracing the feedback vector, not the function name).
     if (vector.profiler_ticks() != 0) {
-      PrintF("[resetting ticks for ");
-      host_function.ShortPrint();
-      PrintF(" due from %d due to IC change: %s]\n", vector.profiler_ticks(),
-             reason);
+      StdoutStream os;
+      os << "[resetting ticks for ";
+      vector.shared_function_info().ShortPrint(os);
+      os << " from " << vector.profiler_ticks()
+         << " due to IC change: " << reason << "]" << std::endl;
     }
   }
   vector.set_profiler_ticks(0);
@@ -348,7 +297,6 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (FLAG_trace_feedback_updates) {
     int slot_count = vector.metadata().slot_count();
-
     StdoutStream os;
     if (slot.IsInvalid()) {
       os << "[Feedback slots in ";
@@ -368,18 +316,19 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
 #endif
 
   isolate->runtime_profiler()->NotifyICChanged();
-  // TODO(2029): When an optimized function is patched, it would
-  // be nice to propagate the corresponding type information to its
-  // unoptimized version for the benefit of later inlining.
 }
 
-static bool MigrateDeprecated(Handle<Object> object) {
+namespace {
+
+bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   if (!receiver->map().is_deprecated()) return false;
-  JSObject::MigrateInstance(Handle<JSObject>::cast(object));
+  JSObject::MigrateInstance(isolate, receiver);
   return true;
 }
+
+}  // namespace
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   DCHECK_EQ(MEGAMORPHIC, new_state);
@@ -389,15 +338,13 @@ bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   // functions doesn't improve performance.
   bool changed =
       nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
-  vector_set_ = true;
-  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Megamorphic");
+  OnFeedbackChanged("Megamorphic");
   return changed;
 }
 
 void IC::ConfigureVectorState(Handle<Map> map) {
   nexus()->ConfigurePremonomorphic(map);
-  vector_set_ = true;
-  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Premonomorphic");
+  OnFeedbackChanged("Premonomorphic");
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
@@ -415,9 +362,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     nexus()->ConfigureMonomorphic(name, map, handler);
   }
 
-  vector_set_ = true;
-  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(),
-                    IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
+  OnFeedbackChanged(IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
@@ -427,8 +372,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
   if (!is_keyed()) name = Handle<Name>::null();
   nexus()->ConfigurePolymorphic(name, maps, handlers);
 
-  vector_set_ = true;
-  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Polymorphic");
+  OnFeedbackChanged("Polymorphic");
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
@@ -454,7 +398,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
                      object, name);
   }
 
-  if (MigrateDeprecated(object)) use_ic = false;
+  if (MigrateDeprecated(isolate(), object)) use_ic = false;
 
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
@@ -573,11 +517,10 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   MapHandles maps;
   MaybeObjectHandles handlers;
 
-  TargetMaps(&maps);
+  nexus()->ExtractMapsAndHandlers(&maps, &handlers);
   int number_of_maps = static_cast<int>(maps.size());
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
-  if (!nexus()->FindHandlers(&handlers, number_of_maps)) return false;
 
   for (int i = 0; i < number_of_maps; i++) {
     Handle<Map> current_map = maps.at(i);
@@ -642,9 +585,8 @@ void IC::UpdateMonomorphicIC(const MaybeObjectHandle& handler,
 void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   MapHandles maps;
   MaybeObjectHandles handlers;
-  TargetMaps(&maps);
-  if (!nexus()->FindHandlers(&handlers, static_cast<int>(maps.size()))) return;
-  for (int i = 0; i < static_cast<int>(maps.size()); i++) {
+  nexus()->ExtractMapsAndHandlers(&maps, &handlers);
+  for (size_t i = 0; i < maps.size(); ++i) {
     UpdateMegamorphicCache(maps.at(i), name, handlers.at(i));
   }
 }
@@ -706,8 +648,7 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
 }
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  if (!FLAG_lazy_feedback_allocation && state() == UNINITIALIZED &&
-      !IsLoadGlobalIC()) {
+  if (state() == UNINITIALIZED && !IsLoadGlobalIC()) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     TRACE_HANDLER_STATS(isolate(), LoadIC_Premonomorphic);
@@ -760,17 +701,6 @@ void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
   if (!IsAnyHas()) {
     stub_cache()->Set(*name, *map, *handler);
-  }
-}
-
-void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
-  DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  if (IsAnyLoad() || IsAnyHas()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Accessor);
-  } else {
-    DCHECK(IsAnyStore());
-    TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Accessor);
   }
 }
 
@@ -1035,7 +965,8 @@ bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
                                     KeyedAccessLoadMode load_mode) {
   Handle<Map> receiver_map(receiver->map(), isolate());
-  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
+  DCHECK(receiver_map->instance_type() !=
+         JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
   MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
 
@@ -1046,8 +977,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   for (Handle<Map> map : target_receiver_maps) {
     if (map.is_null()) continue;
-    if (map->instance_type() == JS_VALUE_TYPE) {
-      set_slow_stub_reason("JSValue");
+    if (map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
+      set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
     if (map->instance_type() == JS_PROXY_TYPE) {
@@ -1091,7 +1022,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
-  if (target_receiver_maps.size() > kMaxKeyedPolymorphism) {
+  if (static_cast<int>(target_receiver_maps.size()) >
+      FLAG_max_polymorphic_map_count) {
     set_slow_stub_reason("max polymorph exceeded");
     return;
   }
@@ -1228,7 +1160,9 @@ namespace {
 bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
                        uint32_t* index, InlineCacheState state) {
   if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
-  if (receiver->IsAccessCheckNeeded() || receiver->IsJSValue()) return false;
+  if (receiver->IsAccessCheckNeeded() || receiver->IsJSPrimitiveWrapper()) {
+    return false;
+  }
 
   // For regular JSReceiver or String receivers, the {key} must be a positive
   // array index.
@@ -1299,7 +1233,7 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
 
 MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                       Handle<Object> key) {
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     return RuntimeLoad(object, key);
   }
 
@@ -1459,7 +1393,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    StoreOrigin store_origin) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result, Object::SetProperty(isolate(), object, name, value),
@@ -1779,9 +1713,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   for (Handle<Map> map : target_receiver_maps) {
-    if (!map.is_null() && map->instance_type() == JS_VALUE_TYPE) {
+    if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       DCHECK(!IsStoreInArrayLiteralICKind(kind()));
-      set_slow_stub_reason("JSValue");
+      set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
   }
@@ -1836,7 +1770,10 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   // If the maximum number of receiver maps has been exceeded, use the
   // megamorphic version of the IC.
-  if (target_receiver_maps.size() > kMaxKeyedPolymorphism) return;
+  if (static_cast<int>(target_receiver_maps.size()) >
+      FLAG_max_polymorphic_map_count) {
+    return;
+  }
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
@@ -2001,13 +1938,9 @@ bool MayHaveTypedArrayInPrototypeChain(Handle<JSObject> object) {
 KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
-  // dictionary mode. Also make sure we don't consider this a growing store if
-  // there's any JSTypedArray in the {receiver}'s prototype chain, since that
-  // prototype is going to swallow all stores that are out-of-bounds for said
-  // prototype, and we just let the runtime deal with the complexity of this.
+  // dictionary mode.
   bool allow_growth = receiver->IsJSArray() && oob_access &&
-                      !receiver->WouldConvertToSlowElements(index) &&
-                      !MayHaveTypedArrayInPrototypeChain(receiver);
+                      !receiver->WouldConvertToSlowElements(index);
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
@@ -2024,7 +1957,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> value) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
@@ -2109,6 +2042,16 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
         set_slow_stub_reason("arguments receiver");
+      } else if (object->IsJSArray() && IsGrowStoreMode(store_mode) &&
+                 JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
+        set_slow_stub_reason("array has read only length");
+      } else if (object->IsJSArray() && MayHaveTypedArrayInPrototypeChain(
+                                            Handle<JSObject>::cast(object))) {
+        // Make sure we don't handle this in IC if there's any JSTypedArray in
+        // the {receiver}'s prototype chain, since that prototype is going to
+        // swallow all stores that are out-of-bounds for said prototype, and we
+        // just let the runtime deal with the complexity of this.
+        set_slow_stub_reason("typed array in the prototype chain of an Array");
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
@@ -2160,7 +2103,8 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   DCHECK(!array->map().IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
-  if (!FLAG_use_ic || state() == NO_FEEDBACK || MigrateDeprecated(array)) {
+  if (!FLAG_use_ic || state() == NO_FEEDBACK ||
+      MigrateDeprecated(isolate(), array)) {
     StoreOwnElement(isolate(), array, index, value);
     TraceIC("StoreInArrayLiteralIC", index);
     return;
@@ -2585,10 +2529,9 @@ static bool CanFastCloneObject(Handle<Map> map) {
   return true;
 }
 
-static Handle<Map> FastCloneObjectMap(Isolate* isolate,
-                                      Handle<HeapObject> source, int flags) {
-  Handle<Map> source_map(source->map(), isolate);
-  SLOW_DCHECK(source->IsNullOrUndefined() || CanFastCloneObject(source_map));
+static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
+                                      int flags) {
+  SLOW_DCHECK(CanFastCloneObject(source_map));
   Handle<JSFunction> constructor(isolate->native_context()->object_function(),
                                  isolate);
   DCHECK(constructor->has_initial_map());
@@ -2613,9 +2556,10 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
     Map::SetPrototype(isolate, map, isolate->factory()->null_value());
   }
 
-  if (source->IsNullOrUndefined() || !source_map->NumberOfOwnDescriptors()) {
+  if (source_map->NumberOfOwnDescriptors() == 0) {
     return map;
   }
+  DCHECK(!source_map->IsNullOrUndefinedMap());
 
   if (map.is_identical_to(initial_map)) {
     map = Map::Copy(isolate, map, "InitializeClonedDescriptors");
@@ -2640,7 +2584,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
 }
 
 static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
-                                                 Handle<HeapObject> source,
+                                                 Handle<Object> source,
                                                  int flags) {
   Handle<JSObject> new_object;
   if (flags & ObjectLiteral::kHasNullPrototype) {
@@ -2664,35 +2608,31 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<HeapObject> source = args.at<HeapObject>(0);
+  Handle<Object> source = args.at<Object>(0);
   int flags = args.smi_at(1);
 
-  MigrateDeprecated(source);
+  if (!MigrateDeprecated(isolate, source)) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
+    Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
+    if (maybe_vector->IsFeedbackVector()) {
+      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
+      if (!source->IsSmi() && !nexus.IsMegamorphic()) {
+        Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
+                               isolate);
+        if (CanFastCloneObject(source_map)) {
+          Handle<Map> target_map =
+              FastCloneObjectMap(isolate, source_map, flags);
+          nexus.ConfigureCloneObject(source_map, target_map);
+          return *target_map;
+        }
 
-  FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
-  Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
-  if (maybe_vector->IsUndefined()) {
-    RETURN_RESULT_OR_FAILURE(isolate,
-                             CloneObjectSlowPath(isolate, source, flags));
+        nexus.ConfigureMegamorphic();
+      }
+    }
   }
 
-  DCHECK(maybe_vector->IsFeedbackVector());
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
-
-  FeedbackNexus nexus(vector, slot);
-  Handle<Map> source_map(source->map(), isolate);
-
-  if (!CanFastCloneObject(source_map) || nexus.IsMegamorphic()) {
-    // Migrate to slow mode if needed.
-    nexus.ConfigureMegamorphic();
-    RETURN_RESULT_OR_FAILURE(isolate,
-                             CloneObjectSlowPath(isolate, source, flags));
-  }
-
-  Handle<Map> result_map = FastCloneObjectMap(isolate, source, flags);
-  nexus.ConfigureCloneObject(source_map, result_map);
-
-  return *result_map;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           CloneObjectSlowPath(isolate, source, flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
@@ -2716,46 +2656,6 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
-}
-
-RUNTIME_FUNCTION(Runtime_LoadCallbackProperty) {
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<AccessorInfo> info = args.at<AccessorInfo>(2);
-  Handle<Name> name = args.at<Name>(3);
-  HandleScope scope(isolate);
-
-  DCHECK(info->IsCompatibleReceiver(*receiver));
-
-  PropertyCallbackArguments custom_args(isolate, info->data(), *receiver,
-                                        *holder, Just(kThrowOnError));
-  Handle<Object> result = custom_args.CallAccessorGetter(info, name);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result.is_null()) return ReadOnlyRoots(isolate).undefined_value();
-  return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_LoadAccessorProperty) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  int handler_kind = args.smi_at(1);
-  Handle<CallHandlerInfo> call_handler_info = args.at<CallHandlerInfo>(2);
-
-  Object holder = *receiver;
-  if (handler_kind == LoadHandler::kApiGetterHolderIsPrototype) {
-    holder = receiver->map().prototype();
-  } else {
-    DCHECK_EQ(handler_kind, LoadHandler::kApiGetter);
-  }
-
-  // Call the accessor without additional arguments.
-  FunctionCallbackArguments custom(isolate, call_handler_info->data(),
-                                   *receiver, holder, HeapObject(), nullptr, 0);
-  Handle<Object> result_handle = custom.Call(*call_handler_info);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result_handle.is_null()) return ReadOnlyRoots(isolate).undefined_value();
-  return *result_handle;
 }
 
 /**

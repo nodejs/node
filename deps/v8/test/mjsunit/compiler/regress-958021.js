@@ -13,9 +13,10 @@ function v0() {
       const v15 = v7 <= v14;
       for (var i = 0; i < 10; i++) {}
     }
-  } catch(v20) {}
-}
-
+  } catch (v20) {
+  }
+};
+%PrepareFunctionForOptimization(v0);
 v0();
 v0();
 %OptimizeFunctionOnNextCall(v0);

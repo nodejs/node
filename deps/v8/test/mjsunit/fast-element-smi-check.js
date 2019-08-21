@@ -39,8 +39,8 @@ test_load_set_smi(123);
 
 function test_load_set_smi_2(a) {
   return a[0] = a[0] = 1;
-}
-
+};
+%PrepareFunctionForOptimization(test_load_set_smi_2);
 test_load_set_smi_2(a);
 %OptimizeFunctionOnNextCall(test_load_set_smi_2);
 test_load_set_smi_2(a);
@@ -60,8 +60,8 @@ test_load_set_smi_3(123);
 
 function test_load_set_smi_4(b) {
   return b[0] = b[0] = 1;
-}
-
+};
+%PrepareFunctionForOptimization(test_load_set_smi_4);
 test_load_set_smi_4(b);
 %OptimizeFunctionOnNextCall(test_load_set_smi_4);
 test_load_set_smi_4(b);

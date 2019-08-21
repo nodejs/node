@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
   class V8_EXPORT_PRIVATE iterator {
    public:
     // Bare minimum of operators needed for range iteration.
-    bool operator!=(iterator& other);
+    bool operator!=(iterator const& other);
     iterator& operator++();
     TypedNode operator*();
 
@@ -104,7 +104,7 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
     Node* node();
     MachineType type();
-    bool done();
+    bool done() const;
     void Advance();
     void EnsureValid();
 

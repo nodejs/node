@@ -439,6 +439,14 @@ class Platform {
    */
   virtual void DumpWithoutCrashing() {}
 
+  /**
+   * Lets the embedder to add crash keys.
+   */
+  virtual void AddCrashKey(int id, const char* name, uintptr_t value) {
+    // "noop" is a valid implementation if the embedder doesn't care to log
+    // additional data for crashes.
+  }
+
  protected:
   /**
    * Default implementation of current wall-clock time in milliseconds

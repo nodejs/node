@@ -710,7 +710,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceFloat64Compare(node);
     case IrOpcode::kFloat64RoundDown:
       return ReduceFloat64RoundDown(node);
-    case IrOpcode::kBitcastTaggedToWord: {
+    case IrOpcode::kBitcastTaggedToWord:
+    case IrOpcode::kBitcastTaggedSignedToWord: {
       NodeMatcher m(node->InputAt(0));
       if (m.IsBitcastWordToTaggedSigned()) {
         RelaxEffectsAndControls(node);

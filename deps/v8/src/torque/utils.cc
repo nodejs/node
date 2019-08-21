@@ -123,12 +123,6 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
-void NamingConventionError(const std::string& type, const std::string& name,
-                           const std::string& convention) {
-  Lint(type, " \"", name, "\" does not follow \"", convention,
-       "\" naming convention.");
-}
-
 MessageBuilder::MessageBuilder(const std::string& message,
                                TorqueMessage::Kind kind) {
   base::Optional<SourcePosition> position;
@@ -162,7 +156,7 @@ bool ContainsUpperCase(const std::string& s) {
 // keywords, e.g.: 'True', 'Undefined', etc.
 // These do not need to follow the default naming convention for constants.
 bool IsKeywordLikeName(const std::string& s) {
-  static const char* const keyword_like_constants[]{"True", "False", "Hole",
+  static const char* const keyword_like_constants[]{"True", "False", "TheHole",
                                                     "Null", "Undefined"};
 
   return std::find(std::begin(keyword_like_constants),
@@ -186,12 +180,16 @@ bool IsMachineType(const std::string& s) {
 
 bool IsLowerCamelCase(const std::string& s) {
   if (s.empty()) return false;
-  return islower(s[0]) && !ContainsUnderscore(s);
+  size_t start = 0;
+  if (s[0] == '_') start = 1;
+  return islower(s[start]) && !ContainsUnderscore(s.substr(start));
 }
 
 bool IsUpperCamelCase(const std::string& s) {
   if (s.empty()) return false;
-  return isupper(s[0]) && !ContainsUnderscore(s);
+  size_t start = 0;
+  if (s[0] == '_') start = 1;
+  return isupper(s[start]) && !ContainsUnderscore(s.substr(1));
 }
 
 bool IsSnakeCase(const std::string& s) {
@@ -248,10 +246,32 @@ std::string CamelifyString(const std::string& underscore_string) {
   return result;
 }
 
+std::string SnakeifyString(const std::string& camel_string) {
+  std::string result;
+  bool previousWasLower = false;
+  for (auto current : camel_string) {
+    if (previousWasLower && isupper(current)) {
+      result += "_";
+    }
+    result += tolower(current);
+    previousWasLower = (islower(current));
+  }
+  return result;
+}
+
 std::string DashifyString(const std::string& underscore_string) {
   std::string result = underscore_string;
   std::replace(result.begin(), result.end(), '_', '-');
   return result;
+}
+
+std::string UnderlinifyPath(std::string path) {
+  std::replace(path.begin(), path.end(), '-', '_');
+  std::replace(path.begin(), path.end(), '/', '_');
+  std::replace(path.begin(), path.end(), '\\', '_');
+  std::replace(path.begin(), path.end(), '.', '_');
+  transform(path.begin(), path.end(), path.begin(), ::toupper);
+  return path;
 }
 
 void ReplaceFileContentsIfDifferent(const std::string& file_path,

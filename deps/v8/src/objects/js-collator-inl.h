@@ -20,7 +20,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSCollator, JSObject)
 
-ACCESSORS(JSCollator, icu_collator, Managed<icu::Collator>, kICUCollatorOffset)
+ACCESSORS(JSCollator, icu_collator, Managed<icu::Collator>, kIcuCollatorOffset)
 ACCESSORS(JSCollator, bound_compare, Object, kBoundCompareOffset)
 
 CAST_ACCESSOR(JSCollator)

@@ -47,7 +47,7 @@ class TemplateObjectDescription final : public Struct {
   DECL_CAST(TemplateObjectDescription)
 
   static Handle<JSArray> GetTemplateObject(
-      Isolate* isolate, Handle<Context> native_context,
+      Isolate* isolate, Handle<NativeContext> native_context,
       Handle<TemplateObjectDescription> description,
       Handle<SharedFunctionInfo> shared_info, int slot_id);
 

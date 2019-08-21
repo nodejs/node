@@ -11,9 +11,11 @@ function f() {
   var b = new Array(84632);
   var c = new Array(84632);
   return [a, b, c];
-}
-f(); f();
+};
+%PrepareFunctionForOptimization(f);
+f();
+f();
 %OptimizeFunctionOnNextCall(f);
-for(var i = 0; i < 10; i++) {
+for (var i = 0; i < 10; i++) {
   f();
 }

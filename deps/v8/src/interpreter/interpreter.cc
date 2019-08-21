@@ -112,7 +112,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
       CHECK(code_entry == kNullAddress ||
             InstructionStream::PcIsOffHeap(isolate_, code_entry));
     }
-#endif  // ENABLE_SLOW_DCHECKS
+#endif  // DEBUG
     return;
   }
 
@@ -230,12 +230,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
+std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals) {
-  return new InterpreterCompilationJob(parse_info, literal, allocator,
-                                       eager_inner_literals);
+  return base::make_unique<InterpreterCompilationJob>(
+      parse_info, literal, allocator, eager_inner_literals);
 }
 
 void Interpreter::ForEachBytecode(
@@ -290,14 +290,9 @@ bool Interpreter::IsDispatchTableInitialized() const {
 }
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
-#ifdef ENABLE_DISASSEMBLER
-#define RETURN_NAME(Name, ...)                                                 \
-  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code.entry()) { \
-    return #Name;                                                              \
+  if (code.kind() == Code::BYTECODE_HANDLER) {
+    return Builtins::name(code.builtin_index());
   }
-  BYTECODE_LIST(RETURN_NAME)
-#undef RETURN_NAME
-#endif  // ENABLE_DISASSEMBLER
   return nullptr;
 }
 

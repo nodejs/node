@@ -45,6 +45,10 @@ class WasmImportWrapperCache {
     base::MutexGuard guard_;
   };
 
+  // Not thread-safe, use ModificationScope to get exclusive write access to the
+  // cache.
+  V8_EXPORT_PRIVATE WasmCode*& operator[](const CacheKey& key);
+
   // Assumes the key exists in the map.
   V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
                                   FunctionSig* sig) const;

@@ -33,8 +33,8 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Object object(*location_);
   if (object.IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
-  Isolate* isolate;
-  if (!GetIsolateFromWritableObject(heap_object, &isolate)) return true;
+  if (IsReadOnlyHeapObject(heap_object)) return true;
+  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {

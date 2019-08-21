@@ -12,8 +12,8 @@ delete re.__proto__.test;
 
 function foo(s) {
   return re.test(s);
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertTrue(foo('abc'));
 assertTrue(foo('abc'));
 %OptimizeFunctionOnNextCall(foo);

@@ -27,18 +27,19 @@
 
 // Flags: --allow-natives-syntax --inline-accessors
 
-var forceDeopt = {x:0};
+var forceDeopt = {x: 0};
 
-var objectWithGetterProperty = (function (value) {
+var objectWithGetterProperty = function(value) {
   var obj = {};
-  Object.defineProperty(obj, "getterProperty", {
+  Object.defineProperty(obj, 'getterProperty', {
     get: function foo() {
       forceDeopt.x;
       return value;
-    },
+    }
   });
+
   return obj;
-})("bad");
+}('bad');
 
 function test() {
   var iAmContextAllocated = "good";
@@ -46,9 +47,11 @@ function test() {
   return iAmContextAllocated;
 
   // Make sure that the local variable is context allocated.
-  function unused() { iAmContextAllocated; }
-}
-
+  function unused() {
+    iAmContextAllocated;
+  }
+};
+%PrepareFunctionForOptimization(test);
 assertEquals("good", test());
 assertEquals("good", test());
 %OptimizeFunctionOnNextCall(test);

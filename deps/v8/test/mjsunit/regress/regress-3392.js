@@ -10,8 +10,8 @@ function foo() {
     a.b = 1;
   }
   assertTrue(0 <= a.b);
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

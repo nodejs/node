@@ -134,6 +134,7 @@ namespace compiler {
   V(MipsStackClaim)                \
   V(MipsSeb)                       \
   V(MipsSeh)                       \
+  V(MipsSync)                      \
   V(MipsS128Zero)                  \
   V(MipsI32x4Splat)                \
   V(MipsI32x4ExtractLane)          \

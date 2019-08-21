@@ -27,6 +27,7 @@ class FunctionLiteral;
 class FunctionTemplateInfo;
 class JSAsyncGeneratorObject;
 class JSGlobalProxy;
+class SourceTextModule;
 class JSPromise;
 class JSProxy;
 class JSProxyRevocableResult;
@@ -35,7 +36,7 @@ class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class Module;
-class ModuleInfoEntry;
+class SourceTextModuleInfoEntry;
 class MutableHeapNumber;
 class ObjectHashTable;
 class ObjectTemplateInfo;
@@ -53,6 +54,7 @@ class ScriptContextTable;
 class SharedFunctionInfo;
 class StringStream;
 class Symbol;
+class SyntheticModule;
 class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
@@ -134,10 +136,13 @@ class ZoneForwardList;
   V(JSAsyncGeneratorObject)                    \
   V(JSBoundFunction)                           \
   V(JSCollection)                              \
+  V(JSCollectionIterator)                      \
   V(JSContextExtensionObject)                  \
   V(JSDataView)                                \
   V(JSDate)                                    \
   V(JSError)                                   \
+  V(JSFinalizationGroup)                       \
+  V(JSFinalizationGroupCleanupIterator)        \
   V(JSFunction)                                \
   V(JSGeneratorObject)                         \
   V(JSGlobalObject)                            \
@@ -147,6 +152,7 @@ class ZoneForwardList;
   V(JSMessageObject)                           \
   V(JSModuleNamespace)                         \
   V(JSObject)                                  \
+  V(JSPrimitiveWrapper)                        \
   V(JSPromise)                                 \
   V(JSProxy)                                   \
   V(JSReceiver)                                \
@@ -158,18 +164,15 @@ class ZoneForwardList;
   V(JSSloppyArgumentsObject)                   \
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \
-  V(JSValue)                                   \
-  V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
-  V(JSFinalizationGroup)                       \
-  V(JSFinalizationGroupCleanupIterator)        \
+  V(JSWeakRef)                                 \
   V(JSWeakMap)                                 \
   V(JSWeakSet)                                 \
   V(LoadHandler)                               \
   V(Map)                                       \
   V(MapCache)                                  \
+  V(Module)                                    \
   V(Microtask)                                 \
-  V(ModuleInfo)                                \
   V(MutableHeapNumber)                         \
   V(Name)                                      \
   V(NameDictionary)                            \
@@ -202,6 +205,8 @@ class ZoneForwardList;
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
   V(SmallOrderedNameDictionary)                \
+  V(SourceTextModule)                          \
+  V(SourceTextModuleInfo)                      \
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \
@@ -210,6 +215,7 @@ class ZoneForwardList;
   V(Struct)                                    \
   V(Symbol)                                    \
   V(SymbolWrapper)                             \
+  V(SyntheticModule)                           \
   V(TemplateInfo)                              \
   V(TemplateList)                              \
   V(ThinString)                                \
@@ -248,9 +254,17 @@ class ZoneForwardList;
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) V(HashTable)
 
+// Logical sub-types of heap objects that don't correspond to a C++ class but
+// represent some specialization in terms of additional constraints.
+#define HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V) \
+  V(CallableApiObject)                       \
+  V(CallableJSProxy)                         \
+  V(NonNullForeign)
+
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
-  HEAP_OBJECT_TEMPLATE_TYPE_LIST(V)
+  HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
+  HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
 #define ODDBALL_LIST(V)                 \
   V(Undefined, undefined_value)         \

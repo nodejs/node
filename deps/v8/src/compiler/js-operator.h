@@ -48,7 +48,7 @@ class CallFrequency final {
   }
   bool operator!=(CallFrequency const& that) const { return !(*this == that); }
 
-  friend size_t hash_value(CallFrequency f) {
+  friend size_t hash_value(CallFrequency const& f) {
     return bit_cast<uint32_t>(f.value_);
   }
 
@@ -58,7 +58,7 @@ class CallFrequency final {
   float value_;
 };
 
-std::ostream& operator<<(std::ostream&, CallFrequency);
+std::ostream& operator<<(std::ostream&, CallFrequency const&);
 
 CallFrequency CallFrequencyOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
@@ -101,7 +101,7 @@ ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
 // used as a parameter by JSConstruct and JSConstructWithSpread operators.
 class ConstructParameters final {
  public:
-  ConstructParameters(uint32_t arity, CallFrequency frequency,
+  ConstructParameters(uint32_t arity, CallFrequency const& frequency,
                       VectorSlotPair const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
@@ -757,7 +757,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
-  const Operator* CallWithArrayLike(CallFrequency frequency);
+  const Operator* CallWithArrayLike(CallFrequency const& frequency);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
@@ -768,11 +768,11 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Construct(uint32_t arity,
-                            CallFrequency frequency = CallFrequency(),
+                            CallFrequency const& frequency = CallFrequency(),
                             VectorSlotPair const& feedback = VectorSlotPair());
-  const Operator* ConstructWithArrayLike(CallFrequency frequency);
+  const Operator* ConstructWithArrayLike(CallFrequency const& frequency);
   const Operator* ConstructWithSpread(
-      uint32_t arity, CallFrequency frequency = CallFrequency(),
+      uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair());
 
   const Operator* LoadProperty(VectorSlotPair const& feedback);

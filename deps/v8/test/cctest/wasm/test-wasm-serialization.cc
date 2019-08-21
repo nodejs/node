@@ -61,7 +61,7 @@ class WasmSerializationTest {
     EMIT_CODE_WITH_END(f, code);
     builder->AddExport(CStrVector(kFunctionName), f);
 
-    builder->WriteTo(*buffer);
+    builder->WriteTo(buffer);
   }
 
   void ClearSerializedData() { serialized_bytes_ = {nullptr, 0}; }

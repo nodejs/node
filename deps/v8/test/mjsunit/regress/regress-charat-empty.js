@@ -6,8 +6,9 @@
 (() => {
   function f(s) {
     return s.charAt();
-  }
-  f("");
+  };
+  %PrepareFunctionForOptimization(f);
+  f('');
   f("");
   %OptimizeFunctionOnNextCall(f);
   f("");

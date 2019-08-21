@@ -51,6 +51,7 @@ function prepare(base) {
   right = 0.5 * base;
 }
 
+%PrepareFunctionForOptimization(foo);
 prepare(21);
 assertEquals("ok", foo());
 assertEquals("ok", foo());

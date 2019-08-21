@@ -14,6 +14,10 @@
 #include "libplatform/libplatform-export.h"
 #include "v8-platform.h"  // NOLINT(build/include)
 
+namespace perfetto {
+class TracingSession;
+}
+
 namespace v8 {
 
 namespace base {
@@ -23,8 +27,8 @@ class Mutex;
 namespace platform {
 namespace tracing {
 
-class PerfettoTracingController;
 class TraceEventListener;
+class JSONTraceEventListener;
 
 const int kTraceMaxNumArgs = 2;
 
@@ -292,11 +296,10 @@ class V8_PLATFORM_EXPORT TracingController
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
   std::atomic_bool recording_{false};
 #ifdef V8_USE_PERFETTO
-  std::atomic_bool perfetto_recording_{false};
-  std::unique_ptr<PerfettoTracingController> perfetto_tracing_controller_;
   std::ostream* output_stream_ = nullptr;
-  std::unique_ptr<TraceEventListener> json_listener_;
+  std::unique_ptr<JSONTraceEventListener> json_listener_;
   TraceEventListener* listener_for_testing_ = nullptr;
+  std::unique_ptr<perfetto::TracingSession> tracing_session_;
 #endif
 
   // Disallow copy and assign

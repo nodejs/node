@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-function empty() { }
+function empty() {}
 
 function baz(expected, found) {
   var start = "";
@@ -16,16 +16,17 @@ function baz(expected, found) {
   }
 }
 
-baz([1], new (class A extends Array {}));
+baz([1], new class A extends Array {}());
 
 (function () {
   "use strict";
   function bar() {
-    baz([1,2], arguments);
+    baz([1, 2], arguments);
   }
   function foo() {
-    bar(2147483648,-[]);
-  }
+    bar(2147483648, -[]);
+  };
+  %PrepareFunctionForOptimization(foo);
   foo();
   foo();
   %OptimizeFunctionOnNextCall(foo);

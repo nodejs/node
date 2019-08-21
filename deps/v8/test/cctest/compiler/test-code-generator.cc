@@ -962,7 +962,8 @@ class CodeGeneratorTester {
       : zone_(environment->main_zone()),
         info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
         linkage_(environment->test_descriptor()),
-        frame_(environment->test_descriptor()->CalculateFixedFrameSize()) {
+        frame_(environment->test_descriptor()->CalculateFixedFrameSize(
+            Code::STUB)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or

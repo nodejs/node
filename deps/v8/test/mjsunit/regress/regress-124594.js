@@ -42,9 +42,9 @@ function f(deopt) {
 
 function g(deopt) {
   return new f(deopt);
-}
-
-assertEquals({x:1}, g(false));
-assertEquals({x:1}, g(false));
+};
+%PrepareFunctionForOptimization(g);
+assertEquals({x: 1}, g(false));
+assertEquals({x: 1}, g(false));
 %OptimizeFunctionOnNextCall(g);
-assertEquals({x:"1foo"}, g(true));
+assertEquals({x: '1foo'}, g(true));

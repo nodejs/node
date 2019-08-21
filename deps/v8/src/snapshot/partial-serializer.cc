@@ -214,7 +214,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
     if (DataIsEmpty(data)) continue;
     // Restore original values from cleared fields.
     EmbedderDataSlot(js_obj, i).store_raw(original_embedder_values[i], no_gc);
-    embedder_fields_sink_.Put(kNewObject + reference.space(),
+    embedder_fields_sink_.Put(kNewObject + static_cast<int>(reference.space()),
                               "embedder field holder");
     embedder_fields_sink_.PutInt(reference.chunk_index(), "BackRefChunkIndex");
     embedder_fields_sink_.PutInt(reference.chunk_offset(),

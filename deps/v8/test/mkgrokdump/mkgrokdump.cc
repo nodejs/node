@@ -110,6 +110,8 @@ static int DumpHeapConstants(const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::ReadOnlyHeap* read_only_heap =
+        reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF("%s", kHeader);
 #define DUMP_TYPE(T) i::PrintF("  %d: \"%s\",\n", i::T, #T);
     i::PrintF("INSTANCE_TYPES = {\n");
@@ -121,13 +123,13 @@ static int DumpHeapConstants(const char* argv0) {
       // Dump the KNOWN_MAP table to the console.
       i::PrintF("\n# List of known V8 maps.\n");
       i::PrintF("KNOWN_MAPS = {\n");
-      i::ReadOnlyHeapIterator ro_iterator(heap->read_only_heap());
+      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         if (!object.IsMap()) continue;
         DumpKnownMap(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
-      i::HeapObjectIterator iterator(heap->map_space());
+      i::PagedSpaceObjectIterator iterator(heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
@@ -140,7 +142,7 @@ static int DumpHeapConstants(const char* argv0) {
       // Dump the KNOWN_OBJECTS table to the console.
       i::PrintF("\n# List of known V8 objects.\n");
       i::PrintF("KNOWN_OBJECTS = {\n");
-      i::ReadOnlyHeapIterator ro_iterator(heap->read_only_heap());
+      i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
@@ -148,9 +150,9 @@ static int DumpHeapConstants(const char* argv0) {
         DumpKnownObject(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
 
-      i::PagedSpaces spit(heap);
-      for (i::PagedSpace* s = spit.next(); s != nullptr; s = spit.next()) {
-        i::HeapObjectIterator it(s);
+      i::PagedSpaceIterator spit(heap);
+      for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
+        i::PagedSpaceObjectIterator it(s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
           continue;

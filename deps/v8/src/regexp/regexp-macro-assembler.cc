@@ -133,7 +133,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, bool is_direct_call,
     Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
-  AllowHeapAllocation allow_allocation;
+  DisallowHeapAllocation no_gc;
+
   DCHECK(re_code.raw_instruction_start() <= *return_address);
   DCHECK(*return_address <= re_code.raw_instruction_end());
   int return_value = 0;
@@ -154,14 +155,14 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     //    forcing the call through the runtime system.
     return_value = js_has_overflowed ? EXCEPTION : RETRY;
   } else if (js_has_overflowed) {
+    AllowHeapAllocation yes_gc;
     isolate->StackOverflow();
     return_value = EXCEPTION;
-  } else {
+  } else if (check.InterruptRequested()) {
+    AllowHeapAllocation yes_gc;
     Object result = isolate->stack_guard()->HandleInterrupts();
     if (result.IsException(isolate)) return_value = EXCEPTION;
   }
-
-  DisallowHeapAllocation no_gc;
 
   if (*code_handle != re_code) {  // Return address no longer valid
     intptr_t delta = code_handle->address() - re_code.address();

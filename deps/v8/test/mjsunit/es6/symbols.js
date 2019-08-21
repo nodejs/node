@@ -43,8 +43,8 @@ function isValidSymbolString(s) {
 function TestNew() {
   function indirectSymbol() { return Symbol() }
   function indirect() { return indirectSymbol() }
-  %PrepareFunctionForOptimization(indirect);
   for (var i = 0; i < 2; ++i) {
+    %PrepareFunctionForOptimization(indirect);
     for (var j = 0; j < 5; ++j) {
       symbols.push(Symbol())
       symbols.push(Symbol(undefined))

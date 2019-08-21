@@ -987,8 +987,8 @@ TEST(DecideToPretenureDuringCompilation) {
   // This setting ensures Heap::MaximumSizeScavenge will return `true`.
   // We need to initialize the heap with at least 1 page, while keeping the
   // limit low, to ensure the new space fills even on 32-bit architectures.
-  create_params.constraints.set_max_semi_space_size_in_kb(Page::kPageSize /
-                                                          1024);
+  create_params.constraints.set_max_young_generation_size_in_bytes(
+      3 * Page::kPageSize);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 

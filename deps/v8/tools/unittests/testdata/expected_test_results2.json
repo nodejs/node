@@ -4,7 +4,7 @@
   "mode": "release",
   "results": [
     {
-      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort",
+      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner",
       "duration": 1,
       "exit_code": 1,
       "expected": [
@@ -13,7 +13,8 @@
       "flags": [
         "bananaflakes",
         "--random-seed=123",
-        "--nohard-abort"
+        "--nohard-abort",
+	"--testing-d8-test-runner"
       ],
       "framework_name": "standard_runner",
       "name": "sweet/bananaflakes",
@@ -21,13 +22,13 @@
       "result": "FAIL",
       "run": 1,
       "stderr": "",
-      "stdout": "bananaflakes --random-seed=123 --nohard-abort\n",
+      "stdout": "bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner\n",
       "target_name": "d8_mocked.py",
       "variant": "default",
       "variant_flags": []
     },
     {
-      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort",
+      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner",
       "duration": 1,
       "exit_code": 0,
       "expected": [
@@ -36,7 +37,8 @@
       "flags": [
         "bananaflakes",
         "--random-seed=123",
-        "--nohard-abort"
+        "--nohard-abort",
+	"--testing-d8-test-runner"
       ],
       "framework_name": "standard_runner",
       "name": "sweet/bananaflakes",
@@ -44,7 +46,7 @@
       "result": "PASS",
       "run": 2,
       "stderr": "",
-      "stdout": "bananaflakes --random-seed=123 --nohard-abort\n",
+      "stdout": "bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner\n",
       "target_name": "d8_mocked.py",
       "variant": "default",
       "variant_flags": []
@@ -52,23 +54,25 @@
   ],
   "slowest_tests": [
     {
-      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort",
+      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner",
       "duration": 1,
       "flags": [
         "bananaflakes",
         "--random-seed=123",
-        "--nohard-abort"
+        "--nohard-abort",
+	"--testing-d8-test-runner"
       ],
       "marked_slow": false,
       "name": "sweet/bananaflakes"
     },
     {
-      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort",
+      "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner",
       "duration": 1,
       "flags": [
         "bananaflakes",
         "--random-seed=123",
-        "--nohard-abort"
+        "--nohard-abort",
+	"--testing-d8-test-runner"
       ],
       "marked_slow": false,
       "name": "sweet/bananaflakes"

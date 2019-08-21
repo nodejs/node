@@ -18,28 +18,28 @@ namespace wasm {
 namespace {
 
 PRINTF_FORMAT(3, 0)
-void VPrintFToString(std::string& str, size_t str_offset, const char* format,
+void VPrintFToString(std::string* str, size_t str_offset, const char* format,
                      va_list args) {
-  DCHECK_LE(str_offset, str.size());
+  DCHECK_LE(str_offset, str->size());
   size_t len = str_offset + strlen(format);
   // Allocate increasingly large buffers until the message fits.
   for (;; len = base::bits::RoundUpToPowerOfTwo64(len + 1)) {
     DCHECK_GE(kMaxInt, len);
-    str.resize(len);
+    str->resize(len);
     va_list args_copy;
     va_copy(args_copy, args);
-    int written = VSNPrintF(Vector<char>(&str.front() + str_offset,
+    int written = VSNPrintF(Vector<char>(&str->front() + str_offset,
                                          static_cast<int>(len - str_offset)),
                             format, args_copy);
     va_end(args_copy);
     if (written < 0) continue;  // not enough space.
-    str.resize(str_offset + written);
+    str->resize(str_offset + written);
     return;
   }
 }
 
 PRINTF_FORMAT(3, 4)
-void PrintFToString(std::string& str, size_t str_offset, const char* format,
+void PrintFToString(std::string* str, size_t str_offset, const char* format,
                     ...) {
   va_list args;
   va_start(args, format);
@@ -52,7 +52,7 @@ void PrintFToString(std::string& str, size_t str_offset, const char* format,
 // static
 std::string WasmError::FormatError(const char* format, va_list args) {
   std::string result;
-  VPrintFToString(result, 0, format, args);
+  VPrintFToString(&result, 0, format, args);
   return result;
 }
 
@@ -63,10 +63,10 @@ void ErrorThrower::Format(ErrorType type, const char* format, va_list args) {
 
   size_t context_len = 0;
   if (context_) {
-    PrintFToString(error_msg_, 0, "%s: ", context_);
+    PrintFToString(&error_msg_, 0, "%s: ", context_);
     context_len = error_msg_.size();
   }
-  VPrintFToString(error_msg_, context_len, format, args);
+  VPrintFToString(&error_msg_, context_len, format, args);
   error_type_ = type;
 }
 

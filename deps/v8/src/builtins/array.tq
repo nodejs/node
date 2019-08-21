@@ -33,18 +33,19 @@ namespace array {
   }
 
   macro IsJSArray(implicit context: Context)(o: Object): bool {
-    try {
-      const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
-      return true;
-    }
-    label NotArray {
-      return false;
+    typeswitch (o) {
+      case (JSArray): {
+        return true;
+      }
+      case (Object): {
+        return false;
+      }
     }
   }
 
   macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
     const e: Object = a.objects[i];
-    return e == Hole ? Undefined : e;
+    return e == TheHole ? Undefined : e;
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
@@ -62,26 +63,7 @@ namespace array {
   }
 
   macro StoreArrayHole(elements: FixedArray, k: Smi): void {
-    elements.objects[k] = Hole;
-  }
-
-  macro CopyArrayElement(
-      elements: FixedArray, newElements: FixedArray, from: Smi, to: Smi): void {
-    const e: Object = elements.objects[from];
-    newElements.objects[to] = e;
-  }
-
-  macro CopyArrayElement(
-      elements: FixedDoubleArray, newElements: FixedDoubleArray, from: Smi,
-      to: Smi): void {
-    try {
-      const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
-          otherwise FoundHole;
-      newElements.floats[to] = floatValue;
-    }
-    label FoundHole {
-      StoreArrayHole(newElements, to);
-    }
+    elements.objects[k] = TheHole;
   }
 
   extern macro SetPropertyLength(implicit context: Context)(Object, Number);

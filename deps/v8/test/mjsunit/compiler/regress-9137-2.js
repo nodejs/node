@@ -23,6 +23,7 @@ foo([0, 1, 2]);
 foo([0, 1, 2]);
 %OptimizeFunctionOnNextCall(foo);
 foo([0, 1, 2]);
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo([0, 1, 2]);
 assertOptimized(foo);

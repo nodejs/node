@@ -21,6 +21,7 @@ a3.fill(3.3);
 
 var a4 = [1.1];
 
+%PrepareFunctionForOptimization(fun);
 for (let i = 0; i < 3; i++) fun(...a4);
 %OptimizeFunctionOnNextCall(fun);
 fun(...a4);

@@ -20,21 +20,29 @@ std::string ErrorPrefixFor(TorqueMessage::Kind kind) {
 
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
+  std::string v8_root;
   std::vector<std::string> files;
 
   for (int i = 1; i < argc; ++i) {
     // Check for options
-    if (!strcmp("-o", argv[i])) {
+    if (std::string(argv[i]) == "-o") {
       output_directory = argv[++i];
-      continue;
+    } else if (std::string(argv[i]) == "-v8-root") {
+      v8_root = std::string(argv[++i]);
+    } else {
+      // Otherwise it's a .tq file. Remember it for compilation.
+      files.emplace_back(argv[i]);
+      if (!StringEndsWith(files.back(), ".tq")) {
+        std::cerr << "Unexpected command-line argument \"" << files.back()
+                  << "\", expected a .tq file.\n";
+        base::OS::Abort();
+      }
     }
-
-    // Otherwise it's a .tq file. Remember it for compilation.
-    files.emplace_back(argv[i]);
   }
 
   TorqueCompilerOptions options;
-  options.output_directory = output_directory;
+  options.output_directory = std::move(output_directory);
+  options.v8_root = std::move(v8_root);
   options.collect_language_server_data = false;
   options.force_assert_statements = false;
 
@@ -42,7 +50,7 @@ int WrappedMain(int argc, const char** argv) {
 
   // PositionAsString requires the SourceFileMap to be set to
   // resolve the file name. Needed to report errors and lint warnings.
-  SourceFileMap::Scope source_file_map_scope(result.source_file_map);
+  SourceFileMap::Scope source_file_map_scope(*result.source_file_map);
 
   for (const TorqueMessage& message : result.messages) {
     if (message.position) {

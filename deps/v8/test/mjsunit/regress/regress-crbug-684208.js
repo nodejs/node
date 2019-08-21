@@ -9,6 +9,7 @@ function foo() {
   %_DeoptimizeNow();
   return a[2];
 }
+%PrepareFunctionForOptimization(foo);
 assertSame(undefined, foo());
 assertSame(undefined, foo());
 %OptimizeFunctionOnNextCall(foo)

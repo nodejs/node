@@ -30,6 +30,15 @@ v8_executable("wasm_api_tests") {
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "callbacks.cc",
+    "finalize.cc",
+    "globals.cc",
+    "memory.cc",
+    "reflect.cc",
     "run-all-wasm-api-tests.cc",
+    "serialize.cc",
+    "table.cc",
+    "threads.cc",
+    "traps.cc",
+    "wasm-api-test.h",
   ]
 }

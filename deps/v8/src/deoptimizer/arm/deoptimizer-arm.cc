@@ -231,7 +231,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ pop(lr);
     __ Jump(scratch);
   }
-  __ stop("Unreachable.");
+  __ stop();
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

@@ -4,6 +4,7 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
+  "assert_types": [["--assert-types"]],
   "code_serializer": [["--cache=code"]],
   "default": [[]],
   "future": [["--future"]],

@@ -40,8 +40,8 @@ function check_smi_repr(o, d1, d2) {
   s = s + d;
   o.smi = s;
   return o;
-}
-
+};
+%PrepareFunctionForOptimization(check_smi_repr);
 var test = smi_field();
 check_smi_repr(smi_field(), 5, 3);
 check_smi_repr(smi_field(), 6, 2);
@@ -50,7 +50,7 @@ var val = check_smi_repr(smi_field(), 8, 1);
 assertTrue(%HaveSameMap(val, test));
 
 function tagged_smi_field() {
-  var o = {"tag":false};
+  var o = {'tag': false};
   o.tag = 10;
   return o;
 }
@@ -59,8 +59,8 @@ function check_smi_repr_from_tagged(o, o2) {
   var t = o2.tag;
   o.smi = t;
   return o;
-}
-
+};
+%PrepareFunctionForOptimization(check_smi_repr_from_tagged);
 check_smi_repr_from_tagged(smi_field(), tagged_smi_field());
 check_smi_repr_from_tagged(smi_field(), tagged_smi_field());
 %OptimizeFunctionOnNextCall(check_smi_repr_from_tagged);

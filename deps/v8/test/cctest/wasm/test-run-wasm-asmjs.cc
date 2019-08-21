@@ -19,7 +19,17 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-WASM_EXEC_TEST(Int32AsmjsDivS) {
+// Liftoff does not support asm.js, and is never invoked with asm.js code in
+// production. Hence test asm.js with TurboFan and Interpreter only.
+#define ASMJS_EXEC_TEST(name)                                                \
+  void RunWasm_##name(ExecutionTier execution_tier);                         \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
+  TEST(RunWasmInterpreter_##name) {                                          \
+    RunWasm_##name(ExecutionTier::kInterpreter);                             \
+  }                                                                          \
+  void RunWasm_##name(ExecutionTier execution_tier)
+
+ASMJS_EXEC_TEST(Int32AsmjsDivS) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -31,7 +41,7 @@ WASM_EXEC_TEST(Int32AsmjsDivS) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST(Int32AsmjsRemS) {
+ASMJS_EXEC_TEST(Int32AsmjsRemS) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -43,7 +53,7 @@ WASM_EXEC_TEST(Int32AsmjsRemS) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST(Int32AsmjsDivU) {
+ASMJS_EXEC_TEST(Int32AsmjsDivU) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -55,7 +65,7 @@ WASM_EXEC_TEST(Int32AsmjsDivU) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST(Int32AsmjsRemU) {
+ASMJS_EXEC_TEST(Int32AsmjsRemU) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -67,7 +77,7 @@ WASM_EXEC_TEST(Int32AsmjsRemU) {
   CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
-WASM_EXEC_TEST(I32AsmjsSConvertF32) {
+ASMJS_EXEC_TEST(I32AsmjsSConvertF32) {
   WasmRunner<int32_t, float> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF32, WASM_GET_LOCAL(0)));
@@ -78,7 +88,7 @@ WASM_EXEC_TEST(I32AsmjsSConvertF32) {
   }
 }
 
-WASM_EXEC_TEST(I32AsmjsSConvertF64) {
+ASMJS_EXEC_TEST(I32AsmjsSConvertF64) {
   WasmRunner<int32_t, double> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF64, WASM_GET_LOCAL(0)));
@@ -89,7 +99,7 @@ WASM_EXEC_TEST(I32AsmjsSConvertF64) {
   }
 }
 
-WASM_EXEC_TEST(I32AsmjsUConvertF32) {
+ASMJS_EXEC_TEST(I32AsmjsUConvertF32) {
   WasmRunner<uint32_t, float> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF32, WASM_GET_LOCAL(0)));
@@ -100,7 +110,7 @@ WASM_EXEC_TEST(I32AsmjsUConvertF32) {
   }
 }
 
-WASM_EXEC_TEST(I32AsmjsUConvertF64) {
+ASMJS_EXEC_TEST(I32AsmjsUConvertF64) {
   WasmRunner<uint32_t, double> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF64, WASM_GET_LOCAL(0)));
@@ -111,7 +121,7 @@ WASM_EXEC_TEST(I32AsmjsUConvertF64) {
   }
 }
 
-WASM_EXEC_TEST(LoadMemI32_oob_asm) {
+ASMJS_EXEC_TEST(LoadMemI32_oob_asm) {
   WasmRunner<int32_t, uint32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
@@ -131,7 +141,7 @@ WASM_EXEC_TEST(LoadMemI32_oob_asm) {
   }
 }
 
-WASM_EXEC_TEST(LoadMemF32_oob_asm) {
+ASMJS_EXEC_TEST(LoadMemF32_oob_asm) {
   WasmRunner<float, uint32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   float* memory = r.builder().AddMemoryElems<float>(8);
@@ -151,7 +161,7 @@ WASM_EXEC_TEST(LoadMemF32_oob_asm) {
   }
 }
 
-WASM_EXEC_TEST(LoadMemF64_oob_asm) {
+ASMJS_EXEC_TEST(LoadMemF64_oob_asm) {
   WasmRunner<double, uint32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   double* memory = r.builder().AddMemoryElems<double>(8);
@@ -173,7 +183,7 @@ WASM_EXEC_TEST(LoadMemF64_oob_asm) {
   }
 }
 
-WASM_EXEC_TEST(StoreMemI32_oob_asm) {
+ASMJS_EXEC_TEST(StoreMemI32_oob_asm) {
   WasmRunner<int32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().ChangeOriginToAsmjs();
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
@@ -194,6 +204,42 @@ WASM_EXEC_TEST(StoreMemI32_oob_asm) {
     CHECK_EQ(7777, r.Call(offset, 7777));
   }
 }
+
+ASMJS_EXEC_TEST(Int32AsmjsDivS_byzero_const) {
+  for (int8_t denom = -2; denom < 8; ++denom) {
+    WasmRunner<int32_t, int32_t> r(execution_tier);
+    r.builder().ChangeOriginToAsmjs();
+    BUILD(r, WASM_I32_ASMJS_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
+    FOR_INT32_INPUTS(i) {
+      if (denom == 0) {
+        CHECK_EQ(0, r.Call(i));
+      } else if (denom == -1 && i == std::numeric_limits<int32_t>::min()) {
+        CHECK_EQ(std::numeric_limits<int32_t>::min(), r.Call(i));
+      } else {
+        CHECK_EQ(i / denom, r.Call(i));
+      }
+    }
+  }
+}
+
+ASMJS_EXEC_TEST(Int32AsmjsRemS_byzero_const) {
+  for (int8_t denom = -2; denom < 8; ++denom) {
+    WasmRunner<int32_t, int32_t> r(execution_tier);
+    r.builder().ChangeOriginToAsmjs();
+    BUILD(r, WASM_I32_ASMJS_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
+    FOR_INT32_INPUTS(i) {
+      if (denom == 0) {
+        CHECK_EQ(0, r.Call(i));
+      } else if (denom == -1 && i == std::numeric_limits<int32_t>::min()) {
+        CHECK_EQ(0, r.Call(i));
+      } else {
+        CHECK_EQ(i % denom, r.Call(i));
+      }
+    }
+  }
+}
+
+#undef ASMJS_EXEC_TEST
 
 }  // namespace wasm
 }  // namespace internal

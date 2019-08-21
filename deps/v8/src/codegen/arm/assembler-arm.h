@@ -625,8 +625,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void stm(BlockAddrMode am, Register base, RegList src, Condition cond = al);
 
   // Exception-generating instructions and debugging support
-  void stop(const char* msg, Condition cond = al,
-            int32_t code = kDefaultStopCode);
+  void stop(Condition cond = al, int32_t code = kDefaultStopCode);
 
   void bkpt(uint32_t imm16);  // v5 and above
   void svc(uint32_t imm24, Condition cond = al);

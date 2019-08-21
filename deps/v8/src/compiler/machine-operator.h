@@ -112,6 +112,9 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
 
 MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
+V8_EXPORT_PRIVATE const uint8_t* S8x16ShuffleOf(Operator const* op)
+    V8_WARN_UNUSED_RESULT;
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -216,7 +219,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
           AlignmentRequirements::FullUnalignedAccessSupport());
 
   const Operator* Comment(const char* msg);
-  const Operator* DebugAbort();
+  const Operator* AbortCSAAssert();
   const Operator* DebugBreak();
   const Operator* UnsafePointerAdd();
 
@@ -295,8 +298,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
-  // This operator reinterprets the bits of a tagged pointer as word.
+  // This operator reinterprets the bits of a tagged pointer as a word.
   const Operator* BitcastTaggedToWord();
+
+  // This operator reinterprets the bits of a Smi as a word.
+  const Operator* BitcastTaggedSignedToWord();
 
   // This operator reinterprets the bits of a tagged MaybeObject pointer as
   // word.
@@ -462,6 +468,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float64SilenceNaN();
 
   // SIMD operators.
+  const Operator* F64x2Splat();
+  const Operator* F64x2Abs();
+  const Operator* F64x2Neg();
+  const Operator* F64x2ExtractLane(int32_t);
+  const Operator* F64x2ReplaceLane(int32_t);
+  const Operator* F64x2Eq();
+  const Operator* F64x2Ne();
+  const Operator* F64x2Lt();
+  const Operator* F64x2Le();
+
   const Operator* F32x4Splat();
   const Operator* F32x4ExtractLane(int32_t);
   const Operator* F32x4ReplaceLane(int32_t);
@@ -482,6 +498,23 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Ne();
   const Operator* F32x4Lt();
   const Operator* F32x4Le();
+
+  const Operator* I64x2Splat();
+  const Operator* I64x2ExtractLane(int32_t);
+  const Operator* I64x2ReplaceLane(int32_t);
+  const Operator* I64x2Neg();
+  const Operator* I64x2Shl(int32_t);
+  const Operator* I64x2ShrS(int32_t);
+  const Operator* I64x2Add();
+  const Operator* I64x2Sub();
+  const Operator* I64x2Mul();
+  const Operator* I64x2Eq();
+  const Operator* I64x2Ne();
+  const Operator* I64x2GtS();
+  const Operator* I64x2GeS();
+  const Operator* I64x2ShrU(int32_t);
+  const Operator* I64x2GtU();
+  const Operator* I64x2GeU();
 
   const Operator* I32x4Splat();
   const Operator* I32x4ExtractLane(int32_t);
@@ -585,6 +618,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* S8x16Shuffle(const uint8_t shuffle[16]);
 
+  const Operator* S1x2AnyTrue();
+  const Operator* S1x2AllTrue();
   const Operator* S1x4AnyTrue();
   const Operator* S1x4AllTrue();
   const Operator* S1x8AnyTrue();
@@ -619,6 +654,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
+
+  // Memory barrier.
+  const Operator* MemBarrier();
 
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(LoadRepresentation rep);

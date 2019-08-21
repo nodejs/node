@@ -102,9 +102,8 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
   return descriptors.GetDetails(descriptor);
 }
 
-// static
 PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
-  return transition.GetLastDescriptorDetails();
+  return transition.GetLastDescriptorDetails(isolate_);
 }
 
 // static
@@ -195,13 +194,13 @@ void TransitionsAccessor::Reload() {
 }
 
 void TransitionsAccessor::Initialize() {
-  raw_transitions_ = map_.raw_transitions();
+  raw_transitions_ = map_.raw_transitions(isolate_);
   HeapObject heap_object;
   if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
     encoding_ = kUninitialized;
   } else if (raw_transitions_->IsWeak()) {
     encoding_ = kWeakRef;
-  } else if (raw_transitions_->GetHeapObjectIfStrong(&heap_object)) {
+  } else if (raw_transitions_->GetHeapObjectIfStrong(isolate_, &heap_object)) {
     if (heap_object.IsTransitionArray()) {
       encoding_ = kFullTransitionArray;
     } else if (heap_object.IsPrototypeInfo()) {

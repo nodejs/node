@@ -22,8 +22,10 @@
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
-class DecimalFormat;
 class PluralRules;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -31,9 +33,9 @@ namespace internal {
 
 class JSPluralRules : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> Initialize(
-      Isolate* isolate, Handle<JSPluralRules> plural_rules,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSPluralRules> plural_rules);
@@ -45,12 +47,7 @@ class JSPluralRules : public JSObject {
 
   // [[Type]] is one of the values "cardinal" or "ordinal",
   // identifying the plural rules used.
-  enum class Type {
-    CARDINAL,
-    ORDINAL,
-
-    COUNT
-  };
+  enum class Type { CARDINAL, ORDINAL };
   inline void set_type(Type type);
   inline Type type() const;
 
@@ -76,7 +73,8 @@ class JSPluralRules : public JSObject {
   DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
-  DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
+  DECL_ACCESSORS(icu_number_formatter,
+                 Managed<icu::number::LocalizedNumberFormatter>)
 
   OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };

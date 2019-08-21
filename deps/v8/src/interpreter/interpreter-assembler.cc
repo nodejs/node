@@ -1265,7 +1265,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
 
   // Make sure we include the current bytecode in the budget calculation.
   TNode<Int32T> budget_after_bytecode =
-      Signed(Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize())));
+      Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
 
   Label done(this);
   TVARIABLE(Int32T, new_budget);
@@ -1501,9 +1501,9 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-Node* InterpreterAssembler::LoadOSRNestingLevel() {
+Node* InterpreterAssembler::LoadOsrNestingLevel() {
   return LoadObjectField(BytecodeArrayTaggedPointer(),
-                         BytecodeArray::kOSRNestingLevelOffset,
+                         BytecodeArray::kOsrNestingLevelOffset,
                          MachineType::Int8());
 }
 

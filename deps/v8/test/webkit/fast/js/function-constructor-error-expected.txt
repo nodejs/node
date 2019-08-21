@@ -26,8 +26,8 @@ This test checks that the Function constructor detects some syntax errors correc
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-FAIL Function('(i + (j)') should throw SyntaxError: Expected token ')'. Threw exception SyntaxError: Unexpected token }.
-FAIL Function('return (i + (j)') should throw SyntaxError: Expected token ')'. Threw exception SyntaxError: Unexpected token }.
+FAIL Function('(i + (j)') should throw SyntaxError: Expected token ')'. Threw exception SyntaxError: Unexpected token '}'.
+FAIL Function('return (i + (j)') should throw SyntaxError: Expected token ')'. Threw exception SyntaxError: Unexpected token '}'.
 PASS successfullyParsed is true
 
 TEST COMPLETE

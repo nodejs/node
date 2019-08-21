@@ -15,6 +15,7 @@ function foo(a) {
     for (i = 0; i < 1; i++) ;
   }
 }
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();
 
@@ -27,5 +28,6 @@ var __v_45;
   for (__v_45 = 128; __v_45 < 256; __v_45++) {
   }
 }
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 assertThrows(bar);

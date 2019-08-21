@@ -5,14 +5,19 @@
 // Flags: --allow-natives-syntax --turbo-escape
 
 // Warm up {g} with arrays and strings.
-function g(v) { return v.length; }
+function g(v) {
+  return v.length;
+}
 assertEquals(1, g("x"));
 assertEquals(2, g("xy"));
 assertEquals(1, g([1]));
-assertEquals(2, g([1,2]));
+assertEquals(2, g([1, 2]));
 
 // Inline into {f}, where we see only an array.
-function f() { assertEquals(0, g([])); }
+function f() {
+  assertEquals(0, g([]));
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

@@ -334,9 +334,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
@@ -1946,7 +1946,17 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   // in those cases. Unfortunately, the solution is not complete because
   // it might skip cases where Word32 full compare is needed, so
   // basically it is a hack.
+  // When call to a host function in simulator, if the function return a
+  // int32 value, the simulator do not sign-extended to int64 because in
+  // simulator we do not know the function whether return a int32 or int64.
+  // so we need do a full word32 compare in this case.
+#ifndef USE_SIMULATOR
   if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
+#else
+  if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1)) ||
+      node->InputAt(0)->opcode() == IrOpcode::kCall ||
+      node->InputAt(1)->opcode() == IrOpcode::kCall ) {
+#endif
     VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
   } else {
     VisitOptimizedWord32Compare(selector, node, kMips64Cmp, cont);
@@ -2396,6 +2406,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   Node* right = node->InputAt(1);
   Emit(kMips64Float64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
+}
+
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Sync, g.NoOutput());
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {

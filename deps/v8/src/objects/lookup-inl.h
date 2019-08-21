@@ -31,7 +31,7 @@ LookupIterator::LookupIterator(Handle<Object> receiver, Handle<Name> name,
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
                                Handle<Name> name, Handle<JSReceiver> holder,
                                Configuration configuration)
-    : configuration_(ComputeConfiguration(configuration, name)),
+    : configuration_(ComputeConfiguration(isolate, configuration, name)),
       interceptor_state_(InterceptorState::kUninitialized),
       property_details_(PropertyDetails::Empty()),
       isolate_(isolate),
@@ -90,7 +90,7 @@ Handle<Name> LookupIterator::GetName() {
 }
 
 bool LookupIterator::is_dictionary_holder() const {
-  return !holder_->HasFastProperties();
+  return !holder_->HasFastProperties(isolate_);
 }
 
 Handle<Map> LookupIterator::transition_map() const {
@@ -111,23 +111,23 @@ Handle<T> LookupIterator::GetHolder() const {
 
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
-  return !receiver->map().is_extensible() &&
-         (IsElement() || !name_->IsPrivate());
+  return !receiver->map(isolate_).is_extensible() &&
+         (IsElement() || !name_->IsPrivate(isolate_));
 }
 
 bool LookupIterator::IsCacheableTransition() {
   DCHECK_EQ(TRANSITION, state_);
-  return transition_->IsPropertyCell() ||
+  return transition_->IsPropertyCell(isolate_) ||
          (transition_map()->is_dictionary_map() &&
-          !GetStoreTarget<JSReceiver>()->HasFastProperties()) ||
-         transition_map()->GetBackPointer().IsMap();
+          !GetStoreTarget<JSReceiver>()->HasFastProperties(isolate_)) ||
+         transition_map()->GetBackPointer(isolate_).IsMap(isolate_);
 }
 
 void LookupIterator::UpdateProtector() {
   if (IsElement()) return;
   // This list must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
-  ReadOnlyRoots roots(heap());
+  ReadOnlyRoots roots(isolate_);
   if (*name_ == roots.is_concat_spreadable_symbol() ||
       *name_ == roots.constructor_string() || *name_ == roots.next_string() ||
       *name_ == roots.species_symbol() || *name_ == roots.iterator_symbol() ||
@@ -139,52 +139,59 @@ void LookupIterator::UpdateProtector() {
 int LookupIterator::descriptor_number() const {
   DCHECK(!IsElement());
   DCHECK(has_property_);
-  DCHECK(holder_->HasFastProperties());
+  DCHECK(holder_->HasFastProperties(isolate_));
   return number_;
 }
 
 int LookupIterator::dictionary_entry() const {
   DCHECK(!IsElement());
   DCHECK(has_property_);
-  DCHECK(!holder_->HasFastProperties());
+  DCHECK(!holder_->HasFastProperties(isolate_));
   return number_;
 }
 
+// static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
-    Configuration configuration, Handle<Name> name) {
-  return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
+    Isolate* isolate, Configuration configuration, Handle<Name> name) {
+  return name->IsPrivate(isolate) ? OWN_SKIP_INTERCEPTOR : configuration;
 }
 
+// static
 Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
                                            Handle<Object> receiver,
                                            uint32_t index) {
-  if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+  if (receiver->IsJSReceiver(isolate))
+    return Handle<JSReceiver>::cast(receiver);
   return GetRootForNonJSReceiver(isolate, receiver, index);
 }
 
 template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
-  DCHECK(receiver_->IsJSReceiver());
-  if (receiver_->IsJSGlobalProxy()) {
-    Map map = JSGlobalProxy::cast(*receiver_).map();
-    if (map.has_hidden_prototype()) {
-      return handle(JSGlobalObject::cast(map.prototype()), isolate_);
+  DCHECK(receiver_->IsJSReceiver(isolate_));
+  if (receiver_->IsJSGlobalProxy(isolate_)) {
+    HeapObject prototype =
+        JSGlobalProxy::cast(*receiver_).map(isolate_).prototype(isolate_);
+    if (prototype.IsJSGlobalObject(isolate_)) {
+      return handle(JSGlobalObject::cast(prototype), isolate_);
     }
   }
   return Handle<T>::cast(receiver_);
 }
 
+// static
 template <bool is_element>
-InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) {
-  return is_element ? holder.GetIndexedInterceptor()
-                    : holder.GetNamedInterceptor();
+InterceptorInfo LookupIterator::GetInterceptor(Isolate* isolate,
+                                               JSObject holder) {
+  return is_element ? holder.GetIndexedInterceptor(isolate)
+                    : holder.GetNamedInterceptor(isolate);
 }
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
-  InterceptorInfo result =
-      IsElement() ? GetInterceptor<true>(JSObject::cast(*holder_))
-                  : GetInterceptor<false>(JSObject::cast(*holder_));
+  JSObject holder = JSObject::cast(*holder_);
+  InterceptorInfo result = IsElement()
+                               ? GetInterceptor<true>(isolate_, holder)
+                               : GetInterceptor<false>(isolate_, holder);
   return handle(result, isolate_);
 }
 

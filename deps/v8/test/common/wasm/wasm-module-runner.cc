@@ -125,7 +125,11 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
                     arguments.get());
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
 
-  isolate->clear_pending_exception();
+  if (isolate->has_pending_exception()) {
+    // Stack overflow during interpretation.
+    isolate->clear_pending_exception();
+    return false;
+  }
 
   return interpreter_result != WasmInterpreter::PAUSED;
 }
@@ -158,7 +162,7 @@ int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
   MaybeHandle<AsmWasmData> data =
       isolate->wasm_engine()->SyncCompileTranslatedAsmJs(
           isolate, &thrower, ModuleWireBytes(module_start, module_end),
-          Vector<const byte>(), Handle<HeapNumber>());
+          Vector<const byte>(), Handle<HeapNumber>(), LanguageMode::kSloppy);
   DCHECK_EQ(thrower.error(), data.is_null());
   if (data.is_null()) return -1;
 

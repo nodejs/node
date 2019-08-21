@@ -535,9 +535,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
@@ -676,10 +676,11 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    // OutOfLineRecordWrite uses the index in an arithmetic instruction, so we
-    // must check kArithmeticImm as well as kLoadStoreImm64.
-    if (g.CanBeImmediate(index, kArithmeticImm) &&
-        g.CanBeImmediate(index, kLoadStoreImm64)) {
+    // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
+    // can trust the assembler to generate extra instructions if the index does
+    // not fit into add or sub. So here only check the immediate for a store.
+    if (g.CanBeImmediate(index, COMPRESS_POINTERS_BOOL ? kLoadStoreImm32
+                                                       : kLoadStoreImm64)) {
       inputs[input_count++] = g.UseImmediate(index);
       addressing_mode = kMode_MRI;
     } else {
@@ -1599,7 +1600,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
       // 32-bit operations will write their result in a W register (implicitly
       // clearing the top 32-bit of the corresponding X register) so the
       // zero-extension is a no-op.
-      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      EmitIdentity(node);
       return;
     }
     case IrOpcode::kLoad: {
@@ -1610,7 +1611,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
         case MachineRepresentation::kWord32:
-          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+          EmitIdentity(node);
           return;
         default:
           break;
@@ -1646,29 +1647,75 @@ void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kArm64DecompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressed);
+    InstructionCode opcode = kArm64LdrDecompressAnyTagged;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
+    ImmediateMode immediate_mode = kLoadStoreImm32;
+    MachineRepresentation rep = MachineRepresentation::kCompressed;
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    Emit(kArm64DecompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  }
 }
 
 void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
     Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kArm64DecompressPointer, g.DefineAsRegister(node), g.UseRegister(value));
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressedPointer);
+    InstructionCode opcode = kArm64LdrDecompressTaggedPointer;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
+    ImmediateMode immediate_mode = kLoadStoreImm32;
+    MachineRepresentation rep = MachineRepresentation::kCompressedPointer;
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    Emit(kArm64DecompressPointer, g.DefineAsRegister(node),
+         g.UseRegister(value));
+  }
 }
 
 void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
     Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kArm64DecompressSigned, g.DefineAsRegister(node), g.UseRegister(value));
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressedSigned);
+    InstructionCode opcode = kArm64LdrDecompressTaggedSigned;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
+    ImmediateMode immediate_mode = kLoadStoreImm32;
+    MachineRepresentation rep = MachineRepresentation::kCompressedSigned;
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    Emit(kArm64DecompressSigned, g.DefineAsRegister(node),
+         g.UseRegister(value));
+  }
 }
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
   // The top 32 bits in the 64-bit register will be undefined, and
   // must not be used by a dependent node.
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.UseRegister(value));
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
@@ -2451,7 +2498,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     size_t table_time_cost = 3;
     size_t lookup_space_cost = 3 + 2 * sw.case_count();
     size_t lookup_time_cost = sw.case_count();
-    if (sw.case_count() > 0 &&
+    if (sw.case_count() > 4 &&
         table_space_cost + 3 * table_time_cost <=
             lookup_space_cost + 3 * lookup_time_cost &&
         sw.min_value() > std::numeric_limits<int32_t>::min() &&
@@ -2753,6 +2800,11 @@ void InstructionSelector::VisitFloat64Mul(Node* node) {
     return;
   }
   return VisitRRR(this, kArm64Float64Mul, node);
+}
+
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64DmbIsh, g.NoOutput());
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {

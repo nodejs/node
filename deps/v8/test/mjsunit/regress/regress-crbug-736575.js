@@ -5,9 +5,9 @@
 // Flags: --allow-natives-syntax
 
 function f() {
-  return [...[/*hole*/, 2.3]];
-}
-
+  return [...[, /*hole*/ 2.3]];
+};
+%PrepareFunctionForOptimization(f);
 assertEquals(undefined, f()[0]);
 assertEquals(undefined, f()[0]);
 %OptimizeFunctionOnNextCall(f);

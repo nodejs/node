@@ -1,0 +1,17 @@
+Name: Wasm C/C++ API
+Short Name: wasm-c-api
+URL: https://github.com/WebAssembly/wasm-c-api/
+Version: 0
+Revision: 5c742b048f7766a0c00be3a7af23fb71ba816026
+Date: 2019-03-18
+License: Apache 2.0
+License File: LICENSE
+Security Critical: yes
+
+Description:
+Provides a "black box" API for embedding a Wasm engine in C/C++ applications.
+
+Local modifications:
+None.
+The contents of the upstream "include/" directory are directly in here.
+The upstream "example/" directory is copied as-is.

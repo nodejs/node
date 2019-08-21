@@ -6,7 +6,10 @@
 
 function foo(obj) {
   var counter = 1;
-  for (var i = 0; i < obj.length; i++) %OptimizeOsr();
+  for (var i = 0; i < obj.length; i++) {
+    %OptimizeOsr();
+    %PrepareFunctionForOptimization(foo);
+  }
   counter += obj;
   return counter;
 }

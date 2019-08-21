@@ -8,19 +8,19 @@
 // constructors in turbofan.
 
 class superClass {
-  constructor () {}
+  constructor() {}
 }
 
 class subClass extends superClass {
-  constructor () {
+  constructor() {
     super();
   }
 }
 
 function f() {
- new subClass();
-}
-
+  new subClass();
+};
+%PrepareFunctionForOptimization(f);
 f(); // We need this to collect feedback, so that subClass gets inlined in f.
-%OptimizeFunctionOnNextCall(f)
+%OptimizeFunctionOnNextCall(f);
 f();

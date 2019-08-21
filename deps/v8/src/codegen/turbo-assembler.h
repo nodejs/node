@@ -50,9 +50,9 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
-  // Calls the given builtin. If builtins are embedded, the trampoline Code
-  // object on the heap is not used.
-  virtual void CallBuiltinPointer(Register builtin_pointer) = 0;
+  // Calls the builtin given by the Smi in |builtin|. If builtins are embedded,
+  // the trampoline Code object on the heap is not used.
+  virtual void CallBuiltinByIndex(Register builtin_index) = 0;
 
   // Calls/jumps to the given Code object. If builtins are embedded, the
   // trampoline Code object on the heap is not used.

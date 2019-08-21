@@ -19,8 +19,8 @@ function f(x) {
   if (x === 1.9 || x === 1.4) {
     gc();
   }
-}
-
+};
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 
 f('some_other_string_1');

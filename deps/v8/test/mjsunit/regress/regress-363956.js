@@ -4,8 +4,13 @@
 
 // Flags: --allow-natives-syntax
 
-function Fuu() { this.x = this.x.x; }
-Fuu.prototype.x = {x: 1}
+function Fuu() {
+  this.x = this.x.x;
+};
+%PrepareFunctionForOptimization(Fuu);
+Fuu.prototype.x = {
+  x: 1
+};
 new Fuu();
 new Fuu();
 %OptimizeFunctionOnNextCall(Fuu);

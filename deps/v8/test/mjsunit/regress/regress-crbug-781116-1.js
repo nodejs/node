@@ -9,13 +9,17 @@ function baz(obj, store) {
 }
 function bar(store) {
   baz(Array.prototype, store);
-}
+};
+%PrepareFunctionForOptimization(bar);
 bar(false);
 bar(false);
 %OptimizeFunctionOnNextCall(bar);
 bar(true);
 
-function foo() { [].push(); }
+function foo() {
+  [].push();
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

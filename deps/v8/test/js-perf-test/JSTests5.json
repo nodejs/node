@@ -570,7 +570,10 @@
       "resources": [
 	      "array-indexof-includes.js",
 	      "spread-call.js",
-	      "tagged-template.js"
+        "tagged-template.js",
+        "has-own-property.js",
+        "array-map.js",
+        "array-reduce.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
@@ -580,7 +583,11 @@
         {"name": "ArrayIncludes"},
         {"name": "ApplySpreadLiteral"},
         {"name": "SpreadCall"},
-        {"name": "SpreadCallSpreadLiteral"}
+        {"name": "SpreadCallSpreadLiteral"},
+        {"name": "HasOwnProperty"},
+        {"name": "ArrayMap"},
+        {"name": "ArrayReduce"},
+        {"name": "ArrayReduceRight"}
       ]
     },
     {

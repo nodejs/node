@@ -42,9 +42,9 @@ PageRange::PageRange(Address start, Address limit)
 }
 
 // -----------------------------------------------------------------------------
-// SemiSpaceIterator
+// SemiSpaceObjectIterator
 
-HeapObject SemiSpaceIterator::Next() {
+HeapObject SemiSpaceObjectIterator::Next() {
   while (current_ != limit_) {
     if (Page::IsAlignedToPageSize(current_)) {
       Page* page = Page::FromAllocationAreaAddress(current_);
@@ -63,9 +63,9 @@ HeapObject SemiSpaceIterator::Next() {
 }
 
 // -----------------------------------------------------------------------------
-// HeapObjectIterator
+// PagedSpaceObjectIterator
 
-HeapObject HeapObjectIterator::Next() {
+HeapObject PagedSpaceObjectIterator::Next() {
   do {
     HeapObject next_obj = FromCurrentPage();
     if (!next_obj.is_null()) return next_obj;
@@ -73,7 +73,7 @@ HeapObject HeapObjectIterator::Next() {
   return HeapObject();
 }
 
-HeapObject HeapObjectIterator::FromCurrentPage() {
+HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
       cur_addr_ = space_->limit();
@@ -182,7 +182,7 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   size_t added = 0;
   page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
-    category->set_free_list(&free_list_);
+    category->set_free_list(free_list());
     added += category->available();
     category->Relink();
   });
@@ -202,13 +202,6 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
     }
   }
   return false;
-}
-
-bool MemoryChunk::HasHeaderSentinel(Address slot_addr) {
-  Address base = BaseAddress(slot_addr);
-  if (slot_addr < base + kHeaderSize) return false;
-  return HeapObject::FromAddress(base) ==
-         ObjectSlot(base + kHeaderSentinelOffset).Relaxed_Load();
 }
 
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
@@ -234,14 +227,21 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                 MemoryChunk* from,
                                                 MemoryChunk* to,
                                                 size_t amount) {
+  DCHECK_NOT_NULL(from->owner());
+  DCHECK_NOT_NULL(to->owner());
   base::CheckedDecrement(&(from->external_backing_store_bytes_[type]), amount);
   base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
   Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
                                        amount);
 }
 
+AllocationSpace MemoryChunk::owner_identity() const {
+  if (InReadOnlySpace()) return RO_SPACE;
+  return owner()->identity();
+}
+
 void Page::MarkNeverAllocateForTesting() {
-  DCHECK(this->owner()->identity() != NEW_SPACE);
+  DCHECK(this->owner_identity() != NEW_SPACE);
   DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
   SetFlag(NEVER_ALLOCATE_ON_PAGE);
   SetFlag(NEVER_EVACUATE);
@@ -315,10 +315,6 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   UNREACHABLE();
 }
 
-Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
-  return top(type) ? top(type)->page() : nullptr;
-}
-
 FreeList* FreeListCategory::owner() { return free_list_; }
 
 bool FreeListCategory::is_linked() {
@@ -376,7 +372,7 @@ HeapObject PagedSpace::TryAllocateLinearlyAligned(
 }
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
-  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
+  DCHECK_IMPLIES(identity() == RO_SPACE, !IsDetached());
   if (!EnsureLinearAllocationArea(size_in_bytes)) {
     return AllocationResult::Retry(identity());
   }
@@ -389,7 +385,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
   DCHECK(identity() == OLD_SPACE || identity() == RO_SPACE);
-  DCHECK_IMPLIES(identity() == RO_SPACE, heap()->CanAllocateInReadOnlySpace());
+  DCHECK_IMPLIES(identity() == RO_SPACE, !IsDetached());
   int allocation_size = size_in_bytes;
   HeapObject object = TryAllocateLinearlyAligned(&allocation_size, alignment);
   if (object.is_null()) {

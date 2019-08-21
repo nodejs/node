@@ -57,6 +57,9 @@
   # Issue 8505: Math.pow is incorrect for asm.js
   'regress/wasm/regress-8505': [SKIP],
 
+  # Issue 9380: Memory leaks of shared WebAssembly.Memory objects
+  'wasm/shared-memory-worker-gc': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
@@ -76,6 +79,10 @@
 
   # Too slow in debug mode, due to large allocations.
   'regress/regress-crbug-941743': [PASS, ['mode == debug', SKIP], ['(arch == arm or arch == arm64 or arch == mipsel or arch == mips64el) and simulator_run == True', SKIP]],
+
+  # Too slow in debug mode BUG(v8:9506): times out.
+  'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP], ['tsan', SKIP]],
+  'wasm/shared-memory-worker-gc-stress': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
@@ -241,14 +248,10 @@
 
   # BUG(v8:9260)
   'tools/profviz': [SKIP],
+
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
   'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
-
-  # To be re-enabled once https://crbug.com/v8/9534 is fixed.
-  'es6/regress/regress-crbug-465671': [SKIP],
-  'es6/regress/regress-crbug-465671-null': [SKIP],
-  'regress/regress-543994': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -350,6 +353,7 @@
   'regress/regress-crbug-746835': [SKIP],
   'regress/regress-crbug-772056': [SKIP],
   'regress/regress-crbug-816961': [SKIP],
+  'regress/regress-crbug-969498': [SKIP],
   'regress/wasm/*': [SKIP],
   'regress/regress-8947': [SKIP],
   'regress/regress-9165': [SKIP],
@@ -364,6 +368,7 @@
   'asm/global-imports': [SKIP],
   'asm/regress-913822': [SKIP],
   'asm/regress-937650': [SKIP],
+  'asm/regress-9531': [SKIP],
   'asm/return-types': [SKIP],
   'regress/regress-599719': [SKIP],
   'regress/regress-6196': [SKIP],
@@ -372,6 +377,7 @@
   'regress/regress-6838-3': [SKIP],
   'regress/regress-9022': [SKIP],
   'regress/regress-crbug-934138': [SKIP],
+  'regress/regress-crbug-976934': [SKIP],
 
   # Timeouts in lite / jitless mode.
   'asm/embenchen/*': [SKIP],
@@ -447,6 +453,9 @@
 
   # OOMing tests
   'regress/regress-500980': [SKIP],
+
+  # BUG(v8:9337).
+  'compiler/regress-9017': [SKIP],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -573,13 +582,16 @@
   'regress/regress-599414-array-concat-fast-path': [PASS, SLOW],
 
   # BUG(v8:9026). Flaky timeouts.
-  'es6/classes': [SKIP],
+  'es6/large-classes-properties': [SKIP],
 
   # Slow tests.
   'compiler/regress-9017': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
+
+  # BUG(v8:9506): times out.
+  'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -612,6 +624,9 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:9337).
+  'compiler/regress-9017': [SKIP],
 
   # Slow tests.
   'array-sort': [PASS, SLOW],
@@ -770,6 +785,7 @@
   'regress/regress-748069': [FAIL],
   'regress/regress-752764': [FAIL],
   # Flaky OOM:
+  'regress/regress-779407': [SKIP],
   'regress/regress-852258': [SKIP],
 }],  # 'system == android'
 
@@ -784,6 +800,12 @@
   # Slow tests.
   'es6/typedarray-of': [PASS, SLOW],
   'regress/regress-crbug-854299': [PASS, SLOW],
+
+  # Runs flakily OOM because multiple isolates are involved which create many
+  # wasm memories each. Before running OOM on a wasm memory allocation we
+  # trigger a GC, but only in the isolate allocating the new memory.
+  'wasm/module-memory': [SKIP],
+  'wasm/shared-memory-gc-stress': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
@@ -827,17 +849,20 @@
   'code-coverage-ad-hoc': [SKIP],
   'code-coverage-precise': [SKIP],
 
+  # Flaky under GC stress (sometimes precludes the tested optimization)
+  'compiler/load-elimination-const-field': [SKIP],
+
   # Passes incompatible arguments.
   'd8/d8-arguments': [SKIP],
 
   # Fails allocation on tsan.
-  'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-779407': [PASS, ['tsan', SKIP]],
 
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
@@ -904,6 +929,12 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['system == aix', {
+  # stack overflow
+  'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+}],  # 'system == aix'
+
+##############################################################################
 ['arch == s390x', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
@@ -921,10 +952,9 @@
   # Flaky crash on Odroid devices: https://crbug.com/v8/7678
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # Too slow for TSAN in stress mode.
   # Goes OOM on ODROID devices: https://crbug.com/v8/9026
   # Too slow on PPC: https://crbug.com/v8/9246
-  'es6/classes': [PASS, SLOW, ['tsan or (arch == arm and not simulator_run) or arch in [ppc, ppc64]', SKIP]],
+  'es6/large-classes-properties': [PASS, SLOW, ['(arch == arm and not simulator_run) or arch in [ppc, ppc64]', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
@@ -944,7 +974,7 @@
 ##############################################################################
 ['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'es6/classes': [SKIP],
+  'es6/large-classes-properties': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-336820': [SKIP],
   'wasm/grow-memory': [SKIP],
@@ -1052,11 +1082,5 @@
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
-
-##############################################################################
-['variant == future', {
-  # crbug.com/v8/9094
-  'compiler/constant-fold-cow-array': [SKIP],
-}], # variant == future
 
 ]

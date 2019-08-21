@@ -13,6 +13,7 @@ namespace compiler {
 // Most opcodes specify a single instruction.
 #define TARGET_ARCH_OPCODE_LIST(V)   \
   V(PPC_Peek)                        \
+  V(PPC_Sync)                        \
   V(PPC_And)                         \
   V(PPC_AndComplement)               \
   V(PPC_Or)                          \

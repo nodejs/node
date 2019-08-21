@@ -5,8 +5,8 @@
 #include "src/api/api-natives.h"
 
 #include "src/api/api-inl.h"
+#include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/lookup.h"
@@ -39,7 +39,6 @@ class InvokeScope {
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> data,
                                         Handle<JSReceiver> new_target,
-                                        bool is_hidden_prototype,
                                         bool is_prototype);
 
 MaybeHandle<JSFunction> InstantiateFunction(
@@ -54,7 +53,7 @@ MaybeHandle<Object> Instantiate(
         isolate, Handle<FunctionTemplateInfo>::cast(data), maybe_name);
   } else if (data->IsObjectTemplateInfo()) {
     return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
-                             Handle<JSReceiver>(), false, false);
+                             Handle<JSReceiver>(), false);
   } else {
     return data;
   }
@@ -129,7 +128,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
-  JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+  JSObject::MigrateToMap(isolate, Handle<JSObject>::cast(object), new_map);
 }
 
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
@@ -138,7 +137,7 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
   new_map->set_may_have_interesting_symbols(true);
-  JSObject::MigrateToMap(object, new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
 }
 
 class AccessCheckDisableScope {
@@ -178,8 +177,7 @@ Object GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
 
 template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
-                                        Handle<TemplateInfoT> data,
-                                        bool is_hidden_prototype) {
+                                        Handle<TemplateInfoT> data) {
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
@@ -246,11 +244,10 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       } else {
         auto getter = handle(properties->get(i++), isolate);
         auto setter = handle(properties->get(i++), isolate);
-        RETURN_ON_EXCEPTION(
-            isolate,
-            DefineAccessorProperty(isolate, obj, name, getter, setter,
-                                   attributes, is_hidden_prototype),
-            JSObject);
+        RETURN_ON_EXCEPTION(isolate,
+                            DefineAccessorProperty(isolate, obj, name, getter,
+                                                   setter, attributes, false),
+                            JSObject);
       }
     } else {
       // Intrinsic data property --- Get appropriate value from the current
@@ -364,7 +361,6 @@ bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         Handle<JSReceiver> new_target,
-                                        bool is_hidden_prototype,
                                         bool is_prototype) {
   Handle<JSFunction> constructor;
   int serial_number = Smi::ToInt(info->serial_number());
@@ -413,8 +409,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   if (is_prototype) JSObject::OptimizeAsPrototype(object);
 
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      ConfigureInstance(isolate, object, info, is_hidden_prototype), JSObject);
+      isolate, result, ConfigureInstance(isolate, object, info), JSObject);
   if (info->immutable_proto()) {
     JSObject::SetImmutableProto(object);
   }
@@ -486,7 +481,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           InstantiateObject(
               isolate,
               handle(ObjectTemplateInfo::cast(prototype_templ), isolate),
-              Handle<JSReceiver>(), false, true),
+              Handle<JSReceiver>(), true),
           JSFunction);
     }
     Object parent = data->GetParentTemplate();
@@ -514,8 +509,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
     CacheTemplateInstantiation(isolate, serial_number, CachingMode::kUnlimited,
                                function);
   }
-  MaybeHandle<JSObject> result =
-      ConfigureInstance(isolate, function, data, false);
+  MaybeHandle<JSObject> result = ConfigureInstance(isolate, function, data);
   if (result.is_null()) {
     // Uncache on error.
     if (serial_number) {
@@ -560,8 +554,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
     Isolate* isolate, Handle<ObjectTemplateInfo> data,
     Handle<JSReceiver> new_target) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, new_target, false,
-                                           false);
+  return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(

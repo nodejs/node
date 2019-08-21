@@ -126,6 +126,10 @@
   # no_i18n build has an old ICU data and Georgian is treated as unicameral.
   'ecma/String/15.5.4.12-3': [FAIL, ['no_i18n == True', PASS]],
 
+  # Expecations in this test don't match the spec.
+  # See also https://bugs.chromium.org/p/v8/issues/detail?id=9446
+  'js1_5/Regress/regress-248444': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

@@ -27,7 +27,7 @@ const testData = [
     ["name", "123.00 New Taiwan dollars"],
     ["code", "TWD 123.00"],
     ["symbol", "NT$123.00"],
-    ["narrow-symbol", "$123.00"],  // new
+    ["narrowSymbol", "$123.00"],  // new
 ];
 
 for (const [currencyDisplay, expectation] of testData) {

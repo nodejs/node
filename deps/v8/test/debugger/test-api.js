@@ -541,6 +541,9 @@ class DebugWrapper {
       case "boolean": {
         break;
       }
+      case "function": {
+        value = obj.description;
+      }
       default: {
         break;
       }

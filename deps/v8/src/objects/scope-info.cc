@@ -45,8 +45,9 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
         if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry))) {
           return false;
         }
-      } else if (entry.IsModuleInfo()) {
-        if (!ModuleInfo::cast(entry).Equals(ModuleInfo::cast(other_entry))) {
+      } else if (entry.IsSourceTextModuleInfo()) {
+        if (!SourceTextModuleInfo::cast(entry).Equals(
+                SourceTextModuleInfo::cast(other_entry))) {
           return false;
         }
       } else {
@@ -217,6 +218,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
           uint32_t info =
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
+              RequiresBrandCheckField::encode(
+                  var->get_requires_brand_check_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(context_local_base + local_index, *var->name(), mode);
@@ -233,6 +236,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+              RequiresBrandCheckField::encode(
+                  var->get_requires_brand_check_flag()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(module_var_entry + kModuleVariablePropertiesOffset,
                          Smi::FromInt(properties));
@@ -271,6 +276,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+              RequiresBrandCheckField::encode(
+                  var->get_requires_brand_check_flag()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(context_local_base + local_index, *var->name(), mode);
           scope_info.set(context_local_info_base + local_index,
@@ -327,8 +334,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
-    Handle<ModuleInfo> module_info =
-        ModuleInfo::New(isolate, zone, scope->AsModuleScope()->module());
+    Handle<SourceTextModuleInfo> module_info = SourceTextModuleInfo::New(
+        isolate, zone, scope->AsModuleScope()->module());
     DCHECK_EQ(index, scope_info_handle->ModuleInfoIndex());
     scope_info_handle->set(index++, *module_info);
     DCHECK_EQ(index, scope_info_handle->ModuleVariableCountIndex());
@@ -444,6 +451,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
         VariableModeField::encode(VariableMode::kConst) |
         InitFlagField::encode(kCreatedInitialized) |
         MaybeAssignedFlagField::encode(kNotAssigned) |
+        RequiresBrandCheckField::encode(kNoBrandCheck) |
         ParameterNumberField::encode(ParameterNumberField::kMax);
     scope_info->set(index++, Smi::FromInt(value));
   }
@@ -649,9 +657,9 @@ ScopeInfo ScopeInfo::OuterScopeInfo() const {
   return ScopeInfo::cast(get(OuterScopeInfoIndex()));
 }
 
-ModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
+SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return ModuleInfo::cast(get(ModuleInfoIndex()));
+  return SourceTextModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
 String ScopeInfo::ContextLocalName(int var) const {
@@ -700,6 +708,14 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagField::decode(value);
 }
 
+RequiresBrandCheckFlag ScopeInfo::RequiresBrandCheck(int var) const {
+  DCHECK_LE(0, var);
+  DCHECK_LT(var, ContextLocalCount());
+  int info_index = ContextLocalInfosIndex() + var;
+  int value = Smi::ToInt(get(info_index));
+  return RequiresBrandCheckField::decode(value);
+}
+
 // static
 bool ScopeInfo::VariableIsSynthetic(String name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
@@ -739,7 +755,8 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag,
-                                MaybeAssignedFlag* maybe_assigned_flag) {
+                                MaybeAssignedFlag* maybe_assigned_flag,
+                                RequiresBrandCheckFlag* requires_brand_check) {
   DisallowHeapAllocation no_gc;
   DCHECK(name.IsInternalizedString());
   DCHECK_NOT_NULL(mode);
@@ -756,6 +773,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
     *mode = scope_info.ContextLocalMode(var);
     *init_flag = scope_info.ContextLocalInitFlag(var);
     *maybe_assigned_flag = scope_info.ContextLocalMaybeAssignedFlag(var);
+    *requires_brand_check = scope_info.RequiresBrandCheck(var);
     int result = Context::MIN_CONTEXT_SLOTS + var;
 
     DCHECK_LT(result, scope_info.ContextLength());
@@ -873,15 +891,13 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
-                                             Handle<Object> export_name,
-                                             Handle<Object> local_name,
-                                             Handle<Object> import_name,
-                                             int module_request, int cell_index,
-                                             int beg_pos, int end_pos) {
-  Handle<ModuleInfoEntry> result =
-      Handle<ModuleInfoEntry>::cast(isolate->factory()->NewStruct(
-          MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
+Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    Isolate* isolate, Handle<Object> export_name, Handle<Object> local_name,
+    Handle<Object> import_name, int module_request, int cell_index, int beg_pos,
+    int end_pos) {
+  Handle<SourceTextModuleInfoEntry> result =
+      Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
+          SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
   result->set_export_name(*export_name);
   result->set_local_name(*local_name);
   result->set_import_name(*import_name);
@@ -892,8 +908,8 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
   return result;
 }
 
-Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
-                                   ModuleDescriptor* descr) {
+Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
@@ -911,7 +927,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
-      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
+          entry->Serialize(isolate);
       special_exports->set(i++, *serialized_entry);
     }
   }
@@ -922,7 +939,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
-      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
+          entry->Serialize(isolate);
       namespace_imports->set(i++, *serialized_entry);
     }
   }
@@ -937,13 +955,14 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (const auto& elem : descr->regular_imports()) {
-      Handle<ModuleInfoEntry> serialized_entry =
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
           elem.second->Serialize(isolate);
       regular_imports->set(i++, *serialized_entry);
     }
   }
 
-  Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
+  Handle<SourceTextModuleInfo> result =
+      isolate->factory()->NewSourceTextModuleInfo();
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
@@ -953,22 +972,22 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   return result;
 }
 
-int ModuleInfo::RegularExportCount() const {
+int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);
   return regular_exports().length() / kRegularExportLength;
 }
 
-String ModuleInfo::RegularExportLocalName(int i) const {
+String SourceTextModuleInfo::RegularExportLocalName(int i) const {
   return String::cast(regular_exports().get(i * kRegularExportLength +
                                             kRegularExportLocalNameOffset));
 }
 
-int ModuleInfo::RegularExportCellIndex(int i) const {
+int SourceTextModuleInfo::RegularExportCellIndex(int i) const {
   return Smi::ToInt(regular_exports().get(i * kRegularExportLength +
                                           kRegularExportCellIndexOffset));
 }
 
-FixedArray ModuleInfo::RegularExportExportNames(int i) const {
+FixedArray SourceTextModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports().get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }

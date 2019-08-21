@@ -32,9 +32,9 @@ namespace internal {
 
 class JSDateTimeFormat : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat> Initialize(
-      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -217,6 +217,8 @@ RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNames) {
                                      Object::ToObject(isolate, object));
 
   // Collect the own keys for the {receiver}.
+  // TODO(v8:9401): We should extend the fast path of KeyAccumulator::GetKeys to
+  // also use fast path even when filter = SKIP_SYMBOLS.
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
@@ -304,7 +306,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     }
 
     Map map = js_obj->map();
-    if (!map.has_hidden_prototype() &&
+    if (!map.IsJSGlobalProxyMap() &&
         (key_is_array_index ? !map.has_indexed_interceptor()
                             : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();
@@ -440,8 +442,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   // Conservative upper limit to prevent fuzz tests from going OOM.
   if (properties > 100000) return isolate->ThrowIllegalOperation();
   if (object->HasFastProperties() && !object->IsJSGlobalProxy()) {
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties,
-                                  "OptimizeForAdding");
+    JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
+                                  properties, "OptimizeForAdding");
   }
   return *object;
 }
@@ -500,6 +502,76 @@ RUNTIME_FUNCTION(Runtime_ObjectEntriesSkipFastPath) {
       JSReceiver::GetOwnEntries(receiver, PropertyFilter::ENUMERABLE_STRINGS,
                                 false));
   return *isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+RUNTIME_FUNCTION(Runtime_ObjectIsExtensible) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+
+  Maybe<bool> result =
+      object->IsJSReceiver()
+          ? JSReceiver::IsExtensible(Handle<JSReceiver>::cast(object))
+          : Just(false);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverPreventExtensionsThrow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  MAYBE_RETURN(JSReceiver::PreventExtensions(Handle<JSReceiver>::cast(object),
+                                             kThrowOnError),
+               ReadOnlyRoots(isolate).exception());
+  return *object;
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverPreventExtensionsDontThrow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  Maybe<bool> result = JSReceiver::PreventExtensions(
+      Handle<JSReceiver>::cast(object), kDontThrow);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverGetPrototypeOf) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSReceiver::GetPrototype(isolate, receiver));
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfThrow) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
+
+  MAYBE_RETURN(JSReceiver::SetPrototype(object, proto, true, kThrowOnError),
+               ReadOnlyRoots(isolate).exception());
+
+  return *object;
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfDontThrow) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
+
+  Maybe<bool> result =
+      JSReceiver::SetPrototype(object, proto, true, kDontThrow);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_GetProperty) {
@@ -786,7 +858,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
-  if (!JSObject::TryMigrateInstance(js_object)) return Smi::kZero;
+  if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::kZero;
   return *object;
 }
 

@@ -11,7 +11,6 @@
 #if defined(V8_OS_WIN_X64)
 #include "src/builtins/builtins.h"
 #include "src/diagnostics/unwinding-info-win64.h"
-#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #endif
 
@@ -570,11 +569,7 @@ void PlatformEmbeddedFileWriterWin::DeclareExternalFilename(
   // Replace any Windows style paths (backslashes) with forward
   // slashes.
   std::string fixed_filename(filename);
-  for (auto& c : fixed_filename) {
-    if (c == '\\') {
-      c = '/';
-    }
-  }
+  std::replace(fixed_filename.begin(), fixed_filename.end(), '\\', '/');
   fprintf(fp_, ".file %d \"%s\"\n", fileid, fixed_filename.c_str());
 }
 

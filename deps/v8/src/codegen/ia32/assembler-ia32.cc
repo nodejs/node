@@ -756,6 +756,13 @@ void Assembler::cmpxchg8b(Operand dst) {
   emit_operand(ecx, dst);
 }
 
+void Assembler::mfence() {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAE);
+  EMIT(0xF0);
+}
+
 void Assembler::lfence() {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);

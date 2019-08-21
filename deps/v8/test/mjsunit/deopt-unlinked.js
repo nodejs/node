@@ -7,8 +7,8 @@
 // bytecode is flushed, which --gc-interval can cause in stress modes.
 // Flags: --noflush-bytecode --nostress-flush-bytecode
 
-function foo() {}
-
+function foo() {};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

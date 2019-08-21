@@ -27,12 +27,21 @@
 
 // Flags: --allow-natives-syntax
 
-var p = { f: function () { return "p"; } };
+var p = {
+  f: function() {
+    return 'p';
+  }
+};
 var o = Object.create(p);
 o.x = true;
 delete o.x;  // slow case object
 
-var u = { x: 0, f: function () { return "u"; } };  // object with some other map
+var u = {
+  x: 0,
+  f: function() {
+    return 'u';
+  }
+};  // object with some other map
 
 function F(x) {
   return x.f();
@@ -41,8 +50,10 @@ function F(x) {
 // First make CALL IC in F go MEGAMORPHIC and ensure that we put the stub
 // that calls p.f (guarded by a negative dictionary lookup on the receiver)
 // into the stub cache
-assertEquals("p", F(o));
-assertEquals("p", F(o));
+;
+%PrepareFunctionForOptimization(F);
+assertEquals('p', F(o));
+assertEquals('p', F(o));
 assertEquals("u", F(u));
 assertEquals("p", F(o));
 assertEquals("u", F(u));
@@ -53,5 +64,7 @@ assertEquals("u", F(u));
 assertEquals("p", F(o));
 
 // Add f to o. o's map will *not* change.
-o.f = function () { return "o"; };
+o.f = function() {
+  return 'o';
+};
 assertEquals("o", F(o));

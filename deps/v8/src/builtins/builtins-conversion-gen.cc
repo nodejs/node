@@ -392,7 +392,8 @@ TF_BUILTIN(ToInteger_TruncateMinusZero, CodeStubAssembler) {
 // ES6 section 7.1.13 ToObject (argument)
 TF_BUILTIN(ToObject, CodeStubAssembler) {
   Label if_smi(this, Label::kDeferred), if_jsreceiver(this),
-      if_noconstructor(this, Label::kDeferred), if_wrapjsvalue(this);
+      if_noconstructor(this, Label::kDeferred),
+      if_wrapjs_primitive_wrapper(this);
 
   Node* context = Parameter(Descriptor::kContext);
   Node* object = Parameter(Descriptor::kArgument);
@@ -411,27 +412,30 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
                    IntPtrConstant(Map::kNoConstructorFunctionIndex)),
          &if_noconstructor);
   constructor_function_index_var.Bind(constructor_function_index);
-  Goto(&if_wrapjsvalue);
+  Goto(&if_wrapjs_primitive_wrapper);
 
   BIND(&if_smi);
   constructor_function_index_var.Bind(
       IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
-  Goto(&if_wrapjsvalue);
+  Goto(&if_wrapjs_primitive_wrapper);
 
-  BIND(&if_wrapjsvalue);
+  BIND(&if_wrapjs_primitive_wrapper);
   TNode<Context> native_context = LoadNativeContext(context);
   Node* constructor = LoadContextElement(
       native_context, constructor_function_index_var.value());
   Node* initial_map =
       LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* js_value = Allocate(JSValue::kSize);
-  StoreMapNoWriteBarrier(js_value, initial_map);
-  StoreObjectFieldRoot(js_value, JSValue::kPropertiesOrHashOffset,
+  Node* js_primitive_wrapper = Allocate(JSPrimitiveWrapper::kSize);
+  StoreMapNoWriteBarrier(js_primitive_wrapper, initial_map);
+  StoreObjectFieldRoot(js_primitive_wrapper,
+                       JSPrimitiveWrapper::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
+  StoreObjectFieldRoot(js_primitive_wrapper,
+                       JSPrimitiveWrapper::kElementsOffset,
                        RootIndex::kEmptyFixedArray);
-  StoreObjectField(js_value, JSValue::kValueOffset, object);
-  Return(js_value);
+  StoreObjectField(js_primitive_wrapper, JSPrimitiveWrapper::kValueOffset,
+                   object);
+  Return(js_primitive_wrapper);
 
   BIND(&if_noconstructor);
   ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject,

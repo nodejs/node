@@ -10,7 +10,8 @@ function f(deopt) {
   if (deopt) {
     return it.next().value;
   }
-}
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

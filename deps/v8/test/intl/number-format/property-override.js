@@ -40,6 +40,8 @@
 // Update both number-format.js and number-format.cc so they have the same
 // list of properties.
 
+// Flags: --noharmony-intl-numberformat-unified
+
 // First get supported properties.
 var properties = [];
 // Some properties are optional and won't show up in resolvedOptions if

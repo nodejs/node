@@ -5,21 +5,19 @@
 // Flags: --allow-natives-syntax
 
 function deferred_func() {
-    class C {
-        method1() {
-
-        }
-    }
+  class C {
+    method1() {}
+  }
 }
 
 let bound = (a => a).bind(this, 0);
 
 function opt() {
-    deferred_func.prototype;  // ReduceJSLoadNamed
+  deferred_func.prototype;  // ReduceJSLoadNamed
 
-    return bound();
-}
-
+  return bound();
+};
+%PrepareFunctionForOptimization(opt);
 assertEquals(0, opt());
 %OptimizeFunctionOnNextCall(opt);
 

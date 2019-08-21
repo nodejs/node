@@ -30,8 +30,8 @@
 function foo(arg) {
   var a = arg();
   return a;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 
 foo(Array);
 foo(Array);

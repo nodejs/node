@@ -42,4 +42,14 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   }
 }
 
+template <typename T>
+static void CheckInternalFieldsAreZero(v8::Local<T> value) {
+  CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
+  for (int i = 0; i < value->InternalFieldCount(); i++) {
+    CHECK_EQ(0, value->GetInternalField(i)
+                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
+                    .FromJust());
+  }
+}
+
 #endif  // V8_TEST_CCTEST_TEST_API_H_

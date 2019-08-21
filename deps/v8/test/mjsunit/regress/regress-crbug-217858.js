@@ -9,7 +9,10 @@ function f() {
   r[r] = function() {};
 }
 
-for (var i = 0; i < 300; i++) {
-  f();
-  if (i == 150) %OptimizeOsr();
+function g() {
+  for (var i = 0; i < 300; i++) {
+    f();
+    if (i == 150) %OptimizeOsr();
+  }
 }
+%PrepareFunctionForOptimization(g);

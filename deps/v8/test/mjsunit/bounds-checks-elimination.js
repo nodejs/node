@@ -8,6 +8,7 @@ var a = []
 for (var i = 0; i < 9; i++) a[i] = i + 1;
 
 function test(f, arg1, arg2, expected) {
+  %PrepareFunctionForOptimization(f);
   assertEquals(expected, f(arg1));
   f(arg2);
   %OptimizeFunctionOnNextCall(f);

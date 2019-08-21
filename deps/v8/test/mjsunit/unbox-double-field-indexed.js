@@ -14,8 +14,8 @@ var g = new Foo(2.25);
 function add(a, b) {
   var name = "x";
   return a[name] + b[name];
-}
-
+};
+%PrepareFunctionForOptimization(add);
 assertEquals(3.5, add(f, g));
 assertEquals(3.5, add(g, f));
 %OptimizeFunctionOnNextCall(add);

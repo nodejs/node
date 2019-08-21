@@ -32,7 +32,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static StructType* GetStructType(const std::string& name) {
     StructType* result = new StructType(CurrentNamespace(), name);
-    Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
+    Get().aggregate_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }
 
@@ -42,7 +42,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
                                  const TypeAlias* alias) {
     ClassType* result = new ClassType(parent, CurrentNamespace(), name, flags,
                                       generates, decl, alias);
-    Get().struct_types_.push_back(std::unique_ptr<ClassType>(result));
+    Get().aggregate_types_.push_back(std::unique_ptr<ClassType>(result));
     return result;
   }
 
@@ -107,6 +107,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONSTEXPR_INTPTR_TYPE_STRING);
   }
 
+  static const Type* GetConstexprInstanceTypeType() {
+    return Get().GetBuiltinType(CONSTEXPR_INSTANCE_TYPE_TYPE_STRING);
+  }
+
   static const Type* GetVoidType() {
     return Get().GetBuiltinType(VOID_TYPE_STRING);
   }
@@ -133,6 +137,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetTaggedType() {
     return Get().GetBuiltinType(TAGGED_TYPE_STRING);
+  }
+
+  static const Type* GetUninitializedType() {
+    return Get().GetBuiltinType(UNINITIALIZED_TYPE_STRING);
   }
 
   static const Type* GetSmiType() {
@@ -203,11 +211,19 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONST_INT32_TYPE_STRING);
   }
 
+  static const Type* GetContextType() {
+    return Get().GetBuiltinType(CONTEXT_TYPE_STRING);
+  }
+
+  static const Type* GetJSFunctionType() {
+    return Get().GetBuiltinType(JS_FUNCTION_TYPE_STRING);
+  }
+
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
     for (Generic* from_constexpr :
          Declarations::LookupGeneric(kFromConstexprMacroName)) {
-      if (base::Optional<Callable*> specialization =
-              from_constexpr->GetSpecialization({to, from})) {
+      if (base::Optional<const Callable*> specialization =
+              from_constexpr->specializations().Get({to, from})) {
         if ((*specialization)->signature().GetExplicitTypes() ==
             TypeVector{from}) {
           return true;
@@ -217,7 +233,9 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return false;
   }
 
-  static void FinalizeClassTypes();
+  static const std::vector<std::unique_ptr<AggregateType>>* GetAggregateTypes();
+
+  static void FinalizeAggregateTypes();
 
  private:
   const Type* GetBuiltinType(const std::string& name) {
@@ -229,7 +247,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<UnionType> union_types_;
   Deduplicator<ReferenceType> reference_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
-  std::vector<std::unique_ptr<AggregateType>> struct_types_;
+  std::vector<std::unique_ptr<AggregateType>> aggregate_types_;
   std::vector<std::unique_ptr<Type>> top_types_;
 };
 

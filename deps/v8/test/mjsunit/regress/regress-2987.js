@@ -35,7 +35,7 @@ function constructor() {
   this.x = 0;
 }
 
-var deopt = { deopt:false };
+var deopt = {deopt: false};
 function boogeyman(mode, value) {
   var object = new constructor();
   if (mode) {
@@ -45,8 +45,8 @@ function boogeyman(mode, value) {
   }
   deopt.deopt;
   assertEquals(value, object.x);
-}
-
+};
+%PrepareFunctionForOptimization(boogeyman);
 boogeyman(true, 1);
 boogeyman(true, 1);
 boogeyman(false, 2);

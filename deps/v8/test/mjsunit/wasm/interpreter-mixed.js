@@ -184,8 +184,8 @@ function redirectToInterpreter(
       checkStack(stripPath(e.stack), [
         'Error: i=8',                                                // -
         /^    at imp \(file:\d+:29\)$/,                              // -
-        '    at plus_one (wasm-function[1]:6)',                      // -
-        '    at plus_two (wasm-function[1]:3)',                      // -
+        '    at plus_one (wasm-function[1]:0x3b)',                   // -
+        '    at plus_two (wasm-function[1]:0x3e)',                   // -
         /^    at testStackTraceThroughCWasmEntry \(file:\d+:25\)$/,  // -
         /^    at file:\d+:3$/
       ]);

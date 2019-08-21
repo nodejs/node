@@ -160,9 +160,16 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   static bool IsKey(ReadOnlyRoots roots, Object k);
 
   inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_k);
+  inline bool ToKey(Isolate* isolate, int entry, Object* out_k);
 
   // Returns the key at entry.
-  Object KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
+  Object KeyAt(int entry) {
+    Isolate* isolate = GetIsolateForPtrCompr(*this);
+    return KeyAt(isolate, entry);
+  }
+  Object KeyAt(Isolate* isolate, int entry) {
+    return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
+  }
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;

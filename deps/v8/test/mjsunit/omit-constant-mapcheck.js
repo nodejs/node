@@ -27,12 +27,12 @@
 
 // Flags: --allow-natives-syntax
 
-var g1 = { a:1 }
+var g1 = {a: 1};
 
 function load() {
   return g1.a;
-}
-
+};
+%PrepareFunctionForOptimization(load);
 assertEquals(1, load());
 assertEquals(1, load());
 %OptimizeFunctionOnNextCall(load);
@@ -40,12 +40,12 @@ assertEquals(1, load());
 delete g1.a;
 assertEquals(undefined, load());
 
-var g2 = { a:2 }
+var g2 = {a: 2};
 
 function load2() {
   return g2.a;
-}
-
+};
+%PrepareFunctionForOptimization(load2);
 assertEquals(2, load2());
 assertEquals(2, load2());
 %OptimizeFunctionOnNextCall(load2);
@@ -54,17 +54,17 @@ g2.b = 10;
 g2.a = 5;
 assertEquals(5, load2());
 
-var g3 = { a:2, b:9, c:1 }
+var g3 = {a: 2, b: 9, c: 1};
 
 function store(v) {
   g3.a = v;
   return g3.a;
-}
-
+};
+%PrepareFunctionForOptimization(store);
 assertEquals(5, store(5));
 assertEquals(8, store(8));
 %OptimizeFunctionOnNextCall(store);
 assertEquals(10, store(10));
 delete g3.c;
 store(7);
-assertEquals({a:7, b:9}, g3);
+assertEquals({a: 7, b: 9}, g3);

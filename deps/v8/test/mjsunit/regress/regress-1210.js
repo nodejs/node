@@ -32,18 +32,24 @@
 
 var a = 0;
 
-function observe(x, y) { return x; }
+function observe(x, y) {
+  return x;
+}
 
-function side_effect(x) { a = x; }
+function side_effect(x) {
+  a = x;
+}
 
 function test() {
   // We will trigger deoptimization of 'a + 0' which should bail out to
   // immediately after the call to 'side_effect' (i.e., still in the key
   // subexpression of the arguments access).
-  return observe(a, arguments[side_effect(a), a + 0]);
+  return observe(a, arguments[(side_effect(a), a + 0)]);
 }
 
 // Run enough to optimize assuming global 'a' is a smi.
+;
+%PrepareFunctionForOptimization(test);
 for (var i = 0; i < 10; ++i) test(0);
 %OptimizeFunctionOnNextCall(test);
 test(0);

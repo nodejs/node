@@ -72,16 +72,15 @@ enum FixedArraySubInstanceType {
 class FixedArrayBase : public HeapObject {
  public:
   // [length]: length of the array.
-  inline int length() const;
-  inline void set_length(int value);
+  DECL_INT_ACCESSORS(length)
 
   // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   inline Object unchecked_synchronized_length() const;
 
   DECL_CAST(FixedArrayBase)
+  DECL_VERIFIER(FixedArrayBase)
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -113,6 +112,8 @@ class FixedArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
+
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
 
@@ -267,6 +268,7 @@ class WeakFixedArray : public HeapObject {
   DECL_CAST(WeakFixedArray)
 
   inline MaybeObject Get(int index) const;
+  inline MaybeObject Get(Isolate* isolate, int index) const;
 
   // Setter that uses write barrier.
   inline void Set(int index, MaybeObject value);
@@ -281,8 +283,7 @@ class WeakFixedArray : public HeapObject {
   DECL_INT_ACCESSORS(length)
 
   // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
@@ -336,6 +337,7 @@ class WeakArrayList : public HeapObject {
       const MaybeObjectHandle& value);
 
   inline MaybeObject Get(int index) const;
+  inline MaybeObject Get(Isolate* isolate, int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
@@ -359,19 +361,12 @@ class WeakArrayList : public HeapObject {
   DECL_INT_ACCESSORS(length)
 
   // Get and set the capacity using acquire loads and release stores.
-  inline int synchronized_capacity() const;
-  inline void synchronized_set_capacity(int value);
-
+  DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
   // Layout description.
-#define WEAK_ARRAY_LIST_FIELDS(V) \
-  V(kCapacityOffset, kTaggedSize) \
-  V(kLengthOffset, kTaggedSize)   \
-  /* Header size. */              \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
-#undef WEAK_ARRAY_LIST_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_WEAK_ARRAY_LIST_FIELDS)
+  static constexpr int kHeaderSize = kSize;
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 
@@ -442,6 +437,7 @@ class ArrayList : public FixedArray {
   // storage capacity, i.e., length().
   inline void SetLength(int length);
   inline Object Get(int index) const;
+  inline Object Get(Isolate* isolate, int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
@@ -491,6 +487,9 @@ class ByteArray : public FixedArrayBase {
 
   inline uint32_t get_uint32(int index) const;
   inline void set_uint32(int index, uint32_t value);
+
+  inline uint32_t get_uint32_relaxed(int index) const;
+  inline void set_uint32_relaxed(int index, uint32_t value);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -552,9 +551,9 @@ class PodArray : public ByteArray {
   static Handle<PodArray<T>> New(
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
-  void copy_out(int index, T* result) {
+  void copy_out(int index, T* result, int length) {
     ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
-                        sizeof(T));
+                        length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
@@ -562,9 +561,14 @@ class PodArray : public ByteArray {
                        length * sizeof(T));
   }
 
+  bool matches(const T* buffer, int length) {
+    DCHECK_LE(length, this->length());
+    return memcmp(GetDataStartAddress(), buffer, length * sizeof(T)) == 0;
+  }
+
   T get(int index) {
     T result;
-    copy_out(index, &result);
+    copy_out(index, &result, 1);
     return result;
   }
 
@@ -581,6 +585,7 @@ class TemplateList : public FixedArray {
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
   inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
   inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);

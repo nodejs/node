@@ -10,7 +10,8 @@
       Object.getOwnPropertyDescriptor(g, "caller");
     };
     [0].forEach(g);
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -23,7 +24,8 @@
   }
   function f() {
     [0].forEach(g);
-  }
+  };
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);

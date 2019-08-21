@@ -17,7 +17,7 @@ namespace string_iterator {
 
   // ES6 #sec-string.prototype-@@iterator
   transitioning javascript builtin StringPrototypeIterator(
-      implicit context: Context)(receiver: Object): JSStringIterator {
+      js-implicit context: Context)(receiver: Object): JSStringIterator {
     const name: String =
         ToThisString(receiver, 'String.prototype[Symbol.iterator]');
     const index: Smi = 0;
@@ -26,7 +26,7 @@ namespace string_iterator {
 
   // ES6 #sec-%stringiteratorprototype%.next
   transitioning javascript builtin StringIteratorPrototypeNext(
-      implicit context: Context)(receiver: Object): JSIteratorResult {
+      js-implicit context: Context)(receiver: Object): JSObject {
     const iterator = Cast<JSStringIterator>(receiver) otherwise ThrowTypeError(
         kIncompatibleMethodReceiver, 'String Iterator.prototype.next',
         receiver);
@@ -34,13 +34,13 @@ namespace string_iterator {
     const position: intptr = SmiUntag(iterator.next_index);
     const length: intptr = string.length_intptr;
     if (position >= length) {
-      return NewJSIteratorResult(Undefined, True);
+      return AllocateJSIteratorResult(Undefined, True);
     }
     // Move to next codepoint.
     const encoding = UTF16;
     const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
-    const value: String = string::StringFromSingleCodePoint(ch, encoding);
+    const value: String = string::StringFromSingleUTF16EncodedCodePoint(ch);
     iterator.next_index = SmiTag(position + value.length_intptr);
-    return NewJSIteratorResult(value, False);
+    return AllocateJSIteratorResult(value, False);
   }
 }

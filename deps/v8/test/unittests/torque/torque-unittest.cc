@@ -64,6 +64,7 @@ TorqueCompilerResult TestCompileTorque(std::string source) {
   options.output_directory = "";
   options.collect_language_server_data = false;
   options.force_assert_statements = false;
+  options.v8_root = ".";
 
   source = kTestTorquePrelude + source;
   return CompileTorque(source, options);
@@ -128,6 +129,7 @@ TEST(Torque, ClassDefinition) {
       i: uintptr;
     }
 
+    @export
     macro TestClassWithAllTypesLoadsAndStores(
         t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
         v4: uint16, v5: int32, v6: uint32, v7: intptr, v8: uintptr) {
@@ -158,12 +160,10 @@ TEST(Torque, TypeDeclarationOrder) {
     type Baztype = Foo | FooType;
 
     @abstract
-    @noVerifier
     extern class Foo extends HeapObject {
       fooField: FooType;
     }
 
-    @noVerifier
     extern class Bar extends Foo {
       barField: Bartype;
       bazfield: Baztype;
@@ -179,7 +179,6 @@ TEST(Torque, ConditionalFields) {
   // This class should throw alignment errors if @if decorators aren't
   // working.
   ExpectSuccessfulCompilation(R"(
-  @noVerifier
   extern class PreprocessingTest extends HeapObject {
     @if(FALSE_FOR_TESTING) a: int8;
     @if(TRUE_FOR_TESTING) a: int16;
@@ -192,7 +191,6 @@ TEST(Torque, ConditionalFields) {
   }
   )");
   ExpectFailingCompilation(R"(
-  @noVerifier
   extern class PreprocessingTest extends HeapObject {
     @if(TRUE_FOR_TESTING) a: int8;
     @if(FALSE_FOR_TESTING) a: int16;
@@ -209,8 +207,108 @@ TEST(Torque, ConditionalFields) {
 
 TEST(Torque, ConstexprLetBindingDoesNotCrash) {
   ExpectFailingCompilation(
-      R"(macro FooBar() { let foo = 0; check(foo >= 0); })",
+      R"(@export macro FooBar() { let foo = 0; check(foo >= 0); })",
       HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
+}
+
+TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo() {
+      let __x;
+    }
+  )",
+                           HasSubstr("Lexer Error"));
+}
+
+TEST(Torque, UnusedLetBindingLintError) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo(y: Smi) {
+      let x: Smi = y;
+    }
+  )",
+                           HasSubstr("Variable 'x' is never used."));
+}
+
+TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
+  ExpectSuccessfulCompilation(R"(
+    @export macro Foo(y: Smi) {
+      let _x: Smi = y;
+    }
+  )");
+}
+
+TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo(y: Smi) {
+      let _x: Smi = y;
+      check(_x == y);
+    }
+  )",
+                           HasSubstr("Trying to reference '_x'"));
+}
+
+TEST(Torque, UnusedArgumentLintError) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo(x: Smi) {}
+  )",
+                           HasSubstr("Variable 'x' is never used."));
+}
+
+TEST(Torque, UsingUnderscorePrefixedArgumentSilencesWarning) {
+  ExpectSuccessfulCompilation(R"(
+    @export macro Foo(_y: Smi) {}
+  )");
+}
+
+TEST(Torque, UnusedLabelLintError) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo() labels Bar {}
+  )",
+                           HasSubstr("Label 'Bar' is never used."));
+}
+
+TEST(Torque, UsingUnderScorePrefixLabelSilencesWarning) {
+  ExpectSuccessfulCompilation(R"(
+    @export macro Foo() labels _Bar {}
+  )");
+}
+
+TEST(Torque, NoUnusedWarningForImplicitArguments) {
+  ExpectSuccessfulCompilation(R"(
+    @export macro Foo(implicit c: Context, r: JSReceiver)() {}
+  )");
+}
+
+TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInAsserts) {
+  ExpectSuccessfulCompilation(R"(
+    @export macro Foo(x: bool) {
+      assert(x);
+    }
+  )");
+}
+
+TEST(Torque, ImportNonExistentFile) {
+  ExpectFailingCompilation(R"(import "foo/bar.tq")",
+                           HasSubstr("File 'foo/bar.tq' not found."));
+}
+
+TEST(Torque, LetShouldBeConstLintError) {
+  ExpectFailingCompilation(R"(
+    @export macro Foo(y: Smi): Smi {
+      let x: Smi = y;
+      return x;
+    })",
+                           HasSubstr("Variable 'x' is never assigned to."));
+}
+
+TEST(Torque, LetShouldBeConstIsSkippedForStructs) {
+  ExpectSuccessfulCompilation(R"(
+    struct Foo{ a: Smi; }
+    @export macro Bar(x: Smi): Foo {
+      let foo = Foo{a: x};
+      return foo;
+    }
+  )");
 }
 
 }  // namespace torque

@@ -128,8 +128,16 @@ void JSGraph::GetCachedNodes(NodeVector* nodes) {
 DEFINE_GETTER(AllocateInYoungGenerationStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), AllocateInYoungGeneration)))
 
+DEFINE_GETTER(AllocateRegularInYoungGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(),
+                                        AllocateRegularInYoungGeneration)))
+
 DEFINE_GETTER(AllocateInOldGenerationStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldGeneration)))
+
+DEFINE_GETTER(AllocateRegularInOldGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(),
+                                        AllocateRegularInOldGeneration)))
 
 DEFINE_GETTER(ArrayConstructorStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))

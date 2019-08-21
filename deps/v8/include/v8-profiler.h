@@ -356,9 +356,8 @@ class V8_EXPORT CpuProfiler {
    * initialized. The profiler object must be disposed after use by calling
    * |Dispose| method.
    */
-  static CpuProfiler* New(Isolate* isolate);
   static CpuProfiler* New(Isolate* isolate,
-                          CpuProfilingNamingMode mode);
+                          CpuProfilingNamingMode = kDebugNaming);
 
   /**
    * Synchronously collect current stack sample in all profilers attached to
@@ -407,10 +406,8 @@ class V8_EXPORT CpuProfiler {
    * discarded.
    */
   void StartProfiling(
-      Local<String> title, CpuProfilingMode mode, bool record_samples = false);
-  void StartProfiling(
-      Local<String> title, CpuProfilingMode mode, bool record_samples,
-      unsigned max_samples);
+      Local<String> title, CpuProfilingMode mode, bool record_samples = false,
+      unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
   /**
    * The same as StartProfiling above, but the CpuProfilingMode defaults to
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the

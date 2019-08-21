@@ -11,6 +11,7 @@
   }
   src += 'c) { return a + c })';
   var f = eval(src);
+  %PrepareFunctionForOptimization(f);
   assertEquals(NaN, f(1));
   assertEquals(NaN, f(2));
   %OptimizeFunctionOnNextCall(f);

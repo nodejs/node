@@ -117,7 +117,9 @@ class Symbol;
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
+  V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, string_table_map, StringTableMap)                                     \
+  V(Map, synthetic_module_map, SyntheticModuleMap)                             \
   V(Map, uncompiled_data_without_preparse_data_map,                            \
     UncompiledDataWithoutPreparseDataMap)                                      \
   V(Map, uncompiled_data_with_preparse_data_map,                               \
@@ -217,7 +219,6 @@ class Symbol;
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector) \
-  V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)          \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)        \
   V(Cell, string_length_protector, StringLengthProtector)                    \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)          \

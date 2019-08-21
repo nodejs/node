@@ -156,7 +156,7 @@ void MarkingVerifier::VerifyMarking(PagedSpace* space) {
 }
 
 void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
-  LargeObjectIterator it(lo_space);
+  LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsBlackOrGrey(obj)) {
       obj.Iterate(this);
@@ -456,6 +456,14 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
+
+  if (FLAG_trace_evacuation_candidates) {
+    PrintIsolate(
+        isolate(),
+        "Evacuation candidate: Free bytes: %6zu. Free Lists length: %4d.\n",
+        p->area_size() - p->allocated_bytes(), p->FreeListsLength());
+  }
+
   p->MarkEvacuationCandidate();
   evacuation_candidates_.push_back(p);
 }
@@ -472,6 +480,9 @@ static void TraceFragmentation(PagedSpace* space) {
 bool MarkCompactCollector::StartCompaction() {
   if (!compacting_) {
     DCHECK(evacuation_candidates_.empty());
+
+    if (FLAG_gc_experiment_less_compaction && !heap_->ShouldReduceMemory())
+      return false;
 
     CollectEvacuationCandidates(heap()->old_space());
 
@@ -513,7 +524,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
-  ReadOnlyHeapIterator iterator(space);
+  ReadOnlyHeapObjectIterator iterator(space);
   for (HeapObject object = iterator.Next(); !object.is_null();
        object = iterator.Next()) {
     CHECK(non_atomic_marking_state()->IsBlack(object));
@@ -536,7 +547,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
 }
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
-  LargeObjectIterator it(space);
+  LargeObjectSpaceObjectIterator it(space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state()->IsWhite(obj));
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
@@ -566,6 +577,8 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   heap()->old_space()->RefillFreeList();
   heap()->code_space()->RefillFreeList();
   heap()->map_space()->RefillFreeList();
+
+  heap()->tracer()->NotifySweepingCompleted();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
@@ -629,6 +642,27 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
 
+  const bool in_standard_path =
+      !(FLAG_manual_evacuation_candidates_selection ||
+        FLAG_stress_compaction_random || FLAG_stress_compaction ||
+        FLAG_always_compact);
+  // Those variables will only be initialized if |in_standard_path|, and are not
+  // used otherwise.
+  size_t max_evacuated_bytes;
+  int target_fragmentation_percent;
+  size_t free_bytes_threshold;
+  if (in_standard_path) {
+    // We use two conditions to decide whether a page qualifies as an evacuation
+    // candidate, or not:
+    // * Target fragmentation: How fragmented is a page, i.e., how is the ratio
+    //   between live bytes and capacity of this page (= area).
+    // * Evacuation quota: A global quota determining how much bytes should be
+    //   compacted.
+    ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
+                                &max_evacuated_bytes);
+    free_bytes_threshold = target_fragmentation_percent * (area_size / 100);
+  }
+
   // Pairs of (live_bytes_in_page, page).
   using LiveBytesPagePair = std::pair<size_t, Page*>;
   std::vector<LiveBytesPagePair> pages;
@@ -652,7 +686,15 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
-    pages.push_back(std::make_pair(p->allocated_bytes(), p));
+    if (in_standard_path) {
+      // Only the pages with at more than |free_bytes_threshold| free bytes are
+      // considered for evacuation.
+      if (area_size - p->allocated_bytes() >= free_bytes_threshold) {
+        pages.push_back(std::make_pair(p->allocated_bytes(), p));
+      }
+    } else {
+      pages.push_back(std::make_pair(p->allocated_bytes(), p));
+    }
   }
 
   int candidate_count = 0;
@@ -691,25 +733,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   } else {
     // The following approach determines the pages that should be evacuated.
     //
-    // We use two conditions to decide whether a page qualifies as an evacuation
-    // candidate, or not:
-    // * Target fragmentation: How fragmented is a page, i.e., how is the ratio
-    //   between live bytes and capacity of this page (= area).
-    // * Evacuation quota: A global quota determining how much bytes should be
-    //   compacted.
-    //
-    // The algorithm sorts all pages by live bytes and then iterates through
-    // them starting with the page with the most free memory, adding them to the
-    // set of evacuation candidates as long as both conditions (fragmentation
-    // and quota) hold.
-    size_t max_evacuated_bytes;
-    int target_fragmentation_percent;
-    ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
-                                &max_evacuated_bytes);
-
-    const size_t free_bytes_threshold =
-        target_fragmentation_percent * (area_size / 100);
-
     // Sort pages from the most free to the least free, then select
     // the first n pages for evacuation such that:
     // - the total size of evacuated objects does not exceed the specified
@@ -722,10 +745,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     for (size_t i = 0; i < pages.size(); i++) {
       size_t live_bytes = pages[i].first;
       DCHECK_GE(area_size, live_bytes);
-      size_t free_bytes = area_size - live_bytes;
       if (FLAG_always_compact ||
-          ((free_bytes >= free_bytes_threshold) &&
-           ((total_live_bytes + live_bytes) <= max_evacuated_bytes))) {
+          ((total_live_bytes + live_bytes) <= max_evacuated_bytes)) {
         candidate_count++;
         total_live_bytes += live_bytes;
       }
@@ -735,9 +756,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                      "fragmentation_limit_kb=%zu "
                      "fragmentation_limit_percent=%d sum_compaction_kb=%zu "
                      "compaction_limit_kb=%zu\n",
-                     space->name(), free_bytes / KB, free_bytes_threshold / KB,
-                     target_fragmentation_percent, total_live_bytes / KB,
-                     max_evacuated_bytes / KB);
+                     space->name(), (area_size - live_bytes) / KB,
+                     free_bytes_threshold / KB, target_fragmentation_percent,
+                     total_live_bytes / KB, max_evacuated_bytes / KB);
       }
     }
     // How many pages we will allocated for the evacuated objects
@@ -807,9 +828,9 @@ void MarkCompactCollector::Prepare() {
     StartCompaction();
   }
 
-  PagedSpaces spaces(heap());
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  PagedSpaceIterator spaces(heap());
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     space->PrepareForMarkCompact();
   }
   heap()->account_external_memory_concurrently_freed();
@@ -1364,8 +1385,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (map.visitor_id() == kVisitThinString) {
       HeapObject actual = ThinString::cast(object).unchecked_actual();
       if (MarkCompactCollector::IsOnEvacuationCandidate(actual)) return false;
-      object.map_slot().Relaxed_Store(
-          MapWord::FromForwardingAddress(actual).ToMap());
+      object.set_map_word(MapWord::FromForwardingAddress(actual));
       return true;
     }
     // TODO(mlippautz): Handle ConsString.
@@ -1463,7 +1483,7 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
 
   inline bool Visit(HeapObject object, int size) override {
     HeapObject target_object;
-    if (TryEvacuateObject(Page::FromHeapObject(object)->owner()->identity(),
+    if (TryEvacuateObject(Page::FromHeapObject(object)->owner_identity(),
                           object, size, &target_object)) {
       DCHECK(object.map_word().IsForwardingAddress());
       return true;
@@ -2084,7 +2104,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
   UncompiledData::Initialize(
       uncompiled_data, inferred_name, start_position, end_position,
-      kFunctionLiteralIdInvalid,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
       });
@@ -2731,6 +2750,7 @@ class Evacuator : public Malloced {
   inline void Finalize();
 
   virtual GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() = 0;
+  virtual GCTracer::Scope::ScopeId GetTracingScope() = 0;
 
  protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
@@ -2817,6 +2837,10 @@ class FullEvacuator : public Evacuator {
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
     return GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY;
+  }
+
+  GCTracer::Scope::ScopeId GetTracingScope() override {
+    return GCTracer::Scope::MC_EVACUATE_COPY_PARALLEL;
   }
 
   inline void Finalize() {
@@ -2909,16 +2933,24 @@ class PageEvacuationTask : public ItemParallelJob::Task {
         evacuator_(evacuator),
         tracer_(isolate->heap()->tracer()) {}
 
-  void RunInParallel() override {
-    TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
+  void RunInParallel(Runner runner) override {
+    if (runner == Runner::kForeground) {
+      TRACE_GC(tracer_, evacuator_->GetTracingScope());
+      ProcessItems();
+    } else {
+      TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
+      ProcessItems();
+    }
+  }
+
+ private:
+  void ProcessItems() {
     EvacuationItem* item = nullptr;
     while ((item = GetItem<EvacuationItem>()) != nullptr) {
       evacuator_->EvacuatePage(item->chunk());
       item->MarkFinished();
     }
   }
-
- private:
   Evacuator* evacuator_;
   GCTracer* tracer_;
 };
@@ -3183,7 +3215,7 @@ void MarkCompactCollector::Evacuate() {
         sweeper()->AddPageForIterability(p);
       } else if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-        DCHECK_EQ(OLD_SPACE, p->owner()->identity());
+        DCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
       }
     }
@@ -3191,7 +3223,7 @@ void MarkCompactCollector::Evacuate() {
 
     for (Page* p : old_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-        sweeper()->AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
+        sweeper()->AddPage(p->owner_identity(), p, Sweeper::REGULAR);
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
@@ -3218,24 +3250,35 @@ class UpdatingItem : public ItemParallelJob::Item {
 
 class PointersUpdatingTask : public ItemParallelJob::Task {
  public:
-  explicit PointersUpdatingTask(Isolate* isolate,
-                                GCTracer::BackgroundScope::ScopeId scope)
+  explicit PointersUpdatingTask(
+      Isolate* isolate, GCTracer::Scope::ScopeId scope,
+      GCTracer::BackgroundScope::ScopeId background_scope)
       : ItemParallelJob::Task(isolate),
         tracer_(isolate->heap()->tracer()),
-        scope_(scope) {}
+        scope_(scope),
+        background_scope_(background_scope) {}
 
-  void RunInParallel() override {
-    TRACE_BACKGROUND_GC(tracer_, scope_);
+  void RunInParallel(Runner runner) override {
+    if (runner == Runner::kForeground) {
+      TRACE_GC(tracer_, scope_);
+      UpdatePointers();
+    } else {
+      TRACE_BACKGROUND_GC(tracer_, background_scope_);
+      UpdatePointers();
+    }
+  }
+
+ private:
+  void UpdatePointers() {
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
       item->Process();
       item->MarkFinished();
     }
   }
-
- private:
   GCTracer* tracer_;
-  GCTracer::BackgroundScope::ScopeId scope_;
+  GCTracer::Scope::ScopeId scope_;
+  GCTracer::BackgroundScope::ScopeId background_scope_;
 };
 
 template <typename MarkingState>
@@ -3651,7 +3694,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
             remembered_set_tasks + num_ephemeron_table_updating_tasks);
     for (int i = 0; i < num_tasks; i++) {
       updating_job.AddTask(new PointersUpdatingTask(
-          isolate(),
+          isolate(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
           GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
     }
     updating_job.AddItem(new EphemeronTableUpdatingItem(heap()));
@@ -3684,7 +3727,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     if (num_tasks > 0) {
       for (int i = 0; i < num_tasks; i++) {
         updating_job.AddTask(new PointersUpdatingTask(
-            isolate(),
+            isolate(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
             GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
       }
       updating_job.Run();
@@ -4194,8 +4237,9 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
     updating_job.AddTask(new PointersUpdatingTask(
-        isolate(), GCTracer::BackgroundScope::
-                       MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
+        isolate(), GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
+        GCTracer::BackgroundScope::
+            MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
   }
 
   {
@@ -4498,9 +4542,30 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
                               Page::kPageSize);
   }
 
-  void RunInParallel() override {
-    TRACE_BACKGROUND_GC(collector_->heap()->tracer(),
-                        GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
+  void RunInParallel(Runner runner) override {
+    if (runner == Runner::kForeground) {
+      TRACE_GC(collector_->heap()->tracer(),
+               GCTracer::Scope::MINOR_MC_MARK_PARALLEL);
+      ProcessItems();
+    } else {
+      TRACE_BACKGROUND_GC(
+          collector_->heap()->tracer(),
+          GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
+      ProcessItems();
+    }
+  }
+
+  void MarkObject(Object object) {
+    if (!Heap::InYoungGeneration(object)) return;
+    HeapObject heap_object = HeapObject::cast(object);
+    if (marking_state_->WhiteToGrey(heap_object)) {
+      const int size = visitor_.Visit(heap_object);
+      IncrementLiveBytes(heap_object, size);
+    }
+  }
+
+ private:
+  void ProcessItems() {
     double marking_time = 0.0;
     {
       TimedScope scope(&marking_time);
@@ -4519,17 +4584,6 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
                    static_cast<void*>(this), marking_time);
     }
   }
-
-  void MarkObject(Object object) {
-    if (!Heap::InYoungGeneration(object)) return;
-    HeapObject heap_object = HeapObject::cast(object);
-    if (marking_state_->WhiteToGrey(heap_object)) {
-      const int size = visitor_.Visit(heap_object);
-      IncrementLiveBytes(heap_object, size);
-    }
-  }
-
- private:
   void EmptyLocalMarkingWorklist() {
     HeapObject object;
     while (marking_worklist_.Pop(&object)) {
@@ -4759,6 +4813,10 @@ class YoungGenerationEvacuator : public Evacuator {
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
     return GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
+  }
+
+  GCTracer::Scope::ScopeId GetTracingScope() override {
+    return GCTracer::Scope::MINOR_MC_EVACUATE_COPY_PARALLEL;
   }
 
  protected:

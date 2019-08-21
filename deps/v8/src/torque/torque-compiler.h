@@ -17,6 +17,7 @@ namespace torque {
 
 struct TorqueCompilerOptions {
   std::string output_directory = "";
+  std::string v8_root = "";
   bool collect_language_server_data = false;
 
   // assert(...) are only generated for debug builds. The provide
@@ -29,7 +30,7 @@ struct TorqueCompilerResult {
   // Map translating SourceIds to filenames. This field is
   // set on errors, so the SourcePosition of the error can be
   // resolved.
-  SourceFileMap source_file_map;
+  base::Optional<SourceFileMap> source_file_map;
 
   // Eagerly collected data needed for the LanguageServer.
   // Set the corresponding options flag to enable.

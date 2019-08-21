@@ -99,7 +99,7 @@ class Label {
 
   friend class Assembler;
   friend class Displacement;
-  friend class RegExpMacroAssemblerIrregexp;
+  friend class RegExpBytecodeGenerator;
 
   // Disallow copy construction and assignment, but allow move construction and
   // move assignment on selected platforms (see above).

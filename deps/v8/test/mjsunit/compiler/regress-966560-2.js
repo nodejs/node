@@ -10,5 +10,6 @@ function* get() {
     get = [];
   }
 }
+%PrepareFunctionForOptimization(get);
 %OptimizeFunctionOnNextCall(get);
 get();

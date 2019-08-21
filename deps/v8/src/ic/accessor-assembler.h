@@ -68,21 +68,75 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   }
 
   struct LoadICParameters {
-    LoadICParameters(Node* context, Node* receiver, Node* name, Node* slot,
-                     Node* vector, Node* holder = nullptr)
-        : context(context),
-          receiver(receiver),
-          name(name),
-          slot(slot),
-          vector(vector),
-          holder(holder ? holder : receiver) {}
+    LoadICParameters(TNode<Context> context, Node* receiver, Node* name,
+                     Node* slot, Node* vector, Node* holder = nullptr)
+        : context_(context),
+          receiver_(receiver),
+          name_(name),
+          slot_(slot),
+          vector_(vector),
+          holder_(holder ? holder : receiver) {}
 
-    Node* context;
-    Node* receiver;
-    Node* name;
-    Node* slot;
-    Node* vector;
-    Node* holder;
+    LoadICParameters(const LoadICParameters* p, Node* unique_name)
+        : context_(p->context_),
+          receiver_(p->receiver_),
+          name_(unique_name),
+          slot_(p->slot_),
+          vector_(p->vector_),
+          holder_(p->holder_) {}
+
+    TNode<Context> context() const { return context_; }
+    Node* receiver() const { return receiver_; }
+    Node* name() const { return name_; }
+    Node* slot() const { return slot_; }
+    Node* vector() const { return vector_; }
+    Node* holder() const { return holder_; }
+
+   private:
+    TNode<Context> context_;
+    Node* receiver_;
+    Node* name_;
+    Node* slot_;
+    Node* vector_;
+    Node* holder_;
+  };
+
+  struct LazyLoadICParameters {
+    LazyLoadICParameters(LazyNode<Context> context, Node* receiver,
+                         LazyNode<Object> name, Node* slot, Node* vector,
+                         Node* holder = nullptr)
+        : context_(context),
+          receiver_(receiver),
+          name_(name),
+          slot_(slot),
+          vector_(vector),
+          holder_(holder ? holder : receiver) {}
+
+    explicit LazyLoadICParameters(const LoadICParameters* p)
+        : receiver_(p->receiver()),
+          slot_(p->slot()),
+          vector_(p->vector()),
+          holder_(p->holder()) {
+      TNode<Context> p_context = p->context();
+      context_ = [=] { return p_context; };
+      TNode<Object> p_name = TNode<Object>::UncheckedCast(p->name());
+      name_ = [=] { return p_name; };
+    }
+
+    TNode<Context> context() const { return context_(); }
+    Node* receiver() const { return receiver_; }
+    Node* name() const { return name_(); }
+    Node* slot() const { return slot_; }
+    Node* vector() const { return vector_; }
+    Node* holder() const { return holder_; }
+
+   private:
+    LazyNode<Context> context_;
+    Node* receiver_;
+    LazyNode<Object> name_;
+    Node* slot_;
+    Node* vector_;
+    Node* holder_;
   };
 
   void LoadGlobalIC(Node* vector, Node* slot,
@@ -93,7 +147,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
   // construction on common paths.
-  void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
+  void LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
+                              ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
   TNode<MaybeObject> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
@@ -101,11 +156,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(Node* context, Node* receiver, Node* name,
+    StoreICParameters(TNode<Context> context, Node* receiver, Node* name,
                       SloppyTNode<Object> value, Node* slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
-          value(value) {}
-    SloppyTNode<Object> value;
+          value_(value) {}
+
+    SloppyTNode<Object> value() const { return value_; }
+
+   private:
+    SloppyTNode<Object> value_;
   };
 
   enum class LoadAccessMode { kLoad, kHas };
@@ -127,7 +186,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
-  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
+  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield3 = nullptr);
 
   void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
                                          Node* descriptors,
@@ -182,13 +241,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
-      const LoadICParameters* p, TNode<Object> handler, Label* miss,
+      const LazyLoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties,
       LoadAccessMode access_mode = LoadAccessMode::kLoad);
 
-  void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
+  void HandleLoadICSmiHandlerCase(const LazyLoadICParameters* p, Node* holder,
                                   SloppyTNode<Smi> smi_handler,
                                   SloppyTNode<Object> handler, Label* miss,
                                   ExitPoint* exit_point,
@@ -196,18 +255,18 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                   ElementSupport support_elements,
                                   LoadAccessMode access_mode);
 
-  void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
+  void HandleLoadICProtoHandler(const LazyLoadICParameters* p, Node* handler,
                                 Variable* var_holder, Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
                                 ExitPoint* exit_point, ICMode ic_mode,
                                 LoadAccessMode access_mode);
 
-  void HandleLoadCallbackProperty(const LoadICParameters* p,
+  void HandleLoadCallbackProperty(const LazyLoadICParameters* p,
                                   TNode<JSObject> holder,
                                   TNode<WordT> handler_word,
                                   ExitPoint* exit_point);
 
-  void HandleLoadAccessor(const LoadICParameters* p,
+  void HandleLoadAccessor(const LazyLoadICParameters* p,
                           TNode<CallHandlerInfo> call_handler_info,
                           TNode<WordT> handler_word, TNode<DataHandler> handler,
                           TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
@@ -220,13 +279,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        Node* receiver, Label* can_access, Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
-      const LoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
+      const LazyLoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
       TNode<WordT> handler_word, Label* rebox_double,
       Variable* var_double_value, SloppyTNode<Object> handler, Label* miss,
       ExitPoint* exit_point, OnNonExistent on_nonexistent,
       ElementSupport support_elements);
 
-  void HandleLoadICSmiHandlerHasNamedCase(const LoadICParameters* p,
+  void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
                                           Node* holder,
                                           TNode<IntPtrT> handler_kind,
                                           Label* miss, ExitPoint* exit_point);

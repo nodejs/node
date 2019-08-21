@@ -617,8 +617,8 @@ Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
 }
 
 // static
-Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
-    Handle<WasmDebugInfo> debug_info, wasm::FunctionSig* sig) {
+Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
+                                          wasm::FunctionSig* sig) {
   Isolate* isolate = debug_info->GetIsolate();
   DCHECK_EQ(debug_info->has_c_wasm_entries(),
             debug_info->has_c_wasm_entry_map());
@@ -642,24 +642,9 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
     DCHECK(entries->get(index).IsUndefined(isolate));
     Handle<Code> new_entry_code =
         compiler::CompileCWasmEntry(isolate, sig).ToHandleChecked();
-    Handle<WasmExportedFunctionData> function_data =
-        Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
-            WASM_EXPORTED_FUNCTION_DATA_TYPE, AllocationType::kOld));
-    function_data->set_wrapper_code(*new_entry_code);
-    function_data->set_instance(debug_info->wasm_instance());
-    function_data->set_jump_table_offset(-1);
-    function_data->set_function_index(-1);
-    Handle<String> name =
-        isolate->factory()->InternalizeString(StaticCharVector("c-wasm-entry"));
-    NewFunctionArgs args = NewFunctionArgs::ForWasm(
-        name, function_data, isolate->sloppy_function_map());
-    Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);
-    new_entry->set_context(debug_info->wasm_instance().native_context());
-    new_entry->shared().set_internal_formal_parameter_count(
-        compiler::CWasmEntryParameters::kNumParameters);
-    entries->set(index, *new_entry);
+    entries->set(index, *new_entry_code);
   }
-  return handle(JSFunction::cast(entries->get(index)), isolate);
+  return handle(Code::cast(entries->get(index)), isolate);
 }
 
 }  // namespace internal

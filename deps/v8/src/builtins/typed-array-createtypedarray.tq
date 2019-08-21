@@ -8,30 +8,77 @@ namespace typed_array_createtypedarray {
   extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
       JSArray;
 
-  extern macro ConstructorBuiltinsAssembler::EmitFastNewObject(
-      implicit context: Context)(JSFunction, JSReceiver): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-      implicit context: Context)(JSTypedArray, uintptr): JSArrayBuffer;
+      implicit context: Context)(uintptr): JSArrayBuffer;
+  extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
   extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
       implicit context: Context)(JSTypedArray): JSFunction;
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
-  extern macro TypedArrayBuiltinsAssembler::SetupTypedArray(
-      JSTypedArray, uintptr, uintptr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
+      JSTypedArray): void;
 
   extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
       Map, String): never;
   extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
       void;
 
+  transitioning macro AllocateTypedArray(implicit context: Context)(
+      isOnHeap: constexpr bool, map: Map, buffer: JSArrayBuffer,
+      byteOffset: uintptr, byteLength: uintptr, length: uintptr): JSTypedArray {
+    let elements: ByteArray;
+    let externalPointer: RawPtr;
+    let basePointer: ByteArray | Smi;
+    if constexpr (isOnHeap) {
+      elements = AllocateByteArray(byteLength);
+      basePointer = elements;
+      externalPointer = PointerConstant(kExternalPointerForOnHeapArray);
+    } else {
+      basePointer = Convert<Smi>(0);
+
+      // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
+      // platforms are self-limiting, because we can't allocate an array bigger
+      // than our 32-bit arithmetic range anyway. 64 bit platforms could
+      // theoretically have an offset up to 2^35 - 1.
+      const backingStore: RawPtr = buffer.backing_store;
+      externalPointer = backingStore + Convert<intptr>(byteOffset);
+
+      // Assert no overflow has occurred. Only assert if the mock array buffer
+      // allocator is NOT used. When the mock array buffer is used, impossibly
+      // large allocations are allowed that would erroneously cause an overflow
+      // and this assertion to fail.
+      assert(
+          IsMockArrayBufferAllocatorFlag() ||
+          Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
+
+      elements = kEmptyByteArray;
+    }
+
+    // We can't just build the new object with "new JSTypedArray" here because
+    // Torque doesn't know its full size including embedder fields, so use CSA
+    // for the allocation step.
+    const typedArray =
+        UnsafeCast<JSTypedArray>(AllocateFastOrSlowJSObjectFromMap(map));
+    typedArray.elements = elements;
+    typedArray.buffer = buffer;
+    typedArray.byte_offset = byteOffset;
+    typedArray.byte_length = byteLength;
+    typedArray.length = length;
+    typedArray.external_pointer = externalPointer;
+    typedArray.base_pointer = basePointer;
+    SetupTypedArrayEmbedderFields(typedArray);
+    return typedArray;
+  }
+
   transitioning macro TypedArrayInitialize(implicit context: Context)(
-      initialize: constexpr bool, typedArray: JSTypedArray, length: PositiveSmi,
+      initialize: constexpr bool, map: Map, length: PositiveSmi,
       elementsInfo: typed_array::TypedArrayElementsInfo,
-      bufferConstructor: JSReceiver): uintptr {
+      bufferConstructor: JSReceiver): JSTypedArray {
     const byteLength = elementsInfo.CalculateByteLength(length)
         otherwise ThrowRangeError(kInvalidArrayBufferLength);
     const byteLengthNum = Convert<Number>(byteLength);
     const defaultConstructor = GetArrayBufferFunction();
+    const byteOffset: uintptr = 0;
 
     try {
       if (bufferConstructor != defaultConstructor) {
@@ -39,14 +86,21 @@ namespace typed_array_createtypedarray {
             defaultConstructor, bufferConstructor, byteLengthNum));
       }
 
-      if (byteLength > V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP) goto AllocateOffHeap;
+      if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
 
-      AllocateEmptyOnHeapBuffer(typedArray, byteLength);
+      const buffer = AllocateEmptyOnHeapBuffer(byteLength);
+
+      const isOnHeap: constexpr bool = true;
+      const typedArray = AllocateTypedArray(
+          isOnHeap, map, buffer, byteOffset, byteLength,
+          Convert<uintptr>(length));
 
       if constexpr (initialize) {
         const backingStore = typedArray.data_ptr;
         typed_array::CallCMemset(backingStore, 0, byteLength);
       }
+
+      return typedArray;
     }
     label AllocateOffHeap {
       if constexpr (initialize) {
@@ -58,22 +112,18 @@ namespace typed_array_createtypedarray {
     }
     label AttachOffHeapBuffer(bufferObj: Object) {
       const buffer = Cast<JSArrayBuffer>(bufferObj) otherwise unreachable;
-      const byteOffset: uintptr = 0;
-      typedArray.AttachOffHeapBuffer(buffer, byteOffset);
+      const isOnHeap: constexpr bool = false;
+      return AllocateTypedArray(
+          isOnHeap, map, buffer, byteOffset, byteLength,
+          Convert<uintptr>(length));
     }
-
-    const byteOffset: uintptr = 0;
-    SetupTypedArray(
-        typedArray, Convert<uintptr>(length), byteOffset, byteLength);
-
-    return byteLength;
   }
 
   // 22.2.4.2 TypedArray ( length )
   // ES #sec-typedarray-length
   transitioning macro ConstructByLength(implicit context: Context)(
-      typedArray: JSTypedArray, length: Object,
-      elementsInfo: typed_array::TypedArrayElementsInfo): void {
+      map: Map, length: Object,
+      elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
     const convertedLength: Number =
         ToInteger_Inline(context, length, kTruncateMinusZero);
     // The maximum length of a TypedArray is MaxSmi().
@@ -84,23 +134,22 @@ namespace typed_array_createtypedarray {
         otherwise ThrowRangeError(kInvalidTypedArrayLength, length);
     const defaultConstructor: Constructor = GetArrayBufferFunction();
     const initialize: constexpr bool = true;
-    TypedArrayInitialize(
-        initialize, typedArray, positiveLength, elementsInfo,
-        defaultConstructor);
+    return TypedArrayInitialize(
+        initialize, map, positiveLength, elementsInfo, defaultConstructor);
   }
 
   // 22.2.4.4 TypedArray ( object )
   // ES #sec-typedarray-object
   transitioning macro ConstructByArrayLike(implicit context: Context)(
-      typedArray: JSTypedArray, arrayLike: HeapObject, initialLength: Object,
+      map: Map, arrayLike: HeapObject, initialLength: Object,
       elementsInfo: typed_array::TypedArrayElementsInfo,
-      bufferConstructor: JSReceiver): void {
+      bufferConstructor: JSReceiver): JSTypedArray {
     // The caller has looked up length on arrayLike, which is observable.
     const length: PositiveSmi = ToSmiLength(initialLength)
         otherwise ThrowRangeError(kInvalidTypedArrayLength, initialLength);
     const initialize: constexpr bool = false;
-    const byteLength = TypedArrayInitialize(
-        initialize, typedArray, length, elementsInfo, bufferConstructor);
+    const typedArray = TypedArrayInitialize(
+        initialize, map, length, elementsInfo, bufferConstructor);
 
     try {
       const src: JSTypedArray = Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
@@ -112,6 +161,7 @@ namespace typed_array_createtypedarray {
         goto IfSlow;
 
       } else if (length > 0) {
+        const byteLength = typedArray.byte_length;
         assert(byteLength <= kArrayBufferMaxByteLength);
         typed_array::CallCMemcpy(typedArray.data_ptr, src.data_ptr, byteLength);
       }
@@ -121,13 +171,13 @@ namespace typed_array_createtypedarray {
         TypedArrayCopyElements(context, typedArray, arrayLike, length);
       }
     }
+    return typedArray;
   }
 
   // 22.2.4.4 TypedArray ( object )
   // ES #sec-typedarray-object
   transitioning macro ConstructByIterable(implicit context: Context)(
-      typedArray: JSTypedArray, iterable: JSReceiver, iteratorFn: Callable,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+      iterable: JSReceiver, iteratorFn: Callable): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     const array: JSArray =
         IterableToListMayPreserveHoles(context, iterable, iteratorFn);
@@ -137,8 +187,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.3 TypedArray ( typedArray )
   // ES #sec-typedarray-typedarray
   transitioning macro ConstructByTypedArray(implicit context: Context)(
-      typedArray: JSTypedArray, srcTypedArray: JSTypedArray,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+      srcTypedArray: JSTypedArray): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     let bufferConstructor: JSReceiver = GetArrayBufferFunction();
     const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
@@ -161,8 +210,8 @@ namespace typed_array_createtypedarray {
   // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
   // ES #sec-typedarray-buffer-byteoffset-length
   transitioning macro ConstructByArrayBuffer(implicit context: Context)(
-      typedArray: JSTypedArray, buffer: JSArrayBuffer, byteOffset: Object,
-      length: Object, elementsInfo: typed_array::TypedArrayElementsInfo): void {
+      map: Map, buffer: JSArrayBuffer, byteOffset: Object, length: Object,
+      elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
     try {
       let offset: uintptr = 0;
       if (byteOffset != Undefined) {
@@ -224,12 +273,13 @@ namespace typed_array_createtypedarray {
           goto IfInvalidLength;
       }
 
-      SetupTypedArray(
-          typedArray, Convert<uintptr>(newLength), offset, newByteLength);
-      typedArray.AttachOffHeapBuffer(buffer, offset);
+      const isOnHeap: constexpr bool = false;
+      return AllocateTypedArray(
+          isOnHeap, map, buffer, offset, newByteLength,
+          Convert<uintptr>(newLength));
     }
     label IfInvalidAlignment(problemString: String) deferred {
-      ThrowInvalidTypedArrayAlignment(typedArray.map, problemString);
+      ThrowInvalidTypedArrayAlignment(map, problemString);
     }
     label IfInvalidByteLength deferred {
       ThrowRangeError(kInvalidArrayBufferLength);
@@ -242,16 +292,15 @@ namespace typed_array_createtypedarray {
     }
   }
 
-  transitioning macro ConstructByJSReceiver(implicit context: Context)(
-      array: JSTypedArray, obj: JSReceiver,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+  transitioning macro ConstructByJSReceiver(implicit context:
+                                                Context)(obj: JSReceiver): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     try {
       const iteratorMethod: Object =
           GetIteratorMethod(obj) otherwise IfIteratorUndefined;
       const iteratorFn: Callable = Cast<Callable>(iteratorMethod)
           otherwise ThrowTypeError(kIteratorSymbolNonCallable);
-      ConstructByIterable(array, obj, iteratorFn, elementsInfo)
+      ConstructByIterable(obj, iteratorFn)
           otherwise IfConstructByArrayLike;
     }
     label IfIteratorUndefined {
@@ -273,22 +322,12 @@ namespace typed_array_createtypedarray {
     assert(IsConstructor(target));
     // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
     // "%TypedArrayPrototype%").
-    const array: JSTypedArray = EmitFastNewObject(target, newTarget);
-    // We need to set the byte_offset / byte_length to some sane values
-    // to keep the heap verifier happy.
-    // TODO(bmeurer, v8:4153): Fix this initialization to not use
-    // EmitFastNewObject, which causes the problem, since it puts
-    // Undefined into all slots of the object even though that
-    // doesn't make any sense for these fields.
-    array.byte_offset = 0;
-    array.byte_length = 0;
-    array.length = 0;
-    array.base_pointer = Convert<Smi>(0);
+    const map = GetDerivedMap(target, newTarget);
 
     // 5. Let elementSize be the Number value of the Element Size value in Table
     // 56 for constructorName.
     const elementsInfo: typed_array::TypedArrayElementsInfo =
-        typed_array::GetTypedArrayElementsInfo(array);
+        typed_array::GetTypedArrayElementsInfo(map);
 
     try {
       typeswitch (arg1) {
@@ -296,15 +335,13 @@ namespace typed_array_createtypedarray {
           goto IfConstructByLength(length);
         }
         case (buffer: JSArrayBuffer): {
-          ConstructByArrayBuffer(array, buffer, arg2, arg3, elementsInfo);
+          return ConstructByArrayBuffer(map, buffer, arg2, arg3, elementsInfo);
         }
         case (typedArray: JSTypedArray): {
-          ConstructByTypedArray(array, typedArray, elementsInfo)
-              otherwise IfConstructByArrayLike;
+          ConstructByTypedArray(typedArray) otherwise IfConstructByArrayLike;
         }
         case (obj: JSReceiver): {
-          ConstructByJSReceiver(array, obj, elementsInfo)
-              otherwise IfConstructByArrayLike;
+          ConstructByJSReceiver(obj) otherwise IfConstructByArrayLike;
         }
         // The first argument was a number or fell through and is treated as
         // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
@@ -314,14 +351,13 @@ namespace typed_array_createtypedarray {
       }
     }
     label IfConstructByLength(length: Object) {
-      ConstructByLength(array, length, elementsInfo);
+      return ConstructByLength(map, length, elementsInfo);
     }
     label IfConstructByArrayLike(
         arrayLike: HeapObject, length: Object, bufferConstructor: JSReceiver) {
-      ConstructByArrayLike(
-          array, arrayLike, length, elementsInfo, bufferConstructor);
+      return ConstructByArrayLike(
+          map, arrayLike, length, elementsInfo, bufferConstructor);
     }
-    return array;
   }
 
   transitioning macro TypedArraySpeciesCreate(implicit context: Context)(

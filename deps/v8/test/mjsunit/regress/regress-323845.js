@@ -40,8 +40,10 @@ function g(x) {
 
 function f() {
   g({});
-}
-
-f(); f(); f();
+};
+%PrepareFunctionForOptimization(f);
+f();
+f();
+f();
 %OptimizeFunctionOnNextCall(f);
 f();

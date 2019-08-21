@@ -7,6 +7,7 @@
 {
   function f() {
     for(let i = 0; i < 10; ++i){
+      %PrepareFunctionForOptimization(f);
       try{
         // Carefully constructed by a fuzzer to use a new register for s(), whose
         // write is dead due to the unconditional throw after s()=N, but which is
@@ -17,6 +18,6 @@
       %OptimizeOsr();
     }
   }
-  %PrepareFunctionForOptimization(f);
+  %EnsureFeedbackVectorForFunction(f);
   f();
 }

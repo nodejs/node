@@ -42,8 +42,8 @@ var bb = new b();
 
 function f(o) {
   return o.x;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 assertSame(1, f(aa));
 assertSame(1, f(aa));
 assertSame(2, f(bb));

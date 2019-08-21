@@ -66,15 +66,6 @@ class ElementsAccessor {
   // element that is non-deletable.
   virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
 
-  // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
-  // of elements from source after source_start to the destination array.
-  static const int kCopyToEnd = -1;
-  // If kCopyToEndAndInitializeToHole is specified as the copy_size to
-  // CopyElements, it copies all of elements from source after source_start to
-  // destination array, padding any remaining uninitialized elements in the
-  // destination array with the hole.
-  static const int kCopyToEndAndInitializeToHole = -2;
-
   // Copy all indices that have elements from |object| into the given
   // KeyAccumulator. For Dictionary-based element-kinds we filter out elements
   // whose PropertyAttribute match |filter|.
@@ -210,7 +201,7 @@ class ElementsAccessor {
                             uint32_t destination_start, int copy_size) = 0;
 
  private:
-  static ElementsAccessor** elements_accessors_;
+  V8_EXPORT_PRIVATE static ElementsAccessor** elements_accessors_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };

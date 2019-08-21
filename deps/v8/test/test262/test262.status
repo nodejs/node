@@ -75,9 +75,16 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
-  # intl tests which require flags. https://bugs.chromium.org/p/v8/issues/detail?id=9154
+  # Intl tests which require flags.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9154
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9319
+  'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
+
+  # crbug.com/v8/9483
+  'intl402/NumberFormat/currencyDisplay-unit': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
@@ -527,6 +534,37 @@
   'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
   'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # These tests require exception handling support which is currently
+  #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # The spec should be changed to make target === holding throw and then we should change these tests.
+  'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # This test has target === holdings which throws, changing holdings to
+  #  { y } makes the test pass.
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2256
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2239
+  'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2255
+  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -892,23 +930,6 @@
   'language/expressions/dynamic-import/reuse-namespace-object': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-import': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-script': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-10-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-11-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-12-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-13-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-14-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-15-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-16-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-17-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-1-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-2-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-3-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-4-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-5-lhs-equals-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-6-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-7-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-8-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-9-lhs-assignment-operator-assignment-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-assignment-expr-not-optional': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-new-call-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-rest-param': [SKIP],
@@ -1200,13 +1221,6 @@
   'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
-
-['variant == interpreted_regexp', {
-  # Call stack exceeded: https://crbug.com/v8/8678
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
-}],  # variant == interpreted_regexp
 
 ##############################################################################
 ['variant == jitless', {

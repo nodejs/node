@@ -257,8 +257,8 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
 
-  std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>> args =
-      protocol::Array<protocol::Runtime::RemoteObject>::create();
+  auto args =
+      v8::base::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
 
   v8::Local<v8::Value> value = m_arguments[0]->Get(isolate);
   if (value->IsObject() && m_type == ConsoleAPIType::kTable &&
@@ -282,7 +282,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
     inspectedContext = inspector->getContext(contextGroupId, contextId);
     if (!inspectedContext) return nullptr;
     if (wrapped) {
-      args->addItem(std::move(wrapped));
+      args->emplace_back(std::move(wrapped));
     } else {
       args = nullptr;
     }
@@ -297,7 +297,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
         args = nullptr;
         break;
       }
-      args->addItem(std::move(wrapped));
+      args->emplace_back(std::move(wrapped));
     }
   }
   return args;
@@ -341,14 +341,15 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
         arguments = wrapArguments(session, generatePreview);
     if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
     if (!arguments) {
-      arguments = protocol::Array<protocol::Runtime::RemoteObject>::create();
+      arguments = v8::base::make_unique<
+          protocol::Array<protocol::Runtime::RemoteObject>>();
       if (!m_message.isEmpty()) {
         std::unique_ptr<protocol::Runtime::RemoteObject> messageArg =
             protocol::Runtime::RemoteObject::create()
                 .setType(protocol::Runtime::RemoteObject::TypeEnum::String)
                 .build();
         messageArg->setValue(protocol::StringValue::create(m_message));
-        arguments->addItem(std::move(messageArg));
+        arguments->emplace_back(std::move(messageArg));
       }
     }
     Maybe<String16> consoleContext;
@@ -426,9 +427,11 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     message->m_v8Size +=
         v8::debug::EstimatedValueSize(isolate, arguments.at(i));
   }
-  if (arguments.size())
-    message->m_message =
-        V8ValueStringBuilder::toString(arguments[0], v8Context);
+  for (size_t i = 0, num_args = arguments.size(); i < num_args; ++i) {
+    if (i) message->m_message += String16(" ");
+    message->m_message +=
+        V8ValueStringBuilder::toString(arguments[i], v8Context);
+  }
 
   v8::Isolate::MessageErrorLevel clientLevel = v8::Isolate::kMessageInfo;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||

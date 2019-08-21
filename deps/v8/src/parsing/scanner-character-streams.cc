@@ -590,7 +590,8 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     }
   }
 
-  while (cursor < end && output_cursor + 1 < buffer_start_ + kBufferSize) {
+  const uint16_t* max_buffer_end = buffer_start_ + kBufferSize;
+  while (cursor < end && output_cursor + 1 < max_buffer_end) {
     unibrow::uchar t =
         unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
     if (V8_LIKELY(t <= unibrow::Utf16::kMaxNonSurrogateCharCode)) {
@@ -601,6 +602,15 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
       *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
       *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
     }
+    // Fast path for ascii sequences.
+    size_t remaining = end - cursor;
+    size_t max_buffer = max_buffer_end - output_cursor;
+    int max_length = static_cast<int>(Min(remaining, max_buffer));
+    DCHECK_EQ(state, unibrow::Utf8::State::kAccept);
+    int ascii_length = NonAsciiStart(cursor, max_length);
+    CopyChars(output_cursor, cursor, ascii_length);
+    cursor += ascii_length;
+    output_cursor += ascii_length;
   }
 
   current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);

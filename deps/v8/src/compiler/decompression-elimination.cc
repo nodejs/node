@@ -21,10 +21,8 @@ bool DecompressionElimination::IsReducibleConstantOpcode(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kInt64Constant:
-      return true;
-    // TODO(v8:8977): Disabling HeapConstant until CompressedHeapConstant
-    // exists, since it breaks with verify CSA on.
     case IrOpcode::kHeapConstant:
+      return true;
     default:
       return false;
   }
@@ -55,13 +53,8 @@ Node* DecompressionElimination::GetCompressedConstant(Node* constant) {
           static_cast<int32_t>(OpParameter<int64_t>(constant->op()))));
       break;
     case IrOpcode::kHeapConstant:
-      // TODO(v8:8977): The HeapConstant remains as 64 bits. This does not
-      // affect the comparison and it will still work correctly. However, we are
-      // introducing a 64 bit value in the stream where a 32 bit one will
-      // suffice. Currently there is no "CompressedHeapConstant", and
-      // introducing a new opcode and handling it correctly throught the
-      // pipeline seems that it will involve quite a bit of work.
-      return constant;
+      return graph()->NewNode(
+          common()->CompressedHeapConstant(HeapConstantOf(constant->op())));
     default:
       UNREACHABLE();
   }
@@ -79,6 +72,21 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
     return Replace(input_node->InputAt(0));
   } else if (IsReducibleConstantOpcode(input_opcode)) {
     return Replace(GetCompressedConstant(input_node));
+  } else {
+    return NoChange();
+  }
+}
+
+Reduction DecompressionElimination::ReduceDecompress(Node* node) {
+  DCHECK(IrOpcode::IsDecompressOpcode(node->opcode()));
+
+  DCHECK_EQ(node->InputCount(), 1);
+  Node* input_node = node->InputAt(0);
+  IrOpcode::Value input_opcode = input_node->opcode();
+  if (IrOpcode::IsCompressOpcode(input_opcode)) {
+    DCHECK(IsValidDecompress(input_opcode, node->opcode()));
+    DCHECK_EQ(input_node->InputCount(), 1);
+    return Replace(input_node->InputAt(0));
   } else {
     return NoChange();
   }
@@ -138,7 +146,10 @@ Reduction DecompressionElimination::ReducePhi(Node* node) {
 
   // Add a decompress after the Phi. To do this, we need to replace the Phi with
   // "Phi <- Decompress".
-  return Replace(graph()->NewNode(op, node));
+  Node* decompress = graph()->NewNode(op, node);
+  ReplaceWithValue(node, decompress);
+  decompress->ReplaceInput(0, node);
+  return Changed(node);
 }
 
 Reduction DecompressionElimination::ReduceTypedStateValues(Node* node) {
@@ -201,6 +212,10 @@ Reduction DecompressionElimination::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return ReduceCompress(node);
+    case IrOpcode::kChangeCompressedToTagged:
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+      return ReduceDecompress(node);
     case IrOpcode::kPhi:
       return ReducePhi(node);
     case IrOpcode::kTypedStateValues:

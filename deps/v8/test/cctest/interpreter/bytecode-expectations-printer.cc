@@ -107,9 +107,10 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
     v8::Local<v8::Module> module) const {
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
-  return i::handle(
-      SharedFunctionInfo::cast(i_module->code()).GetBytecodeArray(),
-      i_isolate());
+  return i::handle(SharedFunctionInfo::cast(
+                       Handle<i::SourceTextModule>::cast(i_module)->code())
+                       .GetBytecodeArray(),
+                   i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -306,7 +307,7 @@ void BytecodeExpectationsPrinter::PrintConstant(
 
 void BytecodeExpectationsPrinter::PrintFrameSize(
     std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
-  int frame_size = bytecode_array->frame_size();
+  int32_t frame_size = bytecode_array->frame_size();
 
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
   stream << "frame size: " << frame_size / kSystemPointerSize

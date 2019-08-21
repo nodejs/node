@@ -28,30 +28,30 @@
 // Flags: --allow-natives-syntax
 
 // Copy a hole from HOLEY_DOUBLE to double field.
-var a = [1.5,,1.7];
-var o = {a:1.8};
+var a = [1.5, , 1.7];
+var o = {a: 1.8};
 
-function f1(o,a,i) {
+function f1(o, a, i) {
   o.a = a[i];
-}
-
-f1(o,a,0);
-f1(o,a,0);
+};
+%PrepareFunctionForOptimization(f1);
+f1(o, a, 0);
+f1(o, a, 0);
 assertEquals(1.5, o.a);
 %OptimizeFunctionOnNextCall(f1);
-f1(o,a,1);
+f1(o, a, 1);
 assertEquals(undefined, o.a);
 
 // Copy a hole from HOLEY_SMI to smi field.
-var a = [1,,3];
-var o = {ab:5};
+var a = [1, , 3];
+var o = {ab: 5};
 
-function f2(o,a,i) {
+function f2(o, a, i) {
   o.ab = a[i];
-}
-
-f2(o,a,0);
-f2(o,a,0);
+};
+%PrepareFunctionForOptimization(f2);
+f2(o, a, 0);
+f2(o, a, 0);
 %OptimizeFunctionOnNextCall(f2);
-f2(o,a,1);
+f2(o, a, 1);
 assertEquals(undefined, o.ab);

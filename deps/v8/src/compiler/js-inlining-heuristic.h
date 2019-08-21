@@ -97,7 +97,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   SourcePositionTable* source_positions_;
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
-  int cumulative_count_ = 0;
+  int total_inlined_bytecode_size_ = 0;
 };
 
 }  // namespace compiler

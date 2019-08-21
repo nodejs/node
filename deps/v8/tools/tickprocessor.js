@@ -635,23 +635,44 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     libName, libStart, libEnd, libASLRSlide, processorFunc) {
   this.loadSymbols(libName);
 
-  var prevEntry;
+  var lastUnknownSize;
+  var lastAdded;
+
+  function inRange(funcInfo, start, end) {
+    return funcInfo.start >= start && funcInfo.end <= end;
+  }
 
   function addEntry(funcInfo) {
     // Several functions can be mapped onto the same address. To avoid
     // creating zero-sized entries, skip such duplicates.
     // Also double-check that function belongs to the library address space.
-    if (prevEntry && !prevEntry.end &&
-        prevEntry.start < funcInfo.start &&
-        prevEntry.start >= libStart && funcInfo.start <= libEnd) {
-      processorFunc(prevEntry.name, prevEntry.start, funcInfo.start);
+
+    if (lastUnknownSize &&
+        lastUnknownSize.start < funcInfo.start) {
+      // Try to update lastUnknownSize based on new entries start position.
+      lastUnknownSize.end = funcInfo.start;
+      if ((!lastAdded || !inRange(lastUnknownSize, lastAdded.start,
+                                  lastAdded.end)) &&
+          inRange(lastUnknownSize, libStart, libEnd)) {
+        processorFunc(lastUnknownSize.name, lastUnknownSize.start,
+                      lastUnknownSize.end);
+        lastAdded = lastUnknownSize;
+      }
     }
-    if (funcInfo.end &&
-        (!prevEntry || prevEntry.start != funcInfo.start) &&
-        funcInfo.start >= libStart && funcInfo.end <= libEnd) {
-      processorFunc(funcInfo.name, funcInfo.start, funcInfo.end);
+    lastUnknownSize = undefined;
+
+    if (funcInfo.end) {
+      // Skip duplicates that have the same start address as the last added.
+      if ((!lastAdded || lastAdded.start != funcInfo.start) &&
+          inRange(funcInfo, libStart, libEnd)) {
+        processorFunc(funcInfo.name, funcInfo.start, funcInfo.end);
+        lastAdded = funcInfo;
+      }
+    } else {
+      // If a funcInfo doesn't have an end, try to match it up with then next
+      // entry.
+      lastUnknownSize = funcInfo;
     }
-    prevEntry = funcInfo;
   }
 
   while (true) {
@@ -701,7 +722,10 @@ UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
     libName = this.apkEmbeddedLibrary;
   }
-  libName = this.targetRootFS + libName;
+  if (this.targetRootFS) {
+    libName = libName.substring(libName.lastIndexOf('/') + 1);
+    libName = this.targetRootFS + libName;
+  }
   try {
     this.symbols = [
       os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),

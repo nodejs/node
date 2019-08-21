@@ -116,6 +116,12 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
+  // Mark the stack as not iterable for the CPU profiler which won't be able to
+  // walk the stack without the return address.
+  __ mov_b(__ ExternalReferenceAsOperand(
+               ExternalReference::stack_is_iterable_address(isolate), edx),
+           Immediate(0));
+
   // Remove the return address and the double registers.
   __ add(esp, Immediate(kDoubleRegsSize + 1 * kSystemPointerSize));
 
@@ -193,6 +199,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ push(Operand(esi, offset));
   }
+
+  __ mov_b(__ ExternalReferenceAsOperand(
+               ExternalReference::stack_is_iterable_address(isolate), edx),
+           Immediate(1));
 
   // Restore the registers from the stack.
   __ popad();

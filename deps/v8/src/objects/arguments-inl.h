@@ -29,12 +29,14 @@ CAST_ACCESSOR(JSArgumentsObject)
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot,
               kAliasedContextSlotOffset)
 
-Context SloppyArgumentsElements::context() {
-  return Context::cast(get(kContextIndex));
+DEF_GETTER(SloppyArgumentsElements, context, Context) {
+  return TaggedField<Context>::load(isolate, *this,
+                                    OffsetOfElementAt(kContextIndex));
 }
 
-FixedArray SloppyArgumentsElements::arguments() {
-  return FixedArray::cast(get(kArgumentsIndex));
+DEF_GETTER(SloppyArgumentsElements, arguments, FixedArray) {
+  return TaggedField<FixedArray>::load(isolate, *this,
+                                       OffsetOfElementAt(kArgumentsIndex));
 }
 
 void SloppyArgumentsElements::set_arguments(FixedArray arguments) {

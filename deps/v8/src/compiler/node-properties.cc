@@ -5,6 +5,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
@@ -392,7 +393,7 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
 }
 
 // static
-NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
+NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);

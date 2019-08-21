@@ -75,9 +75,10 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
 
 Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
                                     PropertyAttributes attributes) {
+  Isolate* isolate = GetIsolateForPtrCompr(*key);
   return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
                     kDescriptor, PropertyConstness::kConst,
-                    value->OptimalRepresentation(), 0);
+                    value->OptimalRepresentation(isolate), 0);
 }
 
 Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,

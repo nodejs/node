@@ -164,8 +164,9 @@ class WasmScript : public Script {
   uint32_t GetFunctionHash(int function_index);
 };
 
-V8_EXPORT_PRIVATE void GetLoadedScripts(Isolate* isolate,
-                                        PersistentValueVector<Script>& scripts);
+V8_EXPORT_PRIVATE void GetLoadedScripts(
+    Isolate* isolate,
+    PersistentValueVector<Script>& scripts);  // NOLINT(runtime/references)
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);

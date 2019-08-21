@@ -85,7 +85,25 @@
 
 (function TestUnregisterWithNonExistentKey() {
   let fg = new FinalizationGroup(() => {});
-  fg.unregister({"k": "whatever"});
+  let success = fg.unregister({"k": "whatever"});
+  assertFalse(success);
+})();
+
+(function TestUnregisterWithNonFinalizationGroup() {
+  assertThrows(() => FinalizationGroup.prototype.unregister.call({}, {}),
+               TypeError);
+})();
+
+(function TestUnregisterWithNonObjectUnregisterToken() {
+  let fg = new FinalizationGroup(() => {});
+  assertThrows(() => fg.unregister(1), TypeError);
+  assertThrows(() => fg.unregister(1n), TypeError);
+  assertThrows(() => fg.unregister('one'), TypeError);
+  assertThrows(() => fg.unregister(Symbol()), TypeError);
+  assertThrows(() => fg.unregister(true), TypeError);
+  assertThrows(() => fg.unregister(false), TypeError);
+  assertThrows(() => fg.unregister(undefined), TypeError);
+  assertThrows(() => fg.unregister(null), TypeError);
 })();
 
 (function TestWeakRefConstructor() {
@@ -137,4 +155,16 @@
   let fg = new FinalizationGroup(() => {});
   let rv = FinalizationGroup.prototype.cleanupSome.call(fg);
   assertEquals(undefined, rv);
+})();
+
+(function TestCleanupSomeWithNonCallableCallback() {
+  let fg = new FinalizationGroup(() => {});
+  assertThrows(() => fg.cleanupSome(1), TypeError);
+  assertThrows(() => fg.cleanupSome(1n), TypeError);
+  assertThrows(() => fg.cleanupSome(Symbol()), TypeError);
+  assertThrows(() => fg.cleanupSome({}), TypeError);
+  assertThrows(() => fg.cleanupSome('foo'), TypeError);
+  assertThrows(() => fg.cleanupSome(true), TypeError);
+  assertThrows(() => fg.cleanupSome(false), TypeError);
+  assertThrows(() => fg.cleanupSome(null), TypeError);
 })();

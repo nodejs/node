@@ -39,6 +39,10 @@
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
 
+#ifdef V8_USE_PERFETTO
+#include "perfetto/tracing.h"
+#endif  // V8_USE_PERFETTO
+
 #if V8_OS_WIN
 #include <windows.h>  // NOLINT
 #if V8_CC_MSVC
@@ -121,7 +125,9 @@ void CcTest::Run() {
 }
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
-i::ReadOnlyHeap* CcTest::read_only_heap() { return heap()->read_only_heap(); }
+i::ReadOnlyHeap* CcTest::read_only_heap() {
+  return i_isolate()->read_only_heap();
+}
 
 void CcTest::CollectGarbage(i::AllocationSpace space) {
   heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
@@ -268,7 +274,6 @@ static void SuggestTestHarness(int tests) {
          "bogus failure.  Consider using tools/run-tests.py instead.\n");
 }
 
-
 int main(int argc, char* argv[]) {
 #if V8_OS_WIN
   UINT new_flags =
@@ -299,6 +304,13 @@ int main(int argc, char* argv[]) {
       printf("\n\n");
     }
   }
+
+#ifdef V8_USE_PERFETTO
+  // Set up the in-process backend that the tracing controller will connect to.
+  perfetto::TracingInitArgs init_args;
+  init_args.backends = perfetto::BackendType::kInProcessBackend;
+  perfetto::Tracing::Initialize(init_args);
+#endif  // V8_USE_PERFETTO
 
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());

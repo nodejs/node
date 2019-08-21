@@ -12,8 +12,8 @@ function f() {
   assertEquals("�", i.next().value);
   assertEquals("𝌆", i.next().value);
   assertSame(undefined, i.next().value);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

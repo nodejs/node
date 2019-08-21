@@ -291,14 +291,14 @@ class WasmGraphBuildingInterface {
     BUILD(SetGlobal, imm.index, value.node);
   }
 
-  void GetTable(FullDecoder* decoder, const Value& index, Value* result,
+  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const TableIndexImmediate<validate>& imm) {
-    result->node = BUILD(GetTable, imm.index, index.node, decoder->position());
+    result->node = BUILD(TableGet, imm.index, index.node, decoder->position());
   }
 
-  void SetTable(FullDecoder* decoder, const Value& index, const Value& value,
+  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
                 const TableIndexImmediate<validate>& imm) {
-    BUILD(SetTable, imm.index, index.node, value.node, decoder->position());
+    BUILD(TableSet, imm.index, index.node, value.node, decoder->position());
   }
 
   void Unreachable(FullDecoder* decoder) {
@@ -532,6 +532,8 @@ class WasmGraphBuildingInterface {
     if (result) result->node = node;
   }
 
+  void AtomicFence(FullDecoder* decoder) { BUILD(AtomicFence); }
+
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
@@ -567,7 +569,7 @@ class WasmGraphBuildingInterface {
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(TableCopy, imm.table_src.index, imm.table_dst.index, args[0].node,
+    BUILD(TableCopy, imm.table_dst.index, imm.table_src.index, args[0].node,
           args[1].node, args[2].node, decoder->position());
   }
 
@@ -691,8 +693,8 @@ class WasmGraphBuildingInterface {
       case kWasmS128:
         return builder_->S128Zero();
       case kWasmAnyRef:
-      case kWasmAnyFunc:
-      case kWasmExceptRef:
+      case kWasmFuncRef:
+      case kWasmExnRef:
         return builder_->RefNull();
       default:
         UNREACHABLE();
@@ -717,7 +719,7 @@ class WasmGraphBuildingInterface {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == kWasmVar ||
+      DCHECK(val.type == kWasmBottom ||
              ValueTypes::MachineRepresentationFor(val.type) ==
                  ValueTypes::MachineRepresentationFor(old.type));
       old.node = first ? val.node

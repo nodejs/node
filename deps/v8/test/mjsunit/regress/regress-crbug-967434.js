@@ -17,16 +17,20 @@ function f2(h, h_eval) {
   // constructor, and one in the impossible branch of the bi-morphic store
   // site.
   o.x = h_eval;
-}
-
+};
 function f3(h) {
+  %PrepareFunctionForOptimization(f2);
   f2(h, h());
   %OptimizeFunctionOnNextCall(f2);
   f2(h, h());
 }
 
-function g1() { return {}; };
-function g2() { return 4.2; };
+function g1() {
+  return {};
+};
+function g2() {
+  return 4.2;
+};
 
 f3(g1);
 f3(g2);

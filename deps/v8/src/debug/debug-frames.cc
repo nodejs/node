@@ -52,10 +52,13 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
   }
 }
 
-// NOLINTNEXTLINE
-FrameInspector::~FrameInspector() {
-  // Destructor needs to be defined in the .cc file, because it instantiates
-  // std::unique_ptr destructors but the types are not known in the header.
+// Destructor needs to be defined in the .cc file, because it instantiates
+// std::unique_ptr destructors but the types are not known in the header.
+FrameInspector::~FrameInspector() = default;
+
+JavaScriptFrame* FrameInspector::javascript_frame() {
+  return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
+                                        : JavaScriptFrame::cast(frame_);
 }
 
 int FrameInspector::GetParametersCount() {
@@ -90,8 +93,10 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  RequiresBrandCheckFlag requires_brand_check;
   return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &mode, &init_flag,
-                                     &maybe_assigned_flag) != -1;
+                                     &maybe_assigned_flag,
+                                     &requires_brand_check) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,

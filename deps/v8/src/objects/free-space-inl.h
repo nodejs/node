@@ -26,29 +26,14 @@ RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 int FreeSpace::Size() { return size(); }
 
 FreeSpace FreeSpace::next() {
-#ifdef DEBUG
-  Heap* heap = GetHeapFromWritableObject(*this);
-  Object free_space_map =
-      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
-                 !heap->deserialization_complete() &&
-                     map_slot().contains_value(kNullAddress));
-#endif
-  DCHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
-  return FreeSpace::unchecked_cast(*ObjectSlot(address() + kNextOffset));
+  DCHECK(IsValid());
+  return FreeSpace::unchecked_cast(
+      TaggedField<Object, kNextOffset>::load(*this));
 }
 
 void FreeSpace::set_next(FreeSpace next) {
-#ifdef DEBUG
-  Heap* heap = GetHeapFromWritableObject(*this);
-  Object free_space_map =
-      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
-                 !heap->deserialization_complete() &&
-                     map_slot().contains_value(kNullAddress));
-#endif
-  DCHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
-  ObjectSlot(address() + kNextOffset).Relaxed_Store(next);
+  DCHECK(IsValid());
+  RELAXED_WRITE_FIELD(*this, kNextOffset, next);
 }
 
 FreeSpace FreeSpace::cast(HeapObject o) {
@@ -59,6 +44,17 @@ FreeSpace FreeSpace::cast(HeapObject o) {
 
 FreeSpace FreeSpace::unchecked_cast(const Object o) {
   return bit_cast<FreeSpace>(o);
+}
+
+bool FreeSpace::IsValid() {
+  Heap* heap = GetHeapFromWritableObject(*this);
+  Object free_space_map =
+      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
+  CHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
+                !heap->deserialization_complete() &&
+                    map_slot().contains_value(kNullAddress));
+  CHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
+  return true;
 }
 
 }  // namespace internal

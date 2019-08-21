@@ -530,7 +530,7 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
 }
 
 Handle<HeapObject> Constant::ToHeapObject() const {
-  DCHECK_EQ(kHeapObject, type());
+  DCHECK(kHeapObject == type() || kCompressedHeapObject == type());
   Handle<HeapObject> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
@@ -561,7 +561,8 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
       return os << constant.ToFloat64().value();
     case Constant::kExternalReference:
       return os << constant.ToExternalReference().address();
-    case Constant::kHeapObject:
+    case Constant::kHeapObject:  // Fall through.
+    case Constant::kCompressedHeapObject:
       return os << Brief(*constant.ToHeapObject());
     case Constant::kRpoNumber:
       return os << "RPO" << constant.ToRpoNumber().ToInt();

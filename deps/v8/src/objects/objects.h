@@ -15,10 +15,11 @@
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
+#include "src/base/memory.h"
 #include "src/codegen/constants-arch.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
@@ -49,22 +50,21 @@
 //         - JSCollection
 //           - JSSet
 //           - JSMap
-//         - JSStringIterator
-//         - JSSetIterator
-//         - JSMapIterator
-//         - JSWeakCollection
-//           - JSWeakMap
-//           - JSWeakSet
-//         - JSRegExp
+//         - JSDate
 //         - JSFunction
 //         - JSGeneratorObject
 //         - JSGlobalObject
 //         - JSGlobalProxy
-//         - JSValue
-//           - JSDate
+//         - JSMapIterator
 //         - JSMessageObject
 //         - JSModuleNamespace
-//         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
+//         - JSPrimitiveWrapper
+//         - JSRegExp
+//         - JSSetIterator
+//         - JSStringIterator
+//         - JSWeakCollection
+//           - JSWeakMap
+//           - JSWeakSet
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
 //         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
@@ -72,8 +72,9 @@
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
-//         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
 //         - JSSegmenter           // If V8_INTL_SUPPORT enabled.
+//         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
+//         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
 //         - WasmExceptionObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject
@@ -99,7 +100,7 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
-//         - ModuleInfo
+//         - SourceTextModuleInfo
 //         - ScriptContextTable
 //         - ClosureFeedbackCellArray
 //       - FixedDoubleArray
@@ -170,7 +171,9 @@
 //           - PromiseRejectReactionJobTask
 //         - PromiseResolveThenableJobTask
 //       - Module
-//       - ModuleInfoEntry
+//         - SourceTextModule
+//         - SyntheticModule
+//       - SourceTextModuleInfoEntry
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreparseData
@@ -265,9 +268,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   constexpr Object() : TaggedImpl(kNullAddress) {}
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
+#define IS_TYPE_FUNCTION_DECL(Type) \
+  V8_INLINE bool Is##Type() const;  \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(HashTableBase)
+  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DECL
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
@@ -277,27 +284,23 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
-
-  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
-  V8_INLINE bool IsNullOrUndefined() const;
 
   V8_INLINE bool IsZero() const;
   V8_INLINE bool IsNoSharedNameSentinel() const;
 
   enum class Conversion { kToNumber, kToNumeric };
 
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name() const;              \
+  V8_INLINE bool Is##Name(Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
-
-  V8_INLINE bool IsHashTableBase() const;
-  V8_INLINE bool IsSmallOrderedHashTable() const;
 
   // Extract the number.
   inline double Number() const;
@@ -306,9 +309,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
-  inline Representation OptimalRepresentation();
+  inline Representation OptimalRepresentation(Isolate* isolate) const;
 
-  inline ElementsKind OptimalElementsKind();
+  inline ElementsKind OptimalElementsKind(Isolate* isolate) const;
 
   inline bool FitsRepresentation(Representation representation);
 
@@ -624,9 +627,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 #endif
     if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
       // Bug(v8:8875) Double fields may be unaligned.
-      return ReadUnalignedValue<T>(field_address(offset));
+      return base::ReadUnalignedValue<T>(field_address(offset));
     } else {
-      return Memory<T>(field_address(offset));
+      return base::Memory<T>(field_address(offset));
     }
   }
 
@@ -641,9 +644,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 #endif
     if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
       // Bug(v8:8875) Double fields may be unaligned.
-      WriteUnalignedValue<T>(field_address(offset), value);
+      base::WriteUnalignedValue<T>(field_address(offset), value);
     } else {
-      Memory<T>(field_address(offset)) = value;
+      base::Memory<T>(field_address(offset)) = value;
     }
   }
 
@@ -743,13 +746,13 @@ class MapWord {
   // View this map word as a forwarding address.
   inline HeapObject ToForwardingAddress();
 
-  static inline MapWord FromRawValue(uintptr_t value) { return MapWord(value); }
-
-  inline uintptr_t ToRawValue() { return value_; }
+  inline Address ptr() { return value_; }
 
  private:
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
+  template <typename TFieldType, int kFieldOffset>
+  friend class TaggedField;
 
   explicit MapWord(Address value) : value_(value) {}
 

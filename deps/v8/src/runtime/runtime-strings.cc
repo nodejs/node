@@ -10,7 +10,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"

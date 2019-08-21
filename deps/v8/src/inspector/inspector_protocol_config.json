@@ -1,6 +1,6 @@
 {
     "protocol": {
-        "path": "js_protocol.pdl",
+        "path": "../../include/js_protocol.pdl",
         "package": "src/inspector/protocol",
         "output": "protocol",
         "namespace": ["v8_inspector", "protocol"],
@@ -44,5 +44,13 @@
         "package": "src/inspector/protocol",
         "output": "protocol",
         "string_header": "src/inspector/string-util.h"
+    },
+
+    "encoding_lib": {
+        "namespace": "v8_inspector_protocol_encoding"
+    },
+
+    "bindings_lib": {
+        "namespace": "v8_inspector_protocol_bindings"
     }
 }

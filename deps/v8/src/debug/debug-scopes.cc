@@ -13,7 +13,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/module.h"
+#include "src/objects/source-text-module.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
@@ -538,11 +538,8 @@ void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
       int beg_pos = inner_scope->start_position();
       int end_pos = inner_scope->end_position();
       DCHECK((beg_pos >= 0 && end_pos >= 0) || inner_scope->is_hidden());
-      if (beg_pos <= position && position < end_pos) {
-        // Don't walk into inner functions.
-        if (!inner_scope->is_function_scope()) {
-          current = inner_scope;
-        }
+      if (beg_pos < position && position < end_pos) {
+        current = inner_scope;
         break;
       }
     }
@@ -576,7 +573,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   int count_index = scope_info->ModuleVariableCountIndex();
   int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
 
-  Handle<Module> module(context_->module(), isolate_);
+  Handle<SourceTextModule> module(context_->module(), isolate_);
 
   for (int i = 0; i < module_variable_count; ++i) {
     int index;
@@ -587,7 +584,8 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
       if (ScopeInfo::VariableIsSynthetic(raw_name)) continue;
       name = handle(raw_name, isolate_);
     }
-    Handle<Object> value = Module::LoadVariable(isolate_, module, index);
+    Handle<Object> value =
+        SourceTextModule::LoadVariable(isolate_, module, index);
 
     // Reflect variables under TDZ as undeclared in scope object.
     if (value->IsTheHole(isolate_)) continue;
@@ -614,13 +612,30 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
   if (mode == Mode::STACK && current_scope_->is_declaration_scope() &&
       current_scope_->AsDeclarationScope()->has_this_declaration()) {
-    Handle<Object> receiver = frame_inspector_ == nullptr
-                                  ? handle(generator_->receiver(), isolate_)
-                                  : frame_inspector_->GetReceiver();
+    // TODO(bmeurer): We should refactor the general variable lookup
+    // around "this", since the current way is rather hacky when the
+    // receiver is context-allocated.
+    auto this_var = current_scope_->AsDeclarationScope()->receiver();
+    Handle<Object> receiver =
+        this_var->location() == VariableLocation::CONTEXT
+            ? handle(context_->get(this_var->index()), isolate_)
+            : frame_inspector_ == nullptr
+                  ? handle(generator_->receiver(), isolate_)
+                  : frame_inspector_->GetReceiver();
     if (receiver->IsOptimizedOut(isolate_) || receiver->IsTheHole(isolate_)) {
       receiver = isolate_->factory()->undefined_value();
     }
     if (visitor(isolate_->factory()->this_string(), receiver)) return true;
+  }
+
+  if (current_scope_->is_function_scope()) {
+    Variable* function_var =
+        current_scope_->AsDeclarationScope()->function_var();
+    if (function_var != nullptr) {
+      Handle<JSFunction> function = frame_inspector_->GetFunction();
+      Handle<String> name = function_var->name();
+      if (visitor(name, function)) return true;
+    }
   }
 
   for (Variable* var : *current_scope_->locals()) {
@@ -696,8 +711,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
       case VariableLocation::MODULE: {
         if (mode == Mode::STACK) continue;
         // if (var->IsExport()) continue;
-        Handle<Module> module(context_->module(), isolate_);
-        value = Module::LoadVariable(isolate_, module, var->index());
+        Handle<SourceTextModule> module(context_->module(), isolate_);
+        value = SourceTextModule::LoadVariable(isolate_, module, var->index());
         // Reflect variables under TDZ as undeclared in scope object.
         if (value->IsTheHole(isolate_)) continue;
         break;
@@ -837,8 +852,8 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
 
         case VariableLocation::MODULE:
           if (!var->IsExport()) return false;
-          Handle<Module> module(context_->module(), isolate_);
-          Module::StoreVariable(module, var->index(), new_value);
+          Handle<SourceTextModule> module(context_->module(), isolate_);
+          SourceTextModule::StoreVariable(module, var->index(), new_value);
           return true;
       }
       UNREACHABLE();
@@ -869,9 +884,10 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int slot_index =
-      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
-                                  &flag, &maybe_assigned_flag);
+  RequiresBrandCheckFlag requires_brand_check;
+  int slot_index = ScopeInfo::ContextSlotIndex(
+      context_->scope_info(), *variable_name, &mode, &flag,
+      &maybe_assigned_flag, &requires_brand_check);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);
@@ -889,13 +905,13 @@ bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
       *variable_name, &mode, &init_flag, &maybe_assigned_flag);
 
   // Setting imports is currently not supported.
-  if (ModuleDescriptor::GetCellIndexKind(cell_index) !=
-      ModuleDescriptor::kExport) {
+  if (SourceTextModuleDescriptor::GetCellIndexKind(cell_index) !=
+      SourceTextModuleDescriptor::kExport) {
     return false;
   }
 
-  Handle<Module> module(context_->module(), isolate_);
-  Module::StoreVariable(module, cell_index, new_value);
+  Handle<SourceTextModule> module(context_->module(), isolate_);
+  SourceTextModule::StoreVariable(module, cell_index, new_value);
   return true;
 }
 

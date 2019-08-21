@@ -8,7 +8,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
@@ -179,7 +179,9 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
     return false;
   }
 
-  if (!isolate->IsRegExpSpeciesLookupChainIntact()) return false;
+  if (!isolate->IsRegExpSpeciesLookupChainIntact(isolate->native_context())) {
+    return false;
+  }
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.

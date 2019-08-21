@@ -44,7 +44,8 @@ std::unique_ptr<protocol::Array<protocol::Profiler::PositionTickInfo>>
 buildInspectorObjectForPositionTicks(const v8::CpuProfileNode* node) {
   unsigned lineCount = node->GetHitLineCount();
   if (!lineCount) return nullptr;
-  auto array = protocol::Array<protocol::Profiler::PositionTickInfo>::create();
+  auto array = v8::base::make_unique<
+      protocol::Array<protocol::Profiler::PositionTickInfo>>();
   std::vector<v8::CpuProfileNode::LineTick> entries(lineCount);
   if (node->GetLineTicks(&entries[0], lineCount)) {
     for (unsigned i = 0; i < lineCount; i++) {
@@ -53,7 +54,7 @@ buildInspectorObjectForPositionTicks(const v8::CpuProfileNode* node) {
               .setLine(entries[i].line)
               .setTicks(entries[i].hit_count)
               .build();
-      array->addItem(std::move(line));
+      array->emplace_back(std::move(line));
     }
   }
   return array;
@@ -79,9 +80,9 @@ std::unique_ptr<protocol::Profiler::ProfileNode> buildInspectorObjectFor(
 
   const int childrenCount = node->GetChildrenCount();
   if (childrenCount) {
-    auto children = protocol::Array<int>::create();
+    auto children = v8::base::make_unique<protocol::Array<int>>();
     for (int i = 0; i < childrenCount; i++)
-      children->addItem(node->GetChild(i)->GetNodeId());
+      children->emplace_back(node->GetChild(i)->GetNodeId());
     result->setChildren(std::move(children));
   }
 
@@ -97,21 +98,21 @@ std::unique_ptr<protocol::Profiler::ProfileNode> buildInspectorObjectFor(
 
 std::unique_ptr<protocol::Array<int>> buildInspectorObjectForSamples(
     v8::CpuProfile* v8profile) {
-  auto array = protocol::Array<int>::create();
+  auto array = v8::base::make_unique<protocol::Array<int>>();
   int count = v8profile->GetSamplesCount();
   for (int i = 0; i < count; i++)
-    array->addItem(v8profile->GetSample(i)->GetNodeId());
+    array->emplace_back(v8profile->GetSample(i)->GetNodeId());
   return array;
 }
 
 std::unique_ptr<protocol::Array<int>> buildInspectorObjectForTimestamps(
     v8::CpuProfile* v8profile) {
-  auto array = protocol::Array<int>::create();
+  auto array = v8::base::make_unique<protocol::Array<int>>();
   int count = v8profile->GetSamplesCount();
   uint64_t lastTime = v8profile->GetStartTime();
   for (int i = 0; i < count; i++) {
     uint64_t ts = v8profile->GetSampleTimestamp(i);
-    array->addItem(static_cast<int>(ts - lastTime));
+    array->emplace_back(static_cast<int>(ts - lastTime));
     lastTime = ts;
   }
   return array;
@@ -120,7 +121,7 @@ std::unique_ptr<protocol::Array<int>> buildInspectorObjectForTimestamps(
 void flattenNodesTree(V8InspectorImpl* inspector,
                       const v8::CpuProfileNode* node,
                       protocol::Array<protocol::Profiler::ProfileNode>* list) {
-  list->addItem(buildInspectorObjectFor(inspector, node));
+  list->emplace_back(buildInspectorObjectFor(inspector, node));
   const int childrenCount = node->GetChildrenCount();
   for (int i = 0; i < childrenCount; i++)
     flattenNodesTree(inspector, node->GetChild(i), list);
@@ -128,7 +129,8 @@ void flattenNodesTree(V8InspectorImpl* inspector,
 
 std::unique_ptr<protocol::Profiler::Profile> createCPUProfile(
     V8InspectorImpl* inspector, v8::CpuProfile* v8profile) {
-  auto nodes = protocol::Array<protocol::Profiler::ProfileNode>::create();
+  auto nodes =
+      v8::base::make_unique<protocol::Array<protocol::Profiler::ProfileNode>>();
   flattenNodesTree(inspector, v8profile->GetTopDownRoot(), nodes.get());
   return protocol::Profiler::Profile::create()
       .setNodes(std::move(nodes))
@@ -336,36 +338,35 @@ Response coverageToProtocol(
     V8InspectorImpl* inspector, const v8::debug::Coverage& coverage,
     std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*
         out_result) {
-  std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>> result =
-      protocol::Array<protocol::Profiler::ScriptCoverage>::create();
+  auto result = v8::base::make_unique<
+      protocol::Array<protocol::Profiler::ScriptCoverage>>();
   v8::Isolate* isolate = inspector->isolate();
   for (size_t i = 0; i < coverage.ScriptCount(); i++) {
     v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
     v8::Local<v8::debug::Script> script = script_data.GetScript();
-    std::unique_ptr<protocol::Array<protocol::Profiler::FunctionCoverage>>
-        functions =
-            protocol::Array<protocol::Profiler::FunctionCoverage>::create();
+    auto functions = v8::base::make_unique<
+        protocol::Array<protocol::Profiler::FunctionCoverage>>();
     for (size_t j = 0; j < script_data.FunctionCount(); j++) {
       v8::debug::Coverage::FunctionData function_data =
           script_data.GetFunctionData(j);
-      std::unique_ptr<protocol::Array<protocol::Profiler::CoverageRange>>
-          ranges = protocol::Array<protocol::Profiler::CoverageRange>::create();
+      auto ranges = v8::base::make_unique<
+          protocol::Array<protocol::Profiler::CoverageRange>>();
 
       // Add function range.
-      ranges->addItem(createCoverageRange(function_data.StartOffset(),
-                                          function_data.EndOffset(),
-                                          function_data.Count()));
+      ranges->emplace_back(createCoverageRange(function_data.StartOffset(),
+                                               function_data.EndOffset(),
+                                               function_data.Count()));
 
       // Process inner blocks.
       for (size_t k = 0; k < function_data.BlockCount(); k++) {
         v8::debug::Coverage::BlockData block_data =
             function_data.GetBlockData(k);
-        ranges->addItem(createCoverageRange(block_data.StartOffset(),
-                                            block_data.EndOffset(),
-                                            block_data.Count()));
+        ranges->emplace_back(createCoverageRange(block_data.StartOffset(),
+                                                 block_data.EndOffset(),
+                                                 block_data.Count()));
       }
 
-      functions->addItem(
+      functions->emplace_back(
           protocol::Profiler::FunctionCoverage::create()
               .setFunctionName(toProtocolString(
                   isolate,
@@ -381,11 +382,11 @@ Response coverageToProtocol(
     } else if (script->Name().ToLocal(&name) && name->Length()) {
       url = resourceNameToUrl(inspector, name);
     }
-    result->addItem(protocol::Profiler::ScriptCoverage::create()
-                        .setScriptId(String16::fromInteger(script->Id()))
-                        .setUrl(url)
-                        .setFunctions(std::move(functions))
-                        .build());
+    result->emplace_back(protocol::Profiler::ScriptCoverage::create()
+                             .setScriptId(String16::fromInteger(script->Id()))
+                             .setUrl(url)
+                             .setFunctions(std::move(functions))
+                             .build());
   }
   *out_result = std::move(result);
   return Response::OK();
@@ -417,31 +418,30 @@ namespace {
 std::unique_ptr<protocol::Array<protocol::Profiler::ScriptTypeProfile>>
 typeProfileToProtocol(V8InspectorImpl* inspector,
                       const v8::debug::TypeProfile& type_profile) {
-  std::unique_ptr<protocol::Array<protocol::Profiler::ScriptTypeProfile>>
-      result = protocol::Array<protocol::Profiler::ScriptTypeProfile>::create();
+  auto result = v8::base::make_unique<
+      protocol::Array<protocol::Profiler::ScriptTypeProfile>>();
   v8::Isolate* isolate = inspector->isolate();
   for (size_t i = 0; i < type_profile.ScriptCount(); i++) {
     v8::debug::TypeProfile::ScriptData script_data =
         type_profile.GetScriptData(i);
     v8::Local<v8::debug::Script> script = script_data.GetScript();
-    std::unique_ptr<protocol::Array<protocol::Profiler::TypeProfileEntry>>
-        entries =
-            protocol::Array<protocol::Profiler::TypeProfileEntry>::create();
+    auto entries = v8::base::make_unique<
+        protocol::Array<protocol::Profiler::TypeProfileEntry>>();
 
     for (const auto& entry : script_data.Entries()) {
-      std::unique_ptr<protocol::Array<protocol::Profiler::TypeObject>> types =
-          protocol::Array<protocol::Profiler::TypeObject>::create();
+      auto types = v8::base::make_unique<
+          protocol::Array<protocol::Profiler::TypeObject>>();
       for (const auto& type : entry.Types()) {
-        types->addItem(
+        types->emplace_back(
             protocol::Profiler::TypeObject::create()
                 .setName(toProtocolString(
                     isolate, type.FromMaybe(v8::Local<v8::String>())))
                 .build());
       }
-      entries->addItem(protocol::Profiler::TypeProfileEntry::create()
-                           .setOffset(entry.SourcePosition())
-                           .setTypes(std::move(types))
-                           .build());
+      entries->emplace_back(protocol::Profiler::TypeProfileEntry::create()
+                                .setOffset(entry.SourcePosition())
+                                .setTypes(std::move(types))
+                                .build());
     }
     String16 url;
     v8::Local<v8::String> name;
@@ -450,11 +450,11 @@ typeProfileToProtocol(V8InspectorImpl* inspector,
     } else if (script->Name().ToLocal(&name) && name->Length()) {
       url = resourceNameToUrl(inspector, name);
     }
-    result->addItem(protocol::Profiler::ScriptTypeProfile::create()
-                        .setScriptId(String16::fromInteger(script->Id()))
-                        .setUrl(url)
-                        .setEntries(std::move(entries))
-                        .build());
+    result->emplace_back(protocol::Profiler::ScriptTypeProfile::create()
+                             .setScriptId(String16::fromInteger(script->Id()))
+                             .setUrl(url)
+                             .setEntries(std::move(entries))
+                             .build());
   }
   return result;
 }

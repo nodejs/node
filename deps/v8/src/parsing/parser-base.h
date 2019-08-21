@@ -16,7 +16,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/function-kind.h"
@@ -624,6 +624,11 @@ class ParserBase {
     }
   }
 
+  RequiresBrandCheckFlag RequiresBrandCheck(ClassLiteralProperty::Kind kind) {
+    return kind == ClassLiteralProperty::Kind::FIELD ? kNoBrandCheck
+                                                     : kRequiresBrandCheck;
+  }
+
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
@@ -780,7 +785,7 @@ class ParserBase {
 
     if (scanner()->current_token() == Token::AWAIT && !is_async_function()) {
       ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kAwaitNotInAsyncFunction, kSyntaxError);
+                      MessageTemplate::kAwaitNotInAsyncFunction);
       return;
     }
 
@@ -930,21 +935,19 @@ class ParserBase {
   V8_NOINLINE void ReportMessage(MessageTemplate message) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message,
-                            static_cast<const char*>(nullptr), kSyntaxError);
+                            static_cast<const char*>(nullptr));
   }
 
   template <typename T>
-  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg,
-                                 ParseErrorType error_type = kSyntaxError) {
+  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg) {
     Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message, arg, error_type);
+    impl()->ReportMessageAt(source_location, message, arg);
   }
 
   V8_NOINLINE void ReportMessageAt(Scanner::Location location,
-                                   MessageTemplate message,
-                                   ParseErrorType error_type) {
+                                   MessageTemplate message) {
     impl()->ReportMessageAt(location, message,
-                            static_cast<const char*>(nullptr), error_type);
+                            static_cast<const char*>(nullptr));
   }
 
   V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
@@ -1213,9 +1216,9 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
-  ExpressionT RewriteInvalidReferenceExpression(
-      ExpressionT expression, int beg_pos, int end_pos, MessageTemplate message,
-      ParseErrorType type = kReferenceError);
+  ExpressionT RewriteInvalidReferenceExpression(ExpressionT expression,
+                                                int beg_pos, int end_pos,
+                                                MessageTemplate message);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -1305,7 +1308,7 @@ class ParserBase {
     return factory()->NewReturnStatement(expr, pos, end_pos);
   }
 
-  ModuleDescriptor* module() const {
+  SourceTextModuleDescriptor* module() const {
     return scope()->AsModuleScope()->module();
   }
   Scope* scope() const { return scope_; }
@@ -1567,8 +1570,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     if (class_scope == nullptr) {
       impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
                               MessageTemplate::kInvalidPrivateFieldResolution,
-                              impl()->GetRawNameFromIdentifier(name),
-                              kSyntaxError);
+                              impl()->GetRawNameFromIdentifier(name));
       return impl()->FailureExpression();
     }
     key = impl()->ExpressionFromPrivateName(class_scope, name, pos);
@@ -1590,15 +1592,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
 
   IdentifierT js_pattern = impl()->GetNextSymbol();
-  Maybe<RegExp::Flags> flags = scanner()->ScanRegExpFlags();
+  Maybe<int> flags = scanner()->ScanRegExpFlags();
   if (flags.IsNothing()) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     return impl()->FailureExpression();
   }
-  int js_flags = flags.FromJust();
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, pos);
+  return factory()->NewRegExpLiteral(js_pattern, flags.FromJust(), pos);
 }
 
 template <typename Impl>
@@ -2657,13 +2658,11 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
         impl()->ReportMessageAt(loc,
                                 MessageTemplate::kInvalidDestructuringTarget);
       } else {
-        // Reference Error if LHS is neither object literal nor an array literal
+        // Syntax Error if LHS is neither object literal nor an array literal
         // (Parenthesized literals are
         // CoverParenthesizedExpressionAndArrowParameterList).
         // #sec-assignment-operators-static-semantics-early-errors
-        impl()->ReportMessageAt(loc, MessageTemplate::kInvalidLhsInAssignment,
-                                static_cast<const char*>(nullptr),
-                                kReferenceError);
+        impl()->ReportMessageAt(loc, MessageTemplate::kInvalidLhsInAssignment);
       }
     }
     expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
@@ -2905,7 +2904,7 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
         return impl()->FailureExpression();
       }
 
-      if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
+      if (impl()->IsPrivateReference(expression)) {
         ReportMessage(MessageTemplate::kDeletePrivateField);
         return impl()->FailureExpression();
       }
@@ -3291,7 +3290,18 @@ ParserBase<Impl>::ParseImportExpressions() {
 
     return impl()->ImportMetaExpression(pos);
   }
-  Expect(Token::LPAREN);
+
+  if (V8_UNLIKELY(peek() != Token::LPAREN)) {
+    if (!parsing_module_) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kImportOutsideModule);
+    } else {
+      ReportUnexpectedToken(Next());
+    }
+    return impl()->FailureExpression();
+  }
+
+  Consume(Token::LPAREN);
   if (peek() == Token::RPAREN) {
     impl()->ReportMessageAt(scanner()->location(),
                             MessageTemplate::kImportMissingSpecifier);
@@ -3332,7 +3342,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       expression_scope()->RecordThisUse();
-      UseThis()->set_maybe_assigned();
+      UseThis()->SetMaybeAssigned();
       return impl()->NewSuperCallReference(pos);
     }
   }
@@ -4291,7 +4301,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
                                               unresolvable->position() + 1),
                             MessageTemplate::kInvalidPrivateFieldResolution,
-                            unresolvable->raw_name(), kSyntaxError);
+                            unresolvable->raw_name());
     return impl()->FailureExpression();
   }
 
@@ -4442,15 +4452,14 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
                                                     int beg_pos, int end_pos,
-                                                    MessageTemplate message,
-                                                    ParseErrorType type) {
+                                                    MessageTemplate message) {
   DCHECK(!IsValidReferenceExpression(expression));
   if (impl()->IsIdentifier(expression)) {
     DCHECK(is_strict(language_mode()));
     DCHECK(impl()->IsEvalOrArguments(impl()->AsIdentifier(expression)));
 
     ReportMessageAt(Scanner::Location(beg_pos, end_pos),
-                    MessageTemplate::kStrictEvalArguments, kSyntaxError);
+                    MessageTemplate::kStrictEvalArguments);
     return impl()->FailureExpression();
   }
   if (expression->IsCall() && !expression->AsCall()->is_tagged_template()) {
@@ -4467,7 +4476,7 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }
-  ReportMessageAt(Scanner::Location(beg_pos, end_pos), message, type);
+  ReportMessageAt(Scanner::Location(beg_pos, end_pos), message);
   return impl()->FailureExpression();
 }
 
@@ -4561,7 +4570,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
 
   if (has_spread) {
     ReportMessageAt(Scanner::Location(pos, position()),
-                    MessageTemplate::kIntrinsicWithSpread, kSyntaxError);
+                    MessageTemplate::kIntrinsicWithSpread);
     return impl()->FailureExpression();
   }
 

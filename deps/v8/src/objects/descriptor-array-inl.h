@@ -25,13 +25,9 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(EnumCache, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
 
 CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(EnumCache)
-
-ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
-ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
@@ -106,17 +102,22 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   return RawField(OffsetOfDescriptorAt(descriptor));
 }
 
-ObjectSlot DescriptorArray::GetKeySlot(int descriptor) {
-  DCHECK_LE(descriptor, number_of_all_descriptors());
-  ObjectSlot slot = GetDescriptorSlot(descriptor) + kEntryKeyIndex;
-  DCHECK((*slot).IsObject());
-  return slot;
+Name DescriptorArray::GetKey(int descriptor_number) const {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return GetKey(isolate, descriptor_number);
 }
 
-Name DescriptorArray::GetKey(int descriptor_number) const {
-  DCHECK(descriptor_number < number_of_descriptors());
-  return Name::cast(
-      get(ToKeyIndex(descriptor_number))->GetHeapObjectAssumeStrong());
+Name DescriptorArray::GetKey(Isolate* isolate, int descriptor_number) const {
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  return Name::cast(EntryKeyField::Relaxed_Load(isolate, *this, entry_offset));
+}
+
+void DescriptorArray::SetKey(int descriptor_number, Name key) {
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  EntryKeyField::Relaxed_Store(*this, entry_offset, key);
+  WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
 }
 
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
@@ -124,38 +125,59 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 Name DescriptorArray::GetSortedKey(int descriptor_number) {
-  return GetKey(GetSortedKeyIndex(descriptor_number));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return GetSortedKey(isolate, descriptor_number);
 }
 
-void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
-  PropertyDetails details = GetDetails(descriptor_index);
-  set(ToDetailsIndex(descriptor_index),
-      MaybeObject::FromObject(details.set_pointer(pointer).AsSmi()));
+Name DescriptorArray::GetSortedKey(Isolate* isolate, int descriptor_number) {
+  return GetKey(isolate, GetSortedKeyIndex(descriptor_number));
 }
 
-MaybeObjectSlot DescriptorArray::GetValueSlot(int descriptor) {
-  DCHECK_LT(descriptor, number_of_descriptors());
-  return MaybeObjectSlot(GetDescriptorSlot(descriptor) + kEntryValueIndex);
+void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
+  PropertyDetails details = GetDetails(descriptor_number);
+  SetDetails(descriptor_number, details.set_pointer(pointer));
 }
 
 Object DescriptorArray::GetStrongValue(int descriptor_number) {
-  DCHECK(descriptor_number < number_of_descriptors());
-  return get(ToValueIndex(descriptor_number))->cast<Object>();
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return GetStrongValue(isolate, descriptor_number);
 }
 
-void DescriptorArray::SetValue(int descriptor_index, Object value) {
-  set(ToValueIndex(descriptor_index), MaybeObject::FromObject(value));
+Object DescriptorArray::GetStrongValue(Isolate* isolate,
+                                       int descriptor_number) {
+  return GetValue(isolate, descriptor_number).cast<Object>();
+}
+
+void DescriptorArray::SetValue(int descriptor_number, MaybeObject value) {
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  EntryValueField::Relaxed_Store(*this, entry_offset, value);
+  WEAK_WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
 }
 
 MaybeObject DescriptorArray::GetValue(int descriptor_number) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return GetValue(isolate, descriptor_number);
+}
+
+MaybeObject DescriptorArray::GetValue(Isolate* isolate, int descriptor_number) {
   DCHECK_LT(descriptor_number, number_of_descriptors());
-  return get(ToValueIndex(descriptor_number));
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  return EntryValueField::Relaxed_Load(isolate, *this, entry_offset);
 }
 
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
-  DCHECK(descriptor_number < number_of_descriptors());
-  MaybeObject details = get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(details->ToSmi());
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  Smi details = EntryDetailsField::Relaxed_Load(*this, entry_offset);
+  return PropertyDetails(details);
+}
+
+void DescriptorArray::SetDetails(int descriptor_number,
+                                 PropertyDetails details) {
+  DCHECK_LT(descriptor_number, number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number);
+  EntryDetailsField::Relaxed_Store(*this, entry_offset, details.AsSmi());
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
@@ -164,19 +186,22 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
 }
 
 FieldType DescriptorArray::GetFieldType(int descriptor_number) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return GetFieldType(isolate, descriptor_number);
+}
+
+FieldType DescriptorArray::GetFieldType(Isolate* isolate,
+                                        int descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
-  MaybeObject wrapped_type = GetValue(descriptor_number);
+  MaybeObject wrapped_type = GetValue(isolate, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
 void DescriptorArray::Set(int descriptor_number, Name key, MaybeObject value,
                           PropertyDetails details) {
-  // Range check.
-  DCHECK(descriptor_number < number_of_descriptors());
-  set(ToKeyIndex(descriptor_number), MaybeObject::FromObject(key));
-  set(ToValueIndex(descriptor_number), value);
-  set(ToDetailsIndex(descriptor_number),
-      MaybeObject::FromObject(details.AsSmi()));
+  SetKey(descriptor_number, key);
+  SetDetails(descriptor_number, details);
+  SetValue(descriptor_number, value);
 }
 
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
@@ -209,21 +234,6 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   int first_key = GetSortedKeyIndex(first);
   SetSortedKey(first, GetSortedKeyIndex(second));
   SetSortedKey(second, first_key);
-}
-
-int DescriptorArray::length() const {
-  return number_of_all_descriptors() * kEntrySize;
-}
-
-MaybeObject DescriptorArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_WEAK_FIELD(*this, offset(index));
-}
-
-void DescriptorArray::set(int index, MaybeObject value) {
-  DCHECK(index >= 0 && index < this->length());
-  RELAXED_WRITE_WEAK_FIELD(*this, offset(index), value);
-  WEAK_WRITE_BARRIER(*this, offset(index), value);
 }
 
 }  // namespace internal

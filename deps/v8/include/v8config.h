@@ -353,6 +353,12 @@
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
+#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
+#error Inconsistent build configuration: To build the V8 shared library \
+set BUILDING_V8_SHARED, to include its headers for linking against the \
+V8 shared library set USING_V8_SHARED.
+#endif
+
 #ifdef V8_OS_WIN
 
 // Setup for Windows DLL export/import. When building the V8 DLL the

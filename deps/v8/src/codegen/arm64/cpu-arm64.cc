@@ -15,7 +15,7 @@ namespace internal {
 class CacheLineSizes {
  public:
   CacheLineSizes() {
-#if !defined(V8_HOST_ARCH_ARM64) || defined(V8_OS_WIN)
+#if !defined(V8_HOST_ARCH_ARM64) || defined(V8_OS_WIN) || defined(__APPLE__)
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.

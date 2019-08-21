@@ -56,13 +56,13 @@ class PatternItem {
   std::vector<const char*> allowed_values;
 };
 
-static const std::vector<PatternItem> BuildPatternItems() {
+static std::vector<PatternItem> BuildPatternItems() {
   const std::vector<const char*> kLongShort = {"long", "short"};
   const std::vector<const char*> kNarrowLongShort = {"narrow", "long", "short"};
   const std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
   const std::vector<const char*> kNarrowLongShort2DigitNumeric = {
       "narrow", "long", "short", "2-digit", "numeric"};
-  const std::vector<PatternItem> kPatternItems = {
+  std::vector<PatternItem> items = {
       PatternItem("weekday",
                   {{"EEEEE", "narrow"},
                    {"EEEE", "long"},
@@ -75,38 +75,59 @@ static const std::vector<PatternItem> BuildPatternItems() {
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
                   kNarrowLongShort),
       PatternItem("year", {{"yy", "2-digit"}, {"y", "numeric"}},
-                  k2DigitNumeric),
-      // Sometimes we get L instead of M for month - standalone name.
-      PatternItem("month",
-                  {{"MMMMM", "narrow"},
-                   {"MMMM", "long"},
-                   {"MMM", "short"},
-                   {"MM", "2-digit"},
-                   {"M", "numeric"},
-                   {"LLLLL", "narrow"},
-                   {"LLLL", "long"},
-                   {"LLL", "short"},
-                   {"LL", "2-digit"},
-                   {"L", "numeric"}},
-                  kNarrowLongShort2DigitNumeric),
-      PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}}, k2DigitNumeric),
-      PatternItem("hour",
-                  {{"HH", "2-digit"},
-                   {"H", "numeric"},
-                   {"hh", "2-digit"},
-                   {"h", "numeric"},
-                   {"kk", "2-digit"},
-                   {"k", "numeric"},
-                   {"KK", "2-digit"},
-                   {"K", "numeric"}},
-                  k2DigitNumeric),
-      PatternItem("minute", {{"mm", "2-digit"}, {"m", "numeric"}},
-                  k2DigitNumeric),
-      PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
-                  k2DigitNumeric),
-      PatternItem("timeZoneName", {{"zzzz", "long"}, {"z", "short"}},
-                  kLongShort)};
-  return kPatternItems;
+                  k2DigitNumeric)};
+  if (FLAG_harmony_intl_dateformat_quarter) {
+    items.push_back(PatternItem("quarter",
+                                {{"QQQQQ", "narrow"},
+                                 {"QQQQ", "long"},
+                                 {"QQQ", "short"},
+                                 {"qqqqq", "narrow"},
+                                 {"qqqq", "long"},
+                                 {"qqq", "short"}},
+                                kNarrowLongShort));
+  }
+  // Sometimes we get L instead of M for month - standalone name.
+  items.push_back(PatternItem("month",
+                              {{"MMMMM", "narrow"},
+                               {"MMMM", "long"},
+                               {"MMM", "short"},
+                               {"MM", "2-digit"},
+                               {"M", "numeric"},
+                               {"LLLLL", "narrow"},
+                               {"LLLL", "long"},
+                               {"LLL", "short"},
+                               {"LL", "2-digit"},
+                               {"L", "numeric"}},
+                              kNarrowLongShort2DigitNumeric));
+  items.push_back(PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
+                              k2DigitNumeric));
+  if (FLAG_harmony_intl_dateformat_day_period) {
+    items.push_back(PatternItem("dayPeriod",
+                                {{"BBBBB", "narrow"},
+                                 {"bbbbb", "narrow"},
+                                 {"BBBB", "long"},
+                                 {"bbbb", "long"},
+                                 {"B", "short"},
+                                 {"b", "short"}},
+                                kNarrowLongShort));
+  }
+  items.push_back(PatternItem("hour",
+                              {{"HH", "2-digit"},
+                               {"H", "numeric"},
+                               {"hh", "2-digit"},
+                               {"h", "numeric"},
+                               {"kk", "2-digit"},
+                               {"k", "numeric"},
+                               {"KK", "2-digit"},
+                               {"K", "numeric"}},
+                              k2DigitNumeric));
+  items.push_back(PatternItem("minute", {{"mm", "2-digit"}, {"m", "numeric"}},
+                              k2DigitNumeric));
+  items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
+                              k2DigitNumeric));
+  items.push_back(PatternItem("timeZoneName",
+                              {{"zzzz", "long"}, {"z", "short"}}, kLongShort));
+  return items;
 }
 
 class PatternItems {
@@ -348,6 +369,16 @@ Handle<String> DateTimeStyleAsString(Isolate* isolate,
   }
 }
 
+int FractionalSecondDigitsFromPattern(const std::string& pattern) {
+  int result = 0;
+  for (size_t i = 0; i < pattern.length() && result < 3; i++) {
+    if (pattern[i] == 'S') {
+      result++;
+    }
+  }
+  return result;
+}
+
 }  // namespace
 
 // ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
@@ -532,6 +563,13 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
               Just(kDontThrow))
               .FromJust());
   }
+  if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+    int fsd = FractionalSecondDigitsFromPattern(pattern);
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->fractionalSecondDigits_string(),
+              factory->NewNumberFromInt(fsd), Just(kDontThrow))
+              .FromJust());
+  }
 
   return options;
 }
@@ -643,17 +681,14 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       JSFunction::cast(
           isolate->context().native_context().intl_date_time_format_function()),
       isolate);
-  Handle<JSObject> obj;
+  Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
-      String);
+      isolate, map,
+      JSFunction::GetDerivedMap(isolate, constructor, constructor), String);
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::Initialize(isolate, Handle<JSDateTimeFormat>::cast(obj),
-                                   locales, internal_options),
-      String);
+      JSDateTimeFormat::New(isolate, map, locales, internal_options), String);
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -669,27 +704,23 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 namespace {
 
 Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
-                                const char* property) {
-  Factory* factory = isolate->factory();
+                                Handle<String> property) {
   // i. Let prop be the property name.
   // ii. Let value be ? Get(options, prop).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(
-          isolate, options, factory->NewStringFromAsciiChecked(property)),
+      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
       Nothing<bool>());
   return Just(value->IsUndefined(isolate));
 }
 
 Maybe<bool> NeedsDefault(Isolate* isolate, Handle<JSObject> options,
-                         const std::vector<std::string>& props) {
+                         const std::vector<Handle<String>>& props) {
   bool needs_default = true;
   for (const auto& prop : props) {
     //  i. Let prop be the property name.
     // ii. Let value be ? Get(options, prop)
-    Maybe<bool> maybe_undefined =
-        IsPropertyUndefined(isolate, options, prop.c_str());
+    Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
     MAYBE_RETURN(maybe_undefined, Nothing<bool>());
     // iii. If value is not undefined, let needDefaults be false.
     if (!maybe_undefined.FromJust()) {
@@ -741,8 +772,15 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
 
   // 4. If required is "date" or "any", then
   if (required == RequiredOption::kAny || required == RequiredOption::kDate) {
-    // a. For each of the property names "weekday", "year", "month", "day", do
-    const std::vector<std::string> list({"weekday", "year", "month", "day"});
+    // a. For each of the property names "weekday", "year", "quarter", "month",
+    // "day", do
+    std::vector<Handle<String>> list(
+        {factory->weekday_string(), factory->year_string()});
+    if (FLAG_harmony_intl_dateformat_quarter) {
+      list.push_back(factory->quarter_string());
+    }
+    list.push_back(factory->month_string());
+    list.push_back(factory->day_string());
     Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
     MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
     needs_default = maybe_needs_default.FromJust();
@@ -750,8 +788,18 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
 
   // 5. If required is "time" or "any", then
   if (required == RequiredOption::kAny || required == RequiredOption::kTime) {
-    // a. For each of the property names "hour", "minute", "second", do
-    const std::vector<std::string> list({"hour", "minute", "second"});
+    // a. For each of the property names "dayPeriod", "hour", "minute",
+    // "second", "fractionalSecondDigits", do
+    std::vector<Handle<String>> list;
+    if (FLAG_harmony_intl_dateformat_day_period) {
+      list.push_back(factory->dayPeriod_string());
+    }
+    list.push_back(factory->hour_string());
+    list.push_back(factory->minute_string());
+    list.push_back(factory->second_string());
+    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+      list.push_back(factory->fractionalSecondDigits_string());
+    }
     Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
     MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
     needs_default &= maybe_needs_default.FromJust();
@@ -890,7 +938,7 @@ icu::Calendar* CreateCalendar(Isolate* isolate, const icu::Locale& icu_locale,
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator& generator) {
+    icu::DateTimePatternGenerator& generator) {  // NOLINT(runtime/references)
   // See https://github.com/tc39/ecma402/issues/225 . The best pattern
   // generation needs to be done in the base locale according to the
   // current spec however odd it may be. See also crbug.com/826549 .
@@ -920,9 +968,9 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
 
 class DateFormatCache {
  public:
-  icu::SimpleDateFormat* Create(const icu::Locale& icu_locale,
-                                const icu::UnicodeString& skeleton,
-                                icu::DateTimePatternGenerator& generator) {
+  icu::SimpleDateFormat* Create(
+      const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
+      icu::DateTimePatternGenerator& generator) {  // NOLINT(runtime/references)
     std::string key;
     skeleton.toUTF8String<std::string>(key);
     key += ":";
@@ -951,7 +999,7 @@ class DateFormatCache {
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator& generator) {
+    icu::DateTimePatternGenerator& generator) {  // NOLINT(runtime/references)
   static base::LazyInstance<DateFormatCache>::type cache =
       LAZY_INSTANCE_INITIALIZER;
   return std::unique_ptr<icu::SimpleDateFormat>(
@@ -1087,7 +1135,8 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
 std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
     JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style, const icu::Locale& icu_locale,
-    Intl::HourCycle hc, icu::DateTimePatternGenerator& generator) {
+    Intl::HourCycle hc,
+    icu::DateTimePatternGenerator& generator) {  // NOLINT(runtime/references)
   std::unique_ptr<icu::SimpleDateFormat> result;
   if (date_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
     if (time_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1156,10 +1205,9 @@ class DateTimePatternGeneratorCache {
 enum FormatMatcherOption { kBestFit, kBasic };
 
 // ecma402/#sec-initializedatetimeformat
-MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
-    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-    Handle<Object> locales, Handle<Object> input_options) {
-  date_time_format->set_flags(0);
+MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
+    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Handle<Object> input_options) {
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -1347,7 +1395,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       }
     }
   }
-  date_time_format->set_hour_cycle(hc);
 
   DateTimeStyle date_style = DateTimeStyle::kUndefined;
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
@@ -1367,9 +1414,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     // 29. If dateStyle is not undefined, set dateTimeFormat.[[DateStyle]] to
     // dateStyle.
     date_style = maybe_date_style.FromJust();
-    if (date_style != DateTimeStyle::kUndefined) {
-      date_time_format->set_date_style(date_style);
-    }
 
     // 30. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
     // "full", "long", "medium", "short" »).
@@ -1385,9 +1429,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     // 31. If timeStyle is not undefined, set dateTimeFormat.[[TimeStyle]] to
     // timeStyle.
     time_style = maybe_time_style.FromJust();
-    if (time_style != DateTimeStyle::kUndefined) {
-      date_time_format->set_time_style(time_style);
-    }
 
     // 32. If dateStyle or timeStyle are not undefined, then
     if (date_style != DateTimeStyle::kUndefined ||
@@ -1417,6 +1458,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         DCHECK_NOT_NULL(input.get());
         // iii. Set opt.[[<prop>]] to value.
         skeleton += item.map.find(input.get())->second;
+      }
+    }
+    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+      Maybe<int> maybe_fsd = Intl::GetNumberOption(
+          isolate, options, factory->fractionalSecondDigits_string(), 0, 3, 0);
+      MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
+      // Convert fractionalSecondDigits to skeleton.
+      int fsd = maybe_fsd.FromJust();
+      for (int i = 0; i < fsd; i++) {
+        skeleton += "S";
       }
     }
 
@@ -1451,7 +1502,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     // g. If dateTimeFormat.[[Hour]] is not undefined, then
     if (!has_hour_option) {
       // h. Else, i. Set dateTimeFormat.[[HourCycle]] to undefined.
-      date_time_format->set_hour_cycle(Intl::HourCycle::kUndefined);
+      hc = Intl::HourCycle::kUndefined;
     }
   }
 
@@ -1477,8 +1528,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       maybe_hour_cycle.FromJust() != Intl::HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      if (date_time_format->hour_cycle() !=
-          Intl::ToHourCycle(hc_extension_it->second.c_str())) {
+      if (hc != Intl::ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
         icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
@@ -1490,16 +1540,28 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   Handle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
 
-  date_time_format->set_icu_locale(*managed_locale);
   Handle<Managed<icu::SimpleDateFormat>> managed_format =
       Managed<icu::SimpleDateFormat>::FromUniquePtr(isolate, 0,
                                                     std::move(icu_date_format));
-  date_time_format->set_icu_simple_date_format(*managed_format);
 
   Handle<Managed<icu::DateIntervalFormat>> managed_interval_format =
       Managed<icu::DateIntervalFormat>::FromRawPtr(isolate, 0, nullptr);
-  date_time_format->set_icu_date_interval_format(*managed_interval_format);
 
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSDateTimeFormat> date_time_format = Handle<JSDateTimeFormat>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  date_time_format->set_flags(0);
+  date_time_format->set_hour_cycle(hc);
+  if (date_style != DateTimeStyle::kUndefined) {
+    date_time_format->set_date_style(date_style);
+  }
+  if (time_style != DateTimeStyle::kUndefined) {
+    date_time_format->set_time_style(time_style);
+  }
+  date_time_format->set_icu_locale(*managed_locale);
+  date_time_format->set_icu_simple_date_format(*managed_format);
+  date_time_format->set_icu_date_interval_format(*managed_interval_format);
   return date_time_format;
 }
 
@@ -1516,6 +1578,9 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
     case UDAT_EXTENDED_YEAR_FIELD:
     case UDAT_YEAR_NAME_FIELD:
       return isolate->factory()->year_string();
+    case UDAT_QUARTER_FIELD:
+    case UDAT_STANDALONE_QUARTER_FIELD:
+      return isolate->factory()->quarter_string();
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
       return isolate->factory()->month_string();
@@ -1535,6 +1600,8 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
     case UDAT_STANDALONE_DAY_FIELD:
       return isolate->factory()->weekday_string();
     case UDAT_AM_PM_FIELD:
+    case UDAT_AM_PM_MIDNIGHT_NOON_FIELD:
+    case UDAT_FLEXIBLE_DAY_PERIOD_FIELD:
       return isolate->factory()->dayPeriod_string();
     case UDAT_TIMEZONE_FIELD:
     case UDAT_TIMEZONE_RFC_FIELD:
@@ -1546,6 +1613,8 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       return isolate->factory()->timeZoneName_string();
     case UDAT_ERA_FIELD:
       return isolate->factory()->era_string();
+    case UDAT_FRACTIONAL_SECOND_FIELD:
+      return isolate->factory()->fractionalSecond_string();
     default:
       // Other UDAT_*_FIELD's cannot show up because there is no way to specify
       // them via options of Intl.DateTimeFormat.

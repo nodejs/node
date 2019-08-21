@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/objects/js-break-iterator.h'
+#include 'src/objects/js-collator.h'
 #include 'src/objects/js-number-format.h'
 #include 'src/objects/js-objects.h'
 #include 'src/objects/js-plural-rules.h'
@@ -37,8 +39,9 @@ extern class JSNumberFormat extends JSObject {
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: Smi;
-  icu_plural_rules: Foreign;    // Managed<icu::PluralRules>
-  icu_decimal_format: Foreign;  // Managed<icu::DecimalFormat>
+  icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
+  icu_number_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
 }
 
 extern class JSRelativeTimeFormat extends JSObject {
@@ -61,4 +64,21 @@ extern class JSSegmentIterator extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
   unicode_string: Foreign;      // Managed<icu::UnicodeString>
   flags: Smi;
+}
+
+extern class JSV8BreakIterator extends JSObject {
+  locale: String;
+  break_iterator: Foreign;  // Managed<icu::BreakIterator>;
+  unicode_string: Foreign;  // Managed<icu::UnicodeString>;
+  bound_adopt_text: Undefined | JSFunction;
+  bound_first: Undefined | JSFunction;
+  bound_next: Undefined | JSFunction;
+  bound_current: Undefined | JSFunction;
+  bound_break_type: Undefined | JSFunction;
+  break_iterator_type: Smi;
+}
+
+extern class JSCollator extends JSObject {
+  icu_collator: Foreign;  // Managed<icu::Collator>
+  bound_compare: Undefined | JSFunction;
 }

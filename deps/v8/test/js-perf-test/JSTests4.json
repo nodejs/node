@@ -33,7 +33,15 @@
         {"name": "SetIndexWithTrap"},
         {"name": "SetSymbolWithoutTrap"},
         {"name": "SetSymbolWithTrap"},
-        {"name": "HasInIdiom"}
+        {"name": "HasInIdiom"},
+        {"name": "IsExtensibleWithoutTrap"},
+        {"name": "IsExtensibleWithTrap"},
+        {"name": "PreventExtensionsWithoutTrap"},
+        {"name": "PreventExtensionsWithTrap"},
+        {"name": "GetPrototypeOfWithoutTrap"},
+        {"name": "GetPrototypeOfWithTrap"},
+        {"name": "SetPrototypeOfWithoutTrap"},
+        {"name": "SetPrototypeOfWithTrap"}
       ]
     },
     {

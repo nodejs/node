@@ -3390,7 +3390,8 @@ TEST(ARMv8_vminmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(MacroAssembler& assm) {
+static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
+    MacroAssembler& assm) {  // NOLINT(runtime/references)
   T a = T::from_code(0);  // d0/s0
   T b = T::from_code(1);  // d1/s1
   T c = T::from_code(2);  // d2/s2

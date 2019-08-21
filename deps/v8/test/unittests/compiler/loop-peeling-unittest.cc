@@ -66,7 +66,7 @@ class LoopPeelingTest : public GraphTest {
       StdoutStream{} << AsRPO(*graph());
     }
     Zone zone(isolate()->allocator(), ZONE_NAME);
-    return LoopFinder::BuildLoopTree(graph(), &zone);
+    return LoopFinder::BuildLoopTree(graph(), tick_counter(), &zone);
   }
 
 

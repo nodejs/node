@@ -31,11 +31,13 @@ function mul (a, b) {
   return a * b;
 }
 
+%PrepareFunctionForOptimization(mul);
 mul(-1, -1);
 mul(0x80000001|0, -1);
 mul(0x80000001|0, -1);
 %OptimizeFunctionOnNextCall(mul);
 mul(0, -1);
+%PrepareFunctionForOptimization(mul);
 %OptimizeFunctionOnNextCall(mul);
 mul(0, -1);
 

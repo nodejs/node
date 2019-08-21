@@ -54,7 +54,7 @@ CallbackFn Callback[kNumTestValues] = {nullptr, FalseCallback, TrueCallback};
 
 void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
   WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
-  builder->WriteTo(*buffer);
+  builder->WriteTo(buffer);
 }
 
 bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {

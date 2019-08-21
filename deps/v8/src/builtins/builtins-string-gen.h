@@ -76,9 +76,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                TNode<Smi> subject_length,
                                TNode<Number> limit_number);
 
-  void RequireObjectCoercible(Node* const context, Node* const value,
-                              const char* method_name);
-
   TNode<BoolT> SmiIsNegative(TNode<Smi> value) {
     return SmiLessThan(value, SmiConstant(0));
   }

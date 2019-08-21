@@ -37,7 +37,7 @@ class TypedOptimizationTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph, broker());
     return reducer.Reduce(node);
   }

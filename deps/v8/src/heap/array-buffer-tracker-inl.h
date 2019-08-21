@@ -57,8 +57,6 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer buffer) {
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
-Space* LocalArrayBufferTracker::space() { return page_->owner(); }
-
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;

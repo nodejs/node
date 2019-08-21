@@ -9,7 +9,9 @@ let cleanup_holdings_count = 0;
 let cleanup = function(iter) {
   for (holdings of iter) {
     assertEquals(holdings, "holdings");
-    fg.unregister(key);
+    let success = fg.unregister(key);
+    assertFalse(success);
+
     ++cleanup_holdings_count;
   }
   ++cleanup_call_count;

@@ -27,12 +27,16 @@
 
 // Flags: --allow-natives-syntax
 
-function mod(a, b) { return a % b; }
+function mod(a, b) {
+  return a % b;
+}
 
 // Feed integer type info and optimize.
+;
+%PrepareFunctionForOptimization(mod);
 assertEquals(0, mod(4, 2));
 assertEquals(1, mod(3, 2));
 %OptimizeFunctionOnNextCall(mod);
 
 // Surprise mod with overflow.
-assertEquals(-Infinity, 1/mod(-2147483648, -1));
+assertEquals(-Infinity, 1 / mod(-2147483648, -1));

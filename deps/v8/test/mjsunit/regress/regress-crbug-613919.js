@@ -11,7 +11,8 @@ function g(a) {
 }
 function f() {
   return g(false);
-}
+};
+%PrepareFunctionForOptimization(f);
 assertEquals(23, f());
 assertEquals(23, f());
 %OptimizeFunctionOnNextCall(f);

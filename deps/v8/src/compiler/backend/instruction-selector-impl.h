@@ -29,8 +29,8 @@ inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
 // Helper struct containing data about a table or lookup switch.
 class SwitchInfo {
  public:
-  SwitchInfo(ZoneVector<CaseInfo>& cases, int32_t min_value, int32_t max_value,
-             BasicBlock* default_branch)
+  SwitchInfo(ZoneVector<CaseInfo>& cases,  // NOLINT(runtime/references)
+             int32_t min_value, int32_t max_value, BasicBlock* default_branch)
       : cases_(cases),
         min_value_(min_value),
         max_value_(max_value),
@@ -109,13 +109,9 @@ class OperandGenerator {
   }
 
   InstructionOperand DefineAsConstant(Node* node) {
-    return DefineAsConstant(node, ToConstant(node));
-  }
-
-  InstructionOperand DefineAsConstant(Node* node, Constant constant) {
     selector()->MarkAsDefined(node);
     int virtual_register = GetVReg(node);
-    sequence()->AddConstant(virtual_register, constant);
+    sequence()->AddConstant(virtual_register, ToConstant(node));
     return ConstantOperand(virtual_register);
   }
 
@@ -326,6 +322,8 @@ class OperandGenerator {
       }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
+      case IrOpcode::kCompressedHeapConstant:
+        return Constant(HeapConstantOf(node->op()), true);
       case IrOpcode::kDelayedStringConstant:
         return Constant(StringConstantBaseOf(node->op()));
       case IrOpcode::kDeadValue: {

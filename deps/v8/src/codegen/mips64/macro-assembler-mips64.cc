@@ -187,7 +187,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     And(t8, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, t8, Operand(zero_reg));
-    stop("Unaligned cell in write barrier");
+    stop();
     bind(&ok);
   }
 
@@ -4274,18 +4274,22 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
-  SmiUntag(builtin_pointer, builtin_pointer);
-  Dlsa(builtin_pointer, kRootRegister, builtin_pointer, kSystemPointerSizeLog2);
-  Ld(builtin_pointer,
-     MemOperand(builtin_pointer, IsolateData::builtin_entry_table_offset()));
-  Call(builtin_pointer);
+  // The builtin_index register contains the builtin index as a Smi.
+  SmiUntag(builtin_index, builtin_index);
+  Dlsa(builtin_index, kRootRegister, builtin_index, kSystemPointerSizeLog2);
+  Ld(builtin_index,
+     MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  LoadEntryFromBuiltinIndex(builtin_index);
+  Call(builtin_index);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -4432,6 +4436,11 @@ void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
 }
 
 void TurboAssembler::Call(Label* target) { BranchAndLink(target); }
+
+void TurboAssembler::LoadAddress(Register dst, Label* target) {
+  uint64_t address = jump_address(target);
+  li(dst, address);
+}
 
 void TurboAssembler::Push(Smi smi) {
   UseScratchRegisterScope temps(this);
@@ -5026,15 +5035,15 @@ void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-  const char* msg = GetAbortReason(reason);
 #ifdef DEBUG
+  const char* msg = GetAbortReason(reason);
   RecordComment("Abort message: ");
   RecordComment(msg);
 #endif
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
-    stop(msg);
+    stop();
     return;
   }
 
@@ -5273,7 +5282,7 @@ void MacroAssembler::AssertStackIsAligned() {
         Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      stop("Unexpected stack alignment");
+      stop();
       bind(&alignment_as_expected);
     }
   }
@@ -5698,7 +5707,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       }
       // Don't use Check here, as it will call Runtime_Abort possibly
       // re-entering here.
-      stop("Unexpected alignment in CallCFunction");
+      stop();
       bind(&alignment_as_expected);
     }
   }

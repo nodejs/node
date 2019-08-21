@@ -30,18 +30,20 @@
 // This test checks that young immediates embedded into code objects
 // are referenced through a cell.
 
-function f (k, a, b) {
+function f(k, a, b) {
   // Create control flow for a.foo.  Control flow resolution will
   // be generated as a part of a gap move. Gap move operate on immediates as
   // a.foo is a CONSTANT_FUNCTION.
   var x = k ? a.foo : a.foo;
   return x.prototype;
-}
-
-var a = { };
+};
+%PrepareFunctionForOptimization(f);
+var a = {};
 
 // Make sure that foo is a CONSTANT_FUNCTION but not be pretenured.
-a.foo = (function () { return function () {}; })();
+a.foo = function() {
+  return function() {};
+}();
 
 // Ensure that both branches of ternary operator have monomorphic type feedback.
 f(true, a, a);

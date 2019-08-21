@@ -27,12 +27,11 @@ namespace internal {
 
 class JSLocale : public JSObject {
  public:
-  // Initializes locale object with properties derived from input locale string
+  // Creates locale object with properties derived from input locale string
   // and options.
-  static MaybeHandle<JSLocale> Initialize(Isolate* isolate,
-                                          Handle<JSLocale> locale_holder,
-                                          Handle<String> locale,
-                                          Handle<JSReceiver> options);
+  static MaybeHandle<JSLocale> New(Isolate* isolate, Handle<Map> map,
+                                   Handle<String> locale,
+                                   Handle<JSReceiver> options);
   static Handle<String> Maximize(Isolate* isolate, String locale);
   static Handle<String> Minimize(Isolate* isolate, String locale);
 

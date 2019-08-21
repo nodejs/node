@@ -30,8 +30,8 @@ PASS x = class extends baseWithBadPrototype { constructor() { } } threw exceptio
 PASS baseWithBadPrototype.prototype = "abc" did not throw exception.
 PASS x = class extends baseWithBadPrototype { constructor() { } } threw exception TypeError: Class extends value does not have valid prototype property abc.
 PASS baseWithBadPrototype.prototype = null; x = class extends baseWithBadPrototype { constructor() { } } did not throw exception.
-PASS x = 1; c = class extends ++x { constructor() { } }; threw exception SyntaxError: Unexpected token ++.
-PASS x = 1; c = class extends x++ { constructor() { } }; threw exception SyntaxError: Unexpected token ++.
+PASS x = 1; c = class extends ++x { constructor() { } }; threw exception SyntaxError: Unexpected token '++'.
+PASS x = 1; c = class extends x++ { constructor() { } }; threw exception SyntaxError: Unexpected token '++'.
 PASS x = 1; c = class extends (++x) { constructor() { } }; threw exception TypeError: Class extends value 2 is not a constructor or null.
 PASS x = 1; c = class extends (x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
 PASS x = 1; try { c = class extends (++x) { constructor() { } } } catch (e) { }; x is 2
@@ -45,7 +45,7 @@ PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = cl
 PASS namespace = {}; namespace.A = class { constructor() { } }; function getClassA() { return namespace.A }; namespace.B = class extends getClassA() { constructor() { } } did not throw exception.
 PASS namespace = {}; namespace.A = class { constructor() { } }; function getClass(prop) { return namespace[prop] }; namespace.B = class extends getClass("A") { constructor() { } } did not throw exception.
 PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (false||null||namespace.A) { constructor() { } } did not throw exception.
-PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends false||null||namespace.A { constructor() { } } threw exception SyntaxError: Unexpected token ||.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends false||null||namespace.A { constructor() { } } threw exception SyntaxError: Unexpected token '||'.
 PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (x++, namespace.A) { constructor() { } }; did not throw exception.
 PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (namespace.A, x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
 PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a constructor or null.

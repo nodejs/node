@@ -57,6 +57,12 @@ const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
   const Type* parent_type = nullptr;
   if (decl->extends) {
     parent_type = Declarations::LookupType(*decl->extends);
+    if (parent_type->IsUnionType()) {
+      // UnionType::IsSupertypeOf requires that types can only extend from non-
+      // union types in order to work correctly.
+      ReportError("type \"", decl->name->value,
+                  "\" cannot extend a type union");
+    }
   }
 
   if (generates == "" && parent_type) {
@@ -104,9 +110,25 @@ void DeclareMethods(AggregateType* container_type,
   }
 }
 
+namespace {
+std::string ComputeStructName(StructDeclaration* decl) {
+  TypeVector args;
+  if (decl->IsGeneric()) {
+    args.resize(decl->generic_parameters.size());
+    std::transform(
+        decl->generic_parameters.begin(), decl->generic_parameters.end(),
+        args.begin(), [](Identifier* parameter) {
+          return Declarations::LookupTypeAlias(QualifiedName(parameter->value))
+              ->type();
+        });
+  }
+  return StructType::ComputeName(decl->name->value, args);
+}
+}  // namespace
+
 const StructType* TypeVisitor::ComputeType(StructDeclaration* decl) {
   CurrentSourcePosition::Scope position_activator(decl->pos);
-  StructType* struct_type = TypeOracle::GetStructType(decl->name->value);
+  StructType* struct_type = TypeOracle::GetStructType(ComputeStructName(decl));
   size_t offset = 0;
   for (auto& field : decl->fields) {
     CurrentSourcePosition::Scope position_activator(
@@ -156,28 +178,78 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
     new_class = TypeOracle::GetClassType(super_type, decl->name->value,
                                          decl->flags, generates, decl, alias);
   } else {
-    if (decl->super) {
-      ReportError("Only extern classes can inherit.");
+    if (!decl->super) {
+      ReportError("Intern class ", decl->name->value,
+                  " must extend class Struct.");
+    }
+    const Type* super_type = TypeVisitor::ComputeType(*decl->super);
+    const ClassType* super_class = ClassType::DynamicCast(super_type);
+    const Type* struct_type = Declarations::LookupGlobalType("Struct");
+    if (!super_class || super_class != struct_type) {
+      ReportError("Intern class ", decl->name->value,
+                  " must extend class Struct.");
     }
     if (decl->generates) {
       ReportError("Only extern classes can specify a generated type.");
     }
-    new_class =
-        TypeOracle::GetClassType(TypeOracle::GetTaggedType(), decl->name->value,
-                                 decl->flags, "FixedArray", decl, alias);
+    new_class = TypeOracle::GetClassType(
+        super_type, decl->name->value,
+        decl->flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify,
+        decl->name->value, decl, alias);
   }
   return new_class;
 }
 
 const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
-    const TypeAlias* alias = Declarations::LookupTypeAlias(
-        QualifiedName{basic->namespace_qualification, basic->name});
-    if (GlobalContext::collect_language_server_data()) {
-      LanguageServerData::AddDefinition(type_expression->pos,
-                                        alias->GetDeclarationPosition());
+    QualifiedName qualified_name{basic->namespace_qualification, basic->name};
+    auto& args = basic->generic_arguments;
+    const Type* type;
+    SourcePosition pos = SourcePosition::Invalid();
+
+    if (args.empty()) {
+      auto* alias = Declarations::LookupTypeAlias(qualified_name);
+      type = alias->type();
+      pos = alias->GetDeclarationPosition();
+    } else {
+      auto* generic_struct =
+          Declarations::LookupUniqueGenericStructType(qualified_name);
+      auto& params = generic_struct->generic_parameters();
+      auto& specializations = generic_struct->specializations();
+      if (params.size() != args.size()) {
+        ReportError("Generic struct takes ", params.size(),
+                    " parameters, but only ", args.size(), " were given");
+      }
+
+      std::vector<const Type*> arg_types = ComputeTypeVector(args);
+      if (auto specialization = specializations.Get(arg_types)) {
+        type = *specialization;
+      } else {
+        CurrentScope::Scope generic_scope(generic_struct->ParentScope());
+        // Create a temporary fake-namespace just to temporarily declare the
+        // specialization aliases for the generic types to create a signature.
+        Namespace tmp_namespace("_tmp");
+        CurrentScope::Scope tmp_namespace_scope(&tmp_namespace);
+        auto arg_types_iterator = arg_types.begin();
+        for (auto param : params) {
+          TypeAlias* alias =
+              Declarations::DeclareType(param, *arg_types_iterator);
+          alias->SetIsUserDefined(false);
+          arg_types_iterator++;
+        }
+
+        auto struct_type = ComputeType(generic_struct->declaration());
+        specializations.Add(arg_types, struct_type);
+        type = struct_type;
+      }
+      pos = generic_struct->declaration()->name->pos;
     }
-    return alias->type();
+
+    if (GlobalContext::collect_language_server_data()) {
+      LanguageServerData::AddDefinition(type_expression->pos, pos);
+    }
+    return type;
+
   } else if (auto* union_type =
                  UnionTypeExpression::DynamicCast(type_expression)) {
     return TypeOracle::GetUnionType(ComputeType(union_type->a),

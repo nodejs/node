@@ -7,9 +7,9 @@
 
 #include <map>
 
+#include "src/torque/ast.h"
+#include "src/torque/contextual.h"
 #include "src/torque/declarable.h"
-#include "src/torque/declarations.h"
-#include "src/torque/type-oracle.h"
 
 namespace v8 {
 namespace internal {
@@ -19,16 +19,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
  public:
   GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
   GlobalContext& operator=(GlobalContext&&) V8_NOEXCEPT = default;
-  explicit GlobalContext(Ast ast)
-      : collect_language_server_data_(false),
-        force_assert_statements_(false),
-        ast_(std::move(ast)) {
-    CurrentScope::Scope current_scope(nullptr);
-    CurrentSourcePosition::Scope current_source_position(
-        SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
-    default_namespace_ =
-        RegisterDeclarable(base::make_unique<Namespace>(kBaseNamespaceName));
-  }
+  explicit GlobalContext(Ast ast);
+
   static Namespace* GetDefaultNamespace() { return Get().default_namespace_; }
   template <class T>
   T* RegisterDeclarable(std::unique_ptr<T> d) {
@@ -39,16 +31,6 @@ class GlobalContext : public ContextualClass<GlobalContext> {
 
   static const std::vector<std::unique_ptr<Declarable>>& AllDeclarables() {
     return Get().declarables_;
-  }
-
-  static const std::vector<Namespace*> GetNamespaces() {
-    std::vector<Namespace*> result;
-    for (auto& declarable : AllDeclarables()) {
-      if (Namespace* n = Namespace::DynamicCast(declarable.get())) {
-        result.push_back(n);
-      }
-    }
-    return result;
   }
 
   static void RegisterClass(const TypeAlias* alias) {
@@ -82,6 +64,14 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static Ast* ast() { return &Get().ast_; }
   static size_t FreshId() { return Get().fresh_id_++; }
 
+  struct PerFileStreams {
+    std::stringstream csa_headerfile;
+    std::stringstream csa_ccfile;
+  };
+  static PerFileStreams& GeneratedPerFile(SourceId file) {
+    return Get().generated_per_file_[file];
+  }
+
  private:
   bool collect_language_server_data_;
   bool force_assert_statements_;
@@ -89,6 +79,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
+  std::map<SourceId, PerFileStreams> generated_per_file_;
   GlobalClassList classes_;
   size_t fresh_id_ = 0;
 

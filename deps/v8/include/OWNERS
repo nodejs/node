@@ -1,16 +1,17 @@
-set noparent
-
 adamk@chromium.org
 danno@chromium.org
 ulan@chromium.org
 yangguo@chromium.org
 
-per-file v8-internal.h=file://OWNERS
+per-file *DEPS=file://COMMON_OWNERS
+per-file v8-internal.h=file://COMMON_OWNERS
 per-file v8-inspector.h=dgozman@chromium.org
 per-file v8-inspector.h=pfeldman@chromium.org
 per-file v8-inspector.h=kozyatinskiy@chromium.org
 per-file v8-inspector-protocol.h=dgozman@chromium.org
 per-file v8-inspector-protocol.h=pfeldman@chromium.org
 per-file v8-inspector-protocol.h=kozyatinskiy@chromium.org
+per-file js_protocol.pdl=dgozman@chromium.org
+per-file js_protocol.pdl=pfeldman@chromium.org
 
 # COMPONENT: Blink>JavaScript>API

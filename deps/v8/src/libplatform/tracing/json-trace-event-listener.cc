@@ -8,6 +8,8 @@
 
 #include "base/trace_event/common/trace_event_common.h"
 #include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "perfetto/trace/trace.pb.h"
+#include "perfetto/tracing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -111,7 +113,7 @@ void JSONTraceEventListener::AppendArgValue(
 }
 
 void JSONTraceEventListener::ProcessPacket(
-    const ::perfetto::protos::ChromeTracePacket& packet) {
+    const ::perfetto::protos::TracePacket& packet) {
   for (const ::perfetto::protos::ChromeTraceEvent& event :
        packet.chrome_events().trace_events()) {
     if (append_comma_) *stream_ << ",";

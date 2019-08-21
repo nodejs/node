@@ -276,15 +276,14 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   // 2. Let format be ? OrdinaryCreateFromConstructor(newTarget,
   // "%<T>Prototype%", ...).
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> format = Handle<T>::cast(obj);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
   // 3. Perform ? Initialize<T>(Format, locales, options).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, format, T::Initialize(isolate, format, locales, options));
+  Handle<T> format;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, format,
+                                     T::New(isolate, map, locales, options));
   // 4. Let this be the this value.
   Handle<Object> receiver = args.receiver();
 
@@ -351,21 +350,17 @@ Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   // 2. Let result be OrdinaryCreateFromConstructor(NewTarget,
   //    "%<T>Prototype%").
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> result = Handle<T>::cast(obj);
-  result->set_flags(0);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Return Initialize<T>(t, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           T::Initialize(isolate, result, locales, options));
+  // 3. Return New<T>(t, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
 }
 
 /**
@@ -387,14 +382,11 @@ Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> result = Handle<T>::cast(obj);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           T::Initialize(isolate, result, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
 }
 }  // namespace
 
@@ -591,12 +583,11 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                    Handle<JSFunction> constructor,
                                    Handle<JSReceiver> new_target,
                                    Handle<Object> tag, Handle<Object> options) {
-  Handle<JSObject> locale;
+  Handle<Map> map;
   // 6. Let locale be ? OrdinaryCreateFromConstructor(NewTarget,
   // %LocalePrototype%, internalSlotsList).
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale,
-      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      isolate, map, JSFunction::GetDerivedMap(isolate, constructor, new_target),
       JSLocale);
 
   // 7. If Type(tag) is not String or Object, throw a TypeError exception.
@@ -628,8 +619,7 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                Object::ToObject(isolate, options), JSLocale);
   }
 
-  return JSLocale::Initialize(isolate, Handle<JSLocale>::cast(locale),
-                              locale_string, options_object);
+  return JSLocale::New(isolate, map, locale_string, options_object);
 }
 
 }  // namespace

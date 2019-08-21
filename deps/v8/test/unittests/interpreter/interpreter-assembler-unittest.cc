@@ -63,6 +63,15 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(
   return ::i::compiler::IsLoad(rep_matcher, base_matcher, index_matcher, _, _);
 }
 
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoadFromObject(
+    const Matcher<c::LoadRepresentation>& rep_matcher,
+    const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher) {
+  CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level());
+  return ::i::compiler::IsLoadFromObject(rep_matcher, base_matcher,
+                                         index_matcher, _, _);
+}
+
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
     const Matcher<c::StoreRepresentation>& rep_matcher,
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
@@ -436,7 +445,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
       Node* load_constant = m.LoadConstantPoolEntry(index);
 #ifdef V8_COMPRESS_POINTERS
       Matcher<Node*> constant_pool_matcher =
-          IsChangeCompressedToTagged(m.IsLoad(
+          IsChangeCompressedToTagged(m.IsLoadFromObject(
               MachineType::AnyCompressed(),
               c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
               c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
@@ -448,7 +457,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
                                           kHeapObjectTag),
                       LoadSensitivity::kCritical)));
 #else
-      Matcher<Node*> constant_pool_matcher = m.IsLoad(
+      Matcher<Node*> constant_pool_matcher = m.IsLoadFromObject(
           MachineType::AnyTagged(),
           c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
@@ -466,7 +475,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
       Node* load_constant = m.LoadConstantPoolEntry(index);
 #if V8_COMPRESS_POINTERS
       Matcher<Node*> constant_pool_matcher =
-          IsChangeCompressedToTagged(m.IsLoad(
+          IsChangeCompressedToTagged(m.IsLoadFromObject(
               MachineType::AnyCompressed(),
               c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
               c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
@@ -480,7 +489,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
                   c::IsWordShl(index, c::IsIntPtrConstant(kTaggedSizeLog2))),
               LoadSensitivity::kCritical)));
 #else
-      Matcher<Node*> constant_pool_matcher = m.IsLoad(
+      Matcher<Node*> constant_pool_matcher = m.IsLoadFromObject(
           MachineType::AnyTagged(),
           c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
@@ -506,13 +515,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
     int offset = 16;
     Node* load_field = m.LoadObjectField(object, offset);
 #ifdef V8_COMPRESS_POINTERS
-    EXPECT_THAT(load_field, IsChangeCompressedToTagged(m.IsLoad(
+    EXPECT_THAT(load_field, IsChangeCompressedToTagged(m.IsLoadFromObject(
                                 MachineType::AnyCompressed(), object,
                                 c::IsIntPtrConstant(offset - kHeapObjectTag))));
 #else
-    EXPECT_THAT(load_field,
-                m.IsLoad(MachineType::AnyTagged(), object,
-                         c::IsIntPtrConstant(offset - kHeapObjectTag)));
+    EXPECT_THAT(load_field, m.IsLoadFromObject(
+                                MachineType::AnyTagged(), object,
+                                c::IsIntPtrConstant(offset - kHeapObjectTag)));
 #endif
   }
 }
@@ -593,21 +602,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
                                      kSystemPointerSize)));
 #ifdef V8_COMPRESS_POINTERS
     Matcher<Node*> load_vector_cell_matcher = IsChangeCompressedToTagged(
-        m.IsLoad(MachineType::AnyCompressed(), load_function_matcher,
-                 c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset -
-                                     kHeapObjectTag)));
+        m.IsLoadFromObject(MachineType::AnyCompressed(), load_function_matcher,
+                           c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset -
+                                               kHeapObjectTag)));
     EXPECT_THAT(load_feedback_vector,
-                IsChangeCompressedToTagged(m.IsLoad(
+                IsChangeCompressedToTagged(m.IsLoadFromObject(
                     MachineType::AnyCompressed(), load_vector_cell_matcher,
                     c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag))));
 #else
-    Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
+    Matcher<Node*> load_vector_cell_matcher = m.IsLoadFromObject(
         MachineType::AnyTagged(), load_function_matcher,
         c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
-    EXPECT_THAT(
-        load_feedback_vector,
-        m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,
-                 c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
+    EXPECT_THAT(load_feedback_vector,
+                m.IsLoadFromObject(
+                    MachineType::AnyTagged(), load_vector_cell_matcher,
+                    c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
 #endif
   }
 }

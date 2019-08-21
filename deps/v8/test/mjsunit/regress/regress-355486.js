@@ -4,9 +4,13 @@
 
 // Flags: --allow-natives-syntax
 
-function f() { var v = arguments[0]; }
-function g() { f(); }
-
+function f() {
+  var v = arguments[0];
+}
+function g() {
+  f();
+};
+%PrepareFunctionForOptimization(g);
 g();
 g();
 %OptimizeFunctionOnNextCall(g);

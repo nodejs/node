@@ -6,8 +6,8 @@
 
 function foo(index, array) {
   return index in array;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 let arr = [];
 arr.__proto__ = [0];
 assertFalse(foo(0, {}));

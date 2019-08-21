@@ -30,6 +30,7 @@ class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
 
   inline void set(int index, Object value);
   // Setter with explicit barrier mode.
@@ -66,6 +67,11 @@ class PropertyArray : public HeapObject {
                                     kSmiValueSize - kLengthFieldSize - 1> {};
 
   static const int kNoHashSentinel = 0;
+
+ private:
+  DECL_INT_ACCESSORS(length_and_hash)
+
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_hash)
 
   OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };

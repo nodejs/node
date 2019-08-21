@@ -12,12 +12,14 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
 class Graph;
 class Node;
-
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
@@ -129,7 +131,8 @@ class AdvancedReducer : public Reducer {
 class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
-  GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
+  GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
+               Node* dead = nullptr);
   ~GraphReducer() override;
 
   Graph* graph() const { return graph_; }
@@ -181,6 +184,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   ZoneVector<Reducer*> reducers_;
   ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
+  TickCounter* const tick_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };

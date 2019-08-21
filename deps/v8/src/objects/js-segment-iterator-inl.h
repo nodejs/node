@@ -35,7 +35,7 @@ CAST_ACCESSOR(JSSegmentIterator)
 
 inline void JSSegmentIterator::set_granularity(
     JSSegmenter::Granularity granularity) {
-  DCHECK_GT(JSSegmenter::Granularity::COUNT, granularity);
+  DCHECK_GE(GranularityBits::kMax, granularity);
   int hints = flags();
   hints = GranularityBits::update(hints, granularity);
   set_flags(hints);

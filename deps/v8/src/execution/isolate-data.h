@@ -81,8 +81,10 @@ class IsolateData final {
   // The FP and PC that are saved right before TurboAssembler::CallCFunction.
   Address* fast_c_call_caller_fp_address() { return &fast_c_call_caller_fp_; }
   Address* fast_c_call_caller_pc_address() { return &fast_c_call_caller_pc_; }
+  uint8_t* stack_is_iterable_address() { return &stack_is_iterable_; }
   Address fast_c_call_caller_fp() { return fast_c_call_caller_fp_; }
   Address fast_c_call_caller_pc() { return fast_c_call_caller_pc_; }
+  uint8_t stack_is_iterable() { return stack_is_iterable_; }
 
   // Returns true if this address points to data stored in this instance.
   // If it's the case then the value can be accessed indirectly through the
@@ -121,6 +123,7 @@ class IsolateData final {
   V(kVirtualCallTargetRegisterOffset, kSystemPointerSize)                     \
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
+  V(kStackIsIterableOffset, kUInt8Size)                                       \
   /* This padding aligns IsolateData size by 8 bytes. */                      \
   V(kPaddingOffset,                                                           \
     8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)        \
@@ -172,6 +175,9 @@ class IsolateData final {
   // instruction in compiled code.
   Address fast_c_call_caller_fp_ = kNullAddress;
   Address fast_c_call_caller_pc_ = kNullAddress;
+  // Whether the SafeStackFrameIterator can successfully iterate the current
+  // stack. Only valid values are 0 or 1.
+  uint8_t stack_is_iterable_ = 1;
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with
@@ -219,6 +225,8 @@ void IsolateData::AssertPredictableLayout() {
                 kFastCCallCallerFPOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==
                 kFastCCallCallerPCOffset);
+  STATIC_ASSERT(offsetof(IsolateData, stack_is_iterable_) ==
+                kStackIsIterableOffset);
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
 }
 

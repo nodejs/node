@@ -365,7 +365,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32PushFloat64:
     case kIA32PushSimd128:
     case kIA32Poke:
-    case kLFence:
+    case kIA32MFence:
+    case kIA32LFence:
       return kHasSideEffect;
 
     case kIA32Word32AtomicPairLoad:

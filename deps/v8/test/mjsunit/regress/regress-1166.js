@@ -29,10 +29,14 @@
 
 // Deoptimization after a short-circuit logical operation in an effect
 // context should not see the value of the expression.
-function observe(x, y) { return x; }
+function observe(x, y) {
+  return x;
+}
 
-function test(x) { return observe(1, ((false || false), x + 1)); }
-
+function test(x) {
+  return observe(1, (false || false, x + 1));
+};
+%PrepareFunctionForOptimization(test);
 for (var i = 0; i < 5; ++i) test(0);
 %OptimizeFunctionOnNextCall(test);
 test(0);

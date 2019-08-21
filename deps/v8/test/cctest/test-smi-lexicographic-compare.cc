@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-void AddSigned(std::set<Smi>& smis, int64_t x) {
+void AddSigned(std::set<Smi>& smis, int64_t x) {  // NOLINT(runtime/references)
   if (!Smi::IsValid(x)) return;
 
   smis.insert(Smi::FromInt(static_cast<int>(x)));

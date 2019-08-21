@@ -44,6 +44,9 @@ class FreeSpace : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FREE_SPACE_FIELDS)
 
+ private:
+  inline bool IsValid();
+
   OBJECT_CONSTRUCTORS(FreeSpace, HeapObject);
 };
 
