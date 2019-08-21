@@ -52,7 +52,7 @@ function get(path, callback) {
     port: server.address().port,
     agent: agent,
     path: path
-  }, callback);
+  }, callback).on('socket', common.mustCall(checkListeners));
 }
 
 function checkDataAndSockets(body) {
@@ -134,3 +134,12 @@ server.listen(0, common.mustCall(() => {
     }));
   }));
 }));
+
+// Check for listener leaks when reusing sockets.
+function checkListeners(socket) {
+  assert.strictEqual(socket.listenerCount('data'), 1);
+  assert.strictEqual(socket.listenerCount('drain'), 1);
+  assert.strictEqual(socket.listenerCount('error'), 1);
+  // Sockets have onReadableStreamEnd.
+  assert.strictEqual(socket.listenerCount('end'), 2);
+}
