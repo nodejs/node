@@ -339,9 +339,9 @@ from `data:text/javascript,import "./foo";` will fail to resolve since there
 is no concept of relative resolution for `data:` URLs. An example of a `data:`
 URLs being used is:
 
-```mjs
-import 'data:text/javascript,console.log("hello!");'
-import _ from 'data:application/json,"world!"'
+```js
+import 'data:text/javascript,console.log("hello!");';
+import _ from 'data:application/json,"world!"';
 ```
 
 ## import.meta
@@ -894,18 +894,18 @@ $ node --experimental-modules --es-module-specifier-resolution=node index
 success!
 ```
 
-[Terminology]: #esm_terminology
-[`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-[`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
-[`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
-[`import()`]: #esm_import-expressions
-[`import.meta.url`]: #esm_import_meta
-[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [CommonJS]: modules.html
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
-[Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
-[special scheme]: https://url.spec.whatwg.org/#special-scheme
-[WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[Terminology]: #esm_terminology
+[WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
+[`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+[`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
+[`import()`]: #esm_import-expressions
+[`import.meta.url`]: #esm_import_meta
+[`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
+[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
