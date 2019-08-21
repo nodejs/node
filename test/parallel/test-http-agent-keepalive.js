@@ -140,9 +140,21 @@ server.listen(0, common.mustCall(() => {
 
 // Check for listener leaks when reusing sockets.
 function checkListeners(socket) {
-  assert.strictEqual(socket.listenerCount('data'), 1);
-  assert.strictEqual(socket.listenerCount('drain'), 1);
+  const callback = common.mustCall(() => {
+    if (!socket.destroyed) {
+      assert.strictEqual(socket.listenerCount('data'), 0);
+      assert.strictEqual(socket.listenerCount('drain'), 0);
+      // Sockets have freeSocketErrorListener.
+      assert.strictEqual(socket.listenerCount('error'), 1);
+      // Sockets have onReadableStreamEnd.
+      assert.strictEqual(socket.listenerCount('end'), 1);
+    }
+
+    socket.off('free', callback);
+    socket.off('close', callback);
+  });
   assert.strictEqual(socket.listenerCount('error'), 1);
-  // Sockets have onReadableStreamEnd.
   assert.strictEqual(socket.listenerCount('end'), 2);
+  socket.once('free', callback);
+  socket.once('close', callback);
 }
