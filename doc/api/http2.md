@@ -620,6 +620,8 @@ instance's underlying [`net.Socket`].
 added: v8.4.0
 -->
 
+* Extends: {Http2Session}
+
 #### serverhttp2session.altsvc(alt, originOrStream)
 <!-- YAML
 added: v9.4.0
@@ -741,6 +743,8 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 -->
+
+* Extends: {Http2Session}
 
 #### Event: 'altsvc'
 <!-- YAML
