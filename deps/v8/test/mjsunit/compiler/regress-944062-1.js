@@ -9,14 +9,14 @@ let b = false;
 
 function f() {
   if (b) array[100000] = 4.2;  // go to dictionary mode
-  return 42
+  return 42;
 };
 %NeverOptimizeFunction(f);
 
 function includes() {
   return array.includes(f());
-}
-
+};
+%PrepareFunctionForOptimization(includes);
 assertTrue(includes());
 assertTrue(includes());
 %OptimizeFunctionOnNextCall(includes);

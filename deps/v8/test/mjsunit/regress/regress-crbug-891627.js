@@ -18,6 +18,7 @@ bar(0.1);
     return bar(x | -1) == 4294967295;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(1));
   assertFalse(foo(0));
   %OptimizeFunctionOnNextCall(foo);
@@ -35,6 +36,7 @@ bar(0.1);
   makeFoo(0);  // Defeat the function context specialization.
   const foo = makeFoo(1);
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo(1));
   assertFalse(foo(0));
   %OptimizeFunctionOnNextCall(foo);

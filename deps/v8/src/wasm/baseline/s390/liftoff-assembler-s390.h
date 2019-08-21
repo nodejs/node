@@ -7,20 +7,19 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#define BAILOUT(reason) bailout("s390 " reason)
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
 int LiftoffAssembler::PrepareStackFrame() {
-  BAILOUT("PrepareStackFrame");
+  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
   return 0;
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
-  BAILOUT("PatchPrepareStackFrame");
+  bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -29,136 +28,136 @@ void LiftoffAssembler::AbortCompilation() {}
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  BAILOUT("LoadConstant");
+  bailout(kUnsupportedArchitecture, "LoadConstant");
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
                                         int size) {
-  BAILOUT("LoadFromInstance");
+  bailout(kUnsupportedArchitecture, "LoadFromInstance");
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      uint32_t offset) {
-  BAILOUT("LoadTaggedPointerFromInstance");
+  bailout(kUnsupportedArchitecture, "LoadTaggedPointerFromInstance");
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  BAILOUT("SpillInstance");
+  bailout(kUnsupportedArchitecture, "SpillInstance");
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  BAILOUT("FillInstanceInto");
+  bailout(kUnsupportedArchitecture, "FillInstanceInto");
 }
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          uint32_t offset_imm,
                                          LiftoffRegList pinned) {
-  BAILOUT("LoadTaggedPointer");
+  bailout(kUnsupportedArchitecture, "LoadTaggedPointer");
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  BAILOUT("Load");
+  bailout(kUnsupportedArchitecture, "Load");
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  BAILOUT("Store");
+  bailout(kUnsupportedArchitecture, "Store");
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  BAILOUT("LoadCallerFrameSlot");
+  bailout(kUnsupportedArchitecture, "LoadCallerFrameSlot");
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  BAILOUT("MoveStackValue");
+  bailout(kUnsupportedArchitecture, "MoveStackValue");
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
-  BAILOUT("Move Register");
+  bailout(kUnsupportedArchitecture, "Move Register");
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
-  BAILOUT("Move DoubleRegister");
+  bailout(kUnsupportedArchitecture, "Move DoubleRegister");
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  BAILOUT("Spill register");
+  bailout(kUnsupportedArchitecture, "Spill register");
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  BAILOUT("Spill value");
+  bailout(kUnsupportedArchitecture, "Spill value");
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  BAILOUT("Fill");
+  bailout(kUnsupportedArchitecture, "Fill");
 }
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
-  BAILOUT("FillI64Half");
+  bailout(kUnsupportedArchitecture, "FillI64Half");
 }
 
 #define UNIMPLEMENTED_I32_BINOP(name)                            \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
-    BAILOUT("i32 binop: " #name);                                \
+    bailout(kUnsupportedArchitecture, "i32 binop: " #name);      \
   }
 #define UNIMPLEMENTED_I32_BINOP_I(name)                          \
   UNIMPLEMENTED_I32_BINOP(name)                                  \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      int32_t imm) {              \
-    BAILOUT("i32 binop_i: " #name);                              \
+    bailout(kUnsupportedArchitecture, "i32 binop_i: " #name);    \
   }
 #define UNIMPLEMENTED_I64_BINOP(name)                                          \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
-    BAILOUT("i64 binop: " #name);                                              \
+    bailout(kUnsupportedArchitecture, "i64 binop: " #name);                    \
   }
 #define UNIMPLEMENTED_I64_BINOP_I(name)                                        \
   UNIMPLEMENTED_I64_BINOP(name)                                                \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      int32_t imm) {                            \
-    BAILOUT("i64 binop_i: " #name);                                            \
+    bailout(kUnsupportedArchitecture, "i64 binop_i: " #name);                  \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    BAILOUT("gp unop: " #name);                                    \
+    bailout(kUnsupportedArchitecture, "gp unop: " #name);          \
     return true;                                                   \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
-    BAILOUT("fp binop: " #name);                                             \
+    bailout(kUnsupportedArchitecture, "fp binop: " #name);                   \
   }
 #define UNIMPLEMENTED_FP_UNOP(name)                                            \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop: " #name);                                                \
+    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
   }
 #define UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(name)                                \
   bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop: " #name);                                                \
+    bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
     return true;                                                               \
   }
 #define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i32 shiftop: " #name);                                            \
+    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);                  \
   }
 #define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i64 shiftop: " #name);                                            \
+    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 
 UNIMPLEMENTED_I32_BINOP_I(i32_add)
@@ -227,65 +226,65 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i32_divs");
+  bailout(kUnsupportedArchitecture, "i32_divs");
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_divu");
+  bailout(kUnsupportedArchitecture, "i32_divu");
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_rems");
+  bailout(kUnsupportedArchitecture, "i32_rems");
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i32_remu");
+  bailout(kUnsupportedArchitecture, "i32_remu");
 }
 
 void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, int amount) {
-  BAILOUT("i32_shr");
+  bailout(kUnsupportedArchitecture, "i32_shr");
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  BAILOUT("i64_divs");
+  bailout(kUnsupportedArchitecture, "i64_divs");
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_divu");
+  bailout(kUnsupportedArchitecture, "i64_divu");
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_rems");
+  bailout(kUnsupportedArchitecture, "i64_rems");
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  BAILOUT("i64_remu");
+  bailout(kUnsupportedArchitecture, "i64_remu");
   return true;
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
                                     int amount) {
-  BAILOUT("i64_shr");
+  bailout(kUnsupportedArchitecture, "i64_shr");
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 #ifdef V8_TARGET_ARCH_S390X
-  BAILOUT("emit_i32_to_intptr");
+  bailout(kUnsupportedArchitecture, "emit_i32_to_intptr");
 #else
 // This is a nop on s390.
 #endif
@@ -294,96 +293,100 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
-  BAILOUT("emit_type_conversion");
+  bailout(kUnsupportedArchitecture, "emit_type_conversion");
   return true;
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i8");
+  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i16");
+  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i8");
+  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i16");
+  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i32");
+  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i32");
 }
 
-void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Label* label) {
+  bailout(kUnsupportedArchitecture, "emit_jump");
+}
 
-void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Register target) {
+  bailout(kUnsupportedArchitecture, "emit_jump");
+}
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {
-  BAILOUT("emit_cond_jump");
+  bailout(kUnsupportedArchitecture, "emit_cond_jump");
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  BAILOUT("emit_i32_eqz");
+  bailout(kUnsupportedArchitecture, "emit_i32_eqz");
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  BAILOUT("emit_i32_set_cond");
+  bailout(kUnsupportedArchitecture, "emit_i32_set_cond");
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  BAILOUT("emit_i64_eqz");
+  bailout(kUnsupportedArchitecture, "emit_i64_eqz");
 }
 
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  BAILOUT("emit_i64_set_cond");
+  bailout(kUnsupportedArchitecture, "emit_i64_set_cond");
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f32_set_cond");
+  bailout(kUnsupportedArchitecture, "emit_f32_set_cond");
 }
 
 void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("emit_f64_set_cond");
+  bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  BAILOUT("StackCheck");
+  bailout(kUnsupportedArchitecture, "StackCheck");
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  BAILOUT("CallTrapCallbackForTesting");
+  bailout(kUnsupportedArchitecture, "CallTrapCallbackForTesting");
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  BAILOUT("AssertUnreachable");
+  bailout(kUnsupportedArchitecture, "AssertUnreachable");
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
-  BAILOUT("PushRegisters");
+  bailout(kUnsupportedArchitecture, "PushRegisters");
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  BAILOUT("PopRegisters");
+  bailout(kUnsupportedArchitecture, "PopRegisters");
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  BAILOUT("DropStackSlotsAndRet");
+  bailout(kUnsupportedArchitecture, "DropStackSlotsAndRet");
 }
 
 void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
@@ -391,33 +394,33 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  BAILOUT("CallC");
+  bailout(kUnsupportedArchitecture, "CallC");
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
-  BAILOUT("CallNativeWasmCode");
+  bailout(kUnsupportedArchitecture, "CallNativeWasmCode");
 }
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  BAILOUT("CallIndirect");
+  bailout(kUnsupportedArchitecture, "CallIndirect");
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  BAILOUT("CallRuntimeStub");
+  bailout(kUnsupportedArchitecture, "CallRuntimeStub");
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  BAILOUT("AllocateStackSlot");
+  bailout(kUnsupportedArchitecture, "AllocateStackSlot");
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  BAILOUT("DeallocateStackSlot");
+  bailout(kUnsupportedArchitecture, "DeallocateStackSlot");
 }
 
 void LiftoffStackSlots::Construct() {
-  asm_->BAILOUT("LiftoffStackSlots::Construct");
+  asm_->bailout(kUnsupportedArchitecture, "LiftoffStackSlots::Construct");
 }
 
 }  // namespace wasm

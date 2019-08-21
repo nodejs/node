@@ -1245,7 +1245,7 @@ char* DoubleToRadixCString(double value, int radix) {
   double delta = 0.5 * (Double(value).NextDouble() - value);
   delta = std::max(Double(0.0).NextDouble(), delta);
   DCHECK_GT(delta, 0.0);
-  if (fraction > delta) {
+  if (fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {
@@ -1280,7 +1280,7 @@ char* DoubleToRadixCString(double value, int radix) {
           break;
         }
       }
-    } while (fraction > delta);
+    } while (fraction >= delta);
   }
 
   // Compute integer digits. Fill unrepresented digits with zero.

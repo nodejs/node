@@ -15,8 +15,10 @@ function f(a, b, c) {
 // The {g} function is compiled using Ignition.
 // 1) The call to {f} requires arguments adaptation.
 // 2) The call to {f} is not in tail position.
+;
+%PrepareFunctionForOptimization(f);
 function g() {
-  return f() + "-no-tail";
+  return f() + '-no-tail';
 }
 
 assertEquals("true-no-tail", g());

@@ -12,12 +12,12 @@ namespace internal {
 
 class StressMarkingObserver : public AllocationObserver {
  public:
-  explicit StressMarkingObserver(Heap& heap);
+  explicit StressMarkingObserver(Heap* heap);
 
   void Step(int bytes_allocated, Address soon_object, size_t size) override;
 
  private:
-  Heap& heap_;
+  Heap* heap_;
 };
 
 }  // namespace internal

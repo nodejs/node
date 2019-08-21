@@ -29,8 +29,8 @@ namespace typed_array_find {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.find
   transitioning javascript builtin
-  TypedArrayPrototypeFind(implicit context:
-                              Context)(receiver: Object, ...arguments): Object {
+  TypedArrayPrototypeFind(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = thisArg
     try {

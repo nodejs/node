@@ -238,7 +238,7 @@ TEST(GetAvailableLocales) {
   CHECK(locales.count("en-US"));
 
   locales = JSPluralRules::GetAvailableLocales();
-  CHECK(locales.count("en-US"));
+  CHECK(locales.count("en"));
 
   locales = JSRelativeTimeFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));

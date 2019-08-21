@@ -897,6 +897,8 @@ TEST(DisasmIa320) {
     __ Nop(i);
   }
 
+  __ mfence();
+  __ lfence();
   __ pause();
   __ ret(0);
 

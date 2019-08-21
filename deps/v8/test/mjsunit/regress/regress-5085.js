@@ -4,31 +4,31 @@
 
 // Flags: --allow-natives-syntax
 
-g = async function () {
+g = async function() {
   await 10;
-}
-assertEquals(undefined, g.prototype)
+};
+assertEquals(undefined, g.prototype);
 g();
-assertEquals(undefined, g.prototype)
+assertEquals(undefined, g.prototype);
 
-gen = function* () {
+gen = function*() {
   yield 10;
-}
-assertTrue(gen.prototype != undefined && gen.prototype != null)
-gen()
-assertTrue(gen.prototype != undefined && gen.prototype != null)
+};
+assertTrue(gen.prototype != undefined && gen.prototype != null);
+gen();
+assertTrue(gen.prototype != undefined && gen.prototype != null);
 
-async_gen = async function* () {
+async_gen = async function*() {
   yield 10;
-}
-assertTrue(async_gen.prototype != undefined && async_gen.prototype != null)
-async_gen()
-assertTrue(async_gen.prototype != undefined && async_gen.prototype != null)
+};
+assertTrue(async_gen.prototype != undefined && async_gen.prototype != null);
+async_gen();
+assertTrue(async_gen.prototype != undefined && async_gen.prototype != null);
 
 function foo(x) {
   return x instanceof Proxy;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 function test_for_exception() {
   caught_exception = false;
   try {
@@ -39,7 +39,7 @@ function test_for_exception() {
         'Function has non-object prototype \'undefined\' in instanceof check',
         e.message);
   } finally {
-    assertTrue(caught_exception)
+    assertTrue(caught_exception);
   }
 }
 
@@ -54,7 +54,7 @@ assertTrue((() => {}) instanceof Proxy);
 assertEquals(
     new Proxy({}, {
       get(o, s) {
-        return s
+        return s;
       }
     }).test,
     'test');
@@ -63,6 +63,7 @@ Proxy.__proto__ = {
   prototype: {b: 2},
   a: 1
 };
+
 assertEquals(Proxy.prototype, {b: 2});
 
 (function testProxyCreationContext() {

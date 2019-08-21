@@ -16,7 +16,6 @@ namespace internal {
 
 enum NativeType {
   EXTRAS,
-  TEST
 };
 
 // Extra handling for V8_EXPORT_PRIVATE in combination with USING_V8_SHARED

@@ -287,7 +287,8 @@ void Accessors::StringLengthGetter(
   if (!value.IsString()) {
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
-    value = JSValue::cast(*Utils::OpenHandle(*info.Holder())).value();
+    value =
+        JSPrimitiveWrapper::cast(*Utils::OpenHandle(*info.Holder())).value();
   }
   Object result = Smi::FromInt(String::cast(value).length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
@@ -305,7 +306,7 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 static Handle<Object> GetFunctionPrototype(Isolate* isolate,
                                            Handle<JSFunction> function) {
   if (!function->has_prototype()) {
-    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
+    Handle<JSObject> proto = isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
   }
   return Handle<Object>(function->prototype(), isolate);

@@ -13,7 +13,7 @@ namespace torque {
 namespace {
 
 struct TestCompiler {
-  SourceFileMap::Scope file_map_scope;
+  SourceFileMap::Scope file_map_scope{""};
   LanguageServerData::Scope server_data_scope;
 
   void Compile(const std::string& source) {
@@ -23,7 +23,7 @@ struct TestCompiler {
     options.force_assert_statements = true;
 
     TorqueCompilerResult result = CompileTorque(source, options);
-    SourceFileMap::Get() = result.source_file_map;
+    SourceFileMap::Get() = *result.source_file_map;
     LanguageServerData::Get() = std::move(result.language_server_data);
   }
 };
@@ -42,7 +42,7 @@ TEST(LanguageServer, GotoTypeDefinition) {
   compiler.Compile(source);
 
   // Find the definition for type 'T1' of argument 'a' on line 4.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {4, 19});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
@@ -64,7 +64,7 @@ TEST(LanguageServer, GotoTypeDefinitionExtends) {
   compiler.Compile(source);
 
   // Find the definition for 'T1' of the extends clause on line 3.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {3, 16});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
@@ -72,7 +72,7 @@ TEST(LanguageServer, GotoTypeDefinitionExtends) {
 
 TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope file_scope;
+  SourceFileMap::Scope file_scope("");
   SourceId test_id = SourceFileMap::AddSource("test.tq");
 
   // Regression test, this step should not crash.
@@ -94,7 +94,7 @@ TEST(LanguageServer, GotoLabelDefinitionInSignature) {
   compiler.Compile(source);
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {6, 18});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {5, 19}, {5, 26}}));
@@ -116,7 +116,7 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
   compiler.Compile(source);
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {6, 25});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
@@ -133,7 +133,7 @@ TEST(LanguageServer, GotoDefinitionClassSuperType) {
   compiler.Compile(source);
 
   // Find the definition for 'Tagged' of the 'extends' on line 3.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {3, 33});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 11}}));
@@ -151,7 +151,7 @@ TEST(LanguageServer, GotoLabelDefinitionInSignatureGotoStmt) {
   compiler.Compile(source);
 
   // Find the definition for 'Fail' of the goto statement on line 3.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {3, 7});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 26}, {2, 30}}));
@@ -170,7 +170,7 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlockGoto) {
   compiler.Compile(source);
 
   // Find the definition for 'Bailout' of the goto statement on line 3.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {3, 13});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {4, 8}, {4, 15}}));
@@ -192,7 +192,7 @@ TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
   compiler.Compile(source);
 
   // Find the definition for 'Bailout' of the otherwise clause on line 6.
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   auto maybe_position = LanguageServerData::FindDefinition(id, {6, 30});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
@@ -214,7 +214,7 @@ TEST(LanguageServer, SymbolsArePopulated) {
   TestCompiler compiler;
   compiler.Compile(source);
 
-  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const SourceId id = SourceFileMap::GetSourceId("dummy-filename.tq");
   const auto& symbols = LanguageServerData::SymbolsForSourceId(id);
   ASSERT_FALSE(symbols.empty());
 }

@@ -52,6 +52,9 @@ Node* GraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return jsgraph()->HeapConstant(object);
 }
 
+Node* GraphAssembler::NumberConstant(double value) {
+  return jsgraph()->Constant(value);
+}
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return jsgraph()->ExternalConstant(ref);
@@ -218,6 +221,12 @@ Node* GraphAssembler::BitcastWordToTagged(Node* value) {
 Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
   return current_effect_ =
              graph()->NewNode(machine()->BitcastTaggedToWord(), value,
+                              current_effect_, current_control_);
+}
+
+Node* GraphAssembler::BitcastTaggedSignedToWord(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->BitcastTaggedSignedToWord(), value,
                               current_effect_, current_control_);
 }
 

@@ -151,7 +151,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
     kReliableReceiverMaps,   // Receiver maps can be trusted.
     kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
   };
-  static InferReceiverMapsResult InferReceiverMaps(
+  // DO NOT USE InferReceiverMapsUnsafe IN NEW CODE. Use MapInference instead.
+  static InferReceiverMapsResult InferReceiverMapsUnsafe(
       JSHeapBroker* broker, Node* receiver, Node* effect,
       ZoneHandleSet<Map>* maps_return);
 

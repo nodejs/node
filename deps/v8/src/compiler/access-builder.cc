@@ -14,9 +14,9 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/source-text-module.h"
 
 namespace v8 {
 namespace internal {
@@ -67,6 +67,26 @@ FieldAccess AccessBuilder::ForBigIntBitfield() {
   FieldAccess access = {
       kTaggedBase,        BigInt::kBitfieldOffset,  MaybeHandle<Name>(),
       MaybeHandle<Map>(), TypeCache::Get()->kInt32, MachineType::Uint32(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForBigIntOptionalPadding() {
+  DCHECK_EQ(FIELD_SIZE(BigInt::kOptionalPaddingOffset), 4);
+  FieldAccess access = {
+      kTaggedBase,        BigInt::kOptionalPaddingOffset, MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kInt32,       MachineType::Uint32(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForBigIntLeastSignificantDigit64() {
+  DCHECK_EQ(BigInt::SizeFor(1) - BigInt::SizeFor(0), 8);
+  FieldAccess access = {
+      kTaggedBase,        BigInt::kDigitsOffset,        MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kBigUint64, MachineType::Uint64(),
       kNoWriteBarrier};
   return access;
 }
@@ -626,7 +646,7 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularExports() {
   FieldAccess access = {
-      kTaggedBase,           Module::kRegularExportsOffset,
+      kTaggedBase,           SourceTextModule::kRegularExportsOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
       kPointerWriteBarrier};
@@ -636,7 +656,7 @@ FieldAccess AccessBuilder::ForModuleRegularExports() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularImports() {
   FieldAccess access = {
-      kTaggedBase,           Module::kRegularImportsOffset,
+      kTaggedBase,           SourceTextModule::kRegularImportsOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
       kPointerWriteBarrier};
@@ -847,7 +867,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
 // static
 FieldAccess AccessBuilder::ForValue() {
   FieldAccess access = {
-      kTaggedBase,         JSValue::kValueOffset,
+      kTaggedBase,         JSPrimitiveWrapper::kValueOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::NonInternal(), MachineType::TypeCompressedTagged(),
       kFullWriteBarrier};

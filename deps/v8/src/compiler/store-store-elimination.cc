@@ -6,6 +6,7 @@
 
 #include "src/compiler/store-store-elimination.h"
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
@@ -129,7 +130,8 @@ namespace {
 
 class RedundantStoreFinder final {
  public:
-  RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone);
+  RedundantStoreFinder(JSGraph* js_graph, TickCounter* tick_counter,
+                       Zone* temp_zone);
 
   void Find();
 
@@ -157,6 +159,7 @@ class RedundantStoreFinder final {
   ZoneSet<Node*>& to_remove() { return to_remove_; }
 
   JSGraph* const jsgraph_;
+  TickCounter* const tick_counter_;
   Zone* const temp_zone_;
 
   ZoneStack<Node*> revisit_;
@@ -199,6 +202,7 @@ void RedundantStoreFinder::Find() {
   Visit(jsgraph()->graph()->end());
 
   while (!revisit_.empty()) {
+    tick_counter_->DoTick();
     Node* next = revisit_.top();
     revisit_.pop();
     DCHECK_LT(next->id(), in_revisit_.size());
@@ -230,9 +234,10 @@ bool RedundantStoreFinder::HasBeenVisited(Node* node) {
   return !unobservable_for_id(node->id()).IsUnvisited();
 }
 
-void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
+void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
+                                Zone* temp_zone) {
   // Find superfluous nodes
-  RedundantStoreFinder finder(js_graph, temp_zone);
+  RedundantStoreFinder finder(js_graph, tick_counter, temp_zone);
   finder.Find();
 
   // Remove superfluous nodes
@@ -336,8 +341,11 @@ bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
 }
 
 // Initialize unobservable_ with js_graph->graph->NodeCount() empty sets.
-RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone)
+RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph,
+                                           TickCounter* tick_counter,
+                                           Zone* temp_zone)
     : jsgraph_(js_graph),
+      tick_counter_(tick_counter),
       temp_zone_(temp_zone),
       revisit_(temp_zone),
       in_revisit_(js_graph->graph()->NodeCount(), temp_zone),

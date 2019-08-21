@@ -20,7 +20,6 @@ BUILTIN(MathHypot) {
   if (length == 0) return Smi::kZero;
   DCHECK_LT(0, length);
   double max = 0;
-  bool one_arg_is_nan = false;
   std::vector<double> abs_values;
   abs_values.reserve(length);
   for (int i = 0; i < length; i++) {
@@ -28,29 +27,20 @@ BUILTIN(MathHypot) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
                                        Object::ToNumber(isolate, x));
     double abs_value = std::abs(x->Number());
-
-    if (std::isnan(abs_value)) {
-      one_arg_is_nan = true;
-    } else {
-      abs_values.push_back(abs_value);
-      if (max < abs_value) {
-        max = abs_value;
-      }
+    abs_values.push_back(abs_value);
+    // Use negation here to make sure that {max} is NaN
+    // in the end in case any of the arguments was NaN.
+    if (!(abs_value <= max)) {
+      max = abs_value;
     }
-  }
-
-  if (max == V8_INFINITY) {
-    return *isolate->factory()->NewNumber(V8_INFINITY);
-  }
-
-  if (one_arg_is_nan) {
-    return ReadOnlyRoots(isolate).nan_value();
   }
 
   if (max == 0) {
     return Smi::kZero;
+  } else if (max == V8_INFINITY) {
+    return ReadOnlyRoots(isolate).infinity_value();
   }
-  DCHECK_GT(max, 0);
+  DCHECK(!(max <= 0));
 
   // Kahan summation to avoid rounding errors.
   // Normalize the numbers to the largest one to avoid overflow.

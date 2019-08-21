@@ -184,7 +184,7 @@ void Sweeper::StartSweeperTasks() {
 
 void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
   if (!page->SweepingDone()) {
-    ParallelSweepPage(page, page->owner()->identity());
+    ParallelSweepPage(page, page->owner_identity());
     if (!page->SweepingDone()) {
       // We were not able to sweep that page, i.e., a concurrent
       // sweeper thread currently owns this page. Wait for the sweeper
@@ -370,7 +370,9 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   p->set_concurrent_sweeping_state(Page::kSweepingDone);
   if (code_object_registry) code_object_registry->Finalize();
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
-  return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
+
+  return static_cast<int>(
+      p->free_list()->GuaranteedAllocatable(max_freed_bytes));
 }
 
 void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {
@@ -500,7 +502,7 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
 }
 
 void Sweeper::EnsurePageIsIterable(Page* page) {
-  AllocationSpace space = page->owner()->identity();
+  AllocationSpace space = page->owner_identity();
   if (IsValidSweepingSpace(space)) {
     SweepOrWaitUntilSweepingCompleted(page);
   } else {
@@ -573,7 +575,7 @@ void Sweeper::AddPageForIterability(Page* page) {
   DCHECK(sweeping_in_progress_);
   DCHECK(iterability_in_progress_);
   DCHECK(!iterability_task_started_);
-  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  DCHECK(IsValidIterabilitySpace(page->owner_identity()));
   DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
 
   iterability_list_.push_back(page);
@@ -581,7 +583,7 @@ void Sweeper::AddPageForIterability(Page* page) {
 }
 
 void Sweeper::MakeIterable(Page* page) {
-  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  DCHECK(IsValidIterabilitySpace(page->owner_identity()));
   const FreeSpaceTreatmentMode free_space_mode =
       Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
   RawSweep(page, IGNORE_FREE_LIST, free_space_mode);

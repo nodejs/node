@@ -1,4 +1,4 @@
-*%(basename)s:5: ReferenceError: Invalid left-hand side expression in postfix operation
+*%(basename)s:5: SyntaxError: Invalid left-hand side expression in postfix operation
 function f() { new.target++ }
                ^^^^^^^^^^
-ReferenceError: Invalid left-hand side expression in postfix operation
+SyntaxError: Invalid left-hand side expression in postfix operation

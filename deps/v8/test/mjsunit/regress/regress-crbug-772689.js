@@ -9,13 +9,13 @@ const A = class A extends Array {
     super();
     this.y = 1;
   }
-}
+};
 
 function foo(x) {
   var a = new A();
   if (x) return a.y;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertEquals(undefined, foo(false));
 assertEquals(undefined, foo(false));
 %OptimizeFunctionOnNextCall(foo);

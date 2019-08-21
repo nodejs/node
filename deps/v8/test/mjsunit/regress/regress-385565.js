@@ -61,6 +61,7 @@ assertTrue(r2 === r3);
 
 %OptimizeFunctionOnNextCall(callsFReceiver);
 r1 = callsFReceiver(o1);
+%PrepareFunctionForOptimization(callsFReceiver);
 callsFReceiver(o1);
 %OptimizeFunctionOnNextCall(callsFReceiver);
 r2 = callsFReceiver(o1);

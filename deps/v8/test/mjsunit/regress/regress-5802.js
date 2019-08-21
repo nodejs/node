@@ -9,11 +9,13 @@
 
   var o = { [Symbol.toPrimitive]: () => "o" };
 
+  %PrepareFunctionForOptimization(eq);
   assertTrue(eq(o, o));
   assertTrue(eq(o, o));
   %OptimizeFunctionOnNextCall(eq);
   assertTrue(eq(o, o));
   assertTrue(eq("o", o));
+  %PrepareFunctionForOptimization(eq);
   assertTrue(eq(o, "o"));
   %OptimizeFunctionOnNextCall(eq);
   assertTrue(eq(o, o));
@@ -27,11 +29,13 @@
 
   var o = { [Symbol.toPrimitive]: () => "o" };
 
+  %PrepareFunctionForOptimization(ne);
   assertFalse(ne(o, o));
   assertFalse(ne(o, o));
   %OptimizeFunctionOnNextCall(ne);
   assertFalse(ne(o, o));
   assertFalse(ne("o", o));
+  %PrepareFunctionForOptimization(ne);
   assertFalse(ne(o, "o"));
   %OptimizeFunctionOnNextCall(ne);
   assertFalse(ne(o, o));
@@ -47,6 +51,7 @@
   var b = {b};
   var u = %GetUndetectable();
 
+  %PrepareFunctionForOptimization(eq);
   assertTrue(eq(a, a));
   assertTrue(eq(b, b));
   assertFalse(eq(a, b));
@@ -61,6 +66,7 @@
   assertFalse(eq(a, b));
   assertFalse(eq(b, a));
   assertTrue(eq(null, u));
+  %PrepareFunctionForOptimization(eq);
   assertTrue(eq(undefined, u));
   assertTrue(eq(u, null));
   assertTrue(eq(u, undefined));
@@ -83,6 +89,7 @@
   var b = {b};
   var u = %GetUndetectable();
 
+  %PrepareFunctionForOptimization(ne);
   assertFalse(ne(a, a));
   assertFalse(ne(b, b));
   assertTrue(ne(a, b));
@@ -97,6 +104,7 @@
   assertTrue(ne(a, b));
   assertTrue(ne(b, a));
   assertFalse(ne(null, u));
+  %PrepareFunctionForOptimization(ne);
   assertFalse(ne(undefined, u));
   assertFalse(ne(u, null));
   assertFalse(ne(u, undefined));

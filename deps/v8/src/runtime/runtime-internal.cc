@@ -8,11 +8,11 @@
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/builtins.h"
+#include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
@@ -94,6 +94,22 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    DCHECK_LE(1, args.length());
+    CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+
+    // If the result of a BigInt computation is truncated to 64 bit, Turbofan
+    // can sometimes truncate intermediate results already, which can prevent
+    // those from exceeding the maximum length, effectively preventing a
+    // RangeError from being thrown. As this is a performance optimization, this
+    // behavior is accepted. To prevent the correctness fuzzer from detecting
+    // this difference, we crash the program.
+    if (MessageTemplateFromInt(message_id_smi) ==
+        MessageTemplate::kBigIntTooBig) {
+      FATAL("Aborting on invalid BigInt length");
+    }
+  }
+
   THROW_ERROR(isolate, args, NewRangeError);
 }
 
@@ -287,13 +303,25 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  bool allow_large_object_allocation =
+      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   CHECK(FLAG_young_generation_large_objects ||
         size <= kMaxRegularHeapObjectSize);
-  return *isolate->factory()->NewFillerObject(size, false,
+  if (!allow_large_object_allocation) {
+    CHECK(size <= kMaxRegularHeapObjectSize);
+  }
+
+  // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
+  // allocations, don't request it.
+  double_align = false;
+
+  return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kYoung);
 }
 
@@ -302,9 +330,14 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  bool allow_large_object_allocation =
+      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  if (!allow_large_object_allocation) {
+    CHECK(size <= kMaxRegularHeapObjectSize);
+  }
   return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kOld);
 }
@@ -695,7 +728,8 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared_info, 1);
   CONVERT_SMI_ARG_CHECKED(slot_id, 2);
 
-  Handle<Context> native_context(isolate->context().native_context(), isolate);
+  Handle<NativeContext> native_context(isolate->context().native_context(),
+                                       isolate);
   return *TemplateObjectDescription::GetTemplateObject(
       isolate, native_context, description, shared_info, slot_id);
 }

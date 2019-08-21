@@ -20,22 +20,36 @@ function help() {
   print("  !job(address_or_taggedint)");
   print("      prints object at the address, e.g. !job(0x235cb869f9)");
   print("  !jobs(start_address, count)");
-  print("      prints 'count' objects from a continuous range of Object pointers");
-  print("      e.g. !jobs(0x5f7270, 42)");
+  print("      prints 'count' objects from a continuous range of Object");
+  print("      pointers, e.g. !jobs(0x5f7270, 42)");
   print("  !jst() or !jst");
   print("      prints javascript stack (output goes into the console)");
   print("  !jsbp() or !jsbp");
-  print("      sets bp in v8::internal::Execution::Call (begin user's script)");
+  print("      sets bp in v8::internal::Execution::Call");
   print("");
   print("--------------------------------------------------------------------");
-  print("  to run any function from this script (live or postmortem):");
+  print("  Managed heap");
+  print("--------------------------------------------------------------------");
+  print("  !set_iso(isolate_address)");
+  print("      call this function before using !mem or other heap routines");
+  print("  !mem or !mem(\"space1[ space2 ...]\")");
+  print("      prints memory chunks from the 'space' owned by the heap in the");
+  print("      isolate set by !set_iso; valid values for 'space' are:");
+  print("      new, old, map, code, lo [large], nlo [newlarge], ro [readonly]");
+  print("      if no 'space' specified prints memory chunks for all spaces,");
+  print("      e.g. !mem(\"code\"), !mem(\"ro new old\")");
+  print("  !where(address)");
+  print("      prints name of the space and address of the MemoryChunk the");
+  print("      'address' is from, e.g. !where(0x235cb869f9)");
+  print("");
+  print("--------------------------------------------------------------------");
+  print("  To run any function from this script (live or postmortem):");
   print("");
   print("  dx @$scriptContents.function_name(args)");
   print("      e.g. dx @$scriptContents.pointer_size()");
-  print("      e.g. dx @$scriptContents.module_name('v8_test')");
+  print("      e.g. dx @$scriptContents.module_name(\"v8_for_test\")");
   print("--------------------------------------------------------------------");
 }
-
 
 /*=============================================================================
   Output
@@ -222,6 +236,170 @@ function set_user_js_bp() {
   ctl.ExecuteCommand(`bp ${module_name()}!v8::internal::Execution::Call`)
 }
 
+
+/*=============================================================================
+  Managed heap related functions (live and post-mortem debugging)
+=============================================================================*/
+let isolate_address = 0;
+function set_isolate_address(addr) {
+  isolate_address = addr;
+}
+
+/*-----------------------------------------------------------------------------
+    Memory in each Space is organized into a linked list of memory chunks
+-----------------------------------------------------------------------------*/
+const NEVER_EVACUATE = 1 << 7; // see src\heap\spaces.h
+
+function print_memory_chunk_list(space_type, front, top, age_mark) {
+  let alloc_pos = top ? ` (allocating at: ${top})` : "";
+  let age_mark_pos = age_mark ? ` (age_mark at: ${top})` : "";
+  print(`${space_type}${alloc_pos}${age_mark_pos}:`);
+  if (front.isNull) {
+    print("<empty>\n");
+    return;
+  }
+
+  let cur = front;
+  while (!cur.isNull) {
+    let imm = cur.flags_ & NEVER_EVACUATE ? "*" : " ";
+    let addr = `0x${cur.address.toString(16)}`;
+    let area =
+      `0x${cur.area_start_.toString(16)} - 0x${cur.area_end_.toString(16)}`;
+    let dt = `dt ${addr} ${module_name()}!v8::internal::MemoryChunk`;
+    print(`${imm}    ${addr}:\t ${area} (0x${cur.size_.toString(16)}) : ${dt}`);
+    cur = cur.list_node_.next_;
+  }
+  print("");
+}
+
+const space_tags =
+  ['old', 'new_to', 'new_from', 'ro', 'map', 'code', 'lo', 'nlo'];
+
+function get_chunks_space(space_tag, front, chunks) {
+    let cur = front;
+    while (!cur.isNull) {
+        chunks.push({
+          'address':cur.address,
+          'area_start_':cur.area_start_,
+          'area_end_':cur.area_end_,
+          'space':space_tag});
+        cur = cur.list_node_.next_;
+    }
+}
+
+function get_chunks() {
+  let iso = cast(isolate_address, "v8::internal::Isolate");
+  let h = iso.heap_;
+
+  let chunks = [];
+  get_chunks_space('old', h.old_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('new_to',
+    h.new_space_.to_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('new_from',
+    h.new_space_.from_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('ro', h.read_only_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('map', h.map_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('code', h.code_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('lo', h.lo_space_.memory_chunk_list_.front_, chunks);
+  get_chunks_space('nlo', h.new_lo_space_.memory_chunk_list_.front_, chunks);
+
+  return chunks;
+}
+
+function find_chunk(address) {
+  // if 'address' is greater than Number.MAX_SAFE_INTEGER, comparison ops on it
+  // throw  "Error: 64 bit value loses precision on conversion to number"
+  try {
+    let chunks = get_chunks(isolate_address);
+    for (let c of chunks) {
+      let chunk = cast(c.address, "v8::internal::MemoryChunk");
+      if (address >= chunk.area_start_ && address < chunk.area_end_) {
+        return c;
+      }
+    }
+  }
+  catch (e) { }
+  return undefined;
+}
+
+/*-----------------------------------------------------------------------------
+    Print memory chunks from spaces in the current Heap
+      'isolate_address' should be an int (so in hex must include '0x' prefix).
+      'space': space separated string containing "all", "old", "new", "map",
+               "code", "ro [readonly]", "lo [large]", "nlo [newlarge]"
+-----------------------------------------------------------------------------*/
+function print_memory(space = "all") {
+  if (isolate_address == 0) {
+    print("Please call !set_iso(isolate_address) first.");
+    return;
+  }
+
+  let iso = cast(isolate_address, "v8::internal::Isolate");
+  let h = iso.heap_;
+  print(`Heap at ${h.targetLocation}`);
+
+  let st = space.toLowerCase().split(" ");
+
+  print("Im   address:\t object area start - end (size)");
+  if (st.includes("all") || st.includes("old")) {
+    print_memory_chunk_list("OldSpace",
+      h.old_space_.memory_chunk_list_.front_,
+      h.old_space_.allocation_info_.top_);
+  }
+  if (st.includes("all") || st.includes("new")) {
+    // new space doesn't use the chunk list from its base class but from
+    // the to/from semi-spaces it points to
+    print_memory_chunk_list("NewSpace_To",
+      h.new_space_.to_space_.memory_chunk_list_.front_,
+      h.new_space_.allocation_info_.top_,
+      h.new_space_.to_space_.age_mark_);
+    print_memory_chunk_list("NewSpace_From",
+      h.new_space_.from_space_.memory_chunk_list_.front_);
+  }
+  if (st.includes("all") || st.includes("map")) {
+    print_memory_chunk_list("MapSpace",
+      h.map_space_.memory_chunk_list_.front_,
+      h.map_space_.allocation_info_.top_);
+  }
+  if (st.includes("all") || st.includes("code")) {
+    print_memory_chunk_list("CodeSpace",
+      h.code_space_.memory_chunk_list_.front_,
+      h.code_space_.allocation_info_.top_);
+  }
+  if (st.includes("all") || st.includes("large") || st.includes("lo")) {
+    print_memory_chunk_list("LargeObjectSpace",
+      h.lo_space_.memory_chunk_list_.front_);
+  }
+  if (st.includes("all") || st.includes("newlarge") || st.includes("nlo")) {
+    print_memory_chunk_list("NewLargeObjectSpace",
+      h.new_lo_space_.memory_chunk_list_.front_);
+  }
+  if (st.includes("all") || st.includes("readonly") || st.includes("ro")) {
+    print_memory_chunk_list("ReadOnlySpace",
+      h.read_only_space_.memory_chunk_list_.front_);
+  }
+}
+
+/*-----------------------------------------------------------------------------
+    'isolate_address' and 'address' should be ints (so in hex must include '0x'
+    prefix).
+-----------------------------------------------------------------------------*/
+function print_owning_space(address) {
+  if (isolate_address == 0) {
+    print("Please call !set_iso(isolate_address) first.");
+    return;
+  }
+
+  let c = find_chunk(address);
+  let addr = `0x${address.toString(16)}`;
+  if (c) {
+      print(`${addr} is in ${c.space} (chunk: 0x${c.address.toString(16)})`);
+  }
+  else {
+      print(`Address ${addr} is not in managed heap`);
+  }
+}
+
 /*=============================================================================
   Initialize short aliased names for the most common commands
 =============================================================================*/
@@ -232,6 +410,10 @@ function initializeScript() {
       new host.functionAlias(print_object, "job"),
       new host.functionAlias(print_objects_array, "jobs"),
       new host.functionAlias(print_js_stack, "jst"),
+
+      new host.functionAlias(set_isolate_address, "set_iso"),
+      new host.functionAlias(print_memory, "mem"),
+      new host.functionAlias(print_owning_space, "where"),
 
       new host.functionAlias(set_user_js_bp, "jsbp"),
   ]

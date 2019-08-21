@@ -30,21 +30,20 @@ namespace proxy {
       return Undefined;
     }
 
-    // 2. Let handler be O.[[ProxyHandler]].
-    const handler: Object = proxy.handler;
-
     try {
+      // 2. Let handler be O.[[ProxyHandler]].
       // 3. If handler is null, throw a TypeError exception.
       // 4. Assert: Type(handler) is Object.
-      const handlerJSReceiver =
-          Cast<JSReceiver>(handler) otherwise ThrowProxyHandlerRevoked;
+      assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+      const handler =
+          Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
       // 5. Let target be O.[[ProxyTarget]].
-      const target = proxy.target;
+      const target = UnsafeCast<JSReceiver>(proxy.target);
 
       // 6. Let trap be ? GetMethod(handler, "set").
       // 7. If trap is undefined, then (see 7.a below).
-      const trap: Callable = GetMethod(handlerJSReceiver, 'set')
+      const trap: Callable = GetMethod(handler, 'set')
           otherwise goto TrapUndefined(target);
 
       // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler,
@@ -61,11 +60,11 @@ namespace proxy {
       //      i. If targetDesc.[[Set]] is undefined, throw a TypeError
       //      exception.
       // 12. Return true.
-      const trapResult = Call(
-          context, trap, handlerJSReceiver, target, name, value, receiverValue);
+      const trapResult =
+          Call(context, trap, handler, target, name, value, receiverValue);
       if (BranchIfToBooleanIsTrue(trapResult)) {
-        return CheckGetSetTrapResult(
-            target, proxy, name, trapResult, kProxySet);
+        CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
+        return value;
       }
       ThrowTypeErrorIfStrict(
           SmiConstant(kProxyTrapReturnedFalsishFor), 'set', name);
@@ -77,7 +76,6 @@ namespace proxy {
       return value;
     }
     label ThrowProxyHandlerRevoked deferred {
-      assert(handler == Null);
       ThrowTypeError(kProxyRevoked, 'set');
     }
   }

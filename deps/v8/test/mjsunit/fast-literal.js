@@ -30,10 +30,12 @@
 %SetAllocationTimeout(20, 0);
 function f() {
   return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
-}
-
-f(); f(); f();
+};
+%PrepareFunctionForOptimization(f);
+f();
+f();
+f();
 %OptimizeFunctionOnNextCall(f);
-for (var i=0; i<50; i++) {
+for (var i = 0; i < 50; i++) {
   f();
 }

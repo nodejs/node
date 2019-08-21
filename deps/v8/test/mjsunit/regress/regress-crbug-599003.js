@@ -23,8 +23,8 @@ function g1() {
 
 function g2() {
   return new A();
-}
-
+};
+%PrepareFunctionForOptimization(g2);
 var o = g1();
 %OptimizeFunctionOnNextCall(g2);
 g2();

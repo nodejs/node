@@ -29,13 +29,16 @@
 #include "src/trap-handler/trap-handler.h"
 #endif
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-external-refs.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+using base::ReadUnalignedValue;
+using base::WriteUnalignedValue;
 
 void f32_trunc_wrapper(Address data) {
   WriteUnalignedValue<float>(data, truncf(ReadUnalignedValue<float>(data)));

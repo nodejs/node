@@ -27,7 +27,7 @@ ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {
-  DCHECK_GT(Granularity::COUNT, granularity);
+  DCHECK_GE(GranularityBits::kMax, granularity);
   int hints = flags();
   hints = GranularityBits::update(hints, granularity);
   set_flags(hints);

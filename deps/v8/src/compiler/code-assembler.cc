@@ -226,8 +226,12 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
                               IntPtrConstant(kHeapObjectTagMask)),
                       IntPtrConstant(kWeakHeapObjectTag)),
          &ok);
-  Node* message_node = StringConstant(location);
-  DebugAbort(message_node);
+  EmbeddedVector<char, 1024> message;
+  SNPrintF(message, "no Object: %s", location);
+  Node* message_node = StringConstant(message.begin());
+  // This somewhat misuses the AbortCSAAssert runtime function. This will print
+  // "abort: CSA_ASSERT failed: <message>", which is good enough.
+  AbortCSAAssert(message_node);
   Unreachable();
   Bind(&ok);
 }
@@ -409,8 +413,8 @@ void CodeAssembler::ReturnRaw(Node* value) {
   return raw_assembler()->Return(value);
 }
 
-void CodeAssembler::DebugAbort(Node* message) {
-  raw_assembler()->DebugAbort(message);
+void CodeAssembler::AbortCSAAssert(Node* message) {
+  raw_assembler()->AbortCSAAssert(message);
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
@@ -441,16 +445,16 @@ void CodeAssembler::Bind(Label* label, AssemblerDebugInfo debug_info) {
 }
 #endif  // DEBUG
 
-Node* CodeAssembler::LoadFramePointer() {
-  return raw_assembler()->LoadFramePointer();
+TNode<RawPtrT> CodeAssembler::LoadFramePointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadFramePointer());
 }
 
-Node* CodeAssembler::LoadParentFramePointer() {
-  return raw_assembler()->LoadParentFramePointer();
+TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-Node* CodeAssembler::LoadStackPointer() {
-  return raw_assembler()->LoadStackPointer();
+TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
 }
 
 TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
@@ -1138,14 +1142,6 @@ Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
 
 Node* CodeAssembler::Retain(Node* value) {
   return raw_assembler()->Retain(value);
-}
-
-Node* CodeAssembler::ChangeTaggedToCompressed(Node* tagged) {
-  return raw_assembler()->ChangeTaggedToCompressed(tagged);
-}
-
-Node* CodeAssembler::ChangeCompressedToTagged(Node* compressed) {
-  return raw_assembler()->ChangeCompressedToTagged(compressed);
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {

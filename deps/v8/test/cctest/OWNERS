@@ -1,13 +1,1 @@
-per-file *-mips*=xwafish@gmail.com
-per-file *-ppc*=dstence@us.ibm.com
-per-file *-ppc*=joransiu@ca.ibm.com
-per-file *-ppc*=jyan@ca.ibm.com
-per-file *-ppc*=mbrandy@us.ibm.com
-per-file *-ppc*=michael_dawson@ca.ibm.com
-per-file *-s390*=dstence@us.ibm.com
-per-file *-s390*=joransiu@ca.ibm.com
-per-file *-s390*=jyan@ca.ibm.com
-per-file *-s390*=mbrandy@us.ibm.com
-per-file *-s390*=michael_dawson@ca.ibm.com
 per-file *profile*=alph@chromium.org
-

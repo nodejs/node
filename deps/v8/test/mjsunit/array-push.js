@@ -135,7 +135,7 @@
   function f(a, i) {
     a.push(i);
   }
-
+  %PrepareFunctionForOptimization(f);
   var a = [1,2,3];
   a.f = function() { return 10; }
   f(a, 4);

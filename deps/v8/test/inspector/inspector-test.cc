@@ -15,6 +15,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
+#include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
@@ -1070,6 +1071,7 @@ int main(int argc, char* argv[]) {
       printf("Embedding script '%s'\n", argv[i]);
       startup_data = i::CreateSnapshotDataBlobInternal(
           v8::SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
+      v8::internal::ReadOnlyHeap::ClearSharedHeapForTest();
       argv[i] = nullptr;
     }
   }
@@ -1077,8 +1079,9 @@ int main(int argc, char* argv[]) {
   {
     IsolateData::SetupGlobalTasks frontend_extensions;
     frontend_extensions.emplace_back(new UtilsExtension());
-    TaskRunner frontend_runner(std::move(frontend_extensions), true,
-                               &ready_semaphore, nullptr, false);
+    TaskRunner frontend_runner(
+        std::move(frontend_extensions), true, &ready_semaphore,
+        startup_data.data ? &startup_data : nullptr, false);
     ready_semaphore.Wait();
 
     int frontend_context_group_id = 0;

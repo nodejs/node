@@ -157,10 +157,7 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
 
-  SegmentSize segment_size = isolate->serializer_enabled()
-                                 ? SegmentSize::kLarge
-                                 : SegmentSize::kDefault;
-  Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
+  Zone zone(isolate->allocator(), ZONE_NAME);
   const int argc_with_recv =
       (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
   compiler::CodeAssemblerState state(
@@ -181,10 +178,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  SegmentSize segment_size = isolate->serializer_enabled()
-                                 ? SegmentSize::kLarge
-                                 : SegmentSize::kDefault;
-  Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
+  Zone zone(isolate->allocator(), ZONE_NAME);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
   CallInterfaceDescriptor descriptor(interface_descriptor);
@@ -232,9 +226,9 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
-  HeapIterator iterator(isolate->heap());
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  HeapObjectIterator iterator(isolate->heap());
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsCode()) continue;
     Code code = Code::cast(obj);
     bool flush_icache = false;
@@ -281,10 +275,6 @@ Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
 }
 
 }  // namespace
-
-#ifdef _MSC_VER
-#pragma optimize( "", off )
-#endif
 
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
@@ -362,11 +352,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   builtins->MarkInitialized();
 }
-
-#ifdef _MSC_VER
-#pragma optimize( "", on )
-#endif
-
 
 }  // namespace internal
 }  // namespace v8

@@ -233,12 +233,12 @@ convert_to_fast(smis);
 convert_to_fast(doubles);
 // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
 // transition to FAST directly).
-%EnsureFeedbackVectorForFunction(convert_mixed);
 function convert_mixed(array, value, kind) {
   array[1] = value;
   assertKind(kind, array);
   assertEquals(value, array[1]);
 }
+%PrepareFunctionForOptimization(convert_mixed);
 smis = construct_smis();
 for (var i = 0; i < 3; i++) {
   convert_mixed(smis, 1.5, elements_kind.fast_double);

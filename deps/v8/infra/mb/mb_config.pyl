@@ -95,6 +95,8 @@
       'V8 iOS - sim': 'release_x64_ios_simulator',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
+      'V8 Linux64 - pointer compression without dchecks':
+          'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
       'V8 Linux - noembed': 'release_x86_noembed',
@@ -201,6 +203,7 @@
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
       'v8_linux_nodcheck_rel_ng': 'release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'debug_x86_trybot',
+      'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg': 'debug_x86_trybot',
       'v8_linux_nosnap_rel': 'release_x86_no_snap_trybot',
@@ -458,6 +461,8 @@
     'release_x64_pointer_compression': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_enable_pointer_compression'],
+    'release_x64_pointer_compression_without_dchecks': [
+      'release_bot', 'x64', 'v8_enable_pointer_compression'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -491,7 +496,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot', 'x64', 'gcc'],
+      'debug_bot', 'x64', 'gcc', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_jumbo': [
@@ -535,9 +540,10 @@
     'release_x86_noembed_trybot': [
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
-      'release_bot', 'x86', 'gcc'],
+      'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
-      'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+      'release_bot', 'x86', 'gcc', 'minimal_symbols',
+      'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [

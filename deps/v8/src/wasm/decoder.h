@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/memory.h"
 #include "src/codegen/signature.h"
-#include "src/common/v8memory.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
@@ -299,7 +299,7 @@ class Decoder {
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
       return IntType{0};
     }
-    return ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
+    return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
   template <typename IntType>

@@ -25,11 +25,12 @@ ACCESSORS(JSPluralRules, locale, String, kLocaleOffset)
 SMI_ACCESSORS(JSPluralRules, flags, kFlagsOffset)
 ACCESSORS(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
           kIcuPluralRulesOffset)
-ACCESSORS(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
-          kIcuDecimalFormatOffset)
+ACCESSORS(JSPluralRules, icu_number_formatter,
+          Managed<icu::number::LocalizedNumberFormatter>,
+          kIcuNumberFormatterOffset)
 
 inline void JSPluralRules::set_type(Type type) {
-  DCHECK_LT(type, Type::COUNT);
+  DCHECK_LE(type, TypeBits::kMax);
   int hints = flags();
   hints = TypeBits::update(hints, type);
   set_flags(hints);

@@ -4,10 +4,10 @@
 
 #include "src/objects/elements.h"
 
+#include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"
@@ -141,6 +141,12 @@ WriteBarrierMode GetWriteBarrierMode(ElementsKind kind) {
   return UPDATE_WRITE_BARRIER;
 }
 
+// If kCopyToEndAndInitializeToHole is specified as the copy_size to
+// CopyElements, it copies all of elements from source after source_start to
+// destination array, padding any remaining uninitialized elements in the
+// destination array with the hole.
+constexpr int kCopyToEndAndInitializeToHole = -1;
+
 void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
                                 ElementsKind from_kind, uint32_t from_start,
                                 FixedArrayBase to_base, ElementsKind to_kind,
@@ -150,17 +156,14 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
         Min(from_base.length() - from_start, to_base.length() - to_start);
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      int start = to_start + copy_size;
-      int length = to_base.length() - start;
-      if (length > 0) {
-        MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
-                     roots.the_hole_value(), length);
-      }
+    int start = to_start + copy_size;
+    int length = to_base.length() - start;
+    if (length > 0) {
+      MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
+                   roots.the_hole_value(), length);
     }
   }
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base.length() &&
@@ -179,24 +182,21 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
                   write_barrier_mode);
 }
 
-static void CopyDictionaryToObjectElements(
-    Isolate* isolate, FixedArrayBase from_base, uint32_t from_start,
-    FixedArrayBase to_base, ElementsKind to_kind, uint32_t to_start,
-    int raw_copy_size) {
+void CopyDictionaryToObjectElements(Isolate* isolate, FixedArrayBase from_base,
+                                    uint32_t from_start, FixedArrayBase to_base,
+                                    ElementsKind to_kind, uint32_t to_start,
+                                    int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   NumberDictionary from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size = from.max_number_key() + 1 - from_start;
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      int start = to_start + copy_size;
-      int length = to_base.length() - start;
-      if (length > 0) {
-        MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
-                     ReadOnlyRoots(isolate).the_hole_value(), length);
-      }
+    int start = to_start + copy_size;
+    int length = to_base.length() - start;
+    if (length > 0) {
+      MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
+                   ReadOnlyRoots(isolate).the_hole_value(), length);
     }
   }
   DCHECK(to_base != from_base);
@@ -223,28 +223,23 @@ static void CopyDictionaryToObjectElements(
 // NOTE: this method violates the handlified function signature convention:
 // raw pointer parameters in the function that allocates.
 // See ElementsAccessorBase::CopyElements() for details.
-static void CopyDoubleToObjectElements(Isolate* isolate,
-                                       FixedArrayBase from_base,
-                                       uint32_t from_start,
-                                       FixedArrayBase to_base,
-                                       uint32_t to_start, int raw_copy_size) {
+void CopyDoubleToObjectElements(Isolate* isolate, FixedArrayBase from_base,
+                                uint32_t from_start, FixedArrayBase to_base,
+                                uint32_t to_start, int raw_copy_size) {
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     DisallowHeapAllocation no_allocation;
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
         Min(from_base.length() - from_start, to_base.length() - to_start);
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      // Also initialize the area that will be copied over since HeapNumber
-      // allocation below can cause an incremental marking step, requiring all
-      // existing heap objects to be propertly initialized.
-      int start = to_start;
-      int length = to_base.length() - start;
-      if (length > 0) {
-        MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
-                     ReadOnlyRoots(isolate).the_hole_value(), length);
-      }
+    // Also initialize the area that will be copied over since HeapNumber
+    // allocation below can cause an incremental marking step, requiring all
+    // existing heap objects to be propertly initialized.
+    int start = to_start;
+    int length = to_base.length() - start;
+    if (length > 0) {
+      MemsetTagged(FixedArray::cast(to_base).RawFieldOfElementAt(start),
+                   ReadOnlyRoots(isolate).the_hole_value(), length);
     }
   }
 
@@ -272,21 +267,17 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
   }
 }
 
-static void CopyDoubleToDoubleElements(FixedArrayBase from_base,
-                                       uint32_t from_start,
-                                       FixedArrayBase to_base,
-                                       uint32_t to_start, int raw_copy_size) {
+void CopyDoubleToDoubleElements(FixedArrayBase from_base, uint32_t from_start,
+                                FixedArrayBase to_base, uint32_t to_start,
+                                int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
         Min(from_base.length() - from_start, to_base.length() - to_start);
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to_base.length(); ++i) {
-        FixedDoubleArray::cast(to_base).set_the_hole(i);
-      }
+    for (int i = to_start + copy_size; i < to_base.length(); ++i) {
+      FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
   }
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base.length() &&
@@ -312,19 +303,16 @@ static void CopyDoubleToDoubleElements(FixedArrayBase from_base,
 #endif
 }
 
-static void CopySmiToDoubleElements(FixedArrayBase from_base,
-                                    uint32_t from_start, FixedArrayBase to_base,
-                                    uint32_t to_start, int raw_copy_size) {
+void CopySmiToDoubleElements(FixedArrayBase from_base, uint32_t from_start,
+                             FixedArrayBase to_base, uint32_t to_start,
+                             int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size = from_base.length() - from_start;
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to_base.length(); ++i) {
-        FixedDoubleArray::cast(to_base).set_the_hole(i);
-      }
+    for (int i = to_start + copy_size; i < to_base.length(); ++i) {
+      FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
   }
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base.length() &&
@@ -344,25 +332,19 @@ static void CopySmiToDoubleElements(FixedArrayBase from_base,
   }
 }
 
-static void CopyPackedSmiToDoubleElements(FixedArrayBase from_base,
-                                          uint32_t from_start,
-                                          FixedArrayBase to_base,
-                                          uint32_t to_start, int packed_size,
-                                          int raw_copy_size) {
+void CopyPackedSmiToDoubleElements(FixedArrayBase from_base,
+                                   uint32_t from_start, FixedArrayBase to_base,
+                                   uint32_t to_start, int packed_size,
+                                   int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   uint32_t to_end;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size = packed_size - from_start;
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      to_end = to_base.length();
-      for (uint32_t i = to_start + copy_size; i < to_end; ++i) {
-        FixedDoubleArray::cast(to_base).set_the_hole(i);
-      }
-    } else {
-      to_end = to_start + static_cast<uint32_t>(copy_size);
+    to_end = to_base.length();
+    for (uint32_t i = to_start + copy_size; i < to_end; ++i) {
+      FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
   } else {
     to_end = to_start + static_cast<uint32_t>(copy_size);
@@ -382,20 +364,16 @@ static void CopyPackedSmiToDoubleElements(FixedArrayBase from_base,
   }
 }
 
-static void CopyObjectToDoubleElements(FixedArrayBase from_base,
-                                       uint32_t from_start,
-                                       FixedArrayBase to_base,
-                                       uint32_t to_start, int raw_copy_size) {
+void CopyObjectToDoubleElements(FixedArrayBase from_base, uint32_t from_start,
+                                FixedArrayBase to_base, uint32_t to_start,
+                                int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
-    DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
-           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size = from_base.length() - from_start;
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to_base.length(); ++i) {
-        FixedDoubleArray::cast(to_base).set_the_hole(i);
-      }
+    for (int i = to_start + copy_size; i < to_base.length(); ++i) {
+      FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
   }
   DCHECK((copy_size + static_cast<int>(to_start)) <= to_base.length() &&
@@ -415,20 +393,17 @@ static void CopyObjectToDoubleElements(FixedArrayBase from_base,
   }
 }
 
-static void CopyDictionaryToDoubleElements(
-    Isolate* isolate, FixedArrayBase from_base, uint32_t from_start,
-    FixedArrayBase to_base, uint32_t to_start, int raw_copy_size) {
+void CopyDictionaryToDoubleElements(Isolate* isolate, FixedArrayBase from_base,
+                                    uint32_t from_start, FixedArrayBase to_base,
+                                    uint32_t to_start, int raw_copy_size) {
   DisallowHeapAllocation no_allocation;
   NumberDictionary from = NumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
   if (copy_size < 0) {
-    DCHECK(copy_size == ElementsAccessor::kCopyToEnd ||
-           copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    DCHECK_EQ(kCopyToEndAndInitializeToHole, copy_size);
     copy_size = from.max_number_key() + 1 - from_start;
-    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to_base.length(); ++i) {
-        FixedDoubleArray::cast(to_base).set_the_hole(i);
-      }
+    for (int i = to_start + copy_size; i < to_base.length(); ++i) {
+      FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
   }
   if (copy_size == 0) return;
@@ -447,17 +422,16 @@ static void CopyDictionaryToDoubleElements(
   }
 }
 
-static void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
-                        uint32_t sort_size) {
+void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
+                 uint32_t sort_size) {
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
   AtomicSlot start(indices->GetFirstElementAddress());
   AtomicSlot end(start + sort_size);
   std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
-    DEFINE_ROOT_VALUE(isolate);
-    Object a(DecompressTaggedAny(ROOT_VALUE, elementA));
-    Object b(DecompressTaggedAny(ROOT_VALUE, elementB));
+    Object a(DecompressTaggedAny(isolate, elementA));
+    Object b(DecompressTaggedAny(isolate, elementB));
 #else
     Object a(elementA);
     Object b(elementB);
@@ -474,10 +448,9 @@ static void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
                                         ObjectSlot(end));
 }
 
-static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
-                                         Handle<JSObject> receiver,
-                                         Handle<Object> value,
-                                         uint32_t start_from, uint32_t length) {
+Maybe<bool> IncludesValueSlowPath(Isolate* isolate, Handle<JSObject> receiver,
+                                  Handle<Object> value, uint32_t start_from,
+                                  uint32_t length) {
   bool search_for_hole = value->IsUndefined(isolate);
   for (uint32_t k = start_from; k < length; ++k) {
     LookupIterator it(isolate, receiver, k);
@@ -495,11 +468,9 @@ static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
   return Just(false);
 }
 
-static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
-                                           Handle<JSObject> receiver,
-                                           Handle<Object> value,
-                                           uint32_t start_from,
-                                           uint32_t length) {
+Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate, Handle<JSObject> receiver,
+                                    Handle<Object> value, uint32_t start_from,
+                                    uint32_t length) {
   for (uint32_t k = start_from; k < length; ++k) {
     LookupIterator it(isolate, receiver, k);
     if (!it.IsFound()) {
@@ -593,23 +564,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       }
     }
     return true;
-  }
-
-  static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
-    if (!IsHoleyElementsKind(kind())) return;
-    Handle<FixedArrayBase> backing_store(array->elements(),
-                                         array->GetIsolate());
-    int length = Smi::ToInt(array->length());
-    if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) return;
-
-    ElementsKind packed_kind = GetPackedElementsKind(kind());
-    Handle<Map> new_map =
-        JSObject::GetElementsTransitionMap(array, packed_kind);
-    JSObject::MigrateToMap(array, new_map);
-    if (FLAG_trace_elements_transitions) {
-      JSObject::PrintElementsTransition(stdout, array, kind(), backing_store,
-                                        packed_kind, backing_store);
-    }
   }
 
   bool HasElement(JSObject holder, uint32_t index, FixedArrayBase backing_store,
@@ -804,22 +758,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
       Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
       ElementsKind from_kind, uint32_t capacity) {
-    return ConvertElementsWithCapacity(
-        object, old_elements, from_kind, capacity, 0, 0,
-        ElementsAccessor::kCopyToEndAndInitializeToHole);
-  }
-
-  static Handle<FixedArrayBase> ConvertElementsWithCapacity(
-      Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
-      ElementsKind from_kind, uint32_t capacity, int copy_size) {
     return ConvertElementsWithCapacity(object, old_elements, from_kind,
-                                       capacity, 0, 0, copy_size);
+                                       capacity, 0, 0);
   }
 
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
       Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
       ElementsKind from_kind, uint32_t capacity, uint32_t src_index,
-      uint32_t dst_index, int copy_size) {
+      uint32_t dst_index) {
     Isolate* isolate = object->GetIsolate();
     Handle<FixedArrayBase> new_elements;
     if (IsDoubleElementsKind(kind())) {
@@ -834,14 +780,16 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     }
 
     Subclass::CopyElementsImpl(isolate, *old_elements, src_index, *new_elements,
-                               from_kind, dst_index, packed_size, copy_size);
+                               from_kind, dst_index, packed_size,
+                               kCopyToEndAndInitializeToHole);
 
     return new_elements;
   }
 
   static void TransitionElementsKindImpl(Handle<JSObject> object,
                                          Handle<Map> to_map) {
-    Handle<Map> from_map = handle(object->map(), object->GetIsolate());
+    Isolate* isolate = object->GetIsolate();
+    Handle<Map> from_map = handle(object->map(), isolate);
     ElementsKind from_kind = from_map->elements_kind();
     ElementsKind to_kind = to_map->elements_kind();
     if (IsHoleyElementsKind(from_kind)) {
@@ -853,14 +801,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       DCHECK(IsFastElementsKind(to_kind));
       DCHECK_NE(TERMINAL_FAST_ELEMENTS_KIND, from_kind);
 
-      Handle<FixedArrayBase> from_elements(object->elements(),
-                                           object->GetIsolate());
-      if (object->elements() ==
-              object->GetReadOnlyRoots().empty_fixed_array() ||
+      Handle<FixedArrayBase> from_elements(object->elements(), isolate);
+      if (object->elements() == ReadOnlyRoots(isolate).empty_fixed_array() ||
           IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
         // No change is needed to the elements() buffer, the transition
         // only requires a map change.
-        JSObject::MigrateToMap(object, to_map);
+        JSObject::MigrateToMap(isolate, object, to_map);
       } else {
         DCHECK(
             (IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
@@ -871,9 +817,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         JSObject::SetMapAndElements(object, to_map, elements);
       }
       if (FLAG_trace_elements_transitions) {
-        JSObject::PrintElementsTransition(
-            stdout, object, from_kind, from_elements, to_kind,
-            handle(object->elements(), object->GetIsolate()));
+        JSObject::PrintElementsTransition(stdout, object, from_kind,
+                                          from_elements, to_kind,
+                                          handle(object->elements(), isolate));
       }
     }
   }
@@ -2394,7 +2340,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       // Copy over all objects to a new backing_store.
       backing_store = Subclass::ConvertElementsWithCapacity(
           receiver, backing_store, KindTraits::Kind, capacity, 0,
-          copy_dst_index, ElementsAccessor::kCopyToEndAndInitializeToHole);
+          copy_dst_index);
       receiver->set_elements(*backing_store);
     } else if (add_position == AT_START) {
       // If the backing store has enough capacity and we add elements to the
@@ -2639,7 +2585,7 @@ class FastSealedObjectElementsAccessor
                                     "SlowCopyForSetLengthImpl");
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-    JSObject::MigrateToMap(array, new_map);
+    JSObject::MigrateToMap(isolate, array, new_map);
 
     if (!new_element_dictionary.is_null()) {
       array->set_elements(*new_element_dictionary);
@@ -2955,7 +2901,7 @@ class TypedElementsAccessor
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
       // accessing them in order to avoid undefined behavior in C++ code.
-      WriteUnalignedValue<ElementType>(
+      base::WriteUnalignedValue<ElementType>(
           reinterpret_cast<Address>(data_ptr + entry), value);
     } else {
       data_ptr[entry] = value;
@@ -2995,7 +2941,7 @@ class TypedElementsAccessor
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
       // accessing them in order to avoid undefined behavior in C++ code.
-      result = ReadUnalignedValue<ElementType>(
+      result = base::ReadUnalignedValue<ElementType>(
           reinterpret_cast<Address>(data_ptr + entry));
     } else {
       result = data_ptr[entry];
@@ -3664,10 +3610,7 @@ Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS, uint32_t>::ToHandle(
 // static
 template <>
 float TypedElementsAccessor<FLOAT32_ELEMENTS, float>::FromScalar(double value) {
-  using limits = std::numeric_limits<float>;
-  if (value > limits::max()) return limits::infinity();
-  if (value < limits::lowest()) return -limits::infinity();
-  return static_cast<float>(value);
+  return DoubleToFloat32(value);
 }
 
 // static
@@ -4377,7 +4320,7 @@ class FastSloppyArgumentsElementsAccessor
         ConvertElementsWithCapacity(object, old_arguments, from_kind, capacity);
     Handle<Map> new_map = JSObject::GetElementsTransitionMap(
         object, FAST_SLOPPY_ARGUMENTS_ELEMENTS);
-    JSObject::MigrateToMap(object, new_map);
+    JSObject::MigrateToMap(isolate, object, new_map);
     elements->set_arguments(FixedArray::cast(*arguments));
     JSObject::ValidateElements(*object);
   }
@@ -4549,8 +4492,8 @@ class StringWrapperElementsAccessor
 
  private:
   static String GetString(JSObject holder) {
-    DCHECK(holder.IsJSValue());
-    JSValue js_value = JSValue::cast(holder);
+    DCHECK(holder.IsJSPrimitiveWrapper());
+    JSPrimitiveWrapper js_value = JSPrimitiveWrapper::cast(holder);
     DCHECK(js_value.value().IsString());
     return String::cast(js_value.value());
   }

@@ -81,7 +81,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_0);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_0);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   iterator.Advance();
@@ -98,7 +99,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(iterator.GetConstantForIndexOperand(0).Number(), heap_num_1);
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0, isolate())->Number(),
+            heap_num_1);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   iterator.Advance();

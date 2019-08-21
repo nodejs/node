@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
-#include "src/compiler/js-heap-broker.h"
+#include "src/compiler/heap-refs.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects.h"
@@ -220,6 +220,7 @@ namespace compiler {
   INTERNAL_BITSET_TYPE_LIST(V) \
   PROPER_BITSET_TYPE_LIST(V)
 
+class JSHeapBroker;
 class HeapConstantType;
 class OtherNumberConstantType;
 class TupleType;

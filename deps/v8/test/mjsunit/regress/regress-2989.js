@@ -30,9 +30,10 @@ if (isNeverOptimizeLiteMode()) {
 
 (function ArgumentsObjectChange() {
   function f(x) {
-      x = 42;
-      return f.arguments[0];
-  }
+    x = 42;
+    return f.arguments[0];
+  };
+  %PrepareFunctionForOptimization(f);
   %EnsureFeedbackVectorForFunction(f);
   f(0);
   %OptimizeFunctionOnNextCall(f);

@@ -23,10 +23,14 @@ var bomb = c4(2, 2);
 
 function reader(o, i) {
   // Dummy try-catch, so that TurboFan is used to optimize this.
-  try {} catch(e) {}
+  try {
+  } catch (e) {
+  }
   return o[i];
 }
 // Optimize reader!
+;
+%PrepareFunctionForOptimization(reader);
 for (var i = 0; i < 3; i++) reader(bomb, 0);
 %OptimizeFunctionOnNextCall(reader);
 reader(bomb, 0);

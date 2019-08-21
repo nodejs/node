@@ -88,9 +88,6 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     return isolate()->counters()->runtime_call_stats();
   }
 
-  // Print current RuntimeCallStats table. For debugging purposes.
-  void PrintStats() { stats()->Print(); }
-
   RuntimeCallCounterId counter_id() {
     return RuntimeCallCounterId::kTestCounter1;
   }
@@ -655,6 +652,8 @@ static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }  // namespace
 
 TEST_F(RuntimeCallStatsTest, CallbackFunction) {
+  FLAG_allow_natives_syntax = true;
+
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
 
@@ -710,9 +709,29 @@ TEST_F(RuntimeCallStatsTest, CallbackFunction) {
   EXPECT_EQ(0, callback_counter->time().InMicroseconds());
   EXPECT_EQ(100, counter()->time().InMicroseconds());
   EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
+
+  // Check that the FunctionCallback tracing also works properly
+  // when the `callback` is called from optimized code.
+  RunJS(
+      "function wrap(o) { return o.callback(); };\n"
+      "%PrepareFunctionForOptimization(wrap);\n"
+      "wrap(custom_object);\n"
+      "wrap(custom_object);\n"
+      "%OptimizeFunctionOnNextCall(wrap);\n"
+      "wrap(custom_object);\n");
+  EXPECT_EQ(4, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(4013, callback_counter->count());
+  EXPECT_EQ(4013, counter2()->count());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(kCustomCallbackTime * 4013, counter2()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, ApiGetter) {
+  FLAG_allow_natives_syntax = true;
+
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
   current_test = this;
@@ -740,7 +759,6 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
     Sleep(100);
     RunJS("custom_object.apiGetter;");
   }
-  PrintStats();
 
   EXPECT_EQ(1, js_counter()->count());
   EXPECT_EQ(1, counter()->count());
@@ -754,7 +772,6 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(kCustomCallbackTime, counter2()->time().InMicroseconds());
 
   RunJS("for (let i = 0; i < 9; i++) { custom_object.apiGetter };");
-  PrintStats();
 
   EXPECT_EQ(2, js_counter()->count());
   EXPECT_EQ(1, counter()->count());
@@ -767,7 +784,6 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(kCustomCallbackTime * 10, counter2()->time().InMicroseconds());
 
   RunJS("for (let i = 0; i < 4000; i++) { custom_object.apiGetter };");
-  PrintStats();
 
   EXPECT_EQ(3, js_counter()->count());
   EXPECT_EQ(1, counter()->count());
@@ -779,7 +795,25 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(0, callback_counter->time().InMicroseconds());
   EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
 
-  PrintStats();
+  // Check that the FunctionCallback tracing also works properly
+  // when the `apiGetter` is called from optimized code.
+  RunJS(
+      "function wrap(o) { return o.apiGetter; };\n"
+      "%PrepareFunctionForOptimization(wrap);\n"
+      "wrap(custom_object);\n"
+      "wrap(custom_object);\n"
+      "%OptimizeFunctionOnNextCall(wrap);\n"
+      "wrap(custom_object);\n");
+
+  EXPECT_EQ(4, js_counter()->count());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(4013, callback_counter->count());
+  EXPECT_EQ(4013, counter2()->count());
+
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, callback_counter->time().InMicroseconds());
+  EXPECT_EQ(kCustomCallbackTime * 4013, counter2()->time().InMicroseconds());
 }
 
 TEST_F(SnapshotNativeCounterTest, StringAddNative) {

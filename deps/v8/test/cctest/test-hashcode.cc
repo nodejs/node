@@ -96,7 +96,7 @@ TEST(AddHashCodeToSlowObject) {
   Handle<JSObject> obj =
       isolate->factory()->NewJSObject(isolate->object_function());
   CHECK(obj->HasFastProperties());
-  JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
+  JSObject::NormalizeProperties(isolate, obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
   CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
@@ -165,7 +165,7 @@ TEST(TransitionFastWithPropertyArrayToSlow) {
   CHECK(obj->raw_properties_or_hash().IsPropertyArray());
   CHECK_EQ(hash, obj->property_array().Hash());
 
-  JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 0,
+  JSObject::NormalizeProperties(isolate, obj, KEEP_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
   CheckDictionaryObject(obj, hash);
 }
@@ -179,7 +179,7 @@ TEST(TransitionSlowToSlow) {
   CompileRun(source);
 
   Handle<JSObject> obj = GetGlobal<JSObject>("x");
-  JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
+  JSObject::NormalizeProperties(isolate, obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
   CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
@@ -199,7 +199,7 @@ TEST(TransitionSlowToFastWithoutProperties) {
 
   Handle<JSObject> obj =
       isolate->factory()->NewJSObject(isolate->object_function());
-  JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
+  JSObject::NormalizeProperties(isolate, obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
   CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 

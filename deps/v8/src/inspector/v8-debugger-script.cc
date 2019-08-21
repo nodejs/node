@@ -4,7 +4,7 @@
 
 #include "src/inspector/v8-debugger-script.h"
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
@@ -44,7 +44,7 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
   size_t sizeInBytes = sizeof(UChar) * written;
   data = reinterpret_cast<const uint32_t*>(buffer.get());
   for (size_t i = 0; i < sizeInBytes / 4; ++i) {
-    uint32_t d = v8::internal::ReadUnalignedUInt32(
+    uint32_t d = v8::base::ReadUnalignedValue<uint32_t>(
         reinterpret_cast<v8::internal::Address>(data + i));
 #if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = d;

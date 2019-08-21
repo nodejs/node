@@ -123,9 +123,8 @@ class MapUpdater {
   State ConstructNewMapWithIntegrityLevelTransition();
 
   // When a requested reconfiguration can not be done the result is a copy
-  // of |old_map_| where every field has |Tagged| representation and |Any|
-  // field type. This map is disconnected from the transition tree.
-  State CopyGeneralizeAllFields(const char* reason);
+  // of |old_map_| in dictionary mode.
+  State Normalize(const char* reason);
 
   // Returns name of a |descriptor| property.
   inline Name GetKey(int descriptor) const;

@@ -22,6 +22,12 @@ namespace internal {
 CompressedObjectSlot::CompressedObjectSlot(Object* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
+bool CompressedObjectSlot::contains_value(Address raw_value) const {
+  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
+  return static_cast<uint32_t>(value) ==
+         static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
+}
+
 Object CompressedObjectSlot::operator*() const {
   Tagged_t value = *location();
   return Object(DecompressTaggedAny(address(), value));
@@ -58,54 +64,6 @@ Object CompressedObjectSlot::Release_CompareAndSwap(Object old,
   Tagged_t result =
       AsAtomicTagged::Release_CompareAndSwap(location(), old_ptr, target_ptr);
   return Object(DecompressTaggedAny(address(), result));
-}
-
-//
-// CompressedMapWordSlot implementation.
-//
-
-bool CompressedMapWordSlot::contains_value(Address raw_value) const {
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return static_cast<uint32_t>(value) ==
-         static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
-}
-
-Object CompressedMapWordSlot::operator*() const {
-  Tagged_t value = *location();
-  return Object(DecompressTaggedPointer(address(), value));
-}
-
-void CompressedMapWordSlot::store(Object value) const {
-  *location() = CompressTagged(value.ptr());
-}
-
-Object CompressedMapWordSlot::Relaxed_Load() const {
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return Object(DecompressTaggedPointer(address(), value));
-}
-
-void CompressedMapWordSlot::Relaxed_Store(Object value) const {
-  Tagged_t ptr = CompressTagged(value.ptr());
-  AsAtomicTagged::Relaxed_Store(location(), ptr);
-}
-
-Object CompressedMapWordSlot::Acquire_Load() const {
-  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
-  return Object(DecompressTaggedPointer(address(), value));
-}
-
-void CompressedMapWordSlot::Release_Store(Object value) const {
-  Tagged_t ptr = CompressTagged(value.ptr());
-  AsAtomicTagged::Release_Store(location(), ptr);
-}
-
-Object CompressedMapWordSlot::Release_CompareAndSwap(Object old,
-                                                     Object target) const {
-  Tagged_t old_ptr = CompressTagged(old.ptr());
-  Tagged_t target_ptr = CompressTagged(target.ptr());
-  Tagged_t result =
-      AsAtomicTagged::Release_CompareAndSwap(location(), old_ptr, target_ptr);
-  return Object(DecompressTaggedPointer(address(), result));
 }
 
 //

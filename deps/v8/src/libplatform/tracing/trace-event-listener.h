@@ -5,9 +5,11 @@
 #ifndef V8_LIBPLATFORM_TRACING_TRACE_EVENT_LISTENER_H_
 #define V8_LIBPLATFORM_TRACING_TRACE_EVENT_LISTENER_H_
 
+#include <vector>
+
 namespace perfetto {
 namespace protos {
-class ChromeTracePacket;
+class TracePacket;
 }  // namespace protos
 }  // namespace perfetto
 
@@ -23,8 +25,9 @@ namespace tracing {
 class TraceEventListener {
  public:
   virtual ~TraceEventListener() = default;
-  virtual void ProcessPacket(
-      const ::perfetto::protos::ChromeTracePacket& packet) = 0;
+  virtual void ProcessPacket(const ::perfetto::protos::TracePacket& packet) = 0;
+
+  void ParseFromArray(const std::vector<char>& array);
 };
 
 }  // namespace tracing

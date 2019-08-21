@@ -33,20 +33,20 @@ double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
   constexpr double kMaxSmallFactor = 2.0;
   constexpr double kHighFactor = 4.0;
 
-  size_t max_size_in_mb = max_heap_size / MB;
-  max_size_in_mb = Max(max_size_in_mb, Trait::kMinSize);
+  size_t max_size = max_heap_size;
+  max_size = Max(max_size, Trait::kMinSize);
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_size_in_mb >= Trait::kMaxSize) {
+  if (max_size >= Trait::kMaxSize) {
     return kHighFactor;
   }
 
-  DCHECK_GE(max_size_in_mb, Trait::kMinSize);
-  DCHECK_LT(max_size_in_mb, Trait::kMaxSize);
+  DCHECK_GE(max_size, Trait::kMinSize);
+  DCHECK_LT(max_size, Trait::kMaxSize);
 
   // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
-  double factor = (max_size_in_mb - Trait::kMinSize) *
+  double factor = (max_size - Trait::kMinSize) *
                       (kMaxSmallFactor - kMinSmallFactor) /
                       (Trait::kMaxSize - Trait::kMinSize) +
                   kMinSmallFactor;
@@ -126,8 +126,9 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
 
 template <typename Trait>
 size_t MemoryController<Trait>::CalculateAllocationLimit(
-    Heap* heap, size_t current_size, size_t max_size, size_t new_space_capacity,
-    double factor, Heap::HeapGrowingMode growing_mode) {
+    Heap* heap, size_t current_size, size_t min_size, size_t max_size,
+    size_t new_space_capacity, double factor,
+    Heap::HeapGrowingMode growing_mode) {
   switch (growing_mode) {
     case Heap::HeapGrowingMode::kConservative:
     case Heap::HeapGrowingMode::kSlow:
@@ -155,9 +156,11 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
           static_cast<uint64_t>(current_size) +
               MinimumAllocationLimitGrowingStep(growing_mode)) +
       new_space_capacity;
+  const uint64_t limit_above_min_size = Max<uint64_t>(limit, min_size);
   const uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(current_size) + max_size) / 2;
-  const size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
+  const size_t result =
+      static_cast<size_t>(Min(limit_above_min_size, halfway_to_the_max));
   if (FLAG_trace_gc_verbose) {
     Isolate::FromHeap(heap)->PrintWithTimestamp(
         "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",

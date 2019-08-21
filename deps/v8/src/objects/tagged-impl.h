@@ -40,16 +40,24 @@ class TaggedImpl {
   // Make clang on Linux catch what MSVC complains about on Windows:
   operator bool() const = delete;
 
-  constexpr bool operator==(TaggedImpl other) const {
-    return ptr_ == other.ptr_;
+  template <typename U>
+  constexpr bool operator==(TaggedImpl<kRefType, U> other) const {
+    static_assert(
+        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
+        "U must be either Address or Tagged_t");
+    return static_cast<Tagged_t>(ptr_) == static_cast<Tagged_t>(other.ptr());
   }
-  constexpr bool operator!=(TaggedImpl other) const {
-    return ptr_ != other.ptr_;
+  template <typename U>
+  constexpr bool operator!=(TaggedImpl<kRefType, U> other) const {
+    static_assert(
+        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
+        "U must be either Address or Tagged_t");
+    return static_cast<Tagged_t>(ptr_) != static_cast<Tagged_t>(other.ptr());
   }
 
   // For using in std::set and std::map.
   constexpr bool operator<(TaggedImpl other) const {
-    return ptr_ < other.ptr();
+    return static_cast<Tagged_t>(ptr_) < static_cast<Tagged_t>(other.ptr());
   }
 
   constexpr StorageType ptr() const { return ptr_; }
@@ -99,50 +107,51 @@ class TaggedImpl {
 
   //
   // The following set of methods get HeapObject out of the tagged value
-  // which may involve decompression in which case the ROOT_PARAM is required.
+  // which may involve decompression in which case the isolate root is required.
   // If the pointer compression is not enabled then the variants with
-  // ROOT_PARAM will be exactly the same as non-ROOT_PARAM ones.
+  // isolate parameter will be exactly the same as the ones witout isolate
+  // parameter.
   //
 
   // If this tagged value is a strong pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
   inline bool GetHeapObjectIfStrong(HeapObject* result) const;
-  inline bool GetHeapObjectIfStrong(ROOT_PARAM, HeapObject* result) const;
+  inline bool GetHeapObjectIfStrong(Isolate* isolate, HeapObject* result) const;
 
   // DCHECKs that this tagged value is a strong pointer to a HeapObject and
   // returns the HeapObject.
   inline HeapObject GetHeapObjectAssumeStrong() const;
-  inline HeapObject GetHeapObjectAssumeStrong(ROOT_PARAM) const;
+  inline HeapObject GetHeapObjectAssumeStrong(Isolate* isolate) const;
 
   // If this tagged value is a weak pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
   inline bool GetHeapObjectIfWeak(HeapObject* result) const;
-  inline bool GetHeapObjectIfWeak(ROOT_PARAM, HeapObject* result) const;
+  inline bool GetHeapObjectIfWeak(Isolate* isolate, HeapObject* result) const;
 
   // DCHECKs that this tagged value is a weak pointer to a HeapObject and
   // returns the HeapObject.
   inline HeapObject GetHeapObjectAssumeWeak() const;
-  inline HeapObject GetHeapObjectAssumeWeak(ROOT_PARAM) const;
+  inline HeapObject GetHeapObjectAssumeWeak(Isolate* isolate) const;
 
   // If this tagged value is a strong or weak pointer to a HeapObject, returns
   // true and sets *result. Otherwise returns false.
   inline bool GetHeapObject(HeapObject* result) const;
-  inline bool GetHeapObject(ROOT_PARAM, HeapObject* result) const;
+  inline bool GetHeapObject(Isolate* isolate, HeapObject* result) const;
 
   inline bool GetHeapObject(HeapObject* result,
                             HeapObjectReferenceType* reference_type) const;
-  inline bool GetHeapObject(ROOT_PARAM, HeapObject* result,
+  inline bool GetHeapObject(Isolate* isolate, HeapObject* result,
                             HeapObjectReferenceType* reference_type) const;
 
   // DCHECKs that this tagged value is a strong or a weak pointer to a
   // HeapObject and returns the HeapObject.
   inline HeapObject GetHeapObject() const;
-  inline HeapObject GetHeapObject(ROOT_PARAM) const;
+  inline HeapObject GetHeapObject(Isolate* isolate) const;
 
   // DCHECKs that this tagged value is a strong or a weak pointer to a
   // HeapObject or a Smi and returns the HeapObject or Smi.
   inline Object GetHeapObjectOrSmi() const;
-  inline Object GetHeapObjectOrSmi(ROOT_PARAM) const;
+  inline Object GetHeapObjectOrSmi(Isolate* isolate) const;
 
   // Cast operation is available only for full non-weak tagged values.
   template <typename T>

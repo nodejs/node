@@ -4,8 +4,8 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 
-function* gen() {}
-
+function* gen() {};
+%PrepareFunctionForOptimization(gen);
 (function warmup() {
   for (var i = 0; i < 100; ++i) {
     var g = gen();

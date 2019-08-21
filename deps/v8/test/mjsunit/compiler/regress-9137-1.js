@@ -19,6 +19,7 @@ foo(function(){});
 foo(function(){});
 %OptimizeFunctionOnNextCall(foo);
 foo(function(){});
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo(function(){});
 assertOptimized(foo);

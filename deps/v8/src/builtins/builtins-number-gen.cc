@@ -315,8 +315,8 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
 
 // ES6 #sec-number.prototype.valueof
 TF_BUILTIN(NumberPrototypeValueOf, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kNumber,
                              "Number.prototype.valueOf");
@@ -538,8 +538,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
   BIND(&do_bigint_add);
   {
-    Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Operation::kAdd)));
+    TailCallBuiltin(Builtins::kBigIntAdd, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&do_double_add);
@@ -996,8 +996,8 @@ TF_BUILTIN(Equal, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StrictEqual, CodeStubAssembler) {
-  Node* lhs = Parameter(Descriptor::kLeft);
-  Node* rhs = Parameter(Descriptor::kRight);
+  TNode<Object> lhs = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> rhs = CAST(Parameter(Descriptor::kRight));
 
   Return(StrictEqual(lhs, rhs));
 }

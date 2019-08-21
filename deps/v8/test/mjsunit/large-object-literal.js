@@ -36,7 +36,7 @@ function testLiteral(size) {
 
   for (var i = 0; i < size; i++) {
     if (i > 0) literal += ",";
-    literal += ("a" + i + ":" + i);
+    literal += 'a' + i + ':' + i;
   }
   literal += "}";
 
@@ -45,7 +45,7 @@ function testLiteral(size) {
 
   // Check that the properties have the expected values.
   for (var i = 0; i < size; i++) {
-    assertEquals(i, o["a"+i]);
+    assertEquals(i, o['a' + i]);
   }
 }
 function testElementLiteral(size) {
@@ -55,7 +55,7 @@ function testElementLiteral(size) {
 
   for (var i = 0; i < size; i++) {
     if (i > 0) literal += ",";
-    literal += (i + ":'" + i+"'");
+    literal += i + ':\'' + i + '\'';
   }
   literal += "}";
 
@@ -64,7 +64,7 @@ function testElementLiteral(size) {
 
   // Check that the properties have the expected values.
   for (var i = 0; i < size; i++) {
-    assertEquals(i+"", o[i]);
+    assertEquals(i + '', o[i]);
   }
 }
 
@@ -83,8 +83,9 @@ for (var i = 0; i < sizes.length; i++) {
 
 function TestSlowLiteralOptimized() {
   function f() {
-    return {__proto__:null, bar:"barValue"};
-  }
+    return {__proto__: null, bar: 'barValue'};
+  };
+  %PrepareFunctionForOptimization(f);
   let obj = f();
   assertFalse(%HasFastProperties(obj));
   assertEquals(Object.getPrototypeOf(obj), null);

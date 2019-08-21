@@ -62,8 +62,8 @@ function test() {
   assertEquals(255, clampedArray[0]);
   clampedArray[0] = -1000000000000;
   assertEquals(0, clampedArray[0]);
-}
-
+};
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

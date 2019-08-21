@@ -156,7 +156,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_address) {
     if (Heap::ShouldZapGarbage()) {
       for (Address address = committed_region_address;
            address < committed_region_size; address += kSystemPointerSize) {
-        Memory<Address>(address) = static_cast<Address>(kZapValue);
+        base::Memory<Address>(address) = static_cast<Address>(kZapValue);
       }
     }
   }

@@ -7,20 +7,21 @@
 namespace string {
   // ES6 #sec-string.prototype.tostring
   transitioning javascript builtin
-  StringPrototypeToString(implicit context: Context)(receiver: Object): Object {
+  StringPrototypeToString(js-implicit context: Context)(receiver: Object):
+      Object {
     return ToThisValue(receiver, kString, 'String.prototype.toString');
   }
 
   // ES6 #sec-string.prototype.valueof
   transitioning javascript builtin
-  StringPrototypeValueOf(implicit context: Context)(receiver: Object): Object {
+  StringPrototypeValueOf(js-implicit context: Context)(receiver: Object):
+      Object {
     return ToThisValue(receiver, kString, 'String.prototype.valueOf');
   }
 
   extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
       String, intptr, intptr, constexpr UnicodeEncoding): int32;
-  extern macro StringFromSingleCodePoint(int32, constexpr UnicodeEncoding):
-      String;
+  extern macro StringFromSingleUTF16EncodedCodePoint(int32): String;
 
   // This function assumes StringPrimitiveWithNoCustomIteration is true.
   transitioning builtin StringToList(implicit context: Context)(string: String):
@@ -38,7 +39,7 @@ namespace string {
     let i: intptr = 0;
     while (i < stringLength) {
       const ch: int32 = LoadSurrogatePairAt(string, stringLength, i, encoding);
-      const value: String = StringFromSingleCodePoint(ch, encoding);
+      const value: String = StringFromSingleUTF16EncodedCodePoint(ch);
       elements[arrayLength] = value;
       // Increment and continue the loop.
       i = i + value.length_intptr;
@@ -52,9 +53,9 @@ namespace string {
   }
 
   transitioning macro GenerateStringAt(implicit context: Context)(
-      receiver: Object, position: Object, methodName: constexpr string):
-      never labels IfInBounds(String, intptr, intptr),
-      IfOutOfBounds {
+      receiver: Object, position: Object,
+      methodName: constexpr string): never labels
+  IfInBounds(String, intptr, intptr), IfOutOfBounds {
     // Check that {receiver} is coercible to Object and convert it to a String.
     const string: String = ToThisString(receiver, methodName);
     // Convert the {position} to a Smi and check that it's in bounds of
@@ -70,12 +71,13 @@ namespace string {
 
   // ES6 #sec-string.prototype.charat
   transitioning javascript builtin StringPrototypeCharAt(
-      implicit context: Context)(receiver: Object, position: Object): Object {
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, length: intptr) {
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return StringFromSingleCharCode(code);
     }
@@ -86,12 +88,13 @@ namespace string {
 
   // ES6 #sec-string.prototype.charcodeat
   transitioning javascript builtin StringPrototypeCharCodeAt(
-      implicit context: Context)(receiver: Object, position: Object): Object {
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, length: intptr) {
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return Convert<Smi>(code);
     }
@@ -102,7 +105,8 @@ namespace string {
 
   // ES6 #sec-string.prototype.codepointat
   transitioning javascript builtin StringPrototypeCodePointAt(
-      implicit context: Context)(receiver: Object, position: Object): Object {
+      js-implicit context: Context,
+      receiver: Object)(position: Object): Object {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
           otherwise IfInBounds, IfOutOfBounds;
@@ -121,7 +125,7 @@ namespace string {
   // ES6 String.prototype.concat(...args)
   // ES6 #sec-string.prototype.concat
   transitioning javascript builtin StringPrototypeConcat(
-      implicit context: Context)(receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     // Check that {receiver} is coercible to Object and convert it to a String.
     let string: String = ToThisString(receiver, 'String.prototype.concat');
 

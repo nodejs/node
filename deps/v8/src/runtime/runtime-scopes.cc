@@ -6,11 +6,11 @@
 
 #include "src/ast/scopes.h"
 #include "src/builtins/accessors.h"
+#include "src/common/message-template.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -240,7 +240,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   Handle<Object> holder =
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
                       &init_flag, &mode);
-  DCHECK(holder.is_null() || !holder->IsModule());
+  DCHECK(holder.is_null() || !holder->IsSourceTextModule());
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -715,7 +715,7 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
 RUNTIME_FUNCTION(Runtime_PushModuleContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Module, module, 0);
+  CONVERT_ARG_HANDLE_CHECKED(SourceTextModule, module, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
 
   Handle<NativeContext> outer(NativeContext::cast(isolate->context()), isolate);
@@ -773,7 +773,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
   // If the slot was found in a context or in module imports and exports it
   // should be DONT_DELETE.
-  if (holder->IsContext() || holder->IsModule()) {
+  if (holder->IsContext() || holder->IsSourceTextModule()) {
     return ReadOnlyRoots(isolate).false_value();
   }
 
@@ -801,10 +801,11 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
                                           &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
-  if (!holder.is_null() && holder->IsModule()) {
+  if (!holder.is_null() && holder->IsSourceTextModule()) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
     if (receiver_return) *receiver_return = receiver;
-    return Module::LoadVariable(isolate, Handle<Module>::cast(holder), index);
+    return SourceTextModule::LoadVariable(
+        isolate, Handle<SourceTextModule>::cast(holder), index);
   }
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
@@ -903,9 +904,10 @@ MaybeHandle<Object> StoreLookupSlot(
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
-  } else if (holder->IsModule()) {
+  } else if (holder->IsSourceTextModule()) {
     if ((attributes & READ_ONLY) == 0) {
-      Module::StoreVariable(Handle<Module>::cast(holder), index, value);
+      SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
+                                      index, value);
     } else {
       THROW_NEW_ERROR(
           isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);

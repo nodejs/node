@@ -32,10 +32,12 @@ namespace {
 template <typename T>
 class ArgPassingHelper {
  public:
-  ArgPassingHelper(WasmRunnerBase& runner, WasmFunctionCompiler& inner_compiler,
-                   std::initializer_list<uint8_t> bytes_inner_function,
-                   std::initializer_list<uint8_t> bytes_outer_function,
-                   const T& expected_lambda)
+  ArgPassingHelper(
+      WasmRunnerBase& runner,                // NOLINT(runtime/references)
+      WasmFunctionCompiler& inner_compiler,  // NOLINT(runtime/references)
+      std::initializer_list<uint8_t> bytes_inner_function,
+      std::initializer_list<uint8_t> bytes_outer_function,
+      const T& expected_lambda)
       : isolate_(runner.main_isolate()),
         expected_lambda_(expected_lambda),
         debug_info_(WasmInstanceObject::GetOrCreateDebugInfo(
@@ -80,7 +82,8 @@ class ArgPassingHelper {
 
 template <typename T>
 static ArgPassingHelper<T> GetHelper(
-    WasmRunnerBase& runner, WasmFunctionCompiler& inner_compiler,
+    WasmRunnerBase& runner,                // NOLINT(runtime/references)
+    WasmFunctionCompiler& inner_compiler,  // NOLINT(runtime/references)
     std::initializer_list<uint8_t> bytes_inner_function,
     std::initializer_list<uint8_t> bytes_outer_function,
     const T& expected_lambda) {

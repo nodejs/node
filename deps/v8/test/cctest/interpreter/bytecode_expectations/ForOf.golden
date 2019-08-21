@@ -9,7 +9,7 @@ wrap: yes
 snippet: "
   for (var p of [0, 1, 2]) {}
 "
-frame size: 14
+frame size: 15
 parameter count: 1
 bytecode array length: 173
 bytecodes: [
@@ -60,15 +60,15 @@ bytecodes: [
                 B(Star), R(11),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(12),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(12),
-                B(LdaConstant), U8(6),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(13),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
+                B(LdaConstant), U8(6),
+                B(Star), R(14),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(12),
                 B(CallProperty0), R(11), R(3), U8(15),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(13),
@@ -101,7 +101,7 @@ constant pool: [
 ]
 handlers: [
   [38, 81, 89],
-  [135, 148, 150],
+  [115, 148, 150],
 ]
 
 ---
@@ -109,7 +109,7 @@ snippet: "
   var x = 'potatoes';
   for (var p of x) { return p; }
 "
-frame size: 15
+frame size: 16
 parameter count: 1
 bytecode array length: 184
 bytecodes: [
@@ -163,15 +163,15 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(13),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(13),
-                B(LdaConstant), U8(6),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(14),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
+                B(LdaConstant), U8(6),
+                B(Star), R(15),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(13),
                 B(CallProperty0), R(12), R(4), U8(14),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(14),
@@ -208,7 +208,7 @@ constant pool: [
 ]
 handlers: [
   [39, 86, 94],
-  [140, 153, 155],
+  [120, 153, 155],
 ]
 
 ---
@@ -218,7 +218,7 @@ snippet: "
     if (x == 20) break;
   }
 "
-frame size: 14
+frame size: 15
 parameter count: 1
 bytecode array length: 189
 bytecodes: [
@@ -276,15 +276,15 @@ bytecodes: [
                 B(Star), R(11),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(12),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(12),
-                B(LdaConstant), U8(6),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(13),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
+                B(LdaConstant), U8(6),
+                B(Star), R(14),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(12),
                 B(CallProperty0), R(11), R(3), U8(17),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(13),
@@ -317,7 +317,7 @@ constant pool: [
 ]
 handlers: [
   [38, 97, 105],
-  [151, 164, 166],
+  [131, 164, 166],
 ]
 
 ---
@@ -325,7 +325,7 @@ snippet: "
   var x = { 'a': 1, 'b': 2 };
   for (x['a'] of [1,2,3]) { return x['a']; }
 "
-frame size: 14
+frame size: 15
 parameter count: 1
 bytecode array length: 195
 bytecodes: [
@@ -382,15 +382,15 @@ bytecodes: [
                 B(Star), R(11),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(12),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(12),
-                B(LdaConstant), U8(8),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(13),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
+                B(LdaConstant), U8(8),
+                B(Star), R(14),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(12),
                 B(CallProperty0), R(11), R(2), U8(20),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(13),
@@ -429,6 +429,6 @@ constant pool: [
 ]
 handlers: [
   [44, 97, 105],
-  [151, 164, 166],
+  [131, 164, 166],
 ]
 

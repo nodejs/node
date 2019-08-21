@@ -19,6 +19,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -266,7 +269,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -496,11 +499,15 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                  VectorSlotPair const& feedback,
                                  Node* frame_state);
 
-  void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
-  void EmitLookupSwitch(const SwitchInfo& sw,
-                        InstructionOperand& value_operand);
-  void EmitBinarySearchSwitch(const SwitchInfo& sw,
-                              InstructionOperand& value_operand);
+  void EmitTableSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& index_operand);  // NOLINT(runtime/references)
+  void EmitLookupSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& value_operand);  // NOLINT(runtime/references)
+  void EmitBinarySearchSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& value_operand);  // NOLINT(runtime/references)
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
@@ -604,6 +611,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   MACHINE_SIMD_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
+  // Visit the load node with a value and opcode to replace with.
+  void VisitLoad(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
@@ -772,6 +781,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
+  TickCounter* const tick_counter_;
 };
 
 }  // namespace compiler

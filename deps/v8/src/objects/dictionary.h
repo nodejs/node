@@ -32,7 +32,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   // Returns the value at entry.
   Object ValueAt(int entry) {
-    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
+    Isolate* isolate = GetIsolateForPtrCompr(*this);
+    return ValueAt(isolate, entry);
+  }
+  Object ValueAt(Isolate* isolate, int entry) {
+    return this->get(isolate, DerivedHashTable::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
@@ -208,6 +212,8 @@ class V8_EXPORT_PRIVATE NameDictionary
   static const int kInitialCapacity = 2;
 
   inline Name NameAt(int entry);
+  inline Name NameAt(Isolate* isolate, int entry);
+
   inline void set_hash(int hash);
   inline int hash() const;
 
@@ -246,10 +252,13 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(int entry);
+  inline Object ValueAt(Isolate* isolate, int entry);
   inline PropertyCell CellAt(int entry);
+  inline PropertyCell CellAt(Isolate* isolate, int entry);
   inline void SetEntry(Isolate* isolate, int entry, Object key, Object value,
                        PropertyDetails details);
   inline Name NameAt(int entry);
+  inline Name NameAt(Isolate* isolate, int entry);
   inline void ValueAtPut(int entry, Object value);
 
   OBJECT_CONSTRUCTORS(

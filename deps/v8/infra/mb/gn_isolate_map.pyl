@@ -31,6 +31,10 @@
     "label": "//test:v8_d8_default",
     "type": "script",
   },
+  "generate-bytecode-expectations": {
+    "label": "//test/cctest:generate-bytecode-expectations",
+    "type": "script",
+  },
   "mjsunit": {
     "label": "//test/mjsunit:v8_mjsunit",
     "type": "script",

@@ -79,6 +79,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case Constant::kDelayedStringConstant:
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -262,8 +263,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   UNREACHABLE();
 }
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
-                                   PPCOperandConverter& i) {
+void EmitWordLoadPoisoningIfNeeded(
+    CodeGenerator* codegen, Instruction* instr,
+    PPCOperandConverter& i) {  // NOLINT(runtime/references)
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -877,8 +879,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
-      Register builtin_pointer = i.InputRegister(0);
-      __ CallBuiltinPointer(builtin_pointer);
+      Register builtin_index = i.InputRegister(0);
+      __ CallBuiltinByIndex(builtin_index);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1019,6 +1021,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      Label start_call;
+      bool isWasmCapiFunction =
+          linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
+      constexpr int offset = 12;
+      if (isWasmCapiFunction) {
+        __ mflr(kScratchReg);
+        __ bind(&start_call);
+        __ LoadPC(r0);
+        __ addi(r0, r0, Operand(offset));
+        __ StoreP(r0, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ mtlr(r0);
+      }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters);
@@ -1026,6 +1040,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      // TODO(miladfar): In the above block, r0 must be populated with the
+      // strictly-correct PC, which is the return address at this spot. The
+      // offset is set to 12 right now, which is counted from where we are
+      // binding to the label and ends at this spot. If failed, replace it it
+      // with the correct offset suggested. More info on f5ab7d3.
+      if (isWasmCapiFunction)
+        CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
+
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -1060,22 +1083,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
-    case kArchDebugAbort:
+    case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == r4);
-      if (!frame_access_state()->has_frame()) {
+      {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      } else {
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
+        __ Call(
+            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
+            RelocInfo::CODE_TARGET);
       }
-      __ stop("kArchDebugAbort");
+      __ stop();
       break;
     case kArchDebugBreak:
-      __ stop("kArchDebugBreak");
+      __ stop();
       break;
     case kArchNop:
     case kArchThrowTerminator:
@@ -1172,6 +1193,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ LoadP(i.OutputRegister(), MemOperand(fp, offset), r0);
       }
+      break;
+    }
+    case kPPC_Sync: {
+      __ sync();
       break;
     }
     case kPPC_And:
@@ -2150,7 +2175,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
-          __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromWasmTrap));
+          __ stop();
         }
       }
     }
@@ -2304,14 +2329,20 @@ void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      __ mflr(r0);
-      if (FLAG_enable_embedded_constant_pool) {
-        __ Push(r0, fp, kConstantPoolRegister);
-        // Adjust FP to point to saved FP.
-        __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+        __ StubPrologue(StackFrame::C_WASM_ENTRY);
+        // Reserve stack space for saving the c_entry_fp later.
+        __ addi(sp, sp, Operand(-kSystemPointerSize));
       } else {
-        __ Push(r0, fp);
-        __ mr(fp, sp);
+        __ mflr(r0);
+        if (FLAG_enable_embedded_constant_pool) {
+          __ Push(r0, fp, kConstantPoolRegister);
+          // Adjust FP to point to saved FP.
+          __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+        } else {
+          __ Push(r0, fp);
+          __ mr(fp, sp);
+        }
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
@@ -2325,7 +2356,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper()) {
+      } else if (call_descriptor->IsWasmImportWrapper() ||
+                 call_descriptor->IsWasmCapiFunction()) {
         // WASM import wrappers are passed a tuple in the place of the instance.
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
@@ -2335,12 +2367,16 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadP(kWasmInstanceRegister,
                  FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
+        if (call_descriptor->IsWasmCapiFunction()) {
+          // Reserve space for saving the PC later.
+          __ addi(sp, sp, Operand(-kSystemPointerSize));
+        }
       }
     }
   }
 
-  int required_slots = frame()->GetTotalFrameSlotCount() -
-                       call_descriptor->CalculateFixedFrameSize();
+  int required_slots =
+      frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
@@ -2389,7 +2425,7 @@ void CodeGenerator::AssembleConstructFrame() {
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
-        __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromThrow));
+        __ stop();
       }
 
       __ bind(&done);
@@ -2554,6 +2590,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
+        case Constant::kCompressedHeapObject:
+          UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on PPC.
           break;

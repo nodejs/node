@@ -5,15 +5,19 @@
 // Flags: --allow-natives-syntax --expose-gc
 
 var inner = new Array();
-inner.a = {x:1};
+inner.a = {
+  x: 1
+};
 inner[0] = 1.5;
-inner.b = {x:2};
+inner.b = {
+  x: 2
+};
 assertTrue(%HasDoubleElements(inner));
 
 function foo(o) {
   return o.field.a.x;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 var outer = {};
 outer.field = inner;
 foo(outer);
@@ -23,7 +27,11 @@ foo(outer);
 foo(outer);
 
 // Generalize representation of field "a" of inner object.
-var v = { get x() { return 0x7fffffff; } };
+var v = {
+  get x() {
+    return 0x7fffffff;
+  }
+};
 inner.a = v;
 
 gc();

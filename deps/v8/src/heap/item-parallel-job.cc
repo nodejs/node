@@ -26,8 +26,12 @@ void ItemParallelJob::Task::SetupInternal(base::Semaphore* on_finish,
   }
 }
 
+void ItemParallelJob::Task::WillRunOnForeground() {
+  runner_ = Runner::kForeground;
+}
+
 void ItemParallelJob::Task::RunInternal() {
-  RunInParallel();
+  RunInParallel(runner_);
   on_finish_->Signal();
 }
 
@@ -95,6 +99,7 @@ void ItemParallelJob::Run() {
 
   // Contribute on main thread.
   DCHECK(main_task);
+  main_task->WillRunOnForeground();
   main_task->Run();
 
   // Wait for background tasks.

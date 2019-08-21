@@ -212,6 +212,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f() {
     return 'abc'.indexOf('a');
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(0, f());
   assertEquals(0, f());
   assertEquals(0, f());
@@ -221,6 +222,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f2() {
     return 'abc'.indexOf('a', 1);
   }
+  %PrepareFunctionForOptimization(f2);
   assertEquals(-1, f2());
   assertEquals(-1, f2());
   assertEquals(-1, f2());
@@ -230,6 +232,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f3() {
     return 'abc'.indexOf('a');
   }
+  %PrepareFunctionForOptimization(f3);
   assertEquals(0, f3());
   assertEquals(0, f3());
   assertEquals(0, f3());
@@ -239,6 +242,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f4() {
     return 'abcbc'.indexOf('bc', 2);
   }
+  %PrepareFunctionForOptimization(f4);
   assertEquals(3, f4());
   assertEquals(3, f4());
   assertEquals(3, f4());
@@ -248,6 +252,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f5() {
     return 'abcbc'.indexOf('b', -1);
   }
+  %PrepareFunctionForOptimization(f5);
   assertEquals(1, f5());
   assertEquals(1, f5());
   assertEquals(1, f5());
@@ -257,6 +262,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   function f6() {
     return 'abcbc'.indexOf('b', -10737418);
   }
+  %PrepareFunctionForOptimization(f6);
   assertEquals(1, f6());
   assertEquals(1, f6());
   assertEquals(1, f6());

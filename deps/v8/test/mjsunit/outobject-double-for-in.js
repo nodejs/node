@@ -60,6 +60,7 @@ function test_props(a) {
   }
 }
 
+%PrepareFunctionForOptimization(test_props);
 test_props(z);
 test_props(z);
 %OptimizeFunctionOnNextCall(test_props);

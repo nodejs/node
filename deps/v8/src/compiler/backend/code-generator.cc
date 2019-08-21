@@ -1210,6 +1210,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
+      case Constant::kCompressedHeapObject:
+        DCHECK_EQ(MachineRepresentation::kCompressed, type.representation());
+        literal = DeoptimizationLiteral(constant.ToHeapObject());
+        break;
       case Constant::kDelayedStringConstant:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         literal = DeoptimizationLiteral(constant.ToDelayedStringConstant());

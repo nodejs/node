@@ -4,8 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
-function f() { [].lastIndexOf(42); }
-
+function f() {
+  [].lastIndexOf(42);
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

@@ -163,6 +163,7 @@ namespace compiler {
   V(Mips64StackClaim)                        \
   V(Mips64Seb)                               \
   V(Mips64Seh)                               \
+  V(Mips64Sync)                              \
   V(Mips64AssertEqual)                       \
   V(Mips64S128Zero)                          \
   V(Mips64I32x4Splat)                        \

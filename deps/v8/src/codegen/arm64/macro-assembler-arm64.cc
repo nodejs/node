@@ -291,8 +291,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
           ExternalReference reference = bit_cast<ExternalReference>(addr);
           IndirectLoadExternalReference(rd, reference);
           return;
-        } else if (operand.ImmediateRMode() ==
-                   RelocInfo::FULL_EMBEDDED_OBJECT) {
+        } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
           Handle<HeapObject> x(
               reinterpret_cast<Address*>(operand.ImmediateValue()));
           IndirectLoadConstant(rd, x);
@@ -1866,7 +1865,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   }
 
   if (CanUseNearCallOrJump(rmode)) {
-    JumpHelper(static_cast<int64_t>(AddCodeTarget(code)), rmode, cond);
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    JumpHelper(static_cast<int64_t>(index), rmode, cond);
   } else {
     Jump(code.address(), rmode, cond);
   }
@@ -1912,7 +1913,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   }
 
   if (CanUseNearCallOrJump(rmode)) {
-    near_call(AddCodeTarget(code), rmode);
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    near_call(static_cast<int32_t>(index), rmode);
   } else {
     IndirectCall(code.address(), rmode);
   }
@@ -1925,24 +1928,27 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
+  // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 0);
-  Lsl(builtin_pointer, builtin_pointer, kSystemPointerSizeLog2 - kSmiShift);
+  Lsl(builtin_index, builtin_index, kSystemPointerSizeLog2 - kSmiShift);
 #else
   STATIC_ASSERT(kSmiShiftSize == 31);
-  Asr(builtin_pointer, builtin_pointer, kSmiShift - kSystemPointerSizeLog2);
+  Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
 #endif
-  Add(builtin_pointer, builtin_pointer,
-      IsolateData::builtin_entry_table_offset());
-  Ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
-  Call(builtin_pointer);
+  Add(builtin_index, builtin_index, IsolateData::builtin_entry_table_offset());
+  Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  LoadEntryFromBuiltinIndex(builtin_index);
+  Call(builtin_index);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
@@ -2723,7 +2729,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   Ldrsw(destination, field_operand);
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
     UseScratchRegisterScope temps(this);
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
@@ -2747,7 +2753,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
     UseScratchRegisterScope temps(this);
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;

@@ -274,9 +274,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   MipsOperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
@@ -1773,6 +1773,11 @@ void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
   InstructionOperand temps[] = {g.TempRegister()};
   Emit(kMipsFloat64SilenceNaN, g.DefineSameAsFirst(node), g.UseRegister(left),
        arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsSync, g.NoOutput());
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {

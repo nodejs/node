@@ -545,21 +545,7 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringCodePointAtUTF16, StringBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* position = Parameter(Descriptor::kPosition);
-  // TODO(sigurds) Figure out if passing length as argument pays off.
-  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
-  // Load the character code at the {position} from the {receiver}.
-  TNode<Int32T> code =
-      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
-  // And return it as TaggedSigned value.
-  // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromInt32(code);
-  Return(result);
-}
-
-TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
+TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);
 
@@ -571,6 +557,21 @@ TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.
   TNode<Smi> result = SmiFromInt32(code);
+  Return(result);
+}
+
+TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
+  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<IntPtrT> position =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kPosition));
+
+  // TODO(sigurds) Figure out if passing length as argument pays off.
+  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+  // Load the character code at the {position} from the {receiver}.
+  TNode<Int32T> code =
+      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
+  // Create a String from the UTF16 encoded code point
+  TNode<String> result = StringFromSingleUTF16EncodedCodePoint(code);
   Return(result);
 }
 
@@ -952,19 +953,6 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   }
 }
 
-void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
-                                                     Node* const value,
-                                                     const char* method_name) {
-  Label out(this), throw_exception(this, Label::kDeferred);
-  Branch(IsNullOrUndefined(value), &throw_exception, &out);
-
-  BIND(&throw_exception);
-  ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
-                 method_name);
-
-  BIND(&out);
-}
-
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
     Handle<Symbol> symbol, DescriptorIndexAndName symbol_index,
@@ -1072,10 +1060,10 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  Node* const receiver = Parameter(Descriptor::kReceiver);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* const search = Parameter(Descriptor::kSearch);
   Node* const replace = Parameter(Descriptor::kReplace);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   TNode<Smi> const smi_zero = SmiConstant(0);
 
@@ -1578,7 +1566,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* const receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* const separator = args.GetOptionalArgumentValue(kSeparatorArg);
   Node* const limit = args.GetOptionalArgumentValue(kLimitArg);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -1986,12 +1974,12 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:
-        var_result = Signed(Word32Or(
+        var_result = Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
-            Word32Shl(lead, Int32Constant(16)), trail));
+            Word32Shl(lead, Int32Constant(16)), trail);
 #else
-            Word32Shl(trail, Int32Constant(16)), lead));
+            Word32Shl(trail, Int32Constant(16)), lead);
 #endif
         break;
 
@@ -2002,8 +1990,8 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
             Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
 
         // (lead << 10) + trail + SURROGATE_OFFSET
-        var_result = Signed(Int32Add(Word32Shl(lead, Int32Constant(10)),
-                                     Int32Add(trail, surrogate_offset)));
+        var_result = Int32Add(Word32Shl(lead, Int32Constant(10)),
+                              Int32Add(trail, surrogate_offset));
         break;
       }
     }

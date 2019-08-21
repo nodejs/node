@@ -1,0 +1,5 @@
+Tests that cloning a module notifies the debugger
+Got URL: wasm://wasm/wasm-cae8f226/wasm-cae8f226-0
+Got URL: wasm://wasm/wasm-cae8f226/wasm-cae8f226-0
+Got URL: wasm://wasm/wasm-cae8f226/wasm-cae8f226-0
+Done!

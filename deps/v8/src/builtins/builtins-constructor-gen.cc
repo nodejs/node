@@ -147,44 +147,40 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* target = Parameter(Descriptor::kTarget);
-  Node* new_target = Parameter(Descriptor::kNewTarget);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<JSReceiver> new_target = CAST(Parameter(Descriptor::kNewTarget));
 
   Label call_runtime(this);
 
-  Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
+  TNode<JSObject> result =
+      EmitFastNewObject(context, target, new_target, &call_runtime);
   Return(result);
 
   BIND(&call_runtime);
   TailCallRuntime(Runtime::kNewObject, context, target, new_target);
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
-                                                      Node* target,
-                                                      Node* new_target) {
-  VARIABLE(var_obj, MachineRepresentation::kTagged);
+compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
+    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
+    SloppyTNode<JSReceiver> new_target) {
+  TVARIABLE(JSObject, var_obj);
   Label call_runtime(this), end(this);
 
-  Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
-  var_obj.Bind(result);
+  var_obj = EmitFastNewObject(context, target, new_target, &call_runtime);
   Goto(&end);
 
   BIND(&call_runtime);
-  var_obj.Bind(CallRuntime(Runtime::kNewObject, context, target, new_target));
+  var_obj = CAST(CallRuntime(Runtime::kNewObject, context, target, new_target));
   Goto(&end);
 
   BIND(&end);
   return var_obj.value();
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
-                                                      Node* target,
-                                                      Node* new_target,
-                                                      Label* call_runtime) {
-  CSA_ASSERT(this, HasInstanceType(target, JS_FUNCTION_TYPE));
-  CSA_ASSERT(this, IsJSReceiver(new_target));
-
+compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
+    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
+    SloppyTNode<JSReceiver> new_target, Label* call_runtime) {
   // Verify that the new target is a JSFunction.
   Label fast(this), end(this);
   GotoIf(HasInstanceType(new_target, JS_FUNCTION_TYPE), &fast);
@@ -732,7 +728,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       TNode<JSFunction> target = LoadTargetFromFrame();
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
-      StoreObjectField(result, JSValue::kValueOffset, n_value);
+      StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, n_value);
       args.PopAndReturn(result);
     }
   }
@@ -798,7 +794,7 @@ TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
 
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
-      StoreObjectField(result, JSValue::kValueOffset, s_value);
+      StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, s_value);
       args.PopAndReturn(result);
     }
   }

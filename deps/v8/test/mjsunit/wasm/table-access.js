@@ -13,12 +13,12 @@ function addTableWithAccessors(builder, type, size, name) {
   builder.addFunction('set_' + name, set_sig)
       .addBody([kExprGetLocal, 0,
           kExprGetLocal, 1,
-          kExprSetTable, table.index])
+          kExprTableSet, table.index])
       .exportFunc();
 
   const get_sig = makeSig([kWasmI32], [type]);
   builder.addFunction('get_' + name, get_sig)
-      .addBody([kExprGetLocal, 0, kExprGetTable, table.index])
+      .addBody([kExprGetLocal, 0, kExprTableGet, table.index])
       .exportFunc();
 }
 
@@ -66,7 +66,7 @@ const dummy_func = exports.set_table_func1;
   assertTraps(kTrapTableOutOfBounds, () => exports.set_table_ref1(44, dummy_ref));
 })();
 
-(function testSetTable() {
+(function testTableSet() {
   print(arguments.callee.name);
   assertSame(null, exports.get_table_func1(3));
   exports.set_table_func1(3, dummy_func);
@@ -109,10 +109,10 @@ const dummy_func = exports.set_table_func1;
   const f2 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value2]);
   const f3 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value3]);
   builder.addFunction('get_t1', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprGetTable, t1])
+      .addBody([kExprGetLocal, 0, kExprTableGet, t1])
       .exportFunc();
   builder.addFunction('get_t2', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprGetTable, t2])
+      .addBody([kExprGetLocal, 0, kExprTableGet, t2])
       .exportFunc();
 
   const offset1 = 3;
@@ -143,7 +143,7 @@ const dummy_func = exports.set_table_func1;
       .addBody([
         kExprI32Const, index,                      // entry index
         kExprRefFunc, function_index,              // function reference
-        kExprSetTable, table_index,                // --
+        kExprTableSet, table_index,                // --
         kExprI32Const, index,                      // entry index
         kExprCallIndirect, sig_index, table_index  // --
 

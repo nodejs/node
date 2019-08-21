@@ -23,7 +23,8 @@ function __f_9() {
   __v_5 = __f_10();
   __v_4 = __f_10();
   __f_2(__v_5);
-}
+};
+%PrepareFunctionForOptimization(__f_9);
 __f_9();
 %OptimizeFunctionOnNextCall(__f_9);
 __f_9();

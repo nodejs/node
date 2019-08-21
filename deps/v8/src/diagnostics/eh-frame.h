@@ -6,9 +6,9 @@
 #define V8_DIAGNOSTICS_EH_FRAME_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/base/memory.h"
 #include "src/codegen/register-arch.h"
 #include "src/common/globals.h"
-#include "src/common/v8memory.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -144,11 +144,11 @@ class V8_EXPORT_PRIVATE EhFrameWriter {
   }
   void PatchInt32(int base_offset, uint32_t value) {
     DCHECK_EQ(
-        ReadUnalignedUInt32(reinterpret_cast<Address>(eh_frame_buffer_.data()) +
-                            base_offset),
+        base::ReadUnalignedValue<uint32_t>(
+            reinterpret_cast<Address>(eh_frame_buffer_.data()) + base_offset),
         kInt32Placeholder);
     DCHECK_LT(base_offset + kInt32Size, eh_frame_offset());
-    WriteUnalignedUInt32(
+    base::WriteUnalignedValue<uint32_t>(
         reinterpret_cast<Address>(eh_frame_buffer_.data()) + base_offset,
         value);
   }
@@ -216,7 +216,9 @@ class V8_EXPORT_PRIVATE EhFrameIterator {
 
   void SkipCie() {
     DCHECK_EQ(next_, start_);
-    next_ += ReadUnalignedUInt32(reinterpret_cast<Address>(next_)) + kInt32Size;
+    next_ +=
+        base::ReadUnalignedValue<uint32_t>(reinterpret_cast<Address>(next_)) +
+        kInt32Size;
   }
 
   void SkipToFdeDirectives() {
@@ -267,7 +269,7 @@ class V8_EXPORT_PRIVATE EhFrameIterator {
   T GetNextValue() {
     T result;
     DCHECK_LE(next_ + sizeof(result), end_);
-    result = ReadUnalignedValue<T>(reinterpret_cast<Address>(next_));
+    result = base::ReadUnalignedValue<T>(reinterpret_cast<Address>(next_));
     next_ += sizeof(result);
     return result;
   }

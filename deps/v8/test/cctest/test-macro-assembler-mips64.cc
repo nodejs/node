@@ -195,11 +195,11 @@ TEST(LoadAddress) {
   CHECK_EQ(4, check_size);
   __ jr(a4);
   __ nop();
-  __ stop("invalid");
-  __ stop("invalid");
-  __ stop("invalid");
-  __ stop("invalid");
-  __ stop("invalid");
+  __ stop();
+  __ stop();
+  __ stop();
+  __ stop();
+  __ stop();
 
 
   CodeDesc desc;

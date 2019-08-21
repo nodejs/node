@@ -9,14 +9,16 @@ function h(a) {
   print();
 }
 
-function g(a) { return a.length; }
+function g(a) {
+  return a.length;
+}
 g('0');
 g('1');
 
 function f() {
   h(g([]));
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

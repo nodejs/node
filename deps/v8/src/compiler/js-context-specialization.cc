@@ -6,6 +6,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -144,9 +145,10 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
-  concrete.SerializeContextChain();  // TODO(neis): Remove later.
-  for (; depth > 0; --depth) {
-    concrete = concrete.previous();
+  concrete = concrete.previous(&depth);
+  if (depth > 0) {
+    TRACE_BROKER_MISSING(broker(), "previous value for context " << concrete);
+    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
   }
 
   if (!access.immutable()) {
@@ -157,8 +159,6 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
 
   // This will hold the final value, if we can figure it out.
   base::Optional<ObjectRef> maybe_value;
-
-  concrete.SerializeSlot(static_cast<int>(access.index()));
   maybe_value = concrete.get(static_cast<int>(access.index()));
   if (maybe_value.has_value() && !maybe_value->IsSmi()) {
     // Even though the context slot is immutable, the context might have escaped
@@ -174,6 +174,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   if (!maybe_value.has_value()) {
+    TRACE_BROKER_MISSING(broker(), "slot value " << access.index()
+                                                 << " for context "
+                                                 << concrete);
     return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
   }
 
@@ -207,9 +210,10 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
-  concrete.SerializeContextChain();  // TODO(neis): Remove later.
-  for (; depth > 0; --depth) {
-    concrete = concrete.previous();
+  concrete = concrete.previous(&depth);
+  if (depth > 0) {
+    TRACE_BROKER_MISSING(broker(), "previous value for context " << concrete);
+    return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);
   }
 
   return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);

@@ -14,10 +14,12 @@
 namespace v8 {
 namespace internal {
 
-void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
+void TestArrayBufferViewContents(
+    LocalContext& env,  // NOLINT(runtime/references)
+    bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
       env->Global()
-          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("a"))
+          ->Get(env->GetIsolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
@@ -31,7 +33,6 @@ void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
     CHECK_EQ(i, contents[i]);
   }
 }
-
 
 TEST(CopyContentsTypedArray) {
   LocalContext env;

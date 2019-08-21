@@ -40,6 +40,9 @@ bool RunWithGCAndRetry(const std::function<bool()>& fn, Heap* heap,
     *did_retry = true;
     if (trial == kAllocationRetries) return false;
     // Otherwise, collect garbage and retry.
+    // TODO(wasm): Since reservation limits are engine-wide, we should do an
+    // engine-wide GC here (i.e. trigger a GC in each isolate using the engine,
+    // and wait for them all to finish). See https://crbug.com/v8/9405.
     heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
   }
 }

@@ -970,8 +970,9 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
-      DCHECK(object->IsJSValue());
-      Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+      DCHECK(object->IsJSPrimitiveWrapper());
+      Handle<JSPrimitiveWrapper> js_value =
+          Handle<JSPrimitiveWrapper>::cast(object);
       DCHECK(js_value->value().IsString());
       Handle<String> string(String::cast(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());

@@ -49,6 +49,7 @@ CONFIGS = dict(
     '--liftoff',
     '--no-wasm-tier-up',
     '--no-use-ic',
+    '--no-lazy-feedback-allocation',
   ],
   ignition_turbo=[],
   ignition_turbo_no_ic=[
@@ -58,11 +59,13 @@ CONFIGS = dict(
     '--always-opt',
     '--no-liftoff',
     '--no-wasm-tier-up',
+    '--no-lazy-feedback-allocation'
   ],
   ignition_turbo_opt_eager=[
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
+    '--no-lazy-feedback-allocation',
   ],
   jitless=[
     '--jitless',
@@ -73,6 +76,7 @@ CONFIGS = dict(
   slow_path_opt=[
     '--always-opt',
     '--force-slow-path',
+    '--no-lazy-feedback-allocation',
   ],
   trusted=[
     '--no-untrusted-code-mitigations',
@@ -80,24 +84,9 @@ CONFIGS = dict(
   trusted_opt=[
     '--always-opt',
     '--no-untrusted-code-mitigations',
+    '--no-lazy-feedback-allocation',
   ],
 )
-
-# Additional flag experiments. List of tuples like
-# (<likelihood to use flags in [0,1)>, <flag>).
-ADDITIONAL_FLAGS = [
-  (0.1, '--stress-marking=100'),
-  (0.1, '--stress-scavenge=100'),
-  (0.1, '--stress-compaction-random'),
-  (0.1, '--random-gc-interval=2000'),
-  (0.2, '--noanalyze-environment-liveness'),
-  (0.1, '--stress-delay-tasks'),
-  (0.01, '--thread-pool-size=1'),
-  (0.01, '--thread-pool-size=2'),
-  (0.01, '--thread-pool-size=4'),
-  (0.01, '--thread-pool-size=8'),
-  (0.1, '--interrupt-budget=1000'),
-]
 
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
@@ -187,6 +176,12 @@ def parse_args():
       '--first-config', help='first configuration', default='ignition')
   parser.add_argument(
       '--second-config', help='second configuration', default='ignition_turbo')
+  parser.add_argument(
+      '--first-config-extra-flags', action='append', default=[],
+      help='Additional flags to pass to the run of the first configuration')
+  parser.add_argument(
+      '--second-config-extra-flags', action='append', default=[],
+      help='Additional flags to pass to the run of the second configuration')
   parser.add_argument(
       '--first-d8', default='d8',
       help='optional path to first d8 executable, '
@@ -305,7 +300,6 @@ def print_difference(
 
 def main():
   options = parse_args()
-  rng = random.Random(options.random_seed)
 
   # Suppressions are architecture and configuration specific.
   suppress = v8_suppressions.get_suppression(
@@ -323,13 +317,10 @@ def main():
 
   # Set up runtime arguments.
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
-  first_config_flags = common_flags + CONFIGS[options.first_config]
-  second_config_flags = common_flags + CONFIGS[options.second_config]
-
-  # Add additional flags to second config based on experiment percentages.
-  for p, flag in ADDITIONAL_FLAGS:
-    if rng.random() < p:
-      second_config_flags.append(flag)
+  first_config_flags = (common_flags + CONFIGS[options.first_config] +
+                        options.first_config_extra_flags)
+  second_config_flags = (common_flags + CONFIGS[options.second_config] +
+                         options.second_config_extra_flags)
 
   def run_d8(d8, config_flags, config_label=None, testcase=options.testcase):
     preamble = PREAMBLE[:]

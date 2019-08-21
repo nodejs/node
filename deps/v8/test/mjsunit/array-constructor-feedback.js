@@ -126,7 +126,8 @@ function assertKind(expected, obj, name_opt) {
   assertTrue(a instanceof Array);
 
   var contextB = Realm.create();
-  Realm.eval(contextB, "function bar2() { return new Array(); };");
+  Realm.eval(contextB,
+      "function bar2() { return new Array(); }; %PrepareFunctionForOptimization(bar2)");
   Realm.eval(contextB, "bar2(); bar2();");
   Realm.eval(contextB, "%OptimizeFunctionOnNextCall(bar2);");
   Realm.eval(contextB, "bar2();");

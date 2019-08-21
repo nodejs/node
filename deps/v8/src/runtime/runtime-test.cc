@@ -11,6 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/pending-optimization-table.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
@@ -218,28 +219,6 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
       isolate->concurrent_recompilation_enabled());
 }
 
-namespace {
-
-void RemoveBytecodeFromPendingOptimizeTable(v8::internal::Isolate* isolate,
-                                            Handle<JSFunction> function) {
-  // TODO(mythria): Remove the check for undefined, once we fix all tests to
-  // add PrepareForOptimization when using OptimizeFunctionOnNextCall.
-  if (isolate->heap()->pending_optimize_for_test_bytecode().IsUndefined()) {
-    return;
-  }
-
-  Handle<ObjectHashTable> table =
-      handle(ObjectHashTable::cast(
-                 isolate->heap()->pending_optimize_for_test_bytecode()),
-             isolate);
-  bool was_present;
-  table = table->Remove(isolate, table, handle(function->shared(), isolate),
-                        &was_present);
-  isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
-}
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
 
@@ -271,9 +250,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
+  if (!FLAG_opt || (function->shared().optimization_disabled() &&
+                    function->shared().disable_optimization_reason() ==
+                        BailoutReason::kNeverOptimize)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -281,20 +260,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Check we called PrepareFunctionForOptimization and hold the bytecode
-  // array to prevent it from getting flushed.
-  // TODO(mythria): Enable this check once we add PrepareForOptimization in all
-  // tests before calling OptimizeFunctionOnNextCall.
-  // CHECK(!ObjectHashTable::cast(
-  //          isolate->heap()->pending_optimize_for_test_bytecode())
-  //          ->Lookup(handle(function->shared(), isolate))
-  //          ->IsTheHole());
+  if (FLAG_testing_d8_test_runner) {
+    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+  }
 
   if (function->HasOptimizedCode()) {
     DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
-    // If function is already optimized, remove the bytecode array from the
-    // pending optimize for test table and return.
-    RemoveBytecodeFromPendingOptimizeTable(isolate, function);
+    if (FLAG_testing_d8_test_runner) {
+      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
+    }
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -359,8 +333,10 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
   EnsureFeedbackVector(function);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -368,6 +344,9 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   if (!EnsureFeedbackVector(function)) {
@@ -389,16 +368,9 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  Handle<ObjectHashTable> table =
-      isolate->heap()->pending_optimize_for_test_bytecode().IsUndefined()
-          ? ObjectHashTable::New(isolate, 1)
-          : handle(ObjectHashTable::cast(
-                       isolate->heap()->pending_optimize_for_test_bytecode()),
-                   isolate);
-  table = ObjectHashTable::Put(
-      table, handle(function->shared(), isolate),
-      handle(function->shared().GetBytecodeArray(), isolate));
-  isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
+  if (FLAG_testing_d8_test_runner) {
+    PendingOptimizationTable::PreparedForOptimization(isolate, function);
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -418,26 +390,23 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return ReadOnlyRoots(isolate).undefined_value();
 
-  if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
+  if (!FLAG_opt || (function->shared().optimization_disabled() &&
+                    function->shared().disable_optimization_reason() ==
+                        BailoutReason::kNeverOptimize)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Check we called PrepareFunctionForOptimization and hold the bytecode
-  // array to prevent it from getting flushed.
-  // TODO(mythria): Enable this check once we add PrepareForOptimization in all
-  // tests before calling OptimizeOsr.
-  // CHECK(!ObjectHashTable::cast(
-  //          isolate->heap()->pending_optimize_for_test_bytecode())
-  //          ->Lookup(handle(function->shared(), isolate))
-  //          ->IsTheHole());
+  if (FLAG_testing_d8_test_runner) {
+    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+  }
 
   if (function->HasOptimizedCode()) {
     DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
     // If function is already optimized, remove the bytecode array from the
     // pending optimize for test table and return.
-    RemoveBytecodeFromPendingOptimizeTable(isolate, function);
+    if (FLAG_testing_d8_test_runner) {
+      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
+    }
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -593,14 +562,11 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
 }
 
 static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  double v1 = args[0]
-                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
-                  .ToChecked();
-  double v2 = args[1]
-                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
-                  .ToChecked();
-  args.GetReturnValue().Set(
-      v8::Number::New(v8::Isolate::GetCurrent(), v1 - v2));
+  double v1 =
+      args[0]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+  double v2 =
+      args[1]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+  args.GetReturnValue().Set(v8::Number::New(args.GetIsolate(), v1 - v2));
 }
 
 // Returns a callable object. The object returns the difference of its two
@@ -624,6 +590,9 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
 RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->ClearTypeFeedbackInfo();
   return ReadOnlyRoots(isolate).undefined_value();
@@ -832,7 +801,6 @@ RUNTIME_FUNCTION(Runtime_Abort) {
   UNREACHABLE();
 }
 
-
 RUNTIME_FUNCTION(Runtime_AbortJS) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -847,6 +815,16 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   UNREACHABLE();
 }
 
+RUNTIME_FUNCTION(Runtime_AbortCSAAssert) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
+  base::OS::PrintError("abort: CSA_ASSERT failed: %s\n",
+                       message->ToCString().get());
+  isolate->PrintStack(stderr);
+  base::OS::Abort();
+  UNREACHABLE();
+}
 
 RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   HandleScope scope(isolate);
@@ -1151,6 +1129,19 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   return *module_object;
+}
+
+// Create a new Module object using the same NativeModule.
+RUNTIME_FUNCTION(Runtime_CloneWasmModule) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_object, 0);
+
+  Handle<WasmModuleObject> new_module_object =
+      wasm::WasmEngine::GetWasmEngine()->ImportNativeModule(
+          isolate, module_object->shared_native_module());
+
+  return *new_module_object;
 }
 
 RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {

@@ -44,6 +44,10 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         const Matcher<compiler::Node*>& base_matcher,
         const Matcher<compiler::Node*>& index_matcher,
         LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+    Matcher<compiler::Node*> IsLoadFromObject(
+        const Matcher<compiler::LoadRepresentation>& rep_matcher,
+        const Matcher<compiler::Node*>& base_matcher,
+        const Matcher<compiler::Node*>& index_matcher);
     Matcher<compiler::Node*> IsStore(
         const Matcher<compiler::StoreRepresentation>& rep_matcher,
         const Matcher<compiler::Node*>& base_matcher,

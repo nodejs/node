@@ -586,7 +586,10 @@ MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
 
 MD_CPU_ARCHITECTURE_X86 = 0
 MD_CPU_ARCHITECTURE_ARM = 5
-MD_CPU_ARCHITECTURE_ARM64 = 0x8003
+# Breakpad used a custom value of 0x8003 here; Crashpad uses the new
+# standardized value 12.
+MD_CPU_ARCHITECTURE_ARM64 = 12
+MD_CPU_ARCHITECTURE_ARM64_BREAKPAD_LEGACY = 0x8003
 MD_CPU_ARCHITECTURE_AMD64 = 9
 
 OBJDUMP_BIN = None
@@ -647,6 +650,8 @@ class MinidumpReader(object):
         system_info = MINIDUMP_RAW_SYSTEM_INFO.Read(
             self.minidump, d.location.rva)
         self.arch = system_info.processor_architecture
+        if self.arch == MD_CPU_ARCHITECTURE_ARM64_BREAKPAD_LEGACY:
+          self.arch = MD_CPU_ARCHITECTURE_ARM64
         assert self.arch in [MD_CPU_ARCHITECTURE_AMD64,
                              MD_CPU_ARCHITECTURE_ARM,
                              MD_CPU_ARCHITECTURE_ARM64,

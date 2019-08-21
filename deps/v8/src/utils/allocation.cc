@@ -84,7 +84,7 @@ v8::PageAllocator* SetPlatformPageAllocatorForTesting(
   return old_page_allocator;
 }
 
-void* Malloced::New(size_t size) {
+void* Malloced::operator new(size_t size) {
   void* result = AllocWithRetry(size);
   if (result == nullptr) {
     V8::FatalProcessOutOfMemory(nullptr, "Malloced operator new");
@@ -92,7 +92,7 @@ void* Malloced::New(size_t size) {
   return result;
 }
 
-void Malloced::Delete(void* p) { free(p); }
+void Malloced::operator delete(void* p) { free(p); }
 
 char* StrDup(const char* str) {
   size_t length = strlen(str);

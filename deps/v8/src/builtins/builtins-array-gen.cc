@@ -227,7 +227,7 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     VariableList list({&a_, &k_, &to_}, zone());
 
     FastLoopBody body = [&](Node* index) {
-      GotoIf(IsDetachedBuffer(array_buffer), detached);
+      GotoIf(IsDetachedBuffer(CAST(array_buffer)), detached);
       TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
       Node* value = LoadFixedTypedArrayElementAsTagged(
           data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
@@ -402,7 +402,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   TNode<Object> receiver = args.GetReceiver();
   TNode<JSArray> array_receiver;
-  Node* kind = nullptr;
+  TNode<Int32T> kind;
 
   Label fast(this);
   BranchIfFastJSArray(receiver, context, &fast, &runtime);
@@ -709,19 +709,19 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
         iterator_assembler.GetIterator(context, items, iterator_method);
 
     TNode<Context> native_context = LoadNativeContext(context);
-    TNode<Object> fast_iterator_result_map =
-        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+    TNode<Map> fast_iterator_result_map = CAST(
+        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
     Goto(&loop);
 
     BIND(&loop);
     {
       // Loop while iterator is not done.
-      TNode<Object> next = iterator_assembler.IteratorStep(
+      TNode<JSReceiver> next = iterator_assembler.IteratorStep(
           context, iterator_record, &loop_done, fast_iterator_result_map);
       TVARIABLE(Object, value,
-                CAST(iterator_assembler.IteratorValue(
-                    context, next, fast_iterator_result_map)));
+                iterator_assembler.IteratorValue(context, next,
+                                                 fast_iterator_result_map));
 
       // If a map_function is supplied then call it (using this_arg as
       // receiver), on the value returned from the iterator. Exceptions are
@@ -2035,8 +2035,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
            &normal_sequence);
     {
       // Make elements kind holey and update elements kind in the type info.
-      var_elements_kind =
-          Signed(Word32Or(var_elements_kind.value(), Int32Constant(1)));
+      var_elements_kind = Word32Or(var_elements_kind.value(), Int32Constant(1));
       StoreObjectFieldNoWriteBarrier(
           allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
           SmiOr(transition_info, SmiConstant(fast_elements_kind_holey_mask)));

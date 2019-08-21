@@ -70,7 +70,8 @@ class BytecodeExpectationsPrinter final {
                      const BytecodeArrayIterator& bytecode_iterator,
                      int parameter_count) const;
   void PrintSourcePosition(std::ostream& stream,  // NOLINT
-                           SourcePositionTableIterator& source_iterator,
+                           SourcePositionTableIterator&
+                               source_iterator,  // NOLINT(runtime/references)
                            int bytecode_offset) const;
   void PrintV8String(std::ostream& stream,  // NOLINT
                      i::String string) const;

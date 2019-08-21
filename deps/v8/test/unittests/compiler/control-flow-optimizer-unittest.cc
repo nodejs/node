@@ -25,7 +25,8 @@ class ControlFlowOptimizerTest : public GraphTest {
 
  protected:
   void Optimize() {
-    ControlFlowOptimizer optimizer(graph(), common(), machine(), zone());
+    ControlFlowOptimizer optimizer(graph(), common(), machine(), tick_counter(),
+                                   zone());
     optimizer.Optimize();
   }
 

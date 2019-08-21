@@ -527,8 +527,16 @@ class SmallOrderedHashTable : public HeapObject {
     return NumberOfDeletedElementsOffset() + kOneByteSize;
   }
 
+  static constexpr Offset PaddingOffset() {
+    return NumberOfBucketsOffset() + kOneByteSize;
+  }
+
+  static constexpr size_t PaddingSize() {
+    return RoundUp<kTaggedSize>(PaddingOffset()) - PaddingOffset();
+  }
+
   static constexpr Offset DataTableStartOffset() {
-    return RoundUp<kTaggedSize>(NumberOfBucketsOffset());
+    return PaddingOffset() + PaddingSize();
   }
 
   static constexpr int DataTableSizeFor(int capacity) {

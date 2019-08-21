@@ -22,7 +22,7 @@ class Handle;
 class Isolate;
 template <typename T>
 class MaybeHandle;
-class ModuleInfo;
+class SourceTextModuleInfo;
 class Scope;
 class Zone;
 
@@ -113,7 +113,7 @@ class ScopeInfo : public FixedArray {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  ModuleInfo ModuleDescriptorInfo() const;
+  SourceTextModuleInfo ModuleDescriptorInfo() const;
 
   // Return the name of the given context local.
   String ContextLocalName(int var) const;
@@ -130,6 +130,9 @@ class ScopeInfo : public FixedArray {
   // Return the initialization flag of the given context local.
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
 
+  // Return whether access to the variable requries a brand check.
+  RequiresBrandCheckFlag RequiresBrandCheck(int var) const;
+
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
   static bool VariableIsSynthetic(String name);
@@ -141,7 +144,8 @@ class ScopeInfo : public FixedArray {
   // mode for that variable.
   static int ContextSlotIndex(ScopeInfo scope_info, String name,
                               VariableMode* mode, InitializationFlag* init_flag,
-                              MaybeAssignedFlag* maybe_assigned_flag);
+                              MaybeAssignedFlag* maybe_assigned_flag,
+                              RequiresBrandCheckFlag* requires_brand_check);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -284,10 +288,10 @@ class ScopeInfo : public FixedArray {
   //    the scope belongs to a function or script.
   // 7. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 8. ModuleInfo, ModuleVariableCount, and ModuleVariables:
-  //    For a module scope, this part contains the ModuleInfo, the number of
-  //    MODULE-allocated variables, and the metadata of those variables.  For
-  //    non-module scopes it is empty.
+  // 8. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
+  //    For a module scope, this part contains the SourceTextModuleInfo, the
+  //    number of MODULE-allocated variables, and the metadata of those
+  //    variables.  For non-module scopes it is empty.
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int ReceiverInfoIndex() const;
@@ -322,8 +326,11 @@ class ScopeInfo : public FixedArray {
   class VariableModeField : public BitField<VariableMode, 0, 3> {};
   class InitFlagField : public BitField<InitializationFlag, 3, 1> {};
   class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
+  class RequiresBrandCheckField
+      : public BitField<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext,
+                        1> {};
   class ParameterNumberField
-      : public BitField<uint32_t, MaybeAssignedFlagField::kNext, 16> {};
+      : public BitField<uint32_t, RequiresBrandCheckField::kNext, 16> {};
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

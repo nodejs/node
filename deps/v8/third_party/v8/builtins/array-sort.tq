@@ -14,7 +14,7 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 namespace array {
-  class SortState {
+  class SortState extends Struct {
     Compare(implicit context: Context)(x: Object, y: Object): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);
@@ -144,7 +144,7 @@ namespace array {
 
     try {
       GotoIfForceSlowPath() otherwise Slow;
-      let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+      const a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
       // Copy copy-on-write (COW) arrays.
       array::EnsureWriteableFastElements(a);
@@ -230,7 +230,7 @@ namespace array {
   transitioning builtin Load<ElementsAccessor: type>(
       context: Context, sortState: SortState, index: Smi): Object {
     const receiver = sortState.receiver;
-    if (!HasProperty_Inline(receiver, index)) return Hole;
+    if (!HasProperty_Inline(receiver, index)) return TheHole;
     return GetProperty(receiver, index);
   }
 
@@ -257,7 +257,7 @@ namespace array {
       return AllocateHeapNumberWithValue(value);
     }
     label IfHole {
-      return Hole;
+      return TheHole;
     }
   }
 
@@ -298,7 +298,7 @@ namespace array {
       context: Context, sortState: SortState, index: Smi): Smi {
     const receiver = sortState.receiver;
     if (!HasProperty_Inline(receiver, index)) return kSuccess;
-    DeleteProperty(receiver, index, kSloppy);
+    DeleteProperty(receiver, index, kStrict);
     return kSuccess;
   }
 
@@ -308,7 +308,7 @@ namespace array {
 
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    elements.objects[index] = Hole;
+    elements.objects[index] = TheHole;
     return kSuccess;
   }
 
@@ -318,7 +318,7 @@ namespace array {
 
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    elements.objects[index] = Hole;
+    elements.objects[index] = TheHole;
     return kSuccess;
   }
 
@@ -389,8 +389,8 @@ namespace array {
   }
 
   CanUseSameAccessor<GenericElementsAccessor>(
-      context: Context, receiver: JSReceiver, initialReceiverMap: Object,
-      initialReceiverLength: Number): Boolean {
+      _context: Context, _receiver: JSReceiver, _initialReceiverMap: Object,
+      _initialReceiverLength: Number): Boolean {
     // Do nothing. We are already on the slow path.
     return True;
   }
@@ -477,7 +477,7 @@ namespace array {
     } else {
       let srcIdx: Smi = srcPos;
       let dstIdx: Smi = dstPos;
-      let to: Smi = srcPos + length;
+      const to: Smi = srcPos + length;
 
       while (srcIdx < to) {
         target.objects[dstIdx++] = source.objects[srcIdx++];
@@ -566,7 +566,7 @@ namespace array {
 
     const workArray = sortState.workArray;
 
-    let low: Smi = lowArg + 1;
+    const low: Smi = lowArg + 1;
     if (low == high) return 1;
 
     let runLength: Smi = 2;
@@ -631,7 +631,7 @@ namespace array {
     const pendingRuns: FixedArray = sortState.pendingRuns;
     let baseA: Smi = GetPendingRunBase(pendingRuns, i);
     let lengthA: Smi = GetPendingRunLength(pendingRuns, i);
-    let baseB: Smi = GetPendingRunBase(pendingRuns, i + 1);
+    const baseB: Smi = GetPendingRunBase(pendingRuns, i + 1);
     let lengthB: Smi = GetPendingRunLength(pendingRuns, i + 1);
     assert(lengthA > 0 && lengthB > 0);
     assert(baseA + lengthA == baseB);
@@ -710,7 +710,7 @@ namespace array {
       // a[base + hint + lastOfs] < key <= a[base + hint + offset].
 
       // a[base + length - 1] is highest.
-      let maxOfs: Smi = length - hint;
+      const maxOfs: Smi = length - hint;
       while (offset < maxOfs) {
         const offsetElement = array.objects[base + hint + offset];
         order = sortState.Compare(offsetElement, key);
@@ -736,7 +736,7 @@ namespace array {
       assert(order >= 0);
 
       // a[base + hint] is lowest.
-      let maxOfs: Smi = hint + 1;
+      const maxOfs: Smi = hint + 1;
       while (offset < maxOfs) {
         const offsetElement = array.objects[base + hint - offset];
         order = sortState.Compare(offsetElement, key);
@@ -807,7 +807,7 @@ namespace array {
       // a[base + hint - offset] <= key < a[base + hint - lastOfs].
 
       // a[base + hint] is lowest.
-      let maxOfs: Smi = hint + 1;
+      const maxOfs: Smi = hint + 1;
       while (offset < maxOfs) {
         const offsetElement = array.objects[base + hint - offset];
         order = sortState.Compare(key, offsetElement);
@@ -832,7 +832,7 @@ namespace array {
       // a[base + hint + lastOfs] <= key < a[base + hint + offset].
 
       // a[base + length - 1] is highest.
-      let maxOfs: Smi = length - hint;
+      const maxOfs: Smi = length - hint;
       while (offset < maxOfs) {
         const offsetElement = array.objects[base + hint + offset];
         order = sortState.Compare(key, offsetElement);
@@ -920,7 +920,7 @@ namespace array {
         while (Int32TrueConstant()) {
           assert(lengthA > 1 && lengthB > 0);
 
-          let order = sortState.Compare(
+          const order = sortState.Compare(
               workArray.objects[cursorB], tempArray.objects[cursorTemp]);
 
           if (order < 0) {
@@ -1052,7 +1052,7 @@ namespace array {
         while (Int32TrueConstant()) {
           assert(lengthA > 0 && lengthB > 1);
 
-          let order = sortState.Compare(
+          const order = sortState.Compare(
               tempArray.objects[cursorTemp], workArray.objects[cursorA]);
 
           if (order < 0) {
@@ -1222,7 +1222,7 @@ namespace array {
   // remains. This is used at the end of the mergesort.
   transitioning macro
   MergeForceCollapse(context: Context, sortState: SortState) {
-    let pendingRuns: FixedArray = sortState.pendingRuns;
+    const pendingRuns: FixedArray = sortState.pendingRuns;
 
     // Reload the stack size becuase MergeAt might change it.
     while (GetPendingRunsSize(sortState) > 1) {
@@ -1297,7 +1297,7 @@ namespace array {
     for (let i: Smi = 0; i < receiverLength; ++i) {
       const element: Object = loadFn(context, sortState, i);
 
-      if (element == Hole) {
+      if (element == TheHole) {
         // Do nothing for holes. The result is that elements are
         // compacted at the front of the work array.
       } else if (element == Undefined) {
@@ -1330,7 +1330,7 @@ namespace array {
     //   1. Copy the sorted elements from the workarray to the receiver.
     //   2. Add {nOfUndefined} undefineds to the receiver.
     //   3. Depending on the backing store either delete properties or
-    //      set them to the Hole up to {sortState.sortLength}.
+    //      set them to the TheHole up to {sortState.sortLength}.
     let index: Smi = 0;
     for (; index < numberOfNonUndefined; ++index) {
       storeFn(context, sortState, index, workArray.objects[index]);
@@ -1369,7 +1369,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
   transitioning javascript builtin
-  ArrayPrototypeSort(context: Context, receiver: Object, ...arguments): Object {
+  ArrayPrototypeSort(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: Object = arguments[0];

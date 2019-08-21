@@ -25,10 +25,8 @@
 namespace v8 {
 namespace internal {
 
-class AllocationTracker;
 class AllocationTraceNode;
 class HeapEntry;
-class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
 class HeapSnapshotGenerator;

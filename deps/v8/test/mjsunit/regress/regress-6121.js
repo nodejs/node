@@ -12,6 +12,7 @@ function foo(o) {
     return true;
   }
 }
+%PrepareFunctionForOptimization(foo);
 
 var o = new Proxy({a:1},{
   getOwnPropertyDescriptor(target, property) { throw target; }

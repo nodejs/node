@@ -31,15 +31,15 @@ var large_int = 0x40000000;
 
 function foo(x, expected) {
   assertEquals(expected, x);  // This succeeds.
-  x += 0;  // Force int32 representation so that
-           // CompareNumericAndBranch is used.
+  x += 0;                     // Force int32 representation so that
+  // CompareNumericAndBranch is used.
   if (3 != x) {
     x += 0;  // Poor man's "iDef".
     // Fails due to Smi-tagging without overflow check.
     assertEquals(expected, x);
   }
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo(1, 1);
 foo(3, 3);
 %OptimizeFunctionOnNextCall(foo);

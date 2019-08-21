@@ -117,8 +117,6 @@ class LocalArrayBufferTracker {
   // logic for updating external memory counters.
   inline void AddInternal(JSArrayBuffer buffer, size_t length);
 
-  inline Space* space();
-
   Page* page_;
   // The set contains raw heap pointers which are removed by the GC upon
   // processing the tracker through its owning page.

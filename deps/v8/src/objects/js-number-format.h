@@ -17,14 +17,15 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "unicode/numberformatter.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
-class NumberFormat;
 class UnicodeString;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -33,9 +34,9 @@ namespace internal {
 class JSNumberFormat : public JSObject {
  public:
   // ecma402/#sec-initializenumberformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> Initialize(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(
@@ -55,6 +56,17 @@ class JSNumberFormat : public JSObject {
       Handle<Object> numeric_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  // Helper functions shared with JSPluralRules.
+  static int32_t MinimumIntegerDigitsFromSkeleton(
+      const icu::UnicodeString& skeleton);
+  static bool FractionDigitsFromSkeleton(const icu::UnicodeString& skeleton,
+                                         int32_t* minimum, int32_t* maximum);
+  static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
+                                            int32_t* minimum, int32_t* maximum);
+  static icu::number::LocalizedNumberFormatter SetDigitOptionsToFormatter(
+      const icu::number::LocalizedNumberFormatter& icu_number_formatter,
+      const Intl::NumberFormatDigitOptions& digit_options);
 
   DECL_CAST(JSNumberFormat)
   DECL_PRINTER(JSNumberFormat)
@@ -80,6 +92,14 @@ class JSNumberFormat : public JSObject {
   inline int maximum_fraction_digits() const;
   inline void set_maximum_fraction_digits(int digits);
 
+  // [[Style]] is one of the values "decimal", "percent", "currency",
+  // or "unit" identifying the style of the number format.
+  // Note: "unit" is added in proposal-unified-intl-numberformat
+  enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
+
+  inline void set_style(Style style);
+  inline Style style() const;
+
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSNUMBER_FORMAT_FIELDS)
@@ -87,13 +107,18 @@ class JSNumberFormat : public JSObject {
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)            \
   V(MinimumFractionDigitsBits, int, 5, _) \
-  V(MaximumFractionDigitsBits, int, 5, _)
+  V(MaximumFractionDigitsBits, int, 5, _) \
+  V(StyleBits, Style, 2, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
   STATIC_ASSERT(20 <= MinimumFractionDigitsBits::kMax);
   STATIC_ASSERT(20 <= MaximumFractionDigitsBits::kMax);
+  STATIC_ASSERT(Style::DECIMAL <= StyleBits::kMax);
+  STATIC_ASSERT(Style::PERCENT <= StyleBits::kMax);
+  STATIC_ASSERT(Style::CURRENCY <= StyleBits::kMax);
+  STATIC_ASSERT(Style::UNIT <= StyleBits::kMax);
 
   DECL_ACCESSORS(locale, String)
   DECL_ACCESSORS(icu_number_formatter,

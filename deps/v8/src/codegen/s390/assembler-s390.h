@@ -307,13 +307,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
-
 // Number of bytes for instructions used to store pointer sized constant.
 #if V8_TARGET_ARCH_S390X
   static constexpr int kBytesForPtrConstant = 12;  // IIHF + IILF
 #else
   static constexpr int kBytesForPtrConstant = 6;  // IILF
 #endif
+
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1261,8 +1262,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void larl(Register r, Label* l);
 
   // Exception-generating instructions and debugging support
-  void stop(const char* msg, Condition cond = al,
-            int32_t code = kDefaultStopCode, CRegister cr = cr7);
+  void stop(Condition cond = al, int32_t code = kDefaultStopCode,
+            CRegister cr = cr7);
 
   void bkpt(uint32_t imm16);  // v5 and above
 
@@ -1376,6 +1377,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
   std::vector<DeferredRelocInfo> relocations_;
 
+  // Scratch registers available for use by the Assembler.
+  RegList scratch_register_list_;
+
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
@@ -1455,11 +1459,30 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;
   friend class EnsureSpace;
+  friend class UseScratchRegisterScope;
 };
 
 class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
+};
+
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  Register Acquire();
+
+  // Check if we have registers available to acquire.
+  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+
+ private:
+  friend class Assembler;
+  friend class TurboAssembler;
+
+  Assembler* assembler_;
+  RegList old_available_;
 };
 
 }  // namespace internal

@@ -275,6 +275,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmStr:
     case kArmPush:
     case kArmPoke:
+    case kArmDmbIsh:
     case kArmDsbIsb:
     case kArmWord32AtomicPairStore:
     case kArmWord32AtomicPairAdd:

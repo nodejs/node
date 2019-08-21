@@ -32,14 +32,16 @@ JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
   JSObject js_obj_receiver = JSObject::cast(receiver);
   FunctionTemplateInfo signature = FunctionTemplateInfo::cast(recv_type);
 
-  // Check the receiver. Fast path for receivers with no hidden prototypes.
+  // Check the receiver.
   if (signature.IsTemplateFor(js_obj_receiver)) return receiver;
-  if (!js_obj_receiver.map().has_hidden_prototype()) return JSReceiver();
-  for (PrototypeIterator iter(isolate, js_obj_receiver, kStartAtPrototype,
-                              PrototypeIterator::END_AT_NON_HIDDEN);
-       !iter.IsAtEnd(); iter.Advance()) {
-    JSObject current = iter.GetCurrent<JSObject>();
-    if (signature.IsTemplateFor(current)) return current;
+
+  // The JSGlobalProxy might have a hidden prototype.
+  if (V8_UNLIKELY(js_obj_receiver.IsJSGlobalProxy())) {
+    HeapObject prototype = js_obj_receiver.map().prototype();
+    if (!prototype.IsNull(isolate)) {
+      JSObject js_obj_prototype = JSObject::cast(prototype);
+      if (signature.IsTemplateFor(js_obj_prototype)) return js_obj_prototype;
+    }
   }
   return JSReceiver();
 }

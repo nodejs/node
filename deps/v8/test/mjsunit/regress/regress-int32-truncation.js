@@ -35,8 +35,8 @@ function f(i, b) {
   }
   var x = a >> 3;
   return a;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f(1, false);
 f(1, true);
 %OptimizeFunctionOnNextCall(f);
@@ -52,8 +52,8 @@ function f2(b) {
   }
   var x = a >> 3;
   return a;
-}
-
+};
+%PrepareFunctionForOptimization(f2);
 f2(false);
 f2(true);
 %OptimizeFunctionOnNextCall(f2);

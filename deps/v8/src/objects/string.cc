@@ -61,8 +61,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   }
-  cons->set_first(isolate, *result);
-  cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+  cons->set_first(*result);
+  cons->set_second(ReadOnlyRoots(isolate).empty_string());
   DCHECK(result->IsFlat());
   return result;
 }
@@ -146,15 +146,15 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kUncachedSize) return false;
-  Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (!GetIsolateFromWritableObject(*this, &isolate)) return false;
-  Heap* heap = isolate->heap();
+  if (IsReadOnlyHeapObject(*this)) return false;
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
+
   if (has_pointers) {
-    heap->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -163,7 +163,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // the address of the backing store.  When we encounter uncached external
   // strings in generated code, we need to bailout to runtime.
   Map new_map;
-  ReadOnlyRoots roots(heap);
+  ReadOnlyRoots roots(isolate);
   if (size < ExternalString::kSizeOfAllExternalStrings) {
     if (is_internalized) {
       new_map = roots.uncached_external_internalized_string_map();
@@ -177,10 +177,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
-                             ClearRecordedSlots::kNo);
+  isolate->heap()->CreateFillerObjectAt(
+      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
   if (has_pointers) {
-    heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
+    isolate->heap()->ClearRecordedSlotRange(this->address(),
+                                            this->address() + new_size);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -189,7 +190,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
   self.SetResource(isolate, resource);
-  heap->RegisterExternalString(*this);
+  isolate->heap()->RegisterExternalString(*this);
   if (is_internalized) self.Hash();  // Force regeneration of the hash value.
   return true;
 }
@@ -218,18 +219,16 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kUncachedSize) return false;
-  Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (!GetIsolateFromWritableObject(*this, &isolate)) return false;
-  Heap* heap = isolate->heap();
+  if (IsReadOnlyHeapObject(*this)) return false;
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    heap->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
   }
-
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -237,7 +236,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // the address of the backing store.  When we encounter uncached external
   // strings in generated code, we need to bailout to runtime.
   Map new_map;
-  ReadOnlyRoots roots(heap);
+  ReadOnlyRoots roots(isolate);
   if (size < ExternalString::kSizeOfAllExternalStrings) {
     new_map = is_internalized
                   ? roots.uncached_external_one_byte_internalized_string_map()
@@ -250,10 +249,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
-                             ClearRecordedSlots::kNo);
+  isolate->heap()->CreateFillerObjectAt(
+      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
   if (has_pointers) {
-    heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
+    isolate->heap()->ClearRecordedSlotRange(this->address(),
+                                            this->address() + new_size);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -262,7 +262,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
   self.SetResource(isolate, resource);
-  heap->RegisterExternalString(*this);
+  isolate->heap()->RegisterExternalString(*this);
   if (is_internalized) self.Hash();  // Force regeneration of the hash value.
   return true;
 }
@@ -272,9 +272,8 @@ bool String::SupportsExternalization() {
     return i::ThinString::cast(*this).actual().SupportsExternalization();
   }
 
-  Isolate* isolate;
   // RO_SPACE strings cannot be externalized.
-  if (!GetIsolateFromWritableObject(*this, &isolate)) {
+  if (IsReadOnlyHeapObject(*this)) {
     return false;
   }
 
@@ -290,6 +289,7 @@ bool String::SupportsExternalization() {
   DCHECK_LE(ExternalString::kUncachedSize, this->Size());
 #endif
 
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
   return !isolate->heap()->IsInGCPostProcessing();
 }
 

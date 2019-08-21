@@ -19,6 +19,7 @@ function thrower() {
 function test(func) {
   for (var i = 0; i < 3; i++) {
     global_counter = 0;
+    %PrepareFunctionForOptimization(func);
     assertThrows(func);
   }
 }

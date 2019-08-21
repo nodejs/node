@@ -205,7 +205,7 @@ class Serializer : public SerializerDeserializer {
   void PutAttachedReference(SerializerReference reference);
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject object);
-  void PutNextChunk(int space);
+  void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
 
   // Returns true if the object was successfully serialized as a root.
@@ -243,7 +243,7 @@ class Serializer : public SerializerDeserializer {
   void OutputStatistics(const char* name);
 
 #ifdef OBJECT_PRINT
-  void CountInstanceType(Map map, int size, AllocationSpace space);
+  void CountInstanceType(Map map, int size, SnapshotSpace space);
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -272,8 +272,8 @@ class Serializer : public SerializerDeserializer {
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = LAST_TYPE + 1;
-  int* instance_type_count_[LAST_SPACE];
-  size_t* instance_type_size_[LAST_SPACE];
+  int* instance_type_count_[kNumberOfSpaces];
+  size_t* instance_type_size_[kNumberOfSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -321,7 +321,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitOffHeapTarget(Code host, RelocInfo* target) override;
 
  private:
-  void SerializePrologue(AllocationSpace space, int size, Map map);
+  void SerializePrologue(SnapshotSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.

@@ -62,7 +62,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee)
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
   // -----------------------------------
@@ -70,14 +69,12 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the target function and the new target.
     // Push function as parameter to the runtime call.
-    __ SmiTag(a0);
-    __ Push(a0, a1, a3, a1);
+    __ Push(a1, a3, a1);
 
     __ CallRuntime(function_id, 1);
 
     // Restore target function and new target.
-    __ Pop(a0, a1, a3);
-    __ SmiUntag(a0);
+    __ Pop(a1, a3);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
@@ -853,13 +850,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch1, Register scratch2,
                                            Register scratch3) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee if needed, and caller)
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(
-      !AreAliased(feedback_vector, a0, a1, a3, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(feedback_vector, a1, a3, scratch1, scratch2, scratch3));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -1035,16 +1030,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ lw(feedback_vector,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ lw(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ lw(t0, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+  __ lhu(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
+  __ Branch(&push_stack_frame, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
+
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, t0, t3, t1);
-
-  // Open a frame scope to indicate that there is a frame on the stack.  The
-  // MANUAL indicates that the scope shouldn't actually generate code to set up
-  // the frame (that is done below).
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(closure);
-
 
   // Increment invocation count for the function.
   __ lw(t0, FieldMemOperand(feedback_vector,
@@ -1053,10 +1049,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ sw(t0, FieldMemOperand(feedback_vector,
                             FeedbackVector::kInvocationCountOffset));
 
-  // Reset code age.
-  DCHECK_EQ(0, BytecodeArray::kNoAgeBytecodeAge);
-  __ sb(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                  BytecodeArray::kBytecodeAgeOffset));
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  __ bind(&push_stack_frame);
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ PushStandardFrame(closure);
+
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
+  // 8-bit fields next to each other, so we could just optimize by writing a
+  // 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                  BytecodeArray::kOsrNestingLevelOffset));
 
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
@@ -1464,11 +1471,13 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   }
   __ lw(fp, MemOperand(
                 sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   __ Pop(t0);
   __ Addu(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(ra);
-  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(t0);
   __ Jump(t0);
 }
 }  // namespace
@@ -2559,7 +2568,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ LoadRoot(t0, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, t0, Operand(a2));
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 
@@ -2825,18 +2834,23 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == a1 || function_address == a2);
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ li(t9, ExternalReference::is_profiling_address(isolate));
   __ lb(t9, MemOperand(t9, 0));
-  __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
-
-  // Additional parameter is the address of the actual callback.
-  __ li(t9, thunk_ref);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  __ mov(t9, function_address);
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+  __ li(t9, ExternalReference::address_of_runtime_stats_flag());
+  __ lw(t9, MemOperand(t9, 0));
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+  {
+    // Call the api function directly.
+    __ mov(t9, function_address);
+    __ Branch(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual callback.
+    __ li(t9, thunk_ref);
+  }
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.

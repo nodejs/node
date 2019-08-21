@@ -10,10 +10,10 @@
 
 
   function f() {
-    var o = { __proto__ : a };
+    var o = {__proto__: a};
     o.push;
-  }
-
+  };
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   %OptimizeFunctionOnNextCall(f);
@@ -35,8 +35,8 @@
     arr_proto.__proto__ = i32arr;
     obj.__proto__ = arr;
     arr_proto.__proto__ = i32arr;
-  }
-
+  };
+  %PrepareFunctionForOptimization(f);
   f();
   %OptimizeFunctionOnNextCall(f);
   arr[1024] = [];

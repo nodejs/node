@@ -378,8 +378,9 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
     printee.ShortPrint(this);
     Add("\n");
     if (printee.IsJSObject()) {
-      if (printee.IsJSValue()) {
-        Add("           value(): %o\n", JSValue::cast(printee).value());
+      if (printee.IsJSPrimitiveWrapper()) {
+        Add("           value(): %o\n",
+            JSPrimitiveWrapper::cast(printee).value());
       }
       PrintUsingMap(JSObject::cast(printee));
       if (printee.IsJSArray()) {

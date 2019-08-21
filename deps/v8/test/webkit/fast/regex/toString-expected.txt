@@ -51,7 +51,7 @@ PASS testLineTerminator("\u2028"); is false
 PASS testLineTerminator("\\u2028"); is false
 PASS testLineTerminator("\u2029"); is false
 PASS testLineTerminator("\\u2029"); is false
-FAIL RegExp('[/]').source should be [/]. Was [\/].
+PASS RegExp('[/]').source is '[/]'
 PASS RegExp('\\[/]').source is '\\[\\/]'
 PASS var o = new RegExp(); o.toString() === '/'+o.source+'/' && eval(o.toString()+'.exec(String())') is [""]
 PASS successfullyParsed is true

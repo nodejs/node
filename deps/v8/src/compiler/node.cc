@@ -303,7 +303,13 @@ void Node::Print() const {
 void Node::Print(std::ostream& os) const {
   os << *this << std::endl;
   for (Node* input : this->inputs()) {
-    os << "  " << *input << std::endl;
+    os << "  ";
+    if (input) {
+      os << *input;
+    } else {
+      os << "(NULL)";
+    }
+    os << std::endl;
   }
 }
 

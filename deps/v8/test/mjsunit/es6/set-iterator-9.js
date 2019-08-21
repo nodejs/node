@@ -17,7 +17,7 @@ assertTrue(%SetIteratorProtector());
 var iterator = set.keys();
 iterator[Symbol.iterator] = () => ({next: () => ({done: true})});
 
-assertFalse(%MapIteratorProtector());
+assertTrue(%MapIteratorProtector());
 assertEquals([[1,2], [2,3], [3,4]], [...map]);
 assertEquals([[1,2], [2,3], [3,4]], [...map.entries()]);
 assertEquals([1,2,3], [...map.keys()]);

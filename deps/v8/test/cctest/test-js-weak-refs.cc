@@ -719,7 +719,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
     Handle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
-    heap->AddKeepDuringJobTarget(js_object);
+    heap->KeepDuringJob(js_object);
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
@@ -756,7 +756,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
     Handle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
-    heap->AddKeepDuringJobTarget(js_object);
+    heap->KeepDuringJob(js_object);
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }

@@ -92,7 +92,10 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   // In the message, the line is 1-based, but the column is 0-based.
   CHECK_EQ(topLocation.line_nr, message->GetLineNumber());
   CHECK_LE(1, topLocation.column);
-  CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
+  // TODO(szuend): Remove or re-enable the following check once it is decided
+  //               whether Script::PositionInfo.column should be the offset
+  //               relative to the module or relative to the function.
+  // CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
 }
 
 #undef CHECK_CSTREQ
@@ -139,11 +142,11 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},                                           // -
-      {"js", 4, 2},                                          // -
-      {"main", static_cast<int>(wasm_index_1) + 1, 3},       // -
-      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                      // -
+      {"a", 3, 8},                                            // -
+      {"js", 4, 2},                                           // -
+      {"main", static_cast<int>(wasm_index_1) + 1, 8},        // -
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 21},  // -
+      {"callFn", 1, 24}                                       // -
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
@@ -188,12 +191,20 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     Handle<Object> exception = maybe_exc.ToHandleChecked();
 
     static constexpr int kMainLocalsLength = 1;
+    const int main_offset =
+        r.builder().GetFunctionAt(wasm_index_1)->code.offset();
+    const int call_main_offset =
+        r.builder().GetFunctionAt(wasm_index_2)->code.offset();
+
     // Line and column are 1-based, so add 1 for the expected wasm output.
-    const int expected_main_pos = unreachable_pos + kMainLocalsLength + 1;
+    const int expected_main_pos =
+        unreachable_pos + main_offset + kMainLocalsLength + 1;
+    const int expected_call_main_pos = call_main_offset + kMainLocalsLength + 1;
     ExceptionInfo expected_exceptions[] = {
         {"main", static_cast<int>(wasm_index_1) + 1, expected_main_pos},  // -
-        {"call_main", static_cast<int>(wasm_index_2) + 1, 2},             // -
-        {"callFn", 1, 24}                                                 //-
+        {"call_main", static_cast<int>(wasm_index_2) + 1,
+         expected_call_main_pos},  // -
+        {"callFn", 1, 24}          //-
     };
     CheckExceptionInfos(isolate, exception, expected_exceptions);
   }

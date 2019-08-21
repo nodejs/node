@@ -9,9 +9,9 @@ function bar(obj) {
 }
 
 function foo() {
-  bar({ x : 'baz' });
-}
-
+  bar({x: 'baz'});
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

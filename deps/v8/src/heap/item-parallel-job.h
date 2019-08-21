@@ -65,10 +65,11 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
 
   class V8_EXPORT_PRIVATE Task : public CancelableTask {
    public:
+    enum class Runner { kForeground, kBackground };
     explicit Task(Isolate* isolate);
     ~Task() override = default;
 
-    virtual void RunInParallel() = 0;
+    virtual void RunInParallel(Runner runner) = 0;
 
    protected:
     // Retrieves a new item that needs to be processed. Returns |nullptr| if
@@ -99,13 +100,14 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     // processing, e.g. scavenging).
     void SetupInternal(base::Semaphore* on_finish, std::vector<Item*>* items,
                        size_t start_index);
-
+    void WillRunOnForeground();
     // We don't allow overriding this method any further.
     void RunInternal() final;
 
     std::vector<Item*>* items_ = nullptr;
     size_t cur_index_ = 0;
     size_t items_considered_ = 0;
+    Runner runner_ = Runner::kBackground;
     base::Semaphore* on_finish_ = nullptr;
 
     DISALLOW_COPY_AND_ASSIGN(Task);

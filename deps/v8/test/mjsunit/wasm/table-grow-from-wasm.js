@@ -38,7 +38,7 @@ function testGrowInternalAnyRefTable(table_index) {
     .exportFunc();
 
   builder.addFunction('get', kSig_r_i)
-    .addBody([kExprGetLocal, 0, kExprGetTable, table_index])
+    .addBody([kExprGetLocal, 0, kExprTableGet, table_index])
     .exportFunc();
 
   const instance = builder.instantiate();

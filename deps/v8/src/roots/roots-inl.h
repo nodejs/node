@@ -31,7 +31,8 @@ V8_INLINE constexpr bool operator<(RootIndex lhs, RootIndex rhs) {
   return static_cast<type>(lhs) < static_cast<type>(rhs);
 }
 
-V8_INLINE RootIndex operator++(RootIndex& index) {
+V8_INLINE RootIndex
+operator++(RootIndex& index) {  // NOLINT(runtime/references)
   using type = typename std::underlying_type<RootIndex>::type;
   index = static_cast<RootIndex>(static_cast<type>(index) + 1);
   return index;

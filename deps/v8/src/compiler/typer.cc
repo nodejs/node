@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/flags.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -33,20 +34,21 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph)
+Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+             TickCounter* tick_counter)
     : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       broker_(broker),
-      operation_typer_(broker, zone()) {
+      operation_typer_(broker, zone()),
+      tick_counter_(tick_counter) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
   decorator_ = new (zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
-
 
 Typer::~Typer() {
   graph_->RemoveDecorator(decorator_);
@@ -91,14 +93,18 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return UpdateType(node, TypeBinaryOp(node, x));
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) \
   case IrOpcode::k##x:  \
     return UpdateType(node, TypeUnaryOp(node, x));
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -157,14 +163,18 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return TypeBinaryOp(node, x);
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) \
   case IrOpcode::k##x:  \
     return TypeUnaryOp(node, x);
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -276,14 +286,18 @@ class Typer::Visitor : public Reducer {
     return t->operation_typer_.Name(type); \
   }
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name)                       \
   static Type Name(Type lhs, Type rhs, Typer* t) { \
     return t->operation_typer_.Name(lhs, rhs);     \
   }
   SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
   static Type ObjectIsArrayBufferView(Type, Typer*);
@@ -410,7 +424,7 @@ void Typer::Run(const NodeVector& roots,
     induction_vars->ChangeToInductionVariablePhis();
   }
   Visitor visitor(this, induction_vars);
-  GraphReducer graph_reducer(zone(), graph());
+  GraphReducer graph_reducer(zone(), graph(), tick_counter_);
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
@@ -797,6 +811,8 @@ Type Typer::Visitor::TypeNumberConstant(Node* node) {
 Type Typer::Visitor::TypeHeapConstant(Node* node) {
   return TypeConstant(HeapConstantOf(node->op()));
 }
+
+Type Typer::Visitor::TypeCompressedHeapConstant(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeExternalConstant(Node* node) {
   return Type::ExternalPointer();
@@ -2060,6 +2076,10 @@ Type Typer::Visitor::TypeStringFromSingleCodePoint(Node* node) {
   return TypeUnaryOp(node, StringFromSingleCodePointTyper);
 }
 
+Type Typer::Visitor::TypeStringFromCodePointAt(Node* node) {
+  return Type::String();
+}
+
 Type Typer::Visitor::TypeStringIndexOf(Node* node) {
   return Type::Range(-1.0, String::kMaxLength, zone());
 }
@@ -2335,6 +2355,8 @@ Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
 }
 
 Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
 // Heap constants.
 

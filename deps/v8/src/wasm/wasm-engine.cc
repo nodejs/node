@@ -8,6 +8,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames.h"
+#include "src/execution/v8threads.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
@@ -88,24 +89,24 @@ class LogCodesTask : public Task {
   WasmEngine* const engine_;
 };
 
-class WasmGCForegroundTask : public Task {
- public:
-  explicit WasmGCForegroundTask(Isolate* isolate) : isolate_(isolate) {
-    DCHECK_NOT_NULL(isolate);
-  }
-
-  ~WasmGCForegroundTask() {
-    // If the isolate is already shutting down, the platform can delete this
-    // task without ever executing it. For that case, we need to deregister the
-    // task from the engine to avoid UAF.
-    if (isolate_) {
-      WasmEngine* engine = isolate_->wasm_engine();
-      engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+void CheckNoArchivedThreads(Isolate* isolate) {
+  class ArchivedThreadsVisitor : public ThreadVisitor {
+    void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
+      // Archived threads are rarely used, and not combined with Wasm at the
+      // moment. Implement this and test it properly once we have a use case for
+      // that.
+      FATAL("archived threads in combination with wasm not supported");
     }
-  }
+  } archived_threads_visitor;
+  isolate->thread_manager()->IterateArchivedThreads(&archived_threads_visitor);
+}
 
-  void Run() final {
-    if (isolate_ == nullptr) return;  // cancelled.
+class WasmGCForegroundTask : public CancelableTask {
+ public:
+  explicit WasmGCForegroundTask(Isolate* isolate)
+      : CancelableTask(isolate->cancelable_task_manager()), isolate_(isolate) {}
+
+  void RunInternal() final {
     WasmEngine* engine = isolate_->wasm_engine();
     // If the foreground task is executing, there is no wasm code active. Just
     // report an empty set of live wasm code.
@@ -114,12 +115,9 @@ class WasmGCForegroundTask : public Task {
       DCHECK_NE(StackFrame::WASM_COMPILED, it.frame()->type());
     }
 #endif
+    CheckNoArchivedThreads(isolate_);
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
-    // Cancel to signal to the destructor that this task executed.
-    Cancel();
   }
-
-  void Cancel() { isolate_ = nullptr; }
 
  private:
   Isolate* isolate_;
@@ -240,10 +238,13 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Vector<const byte> asm_js_offset_table_bytes,
-    Handle<HeapNumber> uses_bitset) {
+    Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
+  ModuleOrigin origin = language_mode == LanguageMode::kSloppy
+                            ? kAsmJsSloppyOrigin
+                            : kAsmJsStrictOrigin;
   ModuleResult result =
       DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
-                       kAsmJsOrigin, isolate->counters(), allocator());
+                       origin, isolate->counters(), allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -465,6 +466,9 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     DCHECK_EQ(1, native_modules_.count(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
   }
+
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
   return module_object;
 }
 
@@ -522,6 +526,24 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
     if (entry.first->isolate() == isolate) return true;
   }
   return false;
+}
+
+void WasmEngine::DeleteCompileJobsOnContext(Handle<Context> context) {
+  // Under the mutex get all jobs to delete. Then delete them without holding
+  // the mutex, such that deletion can reenter the WasmEngine.
+  std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
+  {
+    base::MutexGuard guard(&mutex_);
+    for (auto it = async_compile_jobs_.begin();
+         it != async_compile_jobs_.end();) {
+      if (!it->first->context().is_identical_to(context)) {
+        ++it;
+        continue;
+      }
+      jobs_to_delete.push_back(std::move(it->second));
+      it = async_compile_jobs_.erase(it);
+    }
+  }
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
@@ -775,6 +797,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
     live_wasm_code.insert(WasmCompiledFrame::cast(frame)->wasm_code());
   }
 
+  CheckNoArchivedThreads(isolate);
+
   ReportLiveCodeForGC(isolate,
                       OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
 }
@@ -876,11 +900,7 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
 bool WasmEngine::RemoveIsolateFromCurrentGC(Isolate* isolate) {
   DCHECK(!mutex_.TryLock());
   DCHECK_NOT_NULL(current_gc_info_);
-  auto it = current_gc_info_->outstanding_isolates.find(isolate);
-  if (it == current_gc_info_->outstanding_isolates.end()) return false;
-  if (auto* fg_task = it->second) fg_task->Cancel();
-  current_gc_info_->outstanding_isolates.erase(it);
-  return true;
+  return current_gc_info_->outstanding_isolates.erase(isolate) != 0;
 }
 
 void WasmEngine::PotentiallyFinishCurrentGC() {

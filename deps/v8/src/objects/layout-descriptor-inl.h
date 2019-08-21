@@ -209,11 +209,11 @@ int LayoutDescriptor::number_of_layout_words() {
 }
 
 uint32_t LayoutDescriptor::get_layout_word(int index) const {
-  return get_uint32(index);
+  return get_uint32_relaxed(index);
 }
 
 void LayoutDescriptor::set_layout_word(int index, uint32_t value) {
-  set_uint32(index, value);
+  set_uint32_relaxed(index, value);
 }
 
 // LayoutDescriptorHelper is a helper class for querying whether inobject

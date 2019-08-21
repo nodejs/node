@@ -32,8 +32,8 @@ namespace internal {
 class JSCollator : public JSObject {
  public:
   // ecma402/#sec-initializecollator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> Initialize(
-      Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
       Handle<Object> options);
 
   // ecma402/#sec-intl.collator.prototype.resolvedoptions
@@ -47,14 +47,8 @@ class JSCollator : public JSObject {
   DECL_VERIFIER(JSCollator)
 
 // Layout description.
-#define JS_COLLATOR_FIELDS(V)         \
-  V(kICUCollatorOffset, kTaggedSize)  \
-  V(kBoundCompareOffset, kTaggedSize) \
-  /* Total size. */                   \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
-#undef JS_COLLATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSCOLLATOR_FIELDS)
 
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object)

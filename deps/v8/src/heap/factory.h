@@ -53,16 +53,18 @@ class JSSetIterator;
 class JSTypedArray;
 class JSWeakMap;
 class LoadHandler;
-class ModuleInfo;
 class NativeContext;
 class NewFunctionArgs;
 class PreparseData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
+class SourceTextModule;
+class SourceTextModuleInfo;
 class StackFrameInfo;
 class StackTraceFrame;
 class StoreHandler;
+class SyntheticModule;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
@@ -406,7 +408,7 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<ScriptContextTable> NewScriptContextTable();
 
   // Create a module context.
-  Handle<Context> NewModuleContext(Handle<Module> module,
+  Handle<Context> NewModuleContext(Handle<SourceTextModule> module,
                                    Handle<NativeContext> outer,
                                    Handle<ScopeInfo> scope_info);
 
@@ -461,7 +463,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
   Handle<StackTraceFrame> NewStackTraceFrame(Handle<FrameArray> frame_array,
                                              int index);
-  Handle<StackFrameInfo> NewStackFrameInfo();
   Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
                                            int index);
   Handle<SourcePositionTableWithFrameCache>
@@ -626,10 +627,19 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<JSObject> NewJSObjectFromMap(
       Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  // Like NewJSObjectFromMap, but includes allocating a properties dictionary.
   Handle<JSObject> NewSlowJSObjectFromMap(
       Handle<Map> map,
       int number_of_slow_properties = NameDictionary::kInitialCapacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
+  // map is a dictionary map.
+  inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
+      Handle<Map> map,
+      int number_of_slow_properties = NameDictionary::kInitialCapacity,
+      AllocationType allocation = AllocationType::kYoung,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
   // Allocates and initializes a new JavaScript object with the given
   // {prototype} and {properties}. The newly created object will be
   // in dictionary properties mode. The {elements} can either be the
@@ -680,7 +690,10 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
-  Handle<Module> NewModule(Handle<SharedFunctionInfo> code);
+  Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
+  Handle<SyntheticModule> NewSyntheticModule(
+      Handle<String> module_name, Handle<FixedArray> export_names,
+      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
       SharedFlag shared, AllocationType allocation = AllocationType::kYoung);
@@ -760,19 +773,18 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
 
-  Handle<ModuleInfo> NewModuleInfo();
+  Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
   Handle<UncompiledDataWithoutPreparseData>
   NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
                                        int32_t start_position,
-                                       int32_t end_position,
-                                       int32_t function_literal_id);
+                                       int32_t end_position);
 
   Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
       Handle<String> inferred_name, int32_t start_position,
-      int32_t end_position, int32_t function_literal_id, Handle<PreparseData>);
+      int32_t end_position, Handle<PreparseData>);
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
@@ -884,7 +896,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Map> ObjectLiteralMapFromCache(Handle<NativeContext> native_context,
                                         int number_of_properties);
 
-  Handle<LoadHandler> NewLoadHandler(int data_count);
+  Handle<LoadHandler> NewLoadHandler(
+      int data_count, AllocationType allocation = AllocationType::kOld);
   Handle<StoreHandler> NewStoreHandler(int data_count);
 
   Handle<RegExpMatchInfo> NewRegExpMatchInfo();
@@ -1074,10 +1087,19 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,
                                         const char* string, bool check_cache);
 
-  // Create a JSArray with no elements and no length.
-  Handle<JSArray> NewJSArray(
-      ElementsKind elements_kind,
+  // Creates a new JSArray with the given backing storage. Performs no
+  // verification of the backing storage because it may not yet be filled.
+  Handle<JSArray> NewJSArrayWithUnverifiedElements(
+      Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
       AllocationType allocation = AllocationType::kYoung);
+
+  // Creates the backing storage for a JSArray. This handle must be discarded
+  // before returning the JSArray reference to code outside Factory, which might
+  // decide to left-trim the backing store. To avoid unnecessary HandleScopes,
+  // this method requires capacity greater than zero.
+  Handle<FixedArrayBase> NewJSArrayStorage(
+      ElementsKind elements_kind, int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,

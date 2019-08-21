@@ -36,6 +36,7 @@ function foo(object) {
   }
   return key;
 }
+%PrepareFunctionForOptimization(foo);
 
 // Collect type feedback for slow-mode for-in.
 foo(training);

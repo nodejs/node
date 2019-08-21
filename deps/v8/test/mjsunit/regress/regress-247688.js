@@ -28,38 +28,38 @@
 // Flags: --allow-natives-syntax
 
 var a = {};
-a.x = 1
-a.y = 1.5
+a.x = 1;
+a.y = 1.5;
 
-var b = {}
+var b = {};
 b.x = 1.5;
 b.y = 1;
 
-var c = {}
+var c = {};
 c.x = 1.5;
 
-var d = {}
+var d = {};
 d.x = 1.5;
 
-var e = {}
+var e = {};
 e.x = 1.5;
 
-var f = {}
+var f = {};
 f.x = 1.5;
 
-var g = {}
+var g = {};
 g.x = 1.5;
 
-var h = {}
+var h = {};
 h.x = 1.5;
 
-var i = {}
+var i = {};
 i.x = 1.5;
 
-var o = {}
-var p = {y : 10, z : 1}
+var o = {};
+var p = {y: 10, z: 1};
 o.__proto__ = p;
-delete p.z
+delete p.z;
 
 function foo(v, w) {
   // Make load via IC in optimized code. Its target will get overwritten by
@@ -68,8 +68,8 @@ function foo(v, w) {
   // Make store with transition to make this code dependent on the map.
   w.y = 1;
   return b.y;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo(o, c);
 foo(o, d);
 foo(o, e);

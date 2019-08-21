@@ -7,11 +7,11 @@
 load("test/mjsunit/wasm/wasm-module-builder.js");
 load("test/mjsunit/wasm/exceptions-utils.js");
 
-// First we just test that "except_ref" local variables are allowed.
-(function TestLocalExceptRef() {
+// First we just test that "exnref" local variables are allowed.
+(function TestLocalExnRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addFunction("push_and_drop_except_ref", kSig_v_v)
+  builder.addFunction("push_and_drop_exnref", kSig_v_v)
       .addLocals({except_count: 1})
       .addBody([
         kExprGetLocal, 0,
@@ -19,7 +19,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertDoesNotThrow(instance.exports.push_and_drop_except_ref);
+  assertDoesNotThrow(instance.exports.push_and_drop_exnref);
 })();
 
 // The following method doesn't attempt to catch an raised exception.

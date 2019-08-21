@@ -15,8 +15,8 @@
 (function testOptimizedJS() {
   function add(a, b) {
     return a + b;
-  }
-
+  };
+  %PrepareFunctionForOptimization(add);
   add(21, 21);
   %OptimizeFunctionOnNextCall(add);
   add(20, 22);

@@ -27,7 +27,7 @@ ACCESSORS(JSRelativeTimeFormat, icu_formatter,
 SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)
 
 inline void JSRelativeTimeFormat::set_style(Style style) {
-  DCHECK_GT(Style::COUNT, style);
+  DCHECK_GE(StyleBits::kMax, style);
   int hints = flags();
   hints = StyleBits::update(hints, style);
   set_flags(hints);
@@ -38,7 +38,7 @@ inline JSRelativeTimeFormat::Style JSRelativeTimeFormat::style() const {
 }
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
-  DCHECK_GT(Numeric::COUNT, numeric);
+  DCHECK_GE(NumericBits::kMax, numeric);
   int hints = flags();
   hints = NumericBits::update(hints, numeric);
   set_flags(hints);

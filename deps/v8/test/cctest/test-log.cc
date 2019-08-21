@@ -433,75 +433,6 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
   isolate->Dispose();
 }
 
-// Test that logging of code create / move events is equivalent to traversal of
-// a resulting heap.
-UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
-  // This test needs to be run on a "clean" V8 to ensure that snapshot log
-  // is loaded. This is always true when running using tools/test.py because
-  // it launches a new cctest instance for every test. To be sure that launching
-  // cctest manually also works, please be sure that no tests below
-  // are using V8.
-
-  // Start with profiling to capture all code events from the beginning.
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  {
-    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
-
-    // Compile and run a function that creates other functions.
-    CompileRun(
-        "(function f(obj) {\n"
-        "  obj.test =\n"
-        "    (function a(j) { return function b() { return j; } })(100);\n"
-        "})(this);");
-    logger.logger()->StopProfilerThread();
-    CcTest::PreciseCollectAllGarbage();
-    logger.StringEvent("test-logging-done", "");
-
-    // Iterate heap to find compiled functions, will write to log.
-    logger.LogCompiledFunctions();
-    logger.StringEvent("test-traversal-done", "");
-
-    logger.StopLogging();
-
-    v8::Local<v8::String> log_str = logger.GetLogString();
-    logger.env()
-        ->Global()
-        ->Set(logger.env(), v8_str("_log"), log_str)
-        .FromJust();
-
-    // Load the Test snapshot's sources, see log-eq-of-logging-and-traversal.js
-    i::Vector<const char> source =
-        i::NativesCollection<i::TEST>::GetScriptsSource();
-    v8::Local<v8::String> source_str =
-        v8::String::NewFromUtf8(isolate, source.begin(),
-                                v8::NewStringType::kNormal, source.length())
-            .ToLocalChecked();
-    v8::TryCatch try_catch(isolate);
-    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "", false);
-    if (script.IsEmpty()) {
-      v8::String::Utf8Value exception(isolate, try_catch.Exception());
-      FATAL("compile: %s\n", *exception);
-    }
-    v8::Local<v8::Value> result;
-    if (!script->Run(logger.env()).ToLocal(&result)) {
-      v8::String::Utf8Value exception(isolate, try_catch.Exception());
-      FATAL("run: %s\n", *exception);
-    }
-    // The result either be the "true" literal or problem description.
-    if (!result->IsTrue()) {
-      v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
-      i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
-      CHECK(data.begin());
-      s->WriteUtf8(isolate, data.begin());
-      FATAL("%s\n", data.begin());
-    }
-  }
-  isolate->Dispose();
-}
-
 UNINITIALIZED_TEST(LogVersion) {
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
@@ -929,11 +860,11 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 
   // Iterate over all maps on the heap.
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  i::HeapIterator iterator(heap);
+  i::HeapObjectIterator iterator(heap);
   i::DisallowHeapAllocation no_gc;
   size_t i = 0;
-  for (i::HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
     i++;
     uintptr_t address = obj.ptr();

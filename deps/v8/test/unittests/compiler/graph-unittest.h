@@ -5,9 +5,11 @@
 #ifndef V8_UNITTESTS_COMPILER_GRAPH_UNITTEST_H_
 #define V8_UNITTESTS_COMPILER_GRAPH_UNITTEST_H_
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/typer.h"
 #include "src/handles/handles.h"
@@ -62,6 +64,7 @@ class GraphTest : public TestWithNativeContextAndZone {
   SourcePositionTable* source_positions() { return &source_positions_; }
   NodeOriginTable* node_origins() { return &node_origins_; }
   JSHeapBroker* broker() { return &broker_; }
+  TickCounter* tick_counter() { return &tick_counter_; }
 
  private:
   CanonicalHandleScope canonical_;
@@ -70,6 +73,7 @@ class GraphTest : public TestWithNativeContextAndZone {
   JSHeapBroker broker_;
   SourcePositionTable source_positions_;
   NodeOriginTable node_origins_;
+  TickCounter tick_counter_;
 };
 
 

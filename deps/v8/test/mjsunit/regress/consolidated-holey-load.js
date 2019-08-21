@@ -29,10 +29,10 @@
 
 function foo(array) {
   return array[0];
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 var a = [1, 2, , 4];  // Holey Smi elements.
-var b = ["abcd", 0];  // Fast elements.
+var b = ['abcd', 0];  // Fast elements.
 foo(b);  // Observe fast elements first, or the IC will transition without
 foo(a);  // going polymorphic.
 %OptimizeFunctionOnNextCall(foo);

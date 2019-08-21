@@ -29,8 +29,8 @@ namespace typed_array_every {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
   transitioning javascript builtin
-  TypedArrayPrototypeEvery(implicit context: Context)(
-      receiver: Object, ...arguments): Object {
+  TypedArrayPrototypeEvery(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = thisArg
     try {

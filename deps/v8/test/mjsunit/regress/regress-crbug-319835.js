@@ -27,7 +27,9 @@
 
 // Flags: --allow-natives-syntax
 
-try {} catch(e) {}  // No need to optimize the top level.
+try {
+} catch (e) {
+}  // No need to optimize the top level.
 
 var size = 0x20000;
 var a = new Float64Array(size);
@@ -37,8 +39,8 @@ function store(a, index) {
   for (var i = 0; i < 1; i++) {
     a[index + offset] = 0xcc;
   }
-}
-
+};
+%PrepareFunctionForOptimization(store);
 store(training, -0x20000000);
 store(training, -0x20000000 + 1);
 store(training, -0x20000000);

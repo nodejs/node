@@ -47,6 +47,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+using base::ReadLittleEndianValue;
+using base::WriteLittleEndianValue;
+
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
 
@@ -87,7 +90,7 @@ class TestingModuleBuilder {
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
   byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 

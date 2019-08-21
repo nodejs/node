@@ -48,7 +48,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Map receiver_map,
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(object_.IsJSReceiver());
     Map map = JSReceiver::cast(object_).map();
-    is_at_end_ = !map.has_hidden_prototype();
+    is_at_end_ = !map.IsJSGlobalProxyMap();
   }
 }
 
@@ -63,7 +63,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(handle_->IsJSReceiver());
     Map map = JSReceiver::cast(*handle_).map();
-    is_at_end_ = !map.has_hidden_prototype();
+    is_at_end_ = !map.IsJSGlobalProxyMap();
   }
 }
 
@@ -96,8 +96,9 @@ void PrototypeIterator::AdvanceIgnoringProxies() {
   Map map = HeapObject::cast(object).map();
 
   HeapObject prototype = map.prototype();
-  is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN ? !map.has_hidden_prototype()
-                                                  : prototype.IsNull(isolate_);
+  is_at_end_ =
+      prototype.IsNull(isolate_) ||
+      (where_to_end_ == END_AT_NON_HIDDEN && !map.IsJSGlobalProxyMap());
 
   if (handle_.is_null()) {
     object_ = prototype;

@@ -25,9 +25,9 @@ class DeserializerAllocator final {
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
 
-  Address Allocate(AllocationSpace space, int size);
+  Address Allocate(SnapshotSpace space, int size);
 
-  void MoveToNextChunk(AllocationSpace space);
+  void MoveToNextChunk(SnapshotSpace space);
   void SetAlignment(AllocationAlignment alignment) {
     DCHECK_EQ(kWordAligned, next_alignment_);
     DCHECK_LE(kWordAligned, alignment);
@@ -51,7 +51,7 @@ class DeserializerAllocator final {
 
   HeapObject GetMap(uint32_t index);
   HeapObject GetLargeObject(uint32_t index);
-  HeapObject GetObject(AllocationSpace space, uint32_t chunk_index,
+  HeapObject GetObject(SnapshotSpace space, uint32_t chunk_index,
                        uint32_t chunk_offset);
 
   // ------- Reservation Methods -------
@@ -69,13 +69,13 @@ class DeserializerAllocator final {
 
  private:
   // Raw allocation without considering alignment.
-  Address AllocateRaw(AllocationSpace space, int size);
+  Address AllocateRaw(SnapshotSpace space, int size);
 
  private:
   static constexpr int kNumberOfPreallocatedSpaces =
-      SerializerDeserializer::kNumberOfPreallocatedSpaces;
+      static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
   static constexpr int kNumberOfSpaces =
-      SerializerDeserializer::kNumberOfSpaces;
+      static_cast<int>(SnapshotSpace::kNumberOfSpaces);
 
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk

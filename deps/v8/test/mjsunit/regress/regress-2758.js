@@ -38,6 +38,7 @@ var functions = [
 
 for (var i = 0; i < 5; ++i) {
   for (var j in functions) {
+    %PrepareFunctionForOptimization(functions[j]);
     print(functions[i])
     assertThrows(functions[j], TypeError)
   }

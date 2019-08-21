@@ -4,6 +4,7 @@
 
 #include "src/diagnostics/gdb-jit.h"
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "src/objects/objects.h"
 #include "src/snapshot/natives.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/splay-tree-inl.h"
 #include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
 
@@ -1822,23 +1822,24 @@ struct AddressRange {
   Address end;
 };
 
-struct SplayTreeConfig {
-  using Key = AddressRange;
-  using Value = JITCodeEntry*;
-  static const AddressRange kNoKey;
-  static Value NoValue() { return nullptr; }
-  static int Compare(const AddressRange& a, const AddressRange& b) {
-    // ptrdiff_t probably doesn't fit in an int.
-    if (a.start < b.start) return -1;
-    if (a.start == b.start) return 0;
-    return 1;
+struct AddressRangeLess {
+  bool operator()(const AddressRange& a, const AddressRange& b) const {
+    if (a.start == b.start) return a.end < b.end;
+    return a.start < b.start;
   }
 };
 
-const AddressRange SplayTreeConfig::kNoKey = {0, 0};
-using CodeMap = SplayTree<SplayTreeConfig>;
+struct CodeMapConfig {
+  using Key = AddressRange;
+  using Value = JITCodeEntry*;
+  using Less = AddressRangeLess;
+};
+
+using CodeMap =
+    std::map<CodeMapConfig::Key, CodeMapConfig::Value, CodeMapConfig::Less>;
 
 static CodeMap* GetCodeMap() {
+  // TODO(jgruber): Don't leak.
   static CodeMap* code_map = nullptr;
   if (code_map == nullptr) code_map = new CodeMap();
   return code_map;
@@ -1909,37 +1910,49 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-// Remove entries from the splay tree that intersect the given address range,
+// Remove entries from the map that intersect the given address range,
 // and deregister them from GDB.
 static void RemoveJITCodeEntries(CodeMap* map, const AddressRange& range) {
   DCHECK(range.start < range.end);
-  CodeMap::Locator cur;
-  if (map->FindGreatestLessThan(range, &cur) || map->FindLeast(&cur)) {
-    // Skip entries that are entirely less than the range of interest.
-    while (cur.key().end <= range.start) {
-      // CodeMap::FindLeastGreaterThan succeeds for entries whose key is greater
-      // than _or equal to_ the given key, so we have to advance our key to get
-      // the next one.
-      AddressRange new_key;
-      new_key.start = cur.key().end;
-      new_key.end = 0;
-      if (!map->FindLeastGreaterThan(new_key, &cur)) return;
-    }
-    // Evict intersecting ranges.
-    while (cur.key().start < range.end) {
-      AddressRange old_range = cur.key();
-      JITCodeEntry* old_entry = cur.value();
 
-      UnregisterCodeEntry(old_entry);
-      DestroyCodeEntry(old_entry);
+  if (map->empty()) return;
 
-      CHECK(map->Remove(old_range));
-      if (!map->FindLeastGreaterThan(old_range, &cur)) return;
+  // Find the first overlapping entry.
+
+  // If successful, points to the first element not less than `range`. The
+  // returned iterator has the key in `first` and the value in `second`.
+  auto it = map->lower_bound(range);
+  auto start_it = it;
+
+  if (it == map->end()) {
+    start_it = map->begin();
+  } else if (it != map->begin()) {
+    for (--it; it != map->begin(); --it) {
+      if ((*it).first.end <= range.start) break;
+      start_it = it;
     }
   }
+
+  DCHECK(start_it != map->end());
+
+  // Find the first non-overlapping entry after `range`.
+
+  const auto end_it = map->lower_bound({range.end, 0});
+
+  // Evict intersecting ranges.
+
+  if (std::distance(start_it, end_it) < 1) return;  // No overlapping entries.
+
+  for (auto it = start_it; it != end_it; it++) {
+    JITCodeEntry* old_entry = (*it).second;
+    UnregisterCodeEntry(old_entry);
+    DestroyCodeEntry(old_entry);
+  }
+
+  map->erase(start_it, end_it);
 }
 
-// Insert the entry into the splay tree and register it with GDB.
+// Insert the entry into the map and register it with GDB.
 static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
                             JITCodeEntry* entry, bool dump_if_enabled,
                             const char* name_hint) {
@@ -1956,9 +1969,9 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
   }
 #endif
 
-  CodeMap::Locator cur;
-  CHECK(map->Insert(range, &cur));
-  cur.set_value(entry);
+  auto result = map->emplace(range, entry);
+  DCHECK(result.second);  // Insertion happened.
+  USE(result);
 
   RegisterCodeEntry(entry);
 }

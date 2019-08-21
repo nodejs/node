@@ -21,7 +21,7 @@ nf = new Intl.NumberFormat("en", {style: 'unit', unit: "meter"});
 assertEquals("short", nf.resolvedOptions().unitDisplay);
 
 nf = new Intl.NumberFormat("en", {style: 'percent'});
-assertEquals("short", nf.resolvedOptions().unitDisplay);
+assertEquals(undefined, nf.resolvedOptions().unitDisplay);
 
 const testData = [
     ["short"],

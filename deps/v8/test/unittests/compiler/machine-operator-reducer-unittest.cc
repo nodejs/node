@@ -33,7 +33,7 @@ class MachineOperatorReducerTest : public GraphTest {
         javascript_(zone()),
         jsgraph_(isolate(), graph(), &common_, &javascript_, nullptr,
                  &machine_),
-        graph_reducer_(zone(), graph(), jsgraph_.Dead()) {}
+        graph_reducer_(zone(), graph(), tick_counter(), jsgraph_.Dead()) {}
 
  protected:
   Reduction Reduce(Node* node) {

@@ -7,8 +7,9 @@
 
 #include <cstdint>
 #include <ostream>
-#include <tuple>
 #include <vector>
+
+#include "src/common/globals.h"
 
 namespace v8 {
 
@@ -26,10 +27,10 @@ struct ModuleWireBytes;
 // Generate disassembly according to official text format.
 // Output disassembly to the given output stream, and optionally return an
 // offset table of <byte offset, line, column> via the given pointer.
-void PrintWasmText(
-    const WasmModule *module, const ModuleWireBytes &wire_bytes,
-    uint32_t func_index, std::ostream &os,
-    std::vector<debug::WasmDisassemblyOffsetTableEntry> *offset_table);
+V8_EXPORT_PRIVATE void PrintWasmText(
+    const WasmModule* module, const ModuleWireBytes& wire_bytes,
+    uint32_t func_index, std::ostream& os,
+    std::vector<debug::WasmDisassemblyOffsetTableEntry>* offset_table);
 
 }  // namespace wasm
 }  // namespace internal

@@ -216,6 +216,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
+  void NotifySweepingCompleted();
+
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
 

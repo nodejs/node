@@ -505,7 +505,7 @@ TEST(LiveEditCompileError) {
   CHECK_EQ(result.column_number, 51);
   v8::String::Utf8Value result_message(env->GetIsolate(), result.message);
   CHECK_NOT_NULL(
-      strstr(*result_message, "Uncaught SyntaxError: Unexpected token )"));
+      strstr(*result_message, "Uncaught SyntaxError: Unexpected token ')'"));
 
   {
     v8::Local<v8::String> result =

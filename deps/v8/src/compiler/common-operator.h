@@ -499,6 +499,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* NumberConstant(volatile double);
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
+  const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
   const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,

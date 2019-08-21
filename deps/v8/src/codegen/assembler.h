@@ -36,7 +36,9 @@
 #define V8_CODEGEN_ASSEMBLER_H_
 
 #include <forward_list>
+#include <unordered_map>
 
+#include "src/base/memory.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
@@ -54,6 +56,10 @@ namespace v8 {
 class ApiFunction;
 
 namespace internal {
+
+using base::Memory;
+using base::ReadUnalignedValue;
+using base::WriteUnalignedValue;
 
 // Forward declarations.
 class EmbeddedData;
@@ -155,7 +161,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool isolate_independent_code = false;
   // Enables the use of isolate-independent builtins through an off-heap
   // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = false;
+  bool inline_offheap_trampolines = FLAG_embedded_builtins;
   // On some platforms, all code is within a given range in the process,
   // and the start of this range is configured here.
   Address code_range_start = 0;
@@ -272,8 +278,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   int AddCodeTarget(Handle<Code> target);
   Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
 
-  int AddCompressedEmbeddedObject(Handle<HeapObject> object);
-  Handle<HeapObject> GetCompressedEmbeddedObject(intptr_t index) const;
+  // Add 'object' to the {embedded_objects_} vector and return the index at
+  // which it is stored.
+  using EmbeddedObjectIndex = size_t;
+  EmbeddedObjectIndex AddEmbeddedObject(Handle<HeapObject> object);
+  Handle<HeapObject> GetEmbeddedObject(EmbeddedObjectIndex index) const;
 
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
@@ -321,12 +330,18 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // the code handle in the vector instead.
   std::vector<Handle<Code>> code_targets_;
 
-  // When pointer compression is enabled, we need to store indexes to this
-  // table in the code until we are ready to copy the code and embed the real
-  // object pointers. We don't need to do the same thing for non-compressed
-  // embedded objects, because we've got enough space (kPointerSize) in the
-  // code stream to just embed the address of the object handle.
-  std::vector<Handle<HeapObject>> compressed_embedded_objects_;
+  // If an assembler needs a small number to refer to a heap object handle
+  // (for example, because there are only 32bit available on a 64bit arch), the
+  // assembler adds the object into this vector using AddEmbeddedObject, and
+  // may then refer to the heap object using the handle's index in this vector.
+  std::vector<Handle<HeapObject>> embedded_objects_;
+
+  // Embedded objects are deduplicated based on handle location. This is a
+  // compromise that is almost as effective as deduplication based on actual
+  // heap object addresses maintains GC safety.
+  std::unordered_map<Handle<HeapObject>, EmbeddedObjectIndex,
+                     Handle<HeapObject>::hash, Handle<HeapObject>::equal_to>
+      embedded_objects_map_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;

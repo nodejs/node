@@ -793,3 +793,561 @@ function checkUndefined() {
 assertTrue(checkUndefined(...arr));
 assertTrue(checkUndefined(...[...arr]));
 assertTrue(checkUndefined.apply(this, [...arr]));
+
+//
+// Array.prototype.map
+//
+(function() {
+  var a = Object.freeze(['0','1','2','3','4']);
+
+  // Simple use.
+  var result = [1,2,3,4,5];
+  assertArrayEquals(result, a.map(function(n) { return Number(n) + 1; }));
+
+  // Use specified object as this object when calling the function.
+  var o = { delta: 42 }
+  result = [42,43,44,45,46];
+  assertArrayEquals(result, a.map(function(n) { return this.delta + Number(n); }, o));
+
+  // Modify original array.
+  b = Object.freeze(['0','1','2','3','4']);
+  result = [1,2,3,4,5];
+  assertArrayEquals(result,
+      b.map(function(n, index, array) {
+        array[index] = Number(n) + 1; return Number(n) + 1;
+      }));
+  assertArrayEquals(b, a);
+
+  // Only loop through initial part of array and elements are not
+  // added.
+  a = Object.freeze(['0','1','2','3','4']);
+  result = [1,2,3,4,5];
+  assertArrayEquals(result,
+      a.map(function(n, index, array) { assertThrows(() => { array.push(n) }); return Number(n) + 1; }));
+  assertArrayEquals(['0','1','2','3','4'], a);
+
+  // Respect holes.
+  a = new Array(20);
+  a[1] = '2';
+  Object.freeze(a);
+  a = Object.freeze(a).map(function(n) { return 2*Number(n); });
+
+  for (var i in a) {
+    assertEquals(4, a[i]);
+    assertEquals('1', i);
+  }
+
+  // Skip over missing properties.
+  a = {
+    "0": 1,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(Object.freeze(a), function(n) {
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
+
+  // Modify array prototype
+  a = ['1', , 2];
+  received = [];
+  assertThrows(() => {
+    Array.prototype.map.call(Object.freeze(a), function(n) {
+      a.__proto__ = null;
+      received.push(n);
+      return n * 2;
+    });
+  }, TypeError);
+  assertArrayEquals([], received);
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { a.push(this) }, {});
+  assertSame(a[0], a[1]);
+
+  // In strict mode primitive values should not be coerced to an object.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { 'use strict'; a.push(this); }, "");
+  assertEquals("", a[0]);
+  assertEquals(a[0], a[1]);
+
+})();
+
+// Test with double elements
+// Test packed element array built-in functions with freeze.
+function testDoubleFrozenArray1(obj) {
+  assertTrue(Object.isSealed(obj));
+  // Verify that the value can't be written
+  obj1 = new Array(...obj);
+  var length = obj.length;
+  for (var i = 0; i < length-1; i++) {
+    obj[i] = 'new';
+    assertEquals(obj1[i], obj[i]);
+  }
+  // Verify that the length can't be written by builtins.
+  assertTrue(Array.isArray(obj));
+  assertThrows(function() { obj.pop(); }, TypeError);
+  assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
+  assertThrows(function() { obj.unshift(); }, TypeError);
+  assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
+  assertThrows(function() { obj.fill(0); }, TypeError);
+  assertThrows(function() { obj.reverse(); }, TypeError);
+  assertThrows(function() { obj.sort(); }, TypeError);
+  assertThrows(function() { obj.splice(0); }, TypeError);
+  assertThrows(function() { obj.splice(0, 0); }, TypeError);
+  assertTrue(Object.isFrozen(obj));
+
+  // Verify search, filter, iterator
+  assertEquals(obj.lastIndexOf(1), 2);
+  assertEquals(obj.indexOf(undefined), -1);
+  assertFalse(obj.includes(Symbol("test")));
+  assertTrue(obj.includes(1));
+  assertTrue(obj.includes(-1.1));
+  assertFalse(obj.includes());
+  assertEquals(obj.find(x => x==0), undefined);
+  assertEquals(obj.findIndex(x => x==2), 4);
+  assertFalse(obj.some(x => typeof x == 'symbol'));
+  assertFalse(obj.every(x => x == -1));
+  var filteredArray = obj.filter(e => typeof e == "symbol");
+  assertEquals(filteredArray.length, 0);
+  assertEquals(obj.map(x => x), obj);
+  var countPositiveNumber = 0;
+  obj.forEach(function(item, index) {
+    if (item === 1) {
+      countPositiveNumber++;
+      assertEquals(index, 2);
+    }
+  });
+  assertEquals(countPositiveNumber, 1);
+  assertEquals(obj.length, obj.concat([]).length);
+  var iterator = obj.values();
+  assertEquals(iterator.next().value, 1.1);
+  assertEquals(iterator.next().value, -1.1);
+  var iterator = obj.keys();
+  assertEquals(iterator.next().value, 0);
+  assertEquals(iterator.next().value, 1);
+  var iterator = obj.entries();
+  assertEquals(iterator.next().value, [0, 1.1]);
+  assertEquals(iterator.next().value, [1, -1.1]);
+}
+
+obj = new Array(1.1, -1.1, 1, -1, 2);
+assertTrue(%HasDoubleElements(obj));
+Object.freeze(obj);
+testDoubleFrozenArray1(obj);
+
+// Verify change from sealed to frozen
+obj = new Array(1.1, -1.1, 1, -1, 2);
+assertTrue(%HasDoubleElements(obj));
+Object.seal(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testDoubleFrozenArray1(obj);
+
+// Verify change from non-extensible to frozen
+obj = new Array(1.1, -1.1, 1, -1, 2);
+assertTrue(%HasDoubleElements(obj));
+Object.preventExtensions(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testDoubleFrozenArray1(obj);
+
+// Verify flat, map, slice, flatMap, join, reduce, reduceRight for frozen packed array
+function testDoubleFrozenArray2(arr) {
+  assertTrue(Object.isFrozen(arr));
+  assertTrue(Array.isArray(arr));
+  assertEquals(arr.map(x => [x]), [[1], [1.1], [0]]);
+  assertEquals(arr.flatMap(x => [x]), arr);
+  assertEquals(arr.flat(), arr);
+  assertEquals(arr.join('-'), "1-1.1-0");
+  const reducer = (accumulator, currentValue) => accumulator + currentValue;
+  assertEquals(arr.reduce(reducer), 2.1);
+  assertEquals(arr.reduceRight(reducer), 2.1);
+  assertEquals(arr.slice(0, 1), [1]);
+}
+var arr1 = new Array(1, 1.1, 0);
+assertTrue(%HasDoubleElements(arr1));
+Object.freeze(arr1);
+testDoubleFrozenArray2(arr1);
+
+// Verify change from sealed to frozen
+var arr1 = new Array(1, 1.1, 0);
+assertTrue(%HasDoubleElements(arr1));
+Object.seal(arr1);
+Object.freeze(arr1);
+testDoubleFrozenArray2(arr1);
+
+
+// Verify change from non-extensible to frozen
+var arr1 = new Array(1, 1.1, 0);
+assertTrue(%HasDoubleElements(arr1));
+Object.preventExtensions(arr1);
+Object.freeze(arr1);
+testDoubleFrozenArray2(arr1);
+
+// Test regression with Object.defineProperty
+var obj = [];
+obj.propertyA = 42;
+obj[0] = 1.1;
+Object.freeze(obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+}, TypeError);
+assertEquals(42, obj.propertyA);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+}, TypeError);
+assertDoesNotThrow(function() {obj.propertyA = 2;});
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+// Regression test with simple array
+var arr = [1.1];
+Object.freeze(arr);
+arr[0] = 1;
+assertEquals(arr[0], 1.1);
+
+// Test regression Array.concat with double
+var arr = [1.1];
+Object.freeze(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, [1.1, 0.5]);
+Object.freeze(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, [1.1, 0.5, 1.5, 'b']);
+
+// Regression test with change length
+var arr = [1.1, 0];
+Object.freeze(arr);
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 2);
+arr[2] = 'c';
+assertEquals(arr[2], undefined);
+arr.length = 1;
+assertEquals(arr.length, 2);
+
+// Start testing with holey array
+// Test holey element array built-in functions with freeze.
+function testHoleyDoubleFrozenArray1(obj) {
+  assertTrue(Object.isSealed(obj));
+  // Verify that the value can't be written
+  obj1 = new Array(...obj);
+  var length = obj.length;
+  for (var i = 0; i < length-1; i++) {
+    obj[i] = 'new';
+    assertEquals(obj1[i], obj[i]);
+  }
+
+  // Verify that the length can't be written by builtins.
+  assertTrue(Array.isArray(obj));
+  assertThrows(function() { obj.pop(); }, TypeError);
+  assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
+  assertThrows(function() { obj.unshift(); }, TypeError);
+  assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
+  assertThrows(function() { obj.fill(0); }, TypeError);
+  assertThrows(function() { obj.reverse(); }, TypeError);
+  assertThrows(function() { obj.sort(); }, TypeError);
+  assertThrows(function() { obj.splice(0); }, TypeError);
+  assertThrows(function() { obj.splice(0, 0); }, TypeError);
+  assertTrue(Object.isFrozen(obj));
+
+  // Verify search, filter, iterator
+  assertEquals(obj.lastIndexOf(1), 2);
+  assertEquals(obj.indexOf(1.1), 5);
+  assertEquals(obj.indexOf(undefined), -1);
+  assertFalse(obj.includes(Symbol("test")));
+  assertTrue(obj.includes(undefined));
+  assertFalse(obj.includes(NaN));
+  assertTrue(obj.includes());
+  assertEquals(obj.find(x => x==2), undefined);
+  assertEquals(obj.findIndex(x => x==1.1), 5);
+  assertFalse(obj.some(x => typeof x == 'symbol'));
+  assertFalse(obj.every(x => x == -1));
+  var filteredArray = obj.filter(e => typeof e == "symbol");
+  assertEquals(filteredArray.length, 0);
+  assertEquals(obj.map(x => x), obj);
+  var countPositiveNumber = 0;
+  obj.forEach(function(item, index) {
+    if (item === 1) {
+      countPositiveNumber++;
+      assertEquals(index, 2);
+    }
+  });
+  assertEquals(countPositiveNumber, 1);
+  assertEquals(obj.length, obj.concat([]).length);
+  var iterator = obj.values();
+  assertEquals(iterator.next().value, -1.1);
+  assertEquals(iterator.next().value, 0);
+  var iterator = obj.keys();
+  assertEquals(iterator.next().value, 0);
+  assertEquals(iterator.next().value, 1);
+  var iterator = obj.entries();
+  assertEquals(iterator.next().value, [0, -1.1]);
+  assertEquals(iterator.next().value, [1, 0]);
+}
+
+obj = [-1.1, 0, 1, , -1, 1.1];
+assertTrue(%HasHoleyElements(obj));
+Object.freeze(obj);
+testHoleyDoubleFrozenArray1(obj);
+
+// Verify change from sealed to frozen
+obj = [-1.1, 0, 1, , -1, 1.1];
+assertTrue(%HasHoleyElements(obj));
+Object.seal(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testHoleyDoubleFrozenArray1(obj);
+
+// Verify change from non-extensible to frozen
+obj = [-1.1, 0, 1, , -1, 1.1];
+assertTrue(%HasHoleyElements(obj));
+Object.preventExtensions(obj);
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+testHoleyDoubleFrozenArray1(obj);
+
+// Verify flat, map, slice, flatMap, join, reduce, reduceRight for frozen packed array
+function testHoleyDoubleFrozenArray2(arr) {
+  assertTrue(Object.isFrozen(arr));
+  assertTrue(Array.isArray(arr));
+  assertEquals(arr.map(x => [x]), [, [1.1], [1], [0]]);
+  assertEquals(arr.flatMap(x => [x]), [1.1, 1, 0]);
+  assertEquals(arr.flat(), [1.1, 1, 0]);
+  assertEquals(arr.join('-'), "-1.1-1-0");
+  const reducer = (accumulator, currentValue) => accumulator + currentValue;
+  assertEquals(arr.reduce(reducer), 2.1);
+  assertEquals(arr.reduceRight(reducer), 2.1);
+  assertEquals(arr.slice(0, 1), [,]);
+  assertEquals(arr.slice(1, 2), [1.1]);
+}
+var arr1 = [, 1.1, 1, 0];
+assertTrue(%HasHoleyElements(arr1));
+Object.preventExtensions(arr1);
+Object.freeze(arr1);
+testHoleyDoubleFrozenArray2(arr1);
+
+// Verify change from sealed to frozen
+var arr1 = [, 1.1, 1, 0];
+assertTrue(%HasHoleyElements(arr1));
+Object.seal(arr1);
+Object.freeze(arr1);
+testHoleyDoubleFrozenArray2(arr1);
+
+// Verify change from non-extensible to frozen
+var arr1 = [, 1.1, 1, 0];
+assertTrue(%HasHoleyElements(arr1));
+Object.preventExtensions(arr1);
+Object.freeze(arr1);
+testHoleyDoubleFrozenArray2(arr1);
+
+// Test regression with Object.defineProperty
+var obj = [1.1, , 0];
+obj.propertyA = 42;
+obj[0] = true;
+Object.freeze(obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+}, TypeError);
+assertEquals(42, obj.propertyA);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+}, TypeError);
+assertDoesNotThrow(function() {obj.propertyA = 2;});
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+// Regression test with simple holey array
+var arr = [, 1.1];
+Object.freeze(arr);
+arr[1] = 'b';
+assertEquals(arr[1], 1.1);
+arr[0] = 1;
+assertEquals(arr[0], undefined);
+
+// Test regression Array.concat with double
+var arr = [1.1, , 0];
+Object.freeze(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, [1.1, , 0, 0.5]);
+Object.freeze(arr);
+arr = arr.concat([1.5, 'c']);
+assertEquals(arr, [1.1, ,0, 0.5, 1.5, 'c']);
+
+// Regression test with change length
+var arr = [1.1, ,0];
+Object.freeze(arr);
+assertEquals(arr.length, 3);
+arr.length = 4;
+assertEquals(arr.length, 3);
+arr[3] = 'c';
+assertEquals(arr[2], 0);
+assertEquals(arr[3], undefined);
+arr.length = 2;
+assertEquals(arr.length, 3);
+
+// Change length with holey entries at the end
+var arr = [1.1, ,];
+Object.freeze(arr);
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 2);
+
+// Spread with array
+var arr = [1.1, 0, -1];
+Object.freeze(arr);
+var arrSpread = [...arr];
+assertEquals(arrSpread.length, arr.length);
+assertEquals(arrSpread[0], 1.1);
+assertEquals(arrSpread[1], 0);
+assertEquals(arrSpread[2], -1);
+
+// Spread with array-like
+function returnArgs() {
+  return Object.freeze(arguments);
+}
+var arrLike = returnArgs(1.1, 0, -1);
+assertTrue(Object.isFrozen(arrLike));
+var arrSpread = [...arrLike];
+assertEquals(arrSpread.length, arrLike.length);
+assertEquals(arrSpread[0], 1.1);
+assertEquals(arrSpread[1], 0);
+assertEquals(arrSpread[2], -1);
+
+// Spread with holey
+function countArgs() {
+  return arguments.length;
+}
+var arr = [, 1.1, 0];
+Object.freeze(arr);
+assertEquals(countArgs(...arr), 3);
+assertEquals(countArgs(...[...arr]), 3);
+assertEquals(countArgs.apply(this, [...arr]), 3);
+function checkUndefined() {
+  return arguments[0] === undefined;
+}
+assertTrue(checkUndefined(...arr));
+assertTrue(checkUndefined(...[...arr]));
+assertTrue(checkUndefined.apply(this, [...arr]));
+
+//
+// Array.prototype.map
+//
+(function() {
+  var a = Object.freeze([0.1,1,2,3,4]);
+
+  // Simple use.
+  var result = [1.1,2,3,4,5];
+  assertArrayEquals(result, a.map(function(n) { return Number(n) + 1; }));
+
+  // Use specified object as this object when calling the function.
+  var o = { delta: 42 }
+  result = [42.1,43,44,45,46];
+  assertArrayEquals(result, a.map(function(n) { return this.delta + Number(n); }, o));
+
+  // Modify original array.
+  b = Object.freeze([0.1,1,2,3,4]);
+  result = [1.1,2,3,4,5];
+  assertArrayEquals(result,
+      b.map(function(n, index, array) {
+        array[index] = Number(n) + 1; return Number(n) + 1;
+      }));
+  assertArrayEquals(b, a);
+
+  // Only loop through initial part of array and elements are not
+  // added.
+  a = Object.freeze([0.1,1,2,3,4]);
+  result = [1.1,2,3,4,5];
+  assertArrayEquals(result,
+      a.map(function(n, index, array) { assertThrows(() => { array.push(n) }); return Number(n) + 1; }));
+  assertArrayEquals([0.1,1,2,3,4], a);
+
+  // Respect holes.
+  a = new Array(20);
+  a[1] = 1.1;
+  Object.freeze(a);
+  a = Object.freeze(a).map(function(n) { return 2*Number(n); });
+
+  for (var i in a) {
+    assertEquals(2.2, a[i]);
+    assertEquals('1', i);
+  }
+
+  // Skip over missing properties.
+  a = {
+    "0": 1.1,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2.2, , 4],
+      Array.prototype.map.call(Object.freeze(a), function(n) {
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1.1, 2], received);
+
+  // Modify array prototype
+  a = [1.1, , 2];
+  received = [];
+  assertThrows(() => {
+    Array.prototype.map.call(Object.freeze(a), function(n) {
+      a.__proto__ = null;
+      received.push(n);
+      return n * 2;
+    });
+  }, TypeError);
+  assertArrayEquals([], received);
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  a = [];
+  Object.freeze([1.1, 2]).map(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  Object.freeze([1.1, 2]).map(function() { a.push(this) }, {});
+  assertSame(a[0], a[1]);
+
+  // In strict mode primitive values should not be coerced to an object.
+  a = [];
+  Object.freeze([1.1, 1.2]).map(function() { 'use strict'; a.push(this); }, "");
+  assertEquals("", a[0]);
+  assertEquals(a[0], a[1]);
+
+})();

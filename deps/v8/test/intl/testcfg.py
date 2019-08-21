@@ -58,6 +58,9 @@ class TestCase(testcase.D8TestCase):
 
   def _parse_source_env(self, source):
     env_match = ENV_PATTERN.search(source)
+    # https://crbug.com/v8/8845
+    if 'LC_ALL' in os.environ:
+      del os.environ['LC_ALL']
     env = {}
     if env_match:
       for env_pair in env_match.group(1).strip().split():

@@ -23,7 +23,7 @@ class UnoptimizedCompilationJob;
 // Interface to compile and instantiate for asm.js modules.
 class AsmJs {
  public:
-  static UnoptimizedCompilationJob* NewCompilationJob(
+  static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator);
   static MaybeHandle<Object> InstantiateAsmWasm(Isolate* isolate,

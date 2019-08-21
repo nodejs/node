@@ -34,13 +34,13 @@ namespace arguments {
   @export
   macro GetArgumentsFrameAndCount(implicit context: Context)(f: JSFunction):
       ArgumentsInfo {
-    let frame: Frame = LoadParentFramePointer();
+    const frame: Frame = LoadParentFramePointer();
     assert(frame.function == f);
 
     const shared: SharedFunctionInfo = f.shared_function_info;
     const formalParameterCount: bint =
         Convert<bint>(Convert<int32>(shared.formal_parameter_count));
-    let argumentCount: bint = formalParameterCount;
+    const argumentCount: bint = formalParameterCount;
 
     const adaptor: ArgumentsAdaptorFrame =
         Cast<ArgumentsAdaptorFrame>(frame.caller)

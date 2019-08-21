@@ -48,7 +48,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   size_t request_size = size + (alignment - page_size);
 
   zx_handle_t vmo;
-  if (zx_vmo_create(request_size, ZX_VMO_NON_RESIZABLE, &vmo) != ZX_OK) {
+  if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
@@ -152,7 +152,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kMicrosPerSecond = 1000000ULL;
   zx_time_t nanos_since_thread_started;
   zx_status_t status =
-      zx_clock_get_new(ZX_CLOCK_THREAD, &nanos_since_thread_started);
+      zx_clock_get(ZX_CLOCK_THREAD, &nanos_since_thread_started);
   if (status != ZX_OK) {
     return -1;
   }

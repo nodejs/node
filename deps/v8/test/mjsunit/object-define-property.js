@@ -1053,12 +1053,14 @@ function anotherGetter() { return 222; }
 function testGetterOnProto(expected, o) {
   assertEquals(expected, o.quebec);
 }
+%PrepareFunctionForOptimization(testGetterOnProto);
 
 obj1 = {};
 Object.defineProperty(obj1, "quebec", { get: getter, configurable: true });
 obj2 = Object.create(obj1);
 obj3 = Object.create(obj2);
 
+%PrepareFunctionForOptimization(testGetterOnProto);
 testGetterOnProto(111, obj3);
 testGetterOnProto(111, obj3);
 %OptimizeFunctionOnNextCall(testGetterOnProto);
@@ -1069,6 +1071,7 @@ Object.defineProperty(obj1, "quebec", { get: anotherGetter });
 
 testGetterOnProto(222, obj3);
 testGetterOnProto(222, obj3);
+%PrepareFunctionForOptimization(testGetterOnProto);
 %OptimizeFunctionOnNextCall(testGetterOnProto);
 testGetterOnProto(222, obj3);
 testGetterOnProto(222, obj3);
@@ -1083,6 +1086,7 @@ function testSetterOnProto(expected, o) {
   o.romeo = 444;
   assertEquals(expected, modifyMe);
 }
+%PrepareFunctionForOptimization(testSetterOnProto);
 
 obj1 = {};
 Object.defineProperty(obj1, "romeo", { set: setter, configurable: true });
@@ -1099,6 +1103,7 @@ Object.defineProperty(obj1, "romeo", { set: anotherSetter });
 
 testSetterOnProto(446, obj3);
 testSetterOnProto(446, obj3);
+%PrepareFunctionForOptimization(testSetterOnProto);
 %OptimizeFunctionOnNextCall(testSetterOnProto);
 testSetterOnProto(446, obj3);
 testSetterOnProto(446, obj3);
@@ -1108,6 +1113,7 @@ function testSetterOnProtoStrict(o) {
   "use strict";
   o.sierra = 12345;
 }
+%PrepareFunctionForOptimization(testSetterOnProtoStrict);
 
 obj1 = {};
 Object.defineProperty(obj1, "sierra",
@@ -1140,6 +1146,7 @@ assertTrue(exception);
 function Assign(o) {
   o.blubb = 123;
 }
+%PrepareFunctionForOptimization(Assign);
 
 function C() {}
 

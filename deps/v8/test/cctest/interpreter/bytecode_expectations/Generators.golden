@@ -98,7 +98,7 @@ snippet: "
   function* f() { for (let x of [42]) yield x }
   f();
 "
-frame size: 16
+frame size: 17
 parameter count: 1
 bytecode array length: 261
 bytecodes: [
@@ -178,15 +178,15 @@ bytecodes: [
                 B(Star), R(13),
                 B(JumpIfUndefined), U8(52),
                 B(JumpIfNull), U8(50),
+                B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(158),
-                B(Star), R(14),
-                B(LdaConstant), U8(12),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(15),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
+                B(LdaConstant), U8(12),
+                B(Star), R(16),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(15), U8(2),
                 B(Throw),
-                B(Mov), R(context), R(14),
                 B(CallProperty0), R(13), R(5), U8(15),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(15),
@@ -229,7 +229,7 @@ constant pool: [
 ]
 handlers: [
   [79, 163, 171],
-  [217, 230, 232],
+  [197, 230, 232],
 ]
 
 ---

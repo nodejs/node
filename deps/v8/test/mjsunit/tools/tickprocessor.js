@@ -134,6 +134,47 @@
   }
   assertEquals(libc_ref_syms, libc_syms);
 
+  // Android library with zero length duplicates.
+  UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
+    this.symbols = [[
+      '00000000013a1088 0000000000000224 t v8::internal::interpreter::BytecodeGenerator::BytecodeGenerator(v8::internal::UnoptimizedCompilationInfo*)',
+      '00000000013a1088 0000000000000224 t v8::internal::interpreter::BytecodeGenerator::BytecodeGenerator(v8::internal::UnoptimizedCompilationInfo*)',
+      '00000000013a12ac t $x.4',
+      '00000000013a12ac 00000000000000d0 t v8::internal::interpreter::BytecodeGenerator::FinalizeBytecode(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Script>)',
+      '00000000013a137c t $x.5',
+      '00000000013a137c 0000000000000528 t v8::internal::interpreter::BytecodeGenerator::AllocateDeferredConstants(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Script>)',
+      '00000000013a1578 N $d.46',
+      '00000000013a18a4 t $x.6',
+      '00000000013a18a4 0000000000000 t v8::internal::interpreter::BytecodeGenerator::GlobalDeclarationsBuilder::AllocateDeclarations(v8::internal::UnoptimizedCompilationInfo*, v8::internal::Handle<v8::internal::Script>, v8::internal::Isolate*)',
+      '00000000013a19e0 t $x.7',
+      '00000000013a19e0 0000000000000244 t v8::internal::interpreter::BytecodeGenerator::GenerateBytecode(unsigned long)',
+      '00000000013a1a88 N $d.7',
+      '00000000013a1ac8 N $d.5',
+      '00000000013a1af8 N $d.35',
+      '00000000013a1c24 t $x.8',
+      '00000000013a1c24 000000000000009c t v8::internal::interpreter::BytecodeGenerator::ContextScope::ContextScope(v8::internal::interpreter::BytecodeGenerator*, v8::internal::Scope*)\n',
+    ].join('\n'), ''];
+  };
+  var android_prov = new UnixCppEntriesProvider();
+  var android_syms = [];
+  android_prov.parseVmSymbols('libmonochrome', 0xf7c5c000, 0xf9c5c000, 0,
+      function (name, start, end) {
+        android_syms.push(Array.prototype.slice.apply(arguments, [0]));
+      });
+  var android_ref_syms = [
+       ['v8::internal::interpreter::BytecodeGenerator::BytecodeGenerator(v8::internal::UnoptimizedCompilationInfo*)', 0x013a1088, 0x013a1088 + 0x224],
+       ['v8::internal::interpreter::BytecodeGenerator::FinalizeBytecode(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Script>)', 0x013a12ac, 0x013a12ac + 0xd0],
+       ['v8::internal::interpreter::BytecodeGenerator::AllocateDeferredConstants(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Script>)', 0x013a137c, 0x013a137c + 0x528],
+       ['v8::internal::interpreter::BytecodeGenerator::GlobalDeclarationsBuilder::AllocateDeclarations(v8::internal::UnoptimizedCompilationInfo*, v8::internal::Handle<v8::internal::Script>, v8::internal::Isolate*)', 0x013a18a4, 0x013a18a4 + 0x13c],
+       ['v8::internal::interpreter::BytecodeGenerator::GenerateBytecode(unsigned long)', 0x013a19e0, 0x013a19e0 + 0x244],
+       ['v8::internal::interpreter::BytecodeGenerator::ContextScope::ContextScope(v8::internal::interpreter::BytecodeGenerator*, v8::internal::Scope*)', 0x013a1c24, 0x013a1c24 + 0x9c],
+  ];
+  for (var i = 0; i < android_ref_syms.length; ++i) {
+    android_ref_syms[i][1] += 0xf7c5c000;
+    android_ref_syms[i][2] += 0xf7c5c000;
+  }
+  assertEquals(android_ref_syms, android_syms);
+
   UnixCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;
 })();
 

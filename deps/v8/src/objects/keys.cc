@@ -395,6 +395,11 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
     GetKeysConversion keys_conversion) {
+  // TODO(v8:9401): We should extend the fast path of KeyAccumulator::GetKeys to
+  // also use fast path even when filter = SKIP_SYMBOLS. We used to pass wrong
+  // filter to use fast path in cases where we tried to verify all properties
+  // are enumerable. However these checks weren't correct and passing the wrong
+  // filter led to wrong behaviour.
   if (filter_ == ENUMERABLE_STRINGS) {
     Handle<FixedArray> keys;
     if (GetKeysFast(keys_conversion).ToHandle(&keys)) {

@@ -272,7 +272,25 @@ const Field& AggregateType::LookupField(const std::string& name) const {
 }
 
 std::string StructType::GetGeneratedTypeNameImpl() const {
-  return "TorqueStruct" + name();
+  return "TorqueStruct" + MangledName();
+}
+
+// static
+std::string StructType::ComputeName(const std::string& basename,
+                                    const std::vector<const Type*>& args) {
+  if (args.size() == 0) return basename;
+  std::stringstream s;
+  s << basename << "<";
+  bool first = true;
+  for (auto t : args) {
+    if (!first) {
+      s << ", ";
+    }
+    s << t->ToString();
+    first = false;
+  }
+  s << ">";
+  return s.str();
 }
 
 std::vector<Method*> AggregateType::Methods(const std::string& name) const {
@@ -349,7 +367,7 @@ void ClassType::Finalize() const {
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
-  if (GenerateCppClassDefinitions()) {
+  if (GenerateCppClassDefinitions() || !IsExtern()) {
     for (const Field& f : fields()) {
       if (f.is_weak) {
         Error("Generation of C++ class for Torque class ", name(),

@@ -213,6 +213,7 @@ void ForceEvacuationCandidate(Page* page) {
   CHECK(FLAG_manual_evacuation_candidates_selection);
   page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   PagedSpace* space = static_cast<PagedSpace*>(page->owner());
+  DCHECK_NOT_NULL(space);
   Address top = space->top();
   Address limit = space->limit();
   if (top < limit && Page::FromAllocationAreaAddress(top) == page) {

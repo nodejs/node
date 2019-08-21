@@ -97,8 +97,7 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
   // with  page initialization.
   HeapObject heap_object;
   if (object->GetHeapObject(&heap_object)) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object.address());
-    CHECK_NOT_NULL(chunk->synchronized_heap());
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
   }
 #endif
 }
@@ -110,9 +109,8 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   heap()->CopyBlock(target.address() + kTaggedSize,
                     source.address() + kTaggedSize, size - kTaggedSize);
 
-  Object old = source.map_slot().Release_CompareAndSwap(
-      map, MapWord::FromForwardingAddress(target).ToMap());
-  if (old != map) {
+  if (!source.synchronized_compare_and_swap_map_word(
+          MapWord::FromMap(map), MapWord::FromForwardingAddress(target))) {
     // Other task migrated the object.
     return false;
   }
@@ -215,9 +213,9 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
           FLAG_young_generation_large_objects &&
           MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
-              MemoryChunk::FromHeapObject(object)->owner()->identity());
-    if (object.map_slot().Release_CompareAndSwap(
-            map, MapWord::FromForwardingAddress(object).ToMap()) == map) {
+              MemoryChunk::FromHeapObject(object)->owner_identity());
+    if (object.synchronized_compare_and_swap_map_word(
+            MapWord::FromMap(map), MapWord::FromForwardingAddress(object))) {
       surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
       if (object_fields == ObjectFields::kMaybePointers) {
@@ -314,8 +312,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
     HeapObjectReference::Update(slot, first);
 
     if (!Heap::InYoungGeneration(first)) {
-      object.map_slot().Release_Store(
-          MapWord::FromForwardingAddress(first).ToMap());
+      object.synchronized_set_map_word(MapWord::FromForwardingAddress(first));
       return REMOVE_SLOT;
     }
 
@@ -324,16 +321,15 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
       HeapObject target = first_word.ToForwardingAddress();
 
       HeapObjectReference::Update(slot, target);
-      object.map_slot().Release_Store(
-          MapWord::FromForwardingAddress(target).ToMap());
+      object.synchronized_set_map_word(MapWord::FromForwardingAddress(target));
       return Heap::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Map map = first_word.ToMap();
     SlotCallbackResult result =
         EvacuateObjectDefault(map, slot, first, first.SizeFromMap(map),
                               Map::ObjectFieldsFrom(map.visitor_id()));
-    object.map_slot().Release_Store(
-        MapWord::FromForwardingAddress(slot.ToHeapObject()).ToMap());
+    object.synchronized_set_map_word(
+        MapWord::FromForwardingAddress(slot.ToHeapObject()));
     return result;
   }
   DCHECK_EQ(ObjectFields::kMaybePointers,

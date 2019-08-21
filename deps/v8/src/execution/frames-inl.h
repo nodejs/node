@@ -5,7 +5,7 @@
 #ifndef V8_EXECUTION_FRAMES_INL_H_
 #define V8_EXECUTION_FRAMES_INL_H_
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
@@ -48,11 +48,11 @@ inline Address StackHandler::address() const {
 
 inline StackHandler* StackHandler::next() const {
   const int offset = StackHandlerConstants::kNextOffset;
-  return FromAddress(Memory<Address>(address() + offset));
+  return FromAddress(base::Memory<Address>(address() + offset));
 }
 
 inline Address StackHandler::next_address() const {
-  return Memory<Address>(address() + StackHandlerConstants::kNextOffset);
+  return base::Memory<Address>(address() + StackHandlerConstants::kNextOffset);
 }
 
 inline StackHandler* StackHandler::FromAddress(Address address) {
@@ -112,21 +112,22 @@ inline Object BuiltinExitFrame::receiver_slot_object() const {
 
   const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
                              (argc - 1) * kSystemPointerSize;
-  return Object(Memory<Address>(fp() + receiverOffset));
+  return Object(base::Memory<Address>(fp() + receiverOffset));
 }
 
 inline Object BuiltinExitFrame::argc_slot_object() const {
-  return Object(Memory<Address>(fp() + BuiltinExitFrameConstants::kArgcOffset));
+  return Object(
+      base::Memory<Address>(fp() + BuiltinExitFrameConstants::kArgcOffset));
 }
 
 inline Object BuiltinExitFrame::target_slot_object() const {
   return Object(
-      Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset));
+      base::Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset));
 }
 
 inline Object BuiltinExitFrame::new_target_slot_object() const {
-  return Object(
-      Memory<Address>(fp() + BuiltinExitFrameConstants::kNewTargetOffset));
+  return Object(base::Memory<Address>(
+      fp() + BuiltinExitFrameConstants::kNewTargetOffset));
 }
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
@@ -134,20 +135,20 @@ inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
 }
 
 inline Object StandardFrame::GetExpression(int index) const {
-  return Object(Memory<Address>(GetExpressionAddress(index)));
+  return Object(base::Memory<Address>(GetExpressionAddress(index)));
 }
 
 inline void StandardFrame::SetExpression(int index, Object value) {
-  Memory<Address>(GetExpressionAddress(index)) = value.ptr();
+  base::Memory<Address>(GetExpressionAddress(index)) = value.ptr();
 }
 
 inline Address StandardFrame::caller_fp() const {
-  return Memory<Address>(fp() + StandardFrameConstants::kCallerFPOffset);
+  return base::Memory<Address>(fp() + StandardFrameConstants::kCallerFPOffset);
 }
 
 
 inline Address StandardFrame::caller_pc() const {
-  return Memory<Address>(ComputePCAddress(fp()));
+  return base::Memory<Address>(ComputePCAddress(fp()));
 }
 
 
@@ -163,14 +164,14 @@ inline Address StandardFrame::ComputeConstantPoolAddress(Address fp) {
 
 inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
   intptr_t frame_type =
-      Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
+      base::Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
   return frame_type == StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
 
 inline bool StandardFrame::IsConstructFrame(Address fp) {
   intptr_t frame_type =
-      Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
+      base::Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
   return frame_type == StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
 }
 
@@ -187,7 +188,7 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
 }
 
 inline void JavaScriptFrame::set_receiver(Object value) {
-  Memory<Address>(GetParameterSlot(-1)) = value.ptr();
+  base::Memory<Address>(GetParameterSlot(-1)) = value.ptr();
 }
 
 inline bool JavaScriptFrame::has_adapted_arguments() const {
@@ -196,7 +197,7 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 
 inline Object JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  return Object(Memory<Address>(fp() + offset));
+  return Object(base::Memory<Address>(fp() + offset));
 }
 
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)

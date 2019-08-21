@@ -14,6 +14,7 @@
       "main": "run.js",
       "resources": [
         "case_test.js",
+        "complex_case_test.js",
         "base_ctor.js",
         "base_exec.js",
         "base_flags.js",
@@ -43,6 +44,7 @@
       "results_regexp": "^%s\\-RegExp\\(Score\\): (.+)$",
       "tests": [
         {"name": "CaseInsensitiveTest"},
+        {"name": "ComplexCaseInsensitiveTest"},
         {"name": "Ctor"},
         {"name": "Exec"},
         {"name": "Flags"},

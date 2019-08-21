@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -30,8 +32,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         simplified_(main_zone()),
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
-        reducer_(main_zone(), graph()),
-        js_heap_broker_(main_isolate(), main_zone()),
+        reducer_(main_zone(), graph(), &tick_counter_),
+        js_heap_broker_(main_isolate(), main_zone(), FLAG_trace_heap_broker),
         spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
               MaybeHandle<JSFunction>()) {}
 
@@ -51,6 +53,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
                                         size_t expected_new_depth);
 
  private:
+  TickCounter tick_counter_;
   CanonicalHandleScope canonical_;
   Graph* graph_;
   CommonOperatorBuilder common_;

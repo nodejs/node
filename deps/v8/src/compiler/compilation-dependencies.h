@@ -25,6 +25,8 @@ class SlackTrackingPrediction {
   int inobject_property_count_;
 };
 
+class CompilationDependency;
+
 // Collects and installs dependencies of the code that is being generated.
 class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  public:
@@ -113,14 +115,13 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   //   DependOnTransition(map);
   // is equivalent to:
   //   RecordDependency(TransitionDependencyOffTheRecord(map));
-  class Dependency;
-  void RecordDependency(Dependency const* dependency);
-  Dependency const* TransitionDependencyOffTheRecord(
+  void RecordDependency(CompilationDependency const* dependency);
+  CompilationDependency const* TransitionDependencyOffTheRecord(
       const MapRef& target_map) const;
-  Dependency const* FieldRepresentationDependencyOffTheRecord(
+  CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
       const MapRef& map, int descriptor) const;
-  Dependency const* FieldTypeDependencyOffTheRecord(const MapRef& map,
-                                                    int descriptor) const;
+  CompilationDependency const* FieldTypeDependencyOffTheRecord(
+      const MapRef& map, int descriptor) const;
 
   // Exposed only for testing purposes.
   bool AreValid() const;
@@ -128,7 +129,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  private:
   Zone* const zone_;
   JSHeapBroker* const broker_;
-  ZoneForwardList<Dependency const*> dependencies_;
+  ZoneForwardList<CompilationDependency const*> dependencies_;
 };
 
 }  // namespace compiler

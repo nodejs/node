@@ -109,8 +109,8 @@ class TestCode : public HandleAndZoneScope {
   }
 };
 
-
-void VerifyForwarding(TestCode& code, int count, int* expected) {
+void VerifyForwarding(TestCode& code,  // NOLINT(runtime/references)
+                      int count, int* expected) {
   v8::internal::AccountingAllocator allocator;
   Zone local_zone(&allocator, ZONE_NAME);
   ZoneVector<RpoNumber> result(&local_zone);
@@ -121,7 +121,6 @@ void VerifyForwarding(TestCode& code, int count, int* expected) {
     CHECK(expected[i] == result[i].ToInt());
   }
 }
-
 
 TEST(FwEmpty1) {
   TestCode code;
@@ -611,8 +610,8 @@ void RunPermutedDiamond(int* permutation, int size) {
 
 TEST(FwPermuted_diamond) { RunAllPermutations<4>(RunPermutedDiamond); }
 
-
-void ApplyForwarding(TestCode& code, int size, int* forward) {
+void ApplyForwarding(TestCode& code,  // NOLINT(runtime/references)
+                     int size, int* forward) {
   code.sequence_.RecomputeAssemblyOrderForTesting();
   ZoneVector<RpoNumber> vector(code.main_zone());
   for (int i = 0; i < size; i++) {
@@ -621,8 +620,8 @@ void ApplyForwarding(TestCode& code, int size, int* forward) {
   JumpThreading::ApplyForwarding(code.main_zone(), vector, &code.sequence_);
 }
 
-
-void CheckJump(TestCode& code, int pos, int target) {
+void CheckJump(TestCode& code,  // NOLINT(runtime/references)
+               int pos, int target) {
   Instruction* instr = code.sequence_.InstructionAt(pos);
   CHECK_EQ(kArchJmp, instr->arch_opcode());
   CHECK_EQ(1, static_cast<int>(instr->InputCount()));
@@ -631,8 +630,8 @@ void CheckJump(TestCode& code, int pos, int target) {
   CHECK_EQ(target, code.sequence_.InputRpo(instr, 0).ToInt());
 }
 
-
-void CheckNop(TestCode& code, int pos) {
+void CheckNop(TestCode& code,  // NOLINT(runtime/references)
+              int pos) {
   Instruction* instr = code.sequence_.InstructionAt(pos);
   CHECK_EQ(kArchNop, instr->arch_opcode());
   CHECK_EQ(0, static_cast<int>(instr->InputCount()));
@@ -640,8 +639,8 @@ void CheckNop(TestCode& code, int pos) {
   CHECK_EQ(0, static_cast<int>(instr->TempCount()));
 }
 
-
-void CheckBranch(TestCode& code, int pos, int t1, int t2) {
+void CheckBranch(TestCode& code,  // NOLINT(runtime/references)
+                 int pos, int t1, int t2) {
   Instruction* instr = code.sequence_.InstructionAt(pos);
   CHECK_EQ(2, static_cast<int>(instr->InputCount()));
   CHECK_EQ(0, static_cast<int>(instr->OutputCount()));
@@ -650,14 +649,13 @@ void CheckBranch(TestCode& code, int pos, int t1, int t2) {
   CHECK_EQ(t2, code.sequence_.InputRpo(instr, 1).ToInt());
 }
 
-
-void CheckAssemblyOrder(TestCode& code, int size, int* expected) {
+void CheckAssemblyOrder(TestCode& code,  // NOLINT(runtime/references)
+                        int size, int* expected) {
   int i = 0;
   for (auto const block : code.sequence_.instruction_blocks()) {
     CHECK_EQ(expected[i++], block->ao_number().ToInt());
   }
 }
-
 
 TEST(Rewire1) {
   TestCode code;

@@ -13,8 +13,8 @@ for (let i = 0; i < 1020; ++i) {
 
 function foo() {
   return obj instanceof constructor;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertTrue(foo());
 assertTrue(foo());
 %OptimizeFunctionOnNextCall(foo);

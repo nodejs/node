@@ -4,7 +4,9 @@
 
 // Flags: --allow-natives-syntax
 
-function assert(cond) { if (!cond) throw "Assert"; }
+function assert(cond) {
+  if (!cond) throw 'Assert';
+}
 
 function Constructor() {
   this.padding1 = null;
@@ -42,20 +44,19 @@ function Constructor() {
 
 function f(k) {
   var c = k.accumulator | 0;
-  k.accumulator = k.array[(k.accumulator + 1 | 0)] | 0;
-  k.array[c + 1 | 0] = (-1);
+  k.accumulator = k.array[k.accumulator + 1 | 0] | 0;
+  k.array[c + 1 | 0] = -1;
   var head = k.accumulator;
-  assert((head + c) & 1);
+  assert(head + c & 1);
   while (head >= 0) {
     head = k.array[head + 1 | 0];
   }
   return;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 const tmp = new Constructor();
 tmp.array = new Int32Array(5);
-for (var i = 1; i < 5; i++)
-  tmp.array[i] = i | 0;
+for (var i = 1; i < 5; i++) tmp.array[i] = i | 0;
 tmp.accumulator = 0;
 
 f(tmp);

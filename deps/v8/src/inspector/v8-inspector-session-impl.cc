@@ -161,53 +161,28 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
   return state;
 }
 
-namespace {
-
-class MessageBuffer : public StringBuffer {
- public:
-  static std::unique_ptr<MessageBuffer> create(
-      std::unique_ptr<protocol::Serializable> message, bool binary) {
-    return std::unique_ptr<MessageBuffer>(
-        new MessageBuffer(std::move(message), binary));
-  }
-
-  const StringView& string() override {
-    if (!m_serialized) {
-      if (m_binary) {
-        // Encode binary response as an 8bit string buffer.
-        m_serialized.reset(
-            new BinaryStringBuffer(m_message->serializeToBinary()));
-      } else {
-        m_serialized =
-            StringBuffer::create(toStringView(m_message->serializeToJSON()));
-      }
-      m_message.reset(nullptr);
-    }
-    return m_serialized->string();
-  }
-
- private:
-  explicit MessageBuffer(std::unique_ptr<protocol::Serializable> message,
-                         bool binary)
-      : m_message(std::move(message)), m_binary(binary) {}
-
-  std::unique_ptr<protocol::Serializable> m_message;
-  std::unique_ptr<StringBuffer> m_serialized;
-  bool m_binary;
-};
-
-}  // namespace
+std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
+    std::unique_ptr<protocol::Serializable> message) {
+  std::vector<uint8_t> cbor = message->serializeToBinary();
+  if (use_binary_protocol_)
+    return std::unique_ptr<StringBuffer>(
+        new BinaryStringBuffer(std::move(cbor)));
+  std::vector<uint8_t> json;
+  IPEStatus status = ConvertCBORToJSON(SpanFrom(cbor), &json);
+  DCHECK(status.ok());
+  USE(status);
+  String16 string16(reinterpret_cast<const char*>(json.data()), json.size());
+  return StringBufferImpl::adopt(string16);
+}
 
 void V8InspectorSessionImpl::sendProtocolResponse(
     int callId, std::unique_ptr<protocol::Serializable> message) {
-  m_channel->sendResponse(
-      callId, MessageBuffer::create(std::move(message), use_binary_protocol_));
+  m_channel->sendResponse(callId, serializeForFrontend(std::move(message)));
 }
 
 void V8InspectorSessionImpl::sendProtocolNotification(
     std::unique_ptr<protocol::Serializable> message) {
-  m_channel->sendNotification(
-      MessageBuffer::create(std::move(message), use_binary_protocol_));
+  m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
 void V8InspectorSessionImpl::fallThrough(
@@ -357,20 +332,30 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
-  bool binary_protocol = IsCBORMessage(message);
-  if (binary_protocol) {
+  using ::v8_inspector_protocol_encoding::span;
+  using ::v8_inspector_protocol_encoding::SpanFrom;
+  span<uint8_t> cbor;
+  std::vector<uint8_t> converted_cbor;
+  if (IsCBORMessage(message)) {
     use_binary_protocol_ = true;
     m_state->setBoolean("use_binary_protocol", true);
-  }
-
-  int callId;
-  std::unique_ptr<protocol::Value> parsed_message;
-  if (binary_protocol) {
-    parsed_message = protocol::Value::parseBinary(
-        message.characters8(), static_cast<unsigned>(message.length()));
+    cbor = span<uint8_t>(message.characters8(), message.length());
   } else {
-    parsed_message = protocol::StringUtil::parseJSON(message);
+    if (message.is8Bit()) {
+      // We're ignoring the return value of these conversion functions
+      // intentionally. It means the |parsed_message| below will be nullptr.
+      ConvertJSONToCBOR(span<uint8_t>(message.characters8(), message.length()),
+                        &converted_cbor);
+    } else {
+      ConvertJSONToCBOR(
+          span<uint16_t>(message.characters16(), message.length()),
+          &converted_cbor);
+    }
+    cbor = SpanFrom(converted_cbor);
   }
+  int callId;
+  std::unique_ptr<protocol::Value> parsed_message =
+      protocol::Value::parseBinary(cbor.data(), cbor.size());
   String16 method;
   if (m_dispatcher.parseCommand(parsed_message.get(), &callId, &method)) {
     // Pass empty string instead of the actual message to save on a conversion.
@@ -378,14 +363,6 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     m_dispatcher.dispatch(callId, method, std::move(parsed_message),
                           protocol::ProtocolMessage());
   }
-}
-
-std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
-  std::vector<uint8_t> json;
-  IPEStatus status = ConvertCBORToJSON(SpanFrom(state()), &json);
-  DCHECK(status.ok());
-  USE(status);
-  return v8::base::make_unique<BinaryStringBuffer>(std::move(json));
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {

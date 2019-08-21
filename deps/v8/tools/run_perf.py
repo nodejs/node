@@ -266,6 +266,7 @@ class ResultTracker(object):
     mean = numpy.mean(results)
     mean_stderr = numpy.std(results) / numpy.sqrt(len(results))
     logging.debug('  Mean: %.2f, mean_stderr: %.2f', mean, mean_stderr)
+    logging.info('>>> Confidence level is %.2f', mean / (1000.0 * mean_stderr))
     return confidence_level * mean_stderr < mean / 1000.0
 
   def __str__(self):  # pragma: no cover
@@ -928,16 +929,16 @@ def Main(argv):
                       '--filter=JSTests/TypedArrays/ will run only TypedArray '
                       'benchmarks from the JSTests suite.',
                       default='')
-  parser.add_argument('--confidence-level', type=int,
+  parser.add_argument('--confidence-level', type=float,
                       help='Repeatedly runs each benchmark until specified '
                       'confidence level is reached. The value is interpreted '
                       'as the number of standard deviations from the mean that '
                       'all values must lie within. Typical values are 1, 2 and '
-                      '3 and correspond to 68%, 95% and 99.7% probability that '
-                      'the measured value is within 0.1% of the true value. '
-                      'Larger values result in more retries and thus longer '
-                      'runtime, but also provide more reliable results. Also '
-                      'see --max-total-duration flag.')
+                      '3 and correspond to 68%%, 95%% and 99.7%% probability '
+                      'that the measured value is within 0.1%% of the true '
+                      'value. Larger values result in more retries and thus '
+                      'longer runtime, but also provide more reliable results. '
+                      'Also see --max-total-duration flag.')
   parser.add_argument('--max-total-duration', type=int, default=7140,  # 1h 59m
                       help='Max total duration in seconds allowed for retries '
                       'across all tests. This is especially useful in '
@@ -1088,8 +1089,11 @@ def Main(argv):
                 break
 
               attempts_left -= 1
-              have_failed_tests = True
-              if attempts_left:
+              if not attempts_left:
+                logging.info('>>> Suite %s failed after %d retries',
+                             runnable_name, runnable.retry_count + 1)
+                have_failed_tests = True
+              else:
                 logging.info('>>> Retrying suite: %s', runnable_name)
       except MaxTotalDurationReachedError:
         have_failed_tests = True

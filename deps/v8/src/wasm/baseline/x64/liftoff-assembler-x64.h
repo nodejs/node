@@ -14,11 +14,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define REQUIRE_CPU_FEATURE(name, ...)   \
-  if (!CpuFeatures::IsSupported(name)) { \
-    bailout("no " #name);                \
-    return __VA_ARGS__;                  \
-  }                                      \
+#define REQUIRE_CPU_FEATURE(name, ...)        \
+  if (!CpuFeatures::IsSupported(name)) {      \
+    bailout(kMissingCPUFeature, "no " #name); \
+    return __VA_ARGS__;                       \
+  }                                           \
   CpuFeatureScope feature(this, name);
 
 namespace liftoff {
@@ -1260,7 +1260,7 @@ template <typename dst_type, typename src_type>
 inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
                                    DoubleRegister src, Label* trap) {
   if (!CpuFeatures::IsSupported(SSE4_1)) {
-    assm->bailout("no SSE4.1");
+    assm->bailout(kMissingCPUFeature, "no SSE4.1");
     return true;
   }
   CpuFeatureScope feature(assm, SSE4_1);

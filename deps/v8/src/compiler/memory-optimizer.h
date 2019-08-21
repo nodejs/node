@@ -10,6 +10,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -36,7 +39,7 @@ class MemoryOptimizer final {
   MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
                   PoisoningMitigationLevel poisoning_level,
                   AllocationFolding allocation_folding,
-                  const char* function_debug_name);
+                  const char* function_debug_name, TickCounter* tick_counter);
   ~MemoryOptimizer() = default;
 
   void Optimize();
@@ -158,6 +161,7 @@ class MemoryOptimizer final {
   PoisoningMitigationLevel poisoning_level_;
   AllocationFolding allocation_folding_;
   const char* function_debug_name_;
+  TickCounter* const tick_counter_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);
 };

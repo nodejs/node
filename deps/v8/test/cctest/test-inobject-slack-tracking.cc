@@ -28,8 +28,7 @@ static Handle<T> OpenHandle(v8::Local<v8::Value> value) {
 
 static inline v8::Local<v8::Value> Run(v8::Local<v8::Script> script) {
   v8::Local<v8::Value> result;
-  if (script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-          .ToLocal(&result)) {
+  if (script->Run(CcTest::isolate()->GetCurrentContext()).ToLocal(&result)) {
     return result;
   }
   return v8::Local<v8::Value>();
@@ -1020,8 +1019,8 @@ TEST(SubclassBooleanBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "Boolean", "true");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "Boolean", "false");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "true");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "false");
 }
 
 
@@ -1061,8 +1060,8 @@ TEST(SubclassNumberBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "Number", "42");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "Number", "4.2");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "42");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "4.2");
 }
 
 
@@ -1094,8 +1093,9 @@ TEST(SubclassStringBuiltin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  TestSubclassBuiltin("A1", JS_VALUE_TYPE, "String", "'some string'");
-  TestSubclassBuiltin("A2", JS_VALUE_TYPE, "String", "");
+  TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "String",
+                      "'some string'");
+  TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "String", "");
 }
 
 

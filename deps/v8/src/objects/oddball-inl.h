@@ -22,7 +22,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
   // Bug(v8:8875): HeapNumber's double may be unaligned.
-  WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
+  base::WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
 byte Oddball::kind() const {
@@ -38,8 +38,8 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
   return Handle<Object>(input->to_number(), isolate);
 }
 
-bool HeapObject::IsBoolean() const {
-  return IsOddball() &&
+DEF_GETTER(HeapObject, IsBoolean, bool) {
+  return IsOddball(isolate) &&
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 

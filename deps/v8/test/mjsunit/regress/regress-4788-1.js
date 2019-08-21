@@ -12,6 +12,8 @@ var f = (function() {
   return foo;
 })();
 
+%PrepareFunctionForOptimization(f);
+
 function deopt(f) {
   return {
     toString : function() {

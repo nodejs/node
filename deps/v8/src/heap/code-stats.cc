@@ -6,7 +6,7 @@
 
 #include "src/codegen/code-comments.h"
 #include "src/codegen/reloc-info.h"
-#include "src/heap/spaces-inl.h"  // For HeapObjectIterator.
+#include "src/heap/spaces-inl.h"  // For PagedSpaceObjectIterator.
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -61,7 +61,7 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 // - by code comment (only in debug mode)
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
-  HeapObjectIterator obj_it(space);
+  PagedSpaceObjectIterator obj_it(space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
@@ -73,7 +73,7 @@ void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
 // - by code comment (only in debug mode)
 void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
                                            Isolate* isolate) {
-  LargeObjectIterator obj_it(space);
+  LargeObjectSpaceObjectIterator obj_it(space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }

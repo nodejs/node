@@ -1079,7 +1079,7 @@ class ObjectStatsVisitor {
 namespace {
 
 void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
-  CombinedHeapIterator iterator(heap);
+  CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     visitor->Visit(obj, obj.Size());

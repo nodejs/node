@@ -56,11 +56,13 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
       __ StoreP(ToRegister(i), MemOperand(sp, kPointerSize * i));
     }
   }
-
-  __ mov(ip, Operand(ExternalReference::Create(
-                 IsolateAddressId::kCEntryFPAddress, isolate)));
-  __ StoreP(fp, MemOperand(ip));
-
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ mov(scratch, Operand(ExternalReference::Create(
+                        IsolateAddressId::kCEntryFPAddress, isolate)));
+    __ StoreP(fp, MemOperand(scratch));
+  }
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
@@ -210,20 +212,28 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ push(r9);
 
   // Restore the registers from the last output frame.
-  DCHECK(!(ip.bit() & restored_regs));
-  __ mr(ip, r5);
-  for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    if ((restored_regs & (1 << i)) != 0) {
-      __ LoadP(ToRegister(i), MemOperand(ip, offset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    DCHECK(!(scratch.bit() & restored_regs));
+    __ mr(scratch, r5);
+    for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
+      int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+      if ((restored_regs & (1 << i)) != 0) {
+        __ LoadP(ToRegister(i), MemOperand(scratch, offset));
+      }
     }
   }
 
-  __ pop(ip);  // get continuation, leave pc on stack
-  __ pop(r0);
-  __ mtlr(r0);
-  __ Jump(ip);
-  __ stop("Unreachable.");
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ pop(scratch);  // get continuation, leave pc on stack
+    __ pop(r0);
+    __ mtlr(r0);
+    __ Jump(scratch);
+  }
+  __ stop();
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

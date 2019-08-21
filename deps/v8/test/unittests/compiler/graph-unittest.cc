@@ -18,7 +18,7 @@ GraphTest::GraphTest(int num_parameters)
     : canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
-      broker_(isolate(), zone()),
+      broker_(isolate(), zone(), FLAG_trace_heap_broker),
       source_positions_(&graph_),
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
@@ -116,7 +116,8 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 }
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(broker(), Typer::kNoFlags, graph()) {}
+    : GraphTest(num_parameters),
+      typer_(broker(), Typer::kNoFlags, graph(), tick_counter()) {}
 
 TypedGraphTest::~TypedGraphTest() = default;
 

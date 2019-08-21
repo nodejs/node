@@ -159,26 +159,21 @@ Symbol* Lexer::MatchToken(InputPosition* pos, InputPosition end) {
       symbol = &pair.second;
     }
   }
-  // Check if matched pattern coincides with a keyword. Prefer the keyword in
-  // this case.
-  if (*pos != token_start) {
-    auto found_keyword = keywords_.find(std::string(token_start, *pos));
-    if (found_keyword != keywords_.end()) {
-      return &found_keyword->second;
-    }
-    return symbol;
-  }
-  // Now check for a keyword (that doesn't overlap with a pattern).
-  // Iterate from the end to ensure that if one keyword is a prefix of another,
-  // we first try to match the longer one.
+  size_t pattern_size = *pos - token_start;
+
+  // Now check for keywords. Prefer keywords over patterns unless the pattern is
+  // longer. Iterate from the end to ensure that if one keyword is a prefix of
+  // another, we first try to match the longer one.
   for (auto it = keywords_.rbegin(); it != keywords_.rend(); ++it) {
     const std::string& keyword = it->first;
-    if (static_cast<size_t>(end - *pos) < keyword.size()) continue;
-    if (keyword == std::string(*pos, *pos + keyword.size())) {
-      *pos += keyword.size();
+    if (static_cast<size_t>(end - token_start) < keyword.size()) continue;
+    if (keyword.size() >= pattern_size &&
+        keyword == std::string(token_start, token_start + keyword.size())) {
+      *pos = token_start + keyword.size();
       return &it->second;
     }
   }
+  if (pattern_size > 0) return symbol;
   return nullptr;
 }
 

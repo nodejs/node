@@ -34,7 +34,7 @@ function CreateFromLiteral() {
 }
 
 function CreateFromObject() {
-  return new Object;
+  return new Object();
 }
 
 function CreateDefault() {
@@ -43,19 +43,27 @@ function CreateDefault() {
 
 function CreateFromConstructor(proto) {
   function C() {}
-  (new C).b = 9;  // Make sure that we can have an in-object property.
+  new C().b = 9;  // Make sure that we can have an in-object property.
   C.prototype = proto;
-  return function() { return new C; }
+  return function() {
+    return new C();
+  };
 }
 
 function CreateFromApi(proto) {
-  return function() { return Object.create(proto); }
+  return function() {
+    return Object.create(proto);
+  };
 }
 
 function CreateWithProperty(proto) {
-  function C() { this.a = -100; }
+  function C() {
+    this.a = -100;
+  }
   C.prototype = proto;
-  return function() { return new C; }
+  return function() {
+    return new C();
+  };
 }
 
 var bases = [CreateFromLiteral, CreateFromObject, CreateDefault];
@@ -87,7 +95,7 @@ function TestAllCreates(f) {
             o.up = o;
             for (var j = 0; j < up; ++j) o.up = Object.getPrototypeOf(o.up);
             return o;
-          })
+          });
         }
       }
     }
@@ -102,11 +110,17 @@ function ReadonlyByNonwritableDataProperty(o, name) {
 }
 
 function ReadonlyByAccessorPropertyWithoutSetter(o, name) {
-  Object.defineProperty(o, name, {get: function() { return -42; }});
+  Object.defineProperty(o, name, {
+    get: function() {
+      return -42;
+    }
+  });
 }
 
 function ReadonlyByGetter(o, name) {
-  o.__defineGetter__("a", function() { return -43; });
+  o.__defineGetter__('a', function() {
+    return -43;
+  });
 }
 
 function ReadonlyByFreeze(o, name) {
@@ -131,18 +145,19 @@ function ReadonlyByProxy(o, name) {
       return {value: -46, writable: false, configurable: true};
     }
   });
+
   o.__proto__ = p;
 }
 
 var readonlys = [
   ReadonlyByNonwritableDataProperty, ReadonlyByAccessorPropertyWithoutSetter,
-  ReadonlyByGetter, ReadonlyByFreeze, ReadonlyByProto // ReadonlyByProxy
-]
+  ReadonlyByGetter, ReadonlyByFreeze, ReadonlyByProto  // ReadonlyByProxy
+];
 
 function TestAllReadonlys(f) {
   // Provide various methods to making a property read-only.
   for (var i = 0; i < readonlys.length; ++i) {
-    print("  readonly =", i)
+    print('  readonly =', i);
     f(readonlys[i]);
   }
 }
@@ -152,13 +167,13 @@ function TestAllReadonlys(f) {
 
 function Assign(o, x) {
   o.a = x;
-}
-
+};
+%PrepareFunctionForOptimization(Assign);
 function AssignStrict(o, x) {
   "use strict";
   o.a = x;
-}
-
+};
+%PrepareFunctionForOptimization(AssignStrict);
 function TestAllModes(f) {
   for (var strict = 0; strict < 2; ++strict) {
     print(" strict =", strict);
@@ -167,14 +182,16 @@ function TestAllModes(f) {
 }
 
 function TestAllScenarios(f) {
-  for (var t = 0; t < 100; t = 2*t + 1) {
-    print("t =", t)
+  for (var t = 0; t < 100; t = 2 * t + 1) {
+    print('t =', t);
     f(function(strict, create, readonly) {
       // Make sure that the assignments are monomorphic.
       %DeoptimizeFunction(Assign);
       %DeoptimizeFunction(AssignStrict);
       %ClearFunctionFeedback(Assign);
       %ClearFunctionFeedback(AssignStrict);
+      %PrepareFunctionForOptimization(Assign);
+      %PrepareFunctionForOptimization(AssignStrict);
       for (var i = 0; i < t; ++i) {
         var o = create();
         assertFalse("a" in o && !("a" in o.__proto__));
@@ -193,7 +210,10 @@ function TestAllScenarios(f) {
       if (strict === 0)
         Assign(o, t + 1);
       else
-        assertThrows(function() { AssignStrict(o, t + 1) }, TypeError);
+
+        assertThrows(function() {
+          AssignStrict(o, t + 1);
+        }, TypeError);
       assertTrue(o.a < 0);
     });
   }
@@ -212,22 +232,23 @@ TestAllScenarios(function(scenario) {
   });
 });
 
-
 // Extra test forcing bailout.
 
-function Assign2(o, x) { o.a = x }
-
+function Assign2(o, x) {
+  o.a = x;
+};
+%PrepareFunctionForOptimization(Assign2);
 (function() {
-  var p = CreateFromConstructor(Object.prototype)();
-  var c = CreateFromConstructor(p);
-  for (var i = 0; i < 3; ++i) {
-    var o = c();
-    Assign2(o, i);
-    assertEquals(i, o.a);
-  }
-  %OptimizeFunctionOnNextCall(Assign2);
-  ReadonlyByNonwritableDataProperty(p, "a");
+var p = CreateFromConstructor(Object.prototype)();
+var c = CreateFromConstructor(p);
+for (var i = 0; i < 3; ++i) {
   var o = c();
-  Assign2(o, 0);
-  assertTrue(o.a < 0);
+  Assign2(o, i);
+  assertEquals(i, o.a);
+}
+%OptimizeFunctionOnNextCall(Assign2);
+ReadonlyByNonwritableDataProperty(p, "a");
+var o = c();
+Assign2(o, 0);
+assertTrue(o.a < 0);
 })();

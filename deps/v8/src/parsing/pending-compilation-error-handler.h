@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -25,17 +25,13 @@ class Script;
 class PendingCompilationErrorHandler {
  public:
   PendingCompilationErrorHandler()
-      : has_pending_error_(false),
-        stack_overflow_(false),
-        error_type_(kSyntaxError) {}
+      : has_pending_error_(false), stack_overflow_(false) {}
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate message, const char* arg = nullptr,
-                       ParseErrorType error_type = kSyntaxError);
+                       MessageTemplate message, const char* arg = nullptr);
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate message, const AstRawString* arg,
-                       ParseErrorType error_type = kSyntaxError);
+                       MessageTemplate message, const AstRawString* arg);
 
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
@@ -110,7 +106,6 @@ class PendingCompilationErrorHandler {
   bool unidentifiable_error_ = false;
 
   MessageDetails error_details_;
-  ParseErrorType error_type_;
 
   std::forward_list<MessageDetails> warning_messages_;
 

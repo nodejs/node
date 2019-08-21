@@ -24,7 +24,7 @@ static const int kMaxAsyncTaskStacks = 128 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
-void cleanupExpiredWeakPointers(Map& map) {
+void cleanupExpiredWeakPointers(Map& map) {  // NOLINT(runtime/references)
   for (auto it = map.begin(); it != map.end();) {
     if (it->second.expired()) {
       it = map.erase(it);
@@ -42,6 +42,7 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
       : m_inspector(inspector), m_context(context), m_prototype(prototype) {}
 
   bool Filter(v8::Local<v8::Object> object) override {
+    if (object->IsModuleNamespaceObject()) return false;
     v8::Local<v8::Context> objectContext =
         v8::debug::GetCreationContext(object);
     if (objectContext != m_context) return false;

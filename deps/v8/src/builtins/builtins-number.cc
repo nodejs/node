@@ -25,8 +25,8 @@ BUILTIN(NumberPrototypeToExponential) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -70,8 +70,8 @@ BUILTIN(NumberPrototypeToFixed) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -117,8 +117,8 @@ BUILTIN(NumberPrototypeToLocaleString) {
   Handle<Object> value = args.at(0);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   // 1. Let x be ? thisNumberValue(this value)
   if (!value->IsNumber()) {
@@ -147,8 +147,8 @@ BUILTIN(NumberPrototypeToPrecision) {
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -192,8 +192,8 @@ BUILTIN(NumberPrototypeToString) {
   Handle<Object> radix = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(

@@ -5,7 +5,8 @@
 namespace array_of {
   // https://tc39.github.io/ecma262/#sec-array.of
   transitioning javascript builtin
-  ArrayOf(implicit context: Context)(receiver: Object, ...arguments): Object {
+  ArrayOf(js-implicit context: Context, receiver: Object)(...arguments):
+      Object {
     // 1. Let len be the actual number of arguments passed to this function.
     const len: Smi = Convert<Smi>(arguments.length);
 
@@ -35,7 +36,7 @@ namespace array_of {
     // 7. Repeat, while k < len
     while (k < len) {
       // a. Let kValue be items[k].
-      let kValue: Object = items[Convert<intptr>(k)];
+      const kValue: Object = items[Convert<intptr>(k)];
 
       // b. Let Pk be ! ToString(k).
       // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).

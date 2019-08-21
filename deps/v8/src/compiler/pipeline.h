@@ -41,9 +41,8 @@ class SourcePositionTable;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.
-  static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
-                                                    Handle<JSFunction> function,
-                                                    bool has_script);
+  static std::unique_ptr<OptimizedCompilationJob> NewCompilationJob(
+      Isolate* isolate, Handle<JSFunction> function, bool has_script);
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
@@ -60,11 +59,11 @@ class Pipeline : public AllStatic {
       const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
 
-  // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForWasmHeapStub(
-      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Code::Kind kind, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+  // Returns a new compilation job for a wasm heap stub.
+  static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
+      Isolate* isolate, CallDescriptor* call_descriptor,
+      std::unique_ptr<Zone> zone, Graph* graph, Code::Kind kind,
+      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

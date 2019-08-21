@@ -81,6 +81,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
         return Immediate(constant.ToExternalReference());
       case Constant::kHeapObject:
         return Immediate(constant.ToHeapObject());
+      case Constant::kCompressedHeapObject:
+        break;
       case Constant::kDelayedStringConstant:
         return Immediate::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
@@ -462,6 +464,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);      \
   }
 
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)              \
+  do {                                              \
+    Register dst = i.OutputRegister();              \
+    Operand src = i.InputOperand(0);                \
+    Register tmp = i.TempRegister(0);               \
+    __ mov(tmp, Immediate(1));                      \
+    __ xor_(dst, dst);                              \
+    __ Pxor(kScratchDoubleReg, kScratchDoubleReg);  \
+    __ opcode(kScratchDoubleReg, src);              \
+    __ Ptest(kScratchDoubleReg, kScratchDoubleReg); \
+    __ cmov(zero, dst, tmp);                        \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -674,8 +689,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallBuiltinPointer: {
       DCHECK(!HasImmediateInput(instr, 0));
-      Register builtin_pointer = i.InputRegister(0);
-      __ CallBuiltinPointer(builtin_pointer);
+      Register builtin_index = i.InputRegister(0);
+      __ CallBuiltinByIndex(builtin_index);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -870,17 +885,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchComment:
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)));
       break;
-    case kArchDebugAbort:
+    case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == edx);
-      if (!frame_access_state()->has_frame()) {
+      {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      } else {
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
+        __ Call(
+            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
+            RelocInfo::CODE_TARGET);
       }
       __ int3();
       break;
@@ -1204,7 +1217,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchWordPoisonOnSpeculation:
       // TODO(860429): Remove remaining poisoning infrastructure on ia32.
       UNREACHABLE();
-    case kLFence:
+    case kIA32MFence:
+      __ mfence();
+      break;
+    case kIA32LFence:
       __ lfence();
       break;
     case kSSEFloat32Cmp:
@@ -3663,18 +3679,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmov(zero, dst, tmp);
       break;
     }
+    // Need to split up all the different lane structures because the
+    // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
+    // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
+    // respectively.
     case kIA32S1x4AllTrue:
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
+      break;
     case kIA32S1x8AllTrue:
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
+      break;
     case kIA32S1x16AllTrue: {
-      Register dst = i.OutputRegister();
-      Operand src = i.InputOperand(0);
-      Register tmp = i.TempRegister(0);
-      __ mov(tmp, Immediate(1));
-      __ xor_(dst, dst);
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(kScratchDoubleReg, src);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      __ cmov(zero, dst, tmp);
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
     case kIA32StackCheck: {
@@ -4224,6 +4240,11 @@ void CodeGenerator::AssembleConstructFrame() {
     if (call_descriptor->IsCFunctionCall()) {
       __ push(ebp);
       __ mov(ebp, esp);
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+        __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::C_WASM_ENTRY)));
+        // Reserve stack space for saving the c_entry_fp later.
+        __ AllocateStackSpace(kSystemPointerSize);
+      }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
       if (call_descriptor->PushArgumentCount()) {
@@ -4254,8 +4275,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int required_slots = frame()->GetTotalFrameSlotCount() -
-                       call_descriptor->CalculateFixedFrameSize();
+  int required_slots =
+      frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -4629,6 +4650,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 #undef ASSEMBLE_MOVX
 #undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
 #undef ASSEMBLE_SIMD_IMM_SHUFFLE
+#undef ASSEMBLE_SIMD_ALL_TRUE
 
 }  // namespace compiler
 }  // namespace internal

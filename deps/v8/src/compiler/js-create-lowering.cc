@@ -837,7 +837,7 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
       iterated_object, effect, control);
 
-  // Create the JSArrayIterator result.
+  // Create the JSCollectionIterator result.
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(JSCollectionIterator::kSize, AllocationType::kYoung,
              Type::OtherObject());

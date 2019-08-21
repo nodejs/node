@@ -176,7 +176,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
-  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
   STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
 
  private:
@@ -270,6 +269,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   DISALLOW_COPY_AND_ASSIGN(WasmCode);
 };
 
+WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
+
 // Return a textual description of the kind.
 const char* GetWasmCodeKindAsString(WasmCode::Kind);
 
@@ -277,7 +278,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 class WasmCodeAllocator {
  public:
   WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
-                    bool can_request_more);
+                    bool can_request_more,
+                    std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
   size_t committed_code_space() const {
@@ -315,7 +317,7 @@ class WasmCodeAllocator {
   // Code space that was allocated for code (subset of {owned_code_space_}).
   DisjointAllocationPool allocated_code_space_;
   // Code space that was allocated before but is dead now. Full pages within
-  // this region are discarded. It's still a subset of {owned_code_space_}).
+  // this region are discarded. It's still a subset of {owned_code_space_}.
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
@@ -329,6 +331,8 @@ class WasmCodeAllocator {
   bool is_executable_ = false;
 
   const bool can_request_more_memory_;
+
+  std::shared_ptr<Counters> async_counters_;
 };
 
 class V8_EXPORT_PRIVATE NativeModule final {
@@ -399,10 +403,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return jump_table_ ? jump_table_->instruction_start() : kNullAddress;
   }
 
-  ptrdiff_t jump_table_offset(uint32_t func_index) const {
-    DCHECK_GE(func_index, num_imported_functions());
-    return GetCallTargetForFunction(func_index) - jump_table_start();
-  }
+  uint32_t GetJumpTableOffset(uint32_t func_index) const;
 
   bool is_jump_table_slot(Address address) const {
     return jump_table_->contains(address);
@@ -557,6 +558,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Jump table used to easily redirect wasm function calls.
   WasmCode* jump_table_ = nullptr;
+
+  // Lazy compile stub table, containing entries to jump to the
+  // {WasmCompileLazy} builtin, passing the function index.
+  WasmCode* lazy_compile_table_ = nullptr;
 
   // The compilation state keeps track of compilation tasks for this module.
   // Note that its destructor blocks until all tasks are finished/aborted and

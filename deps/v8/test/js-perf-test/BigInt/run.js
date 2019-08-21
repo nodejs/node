@@ -5,7 +5,10 @@
 "use strict";
 
 load('../base.js');
+load('test-config.js');
 load('to-boolean.js');
+load('add.js');
+load('as-uint-n.js');
 
 
 var success = true;

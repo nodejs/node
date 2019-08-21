@@ -936,6 +936,7 @@ function __f_30(x) {
     return 0;
 }
 try {
+    %PrepareFunctionForOptimization(__f_30);
     assertEquals(0, __f_30(0));
     assertEquals(0, __f_30(0));
     %OptimizeFunctionOnNextCall(__f_30);
@@ -956,6 +957,7 @@ function __f_33() {
     __f_32({});
 }
 try {
+    %PrepareFunctionForOptimization(__f_33);
     __f_33();
     __f_33();
     __f_33();

@@ -29,6 +29,7 @@ var foo = (function () {
     return method.apply(receiver, arguments);
   }
 })();
+%PrepareFunctionForOptimization(foo);
 
 foo("a", "b", "c");
 foo("a", "b", "c");

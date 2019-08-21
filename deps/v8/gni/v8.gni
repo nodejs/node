@@ -92,7 +92,7 @@ if (v8_enable_backtrace == "") {
 # subdirectories.
 v8_path_prefix = get_path_info("../", "abspath")
 
-v8_inspector_js_protocol = v8_path_prefix + "/src/inspector/js_protocol.pdl"
+v8_inspector_js_protocol = v8_path_prefix + "/include/js_protocol.pdl"
 
 ###############################################################################
 # Templates

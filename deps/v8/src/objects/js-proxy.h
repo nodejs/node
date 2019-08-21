@@ -15,20 +15,13 @@ namespace v8 {
 namespace internal {
 
 // The JSProxy describes EcmaScript Harmony proxies
-class JSProxy : public JSReceiver {
+class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
  public:
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSProxy> New(Isolate* isolate,
                                                         Handle<Object>,
                                                         Handle<Object>);
 
-  // [handler]: The handler property.
-  DECL_ACCESSORS(handler, Object)
-  // [target]: The target property.
-  DECL_ACCESSORS(target, Object)
-
   static MaybeHandle<NativeContext> GetFunctionRealm(Handle<JSProxy> proxy);
-
-  DECL_CAST(JSProxy)
 
   V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);
@@ -70,6 +63,10 @@ class JSProxy : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> CheckHasTrap(
       Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
 
+  // ES6 9.5.10
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckDeleteTrap(
+      Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
+
   // ES6 9.5.8
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
@@ -106,10 +103,6 @@ class JSProxy : public JSReceiver {
 
   static const int kMaxIterationLimit = 100 * 1024;
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize,
-                                TORQUE_GENERATED_JSPROXY_FIELDS)
-
   // kTargetOffset aliases with the elements of JSObject. The fact that
   // JSProxy::target is a Javascript value which cannot be confused with an
   // elements backing store is exploited by loading from this offset from an
@@ -125,7 +118,7 @@ class JSProxy : public JSReceiver {
                                       PropertyDescriptor* desc,
                                       Maybe<ShouldThrow> should_throw);
 
-  OBJECT_CONSTRUCTORS(JSProxy, JSReceiver);
+  TQ_OBJECT_CONSTRUCTORS(JSProxy)
 };
 
 // JSProxyRevocableResult is just a JSObject with a specific initial map.

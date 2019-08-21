@@ -23,8 +23,8 @@ function Process(input) {
   var ret = [];
   ret.push(Inlined(input[0], 1, 2));
   return ret;
-}
-
+};
+%PrepareFunctionForOptimization(Process);
 var input = [new Message("TEST PASS")];
 
 Process(input);

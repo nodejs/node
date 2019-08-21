@@ -98,15 +98,27 @@ RootIndex GlobalDictionaryShape::GetMapRootIndex() {
   return RootIndex::kGlobalDictionaryMap;
 }
 
-Name NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
+Name NameDictionary::NameAt(int entry) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return NameAt(isolate, entry);
+}
+
+Name NameDictionary::NameAt(Isolate* isolate, int entry) {
+  return Name::cast(KeyAt(isolate, entry));
+}
 
 RootIndex NameDictionaryShape::GetMapRootIndex() {
   return RootIndex::kNameDictionaryMap;
 }
 
 PropertyCell GlobalDictionary::CellAt(int entry) {
-  DCHECK(KeyAt(entry).IsPropertyCell());
-  return PropertyCell::cast(KeyAt(entry));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return CellAt(isolate, entry);
+}
+
+PropertyCell GlobalDictionary::CellAt(Isolate* isolate, int entry) {
+  DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
+  return PropertyCell::cast(KeyAt(isolate, entry));
 }
 
 bool GlobalDictionaryShape::IsLive(ReadOnlyRoots roots, Object k) {
@@ -118,8 +130,23 @@ bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object k) {
   return IsLive(roots, k) && !PropertyCell::cast(k).value().IsTheHole(roots);
 }
 
-Name GlobalDictionary::NameAt(int entry) { return CellAt(entry).name(); }
-Object GlobalDictionary::ValueAt(int entry) { return CellAt(entry).value(); }
+Name GlobalDictionary::NameAt(int entry) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return NameAt(isolate, entry);
+}
+
+Name GlobalDictionary::NameAt(Isolate* isolate, int entry) {
+  return CellAt(isolate, entry).name(isolate);
+}
+
+Object GlobalDictionary::ValueAt(int entry) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return ValueAt(isolate, entry);
+}
+
+Object GlobalDictionary::ValueAt(Isolate* isolate, int entry) {
+  return CellAt(isolate, entry).value(isolate);
+}
 
 void GlobalDictionary::SetEntry(Isolate* isolate, int entry, Object key,
                                 Object value, PropertyDetails details) {

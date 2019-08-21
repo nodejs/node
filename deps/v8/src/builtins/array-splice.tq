@@ -54,8 +54,7 @@ namespace array_splice {
   macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
                                                                   Context)(
       args: Arguments, a: JSArray, length: Smi, newLength: Smi,
-      lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void labels Bailout {
+      actualStart: Smi, insertCount: Smi, actualDeleteCount: Smi): void {
     // Make sure elements are writable.
     array::EnsureWriteableFastElements(a);
 
@@ -77,7 +76,7 @@ namespace array_splice {
               UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
         } else {
           // Grow.
-          let capacity: Smi = CalculateNewElementsCapacity(newLength);
+          const capacity: Smi = CalculateNewElementsCapacity(newLength);
           const newElements: FixedArrayType =
               Extract<FixedArrayType>(elements, 0, actualStart, capacity);
           a.elements = newElements;
@@ -168,12 +167,12 @@ namespace array_splice {
 
     if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
       FastSplice<FixedArray, Object>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     } else {
       FastSplice<FixedDoubleArray, Number>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     }
 
     return deletedResult;
@@ -301,8 +300,6 @@ namespace array_splice {
       context: Context, arguments: Arguments, o: JSReceiver, len: Number,
       actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
-    const affected: Number = len - actualStart - actualDeleteCount;
-
     // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
     const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
     const itemCount: Number = insertCount;
@@ -353,8 +350,8 @@ namespace array_splice {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
   transitioning javascript builtin
-  ArrayPrototypeSplice(context: Context, receiver: Object, ...arguments):
-      Object {
+  ArrayPrototypeSplice(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 

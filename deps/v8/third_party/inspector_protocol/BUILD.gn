@@ -9,6 +9,13 @@ static_library("encoding") {
   ]
 }
 
+static_library("bindings") {
+  sources = [
+    "bindings/bindings.cc",
+    "bindings/bindings.h",
+  ]
+}
+
 # encoding_test is part of the unittests, defined in
 # test/unittests/BUILD.gn.
 
@@ -32,3 +39,23 @@ v8_source_set("encoding_test") {
   ]
   testonly = true
 }
+
+v8_source_set("bindings_test") {
+  sources = [
+    "bindings/bindings_test.cc",
+    "bindings/bindings_test_helper.h",
+  ]
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+  deps = [
+    ":bindings",
+    "../..:v8_libbase",
+    "../../src/inspector:inspector_string_conversions",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  testonly = true
+}
+

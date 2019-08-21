@@ -31,6 +31,7 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/spaces.h"
 #include "src/objects/free-space.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot.h"

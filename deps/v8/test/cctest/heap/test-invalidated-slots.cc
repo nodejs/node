@@ -345,7 +345,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
     Handle<Map> map(obj->map(), isolate);
     Handle<Map> normalized_map =
         Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, "testing");
-    JSObject::MigrateToMap(obj, normalized_map);
+    JSObject::MigrateToMap(isolate, obj, normalized_map);
   }
   CcTest::CollectGarbage(i::NEW_SPACE);
   CcTest::CollectGarbage(i::OLD_SPACE);

@@ -16,6 +16,12 @@
 namespace v8 {
 namespace internal {
 
+void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
+int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr);
+void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
+
 class BigInt;
 class ValueDeserializer;
 class ValueSerializer;
@@ -65,6 +71,10 @@ class BigIntBase : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, BIGINT_FIELDS)
 #undef BIGINT_FIELDS
+
+  static constexpr bool HasOptionalPadding() {
+    return FIELD_SIZE(kOptionalPaddingOffset) > 0;
+  }
 
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.

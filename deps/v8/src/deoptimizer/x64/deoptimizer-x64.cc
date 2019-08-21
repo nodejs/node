@@ -129,6 +129,12 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ popq(Operand(rbx, dst_offset));
   }
 
+  // Mark the stack as not iterable for the CPU profiler which won't be able to
+  // walk the stack without the return address.
+  __ movb(__ ExternalReferenceAsOperand(
+              ExternalReference::stack_is_iterable_address(isolate)),
+          Immediate(0));
+
   // Remove the return address from the stack.
   __ addq(rsp, Immediate(kPCOnStackSize));
 
@@ -217,6 +223,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     }
     __ popq(r);
   }
+
+  __ movb(__ ExternalReferenceAsOperand(
+              ExternalReference::stack_is_iterable_address(isolate)),
+          Immediate(1));
 
   // Return to the continuation point.
   __ ret(0);

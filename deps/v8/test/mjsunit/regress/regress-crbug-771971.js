@@ -4,8 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
-function f() { Object.is(); }
-
+function f() {
+  Object.is();
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

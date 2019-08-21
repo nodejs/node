@@ -12,7 +12,7 @@
 
 #include <memory>
 
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -24,7 +24,6 @@ class WasmCode;
 // Forward declarations.
 class AbstractCode;
 class FrameArray;
-class IncrementalStringBuilder;
 class JSMessageObject;
 class LookupIterator;
 class SharedFunctionInfo;
@@ -94,9 +93,6 @@ class StackFrameBase {
   virtual bool IsConstructor() = 0;
   virtual bool IsStrict() const = 0;
 
-  MaybeHandle<String> ToString();
-  virtual void ToString(IncrementalStringBuilder& builder) = 0;
-
   // Used to signal that the requested field is unknown.
   static const int kNone = -1;
 
@@ -139,8 +135,6 @@ class JSStackFrame : public StackFrameBase {
   bool IsConstructor() override { return is_constructor_; }
   bool IsStrict() const override { return is_strict_; }
 
-  void ToString(IncrementalStringBuilder& builder) override;
-
  private:
   JSStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
@@ -177,7 +171,7 @@ class WasmStackFrame : public StackFrameBase {
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
-  int GetColumnNumber() override { return kNone; }
+  int GetColumnNumber() override;
 
   int GetPromiseIndex() const override { return kNone; }
 
@@ -188,8 +182,6 @@ class WasmStackFrame : public StackFrameBase {
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
   bool IsInterpreted() const { return code_ == nullptr; }
-
-  void ToString(IncrementalStringBuilder& builder) override;
 
  protected:
   Handle<Object> Null() const;
@@ -203,6 +195,8 @@ class WasmStackFrame : public StackFrameBase {
   int offset_;
 
  private:
+  int GetModuleOffset() const;
+
   WasmStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
@@ -223,8 +217,6 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
   int GetPosition() const override;
   int GetLineNumber() override;
   int GetColumnNumber() override;
-
-  void ToString(IncrementalStringBuilder& builder) override;
 
  private:
   friend class FrameArrayIterator;
@@ -267,10 +259,13 @@ enum FrameSkipMode {
 
 class ErrorUtils : public AllStatic {
  public:
+  // |kNone| is useful when you don't need the stack information at all, for
+  // example when creating a deserialized error.
+  enum class StackTraceCollection { kDetailed, kSimple, kNone };
   static MaybeHandle<Object> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
       Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-      bool suppress_detailed_trace);
+      StackTraceCollection stack_trace_collection);
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 

@@ -52,10 +52,10 @@ shouldBe("(new A).__proto__", "A.prototype");
 shouldBe("A.prototype.constructor", "A");
 
 shouldThrow("class", "'SyntaxError: Unexpected end of input'");
-shouldThrow("class [", "'SyntaxError: Unexpected token ['");
-shouldThrow("class {", "'SyntaxError: Unexpected token {'");
+shouldThrow("class [", '"SyntaxError: Unexpected token \'[\'"');
+shouldThrow("class {", '"SyntaxError: Unexpected token \'{\'"');
 shouldThrow("class X {", "'SyntaxError: Unexpected end of input'");
-shouldThrow("class X { ( }", "'SyntaxError: Unexpected token ('");
+shouldThrow("class X { ( }", '"SyntaxError: Unexpected token \'(\'"');
 shouldNotThrow("class X {}");
 
 shouldThrow("class X { constructor() {} constructor() {} }", "'SyntaxError: A class may only have one constructor'");

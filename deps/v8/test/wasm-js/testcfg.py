@@ -16,8 +16,8 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
 class TestLoader(testsuite.JSTestLoader):
   @property
-  def extension(self):
-    return ANY_JS
+  def extensions(self):
+    return [ANY_JS]
 
 
 class TestSuite(testsuite.TestSuite):

@@ -66,6 +66,15 @@ def main():
                            'try server; see its waterfall for more info')
   parser.add_argument('-v', '--verbose', action='store_true',
                       help='Print debug information')
+  parser.add_argument('-c', '--confidence-level', type=float,
+                      help='Repeatedly runs each benchmark until specified '
+                      'confidence level is reached. The value is interpreted '
+                      'as the number of standard deviations from the mean that '
+                      'all values must lie within. Typical values are 1, 2 and '
+                      '3 and correspond to 68%%, 95%% and 99.7%% probability '
+                      'that the measured value is within 0.1%% of the true '
+                      'value. Larger values result in more retries and thus '
+                      'longer runtime, but also provide more reliable results.')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
@@ -98,11 +107,14 @@ def main():
 
   cmd = ['git cl try', '-B', 'luci.v8-internal.try']
   cmd += ['-b %s' % bot for bot in options.bots]
-  if options.revision: cmd += ['-r %s' % options.revision]
+  if options.revision:
+    cmd.append('-r %s' % options.revision)
   benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
-  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  cmd.append('-p \'testfilter=[%s]\'' % ','.join(benchmarks))
   if options.extra_flags:
-    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+    cmd.append('-p \'extra_flags="%s"\'' % options.extra_flags)
+  if options.confidence_level:
+    cmd.append('-p confidence_level=%f' % options.confidence_level)
   if options.verbose:
     cmd.append('-vv')
     print('Running %s' % ' '.join(cmd))

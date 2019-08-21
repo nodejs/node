@@ -1,5 +1,4 @@
-*%(basename)s:9: SyntaxError: Duplicate export of 'foo'
-export * as foo from "./doesnt-even-matter.js";
+*%(basename)s:8: SyntaxError: Duplicate export of 'foo'
+export * as foo from "./doesnt-even-matter.mjs";
             ^^^
 SyntaxError: Duplicate export of 'foo'
-

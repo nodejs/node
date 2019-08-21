@@ -153,22 +153,22 @@ PASS (function (){'use strict'; function f() { --arguments }}) threw exception S
 PASS 'use strict'; function f() { arguments-- } threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS (function (){'use strict'; function f() { arguments-- }}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS global.eval('"use strict"; if (0) ++arguments; true;') threw exception SyntaxError: Unexpected eval or arguments in strict mode.
-PASS 'use strict'; ++(1, eval) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS (function (){'use strict'; ++(1, eval)}) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS 'use strict'; (1, eval)++ threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS (function (){'use strict'; (1, eval)++}) threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS 'use strict'; --(1, eval) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS (function (){'use strict'; --(1, eval)}) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS 'use strict'; (1, eval)-- threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS (function (){'use strict'; (1, eval)--}) threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS 'use strict'; function f() { ++(1, arguments) } threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS (function (){'use strict'; function f() { ++(1, arguments) }}) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS 'use strict'; function f() { (1, arguments)++ } threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS (function (){'use strict'; function f() { (1, arguments)++ }}) threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS 'use strict'; function f() { --(1, arguments) } threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS (function (){'use strict'; function f() { --(1, arguments) }}) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
-PASS 'use strict'; function f() { (1, arguments)-- } threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-PASS (function (){'use strict'; function f() { (1, arguments)-- }}) threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; ++(1, eval) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; ++(1, eval)}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; (1, eval)++ threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; (1, eval)++}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; --(1, eval) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; --(1, eval)}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; (1, eval)-- threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; (1, eval)--}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; function f() { ++(1, arguments) } threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; function f() { ++(1, arguments) }}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; function f() { (1, arguments)++ } threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; function f() { (1, arguments)++ }}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; function f() { --(1, arguments) } threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; function f() { --(1, arguments) }}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; function f() { (1, arguments)-- } threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; function f() { (1, arguments)-- }}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
 FAIL 'use strict'; undefined; if (0) delete +a.b should throw an exception. Was undefined.
 FAIL (function (){'use strict'; undefined; if (0) delete +a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete +a.b}.
 FAIL 'use strict'; undefined; if (0) delete ++a.b should throw an exception. Was undefined.

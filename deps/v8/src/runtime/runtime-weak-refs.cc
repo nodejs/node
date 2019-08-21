@@ -20,7 +20,8 @@ RUNTIME_FUNCTION(Runtime_FinalizationGroupCleanupJob) {
   CONVERT_ARG_HANDLE_CHECKED(JSFinalizationGroup, finalization_group, 0);
   finalization_group->set_scheduled_for_cleanup(false);
 
-  JSFinalizationGroup::Cleanup(finalization_group, isolate);
+  Handle<Object> cleanup(finalization_group->cleanup(), isolate);
+  JSFinalizationGroup::Cleanup(isolate, finalization_group, cleanup);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -14,6 +14,7 @@ namespace internal {
 // CPU feature flags.
 enum CpuFeature {
   // x86
+  SSE4_2,
   SSE4_1,
   SSSE3,
   SSE3,

@@ -29,10 +29,10 @@
 
 function f(o) {
   return o.x;
-}
-
-var o1 = {x:1};
-var o2 = {__proto__: {x:2}};
+};
+%PrepareFunctionForOptimization(f);
+var o1 = {x: 1};
+var o2 = {__proto__: {x: 2}};
 
 f(o2);
 f(o2);

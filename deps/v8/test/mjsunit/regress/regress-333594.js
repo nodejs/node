@@ -34,8 +34,8 @@ var o = { x: {} };
 
 function func() {
   return {x: G};
-}
-
+};
+%PrepareFunctionForOptimization(func);
 func();
 func();
 %OptimizeFunctionOnNextCall(func);

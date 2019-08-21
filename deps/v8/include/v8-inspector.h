@@ -109,6 +109,8 @@ class V8_EXPORT V8StackTrace {
   virtual ~V8StackTrace() = default;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
   buildInspectorObject() const = 0;
+  virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
+  buildInspectorObject(int maxAsyncDepth) const = 0;
   virtual std::unique_ptr<StringBuffer> toString() const = 0;
 
   // Safe to pass between threads, drops async chain.
@@ -130,10 +132,6 @@ class V8_EXPORT V8InspectorSession {
   // Dispatching protocol messages.
   static bool canDispatchMethod(const StringView& method);
   virtual void dispatchProtocolMessage(const StringView& message) = 0;
-  virtual V8_DEPRECATED("Use state() instead",
-                        std::unique_ptr<StringBuffer> stateJSON()) {
-    return nullptr;
-  }
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;

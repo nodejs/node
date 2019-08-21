@@ -26,6 +26,7 @@ function foo() {
       for (; flag == 1; (flag = 0, temp_x = x)) {
         if (x < 2) {
           result = x; %OptimizeOsr();
+          %PrepareFunctionForOptimization(foo);
         } else {
           break outer;
         }
@@ -48,6 +49,7 @@ function smo() {
       let y = x;
       for (var i = 0; i < 5; i++) {
         %OptimizeOsr();
+        %PrepareFunctionForOptimization(smo);
         if (i) break outer;
         else result = y;
       }

@@ -211,6 +211,10 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   }
 }
 
+int MicrotaskQueue::GetMicrotasksScopeDepth() const {
+  return microtasks_depth_;
+}
+
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
   CallbackWithData callback_with_data(callback, data);
@@ -249,7 +253,7 @@ void MicrotaskQueue::OnCompleted(Isolate* isolate) {
   // set is still open (whether to clear it after every microtask or once
   // during a microtask checkpoint). See also
   // https://github.com/tc39/proposal-weakrefs/issues/39 .
-  isolate->heap()->ClearKeepDuringJobSet();
+  isolate->heap()->ClearKeptObjects();
 
   FireMicrotasksCompletedCallback(isolate);
 }

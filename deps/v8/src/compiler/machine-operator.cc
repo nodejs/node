@@ -140,6 +140,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
+  V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
@@ -244,6 +245,13 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                          \
   V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
   V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                          \
+  V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F64x2Le, Operator::kNoProperties, 2, 0, 1)                                \
   V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
@@ -261,6 +269,17 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                                \
   V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I64x2Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2GtU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2GeU, Operator::kNoProperties, 2, 0, 1)                               \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
@@ -338,6 +357,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                                \
   V(S128Select, Operator::kNoProperties, 3, 0, 1)                             \
+  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
@@ -439,12 +460,15 @@ MachineType AtomicOpType(Operator const* op) {
   V(Exchange)
 
 #define SIMD_LANE_OP_LIST(V) \
+  V(F64x2, 2)                \
   V(F32x4, 4)                \
+  V(I64x2, 2)                \
   V(I32x4, 4)                \
   V(I16x8, 8)                \
   V(I8x16, 16)
 
 #define SIMD_FORMAT_LIST(V) \
+  V(64x2, 64)               \
   V(32x4, 32)               \
   V(16x8, 16)               \
   V(8x16, 8)
@@ -754,6 +778,14 @@ struct MachineOperatorGlobalCache {
   };
   Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
 
+  struct MemoryBarrierOperator : public Operator {
+    MemoryBarrierOperator()
+        : Operator(IrOpcode::kMemoryBarrier,
+                   Operator::kNoDeopt | Operator::kNoThrow, "MemoryBarrier", 0,
+                   1, 1, 0, 1, 0) {}
+  };
+  MemoryBarrierOperator kMemoryBarrier;
+
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
   // might decide to split these operators, thus potentially creating live
@@ -807,12 +839,12 @@ struct MachineOperatorGlobalCache {
   };
   Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
-  struct DebugAbortOperator : public Operator {
-    DebugAbortOperator()
-        : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
-                   1, 1, 0, 1, 0) {}
+  struct AbortCSAAssertOperator : public Operator {
+    AbortCSAAssertOperator()
+        : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
+                   "AbortCSAAssert", 1, 1, 1, 0, 1, 0) {}
   };
-  DebugAbortOperator kDebugAbort;
+  AbortCSAAssertOperator kAbortCSAAssert;
 
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
@@ -1005,8 +1037,8 @@ const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
   return &cache_.kBitcastMaybeObjectToWord;
 }
 
-const Operator* MachineOperatorBuilder::DebugAbort() {
-  return &cache_.kDebugAbort;
+const Operator* MachineOperatorBuilder::AbortCSAAssert() {
+  return &cache_.kAbortCSAAssert;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {
@@ -1015,6 +1047,10 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return new (zone_) CommentOperator(msg);
+}
+
+const Operator* MachineOperatorBuilder::MemBarrier() {
+  return &cache_.kMemoryBarrier;
 }
 
 const Operator* MachineOperatorBuilder::Word32AtomicLoad(
@@ -1298,6 +1334,11 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
   return new (zone_)
       Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
                           2, 0, 0, 1, 0, 0, array);
+}
+
+const uint8_t* S8x16ShuffleOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
+  return OpParameter<uint8_t*>(op);
 }
 
 #undef PURE_BINARY_OP_LIST_32

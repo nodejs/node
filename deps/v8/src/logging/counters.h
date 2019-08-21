@@ -893,6 +893,7 @@ class RuntimeCallTimer final {
   V(ArrayLengthSetter)                         \
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
+  V(CodeGenerationFromStringsCallbacks)        \
   V(CompileAnalyse)                            \
   V(CompileBackgroundAnalyse)                  \
   V(CompileBackgroundCompileTask)              \
@@ -941,7 +942,6 @@ class RuntimeCallTimer final {
   V(Invoke)                                    \
   V(InvokeApiFunction)                         \
   V(InvokeApiInterruptCallbacks)               \
-  V(InvokeFunctionCallback)                    \
   V(JS_Execution)                              \
   V(Map_SetPrototype)                          \
   V(Map_TransitionToAccessorProperty)          \
@@ -1140,7 +1140,7 @@ class WorkerThreadRuntimeCallStats final {
 // when it is destroyed.
 class WorkerThreadRuntimeCallStatsScope final {
  public:
-  WorkerThreadRuntimeCallStatsScope(
+  explicit WorkerThreadRuntimeCallStatsScope(
       WorkerThreadRuntimeCallStats* off_thread_stats);
   ~WorkerThreadRuntimeCallStatsScope();
 

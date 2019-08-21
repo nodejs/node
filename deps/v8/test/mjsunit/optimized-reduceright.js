@@ -12,7 +12,11 @@
   // For this particular eager deopt point to work, we need to dodge
   // TurboFan's soft-deopts through a non-inlined and non-optimized function
   // call to foo().
-  function foo(o, deopt) { if (deopt) { o.abc = 3; }}
+  function foo(o, deopt) {
+    if (deopt) {
+      o.abc = 3;
+    }
+  }
   %NeverOptimizeFunction(foo);
   function eagerDeoptInCalled(deopt) {
     return a.reduceRight((r, v, i, o) => {
@@ -21,7 +25,8 @@
       }
       return r + "S";
     }, "H");
-  }
+  };
+  %PrepareFunctionForOptimization(eagerDeoptInCalled);
   eagerDeoptInCalled();
   eagerDeoptInCalled();
   %OptimizeFunctionOnNextCall(eagerDeoptInCalled);
@@ -32,42 +37,60 @@
 // Make sure we gracefully handle the case of an empty array in
 // optimized code.
 (function() {
-  var nothingThere = function(only_holes) {
-    var a = [1,2,,3];  // holey smi array.
-    if (only_holes) {
-      a = [,,,];  // also a holey smi array.
-    }
-    return a.reduceRight((r,v,i,o)=>r+v);
+var nothingThere = function(only_holes) {
+  var a = [1, 2, , 3];  // holey smi array.
+  if (only_holes) {
+    a = [
+      ,
+      ,
+      ,
+    ];  // also a holey smi array.
   }
-  nothingThere();
-  nothingThere();
-  %OptimizeFunctionOnNextCall(nothingThere);
-  assertThrows(() => nothingThere(true));
+  return a.reduceRight((r, v, i, o) => r + v);
+};
+;
+%PrepareFunctionForOptimization(nothingThere);
+nothingThere();
+nothingThere();
+%OptimizeFunctionOnNextCall(nothingThere);
+assertThrows(() => nothingThere(true));
 })();
 
 // An error generated inside the callback includes reduce in it's
 // stack trace.
 (function() {
-  var re = /Array\.reduceRight/;
-  var alwaysThrows = function() {
-    var b = [,,,];
-    var result = 0;
-    var callback = function(r,v,i,o) {
-      return r + v;
-    };
-    b.reduceRight(callback);
-  }
-  try {
-    alwaysThrows();
-  } catch (e) {
-    assertTrue(re.exec(e.stack) !== null);
-  }
-  try { alwaysThrows(); } catch (e) {}
-  try { alwaysThrows(); } catch (e) {}
-  %OptimizeFunctionOnNextCall(alwaysThrows);
-  try {
-    alwaysThrows();
-  } catch (e) {
-    assertTrue(re.exec(e.stack) !== null);
-  }
+var re = /Array\.reduceRight/;
+var alwaysThrows = function() {
+  var b = [
+    ,
+    ,
+    ,
+  ];
+  var result = 0;
+  var callback = function(r, v, i, o) {
+    return r + v;
+  };
+  b.reduceRight(callback);
+};
+;
+%PrepareFunctionForOptimization(alwaysThrows);
+try {
+  alwaysThrows();
+} catch (e) {
+  assertTrue(re.exec(e.stack) !== null);
+}
+try {
+  alwaysThrows();
+} catch (e) {
+}
+try {
+  alwaysThrows();
+} catch (e) {
+}
+%OptimizeFunctionOnNextCall(alwaysThrows);
+try {
+  alwaysThrows();
+} catch (e) {
+  assertTrue(re.exec(e.stack) !== null);
+}
 })();

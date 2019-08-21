@@ -5,53 +5,21 @@
 // The C++ style guide recommends using <re2> instead of <regex>. However, the
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
+#include <vector>
 
-#include "src/api/api-inl.h"
-#include "src/diagnostics/disassembler.h"
-#include "src/objects/objects-inl.h"
+#include "src/codegen/arm/register-arm.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/disasm-regex-helper.h"
 
 namespace v8 {
 namespace internal {
 
-std::string DisassembleFunction(const char* function) {
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  Handle<JSFunction> f = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(context, v8_str(function)).ToLocalChecked())));
-
-  Address begin = f->code().raw_instruction_start();
-  Address end = f->code().raw_instruction_end();
-  Isolate* isolate = CcTest::i_isolate();
-  std::ostringstream os;
-  Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
-                       reinterpret_cast<byte*>(end),
-                       CodeReference(handle(f->code(), isolate)));
-  return os.str();
-}
-
-struct Matchers {
-  std::string start = "0x[0-9a-f]+ +[0-9a-f]+ +[0-9a-f]+ +";
-  std::regex map_load_re =
-      std::regex(start + "ldr r([0-9]+), \\[r([0-9]+), #-1\\]");
-  std::regex load_const_re = std::regex(start + "ldr r([0-9]+), \\[pc, .*");
-  std::regex cmp_re = std::regex(start + "cmp r([0-9]+), r([0-9]+)");
-  std::regex bne_re = std::regex(start + "bne (.*)");
-  std::regex beq_re = std::regex(start + "beq (.*)");
-  std::regex b_re = std::regex(start + "b (.*)");
-  std::regex eorne_re =
-      std::regex(start + "eorne r([0-9]+), r([0-9]+), r([0-9]+)");
-  std::regex eoreq_re =
-      std::regex(start + "eoreq r([0-9]+), r([0-9]+), r([0-9]+)");
-  std::regex csdb_re = std::regex(start + "csdb");
-  std::regex load_field_re =
-      std::regex(start + "ldr r([0-9]+), \\[r([0-9]+), #\\+[0-9]+\\]");
-  std::regex mask_re =
-      std::regex(start + "and r([0-9]+), r([0-9]+), r([0-9]+)");
-  std::regex untag_re = std::regex(start + "mov r([0-9]+), r([0-9]+), asr #1");
-
-  std::string poison_reg = "9";
-};
+namespace {
+// Poison register.
+const int kPRegCode = kSpeculationPoisonRegister.code();
+const std::string kPReg =  // NOLINT(runtime/string)
+    "r" + std::to_string(kPRegCode);
+}  // namespace
 
 TEST(DisasmPoisonMonomorphicLoad) {
 #ifdef ENABLE_DISASSEMBLER
@@ -71,64 +39,19 @@ TEST(DisasmPoisonMonomorphicLoad) {
       "%OptimizeFunctionOnNextCall(mono);"
       "mono({ x : 1 });");
 
-  Matchers m;
-
-  std::smatch match;
-  std::string line;
-  std::istringstream reader(DisassembleFunction("mono"));
-  bool poisoning_sequence_found = false;
-  while (std::getline(reader, line)) {
-    if (std::regex_match(line, match, m.map_load_re)) {
-      std::string map_reg = match[1];
-      std::string object_reg = match[2];
-      // Matches that the property access sequence is instrumented with
-      // poisoning. We match the following sequence:
-      //
-      // ldr r1, [r0, #-1]                ; load map
-      // ldr r2, [pc, #+104]              ; load expected map constant
-      // cmp r1, r2                       ; compare maps
-      // bne ...                          ; deopt if different
-      // eorne r9, r9, r9                 ; update the poison
-      // csdb                             ; speculation barrier
-      // ldr r0, [r0, #+11]               ; load the field
-      // and r0, r0, r9                   ; apply the poison
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_const_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.cmp_re));
-      CHECK_EQ(match[1], map_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.bne_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.eorne_re));
-      CHECK_EQ(match[1], m.poison_reg);
-      CHECK_EQ(match[2], m.poison_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.csdb_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_field_re));
-      CHECK_EQ(match[2], object_reg);
-      std::string field_reg = match[1];
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.mask_re));
-      CHECK_EQ(match[1], field_reg);
-      CHECK_EQ(match[2], field_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      poisoning_sequence_found = true;
-      break;
-    }
-  }
-
-  CHECK(poisoning_sequence_found);
+  // Matches that the property access sequence is instrumented with
+  // poisoning.
+  std::vector<std::string> patterns_array = {
+      "ldr <<Map:r[0-9]+>>, \\[<<Obj:r[0-9]+>>, #-1\\]",   // load map
+      "ldr <<ExpMap:r[0-9]+>>, \\[pc, #",                  // load expected map
+      "cmp <<Map>>, <<ExpMap>>",                           // compare maps
+      "bne",                                               // deopt if different
+      "eorne " + kPReg + ", " + kPReg + ", " + kPReg,      // update the poison
+      "csdb",                                              // spec. barrier
+      "ldr <<Field:r[0-9]+>>, \\[<<Obj>>, #\\+[0-9]+\\]",  // load the field
+      "and <<Field>>, <<Field>>, " + kPReg,                // apply the poison
+  };
+  CHECK(CheckDisassemblyRegexPatterns("mono", patterns_array));
 #endif  // ENABLE_DISASSEMBLER
 }
 
@@ -155,141 +78,35 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "%OptimizeFunctionOnNextCall(poly);"
       "poly(o1);");
 
-  Matchers m;
-
-  std::smatch match;
-  std::string line;
-  std::istringstream reader(DisassembleFunction("poly"));
-  bool poisoning_sequence_found = false;
-  while (std::getline(reader, line)) {
-    if (std::regex_match(line, match, m.map_load_re)) {
-      std::string map_reg = match[1];
-      std::string object_reg = match[2];
-      // Matches that the property access sequence is instrumented with
-      // poisoning. We match the following sequence:
-      //
-      //   ldr r1, [r0, #-1]                ; load map
-      //   ldr r2, [pc, #+104]              ; load map constant #1
-      //   cmp r1, r2                       ; compare maps
-      //   beq +Lcase1                      ; if match, got to the load
-      //   eoreq r9, r9, r9                 ; update the poison
-      //   csdb                             ; speculation barrier
-      //   ldr r1, [r0, #-1]                ; load map
-      //   ldr r2, [pc, #+304]              ; load map constant #2
-      //   cmp r1, r2                       ; compare maps
-      //   bne +Ldeopt                      ; deopt if different
-      //   eorne r9, r9, r9                 ; update the poison
-      //   csdb                             ; speculation barrier
-      //   ldr r0, [r0, #+11]               ; load the field
-      //   and r0, r0, r9                   ; apply the poison
-      //   mov r0, r0, asr #1               ; untag
-      //   b +Ldone                         ; goto merge point
+  // Matches that the property access sequence is instrumented with
+  // poisoning.
+  std::vector<std::string> patterns_array = {
+      "ldr <<Map0:r[0-9]+>>, \\[<<Obj:r[0-9]+>>, #-1\\]",  // load map
+      "ldr <<ExpMap0:r[0-9]+>>, \\[pc",                    // load map const #1
+      "cmp <<Map0>>, <<ExpMap0>>",                         // compare maps
+      "beq",                                               // ? go to the load
+      "eoreq " + kPReg + ", " + kPReg + ", " + kPReg,      // update the poison
+      "csdb",                                              // spec. barrier
+      "ldr <<Map1:r[0-9]+>>, \\[<<Obj>>, #-1\\]",          // load map
+      "ldr <<ExpMap1:r[0-9]+>>, \\[pc",                    // load map const #2
+      "cmp <<Map1>>, <<ExpMap1>>",                         // compare maps
+      "bne",                                               // deopt if different
+      "eorne " + kPReg + ", " + kPReg + ", " + kPReg,      // update the poison
+      "csdb",                                              // spec. barrier
+      "ldr <<Field:r[0-9]+>>, \\[<<Obj>>, #\\+[0-9]+\\]",  // load the field
+      "and <<Field>>, <<Field>>, " + kPReg,                // apply the poison
+      "mov r[0-9]+, <<Field>>, asr #1",                    // untag
+      "b",                                                 // goto merge point
       // Lcase1:
-      //   eorne r9, r9, r9                 ; update the poison
-      //   csdb                             ; speculation barrier
-      //   ldr r0, [r0, #+3]                ; load property backing store
-      //   and r0, r0, r9                   ; apply the poison
-      //   ldr r0, [r0, #+3]                ; load the property
-      //   and r0, r0, r9                   ; apply the poison
-      // Ldone:
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_const_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.cmp_re));
-      CHECK_EQ(match[1], map_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.beq_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.eoreq_re));
-      CHECK_EQ(match[1], m.poison_reg);
-      CHECK_EQ(match[2], m.poison_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.csdb_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.map_load_re));
-      map_reg = match[1];
-      CHECK_EQ(match[2], object_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_const_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.cmp_re));
-      CHECK_EQ(match[1], map_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.bne_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.eorne_re));
-      CHECK_EQ(match[1], m.poison_reg);
-      CHECK_EQ(match[2], m.poison_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.csdb_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_field_re));
-      CHECK_EQ(match[2], object_reg);
-      std::string field_reg = match[1];
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.mask_re));
-      CHECK_EQ(match[1], field_reg);
-      CHECK_EQ(match[2], field_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.untag_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.b_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.eorne_re));
-      CHECK_EQ(match[1], m.poison_reg);
-      CHECK_EQ(match[2], m.poison_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.csdb_re));
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_field_re));
-      CHECK_EQ(match[2], object_reg);
-      std::string storage_reg = match[1];
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.mask_re));
-      CHECK_EQ(match[1], storage_reg);
-      CHECK_EQ(match[2], storage_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.load_field_re));
-      CHECK_EQ(match[2], storage_reg);
-      field_reg = match[1];
-
-      CHECK(std::getline(reader, line));
-      CHECK(std::regex_match(line, match, m.mask_re));
-      CHECK_EQ(match[1], field_reg);
-      CHECK_EQ(match[2], field_reg);
-      CHECK_EQ(match[3], m.poison_reg);
-
-      poisoning_sequence_found = true;
-      break;
-    }
-  }
-
-  CHECK(poisoning_sequence_found);
+      "eorne " + kPReg + ", " + kPReg + ", " + kPReg,     // update the poison
+      "csdb",                                             // spec. barrier
+      "ldr <<BSt:r[0-9]+>>, \\[<<Obj>>, #\\+[0-9]+\\]",   // load backing store
+      "and <<BSt>>, <<BSt>>, " + kPReg,                   // apply the poison
+      "ldr <<Prop:r[0-9]+>>, \\[<<Obj>>, #\\+[0-9]+\\]",  // load the property
+      "and <<Prop>>, <<Prop>>, " + kPReg,                 // apply the poison
+                                                          // Ldone:
+  };
+  CHECK(CheckDisassemblyRegexPatterns("poly", patterns_array));
 #endif  // ENABLE_DISASSEMBLER
 }
 

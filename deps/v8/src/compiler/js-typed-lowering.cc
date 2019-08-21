@@ -10,6 +10,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -1364,20 +1365,21 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   Type module_type = NodeProperties::GetType(module);
 
   if (module_type.IsHeapConstant()) {
-    ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
+    SourceTextModuleRef module_constant =
+        module_type.AsHeapConstant()->Ref().AsSourceTextModule();
     CellRef cell_constant = module_constant.GetCell(cell_index);
     return jsgraph()->Constant(cell_constant);
   }
 
   FieldAccess field_access;
   int index;
-  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
-      ModuleDescriptor::kExport) {
+  if (SourceTextModuleDescriptor::GetCellIndexKind(cell_index) ==
+      SourceTextModuleDescriptor::kExport) {
     field_access = AccessBuilder::ForModuleRegularExports();
     index = cell_index - 1;
   } else {
-    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
-              ModuleDescriptor::kImport);
+    DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
+              SourceTextModuleDescriptor::kImport);
     field_access = AccessBuilder::ForModuleRegularImports();
     index = -cell_index - 1;
   }
@@ -1408,9 +1410,9 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 1);
-  DCHECK_EQ(
-      ModuleDescriptor::GetCellIndexKind(OpParameter<int32_t>(node->op())),
-      ModuleDescriptor::kExport);
+  DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(
+                OpParameter<int32_t>(node->op())),
+            SourceTextModuleDescriptor::kExport);
 
   Node* cell = BuildGetModuleCell(node);
   if (cell->op()->EffectOutputCount() > 0) effect = cell;

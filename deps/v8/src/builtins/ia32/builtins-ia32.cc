@@ -1023,10 +1023,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOSRNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
-                        BytecodeArray::kOSRNestingLevelOffset),
+                        BytecodeArray::kOsrNestingLevelOffset),
            Immediate(0));
 
   // Push bytecode array.
@@ -1534,6 +1534,15 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                             BuiltinContinuationFrameConstants::kFixedFrameSize),
            eax);
   }
+
+  // Replace the builtin index Smi on the stack with the start address of the
+  // builtin loaded from the builtins table. The ret below will return to this
+  // address.
+  int offset_to_builtin_index = allocatable_register_count * kSystemPointerSize;
+  __ mov(eax, Operand(esp, offset_to_builtin_index));
+  __ LoadEntryFromBuiltinIndex(eax);
+  __ mov(Operand(esp, offset_to_builtin_index), eax);
+
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
     __ pop(Register::from_code(code));
@@ -1549,7 +1558,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       kSystemPointerSize;
   __ pop(Operand(esp, offsetToPC));
   __ Drop(offsetToPC / kSystemPointerSize);
-  __ add(Operand(esp, 0), Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ ret(0);
 }
 }  // namespace
@@ -3012,23 +3020,28 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
   __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
   __ cmpb(Operand(eax, 0), Immediate(0));
-  __ j(zero, &profiler_disabled);
-
-  // Additional parameter is the address of the actual getter function.
-  __ mov(thunk_last_arg, function_address);
-  // Call the api function.
-  __ Move(eax, Immediate(thunk_ref));
-  __ call(eax);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  // Call the api function.
-  __ call(function_address);
+  __ j(not_zero, &profiler_enabled);
+  __ Move(eax, Immediate(ExternalReference::address_of_runtime_stats_flag()));
+  __ cmp(Operand(eax, 0), Immediate(0));
+  __ j(not_zero, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ mov(eax, function_address);
+    __ jmp(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual getter function.
+    __ mov(thunk_last_arg, function_address);
+    __ Move(eax, Immediate(thunk_ref));
+  }
   __ bind(&end_profiler_check);
+
+  // Call the api function.
+  __ call(eax);
 
   Label prologue;
   // Load the value from ReturnValue
@@ -3078,6 +3091,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ j(above_equal, &ok, Label::kNear);
 
   __ CompareRoot(map, RootIndex::kHeapNumberMap);
+  __ j(equal, &ok, Label::kNear);
+
+  __ CompareRoot(map, RootIndex::kBigIntMap);
   __ j(equal, &ok, Label::kNear);
 
   __ CompareRoot(return_value, RootIndex::kUndefinedValue);

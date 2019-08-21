@@ -1,4 +1,4 @@
 wasm-function[0]:1: RuntimeError: unreachable
 RuntimeError: unreachable
-    at test-module.main (wasm-function[0]:1)
+    at test-module.main (wasm-function[0]:0x22)
     at *%(basename)s:{NUMBER}:31

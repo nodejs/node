@@ -289,7 +289,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     if (key == *name) {
       // Attributes transition.
       PropertyAttributes attributes =
-          target.GetLastDescriptorDetails().attributes();
+          target.GetLastDescriptorDetails(isolate).attributes();
       CHECK_EQ(*attr_maps[static_cast<int>(attributes)], target);
     } else {
       for (int j = 0; j < PROPS_COUNT; j++) {

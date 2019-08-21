@@ -29,8 +29,8 @@ namespace typed_array_some {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.some
   transitioning javascript builtin
-  TypedArrayPrototypeSome(implicit context:
-                              Context)(receiver: Object, ...arguments): Object {
+  TypedArrayPrototypeSome(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // arguments[0] = callback
     // arguments[1] = thisArg.
     try {

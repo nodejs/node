@@ -92,18 +92,14 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
 };
 
-class V8_EXPORT_PRIVATE BytecodeAnalysis {
+// Analyze the bytecodes to find the loop ranges, loop nesting, loop assignments
+// and liveness.  NOTE: The broker/serializer relies on the fact that an
+// analysis for OSR (osr_bailout_id is not None) subsumes an analysis for
+// non-OSR (osr_bailout_id is None).
+class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
-                   bool do_liveness_analysis);
-
-  // Analyze the bytecodes to find the loop ranges, loop nesting, loop
-  // assignments and liveness, under the assumption that there is an OSR bailout
-  // at {osr_bailout_id}.
-  //
-  // No other methods in this class return valid information until this has been
-  // called.
-  void Analyze(BailoutId osr_bailout_id);
+                   BailoutId osr_bailout_id, bool analyze_liveness);
 
   // Return true if the given offset is a loop header
   bool IsLoopHeader(int offset) const;
@@ -118,16 +114,22 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis {
     return resume_jump_targets_;
   }
 
-  // True if the current analysis has an OSR entry point.
-  bool HasOsrEntryPoint() const { return osr_entry_point_ != -1; }
-
-  int osr_entry_point() const { return osr_entry_point_; }
-
-  // Gets the in-liveness for the bytecode at {offset}.
+  // Gets the in-/out-liveness for the bytecode at {offset}.
   const BytecodeLivenessState* GetInLivenessFor(int offset) const;
-
-  // Gets the out-liveness for the bytecode at {offset}.
   const BytecodeLivenessState* GetOutLivenessFor(int offset) const;
+
+  // In the case of OSR, the analysis also computes the (bytecode offset of the)
+  // OSR entry point from the {osr_bailout_id} that was given to the
+  // constructor.
+  int osr_entry_point() const {
+    CHECK_LE(0, osr_entry_point_);
+    return osr_entry_point_;
+  }
+  // Return the osr_bailout_id (for verification purposes).
+  BailoutId osr_bailout_id() const { return osr_bailout_id_; }
+
+  // Return whether liveness analysis was performed (for verification purposes).
+  bool liveness_analyzed() const { return analyze_liveness_; }
 
  private:
   struct LoopStackEntry {
@@ -135,6 +137,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis {
     LoopInfo* loop_info;
   };
 
+  void Analyze();
   void PushLoop(int loop_header, int loop_end);
 
 #if DEBUG
@@ -153,17 +156,15 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis {
   std::ostream& PrintLivenessTo(std::ostream& os) const;
 
   Handle<BytecodeArray> const bytecode_array_;
-  bool const do_liveness_analysis_;
   Zone* const zone_;
-
+  BailoutId const osr_bailout_id_;
+  bool const analyze_liveness_;
   ZoneStack<LoopStackEntry> loop_stack_;
   ZoneVector<int> loop_end_index_queue_;
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
-
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
-
   BytecodeLivenessMap liveness_map_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysis);

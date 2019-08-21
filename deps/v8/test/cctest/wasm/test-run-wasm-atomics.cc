@@ -304,6 +304,19 @@ WASM_EXEC_TEST(I32AtomicStoreParameter) {
   CHECK_EQ(10, r.Call(10));
   CHECK_EQ(20, r.builder().ReadMemory(&memory[0]));
 }
+
+WASM_EXEC_TEST(AtomicFence) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  // Note that this test specifically doesn't use a shared memory, as the fence
+  // instruction does not target a particular linear memory. It may occur in
+  // modules which declare no memory, or a non-shared memory, without causing a
+  // validation error.
+
+  BUILD(r, WASM_ATOMICS_FENCE, WASM_ZERO);
+  CHECK_EQ(0, r.Call());
+}
+
 }  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal

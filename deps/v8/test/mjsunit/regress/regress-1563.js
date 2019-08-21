@@ -33,8 +33,8 @@ obj = new Uint8ClampedArray(10);
 // assignments.
 function set_pixel(obj, arg) {
   obj[0] = arg;
-}
-
+};
+%PrepareFunctionForOptimization(set_pixel);
 set_pixel(obj, 1.5);
 set_pixel(obj, NaN);
 %OptimizeFunctionOnNextCall(set_pixel);

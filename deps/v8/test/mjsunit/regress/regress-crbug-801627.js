@@ -19,6 +19,7 @@ class Derived extends Base {
 // Feed a bound function as new.target
 // to the profiler, so HeapObjectMatcher
 // can find it.
+%PrepareFunctionForOptimization(Derived);
 Reflect.construct(Derived, [], Object.bind());
 %OptimizeFunctionOnNextCall(Derived);
 new Derived();

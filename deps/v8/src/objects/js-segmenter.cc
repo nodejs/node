@@ -30,11 +30,9 @@ JSSegmenter::Granularity JSSegmenter::GetGranularity(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
-    Isolate* isolate, Handle<JSSegmenter> segmenter_holder,
-    Handle<Object> locales, Handle<Object> input_options) {
-  segmenter_holder->set_flags(0);
-
+MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
+                                          Handle<Object> locales,
+                                          Handle<Object> input_options) {
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -69,11 +67,8 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
                           requested_locales, matcher, {});
-
-  // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  segmenter_holder->set_locale(*locale_str);
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence" », "grapheme").
@@ -84,9 +79,6 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
       Granularity::GRAPHEME);
   MAYBE_RETURN(maybe_granularity, MaybeHandle<JSSegmenter>());
   Granularity granularity_enum = maybe_granularity.FromJust();
-
-  // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
-  segmenter_holder->set_granularity(granularity_enum);
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
@@ -107,8 +99,6 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
       icu_break_iterator.reset(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
-    case Granularity::COUNT:
-      UNREACHABLE();
   }
 
   CHECK(U_SUCCESS(status));
@@ -117,6 +107,18 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   Handle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromUniquePtr(isolate, 0,
                                                  std::move(icu_break_iterator));
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSSegmenter> segmenter_holder = Handle<JSSegmenter>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  segmenter_holder->set_flags(0);
+
+  // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
+  segmenter_holder->set_locale(*locale_str);
+
+  // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
+  segmenter_holder->set_granularity(granularity_enum);
 
   segmenter_holder->set_icu_break_iterator(*managed_break_iterator);
   return segmenter_holder;
@@ -157,9 +159,8 @@ Handle<String> JSSegmenter::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case Granularity::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 const std::set<std::string>& JSSegmenter::GetAvailableLocales() {

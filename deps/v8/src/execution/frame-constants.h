@@ -249,6 +249,13 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(5);
 };
 
+class CWasmEntryFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative:
+  static constexpr int kCEntryFPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  DEFINE_TYPED_FRAME_SIZES(1);
+};
+
 class WasmCompiledFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
@@ -271,7 +278,7 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   static constexpr int kBuiltinContextOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  static constexpr int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  static constexpr int kBuiltinIndexOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 
   // The argument count is in the first allocatable register, stored below the
   // fixed part of the frame and therefore is not part of the fixed frame size.

@@ -73,3 +73,31 @@
   assertEquals(error[42], "Who needs stack traces anyway?");
   assertEquals(error.stack, undefined); // No getter.
 })();
+
+(function TestFormatStackPropertyInDictionaryMode() {
+  Error.prepareStackTrace = (error, frames) => {
+    return "<formatted stack trace>";
+  };
+  const error = new Error("foo");
+  error[%MaxSmi()] = 42;
+
+  assertTrue(%HasDictionaryElements(error));
+
+  // Check it twice.
+  assertEquals(error.stack, "<formatted stack trace>");
+  assertEquals(error.stack, "<formatted stack trace>");
+})();
+
+(function TestTransitionToDictionaryModeAfterFormatting() {
+  Error.prepareStackTrace = (error, frames) => {
+    return "<formatted stack trace>";
+  };
+  const error = new Error("foo");
+  assertFalse(%HasDictionaryElements(error));
+
+  assertEquals(error.stack, "<formatted stack trace>");
+
+  error[%MaxSmi()] = 42;
+  assertTrue(%HasDictionaryElements(error));
+  assertEquals(error.stack, "<formatted stack trace>");
+})();

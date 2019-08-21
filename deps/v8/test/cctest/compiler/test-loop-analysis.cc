@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/loop-analysis.h"
@@ -57,6 +58,7 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   Isolate* isolate;
+  TickCounter tick_counter;
   CommonOperatorBuilder common;
   Graph graph;
   JSGraph jsgraph;
@@ -128,7 +130,7 @@ class LoopFinderTester : HandleAndZoneScope {
         StdoutStream{} << AsRPO(graph);
       }
       Zone zone(main_isolate()->allocator(), ZONE_NAME);
-      loop_tree = LoopFinder::BuildLoopTree(&graph, &zone);
+      loop_tree = LoopFinder::BuildLoopTree(&graph, &tick_counter, &zone);
     }
     return loop_tree;
   }
@@ -199,7 +201,7 @@ struct While {
   }
 
   void chain(Node* control) { loop->ReplaceInput(0, control); }
-  void nest(While& that) {
+  void nest(While& that) {  // NOLINT(runtime/references)
     that.loop->ReplaceInput(1, exit);
     this->loop->ReplaceInput(0, that.if_true);
   }
@@ -212,7 +214,8 @@ struct Counter {
   Node* phi;
   Node* add;
 
-  Counter(While& w, int32_t b, int32_t k)
+  Counter(While& w,  // NOLINT(runtime/references)
+          int32_t b, int32_t k)
       : base(w.t.jsgraph.Int32Constant(b)), inc(w.t.jsgraph.Int32Constant(k)) {
     Build(w);
   }
@@ -233,7 +236,7 @@ struct StoreLoop {
   Node* phi;
   Node* store;
 
-  explicit StoreLoop(While& w)
+  explicit StoreLoop(While& w)  // NOLINT(runtime/references)
       : base(w.t.graph.start()), val(w.t.jsgraph.Int32Constant(13)) {
     Build(w);
   }

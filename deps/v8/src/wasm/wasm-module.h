@@ -164,7 +164,11 @@ struct WasmCompilationHint {
   WasmCompilationHintTier top_tier;
 };
 
-enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
+enum ModuleOrigin : uint8_t {
+  kWasmOrigin,
+  kAsmJsSloppyOrigin,
+  kAsmJsStrictOrigin
+};
 
 #define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \
   ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
@@ -220,6 +224,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
                                   uint32_t function_index) const;
   void AddFunctionNameForTesting(int function_index, WireBytesRef name);
 };
+
+inline bool is_asmjs_module(const WasmModule* module) {
+  return module->origin != kWasmOrigin;
+}
 
 size_t EstimateStoredSize(const WasmModule* module);
 
