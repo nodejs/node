@@ -1757,7 +1757,7 @@ const myWritable = new Writable({
 * `callback` {Function} Call this function (optionally with an error
   argument) when processing is complete for the supplied chunk.
 
-All `Writable` stream implementations must provide a
+**All** `Writable` stream implementations must provide a
 [`writable._write()`][stream-_write] method to send data to the underlying
 resource.
 
@@ -1801,10 +1801,10 @@ This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Writable` class
 methods only.
 
-The `writable._writev()` method may be implemented in addition to
-`writable._write()` in stream implementations that are capable of processing
-multiple chunks of data at once. If implemented, the method will be called with
-all chunks of data currently buffered in the write queue.
+The `writable._writev()` method may be implemented in addition (but not
+instead of) to `writable._write()` in stream implementations that are capable
+of processing multiple chunks of data at once. If implemented, the method will
+be called with all chunks of data currently buffered in the write queue.
 
 The `writable._writev()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
@@ -1843,10 +1843,11 @@ or write buffered data before a stream ends.
 It is recommended that errors occurring during the processing of the
 `writable._write()` and `writable._writev()` methods are reported by invoking
 the callback and passing the error as the first argument. This will cause an
-`'error'` event to be emitted by the `Writable`. Throwing an `Error` from within
-`writable._write()` can result in unexpected and inconsistent behavior depending
-on how the stream is being used. Using the callback ensures consistent and
-predictable handling of errors.
+`'error'` event to be emitted by the `Writable`, unless the `'error'` event has
+already been previously emitted on the instance. Throwing an `Error` from
+within `writable._write()` can result in unexpected and inconsistent behavior
+depending on how the stream is being used. Using the callback ensures
+consistent and predictable handling of errors.
 
 If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
@@ -2121,8 +2122,10 @@ buffer. See [`readable.push('')`][] for more information.
 #### Errors While Reading
 
 It is recommended that errors occurring during the processing of the
-`readable._read()` method are emitted using the `'error'` event rather than
-being thrown. Throwing an `Error` from within `readable._read()` can result in
+`readable._read()` method are propagated using the `readable.destroy(err)`
+method or emitted through the `'error'` event (depending on whether the
+stream should be auto destroyed) rather than being thrown.
+Throwing an `Error` from within `readable._read()` can result in
 unexpected and inconsistent behavior depending on whether the stream is
 operating in flowing or paused mode. Using the `'error'` event ensures
 consistent and predictable handling of errors.
@@ -2132,9 +2135,15 @@ consistent and predictable handling of errors.
 const { Readable } = require('stream');
 
 const myReadable = new Readable({
+  autoDestroy,
   read(size) {
-    if (checkSomeErrorCondition()) {
-      process.nextTick(() => this.emit('error', err));
+    const err = checkSomeErrorCondition();
+    if (err) {
+      if (autoDestroy) {
+        this.destroy(err);
+      } else {
+        process.nextTick(() => this.emit('error', err));
+      }
       return;
     }
     // Do some work.
