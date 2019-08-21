@@ -7,7 +7,7 @@ const test2 = formatTime(1500);
 const test3 = formatTime(60300);
 const test4 = formatTime(4000000);
 
-assert.strictEqual(test1, '100ms');
-assert.strictEqual(test2, '1.5s');
+assert.strictEqual(test1, '100.000ms');
+assert.strictEqual(test2, '1.500s');
 assert.strictEqual(test3, '1.005min')
 assert.strictEqual(test4, '1.111h')
