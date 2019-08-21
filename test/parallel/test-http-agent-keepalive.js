@@ -52,7 +52,7 @@ function get(path, callback) {
     port: server.address().port,
     agent: agent,
     path: path
-  }, callback).on('socket', checkListeners);
+  }, callback).on('socket', common.mustCall(checkListeners));
 }
 
 function checkDataAndSockets(body) {
