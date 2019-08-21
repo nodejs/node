@@ -1819,8 +1819,14 @@ class V8_EXPORT ScriptCompiler {
       Local<String> arguments[], size_t context_extension_count,
       Local<Object> context_extensions[],
       CompileOptions options = kNoCompileOptions,
-      NoCacheReason no_cache_reason = kNoCacheNoReason,
-      Local<ScriptOrModule>* script_or_module_out = nullptr);
+      NoCacheReason no_cache_reason = kNoCacheNoReason);
+
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
+      Local<Context> context, Source* source, size_t arguments_count,
+      Local<String> arguments[], size_t context_extension_count,
+      Local<Object> context_extensions[], CompileOptions options,
+      NoCacheReason no_cache_reason,
+      Local<ScriptOrModule>* script_or_module_out);
 
   /**
    * Creates and returns code cache for the specified unbound_script.
@@ -3481,6 +3487,8 @@ enum class IntegrityLevel { kFrozen, kSealed };
  */
 class V8_EXPORT Object : public Value {
  public:
+  V8_DEPRECATED("Use maybe version",
+                bool Set(Local<Value> key, Local<Value> value));
   /**
    * Set only return Just(true) or Empty(), so if it should never fail, use
    * result.Check().
@@ -3488,6 +3496,8 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context,
                                         Local<Value> key, Local<Value> value);
 
+  V8_DEPRECATED("Use maybe version",
+                bool Set(uint32_t index, Local<Value> value));
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
 
@@ -3532,9 +3542,11 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> key,
       PropertyDescriptor& descriptor);  // NOLINT(runtime/references)
 
+  V8_DEPRECATED("Use maybe version", Local<Value> Get(Local<Value> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               Local<Value> key);
 
+  V8_DEPRECATED("Use maybe version", Local<Value> Get(uint32_t index));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
                                               uint32_t index);
 
@@ -6683,26 +6695,7 @@ V8_INLINE Local<Boolean> False(Isolate* isolate);
  */
 class V8_EXPORT ResourceConstraints {
  public:
-  /**
-   * Configures the constraints with reasonable default values based on the
-   * provided heap size limit. The heap size includes both the young and
-   * the old generation.
-   *
-   * \param initial_heap_size_in_bytes The initial heap size or zero.
-   *    By default V8 starts with a small heap and dynamically grows it to
-   *    match the set of live objects. This may lead to ineffective
-   *    garbage collections at startup if the live set is large.
-   *    Setting the initial heap size avoids such garbage collections.
-   *    Note that this does not affect young generation garbage collections.
-   *
-   * \param maximum_heap_size_in_bytes The hard limit for the heap size.
-   *    When the heap size approaches this limit, V8 will perform series of
-   *    garbage collections and invoke the NearHeapLimitCallback. If the garbage
-   *    collections do not help and the callback does not increase the limit,
-   *    then V8 will crash with V8::FatalProcessOutOfMemory.
-   */
-  void ConfigureDefaultsFromHeapSize(size_t initial_heap_size_in_bytes,
-                                     size_t maximum_heap_size_in_bytes);
+  ResourceConstraints();
 
   /**
    * Configures the constraints with reasonable default values based on the
@@ -6726,8 +6719,12 @@ class V8_EXPORT ResourceConstraints {
    * The amount of virtual memory reserved for generated code. This is relevant
    * for 64-bit architectures that rely on code range for calls in code.
    */
-  size_t code_range_size_in_bytes() const { return code_range_size_; }
-  void set_code_range_size_in_bytes(size_t limit) { code_range_size_ = limit; }
+  size_t code_range_size_in_bytes() const {
+    return code_range_size_ * kMB;
+  }
+  void set_code_range_size_in_bytes(size_t limit) {
+    code_range_size_ = limit / kMB;
+  }
 
   /**
    * The maximum size of the old generation.
@@ -6737,10 +6734,10 @@ class V8_EXPORT ResourceConstraints {
    * increase the limit, then V8 will crash with V8::FatalProcessOutOfMemory.
    */
   size_t max_old_generation_size_in_bytes() const {
-    return max_old_generation_size_;
+    return max_old_space_size_ * kMB;
   }
   void set_max_old_generation_size_in_bytes(size_t limit) {
-    max_old_generation_size_ = limit;
+    max_old_space_size_ = limit / kMB;
   }
 
   /**
@@ -6748,25 +6745,21 @@ class V8_EXPORT ResourceConstraints {
    * and a large object space. This affects frequency of Scavenge garbage
    * collections and should be typically much smaller that the old generation.
    */
-  size_t max_young_generation_size_in_bytes() const {
-    return max_young_generation_size_;
-  }
-  void set_max_young_generation_size_in_bytes(size_t limit) {
-    max_young_generation_size_ = limit;
-  }
+  size_t max_young_generation_size_in_bytes() const;
+  void set_max_young_generation_size_in_bytes(size_t limit);
 
   size_t initial_old_generation_size_in_bytes() const {
-    return initial_old_generation_size_;
+    return 0;
   }
   void set_initial_old_generation_size_in_bytes(size_t initial_size) {
-    initial_old_generation_size_ = initial_size;
+    // Not available on Node 12.
   }
 
   size_t initial_young_generation_size_in_bytes() const {
-    return initial_young_generation_size_;
+    return 0;
   }
   void set_initial_young_generation_size_in_bytes(size_t initial_size) {
-    initial_young_generation_size_ = initial_size;
+    // Not available on Node 12.
   }
 
   /**
@@ -6774,23 +6767,27 @@ class V8_EXPORT ResourceConstraints {
    */
   V8_DEPRECATE_SOON("Use code_range_size_in_bytes.",
                     size_t code_range_size() const) {
-    return code_range_size_ / kMB;
+    return code_range_size_;
   }
   V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.",
                     void set_code_range_size(size_t limit_in_mb)) {
-    code_range_size_ = limit_in_mb * kMB;
+    code_range_size_ = limit_in_mb;
   }
   V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.",
-                    size_t max_semi_space_size_in_kb() const);
+                    size_t max_semi_space_size_in_kb() const) {
+    return max_semi_space_size_in_kb_;
+  }
   V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.",
-                    void set_max_semi_space_size_in_kb(size_t limit_in_kb));
+                    void set_max_semi_space_size_in_kb(size_t limit_in_kb)) {
+    max_semi_space_size_in_kb_ = limit_in_kb;
+  }
   V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.",
                     size_t max_old_space_size() const) {
-    return max_old_generation_size_ / kMB;
+    return max_old_space_size_;
   }
   V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.",
                     void set_max_old_space_size(size_t limit_in_mb)) {
-    max_old_generation_size_ = limit_in_mb * kMB;
+    max_old_space_size_ = limit_in_mb;
   }
   V8_DEPRECATE_SOON("Zone does not pool memory any more.",
                     size_t max_zone_pool_size() const) {
@@ -6803,13 +6800,15 @@ class V8_EXPORT ResourceConstraints {
 
  private:
   static constexpr size_t kMB = 1048576u;
-  size_t code_range_size_ = 0;
-  size_t max_old_generation_size_ = 0;
-  size_t max_young_generation_size_ = 0;
-  size_t max_zone_pool_size_ = 0;
-  size_t initial_old_generation_size_ = 0;
-  size_t initial_young_generation_size_ = 0;
+
+  // max_semi_space_size_ is in KB
+  size_t max_semi_space_size_in_kb_ = 0;
+
+  // The remaining limits are in MB
+  size_t max_old_space_size_ = 0;
   uint32_t* stack_limit_ = nullptr;
+  size_t code_range_size_ = 0;
+  size_t max_zone_pool_size_ = 0;
 };
 
 
