@@ -295,6 +295,8 @@ agent. Do not modify.
 added: v0.1.17
 -->
 
+* Extends: {Stream}
+
 This object is created internally and returned from [`http.request()`][]. It
 represents an _in-progress_ request whose header has already been queued. The
 header is still mutable using the [`setHeader(name, value)`][],
@@ -324,9 +326,6 @@ Unlike the `request` object, if the response closes prematurely, the
 
 Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
-
-The request inherits from [Stream][], and additionally implements the
-following:
 
 ### Event: 'abort'
 <!-- YAML
@@ -819,8 +818,7 @@ nothing and waits for more input.
 added: v0.1.17
 -->
 
-This class inherits from [`net.Server`][] and has the following additional
-events:
+* Extends: {net.Server}
 
 ### Event: 'checkContinue'
 <!-- YAML
@@ -1110,11 +1108,10 @@ affects new connections to the server, not any existing connections.
 added: v0.1.17
 -->
 
+* Extends: {Stream}
+
 This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
-
-The response inherits from [Stream][], and additionally implements the
-following:
 
 ### Event: 'close'
 <!-- YAML
@@ -1608,13 +1605,12 @@ the request body should be sent.
 added: v0.1.17
 -->
 
+* Extends: {stream.Readable}
+
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
 and [`'response'`][] event respectively. It may be used to access response
 status, headers and data.
-
-It implements the [Readable Stream][] interface, as well as the
-following additional events, methods, and properties.
 
 ### Event: 'aborted'
 <!-- YAML
@@ -2273,6 +2269,4 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
 [`socket.unref()`]: net.html#net_socket_unref
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[Readable Stream]: stream.html#stream_class_stream_readable
-[Stream]: stream.html#stream_stream
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
