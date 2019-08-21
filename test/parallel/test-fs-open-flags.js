@@ -38,7 +38,8 @@ const { O_APPEND = 0,
         O_SYNC = 0,
         O_DSYNC = 0,
         O_TRUNC = 0,
-        O_WRONLY = 0
+        O_WRONLY = 0,
+        UV_FS_O_FILEMAP = 0
 } = fs.constants;
 
 const { stringToFlags } = require('internal/fs/utils');
@@ -64,6 +65,12 @@ assert.strictEqual(stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 assert.strictEqual(stringToFlags('as+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
 assert.strictEqual(stringToFlags('sa+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
+
+assert.strictEqual(stringToFlags('mr'), UV_FS_O_FILEMAP | O_RDONLY);
+assert.strictEqual(stringToFlags('mw'),
+                   UV_FS_O_FILEMAP | O_TRUNC | O_CREAT | O_WRONLY);
+assert.strictEqual(stringToFlags('max+'),
+                   UV_FS_O_FILEMAP | O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')

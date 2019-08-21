@@ -4949,6 +4949,11 @@ The following constants are meant for use with `fs.open()`.
     <td><code>O_NONBLOCK</code></td>
     <td>Flag indicating to open the file in nonblocking mode when possible.</td>
   </tr>
+  <tr>
+    <td><code>UV_FS_O_FILEMAP</code></td>
+    <td>When set, a memory file mapping is used to access the file. This flag
+    is available on Windows operating systems only.</td>
+  </tr>
 </table>
 
 ### File Type Constants
@@ -5140,6 +5145,10 @@ fs.open('<directory>', 'a+', (err, fd) => {
 On Windows, opening an existing hidden file using the `'w'` flag (either
 through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
 `EPERM`. Existing hidden files can be opened for writing with the `'r+'` flag.
+
+All of the flags can be prepended with `'m'` to use a memory file mapping for
+accessing the file (for example `'max+'`). This is only available on Windows,
+on other operative systems `'m'` is ignored.
 
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
