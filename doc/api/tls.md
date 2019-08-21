@@ -331,8 +331,9 @@ are not enabled by default since they offer less security.
 added: v0.3.2
 -->
 
-The `tls.Server` class is a subclass of `net.Server` that accepts encrypted
-connections using TLS or SSL.
+* Extends: {net.Server}
+
+Accepts encrypted connections using TLS or SSL.
 
 ### Event: 'keylog'
 <!-- YAML
@@ -601,8 +602,10 @@ See [Session Resumption][] for more information.
 added: v0.11.4
 -->
 
-The `tls.TLSSocket` is a subclass of [`net.Socket`][] that performs transparent
-encryption of written data and all required TLS negotiation.
+* Extends: {net.Socket}
+
+Performs transparent encryption of written data and all required TLS
+negotiation.
 
 Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 
