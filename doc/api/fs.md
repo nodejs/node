@@ -5031,6 +5031,12 @@ The following constants are meant for use with `fs.open()`.
     <td><code>O_NONBLOCK</code></td>
     <td>Flag indicating to open the file in nonblocking mode when possible.</td>
   </tr>
+  <tr>
+    <td><code>UV_FS_O_FILEMAP</code></td>
+    <td>When set, a memory file mapping is used to access the file. This flag
+    is available on Windows operating systems only. On other operating systems,
+    this flag is ignored.</td>
+  </tr>
 </table>
 
 ### File Type Constants
