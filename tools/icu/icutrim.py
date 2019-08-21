@@ -164,9 +164,9 @@ config=json.load(fi)
 fi.close()
 
 if options.locales:
-  config["variables"] = config.get("variables", {})
-  config["variables"]["locales"] = config["variables"].get("locales", {})
-  config["variables"]["locales"]["only"] = options.locales.split(',')
+    config["variables"] = config.get("variables", {})
+    config["variables"]["locales"] = config["variables"].get("locales", {})
+    config["variables"]["locales"]["only"] = options.locales.split(',')
 
 if options.verbose > 6:
     print(config)
