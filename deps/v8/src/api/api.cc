@@ -238,9 +238,17 @@ namespace v8 {
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
 
+#define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
+  return maybe_local.FromMaybe(Local<T>());
+
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
 
 namespace {
+
+Local<Context> ContextFromNeverReadOnlySpaceObject(
+    i::Handle<i::JSReceiver> obj) {
+  return reinterpret_cast<v8::Isolate*>(obj->GetIsolate())->GetCurrentContext();
+}
 
 class InternalEscapableScope : public v8::EscapableHandleScope {
  public:
@@ -964,31 +972,7 @@ Extension::Extension(const char* name, const char* source, int dep_count,
   CHECK(source != nullptr || source_length_ == 0);
 }
 
-void ResourceConstraints::ConfigureDefaultsFromHeapSize(
-    size_t initial_heap_size_in_bytes, size_t maximum_heap_size_in_bytes) {
-  CHECK_LE(initial_heap_size_in_bytes, maximum_heap_size_in_bytes);
-  if (maximum_heap_size_in_bytes == 0) {
-    return;
-  }
-  size_t young_generation, old_generation;
-  i::Heap::GenerationSizesFromHeapSize(maximum_heap_size_in_bytes,
-                                       &young_generation, &old_generation);
-  set_max_young_generation_size_in_bytes(
-      i::Max(young_generation, i::Heap::MinYoungGenerationSize()));
-  set_max_old_generation_size_in_bytes(
-      i::Max(old_generation, i::Heap::MinOldGenerationSize()));
-  if (initial_heap_size_in_bytes > 0) {
-    i::Heap::GenerationSizesFromHeapSize(initial_heap_size_in_bytes,
-                                         &young_generation, &old_generation);
-    // We do not set lower bounds for the initial sizes.
-    set_initial_young_generation_size_in_bytes(young_generation);
-    set_initial_old_generation_size_in_bytes(old_generation);
-  }
-  if (i::kRequiresCodeRange) {
-    set_code_range_size_in_bytes(
-        i::Min(i::kMaximalCodeRangeSize, maximum_heap_size_in_bytes));
-  }
-}
+ResourceConstraints::ResourceConstraints() {}
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
@@ -1006,15 +990,14 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
-size_t ResourceConstraints::max_semi_space_size_in_kb() const {
-  return i::Heap::SemiSpaceSizeFromYoungGenerationSize(
-             max_young_generation_size_) /
-         i::KB;
+size_t ResourceConstraints::max_young_generation_size_in_bytes() const {
+  return i::Heap::YoungGenerationSizeFromSemiSpaceSize(
+      max_semi_space_size_in_kb_ * i::KB);
 }
 
-void ResourceConstraints::set_max_semi_space_size_in_kb(size_t limit_in_kb) {
-  set_max_young_generation_size_in_bytes(
-      i::Heap::YoungGenerationSizeFromSemiSpaceSize(limit_in_kb * i::KB));
+void ResourceConstraints::set_max_young_generation_size_in_bytes(size_t limit) {
+  max_semi_space_size_in_kb_ =
+      i::Heap::SemiSpaceSizeFromYoungGenerationSize(limit) / i::KB;
 }
 
 i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
@@ -2522,6 +2505,16 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> v8_context, Source* source, size_t arguments_count,
     Local<String> arguments[], size_t context_extension_count,
     Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason) {
+  return ScriptCompiler::CompileFunctionInContext(
+      v8_context, source, arguments_count, arguments, context_extension_count,
+      context_extensions, options, no_cache_reason, nullptr);
+}
+
+MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
+    Local<Context> v8_context, Source* source, size_t arguments_count,
+    Local<String> arguments[], size_t context_extension_count,
+    Local<Object> context_extensions[], CompileOptions options,
     NoCacheReason no_cache_reason,
     Local<ScriptOrModule>* script_or_module_out) {
   Local<Function> result;
@@ -3988,6 +3981,11 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   return Just(true);
 }
 
+bool v8::Object::Set(v8::Local<Value> key, v8::Local<Value> value) {
+  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
+  return Set(context, key, value).FromMaybe(false);
+}
+
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                             v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -3999,6 +3997,11 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                               .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
+}
+
+bool v8::Object::Set(uint32_t index, v8::Local<Value> value) {
+  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
+  return Set(context, index, value).FromMaybe(false);
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
@@ -4218,6 +4221,11 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
+Local<Value> v8::Object::Get(v8::Local<Value> key) {
+  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(Get(context, key), Value);
+}
+
 MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Object, Get, Value);
   auto self = Utils::OpenHandle(this);
@@ -4226,6 +4234,11 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
       !i::JSReceiver::GetElement(isolate, self, index).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
+}
+
+Local<Value> v8::Object::Get(uint32_t index) {
+  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
 }
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
@@ -10651,6 +10664,7 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 #undef EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE
 #undef RETURN_ON_FAILED_EXECUTION
 #undef RETURN_ON_FAILED_EXECUTION_PRIMITIVE
+#undef RETURN_TO_LOCAL_UNCHECKED
 #undef RETURN_ESCAPED
 #undef SET_FIELD_WRAPPED
 #undef NEW_STRING
