@@ -924,6 +924,8 @@ other type appropriate for `Buffer.from()` variants.
 added: TODO
 -->
 
+> Stability: 1 - Experimental
+
 * `options` {Object}
   * `zeroFill` {boolean}
     If `true`, all future `Buffer` instances, even the ones created with
