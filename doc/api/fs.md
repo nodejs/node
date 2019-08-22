@@ -1504,6 +1504,9 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29212
+    description: Enable `emitClose` option.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/19898
     description: Impose new restrictions on `start` and `end`, throwing
@@ -1529,6 +1532,7 @@ changes:
   * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
+  * `emitClose` {boolean} **Default:** `false`
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
@@ -1554,6 +1558,10 @@ If `fd` points to a character device that only supports blocking reads
 (such as keyboard or sound card), read operations do not finish until data is
 available. This can prevent the process from exiting and the stream from
 closing naturally.
+
+By default, the stream will not emit a `'close'` event after it has been
+destroyed. (This is the opposite of the default for other `Readable` streams.)
+Set the `emitClose` option to `true` to change this behavior.
 
 ```js
 const fs = require('fs');
@@ -1592,6 +1600,9 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29212
+    description: Enable `emitClose` option.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -1615,6 +1626,7 @@ changes:
   * `fd` {integer} **Default:** `null`
   * `mode` {integer} **Default:** `0o666`
   * `autoClose` {boolean} **Default:** `true`
+  * `emitClose` {boolean} **Default:** `false`
   * `start` {integer}
 * Returns: {fs.WriteStream} See [Writable Stream][].
 
@@ -1630,6 +1642,10 @@ the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
+
+By default, the stream will not emit a `'close'` event after it has been
+destroyed. (This is the opposite of the default for other `Writable` streams.)
+Set the `emitClose` option to `true` to change this behavior.
 
 Like [`ReadStream`][], if `fd` is specified, [`WriteStream`][] will ignore the
 `path` argument and will use the specified file descriptor. This means that no
