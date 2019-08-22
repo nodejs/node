@@ -462,7 +462,7 @@ std::string ReadFile(uv_file file) {
   uv_buf_t buf = uv_buf_init(buffer_memory, sizeof(buffer_memory));
 
   do {
-    const int r = uv_fs_read(uv_default_loop(),
+    const int r = uv_fs_read(nullptr,
                              &req,
                              file,
                              &buf,
