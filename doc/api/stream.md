@@ -1757,7 +1757,7 @@ const myWritable = new Writable({
 * `callback` {Function} Call this function (optionally with an error
   argument) when processing is complete for the supplied chunk.
 
-**All** `Writable` stream implementations must provide a
+All `Writable` stream implementations must provide a
 [`writable._write()`][stream-_write] method to send data to the underlying
 resource.
 
