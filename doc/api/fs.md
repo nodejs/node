@@ -5148,7 +5148,7 @@ through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
 
 All of the flags can be prepended with `'m'` to use a memory file mapping for
 accessing the file (for example `'max+'`). This is only available on Windows,
-on other operative systems `'m'` is ignored.
+On other operating systems, `'m'` is ignored.
 
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
