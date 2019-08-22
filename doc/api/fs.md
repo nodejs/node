@@ -2503,7 +2503,7 @@ changes:
 
 Read data from the file specified by `fd`.
 
-`buffer` is the buffer that the data will be reading from.
+`buffer` is the buffer that the data will be read from.
 
 `offset` is the offset in the buffer to start reading from.
 
