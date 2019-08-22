@@ -5147,7 +5147,7 @@ through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
 `EPERM`. Existing hidden files can be opened for writing with the `'r+'` flag.
 
 All of the flags can be prepended with `'m'` to use a memory file mapping for
-accessing the file (for example `'max+'`). This is only available on Windows,
+accessing the file (for example `'max+'`). This is only available on Windows.
 On other operating systems, `'m'` is ignored.
 
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
