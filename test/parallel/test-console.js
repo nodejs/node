@@ -245,6 +245,7 @@ assert.strictEqual(strings.shift(), 'inspect inspect\n');
 assert.ok(strings[0].includes('foo: { bar: { baz:'));
 assert.ok(strings[0].includes('quux'));
 assert.ok(strings.shift().includes('quux: true'));
+
 assert.ok(/^label: \d+\.\d{3}(ms|s|min|h)$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}(ms|s|min|h)$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}(ms|s|min|h)$/.test(strings.shift().trim()));
