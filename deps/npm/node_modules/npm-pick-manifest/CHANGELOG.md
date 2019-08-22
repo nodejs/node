@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.0.0"></a>
+# [3.0.0](https://github.com/zkat/npm-pick-manifest/compare/v2.2.3...v3.0.0) (2019-08-20)
+
+
+### Features
+
+* throw forbidden error when package is blocked by policy ([ad2a962](https://github.com/zkat/npm-pick-manifest/commit/ad2a962)), closes [#1](https://github.com/zkat/npm-pick-manifest/issues/1)
+
+
+### BREAKING CHANGES
+
+* This adds a new error code when package versions are
+blocked.
+
+PR-URL: https://github.com/npm/npm-pick-manifest/pull/1
+Credit: @claudiahdz
+
+
+
 <a name="2.2.3"></a>
 ## [2.2.3](https://github.com/zkat/npm-pick-manifest/compare/v2.2.2...v2.2.3) (2018-10-31)
 
