@@ -965,7 +965,7 @@ deprecated unsafe Buffer API, freezes `Buffer` and `require('buffer')` objects.
 
 The exact behaviour could be fine-tuned: for example, to still allow unsafe
 Buffer API for compatibility reasons (e.g. if that us required by application
-dependencies), `Buffer.haden({ throwOnUnsafe: false })` could be used.
+dependencies), `Buffer.harden({ throwOnUnsafe: false })` could be used.
 
 ### Class Method: Buffer.from(string[, encoding])
 <!-- YAML
