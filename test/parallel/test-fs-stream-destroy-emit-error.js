@@ -6,8 +6,31 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-test(fs.createReadStream(__filename));
-test(fs.createWriteStream(`${tmpdir.path}/dummy`));
+{
+  const stream = fs.createReadStream(__filename);
+  stream.on('close', common.mustNotCall());
+  test(stream);
+}
+
+{
+  const stream = fs.createWriteStream(`${tmpdir.path}/dummy`);
+  stream.on('close', common.mustNotCall());
+  test(stream);
+}
+
+{
+  const stream = fs.createReadStream(__filename, { emitClose: true });
+  stream.on('close', common.mustCall());
+  test(stream);
+}
+
+{
+  const stream = fs.createWriteStream(`${tmpdir.path}/dummy2`,
+                                      { emitClose: true });
+  stream.on('close', common.mustCall());
+  test(stream);
+}
+
 
 function test(stream) {
   const err = new Error('DESTROYED');
