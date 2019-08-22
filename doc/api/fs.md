@@ -1560,7 +1560,7 @@ available. This can prevent the process from exiting and the stream from
 closing naturally.
 
 By default, the stream will not emit a `'close'` event after it has been
-destroyed. (This is the opposite of the default for other `Readable` streams.)
+destroyed. This is the opposite of the default for other `Readable` streams.
 Set the `emitClose` option to `true` to change this behavior.
 
 ```js
@@ -1644,7 +1644,7 @@ It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
 
 By default, the stream will not emit a `'close'` event after it has been
-destroyed. (This is the opposite of the default for other `Writable` streams.)
+destroyed. This is the opposite of the default for other `Writable` streams.
 Set the `emitClose` option to `true` to change this behavior.
 
 Like [`ReadStream`][], if `fd` is specified, [`WriteStream`][] will ignore the
