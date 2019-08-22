@@ -79,6 +79,10 @@ assert.strictEqual(stringToFlags('max+'),
       () => stringToFlags(flags),
       { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
     );
+    common.expectsError(
+      () => stringToFlags(`m${flags}`),
+      { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+    );
   });
 
 common.expectsError(

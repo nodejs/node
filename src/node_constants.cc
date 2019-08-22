@@ -1127,9 +1127,7 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_EXCL);
 #endif
 
-#ifdef UV_FS_O_FILEMAP
-  NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
-#endif
+NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
 
 #ifdef O_NOCTTY
   NODE_DEFINE_CONSTANT(target, O_NOCTTY);
