@@ -458,3 +458,29 @@ const helloWorldBuffer = Buffer.from('hello world');
   w.write(Buffer.allocUnsafe(1));
   w.end(Buffer.allocUnsafe(0));
 }
+
+{
+  // Verify that _writeAfterEnd overrides error.
+  const d = new D();
+  d.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'custom error');
+  }));
+  d._writeAfterEnd = function(cb) {
+    process.nextTick(cb, new Error('custom error'));
+  };
+  d.end();
+  d.write('hello');
+}
+
+{
+  // Verify that _writeAfterEnd overrides error.
+  const w = new W();
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'custom error');
+  }));
+  w._writeAfterEnd = function(cb) {
+    process.nextTick(cb, new Error('custom error'));
+  };
+  w.end();
+  w.write('hello');
+}

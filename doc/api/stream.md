@@ -1790,6 +1790,20 @@ The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
+#### writable.\_writeAfterEnd(callback)
+
+* `callback` {Function} A callback function (optionally with an error
+  argument) to override the default `ERR_WRITE_AFTER_END` error.
+
+This function MUST NOT be called by application code directly. It should be
+implemented by child classes, and called by the internal `Writable` class
+methods only.
+
+The `writable._writeAfterEnd()` method may be implemented in order to perfom
+extra error handling when [`writable.write()`][stream-write] is called after
+[`writable.end()`][stream-end] and also to optionally override the default
+error with a more descriptive error.
+
 #### writable.\_writev(chunks, callback)
 
 * `chunks` {Object[]} The chunks to be written. Each chunk has following
