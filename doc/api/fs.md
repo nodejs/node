@@ -2503,9 +2503,9 @@ changes:
 
 Read data from the file specified by `fd`.
 
-`buffer` is the buffer that the data will be written to.
+`buffer` is the buffer that the data will be reading from.
 
-`offset` is the offset in the buffer to start writing at.
+`offset` is the offset in the buffer to start reading from.
 
 `length` is an integer specifying the number of bytes to read.
 
