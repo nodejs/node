@@ -24,6 +24,10 @@
 #include "util.h"
 #include "uv.h"
 
+#if defined(__DragonFly__)
+#error "Large pages is not supported by this platform"
+#endif
+
 #include <fcntl.h>  // _O_RDWR
 #include <sys/types.h>
 #include <sys/mman.h>

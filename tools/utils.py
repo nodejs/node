@@ -63,6 +63,10 @@ def GuessOS():
     return 'solaris'
   elif id == 'NetBSD':
     return 'netbsd'
+  elif id == 'DragonFly':
+    # Doing so on purpose as they are pretty close
+    # minus few features
+    return 'freebsd'
   elif id == 'AIX':
     return 'aix'
   else:
