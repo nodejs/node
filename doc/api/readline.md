@@ -38,6 +38,8 @@ received on the `input` stream.
 added: v0.1.104
 -->
 
+* Extends: {EventEmitter}
+
 Instances of the `readline.Interface` class are constructed using the
 `readline.createInterface()` method. Every instance is associated with a
 single `input` [Readable][] stream and a single `output` [Writable][] stream.

@@ -60,6 +60,8 @@ net.createServer().listen(
 added: v0.1.90
 -->
 
+* Extends: {EventEmitter}
+
 This class is used to create a TCP or [IPC][] server.
 
 ### new net.Server([options][, connectionListener])
@@ -384,10 +386,11 @@ active server in the event system. If the server is already `unref`ed calling
 added: v0.3.4
 -->
 
+* Extends: {stream.Duplex}
+
 This class is an abstraction of a TCP socket or a streaming [IPC][] endpoint
-(uses named pipes on Windows, and Unix domain sockets otherwise). A
-`net.Socket` is also a [duplex stream][], so it can be both readable and
-writable, and it is also an [`EventEmitter`][].
+(uses named pipes on Windows, and Unix domain sockets otherwise). It is also
+an [`EventEmitter`][].
 
 A `net.Socket` can be created by the user and used directly to interact with
 a server. For example, it is returned by [`net.createConnection()`][],
@@ -1234,7 +1237,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [Readable Stream]: stream.html#stream_class_stream_readable
-[duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0

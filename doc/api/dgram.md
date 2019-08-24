@@ -35,8 +35,9 @@ server.bind(41234);
 added: v0.1.99
 -->
 
-The `dgram.Socket` object is an [`EventEmitter`][] that encapsulates the
-datagram functionality.
+* Extends: {EventEmitter}
+
+Encapsulates the datagram functionality.
 
 New instances of `dgram.Socket` are created using [`dgram.createSocket()`][].
 The `new` keyword is not to be used to create `dgram.Socket` instances.
@@ -720,7 +721,6 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`Error`]: errors.html#errors_class_error
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.html#errors_err_socket_dgram_is_connected
 [`ERR_SOCKET_DGRAM_NOT_CONNECTED`]: errors.html#errors_err_socket_dgram_not_connected
-[`EventEmitter`]: events.html
 [`System Error`]: errors.html#errors_class_systemerror
 [`close()`]: #dgram_socket_close_callback
 [`cluster`]: cluster.html

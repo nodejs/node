@@ -64,6 +64,8 @@ An exception will be thrown if there is no active inspector.
 
 ## Class: inspector.Session
 
+* Extends: {EventEmitter}
+
 The `inspector.Session` is used for dispatching messages to the V8 inspector
 back-end and receiving message responses and notifications.
 
@@ -75,8 +77,6 @@ added: v8.0.0
 Create a new instance of the `inspector.Session` class. The inspector session
 needs to be connected through [`session.connect()`][] before the messages
 can be dispatched to the inspector backend.
-
-`inspector.Session` is an [`EventEmitter`][] with the following events:
 
 ### Event: 'inspectorNotification'
 <!-- YAML
@@ -217,7 +217,6 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 ```
 
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
-[`EventEmitter`]: events.html#events_class_eventemitter
 [`session.connect()`]: #inspector_session_connect
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
