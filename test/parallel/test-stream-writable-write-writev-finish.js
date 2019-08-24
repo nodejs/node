@@ -14,16 +14,10 @@ const stream = require('stream');
     cb(new Error('write test error'));
   };
 
-  let firstError = false;
-  writable.on('finish', common.mustCall(function() {
-    assert.strictEqual(firstError, true);
-  }));
-
-  writable.on('prefinish', common.mustCall());
-
+  writable.on('finish', common.mustNotCall());
+  writable.on('prefinish', common.mustNotCall());
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'write test error');
-    firstError = true;
   }));
 
   writable.end('test');
@@ -38,7 +32,9 @@ const stream = require('stream');
 
   writable.on('finish', common.mustNotCall());
   writable.on('prefinish', common.mustNotCall());
-  writable.on('error', common.mustCall());
+  writable.on('error', common.mustCall((er) => {
+    assert.strictEqual(er.message, 'write test error');
+  }));
 
   writable.end('test');
 }
@@ -55,8 +51,7 @@ const stream = require('stream');
   };
 
   writable.on('finish', common.mustNotCall());
-  writable.on('prefinish', common.mustCall());
-
+  writable.on('prefinish', common.mustNotCall());
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'writev test error');
   }));
@@ -82,7 +77,6 @@ const stream = require('stream');
 
   writable.on('finish', common.mustNotCall());
   writable.on('prefinish', common.mustNotCall());
-
   writable.on('error', common.mustCall((er) => {
     assert.strictEqual(er.message, 'writev test error');
   }));
