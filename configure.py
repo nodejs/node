@@ -969,7 +969,8 @@ def configure_node(o):
       cross_compiling and want_snapshots)
 
   if not options.without_node_snapshot:
-    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
+    o['variables']['node_use_node_snapshot'] = b(
+        not cross_compiling and want_snapshots)
   else:
     o['variables']['node_use_node_snapshot'] = 'false'
 
