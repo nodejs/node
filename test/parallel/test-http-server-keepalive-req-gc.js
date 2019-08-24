@@ -1,19 +1,22 @@
+// Flags: --expose-gc
 'use strict';
 const common = require('../common');
-const assert = require('assert');
+const onGC = require('../common/ongc');
 const { createServer } = require('http');
 const { connect } = require('net');
 
-// Make sure that for HTTP keepalive requests, the .on('end') event is emitted
-// on the incoming request object, and that the parser instance does not hold
-// on to that request object afterwards.
+// Make sure that for HTTP keepalive requests, the req object can be
+// garbage collected once the request is finished.
+// Refs: https://github.com/nodejs/node/issues/9668
 
+let client;
 const server = createServer(common.mustCall((req, res) => {
+  onGC(req, { ongc: common.mustCall() });
+  req.resume();
   req.on('end', common.mustCall(() => {
-    const parser = req.socket.parser;
-    assert.strictEqual(parser.incoming, req);
-    process.nextTick(() => {
-      assert.strictEqual(parser.incoming, null);
+    setImmediate(() => {
+      client.end();
+      global.gc();
     });
   }));
   res.end('hello world');
@@ -22,7 +25,7 @@ const server = createServer(common.mustCall((req, res) => {
 server.unref();
 
 server.listen(0, common.mustCall(() => {
-  const client = connect(server.address().port);
+  client = connect(server.address().port);
 
   const req = [
     'POST / HTTP/1.1',
@@ -34,5 +37,6 @@ server.listen(0, common.mustCall(() => {
     ''
   ].join('\r\n');
 
-  client.end(req);
+  client.write(req);
+  client.unref();
 }));
