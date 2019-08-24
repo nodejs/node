@@ -60,6 +60,8 @@ net.createServer().listen(
 added: v0.1.90
 -->
 
+* Extends: {EventEmitter}
+
 This class is used to create a TCP or [IPC][] server.
 
 ### new net.Server([options][, connectionListener])
@@ -383,6 +385,8 @@ active server in the event system. If the server is already `unref`ed calling
 <!-- YAML
 added: v0.3.4
 -->
+
+* Extends: {stream.Duplex}
 
 This class is an abstraction of a TCP socket or a streaming [IPC][] endpoint
 (uses named pipes on Windows, and Unix domain sockets otherwise). A
