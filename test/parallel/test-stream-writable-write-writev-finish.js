@@ -117,7 +117,7 @@ const stream = require('stream');
 
   const ws = new stream.Writable();
 
-  ws.on('finish', common.mustNotCall());
+  ws.on('finish', common.mustCall());
   ws.on('error', common.mustCall());
 
   ws._write = (chunk, encoding, done) => {
