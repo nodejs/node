@@ -10,7 +10,7 @@ jobs:
       max-parallel: 2
       matrix:
         # GitHub Actions / build (2.7) successful in 1h 30m 7s
-        python-version: [2.7, 3.7]  # [2.7, 3.5, 3.6,, 3.7] 
+        python-version: [2.7, 3.6, 3.7]  # [2.7, 3.5, 3.6,, 3.7] 
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
