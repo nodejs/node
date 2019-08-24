@@ -88,7 +88,19 @@ jobs:
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
 
-    - name: "Python 3 is EXPERIMENTAL"
+    - name: "Python 3 is EXPERIMENTAL (Py36)"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global 3.6.7
+        - python3.6 -m pip install --upgrade pip
+        - make lint-py-build
+      script:
+        - NODE=$(which node) make lint lint-py
+        - python3.6 ./configure.py
+        - NODE=$(which node) make test
+
+    - name: "Python 3 is EXPERIMENTAL (Py37)"
       language: node_js
       node_js: "node"
       install:
@@ -101,4 +113,5 @@ jobs:
         - NODE=$(which node) make test
 
   allow_failures:
-    - name: "Python 3 is EXPERIMENTAL"
+    - name: "Python 3 is EXPERIMENTAL (Py36)"
+    - name: "Python 3 is EXPERIMENTAL (Py37)"
