@@ -1793,13 +1793,13 @@ user programs.
 #### writable.\_writeAfterEnd(callback)
 
 * `callback` {Function} A callback function (optionally with an error
-  argument) to override the default `ERR_WRITE_AFTER_END` error.
+  argument) to override the default `ERR_STREAM_WRITE_AFTER_END` error.
 
 This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Writable` class
 methods only.
 
-The `writable._writeAfterEnd()` method may be implemented in order to perfom
+The `writable._writeAfterEnd()` method may be implemented in order to perform
 extra error handling when [`writable.write()`][stream-write] is called after
 [`writable.end()`][stream-end] and also to optionally override the default
 error with a more descriptive error.
