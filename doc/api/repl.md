@@ -697,7 +697,6 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`domain`]: domain.html
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
-[`readline.Interface`]: readline.html#readline_class_interface
 [`repl.ReplServer`]: #repl_class_replserver
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html

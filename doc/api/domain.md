@@ -476,7 +476,6 @@ Promises. In other words, no `'error'` event will be emitted for unhandled
 `Promise` rejections.
 
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_eventemitter
 [`domain.add(emitter)`]: #domain_domain_add_emitter
 [`domain.bind(callback)`]: #domain_domain_bind_callback
 [`domain.exit()`]: #domain_domain_exit
