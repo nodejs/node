@@ -13,7 +13,7 @@ function connectToServer() {
                           type: TypeError
                         });
 
-    client.end();
+    client.destroy();
   })
-  .on('end', () => server.close());
+  .on('close', () => server.close());
 }
