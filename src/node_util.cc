@@ -191,14 +191,16 @@ class WeakReference : public BaseObject {
 
   static void IncRef(const FunctionCallbackInfo<Value>& args) {
     WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-    if (weak_ref->reference_count_ == 0) weak_ref->target_.ClearWeak();
     weak_ref->reference_count_++;
+    if (weak_ref->target_.IsEmpty()) return;
+    if (weak_ref->reference_count_ == 1) weak_ref->target_.ClearWeak();
   }
 
   static void DecRef(const FunctionCallbackInfo<Value>& args) {
     WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
     CHECK_GE(weak_ref->reference_count_, 1);
     weak_ref->reference_count_--;
+    if (weak_ref->target_.IsEmpty()) return;
     if (weak_ref->reference_count_ == 0) weak_ref->target_.SetWeak();
   }
 
