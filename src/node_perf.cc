@@ -467,31 +467,18 @@ static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
 ELDHistogram::ELDHistogram(
     Environment* env,
     Local<Object> wrap,
-    int32_t resolution) : BaseObject(env, wrap),
+    int32_t resolution) : HandleWrap(env,
+                                     wrap,
+                                     reinterpret_cast<uv_handle_t*>(&timer_),
+                                     AsyncWrap::PROVIDER_ELDHISTOGRAM),
                           Histogram(1, 3.6e12),
                           resolution_(resolution) {
   MakeWeak();
-  timer_ = new uv_timer_t();
-  uv_timer_init(env->event_loop(), timer_);
-  timer_->data = this;
+  uv_timer_init(env->event_loop(), &timer_);
 }
 
-void ELDHistogram::CloseTimer() {
-  if (timer_ == nullptr)
-    return;
-
-  env()->CloseHandle(timer_, [](uv_timer_t* handle) { delete handle; });
-  timer_ = nullptr;
-}
-
-ELDHistogram::~ELDHistogram() {
-  Disable();
-  CloseTimer();
-}
-
-void ELDHistogramDelayInterval(uv_timer_t* req) {
-  ELDHistogram* histogram =
-    reinterpret_cast<ELDHistogram*>(req->data);
+void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
+  ELDHistogram* histogram = ContainerOf(&ELDHistogram::timer_, req);
   histogram->RecordDelta();
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                  "min", histogram->Min());
@@ -527,21 +514,21 @@ bool ELDHistogram::RecordDelta() {
 }
 
 bool ELDHistogram::Enable() {
-  if (enabled_) return false;
+  if (enabled_ || IsHandleClosing()) return false;
   enabled_ = true;
   prev_ = 0;
-  uv_timer_start(timer_,
-                 ELDHistogramDelayInterval,
+  uv_timer_start(&timer_,
+                 DelayIntervalCallback,
                  resolution_,
                  resolution_);
-  uv_unref(reinterpret_cast<uv_handle_t*>(timer_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
   return true;
 }
 
 bool ELDHistogram::Disable() {
-  if (!enabled_) return false;
+  if (!enabled_ || IsHandleClosing()) return false;
   enabled_ = false;
-  uv_timer_stop(timer_);
+  uv_timer_stop(&timer_);
   return true;
 }
 

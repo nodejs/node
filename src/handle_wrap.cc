@@ -84,6 +84,17 @@ void HandleWrap::Close(Local<Value> close_callback) {
 }
 
 
+void HandleWrap::MakeWeak() {
+  persistent().SetWeak(
+      this,
+      [](const v8::WeakCallbackInfo<HandleWrap>& data) {
+        HandleWrap* handle_wrap = data.GetParameter();
+        handle_wrap->persistent().Reset();
+        handle_wrap->Close();
+      }, v8::WeakCallbackType::kParameter);
+}
+
+
 void HandleWrap::MarkAsInitialized() {
   env()->handle_wrap_queue()->PushBack(this);
   state_ = kInitialized;
