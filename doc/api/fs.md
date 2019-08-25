@@ -374,11 +374,13 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 added: v0.5.8
 -->
 
+* Extends {EventEmitter}
+
 A successful call to [`fs.watch()`][] method will return a new `fs.FSWatcher`
 object.
 
-All `fs.FSWatcher` objects are [`EventEmitter`][]'s that will emit a `'change'`
-event whenever a specific watched file is modified.
+All `fs.FSWatcher` objects emit a `'change'` event whenever a specific watched
+file is modified.
 
 ### Event: 'change'
 <!-- YAML
@@ -437,10 +439,10 @@ Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 added: v0.1.93
 -->
 
+* Extends: {stream.Readable}
+
 A successful call to `fs.createReadStream()` will return a new `fs.ReadStream`
 object.
-
-All `fs.ReadStream` objects are [Readable Streams][].
 
 ### Event: 'close'
 <!-- YAML
@@ -860,7 +862,7 @@ of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 added: v0.1.93
 -->
 
-`WriteStream` is a [Writable Stream][].
+* Extends {stream.Writable}
 
 ### Event: 'close'
 <!-- YAML
@@ -1536,7 +1538,7 @@ changes:
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
-* Returns: {fs.ReadStream} See [Readable Streams][].
+* Returns: {fs.ReadStream}
 
 Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
 returned by this method has a default `highWaterMark` of 64 kb.
@@ -1628,7 +1630,7 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `false`
   * `start` {integer}
-* Returns: {fs.WriteStream} See [Writable Stream][].
+* Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file, allowed values are in the
@@ -5210,7 +5212,6 @@ the file contents.
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.html#buffer_buffer
-[`EventEmitter`]: events.html
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`ReadStream`]: #fs_class_fs_readstream
@@ -5264,8 +5265,6 @@ the file contents.
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
-[Readable Streams]: stream.html#stream_class_stream_readable
-[Writable Stream]: stream.html#stream_class_stream_writable
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
