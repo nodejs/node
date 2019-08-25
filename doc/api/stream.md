@@ -1801,8 +1801,8 @@ This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Writable` class
 methods only.
 
-The `writable._writev()` method may be implemented in addition (but not
-instead of) to `writable._write()` in stream implementations that are capable
+The `writable._writev()` method may be implemented in addition to (but not
+instead of) `writable._write()` in stream implementations that are capable
 of processing multiple chunks of data at once. If implemented, the method will
 be called with all chunks of data currently buffered in the write queue.
 
