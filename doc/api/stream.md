@@ -71,6 +71,11 @@ passed into the stream's constructor. For normal streams, the `highWaterMark`
 option specifies a [total number of bytes][hwm-gotcha]. For streams operating
 in object mode, the `highWaterMark` specifies a total number of objects.
 
+For [`Writable`][] streams the `pendingWaterMark` additionally limits the
+number of pending writes. As each buffered write has a small memory overhead,
+lots of small writes can significantly exceed what is expected from the
+`highWaterMark` if the `pendingWaterMark` value is set too high.
+
 Data is buffered in `Readable` streams when the implementation calls
 [`stream.push(chunk)`][stream-push]. If the consumer of the Stream does not
 call [`stream.read()`][stream-read], the data will sit in the internal
@@ -535,6 +540,17 @@ This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
+
+##### writable.writablePending
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+This property contains the number of pending writes. The value provides
+introspection data regarding the status of the `pendingWaterMark`.
+
 ##### writable.writableObjectMode
 <!-- YAML
 added: v12.3.0
@@ -543,6 +559,16 @@ added: v12.3.0
 * {boolean}
 
 Getter for the property `objectMode` of a given `Writable` stream.
+
+##### writable.writablePendingWaterMark
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Return the value of `pendingWaterMark` passed when constructing this
+`Writable`.
 
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
@@ -573,10 +599,11 @@ occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
 `'error'` event.
 
-The return value is `true` if the internal buffer is less than the
-`highWaterMark` configured when the stream was created after admitting `chunk`.
-If `false` is returned, further attempts to write data to the stream should
-stop until the [`'drain'`][] event is emitted.
+The return value is `true` if the internal buffer size is less than the
+`highWaterMark` and the number of pending writes is less than the
+`pendingWaterMark`, both configured when the stream was created after admitting
+`chunk`. If `false` is returned, further attempts to write data to the stream
+should stop until the [`'drain'`][] event is emitted.
 
 While a stream is not draining, calls to `write()` will buffer `chunk`, and
 return false. Once all currently buffered chunks are drained (accepted for
@@ -1675,6 +1702,9 @@ changes:
   * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
     `16384` (16kb), or `16` for `objectMode` streams.
+  * `pendingWaterMark` {number} Pending level when
+    [`stream.write()`][stream-write] starts returning `false`. **Default:**
+    `1024`, or `16` for `objectMode` streams.
   * `decodeStrings` {boolean} Whether to encode `string`s passed to
     [`stream.write()`][stream-write] to `Buffer`s (with the encoding
     specified in the [`stream.write()`][stream-write] call) before passing
@@ -2212,6 +2242,8 @@ changes:
     of the stream. Has no effect if `highWaterMark` is provided.
   * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side
     of the stream. Has no effect if `highWaterMark` is provided.
+  * `writablePendingWaterMark` {number} Sets `pendingWaterMark` for the writable side
+    of the stream. Has no effect if `pendingWaterMark` is provided.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
