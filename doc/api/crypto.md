@@ -169,6 +169,8 @@ console.log(cert.verifySpkac(Buffer.from(spkac)));
 added: v0.1.94
 -->
 
+* Extends: {stream.Transform}
+
 Instances of the `Cipher` class are used to encrypt data. The class can be
 used in one of two ways:
 
@@ -353,6 +355,8 @@ The `cipher.update()` method can be called multiple times with new data until
 <!-- YAML
 added: v0.1.94
 -->
+
+* Extends: {stream.Transform}
 
 Instances of the `Decipher` class are used to decrypt data. The class can be
 used in one of two ways:
@@ -950,6 +954,8 @@ console.log(aliceSecret === bobSecret);
 added: v0.1.92
 -->
 
+* Extends: {stream.Transform}
+
 The `Hash` class is a utility for creating hash digests of data. It can be
 used in one of two ways:
 
@@ -1043,6 +1049,8 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.94
 -->
+
+* Extends: {stream.Transform}
 
 The `Hmac` class is a utility for creating cryptographic HMAC digests. It can
 be used in one of two ways:
@@ -1252,6 +1260,8 @@ or `'private'` for private (asymmetric) keys.
 added: v0.1.92
 -->
 
+* Extends: {stream.Writable}
+
 The `Sign` class is a utility for generating signatures. It can be used in one
 of two ways:
 
@@ -1376,6 +1386,8 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 -->
+
+* Extends: {stream.Writable}
 
 The `Verify` class is a utility for verifying signatures. It can be used in one
 of two ways:
