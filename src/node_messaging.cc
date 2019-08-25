@@ -31,6 +31,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
 using v8::String;
+using v8::Symbol;
 using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
@@ -304,7 +305,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 Maybe<bool> Message::Serialize(Environment* env,
                                Local<Context> context,
                                Local<Value> input,
-                               Local<Value> transfer_list_v,
+                               const TransferList& transfer_list_v,
                                Local<Object> source_port) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(context);
@@ -317,72 +318,66 @@ Maybe<bool> Message::Serialize(Environment* env,
   delegate.serializer = &serializer;
 
   std::vector<Local<ArrayBuffer>> array_buffers;
-  if (transfer_list_v->IsArray()) {
-    Local<Array> transfer_list = transfer_list_v.As<Array>();
-    uint32_t length = transfer_list->Length();
-    for (uint32_t i = 0; i < length; ++i) {
-      Local<Value> entry;
-      if (!transfer_list->Get(context, i).ToLocal(&entry))
-        return Nothing<bool>();
-      // Currently, we support ArrayBuffers and MessagePorts.
-      if (entry->IsArrayBuffer()) {
-        Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
-        // If we cannot render the ArrayBuffer unusable in this Isolate and
-        // take ownership of its memory, copying the buffer will have to do.
-        if (!ab->IsDetachable() || ab->IsExternal() ||
-            !env->isolate_data()->uses_node_allocator()) {
-          continue;
-        }
-        if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
-            array_buffers.end()) {
-          ThrowDataCloneException(
-              context,
-              FIXED_ONE_BYTE_STRING(
-                  env->isolate(),
-                  "Transfer list contains duplicate ArrayBuffer"));
-          return Nothing<bool>();
-        }
-        // We simply use the array index in the `array_buffers` list as the
-        // ID that we write into the serialized buffer.
-        uint32_t id = array_buffers.size();
-        array_buffers.push_back(ab);
-        serializer.TransferArrayBuffer(id, ab);
-        continue;
-      } else if (env->message_port_constructor_template()
-                    ->HasInstance(entry)) {
-        // Check if the source MessagePort is being transferred.
-        if (!source_port.IsEmpty() && entry == source_port) {
-          ThrowDataCloneException(
-              context,
-              FIXED_ONE_BYTE_STRING(env->isolate(),
-                                    "Transfer list contains source port"));
-          return Nothing<bool>();
-        }
-        MessagePort* port = Unwrap<MessagePort>(entry.As<Object>());
-        if (port == nullptr || port->IsDetached()) {
-          ThrowDataCloneException(
-              context,
-              FIXED_ONE_BYTE_STRING(
-                  env->isolate(),
-                  "MessagePort in transfer list is already detached"));
-          return Nothing<bool>();
-        }
-        if (std::find(delegate.ports_.begin(), delegate.ports_.end(), port) !=
-            delegate.ports_.end()) {
-          ThrowDataCloneException(
-              context,
-              FIXED_ONE_BYTE_STRING(
-                  env->isolate(),
-                  "Transfer list contains duplicate MessagePort"));
-          return Nothing<bool>();
-        }
-        delegate.ports_.push_back(port);
+  for (uint32_t i = 0; i < transfer_list_v.length(); ++i) {
+    Local<Value> entry = transfer_list_v[i];
+    // Currently, we support ArrayBuffers and MessagePorts.
+    if (entry->IsArrayBuffer()) {
+      Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
+      // If we cannot render the ArrayBuffer unusable in this Isolate and
+      // take ownership of its memory, copying the buffer will have to do.
+      if (!ab->IsDetachable() || ab->IsExternal() ||
+          !env->isolate_data()->uses_node_allocator()) {
         continue;
       }
-
-      THROW_ERR_INVALID_TRANSFER_OBJECT(env);
-      return Nothing<bool>();
+      if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
+          array_buffers.end()) {
+        ThrowDataCloneException(
+            context,
+            FIXED_ONE_BYTE_STRING(
+                env->isolate(),
+                "Transfer list contains duplicate ArrayBuffer"));
+        return Nothing<bool>();
+      }
+      // We simply use the array index in the `array_buffers` list as the
+      // ID that we write into the serialized buffer.
+      uint32_t id = array_buffers.size();
+      array_buffers.push_back(ab);
+      serializer.TransferArrayBuffer(id, ab);
+      continue;
+    } else if (env->message_port_constructor_template()
+                  ->HasInstance(entry)) {
+      // Check if the source MessagePort is being transferred.
+      if (!source_port.IsEmpty() && entry == source_port) {
+        ThrowDataCloneException(
+            context,
+            FIXED_ONE_BYTE_STRING(env->isolate(),
+                                  "Transfer list contains source port"));
+        return Nothing<bool>();
+      }
+      MessagePort* port = Unwrap<MessagePort>(entry.As<Object>());
+      if (port == nullptr || port->IsDetached()) {
+        ThrowDataCloneException(
+            context,
+            FIXED_ONE_BYTE_STRING(
+                env->isolate(),
+                "MessagePort in transfer list is already detached"));
+        return Nothing<bool>();
+      }
+      if (std::find(delegate.ports_.begin(), delegate.ports_.end(), port) !=
+          delegate.ports_.end()) {
+        ThrowDataCloneException(
+            context,
+            FIXED_ONE_BYTE_STRING(
+                env->isolate(),
+                "Transfer list contains duplicate MessagePort"));
+        return Nothing<bool>();
+      }
+      delegate.ports_.push_back(port);
+      continue;
     }
+
+    THROW_ERR_INVALID_TRANSFER_OBJECT(env);
+    return Nothing<bool>();
   }
 
   serializer.WriteHeader();
@@ -664,7 +659,7 @@ std::unique_ptr<MessagePortData> MessagePort::Detach() {
 
 Maybe<bool> MessagePort::PostMessage(Environment* env,
                                      Local<Value> message_v,
-                                     Local<Value> transfer_v) {
+                                     const TransferList& transfer_v) {
   Isolate* isolate = env->isolate();
   Local<Object> obj = object(isolate);
   Local<Context> context = obj->CreationContext();
@@ -705,20 +700,98 @@ Maybe<bool> MessagePort::PostMessage(Environment* env,
   return Just(true);
 }
 
+static Maybe<bool> ReadIterable(Environment* env,
+                                Local<Context> context,
+                                // NOLINTNEXTLINE(runtime/references)
+                                TransferList& transfer_list,
+                                Local<Value> object) {
+  if (!object->IsObject()) return Just(false);
+
+  if (object->IsArray()) {
+    Local<Array> arr = object.As<Array>();
+    size_t length = arr->Length();
+    transfer_list.AllocateSufficientStorage(length);
+    for (size_t i = 0; i < length; i++) {
+      if (!arr->Get(context, i).ToLocal(&transfer_list[i]))
+        return Nothing<bool>();
+    }
+    return Just(true);
+  }
+
+  Isolate* isolate = env->isolate();
+  Local<Value> iterator_method;
+  if (!object.As<Object>()->Get(context, Symbol::GetIterator(isolate))
+      .ToLocal(&iterator_method)) return Nothing<bool>();
+  if (!iterator_method->IsFunction()) return Just(false);
+
+  Local<Value> iterator;
+  if (!iterator_method.As<Function>()->Call(context, object, 0, nullptr)
+      .ToLocal(&iterator)) return Nothing<bool>();
+  if (!iterator->IsObject()) return Just(false);
+
+  Local<Value> next;
+  if (!iterator.As<Object>()->Get(context, env->next_string()).ToLocal(&next))
+    return Nothing<bool>();
+  if (!next->IsFunction()) return Just(false);
+
+  std::vector<Local<Value>> entries;
+  while (env->can_call_into_js()) {
+    Local<Value> result;
+    if (!next.As<Function>()->Call(context, iterator, 0, nullptr)
+        .ToLocal(&result)) return Nothing<bool>();
+    if (!result->IsObject()) return Just(false);
+
+    Local<Value> done;
+    if (!result.As<Object>()->Get(context, env->done_string()).ToLocal(&done))
+      return Nothing<bool>();
+    if (done->BooleanValue(isolate)) break;
+
+    Local<Value> val;
+    if (!result.As<Object>()->Get(context, env->value_string()).ToLocal(&val))
+      return Nothing<bool>();
+    entries.push_back(val);
+  }
+
+  transfer_list.AllocateSufficientStorage(entries.size());
+  std::copy(entries.begin(), entries.end(), &transfer_list[0]);
+  return Just(true);
+}
+
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Object> obj = args.This();
+  Local<Context> context = obj->CreationContext();
+
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
                                        "MessagePort.postMessage");
   }
+
   if (!args[1]->IsNullOrUndefined() && !args[1]->IsObject()) {
     // Browsers ignore null or undefined, and otherwise accept an array or an
     // options object.
-    // TODO(addaleax): Add support for an options object and generic sequence
-    // support.
-    // Refs: https://github.com/nodejs/node/pull/28033#discussion_r289964991
     return THROW_ERR_INVALID_ARG_TYPE(env,
-        "Optional transferList argument must be an array");
+        "Optional transferList argument must be an iterable");
+  }
+
+  TransferList transfer_list;
+  if (args[1]->IsObject()) {
+    bool was_iterable;
+    if (!ReadIterable(env, context, transfer_list, args[1]).To(&was_iterable))
+      return;
+    if (!was_iterable) {
+      Local<Value> transfer_option;
+      if (!args[1].As<Object>()->Get(context, env->transfer_string())
+          .ToLocal(&transfer_option)) return;
+      if (!transfer_option->IsUndefined()) {
+        if (!ReadIterable(env, context, transfer_list, transfer_option)
+            .To(&was_iterable)) return;
+        if (!was_iterable) {
+          return THROW_ERR_INVALID_ARG_TYPE(env,
+              "Optional options.transfer argument must be an iterable");
+        }
+      }
+    }
   }
 
   MessagePort* port = Unwrap<MessagePort>(args.This());
@@ -727,13 +800,11 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   // transfers.
   if (port == nullptr) {
     Message msg;
-    Local<Object> obj = args.This();
-    Local<Context> context = obj->CreationContext();
-    USE(msg.Serialize(env, context, args[0], args[1], obj));
+    USE(msg.Serialize(env, context, args[0], transfer_list, obj));
     return;
   }
 
-  port->PostMessage(env, args[0], args[1]);
+  port->PostMessage(env, args[0], transfer_list);
 }
 
 void MessagePort::Start() {

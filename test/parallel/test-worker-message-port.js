@@ -72,22 +72,81 @@ const { MessageChannel, MessagePort } = require('worker_threads');
 
 {
   const { port1, port2 } = new MessageChannel();
-  port2.on('message', common.mustCall(4));
+  port2.on('message', common.mustCall(6));
   port1.postMessage(1, null);
   port1.postMessage(2, undefined);
   port1.postMessage(3, []);
   port1.postMessage(4, {});
+  port1.postMessage(5, { transfer: undefined });
+  port1.postMessage(6, { transfer: [] });
 
   const err = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Optional transferList argument must be an array'
+    message: 'Optional transferList argument must be an iterable'
   };
 
   assert.throws(() => port1.postMessage(5, 0), err);
   assert.throws(() => port1.postMessage(5, false), err);
   assert.throws(() => port1.postMessage(5, 'X'), err);
   assert.throws(() => port1.postMessage(5, Symbol('X')), err);
+
+  const err2 = {
+    constructor: TypeError,
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'Optional options.transfer argument must be an iterable'
+  };
+
+  assert.throws(() => port1.postMessage(5, { transfer: null }), err2);
+  assert.throws(() => port1.postMessage(5, { transfer: 0 }), err2);
+  assert.throws(() => port1.postMessage(5, { transfer: false }), err2);
+  assert.throws(() => port1.postMessage(5, { transfer: {} }), err2);
+  assert.throws(() => port1.postMessage(5, {
+    transfer: { [Symbol.iterator]() { return {}; } }
+  }), err2);
+  assert.throws(() => port1.postMessage(5, {
+    transfer: { [Symbol.iterator]() { return { next: 42 }; } }
+  }), err2);
+  assert.throws(() => port1.postMessage(5, {
+    transfer: { [Symbol.iterator]() { return { next: null }; } }
+  }), err2);
+  port1.close();
+}
+
+{
+  // Make sure these ArrayBuffers end up detached, i.e. are actually being
+  // transferred because the transfer list provides them.
+  const { port1, port2 } = new MessageChannel();
+  port2.on('message', common.mustCall((msg) => {
+    assert.strictEqual(msg.ab.byteLength, 10);
+  }, 4));
+
+  {
+    const ab = new ArrayBuffer(10);
+    port1.postMessage({ ab }, [ ab ]);
+    assert.strictEqual(ab.byteLength, 0);
+  }
+
+  {
+    const ab = new ArrayBuffer(10);
+    port1.postMessage({ ab }, { transfer: [ ab ] });
+    assert.strictEqual(ab.byteLength, 0);
+  }
+
+  {
+    const ab = new ArrayBuffer(10);
+    port1.postMessage({ ab }, (function*() { yield ab; })());
+    assert.strictEqual(ab.byteLength, 0);
+  }
+
+  {
+    const ab = new ArrayBuffer(10);
+    port1.postMessage({ ab }, {
+      transfer: (function*() { yield ab; })()
+    });
+    assert.strictEqual(ab.byteLength, 0);
+  }
+
   port1.close();
 }
 

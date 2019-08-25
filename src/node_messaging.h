@@ -14,6 +14,8 @@ namespace worker {
 class MessagePortData;
 class MessagePort;
 
+typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
+
 // Represents a single communication message.
 class Message : public MemoryRetainer {
  public:
@@ -44,7 +46,7 @@ class Message : public MemoryRetainer {
   v8::Maybe<bool> Serialize(Environment* env,
                             v8::Local<v8::Context> context,
                             v8::Local<v8::Value> input,
-                            v8::Local<v8::Value> transfer_list,
+                            const TransferList& transfer_list,
                             v8::Local<v8::Object> source_port =
                                 v8::Local<v8::Object>());
 
@@ -149,7 +151,7 @@ class MessagePort : public HandleWrap {
   // serialized with transfers, then silently discarded.
   v8::Maybe<bool> PostMessage(Environment* env,
                               v8::Local<v8::Value> message,
-                              v8::Local<v8::Value> transfer);
+                              const TransferList& transfer);
 
   // Start processing messages on this port as a receiving end.
   void Start();
