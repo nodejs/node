@@ -69,3 +69,25 @@ assert.strictEqual(
 
 // Control chars and combining chars are zero
 assert.strictEqual(readline.getStringWidth('\u200E\n\u220A\u20D2'), 1);
+
+// Test that the fast path for ASCII characters yields results consistent
+// with the 'slow' path.
+for (const ambiguousAsFullWidth of [ false, true ]) {
+  for (let i = 0; i < 256; i++) {
+    const char = String.fromCharCode(i);
+    assert.strictEqual(
+      readline.getStringWidth(i, { ambiguousAsFullWidth }),
+      readline.getStringWidth(char, { ambiguousAsFullWidth }));
+    assert.strictEqual(
+      readline.getStringWidth(char + '🎉', { ambiguousAsFullWidth }),
+      readline.getStringWidth(char, { ambiguousAsFullWidth }) + 2);
+
+    if (i < 32 || (i >= 127 && i < 160)) {  // Control character
+      assert.strictEqual(
+        readline.getStringWidth(i, { ambiguousAsFullWidth }), 0);
+    } else if (i < 127) {  // Regular ASCII character
+      assert.strictEqual(
+        readline.getStringWidth(i, { ambiguousAsFullWidth }), 1);
+    }
+  }
+}
