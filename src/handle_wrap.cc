@@ -126,15 +126,14 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // The wrap object should still be there.
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
   CHECK_EQ(wrap->state_, kClosing);
 
   wrap->state_ = kClosed;
 
   wrap->OnClose();
 
-  if (wrap->object()->Has(env->context(), env->handle_onclose_symbol())
+  if (!wrap->persistent().IsEmpty() &&
+      wrap->object()->Has(env->context(), env->handle_onclose_symbol())
       .FromMaybe(false)) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
