@@ -180,7 +180,7 @@ cases. If [domains][] are enabled, or a handler has been registered with
 
 <!--type=class-->
 
-A generic JavaScript `Error` object that does not denote any specific
+A generic JavaScript {Error} object that does not denote any specific
 circumstance of why the error occurred. `Error` objects capture a "stack trace"
 detailing the point in the code at which the `Error` was instantiated, and may
 provide a text description of the error.
@@ -352,14 +352,18 @@ loop tick.
 
 ## Class: AssertionError
 
-A subclass of `Error` that indicates the failure of an assertion. For details,
-see [`Class: assert.AssertionError`][].
+* Extends: {errors.Error}
+
+Indicates the failure of an assertion. For details, see
+[`Class: assert.AssertionError`][].
 
 ## Class: RangeError
 
-A subclass of `Error` that indicates that a provided argument was not within the
-set or range of acceptable values for a function; whether that is a numeric
-range, or outside the set of options for a given function parameter.
+* Extends: {errors.Error}
+
+Indicates that a provided argument was not within the set or range of
+acceptable values for a function; whether that is a numeric range, or
+outside the set of options for a given function parameter.
 
 ```js
 require('net').connect(-1);
@@ -371,9 +375,11 @@ of argument validation.
 
 ## Class: ReferenceError
 
-A subclass of `Error` that indicates that an attempt is being made to access a
-variable that is not defined. Such errors commonly indicate typos in code, or
-an otherwise broken program.
+* Extends: {errors.Error}
+
+Indicates that an attempt is being made to access a variable that is not
+defined. Such errors commonly indicate typos in code, or an otherwise broken
+program.
 
 While client code may generate and propagate these errors, in practice, only V8
 will do so.
@@ -389,11 +395,12 @@ or its dependencies.
 
 ## Class: SyntaxError
 
-A subclass of `Error` that indicates that a program is not valid JavaScript.
-These errors may only be generated and propagated as a result of code
-evaluation. Code evaluation may happen as a result of `eval`, `Function`,
-`require`, or [vm][]. These errors are almost always indicative of a broken
-program.
+* Extends: {errors.Error}
+
+Indicates that a program is not valid JavaScript. These errors may only be
+generated and propagated as a result of code evaluation. Code evaluation may
+happen as a result of `eval`, `Function`, `require`, or [vm][]. These errors
+are almost always indicative of a broken program.
 
 ```js
 try {
@@ -407,6 +414,8 @@ try {
 they may only be caught by other contexts.
 
 ## Class: SystemError
+
+* Extends: {errors.Error}
 
 Node.js generates system errors when exceptions occur within its runtime
 environment. These usually occur when an application violates an operating
@@ -548,9 +557,11 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
 
 ## Class: TypeError
 
-A subclass of `Error` that indicates that a provided argument is not an
-allowable type. For example, passing a function to a parameter which expects a
-string would be considered a `TypeError`.
+* Extends {errors.Error}
+
+Indicates that a provided argument is not an allowable type. For example,
+passing a function to a parameter which expects a string would be considered
+a `TypeError`.
 
 ```js
 require('url').parse(() => { });

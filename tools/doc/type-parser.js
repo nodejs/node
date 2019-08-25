@@ -64,6 +64,8 @@ const customTypesMap = {
 
   'Domain': 'domain.html#domain_class_domain',
 
+  'errors.Error': 'errors.html#errors_class_error',
+
   'import.meta': 'esm.html#esm_import_meta',
 
   'EventEmitter': 'events.html#events_class_eventemitter',
