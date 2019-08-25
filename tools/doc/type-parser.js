@@ -123,6 +123,7 @@ const customTypesMap = {
   'Stream': 'stream.html#stream_stream',
   'stream.Duplex': 'stream.html#stream_class_stream_duplex',
   'stream.Readable': 'stream.html#stream_class_stream_readable',
+  'stream.Transform': 'stream.html#stream_class_stream_transform',
   'stream.Writable': 'stream.html#stream_class_stream_writable',
 
   'Immediate': 'timers.html#timers_class_immediate',
