@@ -211,6 +211,7 @@ constexpr size_t kFsStatsBufferLength =
   V(dns_soa_string, "SOA")                                                     \
   V(dns_srv_string, "SRV")                                                     \
   V(dns_txt_string, "TXT")                                                     \
+  V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
   V(emit_warning_string, "emitWarning")                                        \
   V(encoding_string, "encoding")                                               \
@@ -272,6 +273,7 @@ constexpr size_t kFsStatsBufferLength =
   V(modulus_string, "modulus")                                                 \
   V(name_string, "name")                                                       \
   V(netmask_string, "netmask")                                                 \
+  V(next_string, "next")                                                       \
   V(nistcurve_string, "nistCurve")                                             \
   V(nsname_string, "nsname")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
@@ -353,6 +355,7 @@ constexpr size_t kFsStatsBufferLength =
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
   V(tls_ticket_string, "tlsTicket")                                            \
+  V(transfer_string, "transfer")                                               \
   V(ttl_string, "ttl")                                                         \
   V(type_string, "type")                                                       \
   V(uid_string, "uid")                                                         \
