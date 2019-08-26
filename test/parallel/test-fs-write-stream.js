@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -50,5 +50,19 @@ tmpdir.refresh();
     assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });
+  stream.destroy();
+}
+
+// Throws if data is not of type Buffer.
+{
+  const stream = fs.createWriteStream(file);
+  stream.on('error', common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
+  stream.write(42, null, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
   stream.destroy();
 }
