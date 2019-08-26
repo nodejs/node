@@ -5203,7 +5203,7 @@ template <PublicKeyCipher::Operation operation,
 bool PublicKeyCipher::Cipher(Environment* env,
                              const ManagedEVPPKey& pkey,
                              int padding,
-                             const char* oaep_hash,
+                             const EVP_MD* digest,
                              const unsigned char* data,
                              int len,
                              AllocatedBuffer* out) {
@@ -5215,9 +5215,8 @@ bool PublicKeyCipher::Cipher(Environment* env,
   if (EVP_PKEY_CTX_set_rsa_padding(ctx.get(), padding) <= 0)
     return false;
 
-  if (oaep_hash != nullptr) {
-    if (!EVP_PKEY_CTX_md(ctx.get(), EVP_PKEY_OP_TYPE_CRYPT,
-                         EVP_PKEY_CTRL_RSA_OAEP_MD, oaep_hash))
+  if (digest != nullptr) {
+    if (!EVP_PKEY_CTX_set_rsa_oaep_md(ctx.get(), digest))
       return false;
   }
 
@@ -5259,6 +5258,12 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value oaep_str(env->isolate(), args[offset + 2]);
   const char* oaep_hash = args[offset + 2]->IsString() ? *oaep_str : nullptr;
+  const EVP_MD* digest = nullptr;
+  if (oaep_hash != nullptr) {
+    digest = EVP_get_digestbyname(oaep_hash);
+    if (digest == nullptr)
+      return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
+  }
 
   AllocatedBuffer out;
 
@@ -5268,7 +5273,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       env,
       pkey,
       padding,
-      oaep_hash,
+      digest,
       buf.data(),
       buf.length(),
       &out);
