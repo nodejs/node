@@ -30,6 +30,7 @@ module.exports = {};
  * @property {Record<string, boolean>} [env] The environment settings.
  * @property {string | string[]} [extends] The path to other config files or the package name of shareable configs.
  * @property {Record<string, GlobalConf>} [globals] The global variable settings.
+ * @property {boolean} [noInlineConfig] The flag that disables directive comments.
  * @property {OverrideConfigData[]} [overrides] The override settings per kind of files.
  * @property {string} [parser] The path to a parser or the package name of a parser.
  * @property {ParserOptions} [parserOptions] The parser options.
@@ -47,6 +48,7 @@ module.exports = {};
  * @property {string | string[]} [extends] The path to other config files or the package name of shareable configs.
  * @property {string | string[]} files The glob pattarns for target files.
  * @property {Record<string, GlobalConf>} [globals] The global variable settings.
+ * @property {boolean} [noInlineConfig] The flag that disables directive comments.
  * @property {OverrideConfigData[]} [overrides] The override settings per kind of files.
  * @property {string} [parser] The path to a parser or the package name of a parser.
  * @property {ParserOptions} [parserOptions] The parser options.

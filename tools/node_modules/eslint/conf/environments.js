@@ -11,14 +11,75 @@
 const globals = require("globals");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Get the object that has differentce.
+ * @param {Record<string,boolean>} current The newer object.
+ * @param {Record<string,boolean>} prev The older object.
+ * @returns {Record<string,boolean>} The difference object.
+ */
+function getDiff(current, prev) {
+    const retv = {};
+
+    for (const [key, value] of Object.entries(current)) {
+        if (!Object.hasOwnProperty.call(prev, key)) {
+            retv[key] = value;
+        }
+    }
+
+    return retv;
+}
+
+const newGlobals2015 = getDiff(globals.es2015, globals.es5); // 19 variables such as Promise, Map, ...
+const newGlobals2017 = {
+    Atomics: false,
+    SharedArrayBuffer: false
+};
+const newGlobals2020 = {
+    BigInt: false,
+    BigInt64Array: false,
+    BigUint64Array: false
+};
+
+//------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 /** @type {Map<string, import("../lib/shared/types").Environment>} */
 module.exports = new Map(Object.entries({
+
+    // Language
     builtin: {
         globals: globals.es5
     },
+    es6: {
+        globals: newGlobals2015,
+        parserOptions: {
+            ecmaVersion: 6
+        }
+    },
+    es2015: {
+        globals: newGlobals2015,
+        parserOptions: {
+            ecmaVersion: 6
+        }
+    },
+    es2017: {
+        globals: { ...newGlobals2015, ...newGlobals2017 },
+        parserOptions: {
+            ecmaVersion: 8
+        }
+    },
+    es2020: {
+        globals: { ...newGlobals2015, ...newGlobals2017, ...newGlobals2020 },
+        parserOptions: {
+            ecmaVersion: 11
+        }
+    },
+
+    // Platforms
     browser: {
         globals: globals.browser
     },
@@ -30,6 +91,17 @@ module.exports = new Map(Object.entries({
             }
         }
     },
+    "shared-node-browser": {
+        globals: globals["shared-node-browser"]
+    },
+    worker: {
+        globals: globals.worker
+    },
+    serviceworker: {
+        globals: globals.serviceworker
+    },
+
+    // Frameworks
     commonjs: {
         globals: globals.commonjs,
         parserOptions: {
@@ -37,12 +109,6 @@ module.exports = new Map(Object.entries({
                 globalReturn: true
             }
         }
-    },
-    "shared-node-browser": {
-        globals: globals["shared-node-browser"]
-    },
-    worker: {
-        globals: globals.worker
     },
     amd: {
         globals: globals.amd
@@ -86,9 +152,6 @@ module.exports = new Map(Object.entries({
     nashorn: {
         globals: globals.nashorn
     },
-    serviceworker: {
-        globals: globals.serviceworker
-    },
     atomtest: {
         globals: globals.atomtest
     },
@@ -97,12 +160,6 @@ module.exports = new Map(Object.entries({
     },
     webextensions: {
         globals: globals.webextensions
-    },
-    es6: {
-        globals: globals.es2015,
-        parserOptions: {
-            ecmaVersion: 6
-        }
     },
     greasemonkey: {
         globals: globals.greasemonkey

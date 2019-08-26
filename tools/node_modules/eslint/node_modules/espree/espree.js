@@ -154,7 +154,7 @@ exports.Syntax = (function() {
     }
 
     for (name in astNodeTypes) {
-        if (astNodeTypes.hasOwnProperty(name)) {
+        if (Object.hasOwnProperty.call(astNodeTypes, name)) {
             types[name] = astNodeTypes[name];
         }
     }

@@ -23,7 +23,8 @@ const CAPS_ALLOWED = [
     "Object",
     "RegExp",
     "String",
-    "Symbol"
+    "Symbol",
+    "BigInt"
 ];
 
 /**

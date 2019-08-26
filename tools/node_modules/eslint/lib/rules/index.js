@@ -46,6 +46,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "func-name-matching": () => require("./func-name-matching"),
     "func-names": () => require("./func-names"),
     "func-style": () => require("./func-style"),
+    "function-call-argument-newline": () => require("./function-call-argument-newline"),
     "function-paren-newline": () => require("./function-paren-newline"),
     "generator-star-spacing": () => require("./generator-star-spacing"),
     "getter-return": () => require("./getter-return"),

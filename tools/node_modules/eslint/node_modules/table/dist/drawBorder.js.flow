@@ -35,12 +35,18 @@ const drawBorder = (columnSizeIndex, parts) => {
  * @returns {string}
  */
 const drawBorderTop = (columnSizeIndex, parts) => {
-  return drawBorder(columnSizeIndex, {
+  const border = drawBorder(columnSizeIndex, {
     body: parts.topBody,
     join: parts.topJoin,
     left: parts.topLeft,
     right: parts.topRight
   });
+
+  if (border === '\n') {
+    return '';
+  }
+
+  return border;
 };
 
 /**

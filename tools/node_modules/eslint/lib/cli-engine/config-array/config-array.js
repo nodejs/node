@@ -54,6 +54,7 @@ const { ExtractedConfig } = require("./extracted-config");
  * @property {InstanceType<OverrideTester>|null} criteria The tester for the `files` and `excludedFiles` of this config element.
  * @property {Record<string, boolean>|undefined} env The environment settings.
  * @property {Record<string, GlobalConf>|undefined} globals The global variable settings.
+ * @property {boolean|undefined} noInlineConfig The flag that disables directive comments.
  * @property {DependentParser|undefined} parser The parser loader.
  * @property {Object|undefined} parserOptions The parser options.
  * @property {Record<string, DependentPlugin>|undefined} plugins The plugin loaders.
@@ -248,6 +249,12 @@ function createConfig(instance, indices) {
         // Adopt the processor which was found at first.
         if (!config.processor && element.processor) {
             config.processor = element.processor;
+        }
+
+        // Adopt the noInlineConfig which was found at first.
+        if (config.noInlineConfig === void 0 && element.noInlineConfig !== void 0) {
+            config.noInlineConfig = element.noInlineConfig;
+            config.configNameOfNoInlineConfig = element.name;
         }
 
         // Merge others.

@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -34,7 +40,7 @@ module.exports = {
         }],
 
         messages: {
-            missingThis: "Expected 'this' to be used by class method '{{name}}'."
+            missingThis: "Expected 'this' to be used by class {{name}}."
         }
     },
     create(context) {
@@ -70,7 +76,8 @@ module.exports = {
          * @private
          */
         function isIncludedInstanceMethod(node) {
-            return isInstanceMethod(node) && !exceptMethods.has(node.key.name);
+            return isInstanceMethod(node) &&
+                (node.computed || !exceptMethods.has(node.key.name));
         }
 
         /**
@@ -89,7 +96,7 @@ module.exports = {
                     node,
                     messageId: "missingThis",
                     data: {
-                        name: node.parent.key.name
+                        name: astUtils.getFunctionNameWithKind(node)
                     }
                 });
             }

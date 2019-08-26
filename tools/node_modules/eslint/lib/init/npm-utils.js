@@ -135,7 +135,7 @@ function check(packages, opt) {
  * Check whether node modules are included in the dependencies of a project's
  * package.json.
  *
- * Convienience wrapper around check().
+ * Convenience wrapper around check().
  *
  * @param   {string[]} packages  Array of node modules to check.
  * @param   {string}   rootDir   The directory contianing a package.json
@@ -150,7 +150,7 @@ function checkDeps(packages, rootDir) {
  * Check whether node modules are included in the devDependencies of a project's
  * package.json.
  *
- * Convienience wrapper around check().
+ * Convenience wrapper around check().
  *
  * @param   {string[]} packages  Array of node modules to check.
  * @returns {Object}             An object whose keys are the module names

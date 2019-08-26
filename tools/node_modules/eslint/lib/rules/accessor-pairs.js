@@ -6,8 +6,85 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/**
+ * Property name if it can be computed statically, otherwise the list of the tokens of the key node.
+ * @typedef {string|Token[]} Key
+ */
+
+/**
+ * Accessor nodes with the same key.
+ * @typedef {Object} AccessorData
+ * @property {Key} key Accessor's key
+ * @property {ASTNode[]} getters List of getter nodes.
+ * @property {ASTNode[]} setters List of setter nodes.
+ */
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+/**
+ * Checks whether or not the given lists represent the equal tokens in the same order.
+ * Tokens are compared by their properties, not by instance.
+ * @param {Token[]} left First list of tokens.
+ * @param {Token[]} right Second list of tokens.
+ * @returns {boolean} `true` if the lists have same tokens.
+ */
+function areEqualTokenLists(left, right) {
+    if (left.length !== right.length) {
+        return false;
+    }
+
+    for (let i = 0; i < left.length; i++) {
+        const leftToken = left[i],
+            rightToken = right[i];
+
+        if (leftToken.type !== rightToken.type || leftToken.value !== rightToken.value) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Checks whether or not the given keys are equal.
+ * @param {Key} left First key.
+ * @param {Key} right Second key.
+ * @returns {boolean} `true` if the keys are equal.
+ */
+function areEqualKeys(left, right) {
+    if (typeof left === "string" && typeof right === "string") {
+
+        // Statically computed names.
+        return left === right;
+    }
+    if (Array.isArray(left) && Array.isArray(right)) {
+
+        // Token lists.
+        return areEqualTokenLists(left, right);
+    }
+
+    return false;
+}
+
+/**
+ * Checks whether or not a given node is of an accessor kind ('get' or 'set').
+ * @param {ASTNode} node - A node to check.
+ * @returns {boolean} `true` if the node is of an accessor kind.
+ */
+function isAccessorKind(node) {
+    return node.kind === "get" || node.kind === "set";
+}
 
 /**
  * Checks whether or not a given node is an `Identifier` node which was named a given name.
@@ -97,69 +174,152 @@ module.exports = {
         }],
 
         messages: {
-            getter: "Getter is not present.",
-            setter: "Setter is not present."
+            missingGetterInPropertyDescriptor: "Getter is not present in property descriptor.",
+            missingSetterInPropertyDescriptor: "Setter is not present in property descriptor.",
+            missingGetterInObjectLiteral: "Getter is not present for {{ name }}.",
+            missingSetterInObjectLiteral: "Setter is not present for {{ name }}."
         }
     },
     create(context) {
         const config = context.options[0] || {};
         const checkGetWithoutSet = config.getWithoutSet === true;
         const checkSetWithoutGet = config.setWithoutGet !== false;
+        const sourceCode = context.getSourceCode();
 
         /**
-         * Checks a object expression to see if it has setter and getter both present or none.
-         * @param {ASTNode} node The node to check.
+         * Reports the given node.
+         * @param {ASTNode} node The node to report.
+         * @param {string} messageKind "missingGetter" or "missingSetter".
          * @returns {void}
          * @private
          */
-        function checkLonelySetGet(node) {
-            let isSetPresent = false;
-            let isGetPresent = false;
-            const isDescriptor = isPropertyDescriptor(node);
+        function report(node, messageKind) {
+            if (node.type === "Property") {
+                context.report({
+                    node,
+                    messageId: `${messageKind}InObjectLiteral`,
+                    loc: astUtils.getFunctionHeadLoc(node.value, sourceCode),
+                    data: { name: astUtils.getFunctionNameWithKind(node.value) }
+                });
+            } else {
+                context.report({
+                    node,
+                    messageId: `${messageKind}InPropertyDescriptor`
+                });
+            }
+        }
 
-            for (let i = 0, end = node.properties.length; i < end; i++) {
-                const property = node.properties[i];
+        /**
+         * Reports each of the nodes in the given list using the same messageId.
+         * @param {ASTNode[]} nodes Nodes to report.
+         * @param {string} messageKind "missingGetter" or "missingSetter".
+         * @returns {void}
+         * @private
+         */
+        function reportList(nodes, messageKind) {
+            for (const node of nodes) {
+                report(node, messageKind);
+            }
+        }
 
-                let propToCheck = "";
+        /**
+         * Creates a new `AccessorData` object for the given getter or setter node.
+         * @param {ASTNode} node A getter or setter node.
+         * @returns {AccessorData} New `AccessorData` object that contains the given node.
+         * @private
+         */
+        function createAccessorData(node) {
+            const name = astUtils.getStaticPropertyName(node);
+            const key = (name !== null) ? name : sourceCode.getTokens(node.key);
 
-                if (property.kind === "init") {
-                    if (isDescriptor && !property.computed) {
-                        propToCheck = property.key.name;
-                    }
-                } else {
-                    propToCheck = property.kind;
-                }
+            return {
+                key,
+                getters: node.kind === "get" ? [node] : [],
+                setters: node.kind === "set" ? [node] : []
+            };
+        }
 
-                switch (propToCheck) {
-                    case "set":
-                        isSetPresent = true;
-                        break;
+        /**
+         * Merges the given `AccessorData` object into the given accessors list.
+         * @param {AccessorData[]} accessors The list to merge into.
+         * @param {AccessorData} accessorData The object to merge.
+         * @returns {AccessorData[]} The same instance with the merged object.
+         * @private
+         */
+        function mergeAccessorData(accessors, accessorData) {
+            const equalKeyElement = accessors.find(a => areEqualKeys(a.key, accessorData.key));
 
-                    case "get":
-                        isGetPresent = true;
-                        break;
-
-                    default:
-
-                        // Do nothing
-                }
-
-                if (isSetPresent && isGetPresent) {
-                    break;
-                }
+            if (equalKeyElement) {
+                equalKeyElement.getters.push(...accessorData.getters);
+                equalKeyElement.setters.push(...accessorData.setters);
+            } else {
+                accessors.push(accessorData);
             }
 
-            if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report({ node, messageId: "getter" });
-            } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report({ node, messageId: "setter" });
+            return accessors;
+        }
+
+        /**
+         * Checks accessor pairs in the given list of nodes.
+         * @param {ASTNode[]} nodes The list to check.
+         * @returns {void}
+         * @private
+         */
+        function checkList(nodes) {
+            const accessors = nodes
+                .filter(isAccessorKind)
+                .map(createAccessorData)
+                .reduce(mergeAccessorData, []);
+
+            for (const { getters, setters } of accessors) {
+                if (checkSetWithoutGet && setters.length && !getters.length) {
+                    reportList(setters, "missingGetter");
+                }
+                if (checkGetWithoutSet && getters.length && !setters.length) {
+                    reportList(getters, "missingSetter");
+                }
+            }
+        }
+
+        /**
+         * Checks accessor pairs in an object literal.
+         * @param {ASTNode} node `ObjectExpression` node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkObjectLiteral(node) {
+            checkList(node.properties.filter(p => p.type === "Property"));
+        }
+
+        /**
+         * Checks accessor pairs in a property descriptor.
+         * @param {ASTNode} node Property descriptor `ObjectExpression` node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkPropertyDescriptor(node) {
+            const namesToCheck = node.properties
+                .filter(p => p.type === "Property" && p.kind === "init" && !p.computed)
+                .map(({ key }) => key.name);
+
+            const hasGetter = namesToCheck.includes("get");
+            const hasSetter = namesToCheck.includes("set");
+
+            if (checkSetWithoutGet && hasSetter && !hasGetter) {
+                report(node, "missingGetter");
+            }
+            if (checkGetWithoutSet && hasGetter && !hasSetter) {
+                report(node, "missingSetter");
             }
         }
 
         return {
             ObjectExpression(node) {
                 if (checkSetWithoutGet || checkGetWithoutSet) {
-                    checkLonelySetGet(node);
+                    checkObjectLiteral(node);
+                    if (isPropertyDescriptor(node)) {
+                        checkPropertyDescriptor(node);
+                    }
                 }
             }
         };
