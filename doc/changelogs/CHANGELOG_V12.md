@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.9.1">12.9.1</a><br/>
 <a href="#12.9.0">12.9.0</a><br/>
 <a href="#12.8.1">12.8.1</a><br/>
 <a href="#12.8.0">12.8.0</a><br/>
@@ -38,6 +39,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.9.1"></a>
+## 2019-08-26, Version 12.9.1 (Current), @targos
+
+### Notable changes
+
+This release fixes two regressions in the **http** module:
+
+* Fixes an event listener leak in the HTTP client. This resulted in lots of
+  warnings during npm/yarn installs (Robert Nagy) [#29245](https://github.com/nodejs/node/pull/29245).
+* Fixes a regression preventing the `'end'` event from being emitted for
+  keepalive requests in case the full body was not parsed (Matteo Collina) [#29263](https://github.com/nodejs/node/pull/29263).
+
+### Commits
+
+* [[`3cc8fca299`](https://github.com/nodejs/node/commit/3cc8fca299)] - **crypto**: handle i2d\_SSL\_SESSION() error return (Ben Noordhuis) [#29225](https://github.com/nodejs/node/pull/29225)
+* [[`ae0a0e97ba`](https://github.com/nodejs/node/commit/ae0a0e97ba)] - **http**: reset parser.incoming when server request is finished (Anna Henningsen) [#29297](https://github.com/nodejs/node/pull/29297)
+* [[`dedbd119c5`](https://github.com/nodejs/node/commit/dedbd119c5)] - **http**: fix event listener leak (Robert Nagy) [#29245](https://github.com/nodejs/node/pull/29245)
+* [[`f8f8754d43`](https://github.com/nodejs/node/commit/f8f8754d43)] - ***Revert*** "**http**: reset parser.incoming when server response is finished" (Matteo Collina) [#29263](https://github.com/nodejs/node/pull/29263)
+* [[`a6abfcb423`](https://github.com/nodejs/node/commit/a6abfcb423)] - **src**: remove unused using declarations (Daniel Bevenius) [#29222](https://github.com/nodejs/node/pull/29222)
+* [[`ff6330a6ac`](https://github.com/nodejs/node/commit/ff6330a6ac)] - **test**: fix 'timeout' typos (cjihrig) [#29234](https://github.com/nodejs/node/pull/29234)
+* [[`3c7a1a9090`](https://github.com/nodejs/node/commit/3c7a1a9090)] - **test, http**: add regression test for keepalive 'end' event (Matteo Collina) [#29263](https://github.com/nodejs/node/pull/29263)
 
 <a id="12.9.0"></a>
 ## 2019-08-20, Version 12.9.0 (Current), @targos
