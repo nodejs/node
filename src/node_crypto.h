@@ -713,7 +713,7 @@ class PublicKeyCipher {
   static bool Cipher(Environment* env,
                      const ManagedEVPPKey& pkey,
                      int padding,
-                     const char* oaep_hash,
+                     const EVP_MD* digest,
                      const unsigned char* data,
                      int len,
                      AllocatedBuffer* out);
