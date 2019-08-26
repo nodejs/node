@@ -42,6 +42,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                  \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                      \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_INVALID_MODULE_SPECIFIER, TypeError)                                 \
   V(ERR_INVALID_PACKAGE_CONFIG, SyntaxError)                                 \
@@ -89,6 +90,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                      \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
     "MessagePort was found in message but not listed in transferList")       \
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                         \
