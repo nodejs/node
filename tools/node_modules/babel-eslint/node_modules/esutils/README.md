@@ -98,8 +98,8 @@ respectively. If the `strict` flag is truthy, this function additionally checks 
 
 Returns `true` if provided identifier string is a Keyword or Future Reserved Word
 in ECMA262 edition 6. They are formally defined in ECMA262 sections
-[11.6.2.1](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-keywords) and
-[11.6.2.2](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-future-reserved-words),
+[11.6.2.1](http://ecma-international.org/ecma-262/6.0/#sec-keywords) and
+[11.6.2.2](http://ecma-international.org/ecma-262/6.0/#sec-future-reserved-words),
 respectively. If the `strict` flag is truthy, this function additionally checks whether
 `id` is a Keyword or Future Reserved Word under strict mode.
 
@@ -113,7 +113,7 @@ is a Reserved Word under strict mode.
 #### keyword.isReservedWordES6(id, strict)
 
 Returns `true` if provided identifier string is a Reserved Word in ECMA262 edition 6.
-They are formally defined in ECMA262 section [11.6.2](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-reserved-words).
+They are formally defined in ECMA262 section [11.6.2](http://ecma-international.org/ecma-262/6.0/#sec-reserved-words).
 If the `strict` flag is truthy, this function additionally checks whether `id`
 is a Reserved Word under strict mode.
 
@@ -121,12 +121,17 @@ is a Reserved Word under strict mode.
 
 Returns `true` if provided identifier string is one of `eval` or `arguments`.
 They are restricted in strict mode code throughout ECMA262 edition 5.1 and
-in ECMA262 edition 6 section [12.1.1](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-identifiers-static-semantics-early-errors).
+in ECMA262 edition 6 section [12.1.1](http://ecma-international.org/ecma-262/6.0/#sec-identifiers-static-semantics-early-errors).
 
-#### keyword.isIdentifierName(id)
+#### keyword.isIdentifierNameES5(id)
 
 Return true if provided identifier string is an IdentifierName as specified in
 ECMA262 edition 5.1 section [7.6](https://es5.github.io/#x7.6).
+
+#### keyword.isIdentifierNameES6(id)
+
+Return true if provided identifier string is an IdentifierName as specified in
+ECMA262 edition 6 section [11.6](http://ecma-international.org/ecma-262/6.0/#sec-names-and-keywords).
 
 #### keyword.isIdentifierES5(id, strict)
 
@@ -138,7 +143,7 @@ under strict mode.
 #### keyword.isIdentifierES6(id, strict)
 
 Return true if provided identifier string is an Identifier as specified in
-ECMA262 edition 6 section [12.1](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-identifiers).
+ECMA262 edition 6 section [12.1](http://ecma-international.org/ecma-262/6.0/#sec-identifiers).
 If the `strict` flag is truthy, this function additionally checks whether `id`
 is an Identifier under strict mode.
 

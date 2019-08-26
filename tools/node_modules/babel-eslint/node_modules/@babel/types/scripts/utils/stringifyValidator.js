@@ -31,6 +31,29 @@ module.exports = function stringifyValidator(validator, nodePrefix) {
     return validator.type;
   }
 
+  if (validator.shapeOf) {
+    return (
+      "{ " +
+      Object.keys(validator.shapeOf)
+        .map(shapeKey => {
+          const propertyDefinition = validator.shapeOf[shapeKey];
+          if (propertyDefinition.validate) {
+            const isOptional =
+              propertyDefinition.optional || propertyDefinition.default != null;
+            return (
+              shapeKey +
+              (isOptional ? "?: " : ": ") +
+              stringifyValidator(propertyDefinition.validate)
+            );
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(", ") +
+      " }"
+    );
+  }
+
   return ["any"];
 };
 
