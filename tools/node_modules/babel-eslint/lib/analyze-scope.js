@@ -1,10 +1,14 @@
 "use strict";
 
 const t = require("@babel/types");
-const escope = require("eslint-scope");
-const Definition = require("eslint-scope/lib/definition").Definition;
-const OriginalPatternVisitor = require("eslint-scope/lib/pattern-visitor");
-const OriginalReferencer = require("eslint-scope/lib/referencer");
+const requireFromESLint = require("./require-from-eslint");
+
+const escope = requireFromESLint("eslint-scope");
+const Definition = requireFromESLint("eslint-scope/lib/definition").Definition;
+const OriginalPatternVisitor = requireFromESLint(
+  "eslint-scope/lib/pattern-visitor"
+);
+const OriginalReferencer = requireFromESLint("eslint-scope/lib/referencer");
 const fallback = require("eslint-visitor-keys").getKeys;
 const childVisitorKeys = require("./visitor-keys");
 
