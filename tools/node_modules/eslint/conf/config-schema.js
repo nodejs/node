@@ -20,6 +20,7 @@ const baseConfigProperties = {
     processor: { type: "string" },
     rules: { type: "object" },
     settings: { type: "object" },
+    noInlineConfig: { type: "boolean" },
 
     ecmaFeatures: { type: "object" } // deprecated; logs a warning when used
 };

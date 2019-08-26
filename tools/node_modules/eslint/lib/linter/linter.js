@@ -198,14 +198,20 @@ function createMissingRuleMessage(ruleId) {
 /**
  * creates a linting problem
  * @param {Object} options to create linting error
- * @param {string} options.ruleId the ruleId to report
- * @param {Object} options.loc the loc to report
- * @param {string} options.message the error message to report
- * @returns {Problem} created problem, returns a missing-rule problem if only provided ruleId.
+ * @param {string} [options.ruleId] the ruleId to report
+ * @param {Object} [options.loc] the loc to report
+ * @param {string} [options.message] the error message to report
+ * @param {string} [options.severity] the error message to report
+ * @returns {LintMessage} created problem, returns a missing-rule problem if only provided ruleId.
  * @private
  */
 function createLintingProblem(options) {
-    const { ruleId, loc = DEFAULT_ERROR_LOC, message = createMissingRuleMessage(options.ruleId) } = options;
+    const {
+        ruleId = null,
+        loc = DEFAULT_ERROR_LOC,
+        message = createMissingRuleMessage(options.ruleId),
+        severity = 2
+    } = options;
 
     return {
         ruleId,
@@ -214,7 +220,7 @@ function createLintingProblem(options) {
         column: loc.start.column + 1,
         endLine: loc.end.line,
         endColumn: loc.end.column + 1,
-        severity: 2,
+        severity,
         nodeType: null
     };
 }
@@ -257,10 +263,11 @@ function createDisableDirectives(options) {
  * @param {string} filename The file being checked.
  * @param {ASTNode} ast The top node of the AST.
  * @param {function(string): {create: Function}} ruleMapper A map from rule IDs to defined rules
+ * @param {string|null} warnInlineConfig If a string then it should warn directive comments as disabled. The string value is the config name what the setting came from.
  * @returns {{configuredRules: Object, enabledGlobals: {value:string,comment:Token}[], exportedVariables: Object, problems: Problem[], disableDirectives: DisableDirective[]}}
  * A collection of the directive comments that were found, along with any problems that occurred when parsing
  */
-function getDirectiveComments(filename, ast, ruleMapper) {
+function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
     const configuredRules = {};
     const enabledGlobals = Object.create(null);
     const exportedVariables = {};
@@ -269,16 +276,29 @@ function getDirectiveComments(filename, ast, ruleMapper) {
 
     ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
         const trimmedCommentText = comment.value.trim();
-        const match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/u.exec(trimmedCommentText);
+        const match = /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/u.exec(trimmedCommentText);
 
         if (!match) {
+            return;
+        }
+        const lineCommentSupported = /^eslint-disable-(next-)?line$/u.test(match[1]);
+
+        if (warnInlineConfig && (lineCommentSupported || comment.type === "Block")) {
+            const kind = comment.type === "Block" ? `/*${match[1]}*/` : `//${match[1]}`;
+
+            problems.push(createLintingProblem({
+                ruleId: null,
+                message: `'${kind}' has no effect because you have 'noInlineConfig' setting in ${warnInlineConfig}.`,
+                loc: comment.loc,
+                severity: 1
+            }));
             return;
         }
 
         const directiveValue = trimmedCommentText.slice(match.index + match[1].length);
         let directiveType = "";
 
-        if (/^eslint-disable-(next-)?line$/u.test(match[1])) {
+        if (lineCommentSupported) {
             if (comment.loc.start.line === comment.loc.end.line) {
                 directiveType = match[1].slice("eslint-".length);
             } else {
@@ -441,16 +461,27 @@ function normalizeFilename(filename) {
     return index === -1 ? filename : parts.slice(index).join(path.sep);
 }
 
+// eslint-disable-next-line valid-jsdoc
 /**
  * Normalizes the possible options for `linter.verify` and `linter.verifyAndFix` to a
  * consistent shape.
  * @param {VerifyOptions} providedOptions Options
- * @returns {Required<VerifyOptions>} Normalized options
+ * @param {ConfigData} config Config.
+ * @returns {Required<VerifyOptions> & { warnInlineConfig: string|null }} Normalized options
  */
-function normalizeVerifyOptions(providedOptions) {
+function normalizeVerifyOptions(providedOptions, config) {
+    const disableInlineConfig = config.noInlineConfig === true;
+    const ignoreInlineConfig = providedOptions.allowInlineConfig === false;
+    const configNameOfNoInlineConfig = config.configNameOfNoInlineConfig
+        ? ` (${config.configNameOfNoInlineConfig})`
+        : "";
+
     return {
         filename: normalizeFilename(providedOptions.filename || "<input>"),
-        allowInlineConfig: providedOptions.allowInlineConfig !== false,
+        allowInlineConfig: !ignoreInlineConfig,
+        warnInlineConfig: disableInlineConfig && !ignoreInlineConfig
+            ? `your config${configNameOfNoInlineConfig}`
+            : null,
         reportUnusedDisableDirectives: Boolean(providedOptions.reportUnusedDisableDirectives),
         disableFixes: Boolean(providedOptions.disableFixes)
     };
@@ -984,7 +1015,7 @@ class Linter {
     _verifyWithoutProcessors(textOrSourceCode, providedConfig, providedOptions) {
         const slots = internalSlotsMap.get(this);
         const config = providedConfig || {};
-        const options = normalizeVerifyOptions(providedOptions);
+        const options = normalizeVerifyOptions(providedOptions, config);
         let text;
 
         // evaluate arguments
@@ -1019,7 +1050,9 @@ class Linter {
         }
 
         // search and apply "eslint-env *".
-        const envInFile = findEslintEnv(text);
+        const envInFile = options.allowInlineConfig && !options.warnInlineConfig
+            ? findEslintEnv(text)
+            : {};
         const resolvedEnvConfig = Object.assign({ builtin: true }, config.env, envInFile);
         const enabledEnvs = Object.keys(resolvedEnvConfig)
             .filter(envName => resolvedEnvConfig[envName])
@@ -1062,7 +1095,7 @@ class Linter {
 
         const sourceCode = slots.lastSourceCode;
         const commentDirectives = options.allowInlineConfig
-            ? getDirectiveComments(options.filename, sourceCode.ast, ruleId => getRule(slots, ruleId))
+            ? getDirectiveComments(options.filename, sourceCode.ast, ruleId => getRule(slots, ruleId), options.warnInlineConfig)
             : { configuredRules: {}, enabledGlobals: {}, exportedVariables: {}, problems: [], disableDirectives: [] };
 
         // augment global scope with declared global variables

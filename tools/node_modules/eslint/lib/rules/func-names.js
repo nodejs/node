@@ -69,6 +69,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Returns the config option for the given node.
          * @param {ASTNode} node - A node to get the config for.
@@ -130,6 +132,7 @@ module.exports = {
             context.report({
                 node,
                 messageId: "unnamed",
+                loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                 data: { name: astUtils.getFunctionNameWithKind(node) }
             });
         }
@@ -143,6 +146,7 @@ module.exports = {
             context.report({
                 node,
                 messageId: "named",
+                loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                 data: { name: astUtils.getFunctionNameWithKind(node) }
             });
         }

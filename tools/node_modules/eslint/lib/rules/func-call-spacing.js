@@ -78,21 +78,13 @@ module.exports = {
         /**
          * Check if open space is present in a function name
          * @param {ASTNode} node node to evaluate
+         * @param {Token} leftToken The last token of the callee. This may be the closing parenthesis that encloses the callee.
+         * @param {Token} rightToken Tha first token of the arguments. this is the opening parenthesis that encloses the arguments.
          * @returns {void}
          * @private
          */
-        function checkSpacing(node) {
-            const lastToken = sourceCode.getLastToken(node);
-            const lastCalleeToken = sourceCode.getLastToken(node.callee);
-            const parenToken = sourceCode.getFirstTokenBetween(lastCalleeToken, lastToken, astUtils.isOpeningParenToken);
-            const prevToken = parenToken && sourceCode.getTokenBefore(parenToken);
-
-            // Parens in NewExpression are optional
-            if (!(parenToken && parenToken.range[1] < node.range[1])) {
-                return;
-            }
-
-            const textBetweenTokens = text.slice(prevToken.range[1], parenToken.range[0]).replace(/\/\*.*?\*\//gu, "");
+        function checkSpacing(node, leftToken, rightToken) {
+            const textBetweenTokens = text.slice(leftToken.range[1], rightToken.range[0]).replace(/\/\*.*?\*\//gu, "");
             const hasWhitespace = /\s/u.test(textBetweenTokens);
             const hasNewline = hasWhitespace && astUtils.LINEBREAK_MATCHER.test(textBetweenTokens);
 
@@ -123,7 +115,7 @@ module.exports = {
             if (never && hasWhitespace) {
                 context.report({
                     node,
-                    loc: lastCalleeToken.loc.start,
+                    loc: leftToken.loc.start,
                     messageId: "unexpected",
                     fix(fixer) {
 
@@ -132,7 +124,7 @@ module.exports = {
                          * https://github.com/eslint/eslint/issues/7787
                          */
                         if (!hasNewline) {
-                            return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
+                            return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
                         }
 
                         return null;
@@ -141,27 +133,45 @@ module.exports = {
             } else if (!never && !hasWhitespace) {
                 context.report({
                     node,
-                    loc: lastCalleeToken.loc.start,
+                    loc: leftToken.loc.start,
                     messageId: "missing",
                     fix(fixer) {
-                        return fixer.insertTextBefore(parenToken, " ");
+                        return fixer.insertTextBefore(rightToken, " ");
                     }
                 });
             } else if (!never && !allowNewlines && hasNewline) {
                 context.report({
                     node,
-                    loc: lastCalleeToken.loc.start,
+                    loc: leftToken.loc.start,
                     messageId: "unexpected",
                     fix(fixer) {
-                        return fixer.replaceTextRange([prevToken.range[1], parenToken.range[0]], " ");
+                        return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
                     }
                 });
             }
         }
 
         return {
-            CallExpression: checkSpacing,
-            NewExpression: checkSpacing
+            "CallExpression, NewExpression"(node) {
+                const lastToken = sourceCode.getLastToken(node);
+                const lastCalleeToken = sourceCode.getLastToken(node.callee);
+                const parenToken = sourceCode.getFirstTokenBetween(lastCalleeToken, lastToken, astUtils.isOpeningParenToken);
+                const prevToken = parenToken && sourceCode.getTokenBefore(parenToken);
+
+                // Parens in NewExpression are optional
+                if (!(parenToken && parenToken.range[1] < node.range[1])) {
+                    return;
+                }
+
+                checkSpacing(node, prevToken, parenToken);
+            },
+
+            ImportExpression(node) {
+                const leftToken = sourceCode.getFirstToken(node);
+                const rightToken = sourceCode.getTokenAfter(leftToken);
+
+                checkSpacing(node, leftToken, rightToken);
+            }
         };
 
     }

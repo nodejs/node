@@ -232,25 +232,15 @@ module.exports = {
                     };
                 }
 
+                case "ImportExpression": {
+                    const leftParen = sourceCode.getFirstToken(node, 1);
+                    const rightParen = sourceCode.getLastToken(node);
+
+                    return { leftParen, rightParen };
+                }
+
                 default:
                     throw new TypeError(`unexpected node with type ${node.type}`);
-            }
-        }
-
-        /**
-         * Validates the parentheses for a node
-         * @param {ASTNode} node The node with parens
-         * @returns {void}
-         */
-        function validateNode(node) {
-            const parens = getParenTokens(node);
-
-            if (parens) {
-                validateParens(parens, astUtils.isFunction(node) ? node.params : node.arguments);
-
-                if (multilineArgumentsOption) {
-                    validateArguments(parens, astUtils.isFunction(node) ? node.params : node.arguments);
-                }
             }
         }
 
@@ -259,11 +249,33 @@ module.exports = {
         //----------------------------------------------------------------------
 
         return {
-            ArrowFunctionExpression: validateNode,
-            CallExpression: validateNode,
-            FunctionDeclaration: validateNode,
-            FunctionExpression: validateNode,
-            NewExpression: validateNode
+            [[
+                "ArrowFunctionExpression",
+                "CallExpression",
+                "FunctionDeclaration",
+                "FunctionExpression",
+                "ImportExpression",
+                "NewExpression"
+            ]](node) {
+                const parens = getParenTokens(node);
+                let params;
+
+                if (node.type === "ImportExpression") {
+                    params = [node.source];
+                } else if (astUtils.isFunction(node)) {
+                    params = node.params;
+                } else {
+                    params = node.arguments;
+                }
+
+                if (parens) {
+                    validateParens(parens, params);
+
+                    if (multilineArgumentsOption) {
+                        validateArguments(parens, params);
+                    }
+                }
+            }
         };
     }
 };

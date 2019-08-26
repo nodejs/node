@@ -119,7 +119,7 @@ function same(a, b) {
             const nameA = astUtils.getStaticPropertyName(a);
 
             // x.y = x["y"]
-            if (nameA) {
+            if (nameA !== null) {
                 return (
                     same(a.object, b.object) &&
                     nameA === astUtils.getStaticPropertyName(b)

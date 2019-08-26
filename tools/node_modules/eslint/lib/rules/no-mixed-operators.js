@@ -20,12 +20,14 @@ const BITWISE_OPERATORS = ["&", "|", "^", "~", "<<", ">>", ">>>"];
 const COMPARISON_OPERATORS = ["==", "!=", "===", "!==", ">", ">=", "<", "<="];
 const LOGICAL_OPERATORS = ["&&", "||"];
 const RELATIONAL_OPERATORS = ["in", "instanceof"];
+const TERNARY_OPERATOR = ["?:"];
 const ALL_OPERATORS = [].concat(
     ARITHMETIC_OPERATORS,
     BITWISE_OPERATORS,
     COMPARISON_OPERATORS,
     LOGICAL_OPERATORS,
-    RELATIONAL_OPERATORS
+    RELATIONAL_OPERATORS,
+    TERNARY_OPERATOR
 );
 const DEFAULT_GROUPS = [
     ARITHMETIC_OPERATORS,
@@ -34,7 +36,7 @@ const DEFAULT_GROUPS = [
     LOGICAL_OPERATORS,
     RELATIONAL_OPERATORS
 ];
-const TARGET_NODE_TYPE = /^(?:Binary|Logical)Expression$/u;
+const TARGET_NODE_TYPE = /^(?:Binary|Logical|Conditional)Expression$/u;
 
 /**
  * Normalizes options.
@@ -63,6 +65,18 @@ function normalizeOptions(options = {}) {
  */
 function includesBothInAGroup(groups, left, right) {
     return groups.some(group => group.indexOf(left) !== -1 && group.indexOf(right) !== -1);
+}
+
+/**
+ * Checks whether the given node is a conditional expression and returns the test node else the left node.
+ *
+ * @param {ASTNode} node - A node which can be a BinaryExpression or a LogicalExpression node.
+ * This parent node can be BinaryExpression, LogicalExpression
+ *      , or a ConditionalExpression node
+ * @returns {ASTNode} node the appropriate node(left or test).
+ */
+function getChildNode(node) {
+    return node.type === "ConditionalExpression" ? node.test : node.left;
 }
 
 //------------------------------------------------------------------------------
@@ -121,7 +135,7 @@ module.exports = {
             const b = node.parent;
 
             return (
-                !includesBothInAGroup(options.groups, a.operator, b.operator) ||
+                !includesBothInAGroup(options.groups, a.operator, b.type === "ConditionalExpression" ? "?:" : b.operator) ||
                 (
                     options.allowSamePrecedence &&
                     astUtils.getPrecedence(a) === astUtils.getPrecedence(b)
@@ -139,10 +153,23 @@ module.exports = {
          * @returns {boolean} `true` if the node was mixed.
          */
         function isMixedWithParent(node) {
+
             return (
                 node.operator !== node.parent.operator &&
                 !astUtils.isParenthesised(sourceCode, node)
             );
+        }
+
+        /**
+         * Checks whether the operator of a given node is mixed with a
+         * conditional expression.
+         *
+         * @param {ASTNode} node - A node to check. This is a conditional
+         *      expression node
+         * @returns {boolean} `true` if the node was mixed.
+         */
+        function isMixedWithConditionalParent(node) {
+            return !astUtils.isParenthesised(sourceCode, node) && !astUtils.isParenthesised(sourceCode, node.test);
         }
 
         /**
@@ -153,7 +180,7 @@ module.exports = {
          * @returns {Token} The operator token of the node.
          */
         function getOperatorToken(node) {
-            return sourceCode.getTokenAfter(node.left, astUtils.isNotClosingParenToken);
+            return sourceCode.getTokenAfter(getChildNode(node), astUtils.isNotClosingParenToken);
         }
 
         /**
@@ -167,13 +194,13 @@ module.exports = {
          */
         function reportBothOperators(node) {
             const parent = node.parent;
-            const left = (parent.left === node) ? node : parent;
-            const right = (parent.left !== node) ? node : parent;
+            const left = (getChildNode(parent) === node) ? node : parent;
+            const right = (getChildNode(parent) !== node) ? node : parent;
             const message =
                 "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'.";
             const data = {
-                leftOperator: left.operator,
-                rightOperator: right.operator
+                leftOperator: left.operator || "?:",
+                rightOperator: right.operator || "?:"
             };
 
             context.report({
@@ -198,17 +225,25 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            if (TARGET_NODE_TYPE.test(node.parent.type) &&
-                isMixedWithParent(node) &&
-                !shouldIgnore(node)
-            ) {
-                reportBothOperators(node);
+            if (TARGET_NODE_TYPE.test(node.parent.type)) {
+                if (node.parent.type === "ConditionalExpression" && !shouldIgnore(node) && isMixedWithConditionalParent(node.parent)) {
+                    reportBothOperators(node);
+                } else {
+                    if (TARGET_NODE_TYPE.test(node.parent.type) &&
+                        isMixedWithParent(node) &&
+                        !shouldIgnore(node)
+                    ) {
+                        reportBothOperators(node);
+                    }
+                }
             }
+
         }
 
         return {
             BinaryExpression: check,
             LogicalExpression: check
+
         };
     }
 };

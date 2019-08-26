@@ -120,7 +120,7 @@ module.exports = {
                 }
 
                 // Skip if the name is not static.
-                if (!name) {
+                if (name === null) {
                     return;
                 }
 

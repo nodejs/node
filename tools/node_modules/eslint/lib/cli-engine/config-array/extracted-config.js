@@ -30,6 +30,12 @@ class ExtractedConfig {
     constructor() {
 
         /**
+         * The config name what `noInlineConfig` setting came from.
+         * @type {string}
+         */
+        this.configNameOfNoInlineConfig = "";
+
+        /**
          * Environments.
          * @type {Record<string, boolean>}
          */
@@ -40,6 +46,12 @@ class ExtractedConfig {
          * @type {Record<string, GlobalConf>}
          */
         this.globals = {};
+
+        /**
+         * The flag that disables directive comments.
+         * @type {boolean|undefined}
+         */
+        this.noInlineConfig = void 0;
 
         /**
          * Parser definition.
@@ -84,7 +96,10 @@ class ExtractedConfig {
      */
     toCompatibleObjectAsConfigFileContent() {
         const {
-            processor: _ignore, // eslint-disable-line no-unused-vars
+            /* eslint-disable no-unused-vars */
+            configNameOfNoInlineConfig: _ignore1,
+            processor: _ignore2,
+            /* eslint-enable no-unused-vars */
             ...config
         } = this;
 

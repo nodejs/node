@@ -507,7 +507,7 @@ module.exports = {
             const childScopes = scope.childScopes;
             let i, l;
 
-            if (scope.type !== "TDZ" && (scope.type !== "global" || config.vars === "all")) {
+            if (scope.type !== "global" || config.vars === "all") {
                 for (i = 0, l = variables.length; i < l; ++i) {
                     const variable = variables[i];
 

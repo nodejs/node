@@ -98,6 +98,7 @@ module.exports = {
                 grandparent.type === "CallExpression" &&
                 grandparent.callee === parent &&
                 grandparent.arguments.length === 1 &&
+                grandparent.arguments[0].type !== "SpreadElement" &&
                 parent.type === "MemberExpression" &&
                 parent.object === node &&
                 astUtils.getStaticPropertyName(parent) === "bind"

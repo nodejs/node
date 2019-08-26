@@ -33,17 +33,19 @@ module.exports = {
 
         return {
             SwitchStatement(node) {
-                const mapping = {};
+                const previousKeys = new Set();
 
-                node.cases.forEach(switchCase => {
-                    const key = sourceCode.getText(switchCase.test);
+                for (const switchCase of node.cases) {
+                    if (switchCase.test) {
+                        const key = sourceCode.getText(switchCase.test);
 
-                    if (mapping[key]) {
-                        context.report({ node: switchCase, messageId: "unexpected" });
-                    } else {
-                        mapping[key] = switchCase;
+                        if (previousKeys.has(key)) {
+                            context.report({ node: switchCase, messageId: "unexpected" });
+                        } else {
+                            previousKeys.add(key);
+                        }
                     }
-                });
+                }
             }
         };
     }

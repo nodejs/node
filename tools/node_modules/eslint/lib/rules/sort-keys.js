@@ -29,7 +29,13 @@ const astUtils = require("./utils/ast-utils"),
  * @private
  */
 function getPropertyName(node) {
-    return astUtils.getStaticPropertyName(node) || node.key.name || null;
+    const staticName = astUtils.getStaticPropertyName(node);
+
+    if (staticName !== null) {
+        return staticName;
+    }
+
+    return node.key.name || null;
 }
 
 /**
@@ -151,9 +157,11 @@ module.exports = {
                 const numKeys = stack.numKeys;
                 const thisName = getPropertyName(node);
 
-                stack.prevName = thisName || prevName;
+                if (thisName !== null) {
+                    stack.prevName = thisName;
+                }
 
-                if (!prevName || !thisName || numKeys < minKeys) {
+                if (prevName === null || thisName === null || numKeys < minKeys) {
                     return;
                 }
 

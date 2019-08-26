@@ -73,13 +73,16 @@ const append = (row, columnWidthIndex, config) => {
     return drawRow(literalRow, config.border);
   }).join('');
 
-  let output;
+  let output = '';
+  const bottom = drawBorderBottom(columnWidthIndex, config.border);
 
-  output = '\r\u001B[K';
+  if (bottom !== '\n') {
+    output = '\r\u001B[K';
+  }
 
   output += drawBorderJoin(columnWidthIndex, config.border);
   output += body;
-  output += drawBorderBottom(columnWidthIndex, config.border);
+  output += bottom;
 
   output = _.trimEnd(output);
 

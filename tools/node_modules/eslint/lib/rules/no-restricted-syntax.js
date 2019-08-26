@@ -21,7 +21,7 @@ module.exports = {
 
         schema: {
             type: "array",
-            items: [{
+            items: {
                 oneOf: [
                     {
                         type: "string"
@@ -36,7 +36,7 @@ module.exports = {
                         additionalProperties: false
                     }
                 ]
-            }],
+            },
             uniqueItems: true,
             minItems: 0
         }

@@ -99,7 +99,8 @@ const KNOWN_NODES = new Set([
     "ImportDeclaration",
     "ImportSpecifier",
     "ImportDefaultSpecifier",
-    "ImportNamespaceSpecifier"
+    "ImportNamespaceSpecifier",
+    "ImportExpression"
 ]);
 
 /*
@@ -1109,7 +1110,6 @@ module.exports = {
 
             CallExpression: addFunctionCallIndent,
 
-
             "ClassDeclaration[superClass], ClassExpression[superClass]"(node) {
                 const classToken = sourceCode.getFirstToken(node);
                 const extendsToken = sourceCode.getTokenBefore(node.superClass, astUtils.isNotOpeningParenToken);
@@ -1234,6 +1234,17 @@ module.exports = {
 
                     offsets.setDesiredOffsets([fromToken.range[0], end], sourceCode.getFirstToken(node), 1);
                 }
+            },
+
+            ImportExpression(node) {
+                const openingParen = sourceCode.getFirstToken(node, 1);
+                const closingParen = sourceCode.getLastToken(node);
+
+                parameterParens.add(openingParen);
+                parameterParens.add(closingParen);
+                offsets.setDesiredOffset(openingParen, sourceCode.getTokenBefore(openingParen), 0);
+
+                addElementListIndent([node.source], openingParen, closingParen, options.CallExpression.arguments);
             },
 
             "MemberExpression, JSXMemberExpression, MetaProperty"(node) {
