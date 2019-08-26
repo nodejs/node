@@ -355,7 +355,6 @@ class TestWriter extends EE {
   assert.strictEqual(v, null);
 
   const w = new R();
-
   w.write = function(buffer) {
     written = true;
     assert.strictEqual(ended, false);
