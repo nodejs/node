@@ -261,10 +261,13 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.deepStrictEqual(actual, expected[, message])
+## assert.deepStrictEqual(actual, expected[, options])
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/NNNNN
+    description: Added `checkPrototype` option.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15169
     description: Enumerable symbol properties are now compared.
@@ -291,11 +294,22 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `options` {Object|string|Error}
+  * `checkPrototype` {boolean} Whether to check that `actual` and `expected`
+    have the same prototype. **Default:** `true`
+  * `error` {Error} Error to throw if `actual` and `expected` are not deep
+    equal. **Default:** `AssertionError`
+  * `message` {string} Message to use to replace the generated default message.
+    Ignored if `error` is specified.
 
 Tests for deep equality between the `actual` and `expected` parameters.
-"Deep" equality means that the enumerable "own" properties of child objects
-are recursively evaluated also by the following rules.
+
+If `options` is a string, it is the value of the `message` option.
+
+If `options` is an `Error` object, then it is the value of the `error` option.
+
+Enumerable "own" properties of child objects are recursively evaluated by the
+following rules.
 
 ### Comparison details
 
@@ -407,12 +421,6 @@ assert.deepStrictEqual(weakMap1, weakMap3);
 // -   unequal: true
 //   }
 ```
-
-If the values are not equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an [`Error`][] then it will be thrown instead of the
-`AssertionError`.
 
 ## assert.doesNotReject(asyncFn[, error][, message])
 <!-- YAML
@@ -1278,7 +1286,7 @@ second argument. This might lead to difficult-to-spot errors.
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
-[`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_options
 [`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_fn_error_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message

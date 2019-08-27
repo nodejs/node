@@ -55,6 +55,7 @@ assert.throws(
              '- Buffer [Uint8Array] [\n    120,\n...\n    122,\n    10\n  ]'
   }
 );
+assert.deepStrictEqual(arr, buf, { checkPrototype: false });
 assert.deepEqual(arr, buf);
 
 {
@@ -1122,4 +1123,42 @@ assert.throws(
 
   // The descriptor is not compared.
   assertDeepAndStrictEqual(a, { a: 5 });
+}
+
+// Test `message` option.
+{
+  assert.throws(
+    () => { assert.deepStrictEqual('a', 'b', { message: 'fhqwhgads' }); },
+    { code: 'ERR_ASSERTION', name: 'AssertionError', message: 'fhqwhgads' }
+  );
+}
+
+// Test `error` option.
+{
+  assert.throws(
+    () => {
+      assert.deepStrictEqual('a', 'b', { error: new Error('fhqwhgads') });
+    }, new Error('fhqwhgads'));
+}
+
+// Test that the `message` option ignored if the `error` options is supplied.
+{
+  assert.throws(
+    () => {
+      assert.deepStrictEqual(
+        'a', 'b', { error: new Error('fhqwhgads'), message: 'come on' }
+      );
+    }, new Error('fhqwhgads'));
+}
+
+// Test `checkPrototype` option.
+{
+  // `obj1` and `obj2` have different prototypes.
+  const obj1 = {};
+  const obj2 = Object.create(obj1);
+  assert.throws(() => {
+    assert.deepStrictEqual(obj1, obj2, { checkPrototype: true });
+  }, { code: 'ERR_ASSERTION', name: 'AssertionError' });
+
+  assert.deepStrictEqual(obj1, obj2, { checkPrototype: false });
 }
