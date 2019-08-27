@@ -6,14 +6,14 @@ when analyzing its memory (either on a running process or a core dump). Node.js
 provides this metadata in its builds for V8 and Node.js internal structures.
 
 
-### V8 Postmortem metadata
+## V8 Postmortem metadata
 
 V8 prefixes all postmortem constants with `v8dbg_`, and they allow inspection of
 objects on the heap as well as object properties and references. V8 generates
 those symbols with a script (`deps/v8/tools/gen-postmortem-metadata.py`), and
 Node.js always includes these constants in the final build.
 
-### Node.js Debug Symbols
+## Node.js Debug Symbols
 
 Node.js prefixes all postmortem constants with `nodedbg_`, and they complement
 V8 constants by providing ways to inspect Node.js-specific structures, like
@@ -22,7 +22,7 @@ V8 constants by providing ways to inspect Node.js-specific structures, like
 `src/node_postmortem_metadata.cc`, and most of them are calculated at compile
 time.
 
-#### Calculating offset of class members
+### Calculating offset of class members
 
 Node.js constants referring to the offset of class members in memory
 are calculated at compile time.
