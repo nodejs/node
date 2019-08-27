@@ -110,7 +110,7 @@ release.
 </tr>
 </table>
 
-### Notes
+## Notes
 
 * The [Node.js Long Term Support plan](https://github.com/nodejs/Release) covers
   LTS releases.
