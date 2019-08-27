@@ -2241,7 +2241,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
   [#7226](https://github.com/npm/npm/issues/7226) Ensure that all request
   settings are copied onto the agent.
   ([@othiym23](https://github.com/othiym23))
-   - [npm/fec4c96](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
+  - [npm/fec4c96](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
   Allow `--no-proxy` to override `HTTP_PROXY` setting in environment.
   ([@othiym23](https://github.com/othiym23))
   - [npm/9d61e96](https://github.com/npm/npm/commit/9d61e96fb1f48687a85c211e4e0cd44c7f95a38e)
