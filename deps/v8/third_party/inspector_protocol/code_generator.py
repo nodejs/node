@@ -43,6 +43,9 @@ def read_config():
       items = [(k, os.path.join(output_base, v) if k == "output" else v)
                for (k, v) in items]
       keys, values = list(zip(*items))
+      # 'async' is a Python 3.7+ keyword.  Don't use namedtuple(rename=True)
+      # because that would only rename async on Python 3 but not on Python 2.
+      keys = ['async_' if k == 'async' else k for k in keys]
       return collections.namedtuple('X', keys)(*values)
     return json.loads(data, object_hook=json_object_hook)
 
@@ -128,7 +131,7 @@ def read_config():
   except Exception:
     # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
     exc = sys.exc_info()[1]
-    sys.stderr.write("Failed to parse config file: %s\n\n" % exc)
+    sys.stderr.write("Deps: Failed to parse config file: %s\n\n" % exc)
     exit(1)
 
 
@@ -555,7 +558,7 @@ class Protocol(object):
     if not self.config.protocol.options:
       return False
     return self.check_options(self.config.protocol.options, domain, command,
-                              "async", None, False)
+                              "async_", None, False)
 
   def is_exported(self, domain, name):
     if not self.config.protocol.options:
