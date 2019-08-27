@@ -34,3 +34,4 @@ process.kill(process.pid, 'SIGUSR2');
   assert.strictEqual(reports.length, 1);
   helper.validate(reports[0]);
 })();
+ // Test by walter74ucla on how to use GitHub
