@@ -249,7 +249,7 @@ fs.readFile('test-file').then(
 ### Flags
 
 Some tests will require running Node.js with specific command line flags set. To
-accomplish this, add a `// Flags: ` comment in the preamble of the
+accomplish this, add a `// Flags:` comment in the preamble of the
 test followed by the flags. For example, to allow a test to require some of the
 `internal/*` modules, add the `--expose-internals` flag.
 A test that would require `internal/freelist` could start like this:
