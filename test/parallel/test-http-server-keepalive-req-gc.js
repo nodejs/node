@@ -16,7 +16,7 @@ if (common.isWindows) {
 
 let client;
 const server = createServer(common.mustCall((req, res) => {
-  onGC(req, { ongc: common.mustCall() });
+  onGC(req, { ongc: common.mustCall(() => { server.close(); }) });
   req.resume();
   req.on('end', common.mustCall(() => {
     setImmediate(() => {
@@ -26,8 +26,6 @@ const server = createServer(common.mustCall((req, res) => {
   }));
   res.end('hello world');
 }));
-
-server.unref();
 
 server.listen(0, common.mustCall(() => {
   client = connect(server.address().port);
