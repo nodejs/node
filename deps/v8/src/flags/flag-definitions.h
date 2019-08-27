@@ -361,7 +361,7 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
             "only be executed once")
 
 // Flag for sealed, frozen elements kind instead of dictionary elements kind
-DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
+DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, false,
                      "Enable sealed, frozen elements kind")
 
 // Flags for data representation optimizations
