@@ -44,15 +44,6 @@
       return node::THROW_ERR_OUT_OF_RANGE(env, "Index out of range");       \
   } while (0)                                                               \
 
-#define SLICE_START_END(env, start_arg, end_arg, end_max)                   \
-  size_t start = 0;                                                         \
-  size_t end = 0;                                                           \
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, start_arg, 0, &start));      \
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, end_arg, end_max, &end));    \
-  if (end < start) end = start;                                             \
-  THROW_AND_RETURN_IF_OOB(Just(end <= end_max));                            \
-  size_t length = end - start;
-
 namespace node {
 namespace Buffer {
 
@@ -467,7 +458,13 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   if (buffer.length() == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(env, args[0], args[1], buffer.length())
+  size_t start = 0;
+  size_t end = 0;
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[0], 0, &start));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], buffer.length(), &end));
+  if (end < start) end = start;
+  THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
+  size_t length = end - start;
 
   Local<Value> error;
   MaybeLocal<Value> ret =
