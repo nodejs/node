@@ -88,7 +88,10 @@ constexpr char kPathSeparator = '/';
 const char* const kPathSeparator = "\\/";
 #endif
 
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
+inline int64_t GetOffset(Local<Value> value) {
+  return value->IsNumber() ? value.As<Integer>()->Value() : -1;
+}
+
 #define TRACE_NAME(name) "fs.sync." #name
 #define GET_TRACE_ENABLED                                                  \
   (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                             \
@@ -1679,7 +1682,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
 
-  const int64_t pos = GET_OFFSET(args[4]);
+  const int64_t pos = GetOffset(args[4]);
 
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(buf, len);
@@ -1719,7 +1722,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
 
-  int64_t pos = GET_OFFSET(args[2]);
+  int64_t pos = GetOffset(args[2]);
 
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
@@ -1763,7 +1766,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  const int64_t pos = GET_OFFSET(args[2]);
+  const int64_t pos = GetOffset(args[2]);
 
   const auto enc = ParseEncoding(isolate, args[3], UTF8);
 
