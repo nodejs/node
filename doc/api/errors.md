@@ -826,6 +826,11 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 [`crypto.timingSafeEqual()`][] was called with `Buffer`, `TypedArray`, or
 `DataView` arguments of different lengths.
 
+<a id="ERR_DIR_CLOSED"></a>
+### ERR_DIR_CLOSED
+
+The [`fs.Dir`][] was previously closed.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
 
@@ -2388,6 +2393,7 @@ such as `process.stdout.on('data')`.
 [`dgram.disconnect()`]: dgram.html#dgram_socket_disconnect
 [`dgram.remoteAddress()`]: dgram.html#dgram_socket_remoteaddress
 [`errno`(3) man page]: http://man7.org/linux/man-pages/man3/errno.3.html
+[`fs.Dir`]: fs.html#fs_class_fs_dir
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback

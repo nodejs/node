@@ -72,6 +72,7 @@ const customTypesMap = {
   'EventEmitter': 'events.html#events_class_eventemitter',
 
   'FileHandle': 'fs.html#fs_class_filehandle',
+  'fs.Dir': 'fs.html#fs_class_fs_dir',
   'fs.Dirent': 'fs.html#fs_class_fs_dirent',
   'fs.FSWatcher': 'fs.html#fs_class_fs_fswatcher',
   'fs.ReadStream': 'fs.html#fs_class_fs_readstream',

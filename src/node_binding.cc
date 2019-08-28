@@ -51,6 +51,7 @@
   V(domain)                                                                    \
   V(errors)                                                                    \
   V(fs)                                                                        \
+  V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \
   V(heap_utils)                                                                \
   V(http2)                                                                     \

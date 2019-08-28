@@ -382,6 +382,7 @@ constexpr size_t kFsStatsBufferLength =
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
+  V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
