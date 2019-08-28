@@ -181,6 +181,5 @@ const { promisify } = require('util');
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  finished(streamLike, common.mustCall);
-  streamLike.emit('close');
+  finished(streamLike, common.mustCall());
 }
