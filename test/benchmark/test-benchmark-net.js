@@ -12,6 +12,9 @@ runBenchmark('net',
              [
                'dur=0',
                'len=1024',
+               'recvbufgenfn=false',
+               'recvbuflen=0',
+               'sendchunklen=256',
                'type=buf'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
