@@ -306,3 +306,10 @@ if (process.features.inspector && common.isMainThread) {
 {
   v8.getHeapSnapshot().destroy();
 }
+
+// DIRHANDLE
+{
+  const dirBinding = internalBinding('fs_dir');
+  const handle = dirBinding.opendir('./', 'utf8', undefined, {});
+  testInitialized(handle, 'DirHandle');
+}

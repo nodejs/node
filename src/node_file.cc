@@ -52,11 +52,9 @@ namespace node {
 namespace fs {
 
 using v8::Array;
-using v8::BigUint64Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
-using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -676,94 +674,6 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
               Array::New(isolate, type_v.data(),
               type_v.size())).Check();
   req_wrap->Resolve(result);
-}
-
-
-// This class is only used on sync fs calls.
-// For async calls FSReqCallback is used.
-class FSReqWrapSync {
- public:
-  FSReqWrapSync() = default;
-  ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
-  uv_fs_t req;
-
-  FSReqWrapSync(const FSReqWrapSync&) = delete;
-  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
-};
-
-// Returns nullptr if the operation fails from the start.
-template <typename Func, typename... Args>
-inline FSReqBase* AsyncDestCall(Environment* env,
-    FSReqBase* req_wrap,
-    const FunctionCallbackInfo<Value>& args,
-    const char* syscall, const char* dest, size_t len,
-    enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
-  CHECK_NOT_NULL(req_wrap);
-  req_wrap->Init(syscall, dest, len, enc);
-  int err = req_wrap->Dispatch(fn, fn_args..., after);
-  if (err < 0) {
-    uv_fs_t* uv_req = req_wrap->req();
-    uv_req->result = err;
-    uv_req->path = nullptr;
-    after(uv_req);  // after may delete req_wrap if there is an error
-    req_wrap = nullptr;
-  } else {
-    req_wrap->SetReturnValue(args);
-  }
-
-  return req_wrap;
-}
-
-// Returns nullptr if the operation fails from the start.
-template <typename Func, typename... Args>
-inline FSReqBase* AsyncCall(Environment* env,
-    FSReqBase* req_wrap,
-    const FunctionCallbackInfo<Value>& args,
-    const char* syscall, enum encoding enc,
-    uv_fs_cb after, Func fn, Args... fn_args) {
-  return AsyncDestCall(env, req_wrap, args,
-                       syscall, nullptr, 0, enc,
-                       after, fn, fn_args...);
-}
-
-// Template counterpart of SYNC_CALL, except that it only puts
-// the error number and the syscall in the context instead of
-// creating an error in the C++ land.
-// ctx must be checked using value->IsObject() before being passed.
-template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
-    const char* syscall, Func fn, Args... args) {
-  env->PrintSyncTrace();
-  int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
-  if (err < 0) {
-    Local<Context> context = env->context();
-    Local<Object> ctx_obj = ctx.As<Object>();
-    Isolate* isolate = env->isolate();
-    ctx_obj->Set(context,
-             env->errno_string(),
-             Integer::New(isolate, err)).Check();
-    ctx_obj->Set(context,
-             env->syscall_string(),
-             OneByteString(isolate, syscall)).Check();
-  }
-  return err;
-}
-
-// TODO(addaleax): Currently, callers check the return value and assume
-// that nullptr indicates a synchronous call, rather than a failure.
-// Failure conditions should be disambiguated and handled appropriately.
-inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
-                             bool use_bigint = false) {
-  if (value->IsObject()) {
-    return Unwrap<FSReqBase>(value.As<Object>());
-  } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
-    if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(env, use_bigint);
-    } else {
-      return FSReqPromise<AliasedFloat64Array>::New(env, use_bigint);
-    }
-  }
-  return nullptr;
 }
 
 void Access(const FunctionCallbackInfo<Value>& args) {

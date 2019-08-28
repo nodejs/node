@@ -4,7 +4,9 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "aliased_buffer.h"
 #include "stream_base.h"
+#include "memory_tracker-inl.h"
 #include "req_wrap-inl.h"
 #include <iostream>
 
@@ -450,6 +452,93 @@ int MKDirpSync(uv_loop_t* loop,
                const std::string& path,
                int mode,
                uv_fs_cb cb = nullptr);
+
+class FSReqWrapSync {
+ public:
+  FSReqWrapSync() = default;
+  ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
+  uv_fs_t req;
+
+  FSReqWrapSync(const FSReqWrapSync&) = delete;
+  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
+};
+
+// TODO(addaleax): Currently, callers check the return value and assume
+// that nullptr indicates a synchronous call, rather than a failure.
+// Failure conditions should be disambiguated and handled appropriately.
+inline FSReqBase* GetReqWrap(Environment* env, v8::Local<v8::Value> value,
+                             bool use_bigint = false) {
+  if (value->IsObject()) {
+    return Unwrap<FSReqBase>(value.As<Object>());
+  } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
+    if (use_bigint) {
+      return FSReqPromise<AliasedBigUint64Array>::New(env, use_bigint);
+    } else {
+      return FSReqPromise<AliasedFloat64Array>::New(env, use_bigint);
+    }
+  }
+  return nullptr;
+}
+
+// Returns nullptr if the operation fails from the start.
+template <typename Func, typename... Args>
+inline FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
+                                const v8::FunctionCallbackInfo<Value>& args,
+                                const char* syscall, const char* dest,
+                                size_t len, enum encoding enc, uv_fs_cb after,
+                                Func fn, Args... fn_args) {
+  CHECK_NOT_NULL(req_wrap);
+  req_wrap->Init(syscall, dest, len, enc);
+  int err = req_wrap->Dispatch(fn, fn_args..., after);
+  if (err < 0) {
+    uv_fs_t* uv_req = req_wrap->req();
+    uv_req->result = err;
+    uv_req->path = nullptr;
+    after(uv_req);  // after may delete req_wrap if there is an error
+    req_wrap = nullptr;
+  } else {
+    req_wrap->SetReturnValue(args);
+  }
+
+  return req_wrap;
+}
+
+// Returns nullptr if the operation fails from the start.
+template <typename Func, typename... Args>
+inline FSReqBase* AsyncCall(Environment* env,
+                            FSReqBase* req_wrap,
+                            const v8::FunctionCallbackInfo<Value>& args,
+                            const char* syscall, enum encoding enc,
+                            uv_fs_cb after, Func fn, Args... fn_args) {
+  return AsyncDestCall(env, req_wrap, args,
+                       syscall, nullptr, 0, enc,
+                       after, fn, fn_args...);
+}
+
+// Template counterpart of SYNC_CALL, except that it only puts
+// the error number and the syscall in the context instead of
+// creating an error in the C++ land.
+// ctx must be checked using value->IsObject() before being passed.
+template <typename Func, typename... Args>
+inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
+                    FSReqWrapSync* req_wrap, const char* syscall,
+                    Func fn, Args... args) {
+  env->PrintSyncTrace();
+  int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
+  if (err < 0) {
+    v8::Local<Context> context = env->context();
+    v8::Local<Object> ctx_obj = ctx.As<v8::Object>();
+    v8::Isolate* isolate = env->isolate();
+    ctx_obj->Set(context,
+                 env->errno_string(),
+                 v8::Integer::New(isolate, err)).Check();
+    ctx_obj->Set(context,
+                 env->syscall_string(),
+                 OneByteString(isolate, syscall)).Check();
+  }
+  return err;
+}
+
 }  // namespace fs
 
 }  // namespace node
