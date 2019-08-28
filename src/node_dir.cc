@@ -1,0 +1,350 @@
+#include "node_dir.h"
+#include "node_process.h"
+#include "util.h"
+
+#include "tracing/trace_event.h"
+
+#include "req_wrap-inl.h"
+#include "string_bytes.h"
+
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <cstring>
+#include <cerrno>
+#include <climits>
+
+#include <memory>
+
+namespace node {
+
+namespace fs_dir {
+
+using fs::FSReqAfterScope;
+using fs::FSReqBase;
+using fs::FSReqWrapSync;
+using fs::GetReqWrap;
+
+using v8::Array;
+using v8::Context;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Null;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::Value;
+
+#define TRACE_NAME(name) "fs_dir.sync." #name
+#define GET_TRACE_ENABLED                                                      \
+  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                                 \
+  (TRACING_CATEGORY_NODE2(fs_dir, sync)) != 0)
+#define FS_DIR_SYNC_TRACE_BEGIN(syscall, ...)                                  \
+  if (GET_TRACE_ENABLED)                                                       \
+  TRACE_EVENT_BEGIN(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall), \
+  ##__VA_ARGS__);
+#define FS_DIR_SYNC_TRACE_END(syscall, ...)                                    \
+  if (GET_TRACE_ENABLED)                                                       \
+  TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall),   \
+  ##__VA_ARGS__);
+
+DirHandle::DirHandle(Environment* env, Local<Object> obj, uv_dir_t* dir)
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_DIRHANDLE),
+      dir_(dir) {
+  MakeWeak();
+
+  dir_->nentries = 1;
+  dir_->dirents = &dirent_;
+}
+
+DirHandle* DirHandle::New(Environment* env, uv_dir_t* dir) {
+  Local<Object> obj;
+  if (!env->dir_instance_template()
+          ->NewInstance(env->context())
+          .ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return new DirHandle(env, obj, dir);
+}
+
+void DirHandle::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
+
+DirHandle::~DirHandle() {
+  CHECK(!closing_);  // We should not be deleting while explicitly closing!
+  GCClose();         // Close synchronously and emit warning
+  CHECK(closed_);    // We have to be closed at the point
+}
+
+// Close the directory handle if it hasn't already been closed. A process
+// warning will be emitted using a SetImmediate to avoid calling back to
+// JS during GC. If closing the fd fails at this point, a fatal exception
+// will crash the process immediately.
+inline void DirHandle::GCClose() {
+  if (closed_) return;
+  uv_fs_t req;
+  int ret = uv_fs_closedir(nullptr, &req, dir_, nullptr);
+  uv_fs_req_cleanup(&req);
+  closing_ = false;
+  closed_ = true;
+
+  struct err_detail { int ret; };
+
+  err_detail detail { ret };
+
+  if (ret < 0) {
+    // Do not unref this
+    env()->SetImmediate([detail](Environment* env) {
+      char msg[70];
+      snprintf(msg, arraysize(msg),
+              "Closing directory handle on garbage collection failed");
+      // This exception will end up being fatal for the process because
+      // it is being thrown from within the SetImmediate handler and
+      // there is no JS stack to bubble it to. In other words, tearing
+      // down the process is the only reasonable thing we can do here.
+      HandleScope handle_scope(env->isolate());
+      env->ThrowUVException(detail.ret, "close", msg);
+    });
+    return;
+  }
+
+  // If the close was successful, we still want to emit a process warning
+  // to notify that the file descriptor was gc'd. We want to be noisy about
+  // this because not explicitly closing the DirHandle is a bug.
+
+  env()->SetUnrefImmediate([](Environment* env) {
+    ProcessEmitWarning(env,
+                       "Closing directory handle on garbage collection");
+  });
+}
+
+void AfterClose(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (after.Proceed())
+    req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
+}
+
+void DirHandle::Close(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 1);
+
+  DirHandle* dir;
+  ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
+
+  dir->closing_ = false;
+  dir->closed_ = true;
+
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[0]);
+  if (req_wrap_async != nullptr) {  // close(req)
+    AsyncCall(env, req_wrap_async, args, "closedir", UTF8, AfterClose,
+              uv_fs_closedir, dir->dir());
+  } else {  // close(undefined, ctx)
+    CHECK_EQ(argc, 2);
+    FSReqWrapSync req_wrap_sync;
+    FS_DIR_SYNC_TRACE_BEGIN(closedir);
+    SyncCall(env, args[1], &req_wrap_sync, "closedir", uv_fs_closedir,
+             dir->dir());
+    FS_DIR_SYNC_TRACE_END(closedir);
+  }
+}
+
+void AfterDirReadSingle(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (!after.Proceed()) {
+    return;
+  }
+
+  Environment* env = req_wrap->env();
+  Isolate* isolate = env->isolate();
+  Local<Value> error;
+
+  if (req->result == 0) {
+    // Done
+    Local<Value> done = Null(isolate);
+    req_wrap->Resolve(done);
+    return;
+  }
+
+  uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
+  req->ptr = nullptr;
+
+  // Single entries are returned without an array wrapper
+  const uv_dirent_t& ent = dir->dirents[0];
+
+  MaybeLocal<Value> filename =
+    StringBytes::Encode(isolate,
+                        ent.name,
+                        req_wrap->encoding(),
+                        &error);
+  if (filename.IsEmpty())
+    return req_wrap->Reject(error);
+
+
+  Local<Array> result = Array::New(isolate, 2);
+  result->Set(env->context(),
+              0,
+              filename.ToLocalChecked()).FromJust();
+  result->Set(env->context(),
+              1,
+              Integer::New(isolate, ent.type)).FromJust();
+  req_wrap->Resolve(result);
+}
+
+
+void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[0], UTF8);
+
+  DirHandle* dir;
+  ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
+
+  FSReqBase* req_wrap_async = static_cast<FSReqBase*>(GetReqWrap(env, args[1]));
+  if (req_wrap_async != nullptr) {  // dir.read(encoding, req)
+    AsyncCall(env, req_wrap_async, args, "readdir", encoding,
+              AfterDirReadSingle, uv_fs_readdir, dir->dir());
+  } else {  // dir.read(encoding, undefined, ctx)
+    CHECK_EQ(argc, 3);
+    FSReqWrapSync req_wrap_sync;
+    FS_DIR_SYNC_TRACE_BEGIN(readdir);
+    int err = SyncCall(env, args[2], &req_wrap_sync, "readdir", uv_fs_readdir,
+                       dir->dir());
+    FS_DIR_SYNC_TRACE_END(readdir);
+    if (err < 0) {
+      return;  // syscall failed, no need to continue, error info is in ctx
+    }
+
+    if (req_wrap_sync.req.result == 0) {
+      // Done
+      Local<Value> done = Null(isolate);
+      args.GetReturnValue().Set(done);
+      return;
+    }
+
+    CHECK_GE(req_wrap_sync.req.result, 0);
+    const uv_dirent_t& ent = dir->dir()->dirents[0];
+
+    Local<Value> error;
+    MaybeLocal<Value> filename =
+      StringBytes::Encode(isolate,
+                          ent.name,
+                          encoding,
+                          &error);
+    if (filename.IsEmpty()) {
+      Local<Object> ctx = args[2].As<Object>();
+      ctx->Set(env->context(), env->error_string(), error).FromJust();
+      return;
+    }
+
+    Local<Array> result = Array::New(isolate, 2);
+    result->Set(env->context(),
+                0,
+                filename.ToLocalChecked()).FromJust();
+    result->Set(env->context(),
+                1,
+                Integer::New(isolate, ent.type)).FromJust();
+    args.GetReturnValue().Set(result);
+  }
+}
+
+void AfterOpenDir(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (!after.Proceed()) {
+    return;
+  }
+
+  Environment* env = req_wrap->env();
+  Local<Value> error;
+
+  uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
+  DirHandle* handle = DirHandle::New(env, dir);
+
+  req_wrap->Resolve(handle->object().As<Value>());
+}
+
+static void OpenDir(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+
+  const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
+
+  FSReqBase* req_wrap_async = static_cast<FSReqBase*>(GetReqWrap(env, args[2]));
+  if (req_wrap_async != nullptr) {  // openDir(path, encoding, req)
+    AsyncCall(env, req_wrap_async, args, "opendir", encoding, AfterOpenDir,
+              uv_fs_opendir, *path);
+  } else {  // openDir(path, encoding, undefined, ctx)
+    CHECK_EQ(argc, 4);
+    FSReqWrapSync req_wrap_sync;
+    FS_DIR_SYNC_TRACE_BEGIN(opendir);
+    int result = SyncCall(env, args[3], &req_wrap_sync, "opendir",
+                          uv_fs_opendir, *path);
+    FS_DIR_SYNC_TRACE_END(opendir);
+    if (result < 0) {
+      return;  // syscall failed, no need to continue, error info is in ctx
+    }
+
+    uv_fs_t* req = &req_wrap_sync.req;
+    uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
+    DirHandle* handle = DirHandle::New(env, dir);
+
+    args.GetReturnValue().Set(handle->object().As<Value>());
+  }
+}
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
+  env->SetMethod(target, "opendir", OpenDir);
+
+  // Create FunctionTemplate for DirHandle
+  Local<FunctionTemplate> dir = env->NewFunctionTemplate(DirHandle::New);
+  dir->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  env->SetProtoMethod(dir, "read", DirHandle::Read);
+  env->SetProtoMethod(dir, "close", DirHandle::Close);
+  Local<ObjectTemplate> dirt = dir->InstanceTemplate();
+  dirt->SetInternalFieldCount(DirHandle::kDirHandleFieldCount);
+  Local<String> handleString =
+       FIXED_ONE_BYTE_STRING(isolate, "DirHandle");
+  dir->SetClassName(handleString);
+  target
+      ->Set(context, handleString,
+            dir->GetFunction(env->context()).ToLocalChecked())
+      .FromJust();
+  env->set_dir_instance_template(dirt);
+}
+
+}  // namespace fs_dir
+
+}  // end namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
