@@ -10,9 +10,6 @@ env:
   global:
     - PYTHON2_VERSION="2.7.15"
     - PYTHON3_VERSION="3.6.7"  # "3.7.1" after #29326 us fixed
-cache:
-    directories:
-     - $HOME/.rvm/
 jobs:
   include:
     - stage: "Compile"
