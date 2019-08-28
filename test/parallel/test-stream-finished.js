@@ -183,3 +183,30 @@ const { promisify } = require('util');
   streamLike.readable = true;
   finished(streamLike, common.mustCall());
 }
+
+{
+  const streamLike = new EE();
+  streamLike.readableEnded = false;
+  streamLike.readable = true;
+  finished(streamLike, common.expectsError({
+    code: 'ERR_STREAM_PREMATURE_CLOSE'
+  }));
+  streamLike.emit('close');
+}
+
+{
+  const streamLike = new EE();
+  streamLike.writableFinished = true;
+  streamLike.writable = true;
+  finished(streamLike, common.mustCall());
+}
+
+{
+  const streamLike = new EE();
+  streamLike.writableFinished = false;
+  streamLike.writable = true;
+  finished(streamLike, common.expectsError({
+    code: 'ERR_STREAM_PREMATURE_CLOSE'
+  }));
+  streamLike.emit('close');
+}

@@ -57,9 +57,77 @@ const { finished } = require('stream');
       common.expectsError({
         type: Error,
         code: 'ERR_STREAM_PREMATURE_CLOSE'
-      })(err)
-      server.close();
+      })(err);
+      finished(req, common.mustCall(() => {
+        server.close();
+      }));
     });
     req.abort();
+  }));
+}
+
+{
+  // abort before end
+
+  const server = http.createServer(function(req, res) {
+    res.write('test');
+  });
+
+  server.listen(0, common.mustCall(function() {
+    const req = http.request({
+      port: this.address().port
+    }).on('response', common.mustCall(res => {
+      req.abort();
+      finished(res, common.mustCall(() => {
+        finished(res, common.mustCall(() =>{
+          server.close();
+        }));
+      }));
+    })).end();
+  }));
+}
+
+{
+  // destroy before end
+
+  const server = http.createServer(function(req, res) {
+    res.write('test');
+  });
+
+  server.listen(0, common.mustCall(function() {
+    http.request({
+      port: this.address().port
+    }).on('response', common.mustCall(res => {
+      // TODO(ronag): Bug? Won't emit 'close' unless read.
+      res.on('data', () => {});
+      res.destroy();
+      finished(res, common.mustCall(() => {
+        finished(res, common.mustCall(() => {
+          server.close();
+        }));
+      }));
+    })).end();
+  }));
+}
+
+{
+  // finish after end
+
+  const server = http.createServer(function(req, res) {
+    res.end('asd');
+  });
+
+  server.listen(0, common.mustCall(function() {
+    http.request({
+      port: this.address().port
+    }).on('response', common.mustCall(res => {
+      // TODO(ronag): Bug? Won't emit 'close' unless read.
+      res.on('data', () => {});
+      finished(res, common.mustCall(() => {
+        finished(res, common.mustCall(() => {
+          server.close();
+        }))
+      }));
+    })).end();
   }));
 }
