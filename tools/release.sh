@@ -144,6 +144,7 @@ function sign {
 
     if [ "X${yorn}" == "Xy" ]; then
       scp ${customsshkey} ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.sig ${webuser}@${webhost}:${shadir}/
+      ssh ${customsshkey} ${webuser}@${webhost} chmod 644 ${shadir}/${shafile}.asc ${shadir}/${shafile}.sig
       break
     fi
   done
