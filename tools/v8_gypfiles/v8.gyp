@@ -98,7 +98,7 @@
       }]
     ],
   },
-  'includes': ['toolchain.gypi', 'features.gypi', 'v8_external_snapshot.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi'],
   'targets': [
     {
       'target_name': 'run_torque',
@@ -257,8 +257,8 @@
     },  # generate_bytecode_builtins_list
 
     {
-      # This rule delegates to either v8_snapshot, v8_nosnapshot, or
-      # v8_external_snapshot, depending on the current variables.
+      # This rule delegates to either v8_snapshot or v8_nosnapshot depending on
+      # the current variables.
       # The intention is to make the 'calling' rules a bit simpler.
       'target_name': 'v8_maybe_snapshot',
       'type': 'none',
@@ -276,12 +276,6 @@
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
           'dependencies': ['v8_base', 'v8_snapshot'],
-        }],
-        ['v8_use_snapshot==1 and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-        }],
-        ['v8_use_snapshot==1 and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
         }],
       ]
     },  # v8_maybe_snapshot
