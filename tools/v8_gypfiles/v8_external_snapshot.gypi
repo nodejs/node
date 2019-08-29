@@ -1,4 +1,3 @@
-# Keeping this separate since Node.js does use it
 {
   'targets': [
     {
@@ -36,8 +35,8 @@
             'v8_base',
           ],
           'sources': [
-            '<(V8_ROOT)/src/setup-isolate-deserialize.cc',
-            '<(V8_ROOT)/src/snapshot/embedded-empty.cc',
+            '<(V8_ROOT)/src/init/setup-isolate-deserialize.cc',
+            '<(V8_ROOT)/src/snapshot/embedded/embedded-empty.cc',
             '<(V8_ROOT)/src/snapshot/natives-external.cc',
             '<(V8_ROOT)/src/snapshot/snapshot-external.cc',
             '<(embedded_builtins_snapshot_src)',
