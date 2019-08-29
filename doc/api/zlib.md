@@ -230,6 +230,7 @@ quality, but can be useful when data needs to be available as soon as possible.
 
 In the following example, `flush()` is used to write a compressed partial
 HTTP response to the client:
+
 ```js
 const zlib = require('zlib');
 const http = require('http');

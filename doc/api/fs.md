@@ -231,6 +231,7 @@ fs.readFileSync(new URL('file:///p/a/t/h/%2f'));
 /* TypeError [ERR_INVALID_FILE_URL_PATH]: File URL path must not include encoded
 / characters */
 ```
+
 On Windows, `file:` URLs having encoded backslash will result in a throw:
 
 ```js
@@ -3815,6 +3816,7 @@ recommended.
 
 When `file` is a file descriptor, the behavior is almost identical to directly
 calling `fs.write()` like:
+
 ```javascript
 fs.write(fd, Buffer.from(data, options.encoding), callback);
 ```

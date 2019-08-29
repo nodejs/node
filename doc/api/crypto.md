@@ -716,6 +716,7 @@ const dh = crypto.createDiffieHellmanGroup(name);
 ```
 
 `name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
+
 ```console
 $ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
 modp1  #  768 bits

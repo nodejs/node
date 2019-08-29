@@ -665,16 +665,19 @@ during configuration if the ICU version is too old.
 #### Unix/macOS
 
 From an already-unpacked ICU:
+
 ```console
 $ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
 
 From a local ICU tarball:
+
 ```console
 $ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
 ```
 
 From a tarball URL:
+
 ```console
 $ ./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
 ```

@@ -760,6 +760,7 @@ process.
 ```js
 console.log(`Current directory: ${process.cwd()}`);
 ```
+
 ## process.debugPort
 <!-- YAML
 added: v0.7.2
@@ -771,6 +772,7 @@ The port used by Node.js's debugger when enabled.
 ```js
 process.debugPort = 5858;
 ```
+
 ## process.disconnect()
 <!-- YAML
 added: v0.7.2
@@ -2199,6 +2201,7 @@ To check if a stream is connected to a [TTY][] context, check the `isTTY`
 property.
 
 For instance:
+
 ```console
 $ node -p "Boolean(process.stdin.isTTY)"
 true

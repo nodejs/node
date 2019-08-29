@@ -70,6 +70,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
     // Otherwise handle the data
   });
   ```
+
 - When an asynchronous method is called on an object that is an
   [`EventEmitter`][], errors can be routed to that object's `'error'` event.
 

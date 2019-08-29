@@ -557,6 +557,7 @@ Module Record][]s in the ECMAScript specification.
     import foo from 'foo';
     //              ^^^^^ the module specifier
     ```
+
   * `referencingModule` {vm.SourceTextModule} The `Module` object `link()` is
     called on.
   * Returns: {vm.SourceTextModule|Promise}

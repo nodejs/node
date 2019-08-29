@@ -299,6 +299,7 @@ obs.observe({ entryTypes: ['mark'], buffered: true });
 
 performance.mark('test');
 ```
+
 Because `PerformanceObserver` instances introduce their own additional
 performance overhead, instances should not be left subscribed to notifications
 indefinitely. Users should disconnect observers as soon as they are no
