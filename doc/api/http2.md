@@ -2610,8 +2610,8 @@ In order to create a mixed [HTTPS][] and HTTP/2 server, refer to the
 [ALPN negotiation][] section.
 Upgrading from non-tls HTTP/1 servers is not supported.
 
-The HTTP/2 compatibility API is composed of [`Http2ServerRequest`]() and
-[`Http2ServerResponse`](). They aim at API compatibility with HTTP/1, but
+The HTTP/2 compatibility API is composed of [`Http2ServerRequest`][] and
+[`Http2ServerResponse`][]. They aim at API compatibility with HTTP/1, but
 they do not hide the differences between the protocols. As an example,
 the status message for HTTP codes is ignored.
 
@@ -2830,12 +2830,12 @@ added: v8.4.0
 * `callback` {Function}
 * Returns: {http2.Http2ServerRequest}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
+Sets the [`Http2Stream`][]'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
 If no `'timeout'` listener is added to the request, the response, or
-the server, then [`Http2Stream`]()s are destroyed when they time out. If a
+the server, then [`Http2Stream`][]s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
 
@@ -2964,7 +2964,7 @@ passed as the second parameter to the [`'request'`][] event.
 added: v8.4.0
 -->
 
-Indicates that the underlying [`Http2Stream`]() was terminated before
+Indicates that the underlying [`Http2Stream`][] was terminated before
 [`response.end()`][] was called or able to flush.
 
 #### Event: 'finish'
@@ -3192,12 +3192,12 @@ added: v8.4.0
 * `callback` {Function}
 * Returns: {http2.Http2ServerResponse}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
+Sets the [`Http2Stream`][]'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
 If no `'timeout'` listener is added to the request, the response, or
-the server, then [`Http2Stream`]()s are destroyed when they time out. If a
+the server, then [`Http2Stream`][]s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
 
@@ -3490,6 +3490,7 @@ following additional properties:
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
+[`Http2ServerResponse`]: #class-http2http2serverresponse
 [`Http2Session` and Sockets]: #http2_http2session_and_sockets
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
