@@ -83,7 +83,6 @@ See [the guide on writing benchmarks](../doc/guides/writing-and-running-benchmar
 The default benchmarker used to run HTTP benchmarks.
 See [the guide on writing HTTP benchmarks](../doc/guides/writing-and-running-benchmarks.md#creating-an-http-benchmark).
 
-
 ### PORT
 
 The default port used to run HTTP benchmarks.
@@ -95,4 +94,3 @@ Used in special benchmarks that can't use `createBenchmark` and the object
 it returns to accomplish what they need. This function reports timing
 data to the parent process (usually created by running `compare.js`, `run.js` or
 `scatter.js`).
-

@@ -5,7 +5,6 @@ by debuggers and other tools to navigate through internal structures of software
 when analyzing its memory (either on a running process or a core dump). Node.js
 provides this metadata in its builds for V8 and Node.js internal structures.
 
-
 ## V8 Postmortem metadata
 
 V8 prefixes all postmortem constants with `v8dbg_`, and they allow inspection of

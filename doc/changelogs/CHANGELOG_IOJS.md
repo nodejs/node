@@ -76,7 +76,6 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-
 <a id="3.3.1"></a>
 ## 2015-09-15, io.js Version 3.3.1 @rvagg
 
@@ -614,7 +613,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`842eb5b853`](https://github.com/nodejs/node/commit/842eb5b853)] - **test**: add test for dgram.setTTL (Evan Lucas) [#2121](https://github.com/nodejs/node/pull/2121)
 * [[`cff7300a57`](https://github.com/nodejs/node/commit/cff7300a57)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 
-
 <a id="2.3.4"></a>
 ## 2015-07-09, Version 2.3.4, @Fishrock123
 
@@ -651,7 +649,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`ee3ce2ed88`](https://github.com/nodejs/node/commit/ee3ce2ed88)] - **tools**: install gdbinit from v8 to $PREFIX/share (Ali Ijaz Sheikh) [#2123](https://github.com/nodejs/node/pull/2123)
 * [[`dd523c75da`](https://github.com/nodejs/node/commit/dd523c75da)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 
-
 <a id="1.8.4"></a>
 ## 2015-07-09, Version 1.8.4, @Fishrock123
 
@@ -675,7 +672,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`c70e68fa32`](https://github.com/nodejs/node/commit/c70e68fa32)] - **deps**: update deps/openssl/conf/arch/*/opensslconf.h (Shigeki Ohtsu) [#2141](https://github.com/nodejs/node/pull/2141)
 * [[`ca93f7f2e6`](https://github.com/nodejs/node/commit/ca93f7f2e6)] - **deps**: upgrade openssl sources to 1.0.2d (Shigeki Ohtsu) [#2141](https://github.com/nodejs/node/pull/2141)
 
-
 <a id="2.3.3"></a>
 ## 2015-07-04, Version 2.3.3, @Fishrock123
 
@@ -698,7 +694,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`030f8045c7`](https://github.com/nodejs/node/commit/030f8045c7)] - **deps**: fix out-of-band write in utf8 decoder (Fedor Indutny)
 * [[`0f09b8db28`](https://github.com/nodejs/node/commit/0f09b8db28)] - **doc**: don't recommend domains for error handling (Benjamin Gruenbaum) [#2056](https://github.com/nodejs/node/pull/2056)
 * [[`9cd44bb2b6`](https://github.com/nodejs/node/commit/9cd44bb2b6)] - **util**: prepend '(node) ' to deprecation messages (Sakthipriyan Vairamani) [#1892](https://github.com/nodejs/node/pull/1892)
-
 
 <a id="1.8.3"></a>
 ## 2015-07-04, Version 1.8.3, @rvagg
@@ -750,7 +745,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`2cd7f73d9f`](https://github.com/nodejs/node/commit/2cd7f73d9f)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
 * [[`c65484a74d`](https://github.com/nodejs/node/commit/c65484a74d)] - **tls**: make server not use DHE in less than 1024bits (Shigeki Ohtsu) [#1739](https://github.com/nodejs/node/pull/1739)
 * [[`77f518403f`](https://github.com/nodejs/node/commit/77f518403f)] - **win,node-gyp**: make delay-load hook C89 compliant (Sharat M R) [TooTallNate/node-gyp#616](https://github.com/TooTallNa
-
 
 <a id="2.3.2"></a>
 ## 2015-07-01, Version 2.3.2, @rvagg
@@ -813,7 +807,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`d91e10b3bd`](https://github.com/nodejs/node/commit/d91e10b3bd)] - **tools**: update eslint to 0.24.0 (Roman Reiss) [#2072](https://github.com/nodejs/node/pull/2072)
 * [[`6c61ca5325`](https://github.com/nodejs/node/commit/6c61ca5325)] - **url**: fix typo in comment (Rich Trott) [#2071](https://github.com/nodejs/node/pull/2071)
 * [[`1a51f0058c`](https://github.com/nodejs/node/commit/1a51f0058c)] - **v8**: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis) [#2075](https://github.com/nodejs/node/pull/2075)
-
 
 <a id="2.3.1"></a>
 ## 2015-06-23, Version 2.3.1, @rvagg
@@ -883,7 +876,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`0ecf9457b5`](https://github.com/nodejs/node/commit/0ecf9457b5)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 * [[`953b3e75e8`](https://github.com/nodejs/node/commit/953b3e75e8)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 * [[`3806d875d3`](https://github.com/nodejs/node/commit/3806d875d3)] - **zlib**: prevent uncaught exception in zlibBuffer (Michaël Zasso) [#1811](https://github.com/nodejs/node/pull/1811)
-
 
 <a id="2.3.0"></a>
 ## 2015-06-13, Version 2.3.0, @rvagg
@@ -1008,7 +1000,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`628845b816`](https://github.com/nodejs/node/commit/628845b816)] - **(SEMVER-MINOR)** **util**: introduce `printDeprecationMessage` function (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/node/pull/1822)
 * [[`91d0a8b19c`](https://github.com/nodejs/node/commit/91d0a8b19c)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 
-
 <a id="2.2.1"></a>
 ## 2015-06-01, Version 2.2.1, @rvagg
 
@@ -1031,7 +1022,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`c5a1009903`](https://github.com/nodejs/node/commit/c5a1009903)] - **build**: avoid passing empty strings to build flags (Johan Bergström) [#1789](https://github.com/nodejs/node/pull/1789)
 * [[`5d83401086`](https://github.com/nodejs/node/commit/5d83401086)] - **doc**: put SEMVER-MINOR on pre-load module fix 2.2.0 (Rod Vagg)
 * [[`4d6b768e5d`](https://github.com/nodejs/node/commit/4d6b768e5d)] - **http**: revert deprecation of client property (Michaël Zasso) [#1852](https://github.com/nodejs/node/pull/1852)
-
 
 <a id="2.2.0"></a>
 ## 2015-05-31, Version 2.2.0, @rvagg
@@ -1394,7 +1384,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`bf7ac08dd0`](https://github.com/nodejs/node/commit/bf7ac08dd0)] - **util**: add Map and Set inspection support (Christopher Monsanto) [#1471](https://github.com/nodejs/node/pull/1471)
 * [[`30e83d2e84`](https://github.com/nodejs/node/commit/30e83d2e84)] - **win,node-gyp**: optionally allow node.exe/iojs.exe to be renamed (Bert Belder) [#1266](https://github.com/nodejs/node/pull/1266)
 * [[`3bda6cbfa4`](https://github.com/nodejs/node/commit/3bda6cbfa4)] - **(SEMVER-MAJOR)** **win,node-gyp**: enable delay-load hook by default (Bert Belder) [#1433](https://github.com/nodejs/node/pull/1433)
-
 
 <a id="1.8.1"></a>
 ## 2015-04-20, Version 1.8.1, @chrisdickinson

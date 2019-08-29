@@ -195,7 +195,6 @@ added: v11.0.0
 
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
-
 ## URL
 <!-- YAML
 added: v10.0.0

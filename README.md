@@ -16,7 +16,6 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 
 **This project is bound by a [Code of Conduct][].**
 
-
 # Table of Contents
 
 * [Support](#support)
@@ -88,7 +87,6 @@ Documentation for the latest Current release is at <https://nodejs.org/api/>.
 Version-specific documentation is available in each release directory in the
 _docs_ subdirectory. Version-specific documentation is also at
 <https://nodejs.org/download/docs/>.
-
 
 ### Verifying Binaries
 

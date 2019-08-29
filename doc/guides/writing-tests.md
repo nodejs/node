@@ -308,7 +308,6 @@ as part of the test (message tests, tests that check output from child
 processes, etc.), or is there as a debug aide. If there is any chance of
 confusion, use comments to make the purpose clear.
 
-
 ### ES.Next features
 
 For performance considerations, we only use a selected subset of ES.Next

@@ -285,7 +285,6 @@ Security Update
 * [517986c2f4] - win: backport bringing back xp/2k3 support (Bert Belder) https://github.com/nodejs/node-v0.x-archive/pull/25569
 * [10f251e8dd] - win: backport set env before generating projects (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25569
 
-
 <a id="0.10.40"></a>
 ## 2015-07-09, Version 0.10.40 (Maintenance)
 

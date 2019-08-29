@@ -75,7 +75,6 @@ See [`http.Server#headersTimeout`][].
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-
 ### server.maxHeadersCount
 
 - {number} **Default:** `2000`

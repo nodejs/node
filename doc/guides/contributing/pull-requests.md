@@ -154,7 +154,6 @@ A good commit message should describe what changed and why.
    - `net: add localAddress and localPort to Socket`
    - `src: fix typos in async_wrap.h`
 
-
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns (except for long URLs).
 

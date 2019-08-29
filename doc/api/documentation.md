@@ -12,7 +12,6 @@ Node.js is a JavaScript runtime built on the [V8 JavaScript engine][].
 Report errors in this documentation in [the issue tracker][]. See
 [the contributing guide][] for directions on how to submit pull requests.
 
-
 ## Stability Index
 
 <!--type=misc-->
