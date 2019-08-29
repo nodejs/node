@@ -275,7 +275,6 @@ Drysdale)
 * [[`e77f1e2177`](https://github.com/nodejs/node/commit/e77f1e2177)] - **v8**: fix stack overflow in recursive method (Ben Noordhuis) [#12460](https://github.com/nodejs/node/pull/12460)
 * [[`25b851bdd4`](https://github.com/nodejs/node/commit/25b851bdd4)] - **v8**: fix build errors with g++ 7 (Ben Noordhuis) [#12392](https://github.com/nodejs/node/pull/12392)
 
-
 <a id="7.9.0"></a>
 ## 2017-04-11, Version 7.9.0 (Current), @italoacasas
 
@@ -1235,7 +1234,6 @@ users is "low". Details on this determination can be found
 * [[`d628f3a227`](https://github.com/nodejs/node/commit/d628f3a227)] - **util**: avoid out-of-bounds arguments index access (Teddy Katz) [#10569](https://github.com/nodejs/node/pull/10569)
 * [[`2641cd496d`](https://github.com/nodejs/node/commit/2641cd496d)] - **vm**: improve performance of vm.runIn*() (Rich Trott) [#10816](https://github.com/nodejs/node/pull/10816)
 
-
 <a id="7.4.0"></a>
 ## 2017-01-04, Version 7.4.0 (Current), @evanlucas
 
@@ -1393,7 +1391,6 @@ users is "low". Details on this determination can be found
 * [[`7fbd12f876`](https://github.com/nodejs/node/commit/7fbd12f876)] - **url**: make WHATWG URL properties spec compliant (Joyee Cheung) [#10408](https://github.com/nodejs/node/pull/10408)
 * [[`495213e545`](https://github.com/nodejs/node/commit/495213e545)] - **url**: mark ignored return value in node::url::Parse(...) (Christopher J. Brody) [#10141](https://github.com/nodejs/node/pull/10141)
 * [[`ba46374cb9`](https://github.com/nodejs/node/commit/ba46374cb9)] - **watchdog**: add flag to mark handler as disabled (Bartosz Sosnowski) [#10248](https://github.com/nodejs/node/pull/10248)
-
 
 <a id="7.3.0"></a>
 ## 2016-12-20, Version 7.3.0 (Current), @cjihrig
@@ -2014,7 +2011,6 @@ _This is a security release impacting Windows 10 users._
 * [[`bdad1e28fd`](https://github.com/nodejs/node/commit/bdad1e28fd)] - **tools**: make --repeat work with -j in test.py (Rich Trott) [#9249](https://github.com/nodejs/node/pull/9249)
 * [[`4f0596fb03`](https://github.com/nodejs/node/commit/4f0596fb03)] - **util**: use template strings (Alejandro Oviedo Garcia) [#9120](https://github.com/nodejs/node/pull/9120)
 * [[`b083086ff2`](https://github.com/nodejs/node/commit/b083086ff2)] - **vm**: name anonymous functions (solebox) [#9388](https://github.com/nodejs/node/pull/9388)
-
 
 <a id="7.0.0"></a>
 ## 2016-10-25, Version 7.0.0 (Current), @jasnell

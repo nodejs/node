@@ -141,7 +141,6 @@ includes the following branches<sup>1</sup>:
   </tr>
 </table>
 
-
 The versions of V8 used in Node.js v4.x, v6.x, and 8.x have already been
 abandoned by upstream V8. However, Node.js needs to continue supporting
 these branches for many months (Current branches) or several

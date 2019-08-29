@@ -357,7 +357,6 @@ added: v10.10.0
 
 Returns `true` if the `fs.Dirent` object describes a symbolic link.
 
-
 ### dirent.name
 <!-- YAML
 added: v10.10.0

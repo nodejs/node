@@ -91,7 +91,6 @@ This is a security release. All Node.js users should consult the security releas
 * [[`c1ddefdd79`](https://github.com/nodejs/node/commit/c1ddefdd79)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`bec5d50f1e`](https://github.com/nodejs/node/commit/bec5d50f1e)] - **test**: fix alpn tests for openssl1.0.2h (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
 
-
 <a id="5.11.0"></a>
 ## 2016-04-20, Version 5.11.0 (Stable), @thealphanerd
 
@@ -913,7 +912,6 @@ This is an important security release. All Node.js users should consult the secu
 * [[`386ad7e0b5`](https://github.com/nodejs/node/commit/386ad7e0b5)] - **tools**: fix setting path containing an ampersand (Brian White) [#4804](https://github.com/nodejs/node/pull/4804)
 * [[`e415eb27e5`](https://github.com/nodejs/node/commit/e415eb27e5)] - **url**: change scoping of variables with let (Kári Tristan Helgason) [#4867](https://github.com/nodejs/node/pull/4867)
 
-
 <a id="5.5.0"></a>
 ## 2016-01-20, Version 5.5.0 (Stable), @evanlucas
 
@@ -1186,7 +1184,6 @@ This is an important security release. All Node.js users should consult the secu
 * **deps**:
   - Upgrade libuv to 1.8.0. (Saúl Ibarra Corretgé) [#4276](https://github.com/nodejs/node/pull/4276).
 
-
 ### Known issues
 
 * Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
@@ -1261,7 +1258,6 @@ This is an important security release. All Node.js users should consult the secu
   - Update root certificates from the current list stored maintained by Mozilla NSS. (Ben Noordhuis) [#3951](https://github.com/nodejs/node/pull/3951).
   - Multiple CA certificates can now be passed with the `ca` option to TLS methods as an array of strings or in a single new-line separated string. (Ben Noordhuis) [#4099](https://github.com/nodejs/node/pull/4099)
 * **tools**: Include a tick processor in core, exposed via the `--prof-process` command-line argument which can be used to process V8 profiling output files generated when using the `--prof` command-line argument. (Matt Loring) [#4021](https://github.com/nodejs/node/pull/4021).
-
 
 ### Known issues
 
@@ -1608,7 +1604,6 @@ This is an important security release. All Node.js users should consult the secu
 * Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
 * `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
 * Unicode characters in filesystem paths are not handled consistently across platforms or Node.js APIs. See [#2088](https://github.com/nodejs/node/issues/2088), [#3401](https://github.com/nodejs/node/issues/3401) and [#3519](https://github.com/nodejs/node/issues/3519).
-
 
 ### Commits
 

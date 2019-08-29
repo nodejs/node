@@ -610,7 +610,6 @@ The OpenSSL library the error originates in.
 
 A human-readable string describing the reason for the error.
 
-
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
@@ -2171,7 +2170,6 @@ removed: v10.0.0
 -->
 
 The `repl` module was unable to parse data from the REPL history file.
-
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE

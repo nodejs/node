@@ -132,7 +132,6 @@ This is a security release. All Node.js users should consult the security releas
 * [a113e02f16] - deps: backport 3a9bfec from v8 upstream (Ben Noordhuis)
 * [8138055c88] - test: fix test failure due to expired certificates (Ben Noordhuis) https://github.com/nodejs/node/pull/7195
 
-
 <a id="0.12.14"></a>
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg
 

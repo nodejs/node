@@ -1644,7 +1644,6 @@ added: v11.4.0
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
   highest maximum is used.
 
-
 ## tls.DEFAULT_MIN_VERSION
 <!-- YAML
 added: v11.4.0
@@ -1658,7 +1657,6 @@ added: v11.4.0
   the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
   `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
   used.
-
 
 ## Deprecated APIs
 

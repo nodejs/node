@@ -29,7 +29,6 @@
   * [Avoid throwing JavaScript errors in C++ methods](#avoid-throwing-javascript-errors-in-c)
     * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
 
-
 ## Guides and References
 
 The Node.js C++ codebase strives to be consistent in its use of language
@@ -384,7 +383,6 @@ side effects.
 
 Node.js is built [without C++ exception handling][], so code using `throw` or
 even `try` and `catch` **will** break.
-
 
 [C++ Core Guidelines]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
 [Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html

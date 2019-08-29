@@ -258,7 +258,6 @@ Fixes for the following CVEs are included in this release:
 
 * [[`7dbcfc6217`](https://github.com/nodejs/node/commit/7dbcfc6217)] - **src**: avoid hanging on Buffer#fill 0-length input (Сковорода Никита Андреевич) [nodejs-private/node-private#121](https://github.com/nodejs-private/node-private/pull/121)
 
-
 <a id="6.14.2"></a>
 ## 2018-04-30, Version 6.14.2 'Boron' (LTS), @MylesBorins
 
@@ -2600,7 +2599,6 @@ The SEMVER-MINOR changes include:
 * **process**: add `process.memoryUsage.external` (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
 * **src**: add wrapper for process.emitWarning() (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
 
-
 Notable SEMVER-PATCH changes include:
 
 * **fs**: cache non-symlinks in realpathSync. (Jeremy Yallop) [#10253](https://github.com/nodejs/node/pull/10253)
@@ -4938,7 +4936,6 @@ v5.0.0 release.
     [#5883](https://github.com/nodejs/node/pull/5883) and
     [#5707](https://github.com/nodejs/node/pull/5707).
 
-
 ### Commits
 
 Semver-major Changes since v5.0.0
@@ -5032,7 +5029,6 @@ Semver-major Changes since v5.0.0
 * [[`55db19074d`](https://github.com/nodejs/node/commit/55db19074d)] - **(SEMVER-MAJOR)** **win,msi**: prevent from installing on Windows Vista or earlier (Alexis Campailla) [#5167](https://github.com/nodejs/node/pull/5167)
 * [[`54a5287e3e`](https://github.com/nodejs/node/commit/54a5287e3e)] - **(SEMVER-MAJOR)** **zlib**: fix gzip member head/buffer boundary issue (Anna Henningsen) [#5883](https://github.com/nodejs/node/pull/5883)
 * [[`8b43d3f52d`](https://github.com/nodejs/node/commit/8b43d3f52d)] - **(SEMVER-MAJOR)** **zlib**: do not emit event on *Sync() methods (Rich Trott) [#5707](https://github.com/nodejs/node/pull/5707)
-
 
 Semver-minor and patch commits since v5.11.0
 
