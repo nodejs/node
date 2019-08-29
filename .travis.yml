@@ -9,15 +9,18 @@ language: cpp
 env:
   global:
     - PYTHON2_VERSION="2.7.15"
-    - PYTHON3_VERSION="3.6.7"  # "3.7.1" after #29326 us fixed
+    - PYTHON3_VERSION="3.6.7"  # "3.7.1" after #29326 is fixed
+    - PYTHON2_CACHE=$HOME/.ccache/py${PYTHON2_VERSION}
+    - PYTHON3_CACHE=$HOME/.ccache/py${PYTHON3_VERSION}
+cache:
+  ccache: true
+  directories:
+    - ${PYTHON2_CACHE}
+    - ${PYTHON3_CACHE}
 jobs:
   include:
     - stage: "Compile"
       name: "Compile V8 (py2)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON2_VERSION}
       addons:
         apt:
           sources:
@@ -31,11 +34,6 @@ jobs:
         - make -j2 -C out V=1 v8
 
     - name: "Compile V8 (py3)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON3_VERSION}
-
       addons:
         apt:
           sources:
@@ -50,11 +48,6 @@ jobs:
         - make -j2 -C out V=1 v8
 
     - name: "Compile Node.js (py2)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON2_VERSION}
-
       addons:
         apt:
           sources:
@@ -66,16 +59,10 @@ jobs:
         - pyenv global ${PYTHON2_VERSION}
         - ./configure
         - make -j2 V=1
-        - mkdir -p $HOME/.ccache/py${PYTHON2_VERSION}
-        - cp out/Release/node $HOME/.ccache/py${PYTHON2_VERSION}
-        - cp out/Release/cctest $HOME/.ccache/py${PYTHON2_VERSION}
-        - ls -lr $HOME/.ccache
+        - cp out/Release/node ${PYTHON2_CACHE}
+        - cp out/Release/cctest ${PYTHON2_CACHE}
 
     - name: "Compile Node.js (py3)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON3_VERSION}
       addons:
         apt:
           sources:
@@ -88,50 +75,36 @@ jobs:
         # - ./configure  # workaround pending #25878
         - python3 configure.py
         - make -j2 V=1
-        - mkdir -p $HOME/.ccache/py${PYTHON3_VERSION}
-        - cp out/Release/node $HOME/.ccache/py${PYTHON3_VERSION}
-        - cp out/Release/cctest $HOME/.ccache/py${PYTHON3_VERSION}
-        - ls -lr $HOME/.ccache
+        - cp out/Release/node ${PYTHON3_CACHE}
+        - cp out/Release/cctest ${PYTHON3_CACHE}
 
     - stage: "Tests"
       name: "Test JS Suites (py2)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON2_VERSION}
       install:
         - mkdir -p out/Release
-        - cp $HOME/.ccache/py${PYTHON2_VERSION}/node out/Release/node
+        - cp ${PYTHON2_CACHE}/node out/Release/node
       script:
         - pyenv global ${PYTHON2_VERSION}
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
 
     - name: "Test JS Suites (py3)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON3_VERSION}
       install:
         - mkdir -p out/Release
-        - cp $HOME/.ccache/py${PYTHON3_VERSION}/node out/Release/node
+        - cp ${PYTHON3_CACHE}/node out/Release/node
       script:
         - pyenv global ${PYTHON3_VERSION}
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
 
     - name: "Test C++ Suites (py2)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON2_VERSION}
       install:
         - export CCACHE_NOSTATS=1
         - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
         - export CC='ccache gcc'
         - export CXX='ccache g++'
         - mkdir -p out/Release
-        - cp $HOME/.ccache/py${PYTHON2_VERSION}/node out/Release/node
+        - cp ${PYTHON2_CACHE}/node out/Release/node
         - ln -fs out/Release/node node
-        - cp $HOME/.ccache/py${PYTHON2_VERSION}/cctest out/Release/cctest
+        - cp ${PYTHON2_CACHE}/cctest out/Release/cctest
         - touch config.gypi
       script:
         - pyenv global ${PYTHON2_VERSION}
@@ -140,19 +113,15 @@ jobs:
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
 
     - name: "Test C++ Suites (py3)"
-      cache:
-        ccache: true
-        directories:
-          - $HOME/.ccache/py${PYTHON3_VERSION}
       install:
         - export CCACHE_NOSTATS=1
         - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
         - export CC='ccache gcc'
         - export CXX='ccache g++'
         - mkdir -p out/Release
-        - cp $HOME/.ccache/py${PYTHON3_VERSION}/node out/Release/node
+        - cp ${PYTHON3_CACHE}/node out/Release/node
         - ln -fs out/Release/node node
-        - cp $HOME/.ccache/py${PYTHON3_VERSION}/cctest out/Release/cctest
+        - cp ${PYTHON3_CACHE}/cctest out/Release/cctest
         - touch config.gypi
       script:
         - pyenv global ${PYTHON3_VERSION}
