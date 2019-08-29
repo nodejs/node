@@ -70,7 +70,6 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-
 *Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
@@ -245,7 +244,6 @@ This is a security release. All Node.js users should consult the security releas
 * [[`80fe2662e4`](https://github.com/nodejs/node/commit/80fe2662e4)] - **deps**: cherry-pick 9478908a49 from cares upstream (David Drysdale) [nodejs/node-private#88](https://github.com/nodejs/node-private/pull/88)
 * [[`d6969a717f`](https://github.com/nodejs/node/commit/d6969a717f)] - **http**: use Buffer.from to avoid Buffer(num) call (Сковорода Никита Андреевич) [nodejs/node-private#83](https://github.com/nodejs/node-private/pull/83)
 * [[`58a8f150e5`](https://github.com/nodejs/node/commit/58a8f150e5)] - **test**: verify hash seed uniqueness (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
-
 
 <a id="4.8.3"></a>
 ## 2017-05-02, Version 4.8.3 'Argon' (Maintenance), @MylesBorins
@@ -3049,7 +3047,6 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
 
 ### Commits
-
 
 * [[`8383c4fe00`](https://github.com/nodejs/node/commit/8383c4fe00)] - **assert**: support arrow functions in .throws() (Ben Noordhuis) [#3276](https://github.com/nodejs/node/pull/3276)
 * [[`3eaa593a32`](https://github.com/nodejs/node/commit/3eaa593a32)] - **async_wrap**: correctly pass parent to init callback (Trevor Norris) [#3216](https://github.com/nodejs/node/pull/3216)

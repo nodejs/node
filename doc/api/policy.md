@@ -183,5 +183,4 @@ module.exports = function fn(...args) {
 };
 ```
 
-
 [relative url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string

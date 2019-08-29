@@ -307,7 +307,6 @@ to each.
 
 Returns `true` if the event had listeners, `false` otherwise.
 
-
 ```js
 const EventEmitter = require('events');
 const myEmitter = new EventEmitter();

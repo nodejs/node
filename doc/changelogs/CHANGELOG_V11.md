@@ -2648,7 +2648,6 @@ Fixes for the following CVEs are included in this release:
 * [[`48a2568f41`](https://github.com/nodejs/node/commit/48a2568f41)] - **(SEMVER-MINOR)** **timers**: add hasRef method to Timeout & Immediate (Anatoli Papirovski) [#20898](https://github.com/nodejs/node/pull/20898)
 * [[`bed4a8c6e0`](https://github.com/nodejs/node/commit/bed4a8c6e0)] - **(SEMVER-MINOR)** **tls**: support changing credentials dynamically (cjihrig) [#23644](https://github.com/nodejs/node/pull/23644)
 
-
 ### Semver-Patch Commits
 
 * [[`eccc65919a`](https://github.com/nodejs/node/commit/eccc65919a)] - **assert**: add comments for diff algorithm (Ruben Bridgewater) [#23048](https://github.com/nodejs/node/pull/23048)

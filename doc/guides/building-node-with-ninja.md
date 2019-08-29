@@ -45,5 +45,4 @@ release build as shown below:
 `alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs
 out/Debug/node node_g'`
 
-
 [Ninja]: https://ninja-build.org/

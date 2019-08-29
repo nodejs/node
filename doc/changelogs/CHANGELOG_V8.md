@@ -165,7 +165,6 @@ a missing CLI flag to adjust the max header size of the http parser.
 * [[`e1fbc26c6a`](https://github.com/nodejs/node/commit/e1fbc26c6a)] - **test**: move test-benchmark-path to sequential (Rich Trott) [#21393](https://github.com/nodejs/node/pull/21393)
 * [[`aef71c05a2`](https://github.com/nodejs/node/commit/aef71c05a2)] - **test**: mark test-http2-settings-flood as flaky on Windows (Rich Trott) [#25048](https://github.com/nodejs/node/pull/25048)
 
-
 <a id="8.14.1"></a>
 ## 2018-12-18, Version 8.14.1 'Carbon' (LTS), @MylesBorins prepared by @BethGriggs
 
@@ -4022,7 +4021,6 @@ Ref: https://github.com/nodejs/node/issues/13667
 * [[`6aeb555cc4`](https://github.com/nodejs/node/commit/6aeb555cc4)] - **zlib**: revert back to Functions (James M Snell) [#13374](https://github.com/nodejs/node/pull/13374)
 * [[`cc3174a937`](https://github.com/nodejs/node/commit/cc3174a937)] - **(SEMVER-MINOR)** **zlib**: expose amount of data read for engines (Alexander O'Mara) [#13088](https://github.com/nodejs/node/pull/13088)
 * [[`bb77d6c1cc`](https://github.com/nodejs/node/commit/bb77d6c1cc)] - **(SEMVER-MINOR)** **zlib**: option for engine in convenience methods (Alexander O'Mara) [#13089](https://github.com/nodejs/node/pull/13089)
-
 
 <a id="8.0.0"></a>
 ## 2017-05-30, Version 8.0.0 (Current), @jasnell

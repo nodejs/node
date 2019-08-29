@@ -68,7 +68,6 @@
 * [[`0ab90acaf3`](https://github.com/nodejs/node/commit/0ab90acaf3)] - **test**: add regression test for nghttp2 CVE-2018-1000168 (James M Snell) [nodejs-private/node-private#124](https://github.com/nodejs-private/node-private/pull/124)
 * [[`84f23d2f12`](https://github.com/nodejs/node/commit/84f23d2f12)] - **tls**: fix SSL write error handling (Anna Henningsen) [nodejs-private/node-private#130](https://github.com/nodejs-private/node-private/pull/130)
 
-
 <a id="9.11.1"></a>
 ## 2018-04-05, Version 9.11.1 (Current), @MylesBorins
 
