@@ -101,6 +101,7 @@ where `3245` is the process id. If it is not run with that
 environment variable set, then it will not print anything.
 
 The `section` supports wildcard also:
+
 ```js
 const util = require('util');
 const debuglog = util.debuglog('foo-bar');
@@ -110,6 +111,7 @@ debuglog('hi there, it\'s foo-bar [%d]', 2333);
 
 if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
 something like:
+
 ```txt
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
@@ -870,6 +872,7 @@ doSomething[util.promisify.custom] = (foo) => {
   });
 };
 ```
+
 If `promisify.custom` is defined but is not a function, `promisify()` will
 throw an error.
 

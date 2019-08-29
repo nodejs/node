@@ -168,6 +168,7 @@ generated output. The `command` string passed to the exec function is processed
 directly by the shell and special characters (vary based on
 [shell](https://en.wikipedia.org/wiki/List_of_command-line_interpreters))
 need to be dealt with accordingly:
+
 ```js
 exec('"/path/to/test file/test.sh" arg1 arg2');
 // Double quotes are used so that the space in the path is not interpreted as

@@ -255,6 +255,7 @@ req.on('error', (e) => {
 });
 req.end();
 ```
+
 Example using options from [`tls.connect()`][]:
 
 ```js

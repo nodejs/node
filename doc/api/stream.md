@@ -1023,6 +1023,7 @@ const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'.
 readable.pipe(writable);
 ```
+
 It is possible to attach multiple `Writable` streams to a single `Readable`
 stream.
 

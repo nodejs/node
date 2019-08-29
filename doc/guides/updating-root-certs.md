@@ -29,6 +29,7 @@ version in the [tag list][].
 2. Update `certdata.txt` from the NSS release tag.
 
 Update the tag in the commands below, and run:
+
 ```shell
 cd tools/
 ./mk-ca-bundle.pl -v 2>_before
@@ -63,6 +64,7 @@ Run the command below:
 Confirm that `../src/node_root_certs.h` was updated.
 
 Determine what changes were made by diffing the before and after files:
+
 ```shell
 % diff _before _after
 11d10
@@ -91,6 +93,7 @@ Determine what changes were made by diffing the before and after files:
 ```
 
 Use the diff to update the message below, and commit `src/node_root_certs.h`:
+
 ```text
 crypto: update root certificates
 
