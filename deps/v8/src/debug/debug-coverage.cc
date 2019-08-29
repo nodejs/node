@@ -54,13 +54,6 @@ int StartPosition(SharedFunctionInfo info) {
   return start;
 }
 
-bool CompareSharedFunctionInfo(SharedFunctionInfo a, SharedFunctionInfo b) {
-  int a_start = StartPosition(a);
-  int b_start = StartPosition(b);
-  if (a_start == b_start) return a.EndPosition() > b.EndPosition();
-  return a_start < b_start;
-}
-
 bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   DCHECK_NE(kNoSourcePosition, a.start);
   DCHECK_NE(kNoSourcePosition, b.start);
@@ -482,6 +475,102 @@ void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
   // Reset all counters on the DebugInfo to zero.
   ResetAllBlockCounts(info);
 }
+
+void CollectAndMaybeResetCounts(Isolate* isolate,
+                                SharedToCounterMap* counter_map,
+                                v8::debug::CoverageMode coverage_mode) {
+  const bool reset_count =
+      coverage_mode != v8::debug::CoverageMode::kBestEffort;
+
+  switch (isolate->code_coverage_mode()) {
+    case v8::debug::CoverageMode::kBlockBinary:
+    case v8::debug::CoverageMode::kBlockCount:
+    case v8::debug::CoverageMode::kPreciseBinary:
+    case v8::debug::CoverageMode::kPreciseCount: {
+      // Feedback vectors are already listed to prevent losing them to GC.
+      DCHECK(isolate->factory()
+                 ->feedback_vectors_for_profiling_tools()
+                 ->IsArrayList());
+      Handle<ArrayList> list = Handle<ArrayList>::cast(
+          isolate->factory()->feedback_vectors_for_profiling_tools());
+      for (int i = 0; i < list->Length(); i++) {
+        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
+        SharedFunctionInfo shared = vector.shared_function_info();
+        DCHECK(shared.IsSubjectToDebugging());
+        uint32_t count = static_cast<uint32_t>(vector.invocation_count());
+        if (reset_count) vector.clear_invocation_count();
+        counter_map->Add(shared, count);
+      }
+      break;
+    }
+    case v8::debug::CoverageMode::kBestEffort: {
+      DCHECK(!isolate->factory()
+                  ->feedback_vectors_for_profiling_tools()
+                  ->IsArrayList());
+      DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, coverage_mode);
+      HeapObjectIterator heap_iterator(isolate->heap());
+      for (HeapObject current_obj = heap_iterator.Next();
+           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
+        if (!current_obj.IsJSFunction()) continue;
+        JSFunction func = JSFunction::cast(current_obj);
+        SharedFunctionInfo shared = func.shared();
+        if (!shared.IsSubjectToDebugging()) continue;
+        if (!(func.has_feedback_vector() ||
+              func.has_closure_feedback_cell_array())) {
+          continue;
+        }
+        uint32_t count = 0;
+        if (func.has_feedback_vector()) {
+          count =
+              static_cast<uint32_t>(func.feedback_vector().invocation_count());
+        } else if (func.raw_feedback_cell().interrupt_budget() <
+                   FLAG_budget_for_feedback_vector_allocation) {
+          // We haven't allocated feedback vector, but executed the function
+          // atleast once. We don't have precise invocation count here.
+          count = 1;
+        }
+        counter_map->Add(shared, count);
+      }
+
+      // Also check functions on the stack to collect the count map. With lazy
+      // feedback allocation we may miss counting functions if the feedback
+      // vector wasn't allocated yet and the function's interrupt budget wasn't
+      // updated (i.e. it didn't execute return / jump).
+      for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+        SharedFunctionInfo shared = it.frame()->function().shared();
+        if (counter_map->Get(shared) != 0) continue;
+        counter_map->Add(shared, 1);
+      }
+      break;
+    }
+  }
+}
+
+// A {SFI, count} tuple is used to sort by source range (stored on
+// the SFI) and call count (in the counter map).
+struct SharedFunctionInfoAndCount {
+  SharedFunctionInfoAndCount(SharedFunctionInfo info, uint32_t count)
+      : info(info),
+        count(count),
+        start(StartPosition(info)),
+        end(info.EndPosition()) {}
+
+  // Sort by:
+  // - start, ascending.
+  // - end, descending.
+  // - count, ascending.
+  bool operator<(const SharedFunctionInfoAndCount& that) const {
+    if (this->start != that.start) return this->start < that.start;
+    if (this->end != that.end) return this->end > that.end;
+    return this->count < that.count;
+  }
+
+  SharedFunctionInfo info;
+  uint32_t count;
+  int start;
+  int end;
+};
+
 }  // anonymous namespace
 
 std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
@@ -504,72 +593,9 @@ std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
 
 std::unique_ptr<Coverage> Coverage::Collect(
     Isolate* isolate, v8::debug::CoverageMode collectionMode) {
+  // Collect call counts for all functions.
   SharedToCounterMap counter_map;
-
-  const bool reset_count =
-      collectionMode != v8::debug::CoverageMode::kBestEffort;
-
-  switch (isolate->code_coverage_mode()) {
-    case v8::debug::CoverageMode::kBlockBinary:
-    case v8::debug::CoverageMode::kBlockCount:
-    case v8::debug::CoverageMode::kPreciseBinary:
-    case v8::debug::CoverageMode::kPreciseCount: {
-      // Feedback vectors are already listed to prevent losing them to GC.
-      DCHECK(isolate->factory()
-                 ->feedback_vectors_for_profiling_tools()
-                 ->IsArrayList());
-      Handle<ArrayList> list = Handle<ArrayList>::cast(
-          isolate->factory()->feedback_vectors_for_profiling_tools());
-      for (int i = 0; i < list->Length(); i++) {
-        FeedbackVector vector = FeedbackVector::cast(list->Get(i));
-        SharedFunctionInfo shared = vector.shared_function_info();
-        DCHECK(shared.IsSubjectToDebugging());
-        uint32_t count = static_cast<uint32_t>(vector.invocation_count());
-        if (reset_count) vector.clear_invocation_count();
-        counter_map.Add(shared, count);
-      }
-      break;
-    }
-    case v8::debug::CoverageMode::kBestEffort: {
-      DCHECK(!isolate->factory()
-                  ->feedback_vectors_for_profiling_tools()
-                  ->IsArrayList());
-      DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, collectionMode);
-      HeapObjectIterator heap_iterator(isolate->heap());
-      for (HeapObject current_obj = heap_iterator.Next();
-           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
-        if (!current_obj.IsJSFunction()) continue;
-        JSFunction func = JSFunction::cast(current_obj);
-        SharedFunctionInfo shared = func.shared();
-        if (!shared.IsSubjectToDebugging()) continue;
-        if (!(func.has_feedback_vector() ||
-              func.has_closure_feedback_cell_array()))
-          continue;
-        uint32_t count = 0;
-        if (func.has_feedback_vector()) {
-          count =
-              static_cast<uint32_t>(func.feedback_vector().invocation_count());
-        } else if (func.raw_feedback_cell().interrupt_budget() <
-                   FLAG_budget_for_feedback_vector_allocation) {
-          // We haven't allocated feedback vector, but executed the function
-          // atleast once. We don't have precise invocation count here.
-          count = 1;
-        }
-        counter_map.Add(shared, count);
-      }
-
-      // Also check functions on the stack to collect the count map. With lazy
-      // feedback allocation we may miss counting functions if the feedback
-      // vector wasn't allocated yet and the function's interrupt budget wasn't
-      // updated (i.e. it didn't execute return / jump).
-      for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-        SharedFunctionInfo shared = it.frame()->function().shared();
-        if (counter_map.Get(shared) != 0) continue;
-        counter_map.Add(shared, 1);
-      }
-      break;
-    }
-  }
+  CollectAndMaybeResetCounts(isolate, &counter_map, collectionMode);
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
@@ -584,30 +610,40 @@ std::unique_ptr<Coverage> Coverage::Collect(
     result->emplace_back(script_handle);
     std::vector<CoverageFunction>* functions = &result->back().functions;
 
-    std::vector<SharedFunctionInfo> sorted;
+    std::vector<SharedFunctionInfoAndCount> sorted;
 
     {
       // Sort functions by start position, from outer to inner functions.
       SharedFunctionInfo::ScriptIterator infos(isolate, *script_handle);
       for (SharedFunctionInfo info = infos.Next(); !info.is_null();
            info = infos.Next()) {
-        sorted.push_back(info);
+        sorted.emplace_back(info, counter_map.Get(info));
       }
-      std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
+      std::sort(sorted.begin(), sorted.end());
     }
 
     // Stack to track nested functions, referring function by index.
     std::vector<size_t> nesting;
 
     // Use sorted list to reconstruct function nesting.
-    for (SharedFunctionInfo info : sorted) {
-      int start = StartPosition(info);
-      int end = info.EndPosition();
-      uint32_t count = counter_map.Get(info);
+    for (const SharedFunctionInfoAndCount& v : sorted) {
+      SharedFunctionInfo info = v.info;
+      int start = v.start;
+      int end = v.end;
+      uint32_t count = v.count;
+
       // Find the correct outer function based on start position.
+      //
+      // This is not robust when considering two functions with identical source
+      // ranges. In this case, it is unclear which function is the inner / outer
+      // function. Above, we ensure that such functions are sorted in ascending
+      // `count` order, so at least our `parent_is_covered` optimization below
+      // should be fine.
+      // TODO(jgruber): Consider removing the optimization.
       while (!nesting.empty() && functions->at(nesting.back()).end <= start) {
         nesting.pop_back();
       }
+
       if (count != 0) {
         switch (collectionMode) {
           case v8::debug::CoverageMode::kBlockCount:
