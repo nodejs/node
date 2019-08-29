@@ -186,6 +186,7 @@ class FancyContainer {
  ...
 }
 ```
+
 ## Memory Management
 
 ### Memory allocation

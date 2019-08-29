@@ -188,6 +188,7 @@ module via `import`.
   "main": "./src/index.js"
 }
 ```
+
 ```js
 // ./my-app.mjs
 

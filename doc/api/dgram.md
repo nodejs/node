@@ -528,6 +528,7 @@ socket.bind(1234, () => {
 
 #### Example: IPv4 Outgoing Multicast Interface
 All systems use an IP of the host on the desired physical interface:
+
 ```js
 const socket = dgram.createSocket('udp4');
 

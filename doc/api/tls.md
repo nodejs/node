@@ -950,6 +950,7 @@ For EC keys, the following properties may be defined:
   `'P-256'`.
 
 Example certificate:
+
 ```text
 { subject:
    { OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
