@@ -227,12 +227,6 @@
     #     speeds.
     'v8_optimized_debug%': 0,
 
-    # Use external files for startup data blobs:
-    # the JS builtins sources and the start snapshot.
-    # Embedders that don't use standalone.gypi will need to add
-    # their own default value.
-    'v8_use_external_startup_data%': 1,
-
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
 

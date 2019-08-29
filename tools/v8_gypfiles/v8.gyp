@@ -98,7 +98,7 @@
       }]
     ],
   },
-  'includes': ['toolchain.gypi', 'features.gypi', 'v8_external_snapshot.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi'],
   'targets': [
     {
       'target_name': 'run_torque',
@@ -257,31 +257,21 @@
     },  # generate_bytecode_builtins_list
 
     {
-      # This rule delegates to either v8_snapshot, v8_nosnapshot, or
-      # v8_external_snapshot, depending on the current variables.
+      # This rule delegates to either v8_snapshot or v8_nosnapshot depending on
+      # the current variables.
       # The intention is to make the 'calling' rules a bit simpler.
       'target_name': 'v8_maybe_snapshot',
       'type': 'none',
       'toolsets': ['target'],
       'hard_dependency': 1,
       'conditions': [
-        ['v8_use_snapshot!=1', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_init', 'v8_nosnapshot'],
-        }],
-        ['v8_use_snapshot==1 and v8_use_external_startup_data==0', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
+        # The dependency on v8_base should come from a transitive
+        # dependency however the Android toolchain requires libv8_base.a
+        # to appear before libv8_snapshot.a so it's listed explicitly.
+        ['v8_use_snapshot==1', {
           'dependencies': ['v8_base', 'v8_snapshot'],
-        }],
-        ['v8_use_snapshot==1 and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-        }],
-        ['v8_use_snapshot==1 and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
+        }, {
+          'dependencies': ['v8_base', 'v8_init', 'v8_nosnapshot'],
         }],
       ]
     },  # v8_maybe_snapshot
@@ -438,11 +428,13 @@
               # but the target OS is really <(OS).
               '--target_os=<(OS)',
               '--target_arch=<(v8_target_arch)',
+              '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc',
             ],
           },
           'inputs': [
             '<(mksnapshot_exec)',
           ],
+          'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
           'process_outputs_as_sources': 1,
           'conditions': [
             ['v8_enable_embedded_builtins', {
@@ -468,17 +460,6 @@
                 'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
               },
             }],
-            ['v8_use_external_startup_data', {
-              'outputs': ['<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
-              'variables': {
-                'mksnapshot_flags': ['--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
-              },
-            }, {
-               'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
-               'variables': {
-                 'mksnapshot_flags': ['--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ],
-               },
-             }],
             ['v8_embed_script != ""', {
               'inputs': ['<(v8_embed_script)'],
               'variables': {
