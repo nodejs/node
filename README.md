@@ -278,6 +278,8 @@ For information about the governance of the Node.js project, see
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
 * [davisjam](https://github.com/davisjam) -
 **Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
+* [devnexen](https://github.com/devnexen) -
+**David Carlier** &lt;devnexen@gmail.com&gt;
 * [devsnek](https://github.com/devsnek) -
 **Gus Caplan** &lt;me@gus.host&gt; (he/him)
 * [digitalinfinity](https://github.com/digitalinfinity) -
