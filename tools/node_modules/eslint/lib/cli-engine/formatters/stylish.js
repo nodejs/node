@@ -96,5 +96,6 @@ module.exports = function(results) {
         }
     }
 
-    return total > 0 ? output : "";
+    // Resets output color, for prevent change on top level
+    return total > 0 ? chalk.reset(output) : "";
 };

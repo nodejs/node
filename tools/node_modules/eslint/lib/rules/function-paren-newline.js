@@ -51,8 +51,8 @@ module.exports = {
             expectedBefore: "Expected newline before ')'.",
             expectedAfter: "Expected newline after '('.",
             expectedBetween: "Expected newline between arguments/params.",
-            unexpectedBefore: "Unexpected newline before '('.",
-            unexpectedAfter: "Unexpected newline after ')'."
+            unexpectedBefore: "Unexpected newline before ')'.",
+            unexpectedAfter: "Unexpected newline after '('."
         }
     },
 

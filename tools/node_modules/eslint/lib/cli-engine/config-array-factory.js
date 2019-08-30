@@ -531,6 +531,7 @@ class ConfigArrayFactory {
             parserOptions,
             plugins: pluginList,
             processor,
+            reportUnusedDisableDirectives,
             root,
             rules,
             settings,
@@ -573,6 +574,7 @@ class ConfigArrayFactory {
             parserOptions,
             plugins,
             processor,
+            reportUnusedDisableDirectives,
             root,
             rules,
             settings

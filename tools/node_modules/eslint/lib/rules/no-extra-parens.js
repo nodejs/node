@@ -49,7 +49,8 @@ module.exports = {
                                 nestedBinaryExpressions: { type: "boolean" },
                                 returnAssign: { type: "boolean" },
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
-                                enforceForArrowConditionals: { type: "boolean" }
+                                enforceForArrowConditionals: { type: "boolean" },
+                                enforceForSequenceExpressions: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -77,6 +78,8 @@ module.exports = {
         const IGNORE_JSX = ALL_NODES && context.options[1] && context.options[1].ignoreJSX;
         const IGNORE_ARROW_CONDITIONALS = ALL_NODES && context.options[1] &&
             context.options[1].enforceForArrowConditionals === false;
+        const IGNORE_SEQUENCE_EXPRESSIONS = ALL_NODES && context.options[1] &&
+            context.options[1].enforceForSequenceExpressions === false;
 
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
@@ -113,6 +116,10 @@ module.exports = {
 
                     // no default
                 }
+            }
+
+            if (node.type === "SequenceExpression" && IGNORE_SEQUENCE_EXPRESSIONS) {
+                return false;
             }
 
             return ALL_NODES || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression";

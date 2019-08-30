@@ -192,7 +192,7 @@ module.exports = optionator({
         {
             option: "report-unused-disable-directives",
             type: "Boolean",
-            default: false,
+            default: void 0,
             description: "Adds reported errors for unused eslint-disable directives"
         },
         {
