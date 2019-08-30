@@ -573,8 +573,14 @@ The resolve hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
 ```js
-const baseURL = new URL(`${process.cwd()}/`, 'file://');
+import { URL, pathToFileURL } from 'url';
+const baseURL = pathToFileURL(process.cwd()).href;
 
+/**
+ * @param {string} specifier
+ * @param {string} parentModuleURL
+ * @param {function} defaultResolver
+ */
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
                               defaultResolver) {
@@ -612,13 +618,21 @@ be written:
 import path from 'path';
 import process from 'process';
 import Module from 'module';
+import { URL, pathToFileURL } from 'url';
 
 const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-const baseURL = new URL(`${process.cwd()}/`, 'file://');
+const baseURL = pathToFileURL(process.cwd()).href;
 
-export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
+/**
+ * @param {string} specifier
+ * @param {string} parentModuleURL
+ * @param {function} defaultResolver
+ */
+export async function resolve(specifier,
+                              parentModuleURL = baseURL,
+                              defaultResolver) {
   if (builtins.includes(specifier)) {
     return {
       url: specifier,
@@ -627,7 +641,7 @@ export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve(specifier, parentModuleURL);
+    // return defaultResolver(specifier, parentModuleURL);
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
