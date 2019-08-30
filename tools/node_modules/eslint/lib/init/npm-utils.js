@@ -98,7 +98,7 @@ function fetchPeerDependencies(packageName) {
  *                                        and values are booleans indicating installation.
  */
 function check(packages, opt) {
-    let deps = [];
+    const deps = new Set();
     const pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
     let fileJson;
 
@@ -119,14 +119,14 @@ function check(packages, opt) {
         throw error;
     }
 
-    if (opt.devDependencies && typeof fileJson.devDependencies === "object") {
-        deps = deps.concat(Object.keys(fileJson.devDependencies));
-    }
-    if (opt.dependencies && typeof fileJson.dependencies === "object") {
-        deps = deps.concat(Object.keys(fileJson.dependencies));
-    }
+    ["dependencies", "devDependencies"].forEach(key => {
+        if (opt[key] && typeof fileJson[key] === "object") {
+            Object.keys(fileJson[key]).forEach(dep => deps.add(dep));
+        }
+    });
+
     return packages.reduce((status, pkg) => {
-        status[pkg] = deps.indexOf(pkg) !== -1;
+        status[pkg] = deps.has(pkg);
         return status;
     }, {});
 }

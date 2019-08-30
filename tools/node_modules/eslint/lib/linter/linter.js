@@ -55,6 +55,11 @@ const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, colum
 /** @typedef {import("../shared/types").Rule} Rule */
 
 /**
+ * @template T
+ * @typedef {{ [P in keyof T]-?: T[P] }} Required
+ */
+
+/**
  * @typedef {Object} DisableDirective
  * @property {("disable"|"enable"|"disable-line"|"disable-next-line")} type
  * @property {number} line
@@ -79,7 +84,7 @@ const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, colum
  * @property {boolean} [disableFixes] if `true` then the linter doesn't make `fix`
  *      properties into the lint result.
  * @property {string} [filename] the filename of the source code.
- * @property {boolean} [reportUnusedDisableDirectives] Adds reported errors for
+ * @property {boolean | "off" | "warn" | "error"} [reportUnusedDisableDirectives] Adds reported errors for
  *      unused `eslint-disable` directives.
  */
 
@@ -101,6 +106,12 @@ const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, colum
  * @typedef {Object} FixOptions
  * @property {boolean | ((message: LintMessage) => boolean)} [fix] Determines
  *      whether fixes should be applied.
+ */
+
+/**
+ * @typedef {Object} InternalOptions
+ * @property {string | null} warnInlineConfig The config name what `noInlineConfig` setting came from. If `noInlineConfig` setting didn't exist, this is null. If this is a config name, then the linter warns directive comments.
+ * @property {"off" | "warn" | "error"} reportUnusedDisableDirectives (boolean values were normalized)
  */
 
 //------------------------------------------------------------------------------
@@ -467,7 +478,7 @@ function normalizeFilename(filename) {
  * consistent shape.
  * @param {VerifyOptions} providedOptions Options
  * @param {ConfigData} config Config.
- * @returns {Required<VerifyOptions> & { warnInlineConfig: string|null }} Normalized options
+ * @returns {Required<VerifyOptions> & InternalOptions} Normalized options
  */
 function normalizeVerifyOptions(providedOptions, config) {
     const disableInlineConfig = config.noInlineConfig === true;
@@ -476,13 +487,22 @@ function normalizeVerifyOptions(providedOptions, config) {
         ? ` (${config.configNameOfNoInlineConfig})`
         : "";
 
+    let reportUnusedDisableDirectives = providedOptions.reportUnusedDisableDirectives;
+
+    if (typeof reportUnusedDisableDirectives === "boolean") {
+        reportUnusedDisableDirectives = reportUnusedDisableDirectives ? "error" : "off";
+    }
+    if (typeof reportUnusedDisableDirectives !== "string") {
+        reportUnusedDisableDirectives = config.reportUnusedDisableDirectives ? "warn" : "off";
+    }
+
     return {
         filename: normalizeFilename(providedOptions.filename || "<input>"),
         allowInlineConfig: !ignoreInlineConfig,
         warnInlineConfig: disableInlineConfig && !ignoreInlineConfig
             ? `your config${configNameOfNoInlineConfig}`
             : null,
-        reportUnusedDisableDirectives: Boolean(providedOptions.reportUnusedDisableDirectives),
+        reportUnusedDisableDirectives,
         disableFixes: Boolean(providedOptions.disableFixes)
     };
 }

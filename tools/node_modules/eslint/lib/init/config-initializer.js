@@ -120,6 +120,12 @@ function getModulesList(config, installESLint) {
         }
     }
 
+    const parser = config.parser || (config.parserOptions && config.parserOptions.parser);
+
+    if (parser) {
+        modules[parser] = "latest";
+    }
+
     if (installESLint === false) {
         delete modules.eslint;
     } else {
@@ -291,6 +297,20 @@ function processAnswers(answers) {
         config.extends.push("plugin:vue/essential");
     }
 
+    if (answers.typescript) {
+        if (answers.framework === "vue") {
+            config.parserOptions.parser = "@typescript-eslint/parser";
+        } else {
+            config.parser = "@typescript-eslint/parser";
+        }
+
+        if (Array.isArray(config.plugins)) {
+            config.plugins.push("@typescript-eslint");
+        } else {
+            config.plugins = ["@typescript-eslint"];
+        }
+    }
+
     // setup rules based on problems/style enforcement preferences
     if (answers.purpose === "problems") {
         config.extends.unshift("eslint:recommended");
@@ -305,6 +325,9 @@ function processAnswers(answers) {
             config = configureRules(answers, config);
             config = autoconfig.extendFromRecommended(config);
         }
+    }
+    if (answers.typescript && config.extends.includes("eslint:recommended")) {
+        config.extends.push("plugin:@typescript-eslint/eslint-recommended");
     }
 
     // normalize extends
@@ -464,6 +487,12 @@ function promptUser() {
                 { name: "Vue.js", value: "vue" },
                 { name: "None of these", value: "none" }
             ]
+        },
+        {
+            type: "confirm",
+            name: "typescript",
+            message: "Does your project use TypeScript?",
+            default: false
         },
         {
             type: "checkbox",
