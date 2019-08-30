@@ -604,7 +604,7 @@ test-doc: doc-only ## Builds, lints, and verifies the docs.
 		echo "Skipping test-doc (no crypto)"; \
 	else \
 		$(MAKE) lint; \
-		$(PYTHON) tools/test.py $(PARALLEL_ARGS) $(CI_DOC); \
+		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
 
 test-known-issues: all
