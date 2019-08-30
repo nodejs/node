@@ -1432,10 +1432,11 @@ changes:
     PEM allows the option of private keys being encrypted. Encrypted keys will
     be decrypted with `options.passphrase`. Multiple keys using different
     algorithms can be provided either as an array of unencrypted key strings or
-    buffers, or an array of objects in the form `{pem: <string|buffer>[,
-    passphrase: <string>]}`. The object form can only occur in an array.
-    `object.passphrase` is optional. Encrypted keys will be decrypted with
-    `object.passphrase` if provided, or `options.passphrase` if it is not.
+    buffers, or an array of objects in the form
+    `{pem: <string|buffer>[, passphrase: <string>]}`. The object form can only
+    occur in an array. `object.passphrase` is optional. Encrypted keys will be
+    decrypted with `object.passphrase` if provided, or `options.passphrase` if
+    it is not.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option, use one or the other.

@@ -587,7 +587,7 @@ $ git push upstream master
 
 Close the pull request with a "Landed in `<commit hash>`" comment. If
 your pull request shows the purple merged status then you should still
-add the "Landed in <commit hash>..<commit hash>" comment if you added
+add the "Landed in \<commit hash>..\<commit hash>" comment if you added
 more than one commit.
 
 ### Troubleshooting

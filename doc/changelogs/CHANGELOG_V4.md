@@ -1271,7 +1271,7 @@ Semver Patch:
 * [[`3ff82deb2c`](https://github.com/nodejs/node/commit/3ff82deb2c)] - **lib**: make tls.checkServerIdentity() more strict (Ben Noordhuis) [nodejs/node-private#63](https://github.com/nodejs/node-private/pull/63)
 * [[`7c696e201a`](https://github.com/nodejs/node/commit/7c696e201a)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
 * [[`44e5776c0f`](https://github.com/nodejs/node/commit/44e5776c0f)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
-* [[`c7a601c090`](https://github.com/nodejs/node/commit/c7a601c090)] - **test**: remove openssl options of -no_<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`c7a601c090`](https://github.com/nodejs/node/commit/c7a601c090)] - **test**: remove openssl options of -no_\<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
 
 <a id="4.5.0"></a>
 ## 2016-08-15, Version 4.5.0 'Argon' (LTS), @thealphanerd

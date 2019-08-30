@@ -3648,7 +3648,7 @@ Semver Patch:
 * [[`38bed98a92`](https://github.com/nodejs/node/commit/38bed98a92)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`a25fc3f715`](https://github.com/nodejs/node/commit/a25fc3f715)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`5902ba3989`](https://github.com/nodejs/node/commit/5902ba3989)] - **src**: Malloc/Calloc size 0 returns non-null pointer (Rich Trott) [#8572](https://github.com/nodejs/node/pull/8572)
-* [[`a14d832884`](https://github.com/nodejs/node/commit/a14d832884)] - **test**: remove openssl options of -no_<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
+* [[`a14d832884`](https://github.com/nodejs/node/commit/a14d832884)] - **test**: remove openssl options of -no_\<prot> (Shigeki Ohtsu) [#8714](https://github.com/nodejs/node/pull/8714)
 
 <a id="6.6.0"></a>
 ## 2016-09-14, Version 6.6.0 (Current), @Fishrock123
