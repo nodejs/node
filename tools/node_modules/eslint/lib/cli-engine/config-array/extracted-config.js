@@ -78,6 +78,12 @@ class ExtractedConfig {
         this.processor = null;
 
         /**
+         * The flag that reports unused `eslint-disable` directive comments.
+         * @type {boolean|undefined}
+         */
+        this.reportUnusedDisableDirectives = void 0;
+
+        /**
          * Rule settings.
          * @type {Record<string, [SeverityConf, ...any[]]>}
          */

@@ -93,7 +93,7 @@ function applyDirectives(options) {
                 : "Unused eslint-disable directive (no problems were reported).",
             line: directive.unprocessedDirective.line,
             column: directive.unprocessedDirective.column,
-            severity: 2,
+            severity: options.reportUnusedDisableDirectives === "warn" ? 1 : 2,
             nodeType: null
         }));
 
@@ -114,17 +114,17 @@ function applyDirectives(options) {
  * comment for two different rules is represented as two directives).
  * @param {{ruleId: (string|null), line: number, column: number}[]} options.problems
  * A list of problems reported by rules, sorted by increasing location in the file, with one-based columns.
- * @param {boolean} options.reportUnusedDisableDirectives If `true`, adds additional problems for unused directives
+ * @param {"off" | "warn" | "error"} options.reportUnusedDisableDirectives If `"warn"` or `"error"`, adds additional problems for unused directives
  * @returns {{ruleId: (string|null), line: number, column: number}[]}
  * A list of reported problems that were not disabled by the directive comments.
  */
-module.exports = options => {
-    const blockDirectives = options.directives
+module.exports = ({ directives, problems, reportUnusedDisableDirectives = "off" }) => {
+    const blockDirectives = directives
         .filter(directive => directive.type === "disable" || directive.type === "enable")
         .map(directive => Object.assign({}, directive, { unprocessedDirective: directive }))
         .sort(compareLocations);
 
-    const lineDirectives = lodash.flatMap(options.directives, directive => {
+    const lineDirectives = lodash.flatMap(directives, directive => {
         switch (directive.type) {
             case "disable":
             case "enable":
@@ -147,10 +147,18 @@ module.exports = options => {
         }
     }).sort(compareLocations);
 
-    const blockDirectivesResult = applyDirectives({ problems: options.problems, directives: blockDirectives });
-    const lineDirectivesResult = applyDirectives({ problems: blockDirectivesResult.problems, directives: lineDirectives });
+    const blockDirectivesResult = applyDirectives({
+        problems,
+        directives: blockDirectives,
+        reportUnusedDisableDirectives
+    });
+    const lineDirectivesResult = applyDirectives({
+        problems: blockDirectivesResult.problems,
+        directives: lineDirectives,
+        reportUnusedDisableDirectives
+    });
 
-    return options.reportUnusedDisableDirectives
+    return reportUnusedDisableDirectives !== "off"
         ? lineDirectivesResult.problems
             .concat(blockDirectivesResult.unusedDisableDirectives)
             .concat(lineDirectivesResult.unusedDisableDirectives)

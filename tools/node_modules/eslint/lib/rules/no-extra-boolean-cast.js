@@ -102,7 +102,17 @@ module.exports = {
                             if (hasCommentsInside(parent)) {
                                 return null;
                             }
-                            return fixer.replaceText(parent, sourceCode.getText(node.argument));
+
+                            let prefix = "";
+                            const tokenBefore = sourceCode.getTokenBefore(parent);
+                            const firstReplacementToken = sourceCode.getFirstToken(node.argument);
+
+                            if (tokenBefore && tokenBefore.range[1] === parent.range[0] &&
+                                    !astUtils.canTokensBeAdjacent(tokenBefore, firstReplacementToken)) {
+                                prefix = " ";
+                            }
+
+                            return fixer.replaceText(parent, prefix + sourceCode.getText(node.argument));
                         }
                     });
                 }

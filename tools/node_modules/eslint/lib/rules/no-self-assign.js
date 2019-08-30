@@ -94,9 +94,19 @@ function eachSelfAssignment(left, right, props, report) {
         const end = Math.min(left.elements.length, right.elements.length);
 
         for (let i = 0; i < end; ++i) {
+            const leftElement = left.elements[i];
             const rightElement = right.elements[i];
 
-            eachSelfAssignment(left.elements[i], rightElement, props, report);
+            // Avoid cases such as [...a] = [...a, 1]
+            if (
+                leftElement &&
+                leftElement.type === "RestElement" &&
+                i < right.elements.length - 1
+            ) {
+                break;
+            }
+
+            eachSelfAssignment(leftElement, rightElement, props, report);
 
             // After a spread element, those indices are unknown.
             if (rightElement && rightElement.type === "SpreadElement") {

@@ -59,6 +59,7 @@ const { ExtractedConfig } = require("./extracted-config");
  * @property {Object|undefined} parserOptions The parser options.
  * @property {Record<string, DependentPlugin>|undefined} plugins The plugin loaders.
  * @property {string|undefined} processor The processor name to refer plugin's processor.
+ * @property {boolean|undefined} reportUnusedDisableDirectives The flag to report unused `eslint-disable` comments.
  * @property {boolean|undefined} root The flag to express root.
  * @property {Record<string, RuleConf>|undefined} rules The rule settings
  * @property {Object|undefined} settings The shared settings.
@@ -255,6 +256,11 @@ function createConfig(instance, indices) {
         if (config.noInlineConfig === void 0 && element.noInlineConfig !== void 0) {
             config.noInlineConfig = element.noInlineConfig;
             config.configNameOfNoInlineConfig = element.name;
+        }
+
+        // Adopt the reportUnusedDisableDirectives which was found at first.
+        if (config.reportUnusedDisableDirectives === void 0 && element.reportUnusedDisableDirectives !== void 0) {
+            config.reportUnusedDisableDirectives = element.reportUnusedDisableDirectives;
         }
 
         // Merge others.
