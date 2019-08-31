@@ -3,6 +3,9 @@
 #include "node_options-inl.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
 
 namespace node {
 
