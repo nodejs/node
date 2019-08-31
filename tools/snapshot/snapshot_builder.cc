@@ -99,7 +99,7 @@ std::string SnapshotBuilder::Generate(
     // creator is still alive.
     main_instance->Dispose();
     result = FormatBlob(&blob, isolate_data_indexes);
-    delete blob.data;
+    delete[] blob.data;
   }
 
   per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
