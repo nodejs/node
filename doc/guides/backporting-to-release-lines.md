@@ -35,34 +35,34 @@ replace that with the staging branch for the targeted release line.
 2. Make sure that the local staging branch is up to date with the remote
 3. Create a new branch off of the staging branch
 
-```shell
-# Assuming your fork of Node.js is checked out in $NODE_DIR,
-# the origin remote points to your fork, and the upstream remote points
-# to git://github.com/nodejs/node
-cd $NODE_DIR
-# If v8.x-staging is checked out `pull` should be used instead of `fetch`
-git fetch upstream v8.x-staging:v8.x-staging -f
-# Assume we want to backport PR #10157
-git checkout -b backport-10157-to-v8.x v8.x-staging
-# Ensure there are no test artifacts from previous builds
-# Note that this command deletes all files and directories
-# not under revision control below the ./test directory.
-# It is optional and should be used with caution.
-git clean -xfd ./test/
-```
+    ```shell
+    # Assuming your fork of Node.js is checked out in $NODE_DIR,
+    # the origin remote points to your fork, and the upstream remote points
+    # to git://github.com/nodejs/node
+    cd $NODE_DIR
+    # If v8.x-staging is checked out `pull` should be used instead of `fetch`
+    git fetch upstream v8.x-staging:v8.x-staging -f
+    # Assume we want to backport PR #10157
+    git checkout -b backport-10157-to-v8.x v8.x-staging
+    # Ensure there are no test artifacts from previous builds
+    # Note that this command deletes all files and directories
+    # not under revision control below the ./test directory.
+    # It is optional and should be used with caution.
+    git clean -xfd ./test/
+    ```
 
 4. After creating the branch, apply the changes to the branch. The cherry-pick
    will likely fail due to conflicts. In that case, you will see something
    like this:
 
-```shell
-# Say the $SHA is 773cdc31ef
-$ git cherry-pick $SHA # Use your commit hash
-error: could not apply 773cdc3... <commit title>
-hint: after resolving the conflicts, mark the corrected paths
-hint: with 'git add <paths>' or 'git rm <paths>'
-hint: and commit the result with 'git commit'
-```
+    ```shell
+    # Say the $SHA is 773cdc31ef
+    $ git cherry-pick $SHA # Use your commit hash
+    error: could not apply 773cdc3... <commit title>
+    hint: after resolving the conflicts, mark the corrected paths
+    hint: with 'git add <paths>' or 'git rm <paths>'
+    hint: and commit the result with 'git commit'
+    ```
 
 5. Make the required changes to remove the conflicts, add the files to the index
    using `git add`, and then commit the changes. That can be done with
