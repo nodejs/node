@@ -679,7 +679,7 @@ An example of the possible output looks like:
   variables:
    {
      host_arch: 'x64',
-     napi_build_version: 4,
+     napi_build_version: 5,
      node_install_npm: 'true',
      node_prefix: '',
      node_shared_cares: 'false',

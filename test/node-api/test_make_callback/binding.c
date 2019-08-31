@@ -1,4 +1,3 @@
-#define NAPI_EXPERIMENTAL  // napi_add_finalizer
 #include <node_api.h>
 #include <assert.h>
 #include "../../js-native-api/common.h"
