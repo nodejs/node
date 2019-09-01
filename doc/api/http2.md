@@ -2919,7 +2919,7 @@ To extract the parameters from the query string, the
 `require('querystring').parse` function can be used, or
 `true` can be passed as the second argument to `require('url').parse`.
 
-```txt
+```console
 $ node
 > require('url').parse('/status?name=ryan', true)
 Url {
