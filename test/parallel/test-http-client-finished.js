@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
-const { finished } = require('stream')
+const { finished } = require('stream');
 
 {
   // Test abort before finished.
@@ -14,7 +14,7 @@ const { finished } = require('stream')
     http.request({
       port: this.address().port
     })
-    .on('response', res => {
+    .on('response', (res) => {
       res.on('readable', () => {
         res.destroy();
       });
