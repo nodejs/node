@@ -900,7 +900,7 @@ rr.on('end', () => {
 
 The output of running this script is:
 
-```txt
+```console
 $ node test.js
 readable: null
 end

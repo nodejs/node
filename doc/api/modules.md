@@ -330,7 +330,7 @@ provided to the `a.js` module.
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
 
-```txt
+```console
 $ node main.js
 main starting
 a starting

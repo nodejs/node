@@ -133,7 +133,7 @@ performance. Use of the `--zero-fill-buffers` option is recommended only when
 necessary to enforce that newly allocated `Buffer` instances cannot contain old
 data that is potentially sensitive.
 
-```txt
+```console
 $ node --zero-fill-buffers
 > Buffer.allocUnsafe(5);
 <Buffer 00 00 00 00 00>
