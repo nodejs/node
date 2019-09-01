@@ -289,7 +289,7 @@ for details on patched vulnerabilities.
 
 A fix for the following CVE is included in this release:
 
-  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+* Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
 
 ### Notable Changes
 
@@ -977,11 +977,11 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
-  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
-  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
-  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
-  * OpenSSL: Timing vulnerability in ECDSA signature generation (CVE-2019-0735)
+* Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+* Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+* Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+* OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+* OpenSSL: Timing vulnerability in ECDSA signature generation (CVE-2019-0735)
 
 ### Notable Changes
 
@@ -1728,9 +1728,9 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * CVE-2018-0732 (OpenSSL)
-  * CVE-2018-7166 (Node.js)
-  * CVE-2018-12115 (Node.js)
+* CVE-2018-0732 (OpenSSL)
+* CVE-2018-7166 (Node.js)
+* CVE-2018-12115 (Node.js)
 
 ### Notable Changes
 
