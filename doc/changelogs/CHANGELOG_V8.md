@@ -169,8 +169,8 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
-  * OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
+* Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+* OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
 
 ### Notable Changes
 
@@ -321,12 +321,12 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
-  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
-  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
-  * Node.js: HTTP request splitting (CVE-2018-12116)
-  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
-  * OpenSSL: Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)
+* Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+* Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+* Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+* Node.js: HTTP request splitting (CVE-2018-12116)
+* OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+* OpenSSL: Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)
 
 ### Notable Changes
 
@@ -829,8 +829,8 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * CVE-2018-0732 (OpenSSL)
-  * CVE-2018-12115 (Node.js)
+* CVE-2018-0732 (OpenSSL)
+* CVE-2018-12115 (Node.js)
 
 ### Notable Changes
 

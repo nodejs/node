@@ -110,9 +110,9 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * Node.js: Denial of Service with keep-alive HTTP connections (CVE-2019-5739)
-  * Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
-  * OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
+* Node.js: Denial of Service with keep-alive HTTP connections (CVE-2019-5739)
+* Node.js: Slowloris HTTP Denial of Service with keep-alive (CVE-2019-5737)
+* OpenSSL: 0-byte record padding oracle (CVE-2019-1559)
 
 ### Notable Changes
 
@@ -178,13 +178,13 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * Node.js: Debugger port 5858 listens on any interface by default (CVE-2018-12120)
-  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
-  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
-  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
-  * Node.js: HTTP request splitting (CVE-2018-12116)
-  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
-  * OpenSSL: Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)
+* Node.js: Debugger port 5858 listens on any interface by default (CVE-2018-12120)
+* Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+* Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+* Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+* Node.js: HTTP request splitting (CVE-2018-12116)
+* OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+* OpenSSL: Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)
 
 ### Notable Changes
 
@@ -223,8 +223,8 @@ for details on patched vulnerabilities.
 
 Fixes for the following CVEs are included in this release:
 
-  * CVE-2018-0732 (OpenSSL)
-  * CVE-2018-12115 (Node.js)
+* CVE-2018-0732 (OpenSSL)
+* CVE-2018-12115 (Node.js)
 
 ### Notable Changes
 
@@ -2229,9 +2229,9 @@ This is a special LTS to fix a number of regressions that were found on the 6.10
 
 This includes:
 
- * a fix for memory leak in the crypto module that was introduced in 6.10.1
- * a fix for a regression introduced to the windows repl in 6.10.0
- * a backported fix for V8 to stop a segfault that could occur when using spread syntax
+* a fix for memory leak in the crypto module that was introduced in 6.10.1
+* a fix for a regression introduced to the windows repl in 6.10.0
+* a backported fix for V8 to stop a segfault that could occur when using spread syntax
 
 It also includes an upgrade to zlib 1.2.11 to fix a [number of low severity CVEs](http://seclists.org/oss-sec/2016/q4/602)
 that were present in zlib 1.2.8.

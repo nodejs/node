@@ -1363,11 +1363,11 @@ changes:
 
 If `value` is:
 
-  * a string, `value` is interpreted according to the character encoding in
-    `encoding`.
-  * a `Buffer` or [`Uint8Array`][], `value` will be used in its entirety.
-    To compare a partial `Buffer`, use [`buf.slice()`][].
-  * a number, `value` will be interpreted as an unsigned 8-bit integer
+* a string, `value` is interpreted according to the character encoding in
+  `encoding`.
+* a `Buffer` or [`Uint8Array`][], `value` will be used in its entirety.
+  To compare a partial `Buffer`, use [`buf.slice()`][].
+* a number, `value` will be interpreted as an unsigned 8-bit integer
   value between `0` and `255`.
 
 ```js
