@@ -1224,7 +1224,10 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
       stream->inbound_consumed_data_while_paused_ += avail;
 
     // If we have a gathered a lot of data for output, try sending it now.
-    if (session->outgoing_length_ > 4096) session->SendPendingData();
+    if (session->outgoing_length_ > 4096 ||
+        stream->available_outbound_length_ > 4096) {
+      session->SendPendingData();
+    }
   } while (len != 0);
 
   // If we are currently waiting for a write operation to finish, we should
