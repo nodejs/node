@@ -286,3 +286,23 @@ const { promisify } = require('util');
   streamLike.readableEnded = true;
   streamLike.emit('close');
 }
+
+{
+  // Completes if already finished.
+
+  const w = new W();
+  finished(w, common.mustCall(() => {
+    finished(w, common.mustCall());
+  }));
+  w.destroy();
+}
+
+{
+  // Completes if already ended.
+
+  const r = new R();
+  finished(r, common.mustCall(() => {
+    finished(r, common.mustCall());
+  }));
+  r.destroy();
+}
