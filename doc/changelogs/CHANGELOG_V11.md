@@ -2065,8 +2065,8 @@ Fixes for the following CVEs are included in this release:
 
 * **deps**: Upgrade to OpenSSL 1.1.0j, fixing CVE-2018-0734 and CVE-2019-0735
 * **http**:
-    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
-    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+  * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+  * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
 * **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
 
 ### Commits

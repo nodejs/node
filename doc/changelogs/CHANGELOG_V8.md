@@ -287,9 +287,9 @@ Fixes for the following CVEs are included in this release:
 
 * **deps**: Upgrade to OpenSSL 1.0.2q, fixing CVE-2018-0734 and CVE-2018-5407
 * **http**:
-    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
-    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
-    * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
+  * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+  * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+  * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
 * **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
 
 ### Commits
@@ -3430,10 +3430,10 @@ Big thanks to @addaleax who prepared the vast majority of this release.
     [[`dc3f6b9ac1`](https://github.com/nodejs/node/commit/dc3f6b9ac1)]
     [#14235](https://github.com/nodejs/node/pull/14235)
   * `npm` Changelogs:
-      - [v5.0.4](https://github.com/npm/npm/releases/tag/v5.0.4)
-      - [v5.1.0](https://github.com/npm/npm/releases/tag/v5.1.0)
-      - [v5.2.0](https://github.com/npm/npm/releases/tag/v5.2.0)
-      - [v5.3.0](https://github.com/npm/npm/releases/tag/v5.3.0)
+    - [v5.0.4](https://github.com/npm/npm/releases/tag/v5.0.4)
+    - [v5.1.0](https://github.com/npm/npm/releases/tag/v5.1.0)
+    - [v5.2.0](https://github.com/npm/npm/releases/tag/v5.2.0)
+    - [v5.3.0](https://github.com/npm/npm/releases/tag/v5.3.0)
 
 ### Commits
 
