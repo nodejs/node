@@ -191,9 +191,9 @@ Fixes for the following CVEs are included in this release:
 * **debugger**: Backport of [nodejs/node#8106](https://github.com/nodejs/node/pull/8106) to prevent the debugger from listening on `0.0.0.0`. It now defaults to `127.0.0.1`. Reported by Ben Noordhuis. (CVE-2018-12120 / Ben Noordhuis).
 * **deps**: Upgrade to OpenSSL 1.0.2q, fixing CVE-2018-0734 and CVE-2018-5407
 * **http**:
-    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
-    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
-    * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
+  * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+  * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+  * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
 * **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
 
 ### Commits
@@ -2826,14 +2826,14 @@ are updates to dependencies.
 
 * **build**: shared library support is now working for AIX builds (Stewart Addison) [#9675](https://github.com/nodejs/node/pull/9675)
 * **deps**:
-    - *npm*: upgrade npm to 3.10.10 (Rebecca Turner) [#9847](https://github.com/nodejs/node/pull/9847)
-    - *V8*: Destructuring of arrow function arguments via computed property no longer throws (Michaël Zasso) [#10386](https://github.com/nodejs/node/pull/10386)
+  - *npm*: upgrade npm to 3.10.10 (Rebecca Turner) [#9847](https://github.com/nodejs/node/pull/9847)
+  - *V8*: Destructuring of arrow function arguments via computed property no longer throws (Michaël Zasso) [#10386](https://github.com/nodejs/node/pull/10386)
 * **inspector**: /json/version returns object, not an object wrapped in an array (Ben Noordhuis) [#9762](https://github.com/nodejs/node/pull/9762)
 * **module**: using --debug-brk and --eval together now works as expected (Kelvin Jin) [#8876](https://github.com/nodejs/node/pull/8876)
 * **process**: improve performance of nextTick up to 20% (Evan Lucas) [#8932](https://github.com/nodejs/node/pull/8932)
 * **repl**:
-    - the division operator will no longer be accidentally parsed as regex (Teddy Katz) [#10103](https://github.com/nodejs/node/pull/10103)
-    - improved support for generator functions (Teddy Katz) [#9852](https://github.com/nodejs/node/pull/9852)
+  - the division operator will no longer be accidentally parsed as regex (Teddy Katz) [#10103](https://github.com/nodejs/node/pull/10103)
+  - improved support for generator functions (Teddy Katz) [#9852](https://github.com/nodejs/node/pull/9852)
 * **timers**: Re canceling a cancelled timers will no longer throw (Jeremiah Senkpiel) [#9685](https://github.com/nodejs/node/pull/9685)
 
 ### Commits
@@ -3162,10 +3162,10 @@ commits which are updates to dependencies.
 
 * **buffer**: coerce slice parameters consistently (Sakthipriyan Vairamani (thefourtheye)) [#9101](https://github.com/nodejs/node/pull/9101)
 * **deps**:
-    - *npm*: upgrade npm to 3.10.9 (Kat Marchán) [#9286](https://github.com/nodejs/node/pull/9286)
-    - *V8*: Various fixes to destructuring edge cases
-      - cherry-pick 3c39bac from V8 upstream (Cristian Cavalli) [#9138](https://github.com/nodejs/node/pull/9138)
-      - cherry pick 7166503 from upstream v8 (Cristian Cavalli) [#9173](https://github.com/nodejs/node/pull/9173)
+  - *npm*: upgrade npm to 3.10.9 (Kat Marchán) [#9286](https://github.com/nodejs/node/pull/9286)
+  - *V8*: Various fixes to destructuring edge cases
+    - cherry-pick 3c39bac from V8 upstream (Cristian Cavalli) [#9138](https://github.com/nodejs/node/pull/9138)
+    - cherry pick 7166503 from upstream v8 (Cristian Cavalli) [#9173](https://github.com/nodejs/node/pull/9173)
 * **gtest**: the test reporter now outputs tap comments as yamlish (Johan Bergström) [#9262](https://github.com/nodejs/node/pull/9262)
 * **inspector**: inspector now prompts user to use 127.0.0.1 rather than localhost (Eugene Ostroukhov) [#9451](https://github.com/nodejs/node/pull/9451)
 * **tls**: fix memory leak when writing data to TLSWrap instance during handshake (Fedor Indutny) [#9586](https://github.com/nodejs/node/pull/9586)

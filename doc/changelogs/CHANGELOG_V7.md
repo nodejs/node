@@ -786,10 +786,10 @@ This release contains **v8 5.5**, you can read more about this version in the of
 ### Notable changes
 
 * **deps**:
-    * update V8 to 5.5 (Michaël Zasso) [#11029](https://github.com/nodejs/node/pull/11029)
-    * upgrade libuv to 1.11.0 (cjihrig) [#11094](https://github.com/nodejs/node/pull/11094)
-    * add node-inspect 1.10.4 (Jan Krems) [#10187](https://github.com/nodejs/node/pull/10187)
-    * upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+  * update V8 to 5.5 (Michaël Zasso) [#11029](https://github.com/nodejs/node/pull/11029)
+  * upgrade libuv to 1.11.0 (cjihrig) [#11094](https://github.com/nodejs/node/pull/11094)
+  * add node-inspect 1.10.4 (Jan Krems) [#10187](https://github.com/nodejs/node/pull/10187)
+  * upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
 * **lib**: build `node inspect` into `node` (Anna Henningsen) [#10187](https://github.com/nodejs/node/pull/10187)
 * **crypto**: Remove expired certs from CNNIC whitelist (Shigeki Ohtsu) [#9469](https://github.com/nodejs/node/pull/9469)
 * **inspector**: add --inspect-brk (Josh Gavant) [#11149](https://github.com/nodejs/node/pull/11149)
