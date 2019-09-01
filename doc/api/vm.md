@@ -90,12 +90,12 @@ changes:
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.SourceTextModule}
+    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+      `vm.SourceTextModule` is recommended in order to take advantage of error
+      tracking, and to avoid issues with namespaces that contain `then`
+      function exports.
 
 If `options` is a string, then it specifies the filename.
 
@@ -432,12 +432,12 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.SourceTextModule}
+    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+      `vm.SourceTextModule` is recommended in order to take advantage of error
+      tracking, and to avoid issues with namespaces that contain `then`
+      function exports.
 
 Creates a new ES `Module` object.
 
@@ -817,12 +817,12 @@ changes:
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.SourceTextModule}
+    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+      `vm.SourceTextModule` is recommended in order to take advantage of error
+      tracking, and to avoid issues with namespaces that contain `then`
+      function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
@@ -915,12 +915,12 @@ changes:
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.SourceTextModule}
+    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+      `vm.SourceTextModule` is recommended in order to take advantage of error
+      tracking, and to avoid issues with namespaces that contain `then`
+      function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
@@ -993,12 +993,12 @@ changes:
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
-     * `specifier` {string} specifier passed to `import()`
-     * `module` {vm.SourceTextModule}
-     * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-       `vm.SourceTextModule` is recommended in order to take advantage of error
-       tracking, and to avoid issues with namespaces that contain `then`
-       function exports.
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.SourceTextModule}
+    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
+      `vm.SourceTextModule` is recommended in order to take advantage of error
+      tracking, and to avoid issues with namespaces that contain `then`
+      function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 `vm.runInThisContext()` compiles `code`, runs it within the context of the

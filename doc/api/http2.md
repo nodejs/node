@@ -1977,20 +1977,20 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
-     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-     * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
-       to be applied.
-     * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
-       amount of padding, as determined by the internal implementation, is to
-       be applied.
-     * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
-       enough padding to ensure that the total frame length, including the
-       9-byte header, is a multiple of 8. For each frame, however, there is a
-       maximum allowed number of padding bytes that is determined by current
-       flow control state and settings. If this maximum is less than the
-       calculated amount needed to ensure alignment, the maximum will be used
-       and the total frame length will *not* necessarily be aligned at 8 bytes.
+    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+    `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
+    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+      to be applied.
+    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+      amount of padding, as determined by the internal implementation, is to
+      be applied.
+    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+      enough padding to ensure that the total frame length, including the
+      9-byte header, is a multiple of 8. For each frame, however, there is a
+      maximum allowed number of padding bytes that is determined by current
+      flow control state and settings. If this maximum is less than the
+      calculated amount needed to ensure alignment, the maximum will be used
+      and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
@@ -2091,20 +2091,20 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
-     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-     * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
-       to be applied.
-     * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
-       amount of padding, as determined by the internal implementation, is to
-       be applied.
-     * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
-       enough padding to ensure that the total frame length, including the
-       9-byte header, is a multiple of 8. For each frame, however, there is a
-       maximum allowed number of padding bytes that is determined by current
-       flow control state and settings. If this maximum is less than the
-       calculated amount needed to ensure alignment, the maximum will be used
-       and the total frame length will *not* necessarily be aligned at 8 bytes.
+    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+    `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
+    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+      to be applied.
+    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+      amount of padding, as determined by the internal implementation, is to
+      be applied.
+    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+      enough padding to ensure that the total frame length, including the
+      9-byte header, is a multiple of 8. For each frame, however, there is a
+      maximum allowed number of padding bytes that is determined by current
+      flow control state and settings. If this maximum is less than the
+      calculated amount needed to ensure alignment, the maximum will be used
+      and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
@@ -2191,20 +2191,20 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
-     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-     * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
-       to be applied.
-     * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
-       amount of padding, as determined by the internal implementation, is to
-       be applied.
-     * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
-       enough padding to ensure that the total frame length, including the
-       9-byte header, is a multiple of 8. For each frame, however, there is a
-       maximum allowed number of padding bytes that is determined by current
-       flow control state and settings. If this maximum is less than the
-       calculated amount needed to ensure alignment, the maximum will be used
-       and the total frame length will *not* necessarily be aligned at 8 bytes.
+    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+    `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
+    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+      to be applied.
+    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+      amount of padding, as determined by the internal implementation, is to
+      be applied.
+    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+      enough padding to ensure that the total frame length, including the
+      9-byte header, is a multiple of 8. For each frame, however, there is a
+      maximum allowed number of padding bytes that is determined by current
+      flow control state and settings. If this maximum is less than the
+      calculated amount needed to ensure alignment, the maximum will be used
+      and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
