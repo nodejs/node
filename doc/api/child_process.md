@@ -43,19 +43,19 @@ and asynchronous alternatives to [`child_process.spawn()`][] and
 [`child_process.spawnSync()`][]. Each of these alternatives are implemented on
 top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].
 
-  * [`child_process.exec()`][]: spawns a shell and runs a command within that
-    shell, passing the `stdout` and `stderr` to a callback function when
-    complete.
-  * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except
-    that it spawns the command directly without first spawning a shell by
-    default.
-  * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
-    specified module with an IPC communication channel established that allows
-    sending messages between parent and child.
-  * [`child_process.execSync()`][]: a synchronous version of
-    [`child_process.exec()`][] that will block the Node.js event loop.
-  * [`child_process.execFileSync()`][]: a synchronous version of
-    [`child_process.execFile()`][] that will block the Node.js event loop.
+* [`child_process.exec()`][]: spawns a shell and runs a command within that
+  shell, passing the `stdout` and `stderr` to a callback function when
+  complete.
+* [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except
+  that it spawns the command directly without first spawning a shell by
+  default.
+* [`child_process.fork()`][]: spawns a new Node.js process and invokes a
+  specified module with an IPC communication channel established that allows
+  sending messages between parent and child.
+* [`child_process.execSync()`][]: a synchronous version of
+  [`child_process.exec()`][] that will block the Node.js event loop.
+* [`child_process.execFileSync()`][]: a synchronous version of
+  [`child_process.execFile()`][] that will block the Node.js event loop.
 
 For certain use cases, such as automating shell scripts, the
 [synchronous counterparts][] may be more convenient. In many cases, however,

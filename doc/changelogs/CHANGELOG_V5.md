@@ -221,10 +221,10 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Notable changes
 
-**http**:
+* **http**:
   * Enclose IPv6 Host header in square brackets. This will enable proper separation of the host address from any port reference (Mihai Potra) [#5314](https://github.com/nodejs/node/pull/5314)
 
-**path**:
+* **path**:
   * Make win32.isAbsolute more consistent (Brian White) [#6028](https://github.com/nodejs/node/pull/6028)
 
 ### Commits
@@ -405,13 +405,13 @@ This is a security release. All Node.js users should consult the security releas
 * **contextify**: Fixed a memory consumption issue related to heavy use of `vm.createContext` and `vm.runInNewContext`. (Ali Ijaz Sheikh)
 https://github.com/nodejs/node/pull/5392
 * **governance**: The following members have been added as collaborators:
- - Andreas Madsen (@AndreasMadsen)
- - Benjamin Gruenbaum (@benjamingr)
- - Claudio Rodriguez (@claudiorodriguez)
- - Glen Keane (@thekemkid)
- - Jeremy Whitlock (@whitlockjc)
- - Matt Loring (@matthewloring)
- - Phillip Johnsen (@phillipj)
+  - Andreas Madsen (@AndreasMadsen)
+  - Benjamin Gruenbaum (@benjamingr)
+  - Claudio Rodriguez (@claudiorodriguez)
+  - Glen Keane (@thekemkid)
+  - Jeremy Whitlock (@whitlockjc)
+  - Matt Loring (@matthewloring)
+  - Phillip Johnsen (@phillipj)
 * **lib**: copy arguments object instead of leaking it (Nathan Woltman)
 https://github.com/nodejs/node/pull/4361
 * **src**: allow both -i and -e flags to be used at the same time (Rich Trott)
