@@ -302,7 +302,7 @@ const { promisify } = require('util');
 {
   // Completes if already finished.
 
-  const w = new W();
+  const w = new Writable();
   finished(w, common.mustCall(() => {
     finished(w, common.mustCall());
   }));
@@ -312,7 +312,7 @@ const { promisify } = require('util');
 {
   // Completes if already ended.
 
-  const r = new R();
+  const r = new Readable();
   finished(r, common.mustCall(() => {
     finished(r, common.mustCall());
   }));
