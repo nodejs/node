@@ -439,7 +439,7 @@ replServer.defineCommand('saybye', function saybye() {
 
 The new commands can then be used from within the REPL instance:
 
-```txt
+```console
 > .sayhello Node.js User
 Hello, Node.js User!
 > .saybye

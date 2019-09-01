@@ -85,7 +85,7 @@ variable:
 Omitting the callback function on asynchronous fs functions is deprecated and
 may result in an error being thrown in the future.
 
-```txt
+```console
 $ cat script.js
 function bad() {
   require('fs').readFile('/');
