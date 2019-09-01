@@ -169,8 +169,8 @@ const { promisify } = require('util');
   rs.resume();
 }
 
-// Test that calling returned function removes listeners
 {
+  // Nothing happens if disposed.
   const ws = new Writable({
     write(data, env, cb) {
       cb();
@@ -182,6 +182,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Nothing happens if disposed.
   const rs = new Readable();
   const removeListeners = finished(rs, common.mustNotCall());
   removeListeners();
@@ -192,6 +193,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if readable-like is ended before.
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
@@ -199,6 +201,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if readable-like is never ended.
   const streamLike = new EE();
   streamLike.readableEnded = false;
   streamLike.readable = true;
@@ -209,6 +212,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if writable-like is destroyed before.
   const streamLike = new EE();
   streamLike.destroyed = true;
   streamLike.writable = true;
@@ -216,6 +220,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if readable-like is aborted before.
   const streamLike = new EE();
   streamLike.destroyed = true;
   streamLike.readable = true;
@@ -223,6 +228,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if writable-like is aborted before.
   const streamLike = new EE();
   streamLike.aborted = true;
   streamLike.writable = true;
@@ -230,6 +236,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if readable-like is aborted before.
   const streamLike = new EE();
   streamLike.aborted = true;
   streamLike.readable = true;
@@ -237,6 +244,7 @@ const { promisify } = require('util');
 }
 
 {
+  // Completed if streamlike is finished before.
   const streamLike = new EE();
   streamLike.writableFinished = true;
   streamLike.writable = true;
