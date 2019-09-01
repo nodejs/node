@@ -67,7 +67,7 @@ const { finished } = require('stream');
 }
 
 {
-  // abort before end
+  // Test abort before end.
 
   const server = http.createServer(function(req, res) {
     res.write('test');
@@ -76,10 +76,10 @@ const { finished } = require('stream');
   server.listen(0, common.mustCall(function() {
     const req = http.request({
       port: this.address().port
-    }).on('response', common.mustCall(res => {
+    }).on('response', common.mustCall((res) => {
       req.abort();
       finished(res, common.mustCall(() => {
-        finished(res, common.mustCall(() =>{
+        finished(res, common.mustCall(() => {
           server.close();
         }));
       }));
@@ -88,7 +88,7 @@ const { finished } = require('stream');
 }
 
 {
-  // destroy before end
+  // Test destroy before end.
 
   const server = http.createServer(function(req, res) {
     res.write('test');
@@ -97,7 +97,7 @@ const { finished } = require('stream');
   server.listen(0, common.mustCall(function() {
     http.request({
       port: this.address().port
-    }).on('response', common.mustCall(res => {
+    }).on('response', common.mustCall((res) => {
       // TODO(ronag): Bug? Won't emit 'close' unless read.
       res.on('data', () => {});
       res.destroy();
@@ -111,7 +111,7 @@ const { finished } = require('stream');
 }
 
 {
-  // finish after end
+  // Test finish after end.
 
   const server = http.createServer(function(req, res) {
     res.end('asd');
@@ -120,13 +120,13 @@ const { finished } = require('stream');
   server.listen(0, common.mustCall(function() {
     http.request({
       port: this.address().port
-    }).on('response', common.mustCall(res => {
+    }).on('response', common.mustCall((res) => {
       // TODO(ronag): Bug? Won't emit 'close' unless read.
       res.on('data', () => {});
       finished(res, common.mustCall(() => {
         finished(res, common.mustCall(() => {
           server.close();
-        }))
+        }));
       }));
     })).end();
   }));
