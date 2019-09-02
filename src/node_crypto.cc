@@ -4883,8 +4883,8 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
 static inline bool ValidateDSAParameters(EVP_PKEY* key) {
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
-  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(pkey.get())) {
-    DSA* dsa = EVP_PKEY_get0_DSA(pkey.get());
+  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+    DSA* dsa = EVP_PKEY_get0_DSA(key);
     const BIGNUM* p;
     DSA_get0_pqg(dsa, &p, nullptr, nullptr);
     size_t L = BN_num_bits(p);
@@ -4895,7 +4895,7 @@ static inline bool ValidateDSAParameters(EVP_PKEY* key) {
     return (L == 1024 && N == 160) ||
            (L == 2048 && N == 224) ||
            (L == 2048 && N == 256) ||
-           (L == 3072 && N == 256)
+           (L == 3072 && N == 256);
   }
 #endif  // NODE_FIPS_MODE
 
