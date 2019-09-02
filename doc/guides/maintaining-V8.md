@@ -56,18 +56,18 @@ includes the following branches<sup>1</sup>:
 
 <table>
   <tr>
-   <td><strong>Release</strong>
-   </td>
-   <td><strong>Support Start</strong>
-   </td>
-   <td><strong>Support End</strong>
-   </td>
-   <td><strong>V8 version</strong>
-   </td>
-   <td><strong>V8 branch released</strong>
-   </td>
-   <td><strong>V8 branch abandoned</strong>
-   </td>
+   <th>Release
+   </th>
+   <th>Support Start
+   </th>
+   <th>Support End
+   </th>
+   <th>V8 version
+   </th>
+   <th>V8 branch released
+   </th>
+   <th>V8 branch abandoned
+   </th>
   </tr>
   <tr>
    <td>Node.js 4.x
