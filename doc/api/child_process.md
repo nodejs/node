@@ -660,6 +660,9 @@ subprocess.unref();
 <!-- YAML
 added: v0.7.10
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29412
+    description: Added the `overlapped` stdio flag.
   - version: v3.3.1
     pr-url: https://github.com/nodejs/node/pull/2727
     description: The value `0` is now accepted as a file descriptor.
@@ -675,6 +678,7 @@ equal to `['pipe', 'pipe', 'pipe']`.
 For convenience, `options.stdio` may be one of the following strings:
 
 * `'pipe'`: equivalent to `['pipe', 'pipe', 'pipe']` (the default)
+* `'overlapped'`: equivalent to `['overlapped', 'overlapped', 'overlapped']`
 * `'ignore'`: equivalent to `['ignore', 'ignore', 'ignore']`
 * `'inherit'`: equivalent to `['inherit', 'inherit', 'inherit']` or `[0, 1, 2]`
 
@@ -688,7 +692,13 @@ pipes between the parent and child. The value is one of the following:
    `child_process` object as [`subprocess.stdio[fd]`][`subprocess.stdio`]. Pipes
    created for fds 0, 1, and 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
-2. `'ipc'`: Create an IPC channel for passing messages/file descriptors
+1. `'overlapped'`: Same as `'pipe'` except that the `FILE_FLAG_OVERLAPPED` flag
+   is set on the handle. This is necessary for overlapped I/O on the child
+   process's stdio handles. See the
+   [docs](https://docs.microsoft.com/en-us/windows/win32/fileio/synchronous-and-asynchronous-i-o)
+   for more details. This is exactly the same as `'pipe'` on non-Windows
+   systems.
+1. `'ipc'`: Create an IPC channel for passing messages/file descriptors
    between parent and child. A [`ChildProcess`][] may have at most one IPC
    stdio file descriptor. Setting this option enables the
    [`subprocess.send()`][] method. If the child is a Node.js process, the
@@ -699,25 +709,25 @@ pipes between the parent and child. The value is one of the following:
    Accessing the IPC channel fd in any way other than [`process.send()`][]
    or using the IPC channel with a child process that is not a Node.js instance
    is not supported.
-3. `'ignore'`: Instructs Node.js to ignore the fd in the child. While Node.js
+1. `'ignore'`: Instructs Node.js to ignore the fd in the child. While Node.js
    will always open fds 0, 1, and 2 for the processes it spawns, setting the fd
    to `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
-4. `'inherit'`: Pass through the corresponding stdio stream to/from the
+1. `'inherit'`: Pass through the corresponding stdio stream to/from the
    parent process. In the first three positions, this is equivalent to
    `process.stdin`, `process.stdout`, and `process.stderr`, respectively. In
    any other position, equivalent to `'ignore'`.
-5. {Stream} object: Share a readable or writable stream that refers to a tty,
+1. {Stream} object: Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not until the `'open'` event has
    occurred).
-6. Positive integer: The integer value is interpreted as a file descriptor
+1. Positive integer: The integer value is interpreted as a file descriptor
    that is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
    is not supported on Windows.
-7. `null`, `undefined`: Use default value. For stdio fds 0, 1, and 2 (in other
+1. `null`, `undefined`: Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
