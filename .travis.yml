@@ -8,145 +8,73 @@ os: linux
 language: cpp
 env:
   global:
-    - PYTHON2_VERSION="2.7.15"
-    - PYTHON3_VERSION="3.6.7"  # "3.7.1" after #29326 is fixed
-    - PYTHON2_CACHE=$HOME/.ccache/py${PYTHON2_VERSION}
-    - PYTHON3_CACHE=$HOME/.ccache/py${PYTHON3_VERSION}
-cache:
-  ccache: true
-  directories:
-    - ${PYTHON2_CACHE}
-    - ${PYTHON3_CACHE}
+    - PYTHON_VERSION="2.7.15"
 jobs:
   include:
     - stage: "Compile"
-      name: "Compile V8 (py2)"
+      name: "Compile V8"
+      cache: ccache
       addons:
         apt:
-          update: true
           sources:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
       install: *ccache-setup-steps
       script:
-        - pyenv global ${PYTHON2_VERSION}
+        - pyenv global ${PYTHON_VERSION}
         - ./configure
         - make -j2 -C out V=1 v8
 
-    - name: "Compile V8 (py3)"
+    - name: "Compile Node.js"
+      cache: ccache
       addons:
         apt:
-          update: true
           sources:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
       install: *ccache-setup-steps
       script:
-        - pyenv global ${PYTHON3_VERSION}
-        # - ./configure  # workaround pending #25878
-        - python3 configure.py
-        - make -j2 -C out V=1 v8
-
-    - name: "Compile Node.js (py2)"
-      addons:
-        apt:
-          update: true
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      install: *ccache-setup-steps
-      script:
-        - pyenv global ${PYTHON2_VERSION}
+        - pyenv global ${PYTHON_VERSION}
         - ./configure
         - make -j2 V=1
-        - cp out/Release/node ${PYTHON2_CACHE}
-        - cp out/Release/cctest ${PYTHON2_CACHE}
-
-    - name: "Compile Node.js (py3)"
-      addons:
-        apt:
-          update: true
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      install: *ccache-setup-steps
-      script:
-        - pyenv global ${PYTHON3_VERSION}
-        # - ./configure  # workaround pending #25878
-        - python3 configure.py
-        - make -j2 V=1
-        - cp out/Release/node ${PYTHON3_CACHE}
-        - cp out/Release/cctest ${PYTHON3_CACHE}
+        - cp out/Release/node /home/travis/.ccache
+        - cp out/Release/cctest /home/travis/.ccache
 
     - stage: "Tests"
-      name: "Test JS Suites (py2)"
+      name: "Test JS Suites"
+      cache: ccache
       install:
         - mkdir -p out/Release
-        - cp ${PYTHON2_CACHE}/node out/Release/node
+        - cp /home/travis/.ccache/node out/Release/node
       script:
-        - pyenv global ${PYTHON2_VERSION}
+        - pyenv global ${PYTHON_VERSION}
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
 
-    - name: "Test JS Suites (py3)"
-      install:
-        - mkdir -p out/Release
-        - cp ${PYTHON3_CACHE}/node out/Release/node
-      script:
-        - pyenv global ${PYTHON3_VERSION}
-        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
-
-    - name: "Test C++ Suites (py2)"
+    - name: "Test C++ Suites"
+      cache: ccache
       install:
         - export CCACHE_NOSTATS=1
         - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
         - export CC='ccache gcc'
         - export CXX='ccache g++'
         - mkdir -p out/Release
-        - cp ${PYTHON2_CACHE}/node out/Release/node
+        - cp /home/travis/.ccache/node out/Release/node
         - ln -fs out/Release/node node
-        - cp ${PYTHON2_CACHE}/cctest out/Release/cctest
+        - cp /home/travis/.ccache/cctest out/Release/cctest
         - touch config.gypi
       script:
-        - pyenv global ${PYTHON2_VERSION}
+        - pyenv global ${PYTHON_VERSION}
         - out/Release/cctest
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
 
-    - name: "Test C++ Suites (py3)"
-      install:
-        - export CCACHE_NOSTATS=1
-        - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
-        - export CC='ccache gcc'
-        - export CXX='ccache g++'
-        - mkdir -p out/Release
-        - cp ${PYTHON3_CACHE}/node out/Release/node
-        - ln -fs out/Release/node node
-        - cp ${PYTHON3_CACHE}/cctest out/Release/cctest
-        - touch config.gypi
-      script:
-        - pyenv global ${PYTHON3_VERSION}
-        - out/Release/cctest
-        - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
-        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
-
-    - name: "Linter (py2)"
+    - name: "Linter"
       language: node_js
       node_js: "node"
       install:
-        - pyenv global ${PYTHON2_VERSION}
-        - make lint-py-build || true
-      script:
-        - NODE=$(which node) make lint lint-py
-
-    - name: "Linter (py3)"
-      language: node_js
-      node_js: "node"
-      install:
-        - pyenv global ${PYTHON3_VERSION}
+        - pyenv global ${PYTHON_VERSION}
         - make lint-py-build || true
       script:
         - NODE=$(which node) make lint lint-py
@@ -160,5 +88,30 @@ jobs:
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
 
+    - name: "Python 3 is EXPERIMENTAL (Py36)"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global 3.6.7
+        - python3.6 -m pip install --upgrade pip
+        - make lint-py-build
+      script:
+        - NODE=$(which node) make lint lint-py
+        - python3.6 ./configure.py
+        - NODE=$(which node) make test
+
+    - name: "Python 3 is EXPERIMENTAL (Py37)"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global 3.7.1
+        - python3.7 -m pip install --upgrade pip
+        - make lint-py-build
+      script:
+        - NODE=$(which node) make lint lint-py
+        - python3.7 ./configure.py
+        - NODE=$(which node) make test
+
   allow_failures:
-    - name: "Test C++ Suites (py3)"  # allow_failures pending #29246
+    - name: "Python 3 is EXPERIMENTAL (Py36)"
+    - name: "Python 3 is EXPERIMENTAL (Py37)"
