@@ -530,7 +530,7 @@ added: v0.1.27
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
-  - `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
+  - `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type">&lt;string[][]&gt;</a>
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a

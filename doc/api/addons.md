@@ -1302,9 +1302,9 @@ has ended but before the JavaScript VM is terminated and Node.js shuts down.
 
 #### void AtExit(callback, args)
 
-* `callback` <span class="type">&lt;void (\*)(void\*)&gt;</span>
+* `callback` &lt;void (\*)(void\*)&gt;
   A pointer to the function to call at exit.
-* `args` <span class="type">&lt;void\*&gt;</span>
+* `args` &lt;void\*&gt;
   A pointer to pass to the callback at exit.
 
 Registers exit hooks that run after the event loop has ended but before the VM
