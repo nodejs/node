@@ -120,6 +120,11 @@ class ProcessWrap : public HandleWrap {
         options->stdio[i].flags = static_cast<uv_stdio_flags>(
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
         options->stdio[i].data.stream = StreamForWrap(env, stdio);
+      } else if (type->StrictEquals(env->overlapped_string())) {
+        options->stdio[i].flags = static_cast<uv_stdio_flags>(
+            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE |
+            UV_OVERLAPPED_PIPE);
+        options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else if (type->StrictEquals(env->wrap_string())) {
         options->stdio[i].flags = UV_INHERIT_STREAM;
         options->stdio[i].data.stream = StreamForWrap(env, stdio);

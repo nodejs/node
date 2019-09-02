@@ -1469,6 +1469,24 @@
       ],
     }, # embedtest
 
+    {
+      'target_name': 'overlapped-checker',
+      'type': 'executable',
+
+      'conditions': [
+        ['OS=="win"', {
+          'sources': [
+            'test/overlapped-checker/main_win.c'
+          ],
+        }],
+        ['OS!="win"', {
+          'sources': [
+            'test/overlapped-checker/main_unix.c'
+          ],
+        }],
+      ]
+    }, # overlapped-checker
+
     # TODO(joyeecheung): do not depend on node_lib,
     # instead create a smaller static library node_lib_base that does
     # just enough for node_native_module.cc and the cache builder to
