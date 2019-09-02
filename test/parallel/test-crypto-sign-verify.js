@@ -538,6 +538,22 @@ common.expectsError(
     }
   }
 
+  // Test verifying externally signed messages.
+  const extSig = Buffer.from('494c18ab5c8a62a72aea5041966902bcfa229821af2bf65' +
+                             '0b5b4870d1fe6aebeaed9460c62210693b5b0a300033823' +
+                             '33d9529c8abd8c5948940af944828be16c', 'hex');
+  for (const ok of [true, false]) {
+    assert.strictEqual(
+      crypto.verify('sha256', data, {
+        key: fixtures.readKey('ec-key.pem'),
+        dsaEncoding: 'ieee-p1363'
+      }, extSig),
+      ok
+    );
+
+    extSig[Math.floor(Math.random() * extSig.length)] ^= 1;
+  }
+
   // Non-(EC)DSA keys should ignore the option.
   const sig = crypto.sign('sha1', data, {
     key: keyPem,
