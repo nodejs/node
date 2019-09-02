@@ -4,27 +4,26 @@ const assert = require('assert');
 const fs = require('fs');
 const join = require('path').join;
 
+const {
+  O_CREAT = 0,
+  O_RDONLY = 0,
+  O_TRUNC = 0,
+  O_WRONLY = 0,
+  UV_FS_O_FILEMAP = 0
+} = fs.constants;
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// Run this test on all platforms. While the 'm' flag is only available on
+// Run this test on all platforms. While UV_FS_O_FILEMAP is only available on
 // Windows, it should be silently ignored on other platforms.
 
 const filename = join(tmpdir.path, 'fmap.txt');
 const text = 'Memory File Mapping Test';
 
-fs.writeFileSync(filename, text, { flag: 'mw' });
-const r1 = fs.readFileSync(filename, { encoding: 'utf8', flag: 'mr' });
+const mw = UV_FS_O_FILEMAP | O_TRUNC | O_CREAT | O_WRONLY;
+const mr = UV_FS_O_FILEMAP | O_RDONLY;
+
+fs.writeFileSync(filename, text, { flag: mw });
+const r1 = fs.readFileSync(filename, { encoding: 'utf8', flag: mr });
 assert.strictEqual(r1, text);
-
-fs.writeFileSync(filename, text, { flag: 'mr+' });
-const r2 = fs.readFileSync(filename, { encoding: 'utf8', flag: 'ma+' });
-assert.strictEqual(r2, text);
-
-fs.writeFileSync(filename, text, { flag: 'ma' });
-const numericFlag = fs.constants.UV_FS_O_FILEMAP | fs.constants.O_RDONLY;
-const r3 = fs.readFileSync(filename, { encoding: 'utf8', flag: numericFlag });
-assert.strictEqual(r3, text + text);
-
-const r4 = fs.readFileSync(filename, { encoding: 'utf8', flag: 'mw+' });
-assert.strictEqual(r4, '');
