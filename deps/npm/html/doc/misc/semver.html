@@ -349,17 +349,18 @@ range, use the <code>satisfies(version, range)</code> function.</p>
 <ul>
 <li><code>coerce(version)</code>: Coerces a string to semver if possible</li>
 </ul>
-<p>This aims to provide a very forgiving translation of a non-semver
-string to semver. It looks for the first digit in a string, and
-consumes all remaining characters which satisfy at least a partial semver
-(e.g., <code>1</code>, <code>1.2</code>, <code>1.2.3</code>) up to the max permitted length (256 characters).
-Longer versions are simply truncated (<code>4.6.3.9.2-alpha2</code> becomes <code>4.6.3</code>).
-All surrounding text is simply ignored (<code>v3.4 replaces v3.3.1</code> becomes <code>3.4.0</code>).
-Only text which lacks digits will fail coercion (<code>version one</code> is not valid).
-The maximum  length for any semver component considered for coercion is 16 characters;
-longer components will be ignored (<code>10000000000000000.4.7.4</code> becomes <code>4.7.4</code>).
-The maximum value for any semver component is <code>Integer.MAX_SAFE_INTEGER || (2**53 - 1)</code>;
-higher value components are invalid (<code>9999999999999999.4.7.4</code> is likely invalid).</p>
+<p>This aims to provide a very forgiving translation of a non-semver string to
+semver. It looks for the first digit in a string, and consumes all
+remaining characters which satisfy at least a partial semver (e.g., <code>1</code>,
+<code>1.2</code>, <code>1.2.3</code>) up to the max permitted length (256 characters).  Longer
+versions are simply truncated (<code>4.6.3.9.2-alpha2</code> becomes <code>4.6.3</code>).  All
+surrounding text is simply ignored (<code>v3.4 replaces v3.3.1</code> becomes
+<code>3.4.0</code>).  Only text which lacks digits will fail coercion (<code>version one</code>
+is not valid).  The maximum  length for any semver component considered for
+coercion is 16 characters; longer components will be ignored
+(<code>10000000000000000.4.7.4</code> becomes <code>4.7.4</code>).  The maximum value for any
+semver component is <code>Number.MAX_SAFE_INTEGER || (2**53 - 1)</code>; higher value
+components are invalid (<code>9999999999999999.4.7.4</code> is likely invalid).</p>
 
 </div>
 
@@ -372,5 +373,5 @@ higher value components are invalid (<code>9999999999999999.4.7.4</code> is like
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@6.10.3</p>
+<p id="footer">semver &mdash; npm@6.11.3</p>
 
