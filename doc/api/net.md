@@ -596,7 +596,7 @@ for the [`'connect'`][] event **once**.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
     description: Added `onread` option.
   - version: v6.0.0

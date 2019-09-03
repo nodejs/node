@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.10.0">12.10.0</a><br/>
 <a href="#12.9.1">12.9.1</a><br/>
 <a href="#12.9.0">12.9.0</a><br/>
 <a href="#12.8.1">12.8.1</a><br/>
@@ -39,6 +40,105 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.10.0"></a>
+## 2019-09-03, Version 12.10.0 (Current), @BridgeAr
+
+### Notable changes
+
+* **deps**:
+  * Update npm to 6.10.3 (isaacs) [#29023](https://github.com/nodejs/node/pull/29023)
+* **fs**:
+  * Add recursive option to rmdir() (cjihrig) [#29168](https://github.com/nodejs/node/pull/29168)
+  * Allow passing true to emitClose option (Giorgos Ntemiris) [#29212](https://github.com/nodejs/node/pull/29212)
+  * Add \*timeNs properties to BigInt Stats objects (Joyee Cheung) [#21387](https://github.com/nodejs/node/pull/21387)
+* **net**:
+  * Allow reading data into a static buffer (Brian White) [#25436](https://github.com/nodejs/node/pull/25436)
+
+### Commits
+
+* [[`293c9f0d75`](https://github.com/nodejs/node/commit/293c9f0d75)] - **bootstrap**: run preload prior to frozen-intrinsics (Bradley Farias) [#28940](https://github.com/nodejs/node/pull/28940)
+* [[`71aaf590c1`](https://github.com/nodejs/node/commit/71aaf590c1)] - **buffer**: correct indexOf() error message (Brian White) [#29217](https://github.com/nodejs/node/pull/29217)
+* [[`c900762fe4`](https://github.com/nodejs/node/commit/c900762fe4)] - **buffer**: consolidate encoding parsing (Brian White) [#29217](https://github.com/nodejs/node/pull/29217)
+* [[`054407511e`](https://github.com/nodejs/node/commit/054407511e)] - **buffer**: correct concat() error message (Brian White) [#29198](https://github.com/nodejs/node/pull/29198)
+* [[`35bca312ed`](https://github.com/nodejs/node/commit/35bca312ed)] - **buffer**: improve equals() performance (Brian White) [#29199](https://github.com/nodejs/node/pull/29199)
+* [[`449f1fd578`](https://github.com/nodejs/node/commit/449f1fd578)] - ***Revert*** "**build**: add full Python 3 tests to Travis CI" (Ben Noordhuis) [#29406](https://github.com/nodejs/node/pull/29406)
+* [[`256da1fdb3`](https://github.com/nodejs/node/commit/256da1fdb3)] - **build**: add full Python 3 tests to Travis CI (cclauss) [#29360](https://github.com/nodejs/node/pull/29360)
+* [[`0c4df35db0`](https://github.com/nodejs/node/commit/0c4df35db0)] - **build**: hard code doctool in test-doc target (Daniel Bevenius) [#29375](https://github.com/nodejs/node/pull/29375)
+* [[`d6b6a0578b`](https://github.com/nodejs/node/commit/d6b6a0578b)] - **build**: integrate DragonFlyBSD into gyp build (David Carlier) [#29313](https://github.com/nodejs/node/pull/29313)
+* [[`6a914ed36e`](https://github.com/nodejs/node/commit/6a914ed36e)] - **build**: make --without-snapshot imply --without-node-snapshot (Joyee Cheung) [#29294](https://github.com/nodejs/node/pull/29294)
+* [[`def5c3e5d8`](https://github.com/nodejs/node/commit/def5c3e5d8)] - **build**: test Python 3.6 and 3.7 on Travis CI (cclauss) [#29291](https://github.com/nodejs/node/pull/29291)
+* [[`feafc019b1`](https://github.com/nodejs/node/commit/feafc019b1)] - **build**: move tooltest to before jstest target (Daniel Bevenius) [#29220](https://github.com/nodejs/node/pull/29220)
+* [[`aeafb91e2c`](https://github.com/nodejs/node/commit/aeafb91e2c)] - **build**: add Python 3 tests to Travis CI (cclauss) [#29196](https://github.com/nodejs/node/pull/29196)
+* [[`bb6e3b5404`](https://github.com/nodejs/node/commit/bb6e3b5404)] - **build,win**: accept Python 3 if 2 is not available (João Reis) [#29236](https://github.com/nodejs/node/pull/29236)
+* [[`dce5649d9c`](https://github.com/nodejs/node/commit/dce5649d9c)] - **build,win**: find Python in paths with spaces (João Reis) [#29236](https://github.com/nodejs/node/pull/29236)
+* [[`2489682eb5`](https://github.com/nodejs/node/commit/2489682eb5)] - **console**: use getStringWidth() for character width calculation (Anna Henningsen) [#29300](https://github.com/nodejs/node/pull/29300)
+* [[`5c3e49d84e`](https://github.com/nodejs/node/commit/5c3e49d84e)] - **crypto**: don't expose openssl internals (Shelley Vohr) [#29325](https://github.com/nodejs/node/pull/29325)
+* [[`e0537e6978`](https://github.com/nodejs/node/commit/e0537e6978)] - **crypto**: simplify DSA validation in FIPS mode (Tobias Nießen) [#29195](https://github.com/nodejs/node/pull/29195)
+* [[`28ffc9f599`](https://github.com/nodejs/node/commit/28ffc9f599)] - **deps**: V8: cherry-pick 597f885 (Benjamin Coe) [#29367](https://github.com/nodejs/node/pull/29367)
+* [[`219c19530e`](https://github.com/nodejs/node/commit/219c19530e)] - **(SEMVER-MINOR)** **deps**: update npm to 6.10.3 (isaacs) [#29023](https://github.com/nodejs/node/pull/29023)
+* [[`4a7c4b7366`](https://github.com/nodejs/node/commit/4a7c4b7366)] - **doc**: escape elements swallowed as HTML in markdown (Nick Schonning) [#29374](https://github.com/nodejs/node/pull/29374)
+* [[`5a16449edf`](https://github.com/nodejs/node/commit/5a16449edf)] - **doc**: add extends for derived classes (Kamat, Trivikram) [#29290](https://github.com/nodejs/node/pull/29290)
+* [[`3fc29b8f9a`](https://github.com/nodejs/node/commit/3fc29b8f9a)] - **doc**: add blanks around code fences (Nick Schonning) [#29366](https://github.com/nodejs/node/pull/29366)
+* [[`187d08be65`](https://github.com/nodejs/node/commit/187d08be65)] - **doc**: format http2 anchor link and reference (Nick Schonning) [#29362](https://github.com/nodejs/node/pull/29362)
+* [[`6734782f25`](https://github.com/nodejs/node/commit/6734782f25)] - **doc**: remove multiple consecutive blank lines (Nick Schonning) [#29352](https://github.com/nodejs/node/pull/29352)
+* [[`a94afedc9b`](https://github.com/nodejs/node/commit/a94afedc9b)] - **doc**: add devnexen to collaborators (David Carlier) [#29370](https://github.com/nodejs/node/pull/29370)
+* [[`43797d9427`](https://github.com/nodejs/node/commit/43797d9427)] - **doc**: inconsistent indentation for list items (Nick Schonning) [#29330](https://github.com/nodejs/node/pull/29330)
+* [[`bb72217faf`](https://github.com/nodejs/node/commit/bb72217faf)] - **doc**: heading levels should only increment by one (Nick Schonning) [#29331](https://github.com/nodejs/node/pull/29331)
+* [[`ef76c7d997`](https://github.com/nodejs/node/commit/ef76c7d997)] - **doc**: add dco to github pr template (Myles Borins) [#24023](https://github.com/nodejs/node/pull/24023)
+* [[`8599052283`](https://github.com/nodejs/node/commit/8599052283)] - **doc**: add https.Server extends tls.Server (Trivikram Kamat) [#29256](https://github.com/nodejs/node/pull/29256)
+* [[`2fafd635d7`](https://github.com/nodejs/node/commit/2fafd635d7)] - **doc**: fix nits in esm.md (Vse Mozhet Byt) [#29242](https://github.com/nodejs/node/pull/29242)
+* [[`6a4f156ba4`](https://github.com/nodejs/node/commit/6a4f156ba4)] - **doc**: add missing extends Http2Session (Trivikram Kamat) [#29252](https://github.com/nodejs/node/pull/29252)
+* [[`1d649e3444`](https://github.com/nodejs/node/commit/1d649e3444)] - **doc**: indicate that Http2ServerRequest extends Readable (Trivikram Kamat) [#29253](https://github.com/nodejs/node/pull/29253)
+* [[`b2f169e628`](https://github.com/nodejs/node/commit/b2f169e628)] - **doc**: indicate that Http2ServerResponse extends Stream (Trivikram Kamat) [#29254](https://github.com/nodejs/node/pull/29254)
+* [[`65de900052`](https://github.com/nodejs/node/commit/65de900052)] - **(SEMVER-MINOR)** **doc**: add emitClose option for fs streams (Rich Trott) [#29212](https://github.com/nodejs/node/pull/29212)
+* [[`ae810cc8d5`](https://github.com/nodejs/node/commit/ae810cc8d5)] - **doc,crypto**: add extends for derived classes (Kamat, Trivikram) [#29302](https://github.com/nodejs/node/pull/29302)
+* [[`a2c704773a`](https://github.com/nodejs/node/commit/a2c704773a)] - **doc,errors**: add extends to derived classes (Kamat, Trivikram) [#29303](https://github.com/nodejs/node/pull/29303)
+* [[`395245f1eb`](https://github.com/nodejs/node/commit/395245f1eb)] - **doc,fs**: add extends for derived classes (Kamat, Trivikram) [#29304](https://github.com/nodejs/node/pull/29304)
+* [[`8a93b63a6b`](https://github.com/nodejs/node/commit/8a93b63a6b)] - **doc,http**: add extends for derived classes (Trivikram Kamat) [#29255](https://github.com/nodejs/node/pull/29255)
+* [[`ba29be60ae`](https://github.com/nodejs/node/commit/ba29be60ae)] - **doc,tls**: add extends for derived classes (Trivikram Kamat) [#29257](https://github.com/nodejs/node/pull/29257)
+* [[`30b80e5d7c`](https://github.com/nodejs/node/commit/30b80e5d7c)] - **errors**: provide defaults for unmapped uv errors (cjihrig) [#29288](https://github.com/nodejs/node/pull/29288)
+* [[`a7c8322a54`](https://github.com/nodejs/node/commit/a7c8322a54)] - **esm**: support loading data URLs (Bradley Farias) [#28614](https://github.com/nodejs/node/pull/28614)
+* [[`3bc16f917d`](https://github.com/nodejs/node/commit/3bc16f917d)] - **events**: improve once() performance (Brian White) [#29307](https://github.com/nodejs/node/pull/29307)
+* [[`ed2293e3d7`](https://github.com/nodejs/node/commit/ed2293e3d7)] - **(SEMVER-MINOR)** **fs**: add recursive option to rmdir() (cjihrig) [#29168](https://github.com/nodejs/node/pull/29168)
+* [[`8f47ff16d4`](https://github.com/nodejs/node/commit/8f47ff16d4)] - **(SEMVER-MINOR)** **fs**: allow passing true to emitClose option (Giorgos Ntemiris) [#29212](https://github.com/nodejs/node/pull/29212)
+* [[`6ff803d97c`](https://github.com/nodejs/node/commit/6ff803d97c)] - **fs**: fix (temporary) for esm package (Robert Nagy) [#28957](https://github.com/nodejs/node/pull/28957)
+* [[`e6353bda1a`](https://github.com/nodejs/node/commit/e6353bda1a)] - **fs**: document the Date conversion in Stats objects (Joyee Cheung) [#28224](https://github.com/nodejs/node/pull/28224)
+* [[`365e062e14`](https://github.com/nodejs/node/commit/365e062e14)] - **(SEMVER-MINOR)** **fs**: add \*timeNs properties to BigInt Stats objects (Joyee Cheung) [#21387](https://github.com/nodejs/node/pull/21387)
+* [[`12cbb3f12f`](https://github.com/nodejs/node/commit/12cbb3f12f)] - **gyp**: remove semicolons (Python != JavaScript) (MattIPv4) [#29228](https://github.com/nodejs/node/pull/29228)
+* [[`10bae2ec91`](https://github.com/nodejs/node/commit/10bae2ec91)] - **gyp**: futurize imput.py to prepare for Python 3 (cclauss) [#29140](https://github.com/nodejs/node/pull/29140)
+* [[`e5a9a8522d`](https://github.com/nodejs/node/commit/e5a9a8522d)] - **http**: simplify timeout handling (Robert Nagy) [#29200](https://github.com/nodejs/node/pull/29200)
+* [[`87b8f02daa`](https://github.com/nodejs/node/commit/87b8f02daa)] - **lib**: add ASCII fast path to getStringWidth() (Anna Henningsen) [#29301](https://github.com/nodejs/node/pull/29301)
+* [[`6e585fb063`](https://github.com/nodejs/node/commit/6e585fb063)] - **lib**: consolidate lazyErrmapGet() (cjihrig) [#29285](https://github.com/nodejs/node/pull/29285)
+* [[`eb2d96fecf`](https://github.com/nodejs/node/commit/eb2d96fecf)] - **module**: avoid passing unnecessary loop reference (Saúl Ibarra Corretgé) [#29275](https://github.com/nodejs/node/pull/29275)
+* [[`dfc0ef5d88`](https://github.com/nodejs/node/commit/dfc0ef5d88)] - **(SEMVER-MINOR)** **net**: allow reading data into a static buffer (Brian White) [#25436](https://github.com/nodejs/node/pull/25436)
+* [[`f4f88270e7`](https://github.com/nodejs/node/commit/f4f88270e7)] - **process**: improve nextTick performance (Brian White) [#25461](https://github.com/nodejs/node/pull/25461)
+* [[`0e1ccca81d`](https://github.com/nodejs/node/commit/0e1ccca81d)] - **querystring**: improve performance (Brian White) [#29306](https://github.com/nodejs/node/pull/29306)
+* [[`f8f3af099a`](https://github.com/nodejs/node/commit/f8f3af099a)] - **src**: do not crash when accessing empty WeakRefs (Anna Henningsen) [#29289](https://github.com/nodejs/node/pull/29289)
+* [[`b964bdd162`](https://github.com/nodejs/node/commit/b964bdd162)] - **src**: turn `GET\_OFFSET()` into an inline function (Anna Henningsen) [#29357](https://github.com/nodejs/node/pull/29357)
+* [[`2666e006e1`](https://github.com/nodejs/node/commit/2666e006e1)] - **src**: inline `SLICE\_START\_END()` in node\_buffer.cc (Anna Henningsen) [#29357](https://github.com/nodejs/node/pull/29357)
+* [[`8c6896e5d3`](https://github.com/nodejs/node/commit/8c6896e5d3)] - **src**: allow --interpreted-frames-native-stack in NODE\_OPTIONS (Matheus Marchini) [#27744](https://github.com/nodejs/node/pull/27744)
+* [[`db6e4ce239`](https://github.com/nodejs/node/commit/db6e4ce239)] - **src**: expose MaybeInitializeContext to allow existing contexts (Samuel Attard) [#28544](https://github.com/nodejs/node/pull/28544)
+* [[`4d4583e0a2`](https://github.com/nodejs/node/commit/4d4583e0a2)] - **src**: add large page support for macOS (David Carlier) [#28977](https://github.com/nodejs/node/pull/28977)
+* [[`7809adfb1f`](https://github.com/nodejs/node/commit/7809adfb1f)] - **stream**: don't deadlock on aborted stream (Robert Nagy) [#29376](https://github.com/nodejs/node/pull/29376)
+* [[`2efd72f28d`](https://github.com/nodejs/node/commit/2efd72f28d)] - **stream**: improve read() performance (Brian White) [#29337](https://github.com/nodejs/node/pull/29337)
+* [[`e939a8747f`](https://github.com/nodejs/node/commit/e939a8747f)] - **stream**: async iterator destroy compat (Robert Nagy) [#29176](https://github.com/nodejs/node/pull/29176)
+* [[`b36a6e9ed5`](https://github.com/nodejs/node/commit/b36a6e9ed5)] - **stream**: do not emit drain if stream ended (Robert Nagy) [#29086](https://github.com/nodejs/node/pull/29086)
+* [[`0ccf90b415`](https://github.com/nodejs/node/commit/0ccf90b415)] - **test**: remove Windows skipping of http keepalive request GC test (Rich Trott) [#29354](https://github.com/nodejs/node/pull/29354)
+* [[`83fb133267`](https://github.com/nodejs/node/commit/83fb133267)] - **test**: fix test-benchmark-net (Rich Trott) [#29359](https://github.com/nodejs/node/pull/29359)
+* [[`bd1e8eacf3`](https://github.com/nodejs/node/commit/bd1e8eacf3)] - **test**: fix flaky test-http-server-keepalive-req-gc (Rich Trott) [#29347](https://github.com/nodejs/node/pull/29347)
+* [[`9a150027da`](https://github.com/nodejs/node/commit/9a150027da)] - **test**: use print() function in both Python 2 and 3 (Christian Clauss) [#29298](https://github.com/nodejs/node/pull/29298)
+* [[`1f88ca3424`](https://github.com/nodejs/node/commit/1f88ca3424)] - **(SEMVER-MINOR)** **test**: add `emitClose: true` tests for fs streams (Rich Trott) [#29212](https://github.com/nodejs/node/pull/29212)
+* [[`cd70fd2bc0`](https://github.com/nodejs/node/commit/cd70fd2bc0)] - **tools**: update ESLint to 6.3.0 (cjihrig) [#29382](https://github.com/nodejs/node/pull/29382)
+* [[`350975e312`](https://github.com/nodejs/node/commit/350975e312)] - **tools**: use 'from io import StringIO' in ninja.py (cclauss) [#29371](https://github.com/nodejs/node/pull/29371)
+* [[`3f68be1098`](https://github.com/nodejs/node/commit/3f68be1098)] - **tools**: fix mksnapshot blob wrong freeing operator (David Carlier) [#29384](https://github.com/nodejs/node/pull/29384)
+* [[`3802da790b`](https://github.com/nodejs/node/commit/3802da790b)] - **tools**: update ESLint to 6.2.2 (cjihrig) [#29320](https://github.com/nodejs/node/pull/29320)
+* [[`2df84752c6`](https://github.com/nodejs/node/commit/2df84752c6)] - **tools**: update babel-eslint to 10.0.3 (cjihrig) [#29320](https://github.com/nodejs/node/pull/29320)
+* [[`783c8eeb0b`](https://github.com/nodejs/node/commit/783c8eeb0b)] - **tools**: fix Python 3 issues in inspector\_protocol (cclauss) [#29296](https://github.com/nodejs/node/pull/29296)
+* [[`925141f946`](https://github.com/nodejs/node/commit/925141f946)] - **tools**: fix mixup with bytes.decode() and str.encode() (Christian Clauss) [#29208](https://github.com/nodejs/node/pull/29208)
+* [[`a123a20134`](https://github.com/nodejs/node/commit/a123a20134)] - **tools**: fix Python 3 issues in tools/icu/icutrim.py (cclauss) [#29213](https://github.com/nodejs/node/pull/29213)
+* [[`eceebd3ef1`](https://github.com/nodejs/node/commit/eceebd3ef1)] - **tools**: fix Python 3 issues in gyp/generator/make.py (cclauss) [#29214](https://github.com/nodejs/node/pull/29214)
+* [[`5abbd51c60`](https://github.com/nodejs/node/commit/5abbd51c60)] - **util**: do not throw when inspecting detached ArrayBuffer (Anna Henningsen) [#29318](https://github.com/nodejs/node/pull/29318)
 
 <a id="12.9.1"></a>
 ## 2019-08-26, Version 12.9.1 (Current), @targos
