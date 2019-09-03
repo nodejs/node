@@ -323,7 +323,7 @@ future use. The root of the current volume may be referenced via `file:///`.
 #### `data:` Imports
 
 <!-- YAML
-added: REPLACEME
+added: v12.10.0
 -->
 
 [`data:` URLs][] are supported for importing with the following MIME types:

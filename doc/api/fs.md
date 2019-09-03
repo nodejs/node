@@ -735,7 +735,7 @@ milliseconds since the POSIX Epoch.
 
 ### stats.atimeNs
 <!-- YAML
-added: REPLACEME
+added: v12.10.0
 -->
 
 * {bigint}
@@ -747,7 +747,7 @@ nanoseconds since the POSIX Epoch.
 
 ### stats.mtimeNs
 <!-- YAML
-added: REPLACEME
+added: v12.10.0
 -->
 
 * {bigint}
@@ -759,7 +759,7 @@ nanoseconds since the POSIX Epoch.
 
 ### stats.ctimeNs
 <!-- YAML
-added: REPLACEME
+added: v12.10.0
 -->
 
 * {bigint}
@@ -771,7 +771,7 @@ in nanoseconds since the POSIX Epoch.
 
 ### stats.birthtimeNs
 <!-- YAML
-added: REPLACEME
+added: v12.10.0
 -->
 
 * {bigint}
@@ -1506,7 +1506,7 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29212
     description: Enable `emitClose` option.
   - version: v11.0.0
@@ -1602,7 +1602,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29212
     description: Enable `emitClose` option.
   - version: v7.6.0
@@ -3023,7 +3023,7 @@ Synchronous rename(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
                  now supported.
@@ -3069,7 +3069,7 @@ Windows and an `ENOTDIR` error on POSIX.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
                  now supported.
@@ -4729,7 +4729,7 @@ upon success.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
                   now supported.
