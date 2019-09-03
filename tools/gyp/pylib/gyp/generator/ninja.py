@@ -352,7 +352,7 @@ class NinjaWriter(object):
 
     Uses a stamp file if necessary."""
 
-    assert targets == list(filter(None, targets)), targets
+    assert targets == [item for item in targets if item], targets
     if len(targets) == 0:
       assert not order_only
       return None
@@ -429,8 +429,8 @@ class NinjaWriter(object):
           compile_depends.append(target.PreCompileInput())
           if target.uses_cpp:
             self.target.uses_cpp = True
-      actions_depends = list(filter(None, actions_depends))
-      compile_depends = list(filter(None, compile_depends))
+      actions_depends = [item for item in actions_depends if item]
+      compile_depends = [item for item in compile_depends if item]
       actions_depends = self.WriteCollapsedDependencies('actions_depends',
                                                         actions_depends)
       compile_depends = self.WriteCollapsedDependencies('compile_depends',
