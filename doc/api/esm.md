@@ -60,7 +60,7 @@ or when referenced by `import` statements within ES module code:
 * Strings passed in as an argument to `--eval` or `--print`, or piped to
   `node` via `STDIN`, with the flag `--input-type=commonjs`.
 
-## <code>package.json</code> <code>"type"</code> field
+### <code>package.json</code> <code>"type"</code> field
 
 Files ending with `.js` or `.mjs`, or lacking any extension,
 will be loaded as ES modules when the nearest parent `package.json` file
@@ -97,7 +97,13 @@ if the nearest parent `package.json` contains `"type": "module"`.
 import './startup.js'; // Loaded as ES module because of package.json
 ```
 
-## Package Scope and File Extensions
+Package authors should include the `"type"` field, even in packages where all
+sources are CommonJS. Being explicit about the `type` of the package will
+future-proof the package in case the default type of Node.js ever changes, and
+it will also make things easier for build tools and loaders to determine how the
+files in the package should be interpreted.
+
+### Package Scope and File Extensions
 
 A folder containing a `package.json` file, and all subfolders below that
 folder down until the next folder containing another `package.json`, is
@@ -156,7 +162,7 @@ package scope:
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
   `"commonjs"` package scope).
 
-## <code>--input-type</code> flag
+### <code>--input-type</code> flag
 
 Strings passed in as an argument to `--eval` or `--print` (or `-e` or `-p`), or
 piped to `node` via `STDIN`, will be treated as ES modules when the
@@ -174,7 +180,9 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
-## Package Entry Points
+## Packages
+
+### Package Entry Points
 
 The `package.json` `"main"` field defines the entry point for a package,
 whether the package is included into CommonJS via `require` or into an ES
@@ -209,15 +217,50 @@ be interpreted as CommonJS.
 
 The `"main"` field can point to exactly one file, regardless of whether the
 package is referenced via `require` (in a CommonJS context) or `import` (in an
-ES module context). Package authors who want to publish a package to be used in
-both contexts can do so by setting `"main"` to point to the CommonJS entry point
-and informing the package’s users of the path to the ES module entry point. Such
-a package would be accessible like `require('pkg')` and `import
-'pkg/module.mjs'`. Alternatively the package `"main"` could point to the ES
-module entry point and legacy users could be informed of the CommonJS entry
-point path, e.g. `require('pkg/commonjs')`.
+ES module context).
 
-## Package Exports
+#### Compatibility with CommonJS-Only Versions of Node.js
+
+Prior to the introduction of support for ES modules in Node.js, it was a common
+pattern for package authors to include both CommonJS and ES module JavaScript
+sources in their package, with `package.json` `"main"` specifying the CommonJS
+entry point and `package.json` `"module"` specifying the ES module entry point.
+This enabled Node.js to run the CommonJS entry point while build tools such as
+bundlers used the ES module entry point, since Node.js ignored (and still
+ignores) `"module"`.
+
+Node.js can now run ES module entry points, but it remains impossible for a
+package to define separate CommonJS and ES module entry points. This is for good
+reason: the `pkg` variable created from `import pkg from 'pkg'` is not the same
+singleton as the `pkg` variable created from `const pkg = require('pkg')`, so if
+both are referenced within the same app (including dependencies), unexpected
+behavior might occur.
+
+There are two general approaches to addressing this limitation while still
+publishing a package that contains both CommonJS and ES module sources:
+
+1. Document a new ES module entry point that’s not the package `"main"`, e.g.
+   `import pkg from 'pkg/module.mjs'` (or `import 'pkg/esm'`, if using [package
+   exports][]). The package `"main"` would still point to a CommonJS file, and
+   thus the package would remain compatible with older versions of Node.js that
+   lack support for ES modules.
+
+1. Switch the package `"main"` entry point to an ES module file as part of a
+   breaking change version bump. This version and above would only be usable on
+   ES module-supporting versions of Node.js. If the package still contains a
+   CommonJS version, it would be accessible via a path within the package, e.g.
+   `require('pkg/commonjs')`; this is essentially the inverse of the previous
+   approach. Package consumers who are using CommonJS-only versions of Node.js
+   would need to update their code from `require('pkg')` to e.g.
+   `require('pkg/commonjs')`.
+
+Of course, a package could also include only CommonJS or only ES module sources.
+An existing package could make a semver major bump to an ES module-only version,
+that would only be supported in ES module-supporting versions of Node.js (and
+other runtimes). New packages could be published containing only ES module
+sources, and would be compatible only with ES module-supporting runtimes.
+
+### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
 Custom subpath aliasing and encapsulation can be provided through the
@@ -930,5 +973,6 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[package exports]: #esm_package_exports
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
