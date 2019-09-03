@@ -98,10 +98,42 @@ async function onceWithEventTarget() {
   process.nextTick(() => {
     emitter.emit('myevent', 42);
   });
-  const value = await once(emitter, 'myevent');
+  const [ value ] = await once(emitter, 'myevent');
   strictEqual(value, 42);
   strictEqual(emitter.listenerCount('myevent'), 0);
+}
 
+async function onceWithEventTargetTwoArgs() {
+  const emitter = new class EventTargetLike extends EventEmitter {
+    addEventListener = common.mustCall(function(name, listener, options) {
+      if (options.once) {
+        this.once(name, listener);
+      } else {
+        this.on(name, listener);
+      }
+    });
+  }();
+
+  process.nextTick(() => {
+    emitter.emit('myevent', 42, 24);
+  });
+
+  const value = await once(emitter, 'myevent');
+  deepStrictEqual(value, [42, 24]);
+}
+
+async function onceWithEventTargetError() {
+  const emitter = new EventEmitter();
+  emitter.addEventListener = () => {};
+  const expected = 'EventTarget does not have `error` event semantics';
+  let actual;
+  try {
+    await once(emitter, 'error');
+  } catch (error) {
+    actual = error;
+  }
+  strictEqual(emitter.listenerCount('error'), 0);
+  strictEqual(expected, actual);
 }
 
 Promise.all([
@@ -110,5 +142,7 @@ Promise.all([
   catchesErrors(),
   stopListeningAfterCatchingError(),
   onceError(),
-  onceWithEventTarget()
+  onceWithEventTarget(),
+  onceWithEventTargetTwoArgs(),
+  onceWithEventTargetError(),
 ]).then(common.mustCall());
