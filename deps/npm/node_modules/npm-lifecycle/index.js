@@ -265,6 +265,12 @@ function runCmd (note, cmd, pkg, env, stage, wd, opts, cb) {
     runCmd_(cmd, pkg, env, wd, opts, stage, unsafe, 0, 0, cb)
   } else {
     uidNumber(user, group, function (er, uid, gid) {
+      if (er) {
+        er.code = 'EUIDLOOKUP'
+        opts.log.resume()
+        process.nextTick(dequeue)
+        return cb(er)
+      }
       runCmd_(cmd, pkg, env, wd, opts, stage, unsafe, uid, gid, cb)
     })
   }

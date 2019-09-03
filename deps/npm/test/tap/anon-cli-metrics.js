@@ -54,7 +54,7 @@ var fixture = new Tacks(Dir({
         name: 'slow',
         version: '1.0.0',
         scripts: {
-          preinstall: "node -e 'setTimeout(function(){}, 500)'"
+          preinstall: 'node -e "setTimeout(function(){}, 500)"'
         }
       })
     }),

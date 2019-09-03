@@ -10,7 +10,7 @@ function extractPath (path, cmdshimContents) {
 }
 
 function extractPathFromCmd (cmdshimContents) {
-  var matches = cmdshimContents.match(/"%~dp0\\([^"]+?)"\s+%[*]/)
+  var matches = cmdshimContents.match(/"%(?:~dp0|dp0%)\\([^"]+?)"\s+%[*]/)
   return matches && matches[1]
 }
 

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [12.0.3](https://github.com/npm/cacache/compare/v12.0.2...v12.0.3) (2019-08-19)
+
+
+### Bug Fixes
+
+* do not chown if not running as root ([2d80af9](https://github.com/npm/cacache/commit/2d80af9))
+
+
+
 ### [12.0.2](https://github.com/npm/cacache/compare/v12.0.1...v12.0.2) (2019-07-19)
 
 

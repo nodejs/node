@@ -6,7 +6,11 @@ module.exports.Result = Result
 let url
 let HostedGit
 let semver
-let path
+let path_
+function path () {
+  if (!path_) path_ = require('path')
+  return path_
+}
 let validatePackageName
 let osenv
 
@@ -109,7 +113,6 @@ function Result (opts) {
   this.gitCommittish = opts.gitCommittish
   this.hosted = opts.hosted
 }
-Result.prototype = {}
 
 Result.prototype.setName = function (name) {
   if (!validatePackageName) validatePackageName = require('validate-npm-package-name')
@@ -152,8 +155,7 @@ const isAbsolutePath = /^[/]|^[A-Za-z]:/
 
 function resolvePath (where, spec) {
   if (isAbsolutePath.test(spec)) return spec
-  if (!path) path = require('path')
-  return path.resolve(where, spec)
+  return path().resolve(where, spec)
 }
 
 function isAbsolute (dir) {
@@ -180,8 +182,7 @@ function fromFile (res, where) {
     if (isAbsolute(spec)) {
       res.saveSpec = 'file:' + spec
     } else {
-      if (!path) path = require('path')
-      res.saveSpec = 'file:' + path.relative(where, res.fetchSpec)
+      res.saveSpec = 'file:' + path().relative(where, res.fetchSpec)
     }
   }
   return res
@@ -238,6 +239,11 @@ function fromURL (res) {
       } else {
         setGitCommittish(res, urlparse.hash != null ? urlparse.hash.slice(1) : '')
         urlparse.protocol = urlparse.protocol.replace(/^git[+]/, '')
+        if (urlparse.protocol === 'file:' && /^git\+file:\/\/[a-z]:/i.test(res.rawSpec)) {
+          // keep the drive letter : on windows file paths
+          urlparse.host += ':'
+          urlparse.hostname += ':'
+        }
         delete urlparse.hash
         res.fetchSpec = url.format(urlparse)
       }

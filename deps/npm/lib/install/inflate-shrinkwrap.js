@@ -167,7 +167,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   }
   const child = createChild({
     package: pkg,
-    loaded: false,
+    loaded: true,
     parent: tree,
     children: [],
     fromShrinkwrap: requested,

@@ -18,7 +18,13 @@ var example_pkg = path.join(example, 'package.json')
 var installed = path.join(example, 'node_modules', 'installed')
 var installed_pkg = path.join(installed, 'package.json')
 
-var EXEC_OPTS = { cwd: example }
+// Ignore max listeners warnings until that gets fixed
+var env = Object.keys(process.env).reduce((set, key) => {
+  if (!set[key]) set[key] = process.env[key]
+  return set
+}, { NODE_NO_WARNINGS: '1' })
+
+var EXEC_OPTS = { cwd: example, env: env }
 
 var installme_pkg_json = {
   name: 'installme',

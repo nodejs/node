@@ -19,6 +19,9 @@ const EXEC_OPTS = { cwd: testDir }
 const PKG = {
   name: 'top',
   version: '1.2.3',
+  scripts: {
+    install: 'node -p process.env.npm_config_foo'
+  },
   dependencies: {
     optimist: '0.6.0',
     clean: '2.1.6'
@@ -77,6 +80,7 @@ test('basic installation', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -88,7 +92,7 @@ test('basic installation', (t) => {
       t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
         stdout.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
       return fs.readdirAsync(path.join(testDir, 'node_modules'))
@@ -144,6 +148,7 @@ test('supports npm-shrinkwrap.json as well', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -155,7 +160,7 @@ test('supports npm-shrinkwrap.json as well', (t) => {
       t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
         stdout.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
     })
@@ -194,6 +199,7 @@ test('removes existing node_modules/ before installing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -232,6 +238,7 @@ test('errors if package-lock.json missing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -268,6 +275,7 @@ test('errors if package-lock.json invalid', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))

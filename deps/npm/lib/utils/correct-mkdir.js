@@ -1,3 +1,4 @@
+// XXX this can probably be replaced with gentle-fs.mkdir everywhere it's used
 const chownr = require('chownr')
 const inflight = require('inflight')
 const log = require('npmlog')

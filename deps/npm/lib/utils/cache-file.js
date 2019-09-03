@@ -1,3 +1,4 @@
+// XXX use infer-owner or gentle-fs.mkdir here
 const npm = require('../npm.js')
 const path = require('path')
 const chownr = require('chownr')

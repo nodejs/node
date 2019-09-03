@@ -27,7 +27,7 @@ function getManifest (spec, opts) {
         includeDeprecated: opts.includeDeprecated
       })
     } catch (err) {
-      if (err.code === 'ETARGET' && packument._cached && !opts.offline) {
+      if ((err.code === 'ETARGET' || err.code === 'E403') && packument._cached && !opts.offline) {
         opts.log.silly(
           'registry:manifest',
           `no matching version for ${spec.name}@${spec.fetchSpec} in the cache. Forcing revalidation.`

@@ -47,6 +47,7 @@ test('outdated depth zero', function (t) {
   mr({ port: common.port }, function (er, s) {
     npm.load(
       {
+        depth: 0,
         loglevel: 'silent',
         registry: common.registry
       },
@@ -54,12 +55,24 @@ test('outdated depth zero', function (t) {
         npm.install('.', function (er) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
-            t.ifError(err, 'npm outdated ran without error')
+            if (err) {
+              throw err
+            }
             t.is(process.exitCode, 1, 'exit code set to 1')
             process.exitCode = 0
             t.deepEqual(d[0], expected)
-            s.close()
-            t.end()
+            t.equal(d.length, 1)
+            npm.config.set('depth', 1)
+            npm.outdated(function (err, d) {
+              t.equal(d.length, 2)
+              if (err) {
+                throw err
+              }
+              t.is(process.exitCode, 1, 'exit code set to 1')
+              process.exitCode = 0
+              s.close()
+              t.end()
+            })
           })
         })
       }

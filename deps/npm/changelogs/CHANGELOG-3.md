@@ -2864,7 +2864,7 @@ Historically, if you used a pre-release version of Node.js, you would get
 dozens and dozens of warnings when EVERY engine check failed across all of
 your modules, because `>= 0.10.0` doesn't match prereleases.
 
-You might find this stream of redundent warnings undesirable. I do.
+You might find this stream of redundant warnings undesirable. I do.
 
 We've moved this into a SINGLE warning you'll get about using a pre-release
 version of Node.js and now suppress those other warnings.
@@ -3524,7 +3524,7 @@ it would just refuse to install anything. (We fixed that in
   [#10338](https://github.com/npm/npm/pull/10338)
   Updating a module could result in the module stealing some of its
   dependencies from the top level, potentially breaking other modules or
-  resulting in many redundent installations. This bug was first introduced
+  resulting in many redundant installations. This bug was first introduced
   by [`971fd47a`](https://github.com/npm/npm/commit/971fd47a).
   ([@iarna](https://github.com/iarna))
 * [`5653366`](https://github.com/npm/npm/commit/5653366)

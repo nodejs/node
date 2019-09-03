@@ -67,10 +67,12 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
       if (err) throw err
       t.notOk(code, 'npm install exited cleanly')
       t.is(stderr, '', 'npm install ran silently')
-      t.equal(
+      t.match(
         stdout.trim(),
-        'add\tunderscore\t1.5.1\tnode_modules/underscore\t\t\n' +
-        'add\tglock\t1.8.7\tnode_modules/glock',
+        new RegExp(
+          '^add\tunderscore\t1[.]5[.]1\tnode_modules[\\\\/]underscore\t\t[\n]' +
+          'add\tglock\t1[.]8[.]7\tnode_modules[\\\\/]glock$'
+        ),
         'got expected install output'
       )
 
