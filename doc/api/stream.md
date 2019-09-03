@@ -2559,6 +2559,7 @@ it is important to ensure the correct handling of backpressure and errors.
 
 ```js
 const { once } = require('events');
+const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
@@ -2570,18 +2571,24 @@ const writable = fs.createWriteStream('./file');
   }
   writable.end();
   // Ensure completion without errors.
-  await once(writable, 'finish');
+  await finished(writable);
 })();
 ```
 
-In the above, errors on the write stream would be caught and thrown by the two
-`once()` listeners, since `once()` will also handle `'error'` events.
+In the above, errors on `write()` would be caught and thrown by the
+`once()` listener for the `'drain'` event, since `once()` will also handle the
+`'error'` event. To ensure completion of the write stream without errors,
+it is safer to use the `finished()` method as above, instead of using the
+`once()` listener for the `'finish'` event. Under certain cases, an `'error'`
+event could be emitted by the writable stream after `'finish'` and as `once()`
+will release the `'error'` handler on handling the `'finish'` event, it could
+result in an unhandled error.
 
-Alternatively the readable stream could be wrapped with `Readable.from()` and
+Alternatively, the readable stream could be wrapped with `Readable.from()` and
 then piped via `.pipe()`:
 
 ```js
-const { once } = require('events');
+const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
@@ -2589,7 +2596,20 @@ const writable = fs.createWriteStream('./file');
   const readable = Readable.from(iterator);
   readable.pipe(writable);
   // Ensure completion without errors.
-  await once(writable, 'finish');
+  await finished(writable);
+})();
+```
+
+Or, using `stream.pipeline()` to pipe streams:
+
+```js
+const pipeline = util.promisify(stream.pipeline);
+
+const writable = fs.createWriteStream('./file');
+
+(async function() {
+  const readable = Readable.from(iterator);
+  await pipeline(readable, writable);
 })();
 ```
 
