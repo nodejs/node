@@ -21,9 +21,9 @@ import gyp.msvs_emulation
 import gyp.MSVSUtil as MSVSUtil
 import gyp.xcode_emulation
 try:
-    from cStringIO import StringIO
+  from cStringIO import StringIO
 except ImportError:
-    from io import StringIO
+  from io import StringIO
 
 from gyp.common import GetEnvironFallback
 import gyp.ninja_syntax as ninja_syntax
