@@ -97,6 +97,15 @@ if the nearest parent `package.json` contains `"type": "module"`.
 import './startup.js'; // Loaded as ES module because of package.json
 ```
 
+It is recommended that package authors always include the `"type"` field, even
+in packages where it is unnecessary because all sources are CommonJS (and so
+therefore the default `"type": "commonjs"` is implied) or because there are no
+files ending in `.js` (for example, all files end in `.mjs` or `.cjs` or
+`.wasm`, etc.). Being explicit about the `type` of the package will future-proof
+the package in case Node.js’ default type ever changes, and it will also make
+things easier for build tools and loaders to determine how the files in the
+package should be interpreted.
+
 ### Package Scope and File Extensions
 
 A folder containing a `package.json` file, and all subfolders below that
