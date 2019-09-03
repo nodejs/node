@@ -60,14 +60,16 @@ exit /b 1
 :: Read the InstallPath of a given Environment Key to %p%
 :: https://www.python.org/dev/peps/pep-0514/#installpath
 :read-installpath
-:: %%a will receive token 3
-:: %%b will receive *, corresponding to token 4 and all after
-for /f "skip=2 tokens=3*" %%a in ('reg query "%1\InstallPath" /ve /t REG_SZ 2^> nul') do (
-  set "head=%%a"
-  set "tail=%%b"
-  set "p=!head!"
-  if not "!tail!"=="" set "p=!head! !tail!"
-  exit /b 0
+:: %%a will receive everything before ), might have spaces depending on language
+:: %%b will receive *, corresponding to everything after )
+:: %%c will receive REG_SZ
+:: %%d will receive the path, including spaces
+for /f "skip=2 tokens=1* delims=)" %%a in ('reg query "%1\InstallPath" /ve /t REG_SZ 2^> nul') do (
+  for /f "tokens=1*" %%c in ("%%b") do (
+    if not "%%c"=="REG_SZ" exit /b 1
+    set "p=%%d"
+    exit /b 0
+  )
 )
 exit /b 1
 
