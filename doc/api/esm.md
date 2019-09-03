@@ -60,7 +60,7 @@ or when referenced by `import` statements within ES module code:
 - Strings passed in as an argument to `--eval` or `--print`, or piped to
   `node` via `STDIN`, with the flag `--input-type=commonjs`.
 
-## <code>package.json</code> <code>"type"</code> field
+### <code>package.json</code> <code>"type"</code> field
 
 Files ending with `.js` or `.mjs`, or lacking any extension,
 will be loaded as ES modules when the nearest parent `package.json` file
@@ -97,7 +97,7 @@ if the nearest parent `package.json` contains `"type": "module"`.
 import './startup.js'; // Loaded as ES module because of package.json
 ```
 
-## Package Scope and File Extensions
+### Package Scope and File Extensions
 
 A folder containing a `package.json` file, and all subfolders below that
 folder down until the next folder containing another `package.json`, is
@@ -156,7 +156,7 @@ package scope:
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
   `"commonjs"` package scope).
 
-## <code>--input-type</code> flag
+### <code>--input-type</code> flag
 
 Strings passed in as an argument to `--eval` or `--print` (or `-e` or `-p`), or
 piped to `node` via `STDIN`, will be treated as ES modules when the
@@ -174,7 +174,9 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
-## Package Entry Points
+## Packages
+
+### Package Entry Points
 
 The `package.json` `"main"` field defines the entry point for a package,
 whether the package is included into CommonJS via `require` or into an ES
@@ -217,7 +219,7 @@ a package would be accessible like `require('pkg')` and `import
 module entry point and legacy users could be informed of the CommonJS entry
 point path, e.g. `require('pkg/commonjs')`.
 
-## Package Exports
+### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
 Custom subpath aliasing and encapsulation can be provided through the
