@@ -91,7 +91,7 @@ function outdated (args, silent, cb) {
   var dir = path.resolve(npm.dir, '..')
 
   // default depth for `outdated` is 0 (cf. `ls`)
-  if (opts.depth) opts = opts.concat({depth: 0})
+  if (opts.depth === Infinity) opts = opts.concat({depth: 0})
 
   readPackageTree(dir, andComputeMetadata(function (er, tree) {
     if (!tree) return cb(er)
@@ -421,7 +421,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, opts, cb, type
       var l = pickManifest(d, 'latest')
       var m = pickManifest(d, req)
     } catch (er) {
-      if (er.code === 'ETARGET') {
+      if (er.code === 'ETARGET' || er.code === 'E403') {
         return skip(er)
       } else {
         return skip()

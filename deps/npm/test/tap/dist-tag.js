@@ -46,6 +46,12 @@ function mocks (server) {
   server.delete('/-/package/@scoped%2fanother/dist-tags/c')
     .reply(200, { c: '7.7.7' })
 
+  // using a scoped registry
+  server.get('/-/package/@scoped%2ffoo/dist-tags')
+    .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
+  server.delete('/-/package/@scoped%2ffoo/dist-tags/b')
+    .reply(200, { b: '0.6.0' })
+
   // rm
   server.get('/-/package/@scoped%2fanother/dist-tags')
     .reply(200, { latest: '4.0.0' })
@@ -226,6 +232,31 @@ test('npm dist-tags rm @scoped/another nonexistent', function (t) {
       t.ok(code, 'expecting nonzero exit code')
       t.notOk(stderr, 'no error output')
       t.notOk(stdout, 'not expecting output')
+
+      t.end()
+    }
+  )
+})
+
+test('npm dist-tags rm with registry assigned to scope', function (t) {
+  fs.writeFileSync(path.resolve(pkg, '.npmrc'), `
+@scoped:registry=${common.registry}
+${common.registry.replace(/^https?:/, '')}:_authToken=taken
+`)
+
+  common.npm(
+    [
+      'dist-tags',
+      'rm', '@scoped/foo', 'b',
+      '--loglevel', 'silent',
+      '--userconfig', path.resolve(pkg, '.npmrc')
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, '-b: @scoped/foo@0.6.0\n')
 
       t.end()
     }

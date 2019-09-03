@@ -133,7 +133,7 @@ test('shared-linked', function (t) {
   common.npm(config.concat(['install', '--dry-run', '--parseable']), options, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 0)
-    var got = stdout.trim().replace(/\s+\n/g, '\n')
+    var got = stdout.trim().replace(/\s+\n/g, '\n').replace(/\\/g, '/')
     var expected =
       'add\tminimist\t0.0.5\tnode_modules/minimist\n' +
       'add\twordwrap\t0.0.2\tnode_modules/wordwrap\n' +
