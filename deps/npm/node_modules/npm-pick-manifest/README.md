@@ -1,6 +1,6 @@
-# npm-pick-manifest [![npm version](https://img.shields.io/npm/v/npm-pick-manifest.svg)](https://npm.im/npm-pick-manifest) [![license](https://img.shields.io/npm/l/npm-pick-manifest.svg)](https://npm.im/npm-pick-manifest) [![Travis](https://img.shields.io/travis/zkat/npm-pick-manifest.svg)](https://travis-ci.org/zkat/npm-pick-manifest) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/zkat/npm-pick-manifest?svg=true)](https://ci.appveyor.com/project/zkat/npm-pick-manifest) [![Coverage Status](https://coveralls.io/repos/github/zkat/npm-pick-manifest/badge.svg?branch=latest)](https://coveralls.io/github/zkat/npm-pick-manifest?branch=latest)
+# npm-pick-manifest [![npm version](https://img.shields.io/npm/v/npm-pick-manifest.svg)](https://npm.im/npm-pick-manifest) [![license](https://img.shields.io/npm/l/npm-pick-manifest.svg)](https://npm.im/npm-pick-manifest) [![Travis](https://img.shields.io/travis/npm/npm-pick-manifest.svg)](https://travis-ci.org/npm/npm-pick-manifest) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/npm/npm-pick-manifest?svg=true)](https://ci.appveyor.com/project/npm/npm-pick-manifest) [![Coverage Status](https://coveralls.io/repos/github/npm/npm-pick-manifest/badge.svg?branch=latest)](https://coveralls.io/github/npm/npm-pick-manifest?branch=latest)
 
-[`npm-pick-manifest`](https://github.com/zkat/npm-pick-manifest) is a standalone
+[`npm-pick-manifest`](https://github.com/npm/npm-pick-manifest) is a standalone
 implementation of [npm](https://npmjs.com)'s semver range resolution algorithm.
 
 ## Install

@@ -9,14 +9,14 @@ var rimraf = require('rimraf')
 
 var opts = { cwd: __dirname }
 
-var FIXTURE_PATH = path.resolve(__dirname, 'fixture_npmrc')
+var FIXTURE_PATH = path.resolve(common.pkg, 'fixture_npmrc')
 
 test('npm whoami with basic auth', function (t) {
   var s = '//registry.lvh.me/:username = wombat\n' +
           '//registry.lvh.me/:_password = YmFkIHBhc3N3b3Jk\n' +
           '//registry.lvh.me/:email = lindsay@wdu.org.au\n'
   fs.writeFileSync(FIXTURE_PATH, s, 'ascii')
-  fs.chmodSync(FIXTURE_PATH, '0444')
+  fs.chmodSync(FIXTURE_PATH, 0o644)
 
   common.npm(
     [
@@ -31,17 +31,16 @@ test('npm whoami with basic auth', function (t) {
       t.equal(stderr, '', 'got nothing on stderr')
       t.equal(code, 0, 'exit ok')
       t.equal(stdout, 'wombat\n', 'got username')
-      rimraf.sync(FIXTURE_PATH)
       t.end()
     }
   )
 })
 
-test('npm whoami with bearer auth', { timeout: 2 * 1000 }, function (t) {
+test('npm whoami with bearer auth', { timeout: 6000 }, function (t) {
   var s = '//localhost:' + common.port +
           '/:_authToken = wombat-developers-union\n'
   fs.writeFileSync(FIXTURE_PATH, s, 'ascii')
-  fs.chmodSync(FIXTURE_PATH, '0444')
+  fs.chmodSync(FIXTURE_PATH, 0o644)
 
   function verify (req, res) {
     t.equal(req.method, 'GET')

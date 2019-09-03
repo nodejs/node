@@ -1,3 +1,7 @@
+if (process.platform === 'win32') {
+  require('tap').plan(0, 'links are weird on windows, skip this')
+  process.exit(0)
+}
 var fs = require('graceful-fs')
 var path = require('path')
 
