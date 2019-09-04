@@ -109,4 +109,6 @@ addlicense "node-heapdump" "src/heap_utils.cc" \
 addlicense "rimraf" "lib/internal/fs/rimraf.js" \
            "$(curl -sL https://raw.githubusercontent.com/isaacs/rimraf/0e365ac4e4d64a25aa2a3cc026348f13410210e1/LICENSE)"
 
+addlicense "uvwasi" "deps/uvwasi" "$(cat ${rootdir}/deps/uvwasi/LICENSE)"
+
 mv $tmplicense $licensefile

@@ -1107,6 +1107,21 @@ inline void Environment::SetProtoMethodNoSideEffect(
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
+inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
+                                           const char* name,
+                                           v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->InstanceTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
 void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
   auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
     fn, arg, cleanup_hook_counter_++

@@ -547,7 +547,8 @@ struct ContextInfo {
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
-  V(INSPECTOR_PROFILER)
+  V(INSPECTOR_PROFILER)                                                        \
+  V(WASI)
 
 enum class DebugCategory {
 #define V(name) name,
@@ -1119,6 +1120,11 @@ class Environment : public MemoryRetainer {
   inline void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                              const char* name,
                              v8::FunctionCallback callback);
+
+  inline void SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback);
+
 
   // Safe variants denote the function has no side effects.
   inline void SetMethodNoSideEffect(v8::Local<v8::Object> that,
