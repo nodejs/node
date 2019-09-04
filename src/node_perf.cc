@@ -277,7 +277,13 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
   });
 }
 
-static void SetupGarbageCollectionTracking(
+void GarbageCollectionCleanupHook(void* data) {
+  Environment* env = static_cast<Environment*>(data);
+  env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
+  env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
+}
+
+static void InstallGarbageCollectionTracking(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -285,11 +291,15 @@ static void SetupGarbageCollectionTracking(
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
                                         static_cast<void*>(env));
-  env->AddCleanupHook([](void* data) {
-    Environment* env = static_cast<Environment*>(data);
-    env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
-    env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
-  }, env);
+  env->AddCleanupHook(GarbageCollectionCleanupHook, env);
+}
+
+static void RemoveGarbageCollectionTracking(
+  const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  env->RemoveCleanupHook(GarbageCollectionCleanupHook, env);
+  GarbageCollectionCleanupHook(env);
 }
 
 // Gets the name of a function
@@ -575,8 +585,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "markMilestone", MarkMilestone);
   env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
   env->SetMethod(target, "timerify", Timerify);
-  env->SetMethod(
-      target, "setupGarbageCollectionTracking", SetupGarbageCollectionTracking);
+  env->SetMethod(target,
+                 "installGarbageCollectionTracking",
+                 InstallGarbageCollectionTracking);
+  env->SetMethod(target,
+                 "removeGarbageCollectionTracking",
+                 RemoveGarbageCollectionTracking);
   env->SetMethod(target, "notify", Notify);
 
   Local<Object> constants = Object::New(isolate);
