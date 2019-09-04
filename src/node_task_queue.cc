@@ -21,6 +21,7 @@ using v8::kPromiseRejectWithNoHandler;
 using v8::kPromiseResolveAfterResolved;
 using v8::Local;
 using v8::Message;
+using v8::MicrotasksScope;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
@@ -43,7 +44,7 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 bool RunNextTicksNative(Environment* env) {
   TickInfo* tick_info = env->tick_info();
   if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
-    env->isolate()->RunMicrotasks();
+    MicrotasksScope::PerformCheckpoint(env->isolate());
   if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
     return true;
 
