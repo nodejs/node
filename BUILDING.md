@@ -501,16 +501,16 @@ $ backtrace
   [Build Tools](https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017),
   with the default optional components.
 * Basic Unix tools required for some tests,
-  [Git for Windows](http://git-scm.com/download/win) includes Git Bash
+  [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
-* The [NetWide Assembler](http://www.nasm.us/), for OpenSSL assembler modules.
+* The [NetWide Assembler](https://www.nasm.us/), for OpenSSL assembler modules.
   If not installed in the default location, it needs to be manually added
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
 Optional requirements to build the MSI installer package:
 
-* The [WiX Toolset v3.11](http://wixtoolset.org/releases/) and the
+* The [WiX Toolset v3.11](https://wixtoolset.org/releases/) and the
   [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
@@ -527,7 +527,7 @@ Optional requirements for compiling for Windows 10 on ARM (ARM64):
 ##### Option 2: Automated install with Boxstarter
 <a name="boxstarter"></a>
 
-A [Boxstarter](http://boxstarter.org/) script can be used for easy setup of
+A [Boxstarter](https://boxstarter.org/) script can be used for easy setup of
 Windows systems with all the required prerequisites for Node.js development.
 This script will install the following [Chocolatey](https://chocolatey.org/)
 packages:
@@ -541,8 +541,8 @@ packages:
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
 
 To install Node.js prerequisites using
-[Boxstarter WebLauncher](http://boxstarter.org/WebLauncher), open
-<http://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter>
+[Boxstarter WebLauncher](https://boxstarter.org/WebLauncher), open
+<https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter>
 with Internet Explorer or Edge browser on the target machine.
 
 Alternatively, you can use PowerShell. Run those commands from an elevated
@@ -550,7 +550,7 @@ PowerShell terminal:
 
 ```powershell
 Set-ExecutionPolicy Unrestricted -Force
-iex ((New-Object System.Net.WebClient).DownloadString('http://boxstarter.org/bootstrapper.ps1'))
+iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
 get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
