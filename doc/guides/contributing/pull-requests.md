@@ -163,7 +163,7 @@ use `Refs:`.
 
    Examples:
    - `Fixes: https://github.com/nodejs/node/issues/1337`
-   - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
+   - `Refs: https://eslint.org/docs/rules/space-in-parens.html`
    - `Refs: https://github.com/nodejs/node/pull/3615`
 
 5. If your commit introduces a breaking change (`semver-major`), it should
@@ -180,7 +180,7 @@ things in more detail. Please word-wrap to keep columns to 72 characters or
 less.
 
 Fixes: https://github.com/nodejs/node/issues/1337
-Refs: http://eslint.org/docs/rules/space-in-parens.html
+Refs: https://eslint.org/docs/rules/space-in-parens.html
 ```
 
 If you are new to contributing to Node.js, please try to do your best at
