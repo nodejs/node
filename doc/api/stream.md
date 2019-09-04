@@ -2600,7 +2600,7 @@ const writable = fs.createWriteStream('./file');
 })();
 ```
 
-Or, using `stream.pipeline` to pipe streams:
+Or, using `stream.pipeline()` to pipe streams:
 
 ```js
 const pipeline = util.promisify(stream.pipeline);
