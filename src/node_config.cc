@@ -84,6 +84,9 @@ static void Initialize(Local<Object> target,
 
   READONLY_PROPERTY(target, "hasCachedBuiltins",
      v8::Boolean::New(isolate, native_module::has_code_cache));
+
+  if (env->options()->experimental_wasi)
+    READONLY_TRUE_PROPERTY(target, "experimentalWasi");
 }  // InitConfig
 
 }  // namespace node

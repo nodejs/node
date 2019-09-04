@@ -1992,6 +1992,11 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
 
+<a id="ERR_WASI_ALREADY_STARTED"></a>
+### ERR_WASI_ALREADY_STARTED
+
+The WASI instance has already started.
+
 <a id="ERR_WORKER_INVALID_EXEC_ARGV"></a>
 ### ERR_WORKER_INVALID_EXEC_ARGV
 

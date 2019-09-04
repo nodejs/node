@@ -85,6 +85,7 @@
   V(util)                                                                      \
   V(uv)                                                                        \
   V(v8)                                                                        \
+  V(wasi)                                                                      \
   V(worker)                                                                    \
   V(zlib)
 
