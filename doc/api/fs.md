@@ -4952,7 +4952,8 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>UV_FS_O_FILEMAP</code></td>
     <td>When set, a memory file mapping is used to access the file. This flag
-    is available on Windows operating systems only.</td>
+    is available on Windows operating systems only. On other operating systems,
+    this flag is ignored.</td>
   </tr>
 </table>
 
