@@ -82,6 +82,7 @@
       'lib/util.js',
       'lib/v8.js',
       'lib/vm.js',
+      'lib/wasi.js',
       'lib/worker_threads.js',
       'lib/zlib.js',
       'lib/internal/assert.js',
@@ -321,7 +322,10 @@
         'src/node_main.cc'
       ],
 
-      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+      'dependencies': [
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
 
       'msvs_settings': {
         'VCLinkerTool': {
@@ -495,7 +499,10 @@
         'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
-      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+      'dependencies': [
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
 
       'sources': [
         'src/api/async_resource.cc',
@@ -560,6 +567,7 @@
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
+        'src/node_wasi.cc',
         'src/node_watchdog.cc',
         'src/node_worker.cc',
         'src/node_zlib.cc',
@@ -638,6 +646,7 @@
         'src/node_url.h',
         'src/node_version.h',
         'src/node_v8_platform-inl.h',
+        'src/node_wasi.h',
         'src/node_watchdog.h',
         'src/node_worker.h',
         'src/pipe_wrap.h',
@@ -1072,6 +1081,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
@@ -1087,6 +1097,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
         'test/cctest',
       ],
 
@@ -1181,6 +1192,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'includes': [
@@ -1193,6 +1205,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
       ],
 
       'defines': [
@@ -1224,6 +1237,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'includes': [
@@ -1236,6 +1250,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
