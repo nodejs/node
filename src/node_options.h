@@ -151,6 +151,7 @@ class EnvironmentOptions : public Options {
 #ifdef NODE_REPORT
   bool experimental_report = false;
 #endif  //  NODE_REPORT
+  bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
   bool force_repl = false;
