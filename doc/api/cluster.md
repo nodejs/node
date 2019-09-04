@@ -336,7 +336,7 @@ added: v6.0.0
 
 * {boolean}
 
-Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined` or `false`.
+Set by calling `.kill()` or `.disconnect()`. Until the worker has not exited the value is `undefined`, if the worker has exited in any other way the value is `false`.
 
 The boolean [`worker.exitedAfterDisconnect`][] allows distinguishing between
 voluntary and accidental exit, the master may choose not to respawn a worker
