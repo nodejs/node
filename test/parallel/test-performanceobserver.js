@@ -62,6 +62,12 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
                                    'for option "entryTypes"'
                         });
   });
+
+  const obs = new PerformanceObserver(common.mustNotCall());
+  obs.observe({ entryTypes: ['mark', 'mark'] });
+  obs.disconnect();
+  performance.mark('42');
+  assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_MARK], 0);
 }
 
 // Test Non-Buffered
