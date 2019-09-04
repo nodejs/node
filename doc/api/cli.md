@@ -221,6 +221,13 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--experimental-wasi-unstable-preview0`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental WebAssembly System Interface (WASI) support.
+
 ### `--experimental-wasm-modules`
 <!-- YAML
 added: v12.3.0
@@ -1100,6 +1107,7 @@ Node.js options that are allowed are:
 * `--experimental-report`
 * `--experimental-specifier-resolution`
 * `--experimental-vm-modules`
+* `--experimental-wasi-unstable-preview0`
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
