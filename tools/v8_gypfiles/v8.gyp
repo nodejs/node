@@ -428,11 +428,13 @@
               # but the target OS is really <(OS).
               '--target_os=<(OS)',
               '--target_arch=<(v8_target_arch)',
+              '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc',
             ],
           },
           'inputs': [
             '<(mksnapshot_exec)',
           ],
+          'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
           'process_outputs_as_sources': 1,
           'conditions': [
             ['v8_enable_embedded_builtins', {
@@ -458,17 +460,6 @@
                 'mksnapshot_flags': ['--v8_os_page_size', '<(v8_os_page_size)'],
               },
             }],
-            ['v8_use_external_startup_data', {
-              'outputs': ['<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
-              'variables': {
-                'mksnapshot_flags': ['--startup_blob', '<(INTERMEDIATE_DIR)/snapshot_blob.bin', ],
-              },
-            }, {
-               'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
-               'variables': {
-                 'mksnapshot_flags': ['--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc', ],
-               },
-             }],
             ['v8_embed_script != ""', {
               'inputs': ['<(v8_embed_script)'],
               'variables': {
