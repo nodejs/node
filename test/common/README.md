@@ -677,7 +677,6 @@ original state after calling [`hijackstdio.hijackStdErr()`][].
 Restore the original `process.stdout.write()`. Used to restore `stdout` to its
 original state after calling [`hijackstdio.hijackStdOut()`][].
 
-
 ## HTTP/2 Module
 
 The http2.js module provides a handful of utilities for creating mock HTTP/2
@@ -928,7 +927,6 @@ the original WPT harness, see [the WPT tests README][].
 A driver class for running WPT with the WPT harness in a vm.
 
 See [the WPT tests README][] for details.
-
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
 [&lt;ArrayBufferView&#91;&#93;>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
