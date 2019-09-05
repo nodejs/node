@@ -527,10 +527,15 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
+
+<!--lint disable maximum-line-length-->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
   - `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
+
+<!--lint enable maximum-line-length-->
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
