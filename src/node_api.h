@@ -10,7 +10,7 @@
 #define NAPI_VERSION 2147483647
 #else
 // The baseline version for N-API
-#define NAPI_VERSION 4
+#define NAPI_VERSION 5
 #endif
 #endif
 
@@ -674,7 +674,7 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 #endif  // NAPI_VERSION >= 4
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 5
 
 // Dates
 NAPI_EXTERN napi_status napi_create_date(napi_env env,
@@ -688,6 +688,18 @@ NAPI_EXTERN napi_status napi_is_date(napi_env env,
 NAPI_EXTERN napi_status napi_get_date_value(napi_env env,
                                             napi_value value,
                                             double* result);
+
+// Add finalizer for pointer
+NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
+                                           napi_value js_object,
+                                           void* native_object,
+                                           napi_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_ref* result);
+
+#endif  // NAPI_VERSION >= 5
+
+#ifdef NAPI_EXPERIMENTAL
 
 // BigInt
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
@@ -714,12 +726,6 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     int* sign_bit,
                                                     size_t* word_count,
                                                     uint64_t* words);
-NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
-                                           napi_value js_object,
-                                           void* native_object,
-                                           napi_finalize finalize_cb,
-                                           void* finalize_hint,
-                                           napi_ref* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

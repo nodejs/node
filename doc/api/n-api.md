@@ -1476,8 +1476,6 @@ added: REPLACEME
 napiVersion: 4
 -->
 
-> Stability: 1 - Experimental
-
 ```C
 napi_status napi_create_date(napi_env env,
                              double time,
@@ -2121,8 +2119,6 @@ added: REPLACEME
 napiVersion: 4
 -->
 
-> Stability: 1 - Experimental
-
 ```C
 napi_status napi_get_date_value(napi_env env,
                                 napi_value value,
@@ -2729,8 +2725,6 @@ This API checks if the `Object` passed in is a buffer.
 added: REPLACEME
 napiVersion: 4
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_is_date(napi_env env, napi_value value, bool* result)
@@ -3822,8 +3816,6 @@ callback was associated with the wrapping, it will no longer be called when the
 JavaScript object becomes garbage-collected.
 
 ### napi_add_finalizer
-
-> Stability: 1 - Experimental
 
 <!-- YAML
 added: v8.0.0
