@@ -1060,10 +1060,7 @@ if (typeof Symbol !== 'undefined') {
 
   assert.strictEqual(
     inspect(obj),
-    '{\n' +
-    '  a: [ [Circular] ],\n' +
-    '  b: { inner: [Circular], obj: [Circular] }\n' +
-    '}'
+    '{ a: [ [Circular] ], b: { inner: [Circular], obj: [Circular] } }'
   );
 }
 
