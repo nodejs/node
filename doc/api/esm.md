@@ -616,7 +616,7 @@ import Module from 'module';
 const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-const baseURL = new URL(`${process.cwd()}`, 'file://');
+const baseURL = new URL(process.cwd(), 'file://');
 
 export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   if (builtins.includes(specifier)) {
