@@ -43,6 +43,9 @@ def read_config():
       items = [(k, os.path.join(output_base, v) if k == "output" else v)
                for (k, v) in items]
       keys, values = list(zip(*items))
+      # 'async' is a Python 3.7+ keyword.  Don't use namedtuple(rename=True)
+      # because that would only rename async on Python 3 but not on Python 2.
+      keys = ['async_' if k == 'async' else k for k in keys]
       return collections.namedtuple('X', keys)(*values)
     return json.loads(data, object_hook=json_object_hook)
 
@@ -555,7 +558,7 @@ class Protocol(object):
     if not self.config.protocol.options:
       return False
     return self.check_options(self.config.protocol.options, domain, command,
-                              "async", None, False)
+                              "async_", None, False)
 
   def is_exported(self, domain, name):
     if not self.config.protocol.options:
