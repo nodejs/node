@@ -1,4 +1,3 @@
-
 # Node.js 8 ChangeLog
 
 <!--lint disable prohibited-strings-->

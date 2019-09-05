@@ -100,7 +100,6 @@ added: v0.10.0
 This event is emitted on instances of `SomeClass`, not on the module itself.
 ```
 
-
 * Classes have (description, Properties, Methods, Events).
 * Events have (list of listener arguments, description).
 * Functions have (list of arguments, returned value if defined, description).
