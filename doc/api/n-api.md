@@ -158,14 +158,15 @@ from version 3 with some additions. This means that it is not necessary
 to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
-|       | 1       | 2        | 3        | 4        |
-|:-----:|:-------:|:--------:|:--------:|:--------:|
-| v6.x  |         |          | v6.14.2* |          |
-| v8.x  | v8.0.0* | v8.10.0* | v8.11.2  | v8.16.0  |
-| v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |
-| v10.x |         |          | v10.0.0  | v10.16.0 |
-| v11.x |         |          | v11.0.0  | v11.8.0  |
-| v12.x |         |          |          | v12.0.0  |
+|       | 1       | 2        | 3        | 4        | 5         |
+|:-----:|:-------:|:--------:|:--------:|:--------:|:---------:|
+| v6.x  |         |          | v6.14.2* |          |           |
+| v8.x  | v8.0.0* | v8.10.0* | v8.11.2  | v8.16.0  |           |
+| v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |
+| v10.x |         |          | v10.0.0  | v10.16.0 |           |
+| v11.x |         |          | v11.0.0  | v11.8.0  |           |
+| v12.x |         |          |          | v12.0.0  |           |
+| v13.x |         |          |          |          | REPLACEME |
 
 \* Indicates that the N-API version was released as experimental
 
