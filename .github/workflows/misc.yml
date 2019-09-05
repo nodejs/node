@@ -1,0 +1,24 @@
+name: misc
+
+on: [push, pull_request]
+
+env:
+  NODE_VERSION: 12.x
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: NODE=$(which node) make doc-only
+      - uses: actions/upload-artifact@v1
+        with:
+          name: docs
+          path: out/doc
