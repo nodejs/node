@@ -144,6 +144,7 @@ appropriate PRs and commits into it.
 Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
 
 For each PR:
+
 - Run or check that there is a passing CI.
 - Check approvals (you can approve yourself).
 - Check that the commit metadata was not changed from the `master` commit.
@@ -172,6 +173,7 @@ Previous release commits and version bumps do not need to be
 cherry-picked.
 
 Carefully review the list of commits:
+
 - Checking for errors (incorrect `PR-URL`)
 - Checking semver status - Commits labeled as `semver-minor` or `semver-major`
 should only be cherry-picked when appropriate for the type of release being

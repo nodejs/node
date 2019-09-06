@@ -105,6 +105,7 @@ $ git checkout -b my-branch -t upstream/master
 
 The vast majority of Pull Requests opened against the `nodejs/node`
 repository includes changes to one or more of the following:
+
 - the C/C++ code contained in the `src` directory
 - the JavaScript code contained in the `lib` directory
 - the documentation in `doc/api`

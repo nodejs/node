@@ -1938,6 +1938,7 @@ This LTS release comes with 113 commits, 56 of which are doc related,
 and 7 which are benchmark related.
 
 ### Notable Changes
+
 * **build**:
   - Updated Logos for the OSX + Windows installers
     - (Rod Vagg) [#5401](https://github.com/nodejs/node/pull/5401)

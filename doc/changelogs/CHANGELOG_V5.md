@@ -922,7 +922,7 @@ This is an important security release. All Node.js users should consult the secu
 - **http**: improves expect header handling (Daniel Sellers) [#4501](https://github.com/nodejs/node/pull/4501)
 - **node**: allow preload modules with -i (Evan Lucas) [#4696](https://github.com/nodejs/node/pull/4696)
 - **v8,src**: expose statistics about heap spaces (`v8.getHeapSpaceStatistics()`) (Ben Ripkens) [#4463](https://github.com/nodejs/node/pull/4463)
-* Minor performance improvements:
+- Minor performance improvements:
   - **lib**: Use arrow functions instead of bind where possible (Minwoo Jung) [#3622](https://github.com/nodejs/node/pull/3622).
     - (Mistakenly missing from v5.4.0)
   - **module**: cache stat() results more aggressively (Ben Noordhuis) [#4575](https://github.com/nodejs/node/pull/4575)

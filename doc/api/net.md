@@ -321,6 +321,7 @@ Start an [IPC][] server listening for connections on the given `path`.
 <!-- YAML
 added: v0.1.90
 -->
+
 * `port` {number}
 * `host` {string}
 * `backlog` {number} Common parameter of [`server.listen()`][] functions.
@@ -942,6 +943,7 @@ Possible signatures:
 <!-- YAML
 added: v0.7.0
 -->
+
 * `options` {Object}
 * `connectListener` {Function}
 
@@ -952,6 +954,7 @@ Alias to
 <!-- YAML
 added: v0.1.90
 -->
+
 * `path` {string}
 * `connectListener` {Function}
 
@@ -962,6 +965,7 @@ Alias to
 <!-- YAML
 added: v0.1.90
 -->
+
 * `port` {number}
 * `host` {string}
 * `connectListener` {Function}

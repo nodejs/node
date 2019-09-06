@@ -138,6 +138,7 @@ changes:
     description: The implementation is now spec compliant and does not throw
                  anymore.
 -->
+
 * `value` {any} The value tested for being truthy.
 * `...message` {any} All arguments besides `value` are used as error message.
 
@@ -233,6 +234,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17033
     description: "`console.debug` is now an alias for `console.log`."
 -->
+
 * `data` {any}
 * `...args` {any}
 
@@ -242,6 +244,7 @@ The `console.debug()` function is an alias for [`console.log()`][].
 <!-- YAML
 added: v0.1.101
 -->
+
 * `obj` {any}
 * `options` {Object}
   * `showHidden` {boolean} If `true` then the object's non-enumerable and symbol
@@ -264,6 +267,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17152
     description: "`console.dirxml` now calls `console.log` for its arguments."
 -->
+
 * `...data` {any}
 
 This method calls `console.log()` passing it the arguments received.
@@ -273,6 +277,7 @@ This method does not produce any XML formatting.
 <!-- YAML
 added: v0.1.100
 -->
+
 * `data` {any}
 * `...args` {any}
 
@@ -323,6 +328,7 @@ Decreases indentation of subsequent lines by two spaces.
 <!-- YAML
 added: v0.1.100
 -->
+
 * `data` {any}
 * `...args` {any}
 
@@ -332,6 +338,7 @@ The `console.info()` function is an alias for [`console.log()`][].
 <!-- YAML
 added: v0.1.100
 -->
+
 * `data` {any}
 * `...args` {any}
 
@@ -391,6 +398,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 <!-- YAML
 added: v0.1.104
 -->
+
 * `label` {string} **Default:** `'default'`
 
 Starts a timer that can be used to compute the duration of an operation. Timers
@@ -407,6 +415,7 @@ changes:
     description: This method no longer supports multiple calls that don’t map
                  to individual `console.time()` calls; see below for details.
 -->
+
 * `label` {string} **Default:** `'default'`
 
 Stops a timer that was previously started by calling [`console.time()`][] and
@@ -423,6 +432,7 @@ console.timeEnd('100-elements');
 <!-- YAML
 added: v10.7.0
 -->
+
 * `label` {string} **Default:** `'default'`
 * `...data` {any}
 
@@ -442,6 +452,7 @@ console.timeEnd('process');
 <!-- YAML
 added: v0.1.104
 -->
+
 * `message` {any}
 * `...args` {any}
 
@@ -468,6 +479,7 @@ console.trace('Show me');
 <!-- YAML
 added: v0.1.100
 -->
+
 * `data` {any}
 * `...args` {any}
 
@@ -482,6 +494,7 @@ not display anything unless used in conjunction with the [inspector][]
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The
@@ -492,6 +505,7 @@ This method does not display anything unless used in the inspector. The
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string}
 
 This method does not display anything unless used in the inspector. The
@@ -510,6 +524,7 @@ console.profileEnd('MyLabel');
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string}
 
 This method does not display anything unless used in the inspector. Stops the
@@ -524,6 +539,7 @@ stopped.
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string}
 
 This method does not display anything unless used in the inspector. The
@@ -534,6 +550,7 @@ This method does not display anything unless used in the inspector. The
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The
@@ -543,6 +560,7 @@ This method does not display anything unless used in the inspector. The
 <!-- YAML
 added: v8.0.0
 -->
+
 * `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The

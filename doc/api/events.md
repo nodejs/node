@@ -228,6 +228,7 @@ The `'removeListener'` event is emitted *after* the `listener` is removed.
 added: v0.9.12
 deprecated: v4.0.0
 -->
+
 * `emitter` {EventEmitter} The emitter to query
 * `eventName` {string|symbol} The event name
 
@@ -288,6 +289,7 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 <!-- YAML
 added: v0.1.26
 -->
+
 * `eventName` {string|symbol}
 * `listener` {Function}
 
@@ -297,8 +299,9 @@ Alias for `emitter.on(eventName, listener)`.
 <!-- YAML
 added: v0.1.26
 -->
+
 * `eventName` {string|symbol}
-- `...args` {any}
+* `...args` {any}
 * Returns: {boolean}
 
 Synchronously calls each of the listeners registered for the event named
@@ -393,6 +396,7 @@ changes:
     description: For listeners attached using `.once()` this returns the
                  original listeners instead of wrapper functions now.
 -->
+
 * `eventName` {string|symbol}
 * Returns: {Function[]}
 
@@ -536,6 +540,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.1.26
 -->
+
 * `eventName` {string|symbol}
 * Returns: {EventEmitter}
 
@@ -551,6 +556,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.1.26
 -->
+
 * `eventName` {string|symbol}
 * `listener` {Function}
 * Returns: {EventEmitter}
@@ -640,6 +646,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v0.3.5
 -->
+
 * `n` {integer}
 * Returns: {EventEmitter}
 
@@ -656,6 +663,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 <!-- YAML
 added: v9.4.0
 -->
+
 * `eventName` {string|symbol}
 * Returns: {Function[]}
 
@@ -690,6 +698,7 @@ emitter.emit('log');
 <!-- YAML
 added: v11.13.0
 -->
+
 * `emitter` {EventEmitter}
 * `name` {string}
 * Returns: {Promise}
