@@ -32,6 +32,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [17. Cleanup](#17-cleanup)
   * [18. Announce](#18-announce)
   * [19. Celebrate](#19-celebrate)
+* [Major Releases](#major-Releases)
 
 ## Who can make a release?
 
@@ -663,7 +664,7 @@ Ping the IRC ops and the other [Partner Communities] liaisons.
 
 _In whatever form you do this..._
 
-## Differences for Major Releases
+## Major Releases
 
 The process for cutting a new Node.js major release has a number of differences
 from cutting a minor or patch release.
