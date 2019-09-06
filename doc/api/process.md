@@ -765,6 +765,7 @@ console.log(`Current directory: ${process.cwd()}`);
 <!-- YAML
 added: v0.7.2
 -->
+
 * {number}
 
 The port used by Node.js's debugger when enabled.
@@ -2057,6 +2058,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.1.28
 -->
+
 * `id` {integer | string}
 
 The `process.setuid(id)` method sets the user identity of the process. (See

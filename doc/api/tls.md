@@ -316,6 +316,7 @@ the default configuration. If these clients _must_ be supported, the
 on the format, see the OpenSSL [cipher list format][] documentation.
 
 There are only 5 TLSv1.3 cipher suites:
+
 - `'TLS_AES_256_GCM_SHA384'`
 - `'TLS_CHACHA20_POLY1305_SHA256'`
 - `'TLS_AES_128_GCM_SHA256'`
@@ -931,6 +932,7 @@ The certificate may contain information about the public key, depending on
 the key type.
 
 For RSA keys, the following properties may be defined:
+
 * `bits` {number} The RSA bit size. Example: `1024`.
 * `exponent` {string} The RSA exponent, as a string in hexadecimal number
   notation. Example: `'0x010001'`.
@@ -939,6 +941,7 @@ For RSA keys, the following properties may be defined:
 * `pubkey` {Buffer} The public key.
 
 For EC keys, the following properties may be defined:
+
 * `pubkey` {Buffer} The public key.
 * `bits` {number} The key size in bits. Example: `256`.
 * `asn1Curve` {string} (Optional) The ASN.1 name of the OID of the elliptic

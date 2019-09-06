@@ -139,6 +139,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/744
     description: The `all` option is supported now.
 -->
+
 * `hostname` {string}
 * `options` {integer | Object}
   - `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
@@ -221,6 +222,7 @@ on some operating systems (e.g FreeBSD 10.1).
 <!-- YAML
 added: v0.11.14
 -->
+
 * `address` {string}
 * `port` {number}
 * `callback` {Function}
@@ -252,6 +254,7 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 <!-- YAML
 added: v0.1.27
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 * `callback` {Function}
@@ -289,6 +292,7 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
@@ -313,6 +317,7 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
@@ -380,6 +385,7 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 <!-- YAML
 added: v0.3.2
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -394,6 +400,7 @@ will contain an array of canonical name records available for the `hostname`
 <!-- YAML
 added: v0.1.27
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -408,6 +415,7 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -440,6 +448,7 @@ function will contain an array of objects with the following properties:
 <!-- YAML
 added: v0.1.90
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -454,6 +463,7 @@ contain an array of name server records available for `hostname`
 <!-- YAML
 added: v6.0.0
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -467,6 +477,7 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -501,6 +512,7 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -529,6 +541,7 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
+
 * `hostname` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -545,6 +558,7 @@ treated separately.
 <!-- YAML
 added: v0.1.16
 -->
+
 * `ip` {string}
 * `callback` {Function}
   - `err` {Error}
@@ -560,6 +574,7 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
+
 * `servers` {string[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
@@ -668,6 +683,7 @@ section if a custom port is used.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 * `options` {integer | Object}
   - `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
@@ -732,6 +748,7 @@ dnsPromises.lookup('example.com', options).then((result) => {
 <!-- YAML
 added: v10.6.0
 -->
+
 * `address` {string}
 * `port` {number}
 
@@ -757,6 +774,7 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 
@@ -786,6 +804,7 @@ is one of the [DNS error codes](#dns_error_codes).
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
@@ -801,6 +820,7 @@ addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string} Hostname to resolve.
 * `options` {Object}
   - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
@@ -816,6 +836,7 @@ addresses.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
@@ -860,6 +881,7 @@ Here is an example of the result object:
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. On success,
@@ -870,6 +892,7 @@ the `hostname` (e.g. `['bar.example.com']`).
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
@@ -881,6 +904,7 @@ containing both a `priority` and `exchange` property (e.g.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
@@ -910,6 +934,7 @@ of objects with the following properties:
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve name server records (`NS` records) for the
@@ -921,6 +946,7 @@ records available for `hostname` (e.g.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve pointer records (`PTR` records) for the
@@ -931,6 +957,7 @@ containing the reply records.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve a start of authority record (`SOA` record) for
@@ -962,6 +989,7 @@ following properties:
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
@@ -987,6 +1015,7 @@ the following properties:
 <!-- YAML
 added: v10.6.0
 -->
+
 * `hostname` {string}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
@@ -1000,6 +1029,7 @@ treated separately.
 <!-- YAML
 added: v10.6.0
 -->
+
 * `ip` {string}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
@@ -1012,6 +1042,7 @@ is one of the [DNS error codes](#dns_error_codes).
 <!-- YAML
 added: v10.6.0
 -->
+
 * `servers` {string[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS

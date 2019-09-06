@@ -542,9 +542,7 @@ Save the file and close the editor. When prompted, enter a new commit message
 for that commit. This is an opportunity to fix commit messages.
 
 * The commit message text must conform to the [commit message guidelines][].
-
-<a name="metadata"></a>
-* Change the original commit message to include metadata. (The
+* <a name="metadata"></a>Change the original commit message to include metadata. (The
   [`git node metadata`][git-node-metadata] command can generate the metadata
   for you.)
 

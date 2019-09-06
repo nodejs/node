@@ -83,6 +83,7 @@ added: v0.1.99
 
 The `'message'` event is emitted when a new datagram is available on a socket.
 The event handler function is passed two arguments: `msg` and `rinfo`.
+
 * `msg` {Buffer} The message.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
@@ -241,6 +242,7 @@ socket.bind({
 <!-- YAML
 added: v0.1.99
 -->
+
 * `callback` {Function} Called when the socket has been closed.
 
 Close the underlying socket and stop listening for data on it. If a callback is

@@ -143,6 +143,7 @@ followed by a function body.
 
 The following three variables may be used inside the function body following an
 invocation of `NODE_MODULE_INIT()`:
+
 * `Local<Object> exports`,
 * `Local<Value> module`, and
 * `Local<Context> context`
@@ -158,6 +159,7 @@ they were created.
 
 The context-aware addon can be structured to avoid global static data by
 performing the following steps:
+
 * defining a class which will hold per-addon-instance data. Such
 a class should include a `v8::Persistent<v8::Object>` which will hold a weak
 reference to the addon's `exports` object. The callback associated with the weak
@@ -259,6 +261,7 @@ signature.
 
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
+
 - Be an N-API addon, or
 - Be declared as context-aware using `NODE_MODULE_INIT()` as described above
 

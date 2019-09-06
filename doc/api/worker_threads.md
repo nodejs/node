@@ -303,6 +303,7 @@ Sends a JavaScript value to the receiving side of this channel.
 the [HTML structured clone algorithm][].
 
 In particular, the significant differences to `JSON` are:
+
 - `value` may contain circular references.
 - `value` may contain instances of builtin JS types such as `RegExp`s,
   `BigInt`s, `Map`s, `Set`s, etc.

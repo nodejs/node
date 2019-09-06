@@ -19,6 +19,7 @@ will be instances of the `AssertionError` class.
 <!-- YAML
 added: v0.1.21
 -->
+
 * `options` {Object}
   * `message` {string} If provided, the error message is set to this value.
   * `actual` {any} The `actual` property on the error instance.
@@ -145,6 +146,7 @@ assert.deepEqual(/a/gi, new Date());
 <!-- YAML
 added: v0.5.9
 -->
+
 * `value` {any} The input that is checked for being truthy.
 * `message` {string|Error}
 
@@ -174,6 +176,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5910
     description: Handle non-`Uint8Array` typed arrays correctly.
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -291,6 +294,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5910
     description: Handle non-`Uint8Array` typed arrays correctly.
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -420,6 +424,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v10.0.0
 -->
+
 * `asyncFn` {Function|Promise}
 * `error` {RegExp|Function}
 * `message` {string}
@@ -476,6 +481,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3276
     description: The `error` parameter can now be an arrow function.
 -->
+
 * `fn` {Function}
 * `error` {RegExp|Function}
 * `message` {string}
@@ -544,6 +550,7 @@ assert.doesNotThrow(
 <!-- YAML
 added: v0.1.21
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -583,6 +590,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 -->
+
 * `message` {string|Error} **Default:** `'Failed'`
 
 Throws an `AssertionError` with the provided error message or a default error
@@ -614,6 +622,7 @@ changes:
     description: Calling `assert.fail()` with more than one argument is
                  deprecated and emits a warning.
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -680,6 +689,7 @@ changes:
     description: Value may now only be `undefined` or `null`. Before all falsy
                  values were handled the same as `null` and did not throw.
 -->
+
 * `value` {any}
 
 Throws `value` if `value` is not `undefined` or `null`. This is useful when
@@ -733,6 +743,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5910
     description: Handle non-`Uint8Array` typed arrays correctly.
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -814,6 +825,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5910
     description: Handle non-`Uint8Array` typed arrays correctly.
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -837,6 +849,7 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -879,6 +892,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -916,6 +930,7 @@ changes:
     description: The `assert.ok()` (no arguments) will now use a predefined
                  error message.
 -->
+
 * `value` {any}
 * `message` {string|Error}
 
@@ -978,6 +993,7 @@ assert(0);
 <!-- YAML
 added: v10.0.0
 -->
+
 * `asyncFn` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
 * `message` {string}
@@ -1040,6 +1056,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`
 -->
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
@@ -1096,6 +1113,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3276
     description: The `error` parameter can now be an arrow function.
 -->
+
 * `fn` {Function}
 * `error` {RegExp|Function|Object|Error}
 * `message` {string}
