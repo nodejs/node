@@ -678,8 +678,8 @@ New Node.js Major releases happen twice per year:
 
 Major releases should be targeted for the third Tuesday of the release month.
 
-A major release must not slip beyond the release month. In other words, major releases
-must not slip into May or November.
+A major release must not slip beyond the release month. In other words, major
+ releases must not slip into May or November.
 
 The release date for the next major release should be announced immediately
 following the current release (e.g. the release date for 13.0.0 should be
