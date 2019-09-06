@@ -1745,6 +1745,7 @@ applications and modules should be updated to find alternative approaches.
 added: v0.7.5
 deprecated: v6.0.0
 -->
+
 * `target` {Object}
 * `source` {Object}
 

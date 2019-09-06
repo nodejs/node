@@ -1444,6 +1444,7 @@ Examples of `Transform` streams include:
 <!-- YAML
 added: v8.0.0
 -->
+
 * `error` {Error}
 
 Destroy the stream, and optionally emit an `'error'` event. After this call, the

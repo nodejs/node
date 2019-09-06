@@ -36,6 +36,7 @@ features and idioms, as well as have some specific guidelines for the use of
 runtime features.
 
 Coding guidelines are based on the following guides (highest priority first):
+
 1. This document
 2. The [Google C++ Style Guide][]
 3. The ISO [C++ Core Guidelines][]
@@ -284,6 +285,7 @@ data[0] = 12345;
   [Run Time Type Information][]
 
 Further reading:
+
 * [ES.48]: Avoid casts
 * [ES.49]: If you must use a cast, use a named cast
 

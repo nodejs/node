@@ -178,6 +178,7 @@ added: v9.9.0
 * Returns: {number}
 
 Returns:
+
 * `1` for 2,
 * `4` for 16,
 * `8` for 256,
@@ -205,6 +206,7 @@ Disabling color support is also possible by using the `NO_COLOR` and
 <!-- YAML
 added: v0.7.7
 -->
+
 * Returns: {number[]}
 
 `writeStream.getWindowSize()` returns the size of the [TTY](tty.html)

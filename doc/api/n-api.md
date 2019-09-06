@@ -24,6 +24,7 @@ APIs exposed by N-API are generally used to create and manipulate
 JavaScript values. Concepts and operations generally map to ideas specified
 in the ECMA-262 Language Specification. The APIs have the following
 properties:
+
 - All N-API calls return a status code of type `napi_status`. This
   status indicates whether the API call succeeded or failed.
 - The API's return value is passed via an out parameter.
@@ -86,6 +87,7 @@ Although N-API provides an ABI stability guarantee, other parts of Node.js do
 not, and any external libraries used from the addon may not. In particular,
 none of the following APIs provide an ABI stability guarantee across major
 versions:
+
 * the Node.js C++ APIs available via any of
 
     ```C++
@@ -1374,6 +1376,7 @@ NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
 
 the `napi_value passed` in or out of these methods is a handle to the
 object to which the reference is related.
+
 - `[in] env`: The environment that the API is invoked under.
 - `[in] ref`: `napi_ref` for which we requesting the corresponding `Object`.
 - `[out] result`: The `napi_value` for the `Object` referenced by the
@@ -1559,6 +1562,7 @@ Some of these types are documented under
 of the [ECMAScript Language Specification][].
 
 Fundamentally, these APIs are used to do one of the following:
+
 1. Create a new JavaScript object
 2. Convert from a primitive C type to an N-API value
 3. Convert from N-API value to a primitive C type
@@ -2836,6 +2840,7 @@ values. Some of these operations are documented under
 of the [ECMAScript Language Specification][].
 
 These APIs support doing one of the following:
+
 1. Coerce JavaScript values to specific JavaScript types (such as `Number` or
    `String`).
 2. Check the type of a JavaScript value.
@@ -2948,6 +2953,7 @@ napi_status napi_typeof(napi_env env, napi_value value, napi_valuetype* result)
 - `[out] result`: The type of the JavaScript value.
 
 Returns `napi_ok` if the API succeeded.
+
 - `napi_invalid_arg` if the type of `value` is not a known ECMAScript type and
  `value` is not an External value.
 
@@ -3147,10 +3153,11 @@ objects. Some of these types are documented under
 Properties in JavaScript are represented as a tuple of a key and a value.
 Fundamentally, all property keys in N-API can be represented in one of the
 following forms:
+
 - Named: a simple UTF8-encoded string
 - Integer-Indexed: an index value represented by `uint32_t`
 - JavaScript value: these are represented in N-API by `napi_value`. This can
-be a `napi_value` representing a `String`, `Number`, or `Symbol`.
+  be a `napi_value` representing a `String`, `Number`, or `Symbol`.
 
 N-API values are represented by the type `napi_value`.
 Any N-API call that requires a JavaScript value takes in a `napi_value`.
@@ -3691,6 +3698,7 @@ the `napi_callback` type. When the JavaScript VM calls back to
 native code, the `napi_callback` function provided is invoked. The APIs
 documented in this section allow the callback function to do the
 following:
+
 - Get information about the context in which the callback was invoked.
 - Get the arguments passed into the callback.
 - Return a `napi_value` back from the callback.
@@ -4209,7 +4217,8 @@ Returns `napi_ok` if the API succeeded.
 
 Adds a `napi_finalize` callback which will be called when the JavaScript object
 in `js_object` is ready for garbage collection. This API is similar to
-`napi_wrap()` except that
+`napi_wrap()` except that:
+
 * the native data cannot be retrieved later using `napi_unwrap()`,
 * nor can it be removed later using `napi_remove_wrap()`, and
 * the API can be called multiple times with different data items in order to

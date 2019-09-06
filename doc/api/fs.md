@@ -2696,6 +2696,7 @@ The `fs.readFile()` function buffers the entire file. To minimize memory costs,
 when possible prefer streaming via `fs.createReadStream()`.
 
 ### File Descriptors
+
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
 automatically.
@@ -3436,6 +3437,7 @@ changes:
 Change the file system timestamps of the object referenced by `path`.
 
 The `atime` and `mtime` arguments follow these rules:
+
 - Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
 - If the value can not be converted to a number, or is `NaN`, `Infinity` or
@@ -3637,6 +3639,7 @@ reappearance) will be the same as the `previousStat` of the first callback
 event (its disappearance).
 
 This happens when:
+
 - the file is deleted, followed by a restore
 - the file is renamed twice - the second time back to its original name
 
@@ -3991,6 +3994,7 @@ rejected.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -4010,6 +4014,7 @@ The `FileHandle` must have been opened for appending.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `mode` {integer}
 * Returns: {Promise}
 
@@ -4020,6 +4025,7 @@ arguments upon success.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `uid` {integer}
 * `gid` {integer}
 * Returns: {Promise}
@@ -4055,6 +4061,7 @@ async function openAndClose() {
 <!-- YAML
 added: v10.0.0
 -->
+
 * Returns: {Promise}
 
 Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
@@ -4071,6 +4078,7 @@ added: v10.0.0
 <!-- YAML
 added: v10.0.0
 -->
+
 * `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
@@ -4098,6 +4106,7 @@ property that is a reference to the passed in `buffer` argument.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
@@ -4132,6 +4141,7 @@ changes:
     description: Accepts an additional `options` object to specify whether
                  the numeric values returned should be bigint.
 -->
+
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
@@ -4143,6 +4153,7 @@ Retrieves the [`fs.Stats`][] for the file.
 <!-- YAML
 added: v10.0.0
 -->
+
 * Returns: {Promise}
 
 Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
@@ -4152,6 +4163,7 @@ success.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `len` {integer} **Default:** `0`
 * Returns: {Promise}
 
@@ -4220,6 +4232,7 @@ The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
 * Returns: {Promise}
@@ -4234,6 +4247,7 @@ This function does not work on AIX versions before 7.1, it will resolve the
 <!-- YAML
 added: v10.0.0
 -->
+
 * `buffer` {Buffer|Uint8Array}
 * `offset` {integer}
 * `length` {integer}
@@ -4296,6 +4310,7 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 -->
+
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -4832,6 +4847,7 @@ Change the file system timestamps of the object referenced by `path` then
 resolves the `Promise` with no arguments upon success.
 
 The `atime` and `mtime` arguments follow these rules:
+
 - Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
 - If the value can not be converted to a number, or is `NaN`, `Infinity` or
