@@ -54,92 +54,17 @@ At any given time Node.js needs to be maintaining a few different V8 branches
 for the various Current, LTS, and nightly releases. At present this list
 includes the following branches<sup>1</sup>:
 
-<table>
-  <tr>
-   <td><strong>Release</strong>
-   </td>
-   <td><strong>Support Start</strong>
-   </td>
-   <td><strong>Support End</strong>
-   </td>
-   <td><strong>V8 version</strong>
-   </td>
-   <td><strong>V8 branch released</strong>
-   </td>
-   <td><strong>V8 branch abandoned</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 4.x
-   </td>
-   <td>2015-10-01
-   </td>
-   <td>April 2018
-   </td>
-   <td>4.5
-   </td>
-   <td>2015-09-01
-   </td>
-   <td>2015-10-13
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 6.x
-   </td>
-   <td>2016-04-01
-   </td>
-   <td>April 2019
-   </td>
-   <td>5.1
-   </td>
-   <td>2016-05-31
-   </td>
-   <td>2016-06-26
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 8.x
-   </td>
-   <td>2017-05-30
-   </td>
-   <td>December 2019
-   </td>
-   <td>6.1 (soon to be 6.2)
-   </td>
-   <td>2017-10-17 (6.2)
-   </td>
-   <td>~2017-12-05 (6.2)
-   </td>
-  </tr>
-    <tr>
-   <td>Node.js 9.x
-   </td>
-   <td>2017-10-31
-   </td>
-   <td>April 2018
-   </td>
-   <td>6.2
-   </td>
-   <td>2017-10-17
-   </td>
-   <td>~2017-12-05
-   </td>
-  </tr>
-  <tr>
-   <td>master
-   </td>
-   <td>N/A
-   </td>
-   <td>N/A
-   </td>
-   <td>6.2
-   </td>
-   <td>2017-10-17
-   </td>
-   <td>~2017-12-05
-   </td>
-  </tr>
-</table>
+<!--lint disable maximum-line-length-->
+
+| Release     | Support Start | Support End   | V8 version           | V8 branch released | V8 branch abandoned |
+|-------------|---------------|---------------|----------------------|--------------------|---------------------|
+| Node.js 4.x | 2015-10-01    | April 2018    | 4.5                  | 2015-09-01         | 2015-10-13          |
+| Node.js 6.x | 2016-04-01    | April 2019    | 5.1                  | 2016-05-31         | 2016-06-26          |
+| Node.js 8.x | 2017-05-30    | December 2019 | 6.1 (soon to be 6.2) | 2017-10-17 (6.2)   | ~2017-12-05 (6.2)   |
+| Node.js 9.x | 2017-10-31    | April 2018    | 6.2                  | 2017-10-17         | ~2017-12-05         |
+| master      | N/A           | N/A           | 6.2                  | 2017-10-17         | ~2017-12-05         |
+
+<!--lint enable maximum-line-length-->
 
 The versions of V8 used in Node.js v4.x, v6.x, and 8.x have already been
 abandoned by upstream V8. However, Node.js needs to continue supporting

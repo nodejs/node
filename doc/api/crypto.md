@@ -2967,312 +2967,94 @@ The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL Options
-<!--lint disable maximum-line-length-->
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_ALL</code></td>
-    <td>Applies multiple bug workarounds within OpenSSL. See
-    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>
-    for detail.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
-    <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
-    clients or servers. See
-    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
-    <td>Attempts to use the server's preferences instead of the client's when
-    selecting a cipher. Behavior depends on protocol version. See
-    <a href="https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html">https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html</a>.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
-    <td>Instructs OpenSSL to use Cisco's "speshul" version of DTLS_BAD_VER.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_COOKIE_EXCHANGE</code></td>
-    <td>Instructs OpenSSL to turn on cookie exchange.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_CRYPTOPRO_TLSEXT_BUG</code></td>
-    <td>Instructs OpenSSL to add server-hello extension from an early version
-    of the cryptopro draft.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS</code></td>
-    <td>Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability
-    workaround added in OpenSSL 0.9.6d.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_EPHEMERAL_RSA</code></td>
-    <td>Instructs OpenSSL to always use the tmp_rsa key when performing RSA
-    operations.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_LEGACY_SERVER_CONNECT</code></td>
-    <td>Allows initial connection to servers that do not support RI.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_MICROSOFT_SESS_ID_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_MSIE_SSLV2_RSA_PADDING</code></td>
-    <td>Instructs OpenSSL to disable the workaround for a man-in-the-middle
-    protocol-version vulnerability in the SSL 2.0 server implementation.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_CA_DN_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_CHALLENGE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_COMPRESSION</code></td>
-    <td>Instructs OpenSSL to disable support for SSL/TLS compression.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_QUERY_MTU</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION</code></td>
-    <td>Instructs OpenSSL to always start a new session when performing
-    renegotiation.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_SSLv2</code></td>
-    <td>Instructs OpenSSL to turn off SSL v2</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_SSLv3</code></td>
-    <td>Instructs OpenSSL to turn off SSL v3</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_TICKET</code></td>
-    <td>Instructs OpenSSL to disable use of RFC4507bis tickets.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_TLSv1</code></td>
-    <td>Instructs OpenSSL to turn off TLS v1</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_TLSv1_1</code></td>
-    <td>Instructs OpenSSL to turn off TLS v1.1</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NO_TLSv1_2</code></td>
-    <td>Instructs OpenSSL to turn off TLS v1.2</td>
-  </tr>
-    <td><code>SSL_OP_PKCS1_CHECK_1</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_PKCS1_CHECK_2</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_SINGLE_DH_USE</code></td>
-    <td>Instructs OpenSSL to always create a new key when using
-    temporary/ephemeral DH parameters.</td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_SINGLE_ECDH_USE</code></td>
-    <td>Instructs OpenSSL to always create a new key when using
-    temporary/ephemeral ECDH parameters.</td>
-  </tr>
-    <td><code>SSL_OP_SSLEAY_080_CLIENT_DH_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_TLS_BLOCK_PADDING_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_TLS_D5_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_TLS_ROLLBACK_BUG</code></td>
-    <td>Instructs OpenSSL to disable version rollback attack detection.</td>
-  </tr>
-</table>
 
-### OpenSSL Engine Constants
+<!--lint disable maximum-line-length-->
+<!--lint disable prohibited-strings-->
+
+| Constant                                        | Description                                                                                                                                                                                             |
+|-------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SSL_OP_ALL`                                    | Applies multiple bug workarounds within OpenSSL. See https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html for detail.                                                                     |
+| `SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION`      | Allows legacy insecure renegotiation between OpenSSL and unpatched clients or servers. See https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html.                                          |
+| `SSL_OP_CIPHER_SERVER_PREFERENCE`               | Attempts to use the server's preferences instead of the client's when selecting a cipher. Behavior depends on protocol version. See https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_options.html. |
+| `SSL_OP_CISCO_ANYCONNECT`                       | Instructs OpenSSL to use Cisco's "speshul" version of DTLS_BAD_VER.                                                                                                                                     |
+| `SSL_OP_COOKIE_EXCHANGE`                        | Instructs OpenSSL to turn on cookie exchange.                                                                                                                                                           |
+| `SSL_OP_CRYPTOPRO_TLSEXT_BUG`                   | Instructs OpenSSL to add server-hello extension from an early version of the cryptopro draft.                                                                                                           |
+| `SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS`            | Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability workaround added in OpenSSL 0.9.6d.                                                                                                        |
+| `SSL_OP_EPHEMERAL_RSA`                          | Instructs OpenSSL to always use the tmp_rsa key when performing RSA operations.                                                                                                                         |
+| `SSL_OP_LEGACY_SERVER_CONNECT`                  | Allows initial connection to servers that do not support RI.                                                                                                                                            |
+| `SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER`             |                                                                                                                                                                                                         |
+| `SSL_OP_MICROSOFT_SESS_ID_BUG`                  |                                                                                                                                                                                                         |
+| `SSL_OP_MSIE_SSLV2_RSA_PADDING`                 | Instructs OpenSSL to disable the workaround for a man-in-the-middle protocol-version vulnerability in the SSL 2.0 server implementation.                                                                |
+| `SSL_OP_NETSCAPE_CA_DN_BUG`                     |                                                                                                                                                                                                         |
+| `SSL_OP_NETSCAPE_CHALLENGE_BUG`                 |                                                                                                                                                                                                         |
+| `SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG`        |                                                                                                                                                                                                         |
+| `SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG`       |                                                                                                                                                                                                         |
+| `SSL_OP_NO_COMPRESSION`                         | Instructs OpenSSL to disable support for SSL/TLS compression.                                                                                                                                           |
+| `SSL_OP_NO_QUERY_MTU`                           |                                                                                                                                                                                                         |
+| `SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION` | Instructs OpenSSL to always start a new session when performing renegotiation.                                                                                                                          |
+| `SSL_OP_NO_SSLv2`                               | Instructs OpenSSL to turn off SSL v2                                                                                                                                                                    |
+| `SSL_OP_NO_SSLv3`                               | Instructs OpenSSL to turn off SSL v3                                                                                                                                                                    |
+| `SSL_OP_NO_TICKET`                              | Instructs OpenSSL to disable use of RFC4507bis tickets.                                                                                                                                                 |
+| `SSL_OP_NO_TLSv1`                               | Instructs OpenSSL to turn off TLS v1                                                                                                                                                                    |
+| `SSL_OP_NO_TLSv1_1`                             | Instructs OpenSSL to turn off TLS v1.1                                                                                                                                                                  |
+| `SSL_OP_NO_TLSv1_2`                             | Instructs OpenSSL to turn off TLS v1.2                                                                                                                                                                  |
+| `SSL_OP_PKCS1_CHECK_1`                          |                                                                                                                                                                                                         |
+| `SSL_OP_PKCS1_CHECK_2`                          |                                                                                                                                                                                                         |
+| `SSL_OP_SINGLE_DH_USE`                          | Instructs OpenSSL to always create a new key when using temporary/ephemeral DH parameters.                                                                                                              |
+| `SSL_OP_SINGLE_ECDH_USE`                        | Instructs OpenSSL to always create a new key when using temporary/ephemeral ECDH parameters.                                                                                                            |
+| `SSL_OP_SSLEAY_080_CLIENT_DH_BUG`               |                                                                                                                                                                                                         |
+| `SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG`            |                                                                                                                                                                                                         |
+| `SSL_OP_TLS_BLOCK_PADDING_BUG`                  |                                                                                                                                                                                                         |
+| `SSL_OP_TLS_D5_BUG`                             |                                                                                                                                                                                                         |
+| `SSL_OP_TLS_ROLLBACK_BUG`                       | Instructs OpenSSL to disable version rollback attack detection.                                                                                                                                         |
+
+<!--lint enable prohibited-strings-->
 <!--lint enable maximum-line-length remark-lint-->
 
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_RSA</code></td>
-    <td>Limit engine usage to RSA</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DSA</code></td>
-    <td>Limit engine usage to DSA</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DH</code></td>
-    <td>Limit engine usage to DH</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_RAND</code></td>
-    <td>Limit engine usage to RAND</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_EC</code></td>
-    <td>Limit engine usage to EC</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_CIPHERS</code></td>
-    <td>Limit engine usage to CIPHERS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_DIGESTS</code></td>
-    <td>Limit engine usage to DIGESTS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_PKEY_METHS</code></td>
-    <td>Limit engine usage to PKEY_METHDS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_PKEY_ASN1_METHS</code></td>
-    <td>Limit engine usage to PKEY_ASN1_METHS</td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_ALL</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>ENGINE_METHOD_NONE</code></td>
-    <td></td>
-  </tr>
-</table>
+### OpenSSL Engine Constants
+
+| Constant                        | Description                           |
+|---------------------------------|---------------------------------------|
+| `ENGINE_METHOD_RSA`             | Limit engine usage to RSA             |
+| `ENGINE_METHOD_DSA`             | Limit engine usage to DSA             |
+| `ENGINE_METHOD_DH`              | Limit engine usage to DH              |
+| `ENGINE_METHOD_RAND`            | Limit engine usage to RAND            |
+| `ENGINE_METHOD_EC`              | Limit engine usage to EC              |
+| `ENGINE_METHOD_CIPHERS`         | Limit engine usage to CIPHERS         |
+| `ENGINE_METHOD_DIGESTS`         | Limit engine usage to DIGESTS         |
+| `ENGINE_METHOD_PKEY_METHS`      | Limit engine usage to PKEY_METHDS     |
+| `ENGINE_METHOD_PKEY_ASN1_METHS` | Limit engine usage to PKEY_ASN1_METHS |
+| `ENGINE_METHOD_ALL`             |                                       |
+| `ENGINE_METHOD_NONE`            |                                       |
 
 ### Other OpenSSL Constants
 
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>DH_CHECK_P_NOT_SAFE_PRIME</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>DH_CHECK_P_NOT_PRIME</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>DH_UNABLE_TO_CHECK_GENERATOR</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>DH_NOT_SUITABLE_GENERATOR</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>ALPN_ENABLED</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_PKCS1_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_SSLV23_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_NO_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_PKCS1_OAEP_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_X931_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_PKCS1_PSS_PADDING</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>RSA_PSS_SALTLEN_DIGEST</code></td>
-    <td>Sets the salt length for <code>RSA_PKCS1_PSS_PADDING</code> to the
-        digest size when signing or verifying.</td>
-  </tr>
-  <tr>
-    <td><code>RSA_PSS_SALTLEN_MAX_SIGN</code></td>
-    <td>Sets the salt length for <code>RSA_PKCS1_PSS_PADDING</code> to the
-        maximum permissible value when signing data.</td>
-  </tr>
-  <tr>
-    <td><code>RSA_PSS_SALTLEN_AUTO</code></td>
-    <td>Causes the salt length for <code>RSA_PKCS1_PSS_PADDING</code> to be
-        determined automatically when verifying a signature.</td>
-  </tr>
-  <tr>
-    <td><code>POINT_CONVERSION_COMPRESSED</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>POINT_CONVERSION_UNCOMPRESSED</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>POINT_CONVERSION_HYBRID</code></td>
-    <td></td>
-  </tr>
-</table>
+| Constant                        | Description                                                                                                   |
+|---------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `DH_CHECK_P_NOT_SAFE_PRIME`     |                                                                                                               |
+| `DH_CHECK_P_NOT_PRIME`          |                                                                                                               |
+| `DH_UNABLE_TO_CHECK_GENERATOR`  |                                                                                                               |
+| `DH_NOT_SUITABLE_GENERATOR`     |                                                                                                               |
+| `ALPN_ENABLED`                  |                                                                                                               |
+| `RSA_PKCS1_PADDING`             |                                                                                                               |
+| `RSA_SSLV23_PADDING`            |                                                                                                               |
+| `RSA_NO_PADDING`                |                                                                                                               |
+| `RSA_PKCS1_OAEP_PADDING`        |                                                                                                               |
+| `RSA_X931_PADDING`              |                                                                                                               |
+| `RSA_PKCS1_PSS_PADDING`         |                                                                                                               |
+| `RSA_PSS_SALTLEN_DIGEST`        | Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the digest size when signing or verifying.                |
+| `RSA_PSS_SALTLEN_MAX_SIGN`      | Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the maximum permissible value when signing data.          |
+| `RSA_PSS_SALTLEN_AUTO`          | Causes the salt length for `RSA_PKCS1_PSS_PADDING` to be determined automatically when verifying a signature. |
+| `POINT_CONVERSION_COMPRESSED`   |                                                                                                               |
+| `POINT_CONVERSION_UNCOMPRESSED` |                                                                                                               |
+| `POINT_CONVERSION_HYBRID`       |                                                                                                               |
 
 ### Node.js Crypto Constants
 
-<table>
-  <tr>
-    <th>Constant</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td><code>defaultCoreCipherList</code></td>
-    <td>Specifies the built-in default cipher list used by Node.js.</td>
-  </tr>
-  <tr>
-    <td><code>defaultCipherList</code></td>
-    <td>Specifies the active default cipher list used by the current Node.js
-    process.</td>
-  </tr>
-</table>
+| Constant                | Description                                                                   |
+|-------------------------|-------------------------------------------------------------------------------|
+| `defaultCoreCipherList` | Specifies the built-in default cipher list used by Node.js.                   |
+| `defaultCipherList`     | Specifies the active default cipher list used by the current Node.js process. |
 
 [`Buffer`]: buffer.html
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
