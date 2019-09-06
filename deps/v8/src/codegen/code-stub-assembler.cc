@@ -2622,6 +2622,11 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
                   Int32Constant(FunctionKind::kConciseGeneratorMethod))));
 }
 
+TNode<BoolT> CodeStubAssembler::HasPrototypeSlot(TNode<JSFunction> function) {
+  return TNode<BoolT>::UncheckedCast(IsSetWord32<Map::HasPrototypeSlotBit>(
+      LoadMapBitField(LoadMap(function))));
+}
+
 TNode<BoolT> CodeStubAssembler::HasPrototypeProperty(TNode<JSFunction> function,
                                                      TNode<Map> map) {
   // (has_prototype_slot() && IsConstructor()) ||

@@ -1060,7 +1060,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   Node* control = NodeProperties::GetControlInput(node);
 
   ZoneVector<PropertyAccessInfo> access_infos(zone());
-  AccessInfoFactory access_info_factory(broker(), dependencies(), zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
   if (!access_info_factory.FinalizePropertyAccessInfos(
           feedback.access_infos(), access_mode, &access_infos)) {
     return NoChange();
@@ -1765,7 +1766,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
         if (name.has_value()) {
           ZoneVector<PropertyAccessInfo> access_infos(zone());
           AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                                zone());
+                                                graph()->zone());
           access_info_factory.ComputePropertyAccessInfos(
               receiver_maps, name->object(), access_mode, &access_infos);
           processed = new (zone()) NamedAccessFeedback(*name, access_infos);
