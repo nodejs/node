@@ -15,6 +15,13 @@ struct napi_env__ {
     CHECK_EQ(isolate, context->GetIsolate());
   }
   virtual ~napi_env__() {
+    // First we must finalize those references that have `napi_finalizer`
+    // callbacks. The reason is that addons might store other references which
+    // they delete during their `napi_finalizer` callbacks. If we deleted such
+    // references here first, they would be doubly deleted when the
+    // `napi_finalizer` deleted them subsequently.
+    v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
+    v8impl::RefTracker::FinalizeAll(&reflist);
     if (instance_data.finalize_cb != nullptr) {
       CallIntoModuleThrow([&](napi_env env) {
         instance_data.finalize_cb(env, instance_data.data, instance_data.hint);
@@ -55,6 +62,12 @@ struct napi_env__ {
   }
 
   v8impl::Persistent<v8::Value> last_exception;
+
+  // We store references in two different lists, depending on whether they have
+  // `napi_finalizer` callbacks, because we must first finalize the ones that
+  // have such a callback. See `~napi_env__()` above for details.
+  v8impl::RefTracker::RefList reflist;
+  v8impl::RefTracker::RefList finalizing_reflist;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
