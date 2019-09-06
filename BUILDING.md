@@ -116,7 +116,7 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | arm64            | >= Windows 10                   | Experimental |                                   |
 | macOS            | x64              | >= 10.11                        | Tier 1       |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
-| AIX              | ppc64be >=power7 | >= 7.1 TL05                     | Tier 2       |                                   |
+| AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12       |
 
 <em id="fn1">1</em>: GCC 6 is not provided on the base platform, users will
