@@ -336,10 +336,16 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   };
 }
 
+extern macro HasPrototypeSlot(JSFunction): bool;
+
 macro GetDerivedMap(implicit context: Context)(
     target: JSFunction, newTarget: JSReceiver): Map {
   try {
     const constructor = Cast<JSFunction>(newTarget) otherwise SlowPath;
+    if (!HasPrototypeSlot(constructor)) {
+      goto SlowPath;
+    }
+    assert(IsConstructor(constructor));
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
     if (LoadConstructorOrBackPointer(map) != target) {
