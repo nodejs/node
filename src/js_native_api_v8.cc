@@ -379,27 +379,10 @@ inline static napi_status Unwrap(napi_env env,
 // Ref: benchmark/misc/function_call
 // Discussion (incl. perf. data): https://github.com/nodejs/node/pull/21072
 struct CallbackBundle {
-  // Bind the lifecycle of `this` C++ object to a JavaScript object.
-  // We never delete a CallbackBundle C++ object directly.
-  void BindLifecycleTo(v8::Isolate* isolate, v8::Local<v8::Value> target) {
-    handle.Reset(isolate, target);
-    handle.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  }
-
   napi_env       env;      // Necessary to invoke C++ NAPI callback
   void*          cb_data;  // The user provided callback data
   napi_callback  function_or_getter;
   napi_callback  setter;
-  v8impl::Persistent<v8::Value> handle;  // Die with this JavaScript object
-
- private:
-  static void WeakCallback(v8::WeakCallbackInfo<CallbackBundle> const& info) {
-    // Use the "WeakCallback mechanism" to delete the C++ `bundle` object.
-    // This will be called when the v8::External containing `this` pointer
-    // is being GC-ed.
-    CallbackBundle* bundle = info.GetParameter();
-    delete bundle;
-  }
 };
 
 // Base class extended by classes that wrap V8 function and property callback
@@ -580,6 +563,11 @@ class SetterCallbackWrapper
   const v8::Local<v8::Value>& _value;
 };
 
+static void DeleteCallbackBundle(napi_env env, void* data, void* hint) {
+  CallbackBundle* bundle = static_cast<CallbackBundle*>(data);
+  delete bundle;
+}
+
 // Creates an object to be made available to the static function callback
 // wrapper, used to retrieve the native callback function and data pointer.
 static
@@ -591,7 +579,7 @@ v8::Local<v8::Value> CreateFunctionCallbackData(napi_env env,
   bundle->cb_data = data;
   bundle->env = env;
   v8::Local<v8::Value> cbdata = v8::External::New(env->isolate, bundle);
-  bundle->BindLifecycleTo(env->isolate, cbdata);
+  Reference::New(env, cbdata, 0, true, DeleteCallbackBundle, bundle, nullptr);
 
   return cbdata;
 }
