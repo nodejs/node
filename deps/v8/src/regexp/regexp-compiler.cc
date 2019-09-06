@@ -1970,9 +1970,11 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
   }
 }
 
+namespace {
+
 // Check for [0-9A-Z_a-z].
-static void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
-                          Label* non_word, bool fall_through_on_word) {
+void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
+                   Label* non_word, bool fall_through_on_word) {
   if (assembler->CheckSpecialCharacterClass(
           fall_through_on_word ? 'w' : 'W',
           fall_through_on_word ? non_word : word)) {
@@ -1994,24 +1996,37 @@ static void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
 
 // Emit the code to check for a ^ in multiline mode (1-character lookbehind
 // that matches newline or the start of input).
-static void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success,
-                    Trace* trace) {
+void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  // We will be loading the previous character into the current character
-  // register.
+
+  // We will load the previous character into the current character register.
   Trace new_trace(*trace);
   new_trace.InvalidateCurrentCharacter();
 
+  // A positive (> 0) cp_offset means we've already successfully matched a
+  // non-empty-width part of the pattern, and thus cannot be at or before the
+  // start of the subject string. We can thus skip both at-start and
+  // bounds-checks when loading the one-character lookbehind.
+  const bool may_be_at_or_before_subject_string_start =
+      new_trace.cp_offset() <= 0;
+
   Label ok;
-  if (new_trace.cp_offset() == 0) {
-    // The start of input counts as a newline in this context, so skip to
-    // ok if we are at the start.
-    assembler->CheckAtStart(&ok);
+  if (may_be_at_or_before_subject_string_start) {
+    // The start of input counts as a newline in this context, so skip to ok if
+    // we are at the start.
+    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
+    // that currently does not support a non-zero cp_offset.
+    Label not_at_start;
+    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
+    assembler->GoTo(&ok);
+    assembler->Bind(&not_at_start);
   }
-  // We already checked that we are not at the start of input so it must be
-  // OK to load the previous character.
+
+  // If we've already checked that we are not at the start of input, it's okay
+  // to load the previous character without bounds checks.
+  const bool can_skip_bounds_check = !may_be_at_or_before_subject_string_start;
   assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
-                                  new_trace.backtrack(), false);
+                                  new_trace.backtrack(), can_skip_bounds_check);
   if (!assembler->CheckSpecialCharacterClass('n', new_trace.backtrack())) {
     // Newline means \n, \r, 0x2028 or 0x2029.
     if (!compiler->one_byte()) {
@@ -2023,6 +2038,8 @@ static void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success,
   assembler->Bind(&ok);
   on_success->Emit(compiler, &new_trace);
 }
+
+}  // namespace
 
 // Emit the code to handle \b and \B (word-boundary or non-word-boundary).
 void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
@@ -2080,21 +2097,35 @@ void AssertionNode::BacktrackIfPrevious(
   Trace new_trace(*trace);
   new_trace.InvalidateCurrentCharacter();
 
-  Label fall_through, dummy;
-
+  Label fall_through;
   Label* non_word = backtrack_if_previous == kIsNonWord ? new_trace.backtrack()
                                                         : &fall_through;
   Label* word = backtrack_if_previous == kIsNonWord ? &fall_through
                                                     : new_trace.backtrack();
 
-  if (new_trace.cp_offset() == 0) {
+  // A positive (> 0) cp_offset means we've already successfully matched a
+  // non-empty-width part of the pattern, and thus cannot be at or before the
+  // start of the subject string. We can thus skip both at-start and
+  // bounds-checks when loading the one-character lookbehind.
+  const bool may_be_at_or_before_subject_string_start =
+      new_trace.cp_offset() <= 0;
+
+  if (may_be_at_or_before_subject_string_start) {
     // The start of input counts as a non-word character, so the question is
     // decided if we are at the start.
-    assembler->CheckAtStart(non_word);
+    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
+    // that currently does not support a non-zero cp_offset.
+    Label not_at_start;
+    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
+    assembler->GoTo(non_word);
+    assembler->Bind(&not_at_start);
   }
-  // We already checked that we are not at the start of input so it must be
-  // OK to load the previous character.
-  assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1, &dummy, false);
+
+  // If we've already checked that we are not at the start of input, it's okay
+  // to load the previous character without bounds checks.
+  const bool can_skip_bounds_check = !may_be_at_or_before_subject_string_start;
+  assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1, non_word,
+                                  can_skip_bounds_check);
   EmitWordCheck(assembler, word, non_word, backtrack_if_previous == kIsNonWord);
 
   assembler->Bind(&fall_through);

@@ -1272,6 +1272,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
                                     SloppyTNode<Context> native_context);
 
+  TNode<BoolT> HasPrototypeSlot(TNode<JSFunction> function);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
   TNode<BoolT> HasPrototypeProperty(TNode<JSFunction> function, TNode<Map> map);
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
