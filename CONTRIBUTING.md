@@ -3,7 +3,7 @@
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
-* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
+* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
 
 ## [Code of Conduct](./doc/guides/contributing/coc.md)
 
