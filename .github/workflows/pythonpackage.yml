@@ -1,6 +1,6 @@
 name: Python 3 testing
 
-on: [push, pull_request]
+on: [push, pull, pull_request]
 
 jobs:
   build:
