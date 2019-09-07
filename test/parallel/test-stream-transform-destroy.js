@@ -95,35 +95,6 @@ const assert = require('assert');
   const transform = new Transform({
     transform(chunk, enc, cb) {}
   });
-  transform.resume();
-
-  transform._destroy = common.mustCall(function(err, cb) {
-    assert.strictEqual(err, null);
-    process.nextTick(() => {
-      this.push(null);
-      this.end();
-      cb();
-    });
-  }, 1);
-
-  const fail = common.mustNotCall('no event');
-
-  transform.on('finish', fail);
-  transform.on('end', fail);
-  transform.on('close', common.mustCall());
-
-  transform.destroy();
-
-  transform.removeListener('end', fail);
-  transform.removeListener('finish', fail);
-  transform.on('end', common.mustCall());
-  transform.on('finish', common.mustCall());
-}
-
-{
-  const transform = new Transform({
-    transform(chunk, enc, cb) {}
-  });
 
   const expected = new Error('kaboom');
 
