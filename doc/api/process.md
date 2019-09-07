@@ -1339,7 +1339,7 @@ added: v10.7.0
 * Returns: {bigint}
 
 The `bigint` version of the [`process.hrtime()`][] method returning the
-current high-resolution real time in a `bigint`.
+current high-resolution real time in nanoseconds as a `bigint`.
 
 Unlike [`process.hrtime()`][], it does not support an additional `time`
 argument since the difference can just be computed directly
