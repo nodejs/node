@@ -240,17 +240,15 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*/*.gcda
 	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage \
 								TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
-		--gcov-exclude='.*usr' -v -r Release/obj.target \
+	-(cd out && "../gcovr/scripts/gcovr" \
+		--gcov-exclude='.*\b(deps|usr|out|cctest)\b' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@echo -n "Javascript coverage %: "
@@ -335,7 +333,7 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
-	# $(MAKE) cctest
+	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
 test-parallel: all
