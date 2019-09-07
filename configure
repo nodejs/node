@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Locate an acceptable python interpreter and then re-execute the script.
+# Locate an acceptable Python interpreter and then re-execute the script.
 # Note that the mix of single and double quotes is intentional,
 # as is the fact that the ] goes on a new line.
 # When a 'which' call is made for a specific version of Python on Travis CI,
