@@ -604,10 +604,11 @@ void MessagePort::OnMessage() {
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
-  ssize_t processing_limit;
+  size_t processing_limit;
   {
     Mutex::ScopedLock(data_->mutex_);
-    processing_limit = data_->incoming_messages_.size();
+    processing_limit = std::max(data_->incoming_messages_.size(),
+                                static_cast<size_t>(1000));
   }
 
   // data_ can only ever be modified by the owner thread, so no need to lock.
@@ -615,10 +616,14 @@ void MessagePort::OnMessage() {
   // messages, so we need to check that this handle still owns its `data_` field
   // on every iteration.
   while (data_) {
-    if (--processing_limit < 0) {
+    if (processing_limit-- == 0) {
       // Prevent event loop starvation by only processing those messages without
       // interruption that were already present when the OnMessage() call was
-      // first triggered.
+      // first triggered, but at least 1000 messages because otherwise the
+      // overhead of repeatedly triggering the uv_async_t instance becomes
+      // noticable, at least on Windows.
+      // (That might require more investigation by somebody more familiar with
+      // Windows.)
       TriggerAsync();
       return;
     }

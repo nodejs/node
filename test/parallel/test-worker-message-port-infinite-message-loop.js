@@ -24,4 +24,6 @@ port1.on('message', () => {
 
 port2.postMessage(0);
 
+// This is part of the test -- the event loop should be available and not stall
+// out due to the recursive .postMessage() calls.
 setTimeout(common.mustCall(), 0);
