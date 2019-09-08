@@ -285,7 +285,8 @@ Exports can also be used to map the main entry point of a package:
 where the "." indicates loading the package without any subpath. Exports will
 always override any existing main for both CJS and ESM.
 
-For packages with only a main, exports as a string is also supported:
+For packages with only a main entry point, an `"exports"` value of just
+a string is also supported:
 
 <!-- eslint-skip -->
 ```js
