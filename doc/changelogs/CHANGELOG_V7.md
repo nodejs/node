@@ -57,17 +57,17 @@ for details on patched vulnerabilities.
 * **build**:
   - Disable V8 snapshots - The hashseed embedded in the snapshot is
     currently the same for all runs of the binary. This opens node up to
-collision attacks which could result in a Denial of Service. We have
-temporarily disabled snapshots until a more robust solution is found
-(Ali Ijaz Sheikh)
+    collision attacks which could result in a Denial of Service. We have
+    temporarily disabled snapshots until a more robust solution is found
+    (Ali Ijaz Sheikh)
 * **deps**:
   - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(),
     which is used for parsing NAPTR responses, could be triggered to
-read memory outside of the given input buffer if the passed in DNS
-response packet was crafted in a particular way. This patch checks that
-there is enough data for the required elements of an NAPTR record (2
-int16, 3 bytes for string lengths) before processing a record. (David
-Drysdale)
+    read memory outside of the given input buffer if the passed in DNS
+    response packet was crafted in a particular way. This patch checks that
+    there is enough data for the required elements of an NAPTR record (2
+    int16, 3 bytes for string lengths) before processing a record. (David
+    Drysdale)
 
 ### Commits
 
@@ -1552,7 +1552,7 @@ Thank you to @italoacasas for preparing the majority of this release.
 * **buffer**:
   - Reverted the runtime deprecation of calling `Buffer()` without `new`. (Anna Henningsen) [#9529](https://github.com/nodejs/node/pull/9529)
   - Fixed `buffer.transcode()` for single-byte character
-encodings to `UCS2`. (Anna Henningsen) [#9838](https://github.com/nodejs/node/pull/9838)
+    encodings to `UCS2`. (Anna Henningsen) [#9838](https://github.com/nodejs/node/pull/9838)
 * **promise**: `--trace-warnings` now produces useful stacktraces for Promise warnings. (Anna Henningsen) [#9525](https://github.com/nodejs/node/pull/9525)
 * **repl**: Fixed a bug preventing correct parsing of generator functions. (Teddy Katz) [#9852](https://github.com/nodejs/node/pull/9852)
 * **V8**: Fixed a significant `instanceof` performance regression. (Franziska Hinkelmann) [#9730](https://github.com/nodejs/node/pull/9730)
