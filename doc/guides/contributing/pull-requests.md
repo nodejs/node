@@ -159,8 +159,8 @@ A good commit message should describe what changed and why.
 3. Wrap all other lines at 72 columns (except for long URLs).
 
 4. If your patch fixes an open issue, you can add a reference to it at the end
-of the log. Use the `Fixes:` prefix and the full issue URL. For other references
-use `Refs:`.
+   of the log. Use the `Fixes:` prefix and the full issue URL. For other
+   references use `Refs:`.
 
    Examples:
    - `Fixes: https://github.com/nodejs/node/issues/1337`
