@@ -189,3 +189,12 @@ const assert = require('assert');
   read.push('hi');
   read.on('data', common.mustNotCall());
 }
+
+{
+  const read = new Readable({
+    read: common.mustNotCall(function() {})
+  });
+  read.destroy();
+  assert.strictEqual(read.destroyed, true);
+  read.read();
+}
