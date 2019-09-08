@@ -3438,6 +3438,7 @@ https://github.com/nodejs/node/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
   - Move node.dns into module "dns"
   - Move node.fs into module "posix"
   - process is no longer the global object. GLOBAL is.
+
 For more information on the API changes see:
   http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
   http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14

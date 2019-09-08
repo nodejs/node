@@ -421,7 +421,7 @@ https://github.com/nodejs/node/pull/5655
 * **v8**: backport fb4ccae from v8 upstream (Vladimir Krivosheev) #4231
   - breakout events from v8 to offer better support for external debuggers
 * **zlib**: add support for concatenated members (Kári Tristan Helgason)
-https://github.com/nodejs/node/pull/5120
+  https://github.com/nodejs/node/pull/5120
   * Previously, if multiple members were in the same archive, only the first would be read. The others are no longer thrown away.
 
 ### Commits
