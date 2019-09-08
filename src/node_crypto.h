@@ -714,6 +714,8 @@ class PublicKeyCipher {
                      const ManagedEVPPKey& pkey,
                      int padding,
                      const EVP_MD* digest,
+                     const void* oaep_label,
+                     size_t oaep_label_size,
                      const unsigned char* data,
                      int len,
                      AllocatedBuffer* out);
