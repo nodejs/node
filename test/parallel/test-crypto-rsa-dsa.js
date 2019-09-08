@@ -202,59 +202,21 @@ common.expectsError(() => {
 // The following RSA-OAEP test cases were created using the WebCrypto API to
 // ensure compatibility when using non-SHA1 hash functions.
 {
-  function testDecrypt(oaepHash, ciphertext) {
+  const { decryptionTests } =
+      JSON.parse(fixtures.readSync('rsa-oaep-test-vectors.js', 'utf8'));
+
+  for (const { ct, oaepHash, oaepLabel } of decryptionTests) {
     const decrypted = crypto.privateDecrypt({
       key: rsaPkcs8KeyPem,
-      oaepHash
-    }, Buffer.from(ciphertext, 'hex'));
+      oaepHash,
+      oaepLabel: oaepLabel ? Buffer.from(oaepLabel, 'hex') : undefined
+    }, Buffer.from(ct, 'hex'));
 
     assert.strictEqual(decrypted.toString('utf8'), 'Hello Node.js');
   }
-
-  testDecrypt(undefined, '16ece59cf985a8cf1a3434e4b9707c922c20638fdf9abf7e5dc' +
-                         '7943f4136899348c54116d15b2c17563b9c7143f9d5b85b4561' +
-                         '5ad0598ea6d21c900f3957b65400612306a9bebae441f005646' +
-                         'f7a7c97129a103ab54e777168ef966514adb17786b968ea0ff4' +
-                         '30a524904c4a11c683764b7c8dbb60df0952768381cdba4d665' +
-                         'e5006034393a10d56d33e75b2714db824a18da46441ef7f94a3' +
-                         '4a7058c0bbad0394083a038558bcc6dd370f8e518e1bd8d73b2' +
-                         '96fc51d77da44799e4ee774926ded7910e8768f92db76f63107' +
-                         '338d33354b735d3ad094240dbd7ffdfda27ef0255306dcf4a64' +
-                         '62849492abd1a97fdd37743ff87c4d2ec89866c5cdbb696bd2b' +
-                         '30');
-  testDecrypt('sha1', '16ece59cf985a8cf1a3434e4b9707c922c20638fdf9abf7e5dc794' +
-                      '3f4136899348c54116d15b2c17563b9c7143f9d5b85b45615ad059' +
-                      '8ea6d21c900f3957b65400612306a9bebae441f005646f7a7c9712' +
-                      '9a103ab54e777168ef966514adb17786b968ea0ff430a524904c4a' +
-                      '11c683764b7c8dbb60df0952768381cdba4d665e5006034393a10d' +
-                      '56d33e75b2714db824a18da46441ef7f94a34a7058c0bbad039408' +
-                      '3a038558bcc6dd370f8e518e1bd8d73b296fc51d77da44799e4ee7' +
-                      '74926ded7910e8768f92db76f63107338d33354b735d3ad094240d' +
-                      'bd7ffdfda27ef0255306dcf4a6462849492abd1a97fdd37743ff87' +
-                      'c4d2ec89866c5cdbb696bd2b30');
-  testDecrypt('sha256', '16ccf09afe5eb0130182b9fc1ca4af61a38e772047cac42146bf' +
-                        'a0fa5879aa9639203e4d01442d212ff95bddfbe4661222215a2e' +
-                        '91908c37ab926edea7cfc53f83357bc27f86af0f5f2818ae141f' +
-                        '4e9e934d4e66189aff30f062c9c3f6eb9bc495a59082cb978f99' +
-                        'b56ce5fa530a8469e46129258e5c42897cb194b6805e936e5cbb' +
-                        'eaa535bad6b1d3cdfc92119b7dd325a2e6d2979e316bdacc9f80' +
-                        'e29c7bbdf6846d738e380deadcb48df8c1e8aabf7a9dd2f8c71d' +
-                        '6681dbec7dcadc01887c51288674268796bc77fdf8f1c94c9ca5' +
-                        '0b1cc7cddbaf4e56cb151d23e2c699d2844c0104ee2e7e9dcdb9' +
-                        '07cfab43339120a40c59ca54f32b8d21b48a29656c77');
-  testDecrypt('sha512', '831b72e8dd91841729ecbddf2647d6f19dc0094734f8803d8c65' +
-                        '1b5655a12ae6156b74d9b594bcc0eacd002728380b94f46e8657' +
-                        'f130f354e03b6e7815ee257eda78dba296d67d24410c31c48e58' +
-                        '75cc79e4bde594b412be5f357f57a7ac1f1d18b718e408df162d' +
-                        '1795508e6a0616192b647ad942ea068a44fb2b323d35a3a61b92' +
-                        '6feb105d6c0b2a8fc8050222d1cf4a9e44da1f95bbc677fd6437' +
-                        '49c6c89ac551d072f04cd9320c97a8d94755c8a804954c082bed' +
-                        '7fa59199a00aca154c14a7b584b63c538daf9b9c7c90abfca193' +
-                        '87d2131f9d9b9ecfc8672249c33144d1be3bfc41558a13f99466' +
-                        '3661a3af24fd0a97619d508db36f5fc131af86fc68cf');
 }
 
-// Test invalid oaepHash options.
+// Test invalid oaepHash and oaepLabel options.
 for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
   assert.throws(() => {
     fn({
@@ -270,6 +232,17 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
       fn({
         key: rsaPubPem,
         oaepHash
+      }, Buffer.alloc(10));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }
+
+  for (const oaepLabel of [0, false, null, Symbol(), () => {}, {}, 'foo']) {
+    common.expectsError(() => {
+      fn({
+        key: rsaPubPem,
+        oaepLabel
       }, Buffer.alloc(10));
     }, {
       code: 'ERR_INVALID_ARG_TYPE'
