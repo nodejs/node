@@ -313,6 +313,33 @@ If a package has no exports, setting `"exports": false` can be used instead of
 `"exports": {}` to indicate the package does not intend for submodules to be
 exposed.
 
+Exports can also be used to map the main entry point of a package:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/es-module-package/package.json
+{
+  "exports": {
+    ".": "./main.js"
+  }
+}
+```
+
+where the "." indicates loading the package without any subpath. Exports will
+always override any existing `"main"` value for both CommonJS and
+ES module packages.
+
+For packages with only a main entry point, an `"exports"` value of just
+a string is also supported:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/es-module-package/package.json
+{
+  "exports": "./main.js"
+}
+```
+
 Any invalid exports entries will be ignored. This includes exports not
 starting with `"./"` or a missing trailing `"/"` for directory exports.
 
@@ -841,6 +868,15 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
+> 1. If _pjson.exports_ is not **null** or **undefined**, then
+>    1. If _pjson.exports_ is a String or Array, then
+>       1. Return _PACKAGE_EXPORTS_TARGET_RESOLVE(packageURL, pjson.exports,
+>          "")_.
+>    1. If _pjson.exports is an Object, then
+>       1. If _pjson.exports_ contains a _"."_ property, then
+>          1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
+>          1. Return _PACKAGE_EXPORTS_TARGET_RESOLVE(packageURL, mainExport,
+>             "")_.
 > 1. If _pjson.main_ is a String, then
 >    1. Let _resolvedMain_ be the URL resolution of _packageURL_, "/", and
 >       _pjson.main_.

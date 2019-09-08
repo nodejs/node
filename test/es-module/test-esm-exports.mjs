@@ -20,6 +20,8 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
     // Fallbacks
     ['pkgexports/fallbackdir/asdf.js', { default: 'asdf' }],
     ['pkgexports/fallbackfile', { default: 'asdf' }],
+    // Dot main
+    ['pkgexports', { default: 'asdf' }],
   ]);
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
@@ -80,18 +82,6 @@ import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
         `matched for '${subpath}'`);
     }));
   }
-
-  // There's no main field so we won't find anything when importing the name.
-  // The fact that "." is mapped is ignored, it's not a valid main config.
-  loadFixture('pkgexports').catch(mustCall((err) => {
-    if (isRequire) {
-      strictEqual(err.code, 'MODULE_NOT_FOUND');
-      assertStartsWith(err.message, 'Cannot find module \'pkgexports\'');
-    } else {
-      strictEqual(err.code, 'ERR_MODULE_NOT_FOUND');
-      assertStartsWith(err.message, 'Cannot find main entry point');
-    }
-  }));
 
   // Covering out bases - not a file is still not a file after dir mapping.
   loadFixture('pkgexports/sub/not-a-file.js').catch(mustCall((err) => {
