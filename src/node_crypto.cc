@@ -5204,6 +5204,8 @@ bool PublicKeyCipher::Cipher(Environment* env,
                              const ManagedEVPPKey& pkey,
                              int padding,
                              const EVP_MD* digest,
+                             const void* oaep_label,
+                             size_t oaep_label_len,
                              const unsigned char* data,
                              int len,
                              AllocatedBuffer* out) {
@@ -5218,6 +5220,16 @@ bool PublicKeyCipher::Cipher(Environment* env,
   if (digest != nullptr) {
     if (!EVP_PKEY_CTX_set_rsa_oaep_md(ctx.get(), digest))
       return false;
+  }
+
+  if (oaep_label_len != 0) {
+    // OpenSSL takes ownership of the label, so we need to create a copy.
+    void* label = OPENSSL_memdup(oaep_label, oaep_label_len);
+    CHECK_NOT_NULL(label);
+    if (!EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(), label, oaep_label_len)) {
+      OPENSSL_free(label);
+      return false;
+    }
   }
 
   size_t out_len = 0;
@@ -5265,6 +5277,12 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
 
+  ArrayBufferViewContents<unsigned char> oaep_label;
+  if (!args[offset + 3]->IsUndefined()) {
+    CHECK(args[offset + 3]->IsArrayBufferView());
+    oaep_label.Read(args[offset + 3].As<ArrayBufferView>());
+  }
+
   AllocatedBuffer out;
 
   ClearErrorOnReturn clear_error_on_return;
@@ -5274,6 +5292,8 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       pkey,
       padding,
       digest,
+      oaep_label.data(),
+      oaep_label.length(),
       buf.data(),
       buf.length(),
       &out);

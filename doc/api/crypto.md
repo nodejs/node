@@ -2320,6 +2320,9 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29489
+    description: The `oaepLabel` option was added.
   - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/28335
     description: The `oaepHash` option was added.
@@ -2330,6 +2333,8 @@ changes:
 * `privateKey` {Object | string | Buffer | KeyObject}
   - `oaepHash` {string} The hash function to use for OAEP padding.
     **Default:** `'sha1'`
+  - `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
+    padding. If not specified, no label is used.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
@@ -2401,6 +2406,9 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29489
+    description: The `oaepLabel` option was added.
   - version: v12.9.0
     pr-url: https://github.com/nodejs/node/pull/28335
     description: The `oaepHash` option was added.
@@ -2410,6 +2418,8 @@ changes:
 -->
 * `key` {Object | string | Buffer | KeyObject}
   - `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
+  - `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
+    padding. If not specified, no label is used.
   - `oaepHash` {string} The hash function to use for OAEP padding.
     **Default:** `'sha1'`
   - `passphrase` {string | Buffer} An optional passphrase for the private key.
