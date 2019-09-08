@@ -61,9 +61,10 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, Graph* graph, Code::Kind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
+      Isolate* isolate, wasm::WasmEngine* wasm_engine,
+      CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
+      Code::Kind kind, std::unique_ptr<char[]> debug_name,
+      const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

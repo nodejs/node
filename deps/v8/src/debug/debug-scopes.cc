@@ -774,7 +774,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
     DCHECK(!context_->IsScriptContext());
     DCHECK(!context_->IsNativeContext());
     DCHECK(!context_->IsWithContext());
-    if (!context_->scope_info().CallsSloppyEval()) return;
+    if (!context_->scope_info().SloppyEvalCanExtendVars()) return;
     if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
@@ -884,10 +884,9 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  RequiresBrandCheckFlag requires_brand_check;
-  int slot_index = ScopeInfo::ContextSlotIndex(
-      context_->scope_info(), *variable_name, &mode, &flag,
-      &maybe_assigned_flag, &requires_brand_check);
+  int slot_index =
+      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
+                                  &flag, &maybe_assigned_flag);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);

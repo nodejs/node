@@ -322,13 +322,23 @@ class ZoneList final {
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
 
-template <typename T>
-class ScopedPtrList final {
+// ScopedList is a scope-lifetime list with a std::vector backing that can be
+// re-used between ScopedLists. Note that a ScopedList in an outer scope cannot
+// add any entries if there is a ScopedList with the same backing in an inner
+// scope.
+template <typename T, typename TBacking = T>
+class ScopedList final {
+  // The backing can either be the same type as the list type, or, for pointers,
+  // we additionally allow a void* backing store.
+  STATIC_ASSERT((std::is_same<TBacking, T>::value) ||
+                (std::is_same<TBacking, void*>::value &&
+                 std::is_pointer<T>::value));
+
  public:
-  explicit ScopedPtrList(std::vector<void*>* buffer)
+  explicit ScopedList(std::vector<TBacking>* buffer)
       : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
 
-  ~ScopedPtrList() { Rewind(); }
+  ~ScopedList() { Rewind(); }
 
   void Rewind() {
     DCHECK_EQ(buffer_.size(), end_);
@@ -336,7 +346,7 @@ class ScopedPtrList final {
     end_ = start_;
   }
 
-  void MergeInto(ScopedPtrList* parent) {
+  void MergeInto(ScopedList* parent) {
     DCHECK_EQ(parent->end_, start_);
     parent->end_ = end_;
     start_ = end_;
@@ -344,38 +354,46 @@ class ScopedPtrList final {
   }
 
   int length() const { return static_cast<int>(end_ - start_); }
-  T* at(int i) const {
+
+  const T& at(int i) const {
     size_t index = start_ + i;
     DCHECK_LE(start_, index);
     DCHECK_LT(index, buffer_.size());
-    return reinterpret_cast<T*>(buffer_[index]);
+    return *reinterpret_cast<T*>(&buffer_[index]);
   }
 
-  void CopyTo(ZonePtrList<T>* target, Zone* zone) const {
+  T& at(int i) {
+    size_t index = start_ + i;
+    DCHECK_LE(start_, index);
+    DCHECK_LT(index, buffer_.size());
+    return *reinterpret_cast<T*>(&buffer_[index]);
+  }
+
+  void CopyTo(ZoneList<T>* target, Zone* zone) const {
     DCHECK_LE(end_, buffer_.size());
     // Make sure we don't reference absent elements below.
     if (length() == 0) return;
     target->Initialize(length(), zone);
-    T** data = reinterpret_cast<T**>(&buffer_[start_]);
-    target->AddAll(Vector<T*>(data, length()), zone);
+    T* data = reinterpret_cast<T*>(&buffer_[start_]);
+    target->AddAll(Vector<T>(data, length()), zone);
   }
 
-  Vector<T*> CopyTo(Zone* zone) {
+  Vector<T> CopyTo(Zone* zone) {
     DCHECK_LE(end_, buffer_.size());
-    T** data = zone->NewArray<T*>(length());
+    T* data = zone->NewArray<T>(length());
     if (length() != 0) {
-      MemCopy(data, &buffer_[start_], length() * sizeof(T*));
+      MemCopy(data, &buffer_[start_], length() * sizeof(T));
     }
-    return Vector<T*>(data, length());
+    return Vector<T>(data, length());
   }
 
-  void Add(T* value) {
+  void Add(const T& value) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.push_back(value);
     ++end_;
   }
 
-  void AddAll(const ZonePtrList<T>& list) {
+  void AddAll(const ZoneList<T>& list) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.reserve(buffer_.size() + list.length());
     for (int i = 0; i < list.length(); i++) {
@@ -384,19 +402,22 @@ class ScopedPtrList final {
     end_ += list.length();
   }
 
-  using iterator = T**;
+  using iterator = T*;
   inline iterator begin() const {
-    return reinterpret_cast<T**>(buffer_.data() + start_);
+    return reinterpret_cast<T*>(buffer_.data() + start_);
   }
   inline iterator end() const {
-    return reinterpret_cast<T**>(buffer_.data() + end_);
+    return reinterpret_cast<T*>(buffer_.data() + end_);
   }
 
  private:
-  std::vector<void*>& buffer_;
+  std::vector<TBacking>& buffer_;
   size_t start_;
   size_t end_;
 };
+
+template <typename T>
+using ScopedPtrList = ScopedList<T*, void*>;
 
 using ZoneHashMap = base::PointerTemplateHashMapImpl<ZoneAllocationPolicy>;
 

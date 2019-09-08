@@ -290,20 +290,31 @@
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
   TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define WRITE_BARRIER(object, offset, value)
+#else
 #define WRITE_BARRIER(object, offset, value)                       \
   do {                                                             \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));            \
     MarkingBarrier(object, (object).RawField(offset), value);      \
     GenerationalBarrier(object, (object).RawField(offset), value); \
   } while (false)
+#endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define WEAK_WRITE_BARRIER(object, offset, value)
+#else
 #define WEAK_WRITE_BARRIER(object, offset, value)                           \
   do {                                                                      \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
     MarkingBarrier(object, (object).RawMaybeWeakField(offset), value);      \
     GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
   } while (false)
+#endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)
+#else
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                    \
   do {                                                                        \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
@@ -311,7 +322,11 @@
     MarkingBarrier(object, (object).RawField(offset), value);                 \
     GenerationalEphemeronKeyBarrier(table, (object).RawField(offset), value); \
   } while (false)
+#endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)
+#else
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)       \
   do {                                                               \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
@@ -323,7 +338,11 @@
       GenerationalBarrier(object, (object).RawField(offset), value); \
     }                                                                \
   } while (false)
+#endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)
+#else
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)           \
   do {                                                                        \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
@@ -335,7 +354,11 @@
       GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
     }                                                                         \
   } while (false)
+#endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode)
+#else
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
@@ -349,6 +372,7 @@
                                       value);                                \
     }                                                                        \
   } while (false)
+#endif
 
 #define ACQUIRE_READ_INT32_FIELD(p, offset) \
   static_cast<int32_t>(base::Acquire_Load(  \

@@ -5,8 +5,12 @@
 var throwTypeErrorFunction =
     Object.getOwnPropertyDescriptor(Function.prototype, 'arguments').get;
 
-assertFalse(
-    Object.prototype.hasOwnProperty.call(throwTypeErrorFunction, 'name'));
+var nameDesc =
+    Object.getOwnPropertyDescriptor(throwTypeErrorFunction, 'name');
+assertEquals('', nameDesc.value);
+assertFalse(nameDesc.configurable);
+assertFalse(nameDesc.enumerable);
+assertFalse(nameDesc.writable);
 assertThrows(function() {
   'use strict';
   throwTypeErrorFunction.name = 'foo';

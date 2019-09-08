@@ -11,9 +11,6 @@
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(GlobalContext)
-
 namespace {
 
 template <class T>
@@ -139,6 +136,13 @@ GenericStructType* Declarations::LookupUniqueGenericStructType(
                       "generic struct");
 }
 
+base::Optional<GenericStructType*> Declarations::TryLookupGenericStructType(
+    const QualifiedName& name) {
+  std::vector<GenericStructType*> results = TryLookup<GenericStructType>(name);
+  if (results.empty()) return base::nullopt;
+  return EnsureUnique(results, name.name, "generic struct");
+}
+
 Namespace* Declarations::DeclareNamespace(const std::string& name) {
   return Declare(name, std::unique_ptr<Namespace>(new Namespace(name)));
 }
@@ -158,43 +162,44 @@ const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
   return Declare(name->value, std::move(alias_ptr));
 }
 
-TorqueMacro* Declarations::CreateTorqueMacro(
-    std::string external_name, std::string readable_name, bool exported_to_csa,
-    Signature signature, bool transitioning, base::Optional<Statement*> body,
-    bool is_user_defined) {
+TorqueMacro* Declarations::CreateTorqueMacro(std::string external_name,
+                                             std::string readable_name,
+                                             bool exported_to_csa,
+                                             Signature signature,
+                                             base::Optional<Statement*> body,
+                                             bool is_user_defined) {
   // TODO(tebbi): Switch to more predictable names to improve incremental
   // compilation.
   external_name += "_" + std::to_string(GlobalContext::FreshId());
   return RegisterDeclarable(std::unique_ptr<TorqueMacro>(new TorqueMacro(
       std::move(external_name), std::move(readable_name), std::move(signature),
-      transitioning, body, is_user_defined, exported_to_csa)));
+      body, is_user_defined, exported_to_csa)));
 }
 
 ExternMacro* Declarations::CreateExternMacro(
-    std::string name, std::string external_assembler_name, Signature signature,
-    bool transitioning) {
+    std::string name, std::string external_assembler_name,
+    Signature signature) {
   return RegisterDeclarable(std::unique_ptr<ExternMacro>(
       new ExternMacro(std::move(name), std::move(external_assembler_name),
-                      std::move(signature), transitioning)));
+                      std::move(signature))));
 }
 
 Macro* Declarations::DeclareMacro(
     const std::string& name, bool accessible_from_csa,
     base::Optional<std::string> external_assembler_name,
-    const Signature& signature, bool transitioning,
-    base::Optional<Statement*> body, base::Optional<std::string> op,
-    bool is_user_defined) {
+    const Signature& signature, base::Optional<Statement*> body,
+    base::Optional<std::string> op, bool is_user_defined) {
   if (TryLookupMacro(name, signature.GetExplicitTypes())) {
     ReportError("cannot redeclare macro ", name,
                 " with identical explicit parameters");
   }
   Macro* macro;
   if (external_assembler_name) {
-    macro = CreateExternMacro(name, std::move(*external_assembler_name),
-                              signature, transitioning);
+    macro =
+        CreateExternMacro(name, std::move(*external_assembler_name), signature);
   } else {
-    macro = CreateTorqueMacro(name, name, accessible_from_csa, signature,
-                              transitioning, body, is_user_defined);
+    macro = CreateTorqueMacro(name, name, accessible_from_csa, signature, body,
+                              is_user_defined);
   }
   Declare(name, macro);
   if (op) {
@@ -209,11 +214,11 @@ Macro* Declarations::DeclareMacro(
 
 Method* Declarations::CreateMethod(AggregateType* container_type,
                                    const std::string& name, Signature signature,
-                                   bool transitioning, Statement* body) {
+                                   Statement* body) {
   std::string generated_name{container_type->GetGeneratedMethodName(name)};
   Method* result = RegisterDeclarable(std::unique_ptr<Method>(
       new Method(container_type, container_type->GetGeneratedMethodName(name),
-                 name, std::move(signature), transitioning, body)));
+                 name, std::move(signature), body)));
   container_type->RegisterMethod(result);
   return result;
 }
@@ -235,29 +240,27 @@ Intrinsic* Declarations::DeclareIntrinsic(const std::string& name,
 Builtin* Declarations::CreateBuiltin(std::string external_name,
                                      std::string readable_name,
                                      Builtin::Kind kind, Signature signature,
-                                     bool transitioning,
+
                                      base::Optional<Statement*> body) {
   return RegisterDeclarable(std::unique_ptr<Builtin>(
       new Builtin(std::move(external_name), std::move(readable_name), kind,
-                  std::move(signature), transitioning, body)));
+                  std::move(signature), body)));
 }
 
 Builtin* Declarations::DeclareBuiltin(const std::string& name,
                                       Builtin::Kind kind,
                                       const Signature& signature,
-                                      bool transitioning,
+
                                       base::Optional<Statement*> body) {
   CheckAlreadyDeclared<Builtin>(name, "builtin");
-  return Declare(
-      name, CreateBuiltin(name, name, kind, signature, transitioning, body));
+  return Declare(name, CreateBuiltin(name, name, kind, signature, body));
 }
 
 RuntimeFunction* Declarations::DeclareRuntimeFunction(
-    const std::string& name, const Signature& signature, bool transitioning) {
+    const std::string& name, const Signature& signature) {
   CheckAlreadyDeclared<RuntimeFunction>(name, "runtime function");
-  return Declare(name,
-                 RegisterDeclarable(std::unique_ptr<RuntimeFunction>(
-                     new RuntimeFunction(name, signature, transitioning))));
+  return Declare(name, RegisterDeclarable(std::unique_ptr<RuntimeFunction>(
+                           new RuntimeFunction(name, signature))));
 }
 
 void Declarations::DeclareExternConstant(Identifier* name, const Type* type,

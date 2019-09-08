@@ -64,7 +64,7 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
     MutexGuard lock_guard(&threads[n].mutex_);
     EXPECT_FALSE(threads[n].running_);
     EXPECT_FALSE(threads[n].finished_);
-    threads[n].Start();
+    CHECK(threads[n].Start());
     // Wait for nth thread to start.
     while (!threads[n].running_) {
       threads[n].cv_.Wait(&threads[n].mutex_);
@@ -153,7 +153,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
     for (int n = 0; n < kThreadCount; ++n) {
       EXPECT_FALSE(threads[n].running_);
       EXPECT_FALSE(threads[n].finished_);
-      threads[n].Start();
+      CHECK(threads[n].Start());
     }
   }
 
@@ -281,7 +281,7 @@ TEST(ConditionVariable, LoopIncrement) {
 
     // Start all threads.
     for (int n = thread_count - 1; n >= 0; --n) {
-      threads[n]->Start();
+      CHECK(threads[n]->Start());
     }
 
     // Join and cleanup all threads.

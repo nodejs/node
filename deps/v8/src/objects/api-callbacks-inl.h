@@ -21,15 +21,13 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo)
 OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, Struct)
-OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo)
 
 CAST_ACCESSOR(AccessorInfo)
-CAST_ACCESSOR(AccessCheckInfo)
-CAST_ACCESSOR(InterceptorInfo)
 
 ACCESSORS(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
@@ -98,21 +96,7 @@ bool AccessorInfo::HasExpectedReceiverType() {
   return expected_receiver_type().IsFunctionTemplateInfo();
 }
 
-ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
-ACCESSORS(AccessCheckInfo, named_interceptor, Object, kNamedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, indexed_interceptor, Object,
-          kIndexedInterceptorOffset)
-ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
-
-ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)
-ACCESSORS(InterceptorInfo, setter, Object, kSetterOffset)
-ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
-ACCESSORS(InterceptorInfo, descriptor, Object, kDescriptorOffset)
-ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
-ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
-ACCESSORS(InterceptorInfo, definer, Object, kDefinerOffset)
-ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
-SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
+TQ_SMI_ACCESSORS(InterceptorInfo, flags)
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                kCanInterceptSymbolsBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)

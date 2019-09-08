@@ -89,6 +89,8 @@ MachineType AtomicOpType(Operator const* op) {
   return OpParameter<MachineType>(op);
 }
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_32(V)                                           \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -112,6 +114,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint32Mod, Operator::kNoProperties, 2, 1, 1)                            \
   V(Uint32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_64(V)                                        \
   V(Word64And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
   V(Word64Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
@@ -133,6 +137,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define MACHINE_PURE_OP_LIST(V)                                               \
   PURE_BINARY_OP_LIST_32(V)                                                   \
   PURE_BINARY_OP_LIST_64(V)                                                   \
@@ -142,6 +148,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
   V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
+  V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
+  V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
@@ -236,7 +244,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
-  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
   V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                           \
@@ -248,6 +255,12 @@ MachineType AtomicOpType(Operator const* op) {
   V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                               \
+  V(F64x2Min, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Max, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
   V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \
@@ -263,6 +276,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                               \
   V(F32x4Min, Operator::kCommutative, 2, 0, 1)                                \
   V(F32x4Max, Operator::kCommutative, 2, 0, 1)                                \
   V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                                 \
@@ -271,13 +285,20 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                              \
   V(I64x2Add, Operator::kCommutative, 2, 0, 1)                                \
   V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I64x2MinS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2MaxS, Operator::kCommutative, 2, 0, 1)                               \
   V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
   V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                               \
   V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I64x2MinU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2MaxU, Operator::kCommutative, 2, 0, 1)                               \
   V(I64x2GtU, Operator::kNoProperties, 2, 0, 1)                               \
   V(I64x2GeU, Operator::kNoProperties, 2, 0, 1)                               \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
@@ -285,6 +306,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
   V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
   V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I32x4Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                              \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                                \
   V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
@@ -298,6 +321,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
   V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                              \
   V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                               \
   V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                               \
   V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                               \
@@ -306,6 +330,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
   V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I16x8Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                              \
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                                \
   V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
@@ -321,6 +347,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8GeS, Operator::kNoProperties, 2, 0, 1)                               \
   V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
   V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                              \
   V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
   V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
   V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
@@ -330,6 +357,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                               \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                              \
   V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
   V(I8x16Add, Operator::kCommutative, 2, 0, 1)                                \
   V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
@@ -342,6 +371,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(I8x16GtS, Operator::kNoProperties, 2, 0, 1)                               \
   V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                              \
   V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
   V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
   V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
@@ -364,8 +394,11 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)
+  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -385,6 +418,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \
@@ -466,12 +501,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(I32x4, 4)                \
   V(I16x8, 8)                \
   V(I8x16, 16)
-
-#define SIMD_FORMAT_LIST(V) \
-  V(64x2, 64)               \
-  V(32x4, 32)               \
-  V(16x8, 16)               \
-  V(8x16, 8)
 
 #define STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(V) \
   V(4, 0) V(8, 0) V(16, 0) V(4, 4) V(8, 8) V(16, 16)
@@ -1305,28 +1334,6 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
 SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 #undef SIMD_LANE_OPS
 
-#define SIMD_SHIFT_OPS(format, bits)                                           \
-  const Operator* MachineOperatorBuilder::I##format##Shl(int32_t shift) {      \
-    DCHECK(0 <= shift && shift < bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##Shl, Operator::kPure,         \
-                           "Shift left", 1, 0, 0, 1, 0, 0, shift);             \
-  }                                                                            \
-  const Operator* MachineOperatorBuilder::I##format##ShrS(int32_t shift) {     \
-    DCHECK(0 < shift && shift <= bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##ShrS, Operator::kPure,        \
-                           "Arithmetic shift right", 1, 0, 0, 1, 0, 0, shift); \
-  }                                                                            \
-  const Operator* MachineOperatorBuilder::I##format##ShrU(int32_t shift) {     \
-    DCHECK(0 <= shift && shift < bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##ShrU, Operator::kPure,        \
-                           "Shift right", 1, 0, 0, 1, 0, 0, shift);            \
-  }
-SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
-#undef SIMD_SHIFT_OPS
-
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {
   uint8_t* array = zone_->NewArray<uint8_t>(16);
@@ -1354,7 +1361,6 @@ const uint8_t* S8x16ShuffleOf(Operator const* op) {
 #undef ATOMIC_REPRESENTATION_LIST
 #undef ATOMIC64_REPRESENTATION_LIST
 #undef SIMD_LANE_OP_LIST
-#undef SIMD_FORMAT_LIST
 #undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST
 
 }  // namespace compiler

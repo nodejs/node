@@ -13,11 +13,11 @@
 namespace v8 {
 namespace internal {
 
-class VectorSlotPair;
 
 namespace compiler {
 
 class CompilationDependencies;
+struct FeedbackSource;
 class JSGraph;
 class JSHeapBroker;
 class Node;
@@ -67,10 +67,10 @@ class MapInference {
   // dependencies were taken.
   bool RelyOnMapsPreferStability(CompilationDependencies* dependencies,
                                  JSGraph* jsgraph, Node** effect, Node* control,
-                                 const VectorSlotPair& feedback);
+                                 const FeedbackSource& feedback);
   // Inserts map checks even if maps were already reliable.
   void InsertMapChecks(JSGraph* jsgraph, Node** effect, Node* control,
-                       const VectorSlotPair& feedback);
+                       const FeedbackSource& feedback);
 
   // Internally marks the maps as reliable (thus bypassing the safety check) and
   // returns the NoChange reduction. USE THIS ONLY WHEN RETURNING, e.g.:
@@ -98,7 +98,7 @@ class MapInference {
       std::function<bool(InstanceType)> f) const;
   V8_WARN_UNUSED_RESULT bool RelyOnMapsHelper(
       CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
-      Node* control, const VectorSlotPair& feedback);
+      Node* control, const FeedbackSource& feedback);
 };
 
 }  // namespace compiler

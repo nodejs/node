@@ -4,31 +4,31 @@
 
 namespace runtime {
   extern transitioning runtime
-  ObjectIsExtensible(implicit context: Context)(Object): Object;
+  ObjectIsExtensible(implicit context: Context)(JSAny): JSAny;
 
   extern transitioning runtime
   JSReceiverPreventExtensionsThrow(implicit context: Context)(JSReceiver):
-      Object;
+      JSAny;
 
   extern transitioning runtime
   JSReceiverPreventExtensionsDontThrow(implicit context: Context)(JSReceiver):
-      Object;
+      JSAny;
 
   extern transitioning runtime
-  JSReceiverGetPrototypeOf(implicit context: Context)(JSReceiver): Object;
+  JSReceiverGetPrototypeOf(implicit context: Context)(JSReceiver): JSAny;
 
   extern transitioning runtime
-  JSReceiverSetPrototypeOfThrow(implicit context: Context)(JSReceiver, Object):
-      Object;
+  JSReceiverSetPrototypeOfThrow(implicit context: Context)(JSReceiver, JSAny):
+      JSAny;
 
   extern transitioning runtime
   JSReceiverSetPrototypeOfDontThrow(implicit context:
-                                        Context)(JSReceiver, Object): Object;
+                                        Context)(JSReceiver, JSAny): JSAny;
 }  // namespace runtime
 
 namespace object {
   transitioning macro
-  ObjectIsExtensible(implicit context: Context)(object: Object): Object {
+  ObjectIsExtensible(implicit context: Context)(object: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::ObjectIsExtensible(objectJSReceiver);
@@ -36,8 +36,8 @@ namespace object {
   }
 
   transitioning macro
-  ObjectPreventExtensionsThrow(implicit context: Context)(object: Object):
-      Object {
+  ObjectPreventExtensionsThrow(implicit context: Context)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverPreventExtensionsThrow(
@@ -47,8 +47,8 @@ namespace object {
   }
 
   transitioning macro
-  ObjectPreventExtensionsDontThrow(implicit context: Context)(object: Object):
-      Object {
+  ObjectPreventExtensionsDontThrow(implicit context: Context)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverPreventExtensionsDontThrow(
@@ -57,14 +57,14 @@ namespace object {
   }
 
   transitioning macro
-  ObjectGetPrototypeOf(implicit context: Context)(object: Object): Object {
+  ObjectGetPrototypeOf(implicit context: Context)(object: JSAny): JSAny {
     const objectJSReceiver: JSReceiver = ToObject_Inline(context, object);
     return object::JSReceiverGetPrototypeOf(objectJSReceiver);
   }
 
   transitioning macro
   JSReceiverGetPrototypeOf(implicit context: Context)(object: JSReceiver):
-      Object {
+      JSAny {
     const objectJSProxy = Cast<JSProxy>(object)
         otherwise return runtime::JSReceiverGetPrototypeOf(object);
     return proxy::ProxyGetPrototypeOf(objectJSProxy);
@@ -72,7 +72,7 @@ namespace object {
 
   transitioning macro
   ObjectSetPrototypeOfThrow(implicit context: Context)(
-      object: Object, proto: Object): Object {
+      object: JSAny, proto: JSReceiver | Null): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverSetPrototypeOfThrow(
@@ -83,7 +83,7 @@ namespace object {
 
   transitioning macro
   ObjectSetPrototypeOfDontThrow(implicit context: Context)(
-      object: Object, proto: Object): Object {
+      object: JSAny, proto: JSReceiver | Null): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverSetPrototypeOfDontThrow(
@@ -94,24 +94,24 @@ namespace object {
 
 namespace object_isextensible {
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
-  transitioning javascript builtin ObjectIsExtensible(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ObjectIsExtensible(js-implicit context: Context)(object: JSAny): JSAny {
     return object::ObjectIsExtensible(object);
   }
 }  // namespace object_isextensible
 
 namespace object_preventextensions {
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
-  transitioning javascript builtin ObjectPreventExtensions(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ObjectPreventExtensions(js-implicit context: Context)(object: JSAny): JSAny {
     return object::ObjectPreventExtensionsThrow(object);
   }
 }  // namespace object_preventextensions
 
 namespace object_getprototypeof {
   // ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
-  transitioning javascript builtin ObjectGetPrototypeOf(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ObjectGetPrototypeOf(js-implicit context: Context)(object: JSAny): JSAny {
     return object::ObjectGetPrototypeOf(object);
   }
 }  // namespace object_getprototypeof
@@ -119,8 +119,7 @@ namespace object_getprototypeof {
 namespace object_setprototypeof {
   // ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
   transitioning javascript builtin ObjectSetPrototypeOf(
-      js-implicit context:
-          Context)(_receiver: Object, object: Object, proto: Object): Object {
+      js-implicit context: Context)(object: JSAny, proto: JSAny): JSAny {
     // 1. Set O to ? RequireObjectCoercible(O).
     RequireObjectCoercible(object, 'Object.setPrototypeOf');
 
@@ -130,9 +129,13 @@ namespace object_setprototypeof {
     // 4. Let status be ? O.[[SetPrototypeOf]](proto).
     // 5. If status is false, throw a TypeError exception.
     // 6. Return O.
-    if (proto == Null || Is<JSReceiver>(proto)) {
-      return object::ObjectSetPrototypeOfThrow(object, proto);
+    typeswitch (proto) {
+      case (proto: JSReceiver | Null): {
+        return object::ObjectSetPrototypeOfThrow(object, proto);
+      }
+      case (JSAny): {
+        ThrowTypeError(kProtoObjectOrNull, proto);
+      }
     }
-    ThrowTypeError(kProtoObjectOrNull, proto);
   }
 }  // namespace object_setprototypeof

@@ -351,16 +351,14 @@ class PreParserExpression {
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  using IsParenthesizedField = BitField<bool, TypeField::kNext, 1>;
+  using IsParenthesizedField = TypeField::Next<bool, 1>;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  using ExpressionTypeField =
-      BitField<ExpressionType, IsParenthesizedField::kNext, 4>;
+  using ExpressionTypeField = IsParenthesizedField::Next<ExpressionType, 4>;
   using IdentifierTypeField =
-      BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>;
-  using HasCoverInitializedNameField =
-      BitField<bool, IsParenthesizedField::kNext, 1>;
+      IsParenthesizedField::Next<PreParserIdentifier::Type, 8>;
+  using HasCoverInitializedNameField = IsParenthesizedField::Next<bool, 1>;
 
   uint32_t code_;
   friend class PreParser;
@@ -567,8 +565,13 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
+  PreParserExpression NewOptionalChain(const PreParserExpression& expr) {
+    return PreParserExpression::Default();
+  }
+
   PreParserExpression NewProperty(const PreParserExpression& obj,
-                                  const PreParserExpression& key, int pos) {
+                                  const PreParserExpression& key, int pos,
+                                  bool optional_chain = false) {
     if (key.IsIdentifier() && key.AsIdentifier().IsPrivateName()) {
       if (obj.IsThis()) {
         return PreParserExpression::ThisPrivateReference();
@@ -627,9 +630,10 @@ class PreParserFactory {
                                         int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewCall(
-      PreParserExpression expression, const PreParserExpressionList& arguments,
-      int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
+  PreParserExpression NewCall(PreParserExpression expression,
+                              const PreParserExpressionList& arguments, int pos,
+                              Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
+                              bool optional_chain = false) {
     if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
       DCHECK(expression.IsIdentifier() && expression.AsIdentifier().IsEval());
       return PreParserExpression::CallEval();
@@ -661,7 +665,7 @@ class PreParserFactory {
       const PreParserScopedStatementList& body, int expected_property_count,
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
-      FunctionLiteral::FunctionType function_type,
+      FunctionSyntaxKind function_syntax_kind,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
       bool has_braces, int function_literal_id,
       ProducedPreparseData* produced_preparse_data = nullptr) {
@@ -966,9 +970,9 @@ class PreParser : public ParserBase<PreParser> {
   // the final '}'.
   PreParseResult PreParseFunction(
       const AstRawString* function_name, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope, int* use_counts,
-      ProducedPreparseData** produced_preparser_scope_data, int script_id);
+      FunctionSyntaxKind function_syntax_kind, DeclarationScope* function_scope,
+      int* use_counts, ProducedPreparseData** produced_preparser_scope_data,
+      int script_id);
 
   PreparseDataBuilder* preparse_data_builder() const {
     return preparse_data_builder_;
@@ -1008,7 +1012,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE bool SkipFunction(const AstRawString* name, FunctionKind kind,
-                              FunctionLiteral::FunctionType function_type,
+                              FunctionSyntaxKind function_syntax_kind,
                               DeclarationScope* function_scope,
                               int* num_parameters, int* function_length,
                               ProducedPreparseData** produced_preparse_data) {
@@ -1018,7 +1022,7 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
-      int function_token_pos, FunctionLiteral::FunctionType function_type,
+      int function_token_pos, FunctionSyntaxKind function_syntax_kind,
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
@@ -1054,7 +1058,8 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression SpreadCall(const PreParserExpression& function,
                                            const PreParserExpressionList& args,
                                            int pos,
-                                           Call::PossiblyEval possibly_eval);
+                                           Call::PossiblyEval possibly_eval,
+                                           bool optional_chain);
   V8_INLINE PreParserExpression
   SpreadCallNew(const PreParserExpression& function,
                 const PreParserExpressionList& args, int pos);
@@ -1093,23 +1098,26 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   void DeclareAndBindVariable(const VariableProxy* proxy, VariableKind kind,
-                              VariableMode mode, InitializationFlag init,
-                              Scope* scope, bool* was_added, int position) {
-    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, position,
-                        kind);
+                              VariableMode mode, Scope* scope, bool* was_added,
+                              int initializer_position) {
+    Variable* var = DeclareVariableName(proxy->raw_name(), mode, scope,
+                                        was_added, proxy->position(), kind);
+    var->set_initializer_position(initializer_position);
     // Don't bother actually binding the proxy.
   }
 
-  Variable* DeclarePrivateVariableName(
-      const AstRawString* name, ClassScope* scope,
-      RequiresBrandCheckFlag requires_brand_check, bool* was_added) {
-    return scope->DeclarePrivateName(name, requires_brand_check, was_added);
+  Variable* DeclarePrivateVariableName(const AstRawString* name,
+                                       ClassScope* scope, VariableMode mode,
+                                       bool* was_added) {
+    DCHECK(IsConstVariableMode(mode));
+    return scope->DeclarePrivateName(name, mode, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
                                 Scope* scope, bool* was_added,
                                 int position = kNoSourcePosition,
                                 VariableKind kind = NORMAL_VARIABLE) {
+    DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
     Variable* var = scope->DeclareVariableName(name, mode, was_added, kind);
     if (var == nullptr) {
       ReportUnidentifiableError();
@@ -1156,11 +1164,10 @@ class PreParser : public ParserBase<PreParser> {
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::RBRACE);
   }
-  V8_INLINE void DeclareFunctionNameVar(
-      const AstRawString* function_name,
-      FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope) {
-    if (function_type == FunctionLiteral::kNamedExpression &&
+  V8_INLINE void DeclareFunctionNameVar(const AstRawString* function_name,
+                                        FunctionSyntaxKind function_syntax_kind,
+                                        DeclarationScope* function_scope) {
+    if (function_syntax_kind == FunctionSyntaxKind::kNamedExpression &&
         function_scope->LookupLocal(function_name) == nullptr) {
       DCHECK_EQ(function_scope, scope());
       function_scope->DeclareFunctionVar(function_name);
@@ -1169,9 +1176,9 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFunctionNameVar(
       const PreParserIdentifier& function_name,
-      FunctionLiteral::FunctionType function_type,
+      FunctionSyntaxKind function_syntax_kind,
       DeclarationScope* function_scope) {
-    DeclareFunctionNameVar(function_name.string_, function_type,
+    DeclareFunctionNameVar(function_name.string_, function_syntax_kind,
                            function_scope);
   }
 
@@ -1249,16 +1256,10 @@ class PreParser : public ParserBase<PreParser> {
       ClassScope* scope, const PreParserIdentifier& property_name,
       const PreParserExpression& property, ClassLiteralProperty::Kind kind,
       bool is_static, ClassInfo* class_info) {
-    // TODO(joyee): We do not support private accessors yet (which allow
-    // declaring the same private name twice). Make them noops.
-    if (kind != ClassLiteralProperty::Kind::FIELD &&
-        kind != ClassLiteralProperty::Kind::METHOD) {
-      return;
-    }
     bool was_added;
 
     DeclarePrivateVariableName(property_name.string_, scope,
-                               RequiresBrandCheck(kind), &was_added);
+                               GetVariableMode(kind), &was_added);
     if (!was_added) {
       Scanner::Location loc(property.position(), property.position() + 1);
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
@@ -1697,8 +1698,9 @@ class PreParser : public ParserBase<PreParser> {
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,
                                           const PreParserExpressionList& args,
                                           int pos,
-                                          Call::PossiblyEval possibly_eval) {
-  return factory()->NewCall(function, args, pos, possibly_eval);
+                                          Call::PossiblyEval possibly_eval,
+                                          bool optional_chain) {
+  return factory()->NewCall(function, args, pos, possibly_eval, optional_chain);
 }
 
 PreParserExpression PreParser::SpreadCallNew(

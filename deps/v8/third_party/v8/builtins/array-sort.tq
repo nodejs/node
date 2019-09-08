@@ -15,7 +15,7 @@
 
 namespace array {
   class SortState extends Struct {
-    Compare(implicit context: Context)(x: Object, y: Object): Number {
+    Compare(implicit context: Context)(x: JSAny, y: JSAny): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);
     }
@@ -143,7 +143,7 @@ namespace array {
     let canUseSameAccessorFn: CanUseSameAccessorFn;
 
     try {
-      GotoIfForceSlowPath() otherwise Slow;
+      if (IsForceSlowPath()) goto Slow;
       const a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
       // Copy copy-on-write (COW) arrays.
@@ -214,12 +214,12 @@ namespace array {
   // it is first requested, but it has always at least this size.
   const kSortStateTempSize: Smi = 32;
 
-  type LoadFn = builtin(Context, SortState, Smi) => Object;
-  type StoreFn = builtin(Context, SortState, Smi, Object) => Smi;
+  type LoadFn = builtin(Context, SortState, Smi) => (JSAny | TheHole);
+  type StoreFn = builtin(Context, SortState, Smi, JSAny) => Smi;
   type DeleteFn = builtin(Context, SortState, Smi) => Smi;
-  type CanUseSameAccessorFn = builtin(Context, JSReceiver, Object, Number) =>
+  type CanUseSameAccessorFn = builtin(Context, JSReceiver, Map, Number) =>
       Boolean;
-  type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
+  type CompareBuiltinFn = builtin(Context, JSAny, JSAny, JSAny) => Number;
 
   // The following builtins implement Load/Store for all the Accessors.
   // The most generic baseline version uses Get-/SetProperty. We do not need
@@ -228,28 +228,28 @@ namespace array {
   // through a hole.
 
   transitioning builtin Load<ElementsAccessor: type>(
-      context: Context, sortState: SortState, index: Smi): Object {
+      context: Context, sortState: SortState, index: Smi): JSAny | TheHole {
     const receiver = sortState.receiver;
     if (!HasProperty_Inline(receiver, index)) return TheHole;
     return GetProperty(receiver, index);
   }
 
   Load<FastSmiElements>(context: Context, sortState: SortState, index: Smi):
-      Object {
+      JSAny | TheHole {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    return elements.objects[index];
+    return UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
   }
 
   Load<FastObjectElements>(context: Context, sortState: SortState, index: Smi):
-      Object {
+      JSAny | TheHole {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    return elements.objects[index];
+    return UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
   }
 
   Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
-      Object {
+      JSAny | TheHole {
     try {
       const object = UnsafeCast<JSObject>(sortState.receiver);
       const elements = UnsafeCast<FixedDoubleArray>(object.elements);
@@ -262,13 +262,13 @@ namespace array {
   }
 
   transitioning builtin Store<ElementsAccessor: type>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+      context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
     SetProperty(sortState.receiver, index, value);
     return kSuccess;
   }
 
   Store<FastSmiElements>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+      context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     const value = UnsafeCast<Smi>(value);
@@ -277,7 +277,7 @@ namespace array {
   }
 
   Store<FastObjectElements>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+      context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     elements.objects[index] = value;
@@ -285,7 +285,7 @@ namespace array {
   }
 
   Store<FastDoubleElements>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+      context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
     const heapVal = UnsafeCast<HeapNumber>(value);
@@ -333,7 +333,7 @@ namespace array {
   }
 
   transitioning builtin SortCompareDefault(
-      context: Context, comparefn: Object, x: Object, y: Object): Number {
+      context: Context, comparefn: JSAny, x: JSAny, y: JSAny): Number {
     assert(comparefn == Undefined);
 
     if (TaggedIsSmi(x) && TaggedIsSmi(y)) {
@@ -361,7 +361,7 @@ namespace array {
   }
 
   transitioning builtin SortCompareUserFn(
-      context: Context, comparefn: Object, x: Object, y: Object): Number {
+      context: Context, comparefn: JSAny, x: JSAny, y: JSAny): Number {
     assert(comparefn != Undefined);
     const cmpfn = UnsafeCast<Callable>(comparefn);
 
@@ -376,7 +376,7 @@ namespace array {
   }
 
   builtin CanUseSameAccessor<ElementsAccessor: type>(
-      context: Context, receiver: JSReceiver, initialReceiverMap: Object,
+      context: Context, receiver: JSReceiver, initialReceiverMap: Map,
       initialReceiverLength: Number): Boolean {
     if (receiver.map != initialReceiverMap) return False;
 
@@ -389,7 +389,7 @@ namespace array {
   }
 
   CanUseSameAccessor<GenericElementsAccessor>(
-      _context: Context, _receiver: JSReceiver, _initialReceiverMap: Object,
+      _context: Context, _receiver: JSReceiver, _initialReceiverMap: Map,
       _initialReceiverLength: Number): Boolean {
     // Do nothing. We are already on the slow path.
     return True;
@@ -456,7 +456,7 @@ namespace array {
   transitioning builtin
   Copy(implicit context: Context)(
       source: FixedArray, srcPos: Smi, target: FixedArray, dstPos: Smi,
-      length: Smi): Object {
+      length: Smi): JSAny {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= source.length - length);
@@ -509,7 +509,7 @@ namespace array {
       let left: Smi = low;
       let right: Smi = start;
 
-      const pivot = workArray.objects[right];
+      const pivot = UnsafeCast<JSAny>(workArray.objects[right]);
 
       // Invariants:
       //   pivot >= all in [low, left).
@@ -519,7 +519,8 @@ namespace array {
       // Find pivot insertion point.
       while (left < right) {
         const mid: Smi = left + ((right - left) >> 1);
-        const order = sortState.Compare(pivot, workArray.objects[mid]);
+        const order =
+            sortState.Compare(pivot, UnsafeCast<JSAny>(workArray.objects[mid]));
 
         if (order < 0) {
           right = mid;
@@ -571,8 +572,8 @@ namespace array {
 
     let runLength: Smi = 2;
 
-    const elementLow = workArray.objects[low];
-    const elementLowPred = workArray.objects[low - 1];
+    const elementLow = UnsafeCast<JSAny>(workArray.objects[low]);
+    const elementLowPred = UnsafeCast<JSAny>(workArray.objects[low - 1]);
     let order = sortState.Compare(elementLow, elementLowPred);
 
     // TODO(szuend): Replace with "order < 0" once Torque supports it.
@@ -580,9 +581,9 @@ namespace array {
     //               'never' and uses two labels to branch.
     const isDescending: bool = order < 0 ? true : false;
 
-    let previousElement: Object = elementLow;
+    let previousElement: JSAny = elementLow;
     for (let idx: Smi = low + 1; idx < high; ++idx) {
-      const currentElement = workArray.objects[idx];
+      const currentElement = UnsafeCast<JSAny>(workArray.objects[idx]);
       order = sortState.Compare(currentElement, previousElement);
 
       if (isDescending) {
@@ -650,7 +651,7 @@ namespace array {
 
     // Where does b start in a? Elements in a before that can be ignored,
     // because they are already in place.
-    const keyRight = workArray.objects[baseB];
+    const keyRight = UnsafeCast<JSAny>(workArray.objects[baseB]);
     const k: Smi = GallopRight(workArray, keyRight, baseA, lengthA, 0);
     assert(k >= 0);
 
@@ -661,7 +662,7 @@ namespace array {
 
     // Where does a end in b? Elements in b after that can be ignored,
     // because they are already in place.
-    const keyLeft = workArray.objects[baseA + lengthA - 1];
+    const keyLeft = UnsafeCast<JSAny>(workArray.objects[baseA + lengthA - 1]);
     lengthB = GallopLeft(workArray, keyLeft, baseB, lengthB, lengthB - 1);
     assert(lengthB >= 0);
     if (lengthB == 0) return kSuccess;
@@ -695,14 +696,14 @@ namespace array {
   // pretending that array[base - 1] is minus infinity and array[base + len]
   // is plus infinity. In other words, key belongs at index base + k.
   builtin GallopLeft(implicit context: Context, sortState: SortState)(
-      array: FixedArray, key: Object, base: Smi, length: Smi, hint: Smi): Smi {
+      array: FixedArray, key: JSAny, base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
-    const baseHintElement = array.objects[base + hint];
+    const baseHintElement = UnsafeCast<JSAny>(array.objects[base + hint]);
     let order = sortState.Compare(baseHintElement, key);
 
     if (order < 0) {
@@ -712,7 +713,8 @@ namespace array {
       // a[base + length - 1] is highest.
       const maxOfs: Smi = length - hint;
       while (offset < maxOfs) {
-        const offsetElement = array.objects[base + hint + offset];
+        const offsetElement =
+            UnsafeCast<JSAny>(array.objects[base + hint + offset]);
         order = sortState.Compare(offsetElement, key);
 
         // a[base + hint + offset] >= key? Break.
@@ -738,7 +740,8 @@ namespace array {
       // a[base + hint] is lowest.
       const maxOfs: Smi = hint + 1;
       while (offset < maxOfs) {
-        const offsetElement = array.objects[base + hint - offset];
+        const offsetElement =
+            UnsafeCast<JSAny>(array.objects[base + hint - offset]);
         order = sortState.Compare(offsetElement, key);
 
         if (order < 0) break;
@@ -768,7 +771,8 @@ namespace array {
     while (lastOfs < offset) {
       const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
-      order = sortState.Compare(array.objects[base + m], key);
+      order =
+          sortState.Compare(UnsafeCast<JSAny>(array.objects[base + m]), key);
 
       if (order < 0) {
         lastOfs = m + 1;  // a[base + m] < key.
@@ -792,14 +796,14 @@ namespace array {
   //
   // or kFailure on error.
   builtin GallopRight(implicit context: Context, sortState: SortState)(
-      array: FixedArray, key: Object, base: Smi, length: Smi, hint: Smi): Smi {
+      array: FixedArray, key: JSAny, base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
-    const baseHintElement = array.objects[base + hint];
+    const baseHintElement = UnsafeCast<JSAny>(array.objects[base + hint]);
     let order = sortState.Compare(key, baseHintElement);
 
     if (order < 0) {
@@ -809,7 +813,8 @@ namespace array {
       // a[base + hint] is lowest.
       const maxOfs: Smi = hint + 1;
       while (offset < maxOfs) {
-        const offsetElement = array.objects[base + hint - offset];
+        const offsetElement =
+            UnsafeCast<JSAny>(array.objects[base + hint - offset]);
         order = sortState.Compare(key, offsetElement);
 
         if (order >= 0) break;
@@ -834,7 +839,8 @@ namespace array {
       // a[base + length - 1] is highest.
       const maxOfs: Smi = length - hint;
       while (offset < maxOfs) {
-        const offsetElement = array.objects[base + hint + offset];
+        const offsetElement =
+            UnsafeCast<JSAny>(array.objects[base + hint + offset]);
         order = sortState.Compare(key, offsetElement);
 
         // a[base + hint + ofs] <= key.
@@ -863,7 +869,8 @@ namespace array {
     while (lastOfs < offset) {
       const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
-      order = sortState.Compare(key, array.objects[base + m]);
+      order =
+          sortState.Compare(key, UnsafeCast<JSAny>(array.objects[base + m]));
 
       if (order < 0) {
         offset = m;  // key < a[base + m].
@@ -921,7 +928,8 @@ namespace array {
           assert(lengthA > 1 && lengthB > 0);
 
           const order = sortState.Compare(
-              workArray.objects[cursorB], tempArray.objects[cursorTemp]);
+              UnsafeCast<JSAny>(workArray.objects[cursorB]),
+              UnsafeCast<JSAny>(tempArray.objects[cursorTemp]));
 
           if (order < 0) {
             workArray.objects[dest++] = workArray.objects[cursorB++];
@@ -958,7 +966,8 @@ namespace array {
           sortState.minGallop = minGallop;
 
           nofWinsA = GallopRight(
-              tempArray, workArray.objects[cursorB], cursorTemp, lengthA, 0);
+              tempArray, UnsafeCast<JSAny>(workArray.objects[cursorB]),
+              cursorTemp, lengthA, 0);
           assert(nofWinsA >= 0);
 
           if (nofWinsA > 0) {
@@ -977,7 +986,8 @@ namespace array {
           if (--lengthB == 0) goto Succeed;
 
           nofWinsB = GallopLeft(
-              workArray, tempArray.objects[cursorTemp], cursorB, lengthB, 0);
+              workArray, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
+              cursorB, lengthB, 0);
           assert(nofWinsB >= 0);
           if (nofWinsB > 0) {
             Copy(workArray, cursorB, workArray, dest, nofWinsB);
@@ -1053,7 +1063,8 @@ namespace array {
           assert(lengthA > 0 && lengthB > 1);
 
           const order = sortState.Compare(
-              tempArray.objects[cursorTemp], workArray.objects[cursorA]);
+              UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
+              UnsafeCast<JSAny>(workArray.objects[cursorA]));
 
           if (order < 0) {
             workArray.objects[dest--] = workArray.objects[cursorA--];
@@ -1091,8 +1102,8 @@ namespace array {
           sortState.minGallop = minGallop;
 
           let k: Smi = GallopRight(
-              workArray, tempArray.objects[cursorTemp], baseA, lengthA,
-              lengthA - 1);
+              workArray, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
+              baseA, lengthA, lengthA - 1);
           assert(k >= 0);
           nofWinsA = lengthA - k;
 
@@ -1108,7 +1119,8 @@ namespace array {
           if (--lengthB == 1) goto CopyA;
 
           k = GallopLeft(
-              tempArray, workArray.objects[cursorA], 0, lengthB, lengthB - 1);
+              tempArray, UnsafeCast<JSAny>(workArray.objects[cursorA]), 0,
+              lengthB, lengthB - 1);
           assert(k >= 0);
           nofWinsB = lengthB - k;
 
@@ -1295,7 +1307,7 @@ namespace array {
     // are ignored.
     let numberOfUndefined: Smi = 0;
     for (let i: Smi = 0; i < receiverLength; ++i) {
-      const element: Object = loadFn(context, sortState, i);
+      const element: JSAny | TheHole = loadFn(context, sortState, i);
 
       if (element == TheHole) {
         // Do nothing for holes. The result is that elements are
@@ -1333,7 +1345,9 @@ namespace array {
     //      set them to the TheHole up to {sortState.sortLength}.
     let index: Smi = 0;
     for (; index < numberOfNonUndefined; ++index) {
-      storeFn(context, sortState, index, workArray.objects[index]);
+      storeFn(
+          context, sortState, index,
+          UnsafeCast<JSAny>(workArray.objects[index]));
     }
 
     const numberOfUndefinedEnd: Smi =
@@ -1350,7 +1364,7 @@ namespace array {
   }
 
   transitioning builtin
-  ArrayTimSort(context: Context, sortState: SortState): Object {
+  ArrayTimSort(context: Context, sortState: SortState): JSAny {
     const numberOfNonUndefined: Smi = CompactReceiverElementsIntoWorkArray();
     ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
 
@@ -1369,11 +1383,11 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
   transitioning javascript builtin
-  ArrayPrototypeSort(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  ArrayPrototypeSort(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
-    const comparefnObj: Object = arguments[0];
+    const comparefnObj: JSAny = arguments[0];
     const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
     ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
 

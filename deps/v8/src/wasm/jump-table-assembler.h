@@ -37,6 +37,21 @@ namespace wasm {
 // The above illustrates jump table lines {Li} containing slots {Si} with each
 // line containing {n} slots and some padding {x} for alignment purposes.
 // Other jump tables are just consecutive.
+//
+// The main jump table will be patched concurrently while other threads execute
+// it. The code at the new target might also have been emitted concurrently, so
+// we need to ensure that there is proper synchronization between code emission,
+// jump table patching and code execution.
+// On Intel platforms, this all works out of the box because there is cache
+// coherency between i-cache and d-cache.
+// On ARM, it is safe because the i-cache flush after code emission executes an
+// "ic ivau" (Instruction Cache line Invalidate by Virtual Address to Point of
+// Unification), which broadcasts to all cores. A core which sees the jump table
+// update thus also sees the new code. Since the other core does not explicitly
+// execute an "isb" (Instruction Synchronization Barrier), it might still
+// execute the old code afterwards, which is no problem, since that code remains
+// available until it is garbage collected. Garbage collection itself is a
+// synchronization barrier though.
 class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
  public:
   // Translate an offset into the continuous jump table to a jump table index.

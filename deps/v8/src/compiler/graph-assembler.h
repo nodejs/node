@@ -5,10 +5,10 @@
 #ifndef V8_COMPILER_GRAPH_ASSEMBLER_H_
 #define V8_COMPILER_GRAPH_ASSEMBLER_H_
 
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -224,6 +224,9 @@ class GraphAssembler {
 
   Node* Unreachable();
 
+  Node* IntPtrEqual(Node* left, Node* right);
+  Node* TaggedEqual(Node* left, Node* right);
+
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
 
@@ -251,11 +254,11 @@ class GraphAssembler {
   Node* Word32PoisonOnSpeculation(Node* value);
 
   Node* DeoptimizeIf(
-      DeoptimizeReason reason, VectorSlotPair const& feedback, Node* condition,
+      DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   Node* DeoptimizeIfNot(
-      DeoptimizeReason reason, VectorSlotPair const& feedback, Node* condition,
+      DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   template <typename... Args>

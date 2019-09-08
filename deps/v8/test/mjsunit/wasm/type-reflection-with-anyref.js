@@ -33,6 +33,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals("anyref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "anyfunc"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("anyfunc", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
 
 // This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to

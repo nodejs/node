@@ -73,7 +73,7 @@ DefaultWorkerThreadsTaskRunner::WorkerThread::WorkerThread(
     DefaultWorkerThreadsTaskRunner* runner)
     : Thread(Options("V8 DefaultWorkerThreadsTaskRunner WorkerThread")),
       runner_(runner) {
-  Start();
+  CHECK(Start());
 }
 
 DefaultWorkerThreadsTaskRunner::WorkerThread::~WorkerThread() { Join(); }

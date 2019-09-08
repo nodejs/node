@@ -1448,28 +1448,18 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_void) {
                                                    WASM_ZERO, WASM_ZERO)});
 }
 
-#define BYTE0(x) ((x)&0x7F)
-#define BYTE1(x) ((x >> 7) & 0x7F)
-#define BYTE2(x) ((x >> 14) & 0x7F)
-#define BYTE3(x) ((x >> 21) & 0x7F)
-
-#define VARINT1(x) BYTE0(x)
-#define VARINT2(x) BYTE0(x) | 0x80, BYTE1(x)
-#define VARINT3(x) BYTE0(x) | 0x80, BYTE1(x) | 0x80, BYTE2(x)
-#define VARINT4(x) BYTE0(x) | 0x80, BYTE1(x) | 0x80, BYTE2(x) | 0x80, BYTE3(x)
-
 TEST_F(FunctionBodyDecoderTest, LoadMemOffset_varint) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
   ExpectValidates(sigs.i_i(),
-                  {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT, VARINT1(0x45)});
+                  {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT, U32V_1(0x45)});
   ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                               VARINT2(0x3999)});
+                               U32V_2(0x3999)});
   ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                               VARINT3(0x344445)});
+                               U32V_3(0x344445)});
   ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                               VARINT4(0x36666667)});
+                               U32V_4(0x36666667)});
 }
 
 TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
@@ -1477,24 +1467,14 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
   module = builder.module();
   builder.InitializeMemory();
   ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
-                               ZERO_ALIGNMENT, VARINT1(0x33)});
+                               ZERO_ALIGNMENT, U32V_1(0x33)});
   ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
-                               ZERO_ALIGNMENT, VARINT2(0x1111)});
+                               ZERO_ALIGNMENT, U32V_2(0x1111)});
   ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
-                               ZERO_ALIGNMENT, VARINT3(0x222222)});
+                               ZERO_ALIGNMENT, U32V_3(0x222222)});
   ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
-                               ZERO_ALIGNMENT, VARINT4(0x44444444)});
+                               ZERO_ALIGNMENT, U32V_4(0x44444444)});
 }
-
-#undef BYTE0
-#undef BYTE1
-#undef BYTE2
-#undef BYTE3
-
-#undef VARINT1
-#undef VARINT2
-#undef VARINT3
-#undef VARINT4
 
 TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
   TestModuleBuilder builder;
@@ -2104,6 +2084,9 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
   ExpectValidates(
       &sig,
       {WASM_SET_LOCAL(local_func, WASM_TABLE_GET(tab_func2, WASM_I32V(7)))});
+  ExpectValidates(
+      &sig, {WASM_SET_LOCAL(local_ref, WASM_SEQ(WASM_I32V(6), kExprTableGet,
+                                                U32V_2(tab_ref1)))});
 
   // We can store funcref values as anyref, but not the other way around.
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
@@ -3542,6 +3525,24 @@ TEST_F(WasmOpcodeLengthTest, VariableLength) {
   ExpectLength(4, kExprRefFunc, U32V_3(44));
   ExpectLength(5, kExprRefFunc, U32V_4(66));
   ExpectLength(6, kExprRefFunc, U32V_5(77));
+
+  ExpectLength(2, kExprTableGet, U32V_1(1));
+  ExpectLength(3, kExprTableGet, U32V_2(33));
+  ExpectLength(4, kExprTableGet, U32V_3(44));
+  ExpectLength(5, kExprTableGet, U32V_4(66));
+  ExpectLength(6, kExprTableGet, U32V_5(77));
+
+  ExpectLength(2, kExprTableSet, U32V_1(1));
+  ExpectLength(3, kExprTableSet, U32V_2(33));
+  ExpectLength(4, kExprTableSet, U32V_3(44));
+  ExpectLength(5, kExprTableSet, U32V_4(66));
+  ExpectLength(6, kExprTableSet, U32V_5(77));
+
+  ExpectLength(3, kExprCallIndirect, U32V_1(1), U32V_1(1));
+  ExpectLength(4, kExprCallIndirect, U32V_1(1), U32V_2(33));
+  ExpectLength(5, kExprCallIndirect, U32V_1(1), U32V_3(44));
+  ExpectLength(6, kExprCallIndirect, U32V_1(1), U32V_4(66));
+  ExpectLength(7, kExprCallIndirect, U32V_1(1), U32V_5(77));
 }
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {

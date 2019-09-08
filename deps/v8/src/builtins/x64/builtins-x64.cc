@@ -64,6 +64,18 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
+Operand RealStackLimitAsOperand(MacroAssembler* masm) {
+  DCHECK(masm->root_array_available());
+  Isolate* isolate = masm->isolate();
+  ExternalReference limit = ExternalReference::address_of_real_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  return Operand(kRootRegister, static_cast<int32_t>(offset));
+}
+
 void Generate_StackOverflowCheck(
     MacroAssembler* masm, Register num_args, Register scratch,
     Label* stack_overflow,
@@ -71,7 +83,7 @@ void Generate_StackOverflowCheck(
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  __ LoadRoot(kScratchRegister, RootIndex::kRealStackLimit);
+  __ movq(kScratchRegister, RealStackLimitAsOperand(masm));
   __ movq(scratch, rsp);
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
@@ -735,7 +747,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ CompareRoot(rsp, RootIndex::kRealStackLimit);
+  __ cmpq(rsp, RealStackLimitAsOperand(masm));
   __ j(below, &stack_overflow);
 
   // Pop return address.
@@ -1134,7 +1146,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label ok;
     __ movq(rax, rsp);
     __ subq(rax, rcx);
-    __ CompareRoot(rax, RootIndex::kRealStackLimit);
+    __ cmpq(rax, RealStackLimitAsOperand(masm));
     __ j(above_equal, &ok, Label::kNear);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -2339,9 +2351,10 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ shlq(rbx, Immediate(kSystemPointerSizeLog2));
       __ movq(kScratchRegister, rsp);
       __ subq(kScratchRegister, rbx);
+
       // We are not trying to catch interruptions (i.e. debug break and
       // preemption) here, so check the "real stack limit".
-      __ CompareRoot(kScratchRegister, RootIndex::kRealStackLimit);
+      __ cmpq(kScratchRegister, RealStackLimitAsOperand(masm));
       __ j(above_equal, &done, Label::kNear);
       {
         FrameScope scope(masm, StackFrame::MANUAL);
@@ -2663,9 +2676,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Push the function index as second argument.
     __ Push(r11);
     // Load the correct CEntry builtin from the instance object.
+    __ movq(rcx, FieldOperand(kWasmInstanceRegister,
+                              WasmInstanceObject::kIsolateRootOffset));
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
     __ LoadTaggedPointerField(
-        rcx, FieldOperand(kWasmInstanceRegister,
-                          WasmInstanceObject::kCEntryStubOffset));
+        rcx, MemOperand(rcx, IsolateData::builtin_slot_offset(centry_id)));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());

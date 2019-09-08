@@ -146,6 +146,8 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
 
   Handle<BytecodeArray> bytecode_array =
       writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+  bytecode_array->set_source_position_table(
+      *writer()->ToSourcePositionTable(isolate()));
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
 
   PositionTableEntry expected_positions[] = {
@@ -236,6 +238,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
 
   Handle<BytecodeArray> bytecode_array =
       writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+  bytecode_array->set_source_position_table(
+      *writer()->ToSourcePositionTable(isolate()));
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -288,6 +292,8 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
 
   Handle<BytecodeArray> bytecode_array =
       writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+  bytecode_array->set_source_position_table(
+      *writer()->ToSourcePositionTable(isolate()));
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -356,6 +362,8 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
 
   Handle<BytecodeArray> bytecode_array =
       writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+  bytecode_array->set_source_position_table(
+      *writer()->ToSourcePositionTable(isolate()));
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {

@@ -63,8 +63,8 @@ struct SmiTagging<4> {
 
   V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Shift down (requires >> to be sign extending).
-    return static_cast<int>(static_cast<intptr_t>(value)) >> shift_bits;
+    // Truncate and shift down (requires >> to be sign extending).
+    return static_cast<int32_t>(static_cast<uint32_t>(value)) >> shift_bits;
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // Is value in range [kSmiMinValue, kSmiMaxValue].
@@ -152,6 +152,7 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
 
+  // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
       kNumIsolateDataSlots * kApiSystemPointerSize;
@@ -159,8 +160,14 @@ class Internals {
       kExternalMemoryOffset + kApiInt64Size;
   static const int kExternalMemoryAtLastMarkCompactOffset =
       kExternalMemoryLimitOffset + kApiInt64Size;
-  static const int kIsolateRootsOffset =
+  static const int kIsolateFastCCallCallerFpOffset =
       kExternalMemoryAtLastMarkCompactOffset + kApiInt64Size;
+  static const int kIsolateFastCCallCallerPcOffset =
+      kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
+  static const int kIsolateStackGuardOffset =
+      kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
+  static const int kIsolateRootsOffset =
+      kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -177,7 +184,7 @@ class Internals {
 
   static const int kFirstNonstringType = 0x40;
   static const int kOddballType = 0x43;
-  static const int kForeignType = 0x47;
+  static const int kForeignType = 0x46;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;

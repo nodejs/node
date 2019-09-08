@@ -26,5 +26,15 @@ void ThreadLocalTop::Free() {
   while (promise_on_stack_) isolate_->PopPromise();
 }
 
+#if defined(USE_SIMULATOR)
+void ThreadLocalTop::StoreCurrentStackPosition() {
+  last_api_entry_ = simulator_->get_sp();
+}
+#elif defined(V8_USE_ADDRESS_SANITIZER)
+void ThreadLocalTop::StoreCurrentStackPosition() {
+  last_api_entry_ = reinterpret_cast<Address>(GetCurrentStackPosition());
+}
+#endif
+
 }  // namespace internal
 }  // namespace v8

@@ -50,8 +50,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   // Resume the {receiver} using our trampoline.
   VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
   Label if_exception(this, Label::kDeferred), if_final_return(this);
-  Node* result = CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-                          value, receiver);
+  TNode<Object> result = CallStub(CodeFactory::ResumeGenerator(isolate()),
+                                  context, value, receiver);
   // Make sure we close the generator if there was an exception.
   GotoIfException(result, &if_exception, &var_exception);
 
@@ -115,12 +115,12 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* receiver = args.GetReceiver();
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  TNode<Object> receiver = args.GetReceiver();
+  TNode<Object> value = args.GetOptionalArgumentValue(kValueArg);
   Node* context = Parameter(Descriptor::kContext);
 
   GeneratorPrototypeResume(&args, receiver, value, context,
@@ -132,12 +132,12 @@ TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
 TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* receiver = args.GetReceiver();
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  TNode<Object> receiver = args.GetReceiver();
+  TNode<Object> value = args.GetOptionalArgumentValue(kValueArg);
   Node* context = Parameter(Descriptor::kContext);
 
   GeneratorPrototypeResume(&args, receiver, value, context,
@@ -149,12 +149,12 @@ TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
 TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
   const int kExceptionArg = 0;
 
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* receiver = args.GetReceiver();
-  Node* exception = args.GetOptionalArgumentValue(kExceptionArg);
+  TNode<Object> receiver = args.GetReceiver();
+  TNode<Object> exception = args.GetOptionalArgumentValue(kExceptionArg);
   Node* context = Parameter(Descriptor::kContext);
 
   GeneratorPrototypeResume(&args, receiver, exception, context,

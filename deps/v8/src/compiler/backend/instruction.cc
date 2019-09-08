@@ -6,12 +6,14 @@
 
 #include <iomanip>
 
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/execution/frames.h"
 
 namespace v8 {
 namespace internal {
@@ -942,7 +944,7 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 
 int InstructionSequence::AddDeoptimizationEntry(
     FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-    DeoptimizeReason reason, VectorSlotPair const& feedback) {
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(
       DeoptimizationEntry(descriptor, kind, reason, feedback));
@@ -1002,6 +1004,59 @@ void InstructionSequence::SetRegisterConfigurationForTesting(
   GetRegConfig = InstructionSequence::RegisterConfigurationForTesting;
 }
 
+namespace {
+
+size_t GetConservativeFrameSizeInBytes(FrameStateType type,
+                                       size_t parameters_count,
+                                       size_t locals_count,
+                                       BailoutId bailout_id) {
+  switch (type) {
+    case FrameStateType::kInterpretedFunction: {
+      auto info = InterpretedFrameInfo::Conservative(
+          static_cast<int>(parameters_count), static_cast<int>(locals_count));
+      return info.frame_size_in_bytes();
+    }
+    case FrameStateType::kArgumentsAdaptor: {
+      auto info = ArgumentsAdaptorFrameInfo::Conservative(
+          static_cast<int>(parameters_count));
+      return info.frame_size_in_bytes();
+    }
+    case FrameStateType::kConstructStub: {
+      auto info = ConstructStubFrameInfo::Conservative(
+          static_cast<int>(parameters_count));
+      return info.frame_size_in_bytes();
+    }
+    case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJavaScriptBuiltinContinuation:
+    case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
+      const RegisterConfiguration* config = RegisterConfiguration::Default();
+      auto info = BuiltinContinuationFrameInfo::Conservative(
+          static_cast<int>(parameters_count),
+          Builtins::CallInterfaceDescriptorFor(
+              Builtins::GetBuiltinFromBailoutId(bailout_id)),
+          config);
+      return info.frame_size_in_bytes();
+    }
+  }
+  UNREACHABLE();
+}
+
+size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
+                                            size_t parameters_count,
+                                            size_t locals_count,
+                                            BailoutId bailout_id,
+                                            FrameStateDescriptor* outer_state) {
+  size_t outer_total_conservative_frame_size_in_bytes =
+      (outer_state == nullptr)
+          ? 0
+          : outer_state->total_conservative_frame_size_in_bytes();
+  return GetConservativeFrameSizeInBytes(type, parameters_count, locals_count,
+                                         bailout_id) +
+         outer_total_conservative_frame_size_in_bytes;
+}
+
+}  // namespace
+
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BailoutId bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -1014,9 +1069,34 @@ FrameStateDescriptor::FrameStateDescriptor(
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
+      total_conservative_frame_size_in_bytes_(
+          GetTotalConservativeFrameSizeInBytes(
+              type, parameters_count, locals_count, bailout_id, outer_state)),
       values_(zone),
       shared_info_(shared_info),
       outer_state_(outer_state) {}
+
+size_t FrameStateDescriptor::GetHeight() const {
+  switch (type()) {
+    case FrameStateType::kInterpretedFunction:
+      return locals_count();  // The accumulator is *not* included.
+    case FrameStateType::kBuiltinContinuation:
+      // Custom, non-JS calling convention (that does not have a notion of
+      // a receiver or context).
+      return parameters_count();
+    case FrameStateType::kArgumentsAdaptor:
+    case FrameStateType::kConstructStub:
+    case FrameStateType::kJavaScriptBuiltinContinuation:
+    case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
+      // JS linkage. The parameters count
+      // - includes the receiver (input 1 in CreateArtificialFrameState, and
+      //   passed as part of stack parameters to
+      //   CreateJavaScriptBuiltinContinuationFrameState), and
+      // - does *not* include the context.
+      return parameters_count();
+  }
+  UNREACHABLE();
+}
 
 size_t FrameStateDescriptor::GetSize() const {
   return 1 + parameters_count() + locals_count() + stack_count() +

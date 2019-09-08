@@ -19,6 +19,10 @@
   V(CompactionSpaceDivideSinglePage)                      \
   V(InvalidatedSlotsAfterTrimming)                        \
   V(InvalidatedSlotsAllInvalidatedRanges)                 \
+  V(InvalidatedSlotsCleanupEachObject)                    \
+  V(InvalidatedSlotsCleanupFull)                          \
+  V(InvalidatedSlotsCleanupRightTrim)                     \
+  V(InvalidatedSlotsCleanupOverlapRight)                  \
   V(InvalidatedSlotsEvacuationCandidate)                  \
   V(InvalidatedSlotsNoInvalidatedRanges)                  \
   V(InvalidatedSlotsResetObjectRegression)                \

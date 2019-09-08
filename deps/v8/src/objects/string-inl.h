@@ -137,6 +137,65 @@ STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
 
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
+template <typename TDispatcher, typename TResult, typename... TArgs>
+inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
+  switch (full_representation_tag()) {
+    case kSeqStringTag | kOneByteStringTag:
+      return TDispatcher::HandleSeqOneByteString(std::forward<TArgs>(args)...);
+    case kSeqStringTag | kTwoByteStringTag:
+      return TDispatcher::HandleSeqTwoByteString(std::forward<TArgs>(args)...);
+    case kConsStringTag | kOneByteStringTag:
+    case kConsStringTag | kTwoByteStringTag:
+      return TDispatcher::HandleConsString(std::forward<TArgs>(args)...);
+    case kExternalStringTag | kOneByteStringTag:
+      return TDispatcher::HandleExternalOneByteString(
+          std::forward<TArgs>(args)...);
+    case kExternalStringTag | kTwoByteStringTag:
+      return TDispatcher::HandleExternalTwoByteString(
+          std::forward<TArgs>(args)...);
+    case kSlicedStringTag | kOneByteStringTag:
+    case kSlicedStringTag | kTwoByteStringTag:
+      return TDispatcher::HandleSlicedString(std::forward<TArgs>(args)...);
+    case kThinStringTag | kOneByteStringTag:
+    case kThinStringTag | kTwoByteStringTag:
+      return TDispatcher::HandleThinString(std::forward<TArgs>(args)...);
+    default:
+      return TDispatcher::HandleInvalidString(std::forward<TArgs>(args)...);
+  }
+}
+
+// All concrete subclasses of String (leaves of the inheritance tree).
+#define STRING_CLASS_TYPES(V) \
+  V(SeqOneByteString)         \
+  V(SeqTwoByteString)         \
+  V(ConsString)               \
+  V(ExternalOneByteString)    \
+  V(ExternalTwoByteString)    \
+  V(SlicedString)             \
+  V(ThinString)
+
+template <typename TDispatcher, typename TResult, typename... TArgs>
+inline TResult StringShape::DispatchToSpecificType(String str,
+                                                   TArgs&&... args) {
+  class CastingDispatcher : public AllStatic {
+   public:
+#define DEFINE_METHOD(Type)                                         \
+  static inline TResult Handle##Type(String str, TArgs&&... args) { \
+    return TDispatcher::Handle##Type(Type::cast(str),               \
+                                     std::forward<TArgs>(args)...); \
+  }
+    STRING_CLASS_TYPES(DEFINE_METHOD)
+#undef DEFINE_METHOD
+    static inline TResult HandleInvalidString(String str, TArgs&&... args) {
+      return TDispatcher::HandleInvalidString(str,
+                                              std::forward<TArgs>(args)...);
+    }
+  };
+
+  return DispatchToSpecificTypeWithoutCast<CastingDispatcher, TResult>(
+      str, std::forward<TArgs>(args)...);
+}
+
 DEF_GETTER(String, IsOneByteRepresentation, bool) {
   uint32_t type = map(isolate).instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
@@ -340,29 +399,22 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
 
 uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
-  switch (StringShape(*this).full_representation_tag()) {
-    case kSeqStringTag | kOneByteStringTag:
-      return SeqOneByteString::cast(*this).Get(index);
-    case kSeqStringTag | kTwoByteStringTag:
-      return SeqTwoByteString::cast(*this).Get(index);
-    case kConsStringTag | kOneByteStringTag:
-    case kConsStringTag | kTwoByteStringTag:
-      return ConsString::cast(*this).Get(index);
-    case kExternalStringTag | kOneByteStringTag:
-      return ExternalOneByteString::cast(*this).Get(index);
-    case kExternalStringTag | kTwoByteStringTag:
-      return ExternalTwoByteString::cast(*this).Get(index);
-    case kSlicedStringTag | kOneByteStringTag:
-    case kSlicedStringTag | kTwoByteStringTag:
-      return SlicedString::cast(*this).Get(index);
-    case kThinStringTag | kOneByteStringTag:
-    case kThinStringTag | kTwoByteStringTag:
-      return ThinString::cast(*this).Get(index);
-    default:
-      break;
-  }
 
-  UNREACHABLE();
+  class StringGetDispatcher : public AllStatic {
+   public:
+#define DEFINE_METHOD(Type)                                  \
+  static inline uint16_t Handle##Type(Type str, int index) { \
+    return str.Get(index);                                   \
+  }
+    STRING_CLASS_TYPES(DEFINE_METHOD)
+#undef DEFINE_METHOD
+    static inline uint16_t HandleInvalidString(String str, int index) {
+      UNREACHABLE();
+    }
+  };
+
+  return StringShape(*this)
+      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(*this, index);
 }
 
 void String::Set(int index, uint16_t value) {

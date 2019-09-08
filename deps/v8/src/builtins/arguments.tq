@@ -8,7 +8,7 @@ struct Arguments {
   const length: intptr;
 }
 
-extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
+extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
 
 extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
 

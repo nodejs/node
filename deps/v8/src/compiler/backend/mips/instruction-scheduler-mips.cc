@@ -1673,7 +1673,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kMipsCmp:
       return 0;
     case kArchDebugBreak:
-    case kArchStackPointer:
     case kArchFramePointer:
     case kArchParentFramePointer:
     case kMipsShl:

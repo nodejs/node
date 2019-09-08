@@ -12,10 +12,10 @@ namespace array_reverse {
     return UnsafeCast<Smi>(elements.objects[index]);
   }
 
-  LoadElement<array::FastPackedObjectElements, Object>(
-      implicit context: Context)(elements: FixedArrayBase, index: Smi): Object {
+  LoadElement<array::FastPackedObjectElements, JSAny>(
+      implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-    return elements.objects[index];
+    return UnsafeCast<JSAny>(elements.objects[index]);
   }
 
   LoadElement<array::FastPackedDoubleElements, float64>(
@@ -38,9 +38,9 @@ namespace array_reverse {
     StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
   }
 
-  StoreElement<array::FastPackedObjectElements, Object>(
+  StoreElement<array::FastPackedObjectElements, JSAny>(
       implicit context:
-          Context)(elements: FixedArrayBase, index: Smi, value: Object) {
+          Context)(elements: FixedArrayBase, index: Smi, value: JSAny) {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     elements.objects[index] = value;
   }
@@ -70,8 +70,8 @@ namespace array_reverse {
     }
   }
 
-  transitioning macro GenericArrayReverse(context: Context, receiver: Object):
-      Object {
+  transitioning macro GenericArrayReverse(context: Context, receiver: JSAny):
+      JSAny {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -89,8 +89,8 @@ namespace array_reverse {
     let upper: Number = length - 1;
 
     while (lower < upper) {
-      let lowerValue: Object = Undefined;
-      let upperValue: Object = Undefined;
+      let lowerValue: JSAny = Undefined;
+      let upperValue: JSAny = Undefined;
 
       // b. Let upperP be ! ToString(upper).
       // c. Let lowerP be ! ToString(lower).
@@ -142,7 +142,7 @@ namespace array_reverse {
     return object;
   }
 
-  macro TryFastPackedArrayReverse(implicit context: Context)(receiver: Object)
+  macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny)
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
@@ -153,7 +153,7 @@ namespace array_reverse {
           array.elements, array.length);
     } else if (kind == PACKED_ELEMENTS) {
       array::EnsureWriteableFastElements(array);
-      FastPackedArrayReverse<array::FastPackedObjectElements, Object>(
+      FastPackedArrayReverse<array::FastPackedObjectElements, JSAny>(
           array.elements, array.length);
     } else if (kind == PACKED_DOUBLE_ELEMENTS) {
       FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
@@ -165,7 +165,7 @@ namespace array_reverse {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reverse
   transitioning javascript builtin ArrayPrototypeReverse(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     try {
       TryFastPackedArrayReverse(receiver) otherwise Baseline;
       return receiver;

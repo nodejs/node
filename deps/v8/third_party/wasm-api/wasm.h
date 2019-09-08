@@ -136,10 +136,11 @@ own wasm_store_t* wasm_store_new(wasm_engine_t*);
 
 // Type attributes
 
-typedef enum wasm_mutability_t {
+typedef uint8_t wasm_mutability_t;
+enum wasm_mutability_enum {
   WASM_CONST,
-  WASM_VAR
-} wasm_mutability_t;
+  WASM_VAR,
+};
 
 typedef struct wasm_limits_t {
   uint32_t min;
@@ -162,14 +163,15 @@ static const uint32_t wasm_limits_max_default = 0xffffffff;
 
 WASM_DECLARE_TYPE(valtype)
 
-typedef enum wasm_valkind_t {
+typedef uint8_t wasm_valkind_t;
+enum wasm_valkind_enum {
   WASM_I32,
   WASM_I64,
   WASM_F32,
   WASM_F64,
-  WASM_ANYREF,
-  WASM_FUNCREF
-} wasm_valkind_t;
+  WASM_ANYREF = 128,
+  WASM_FUNCREF,
+};
 
 own wasm_valtype_t* wasm_valtype_new(wasm_valkind_t);
 
@@ -236,12 +238,13 @@ const wasm_limits_t* wasm_memorytype_limits(const wasm_memorytype_t*);
 
 WASM_DECLARE_TYPE(externtype)
 
-typedef enum wasm_externkind_t {
+typedef uint8_t wasm_externkind_t;
+enum wasm_externkind_enum {
   WASM_EXTERN_FUNC,
   WASM_EXTERN_GLOBAL,
   WASM_EXTERN_TABLE,
-  WASM_EXTERN_MEMORY
-} wasm_externkind_t;
+  WASM_EXTERN_MEMORY,
+};
 
 wasm_externkind_t wasm_externtype_kind(const wasm_externtype_t*);
 
@@ -315,15 +318,16 @@ WASM_DECLARE_VEC(val, )
 
 // References
 
-#define WASM_DECLARE_REF_BASE(name) \
-  WASM_DECLARE_OWN(name) \
-  \
-  own wasm_##name##_t* wasm_##name##_copy(const wasm_##name##_t*); \
-  \
-  void* wasm_##name##_get_host_info(const wasm_##name##_t*); \
-  void wasm_##name##_set_host_info(wasm_##name##_t*, void*); \
-  void wasm_##name##_set_host_info_with_finalizer( \
-    wasm_##name##_t*, void*, void (*)(void*));
+#define WASM_DECLARE_REF_BASE(name)                                        \
+  WASM_DECLARE_OWN(name)                                                   \
+                                                                           \
+  own wasm_##name##_t* wasm_##name##_copy(const wasm_##name##_t*);         \
+  bool wasm_##name##_same(const wasm_##name##_t*, const wasm_##name##_t*); \
+                                                                           \
+  void* wasm_##name##_get_host_info(const wasm_##name##_t*);               \
+  void wasm_##name##_set_host_info(wasm_##name##_t*, void*);               \
+  void wasm_##name##_set_host_info_with_finalizer(wasm_##name##_t*, void*, \
+                                                  void (*)(void*));
 
 #define WASM_DECLARE_REF(name) \
   WASM_DECLARE_REF_BASE(name) \
@@ -344,6 +348,18 @@ WASM_DECLARE_VEC(val, )
 WASM_DECLARE_REF_BASE(ref)
 
 
+// Frames
+
+WASM_DECLARE_OWN(frame)
+WASM_DECLARE_VEC(frame, *)
+own wasm_frame_t* wasm_frame_copy(const wasm_frame_t*);
+
+struct wasm_instance_t* wasm_frame_instance(const wasm_frame_t*);
+uint32_t wasm_frame_func_index(const wasm_frame_t*);
+size_t wasm_frame_func_offset(const wasm_frame_t*);
+size_t wasm_frame_module_offset(const wasm_frame_t*);
+
+
 // Traps
 
 typedef wasm_name_t wasm_message_t;  // null terminated
@@ -353,6 +369,8 @@ WASM_DECLARE_REF(trap)
 own wasm_trap_t* wasm_trap_new(wasm_store_t* store, const wasm_message_t*);
 
 void wasm_trap_message(const wasm_trap_t*, own wasm_message_t* out);
+own wasm_frame_t* wasm_trap_origin(const wasm_trap_t*);
+void wasm_trap_trace(const wasm_trap_t*, own wasm_frame_vec_t* out);
 
 
 // Foreign Objects
@@ -485,7 +503,9 @@ const wasm_memory_t* wasm_extern_as_memory_const(const wasm_extern_t*);
 WASM_DECLARE_REF(instance)
 
 own wasm_instance_t* wasm_instance_new(
-  wasm_store_t*, const wasm_module_t*, const wasm_extern_t* const imports[]);
+  wasm_store_t*, const wasm_module_t*, const wasm_extern_t* const imports[],
+  own wasm_trap_t**
+);
 
 void wasm_instance_exports(const wasm_instance_t*, own wasm_extern_vec_t* out);
 

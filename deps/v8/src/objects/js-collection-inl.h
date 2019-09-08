@@ -19,17 +19,17 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSCollection, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSMap, JSCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSSet, JSCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakCollection, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakMap, JSWeakCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakSet, JSWeakCollection)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollection)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSMap)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSet)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakCollection)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakMap)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakSet)
 
 // TODO(jkummerow): Move JSCollectionIterator to js-collection.h?
 // TODO(jkummerow): Introduce IsJSCollectionIterator() check? Or unchecked
 // version of OBJECT_CONSTRUCTORS_IMPL macro?
-JSCollectionIterator::JSCollectionIterator(Address ptr) : JSObject(ptr) {}
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollectionIterator)
 template <class Derived, class TableType>
 OrderedHashTableIterator<Derived, TableType>::OrderedHashTableIterator(
     Address ptr)
@@ -45,20 +45,8 @@ JSSetIterator::JSSetIterator(Address ptr)
   SLOW_DCHECK(IsJSSetIterator());
 }
 
-ACCESSORS(JSCollection, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
-
-ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
-
-CAST_ACCESSOR(JSCollection)
-CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
-CAST_ACCESSOR(JSWeakCollection)
-CAST_ACCESSOR(JSWeakMap)
-CAST_ACCESSOR(JSWeakSet)
 
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());

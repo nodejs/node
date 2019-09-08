@@ -42,12 +42,14 @@ class LocalAllocator {
   }
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
+                                   AllocationOrigin origin,
                                    AllocationAlignment alignment);
   inline void FreeLast(AllocationSpace space, HeapObject object,
                        int object_size);
 
  private:
   inline AllocationResult AllocateInNewSpace(int object_size,
+                                             AllocationOrigin origin,
                                              AllocationAlignment alignment);
   inline bool NewLocalAllocationBuffer();
   inline AllocationResult AllocateInLAB(int object_size,

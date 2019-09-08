@@ -32,30 +32,15 @@ namespace array {
     assert(array.elements.map != kCOWMap);
   }
 
-  macro IsJSArray(implicit context: Context)(o: Object): bool {
-    typeswitch (o) {
-      case (JSArray): {
-        return true;
-      }
-      case (Object): {
-        return false;
-      }
-    }
-  }
-
-  macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
-    const e: Object = a.objects[i];
-    return e == TheHole ? Undefined : e;
+  macro LoadElementOrUndefined(implicit context:
+                                   Context)(a: FixedArray, i: Smi): JSAny {
+    const e = UnsafeCast<(JSAny | TheHole)>(a.objects[i]);
+    return ReplaceTheHoleWithUndefined(e);
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
-    try {
-      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
-      return AllocateHeapNumberWithValue(f);
-    }
-    label IfHole {
-      return Undefined;
-    }
+    const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise return Undefined;
+    return AllocateHeapNumberWithValue(f);
   }
 
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
@@ -66,5 +51,5 @@ namespace array {
     elements.objects[k] = TheHole;
   }
 
-  extern macro SetPropertyLength(implicit context: Context)(Object, Number);
+  extern macro SetPropertyLength(implicit context: Context)(JSAny, Number);
 }

@@ -24,10 +24,9 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple2)
 TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple3)
 OBJECT_CONSTRUCTORS_IMPL(AccessorPair, Struct)
 
-OBJECT_CONSTRUCTORS_IMPL(ClassPositions, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ClassPositions)
 
 CAST_ACCESSOR(AccessorPair)
-CAST_ACCESSOR(ClassPositions)
 
 void Struct::InitializeBody(int object_size) {
   Object value = GetReadOnlyRoots().undefined_value();
@@ -39,8 +38,8 @@ void Struct::InitializeBody(int object_size) {
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
-SMI_ACCESSORS(ClassPositions, start, kStartOffset)
-SMI_ACCESSORS(ClassPositions, end, kEndOffset)
+TQ_SMI_ACCESSORS(ClassPositions, start)
+TQ_SMI_ACCESSORS(ClassPositions, end)
 
 Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();

@@ -28,18 +28,31 @@ namespace compiler {
 
 const RegList kNoCalleeSaved = 0;
 
-class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
 class LinkageLocation {
  public:
   bool operator==(const LinkageLocation& other) const {
-    return bit_field_ == other.bit_field_;
+    return bit_field_ == other.bit_field_ &&
+           machine_type_ == other.machine_type_;
   }
 
   bool operator!=(const LinkageLocation& other) const {
     return !(*this == other);
+  }
+
+  static bool IsSameLocation(const LinkageLocation& a,
+                             const LinkageLocation& b) {
+    // Different MachineTypes may end up at the same physical location. With the
+    // sub-type check we make sure that types like {AnyTagged} and
+    // {TaggedPointer} which would end up with the same physical location are
+    // considered equal here.
+    return (a.bit_field_ == b.bit_field_) &&
+           (IsSubtype(a.machine_type_.representation(),
+                      b.machine_type_.representation()) ||
+            IsSubtype(b.machine_type_.representation(),
+                      a.machine_type_.representation()));
   }
 
   static LinkageLocation ForAnyRegister(
@@ -144,8 +157,8 @@ class LinkageLocation {
  private:
   enum LocationType { REGISTER, STACK_SLOT };
 
-  class TypeField : public BitField<LocationType, 0, 1> {};
-  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+  using TypeField = BitField<LocationType, 0, 1>;
+  using LocationField = TypeField::Next<int32_t, 31>;
 
   static constexpr int32_t ANY_REGISTER = -1;
   static constexpr int32_t MAX_STACK_SLOT = 32767;
@@ -197,7 +210,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
     kFixedTargetRegister = 1u << 7,
-    kAllowCallThroughSlot = 1u << 8
+    kAllowCallThroughSlot = 1u << 8,
+    kCallerSavedRegisters = 1u << 9
   };
   using Flags = base::Flags<Flag>;
 
@@ -276,6 +290,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
   }
+  bool NeedsCallerSavedRegisters() const {
+    return flags() & kCallerSavedRegisters;
+  }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);
@@ -314,8 +331,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool UsesOnlyRegisters() const;
 
-  bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
-
   // Returns the first stack slot that is not used by the stack parameters.
   int GetFirstUnusedStackSlot() const;
 
@@ -323,7 +338,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   int GetTaggedParameterSlots() const;
 
-  bool CanTailCall(const Node* call) const;
+  bool CanTailCall(const CallDescriptor* callee) const;
 
   int CalculateFixedFrameSize(Code::Kind code_kind) const;
 
@@ -418,7 +433,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
       Zone* zone, const MachineSignature* sig,
-      bool set_initialize_root_flag = false);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {

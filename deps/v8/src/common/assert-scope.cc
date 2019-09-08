@@ -92,16 +92,18 @@ bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
   return current_data == nullptr || current_data->Get(kType);
 }
 
-template <PerIsolateAssertType kType, bool kAllow>
-class PerIsolateAssertScope<kType, kAllow>::DataBit
-    : public BitField<bool, kType, 1> {};
+namespace {
+template <PerIsolateAssertType kType>
+using DataBit = BitField<bool, kType, 1>;
+}
 
 template <PerIsolateAssertType kType, bool kAllow>
 PerIsolateAssertScope<kType, kAllow>::PerIsolateAssertScope(Isolate* isolate)
     : isolate_(isolate), old_data_(isolate->per_isolate_assert_data()) {
   DCHECK_NOT_NULL(isolate);
   STATIC_ASSERT(kType < 32);
-  isolate_->set_per_isolate_assert_data(DataBit::update(old_data_, kAllow));
+  isolate_->set_per_isolate_assert_data(
+      DataBit<kType>::update(old_data_, kAllow));
 }
 
 template <PerIsolateAssertType kType, bool kAllow>
@@ -112,7 +114,7 @@ PerIsolateAssertScope<kType, kAllow>::~PerIsolateAssertScope() {
 // static
 template <PerIsolateAssertType kType, bool kAllow>
 bool PerIsolateAssertScope<kType, kAllow>::IsAllowed(Isolate* isolate) {
-  return DataBit::decode(isolate->per_isolate_assert_data());
+  return DataBit<kType>::decode(isolate->per_isolate_assert_data());
 }
 
 // -----------------------------------------------------------------------------

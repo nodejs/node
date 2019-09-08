@@ -17,11 +17,11 @@ namespace v8 {
 namespace internal {
 
 // Superclass for all objects with instance type {JS_ARGUMENTS_TYPE}
-class JSArgumentsObject : public JSObject {
+class JSArgumentsObject
+    : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
  public:
   DECL_VERIFIER(JSArgumentsObject)
-  DECL_CAST(JSArgumentsObject)
-  OBJECT_CONSTRUCTORS(JSArgumentsObject, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSArgumentsObject)
 };
 
 // Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
@@ -125,21 +125,17 @@ class SloppyArgumentsElements : public FixedArray {
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry : public Struct {
+class AliasedArgumentsEntry
+    : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
+                                                  Struct> {
  public:
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
 
-  DECL_CAST(AliasedArgumentsEntry)
-
   // Dispatched behavior.
   DECL_PRINTER(AliasedArgumentsEntry)
-  DECL_VERIFIER(AliasedArgumentsEntry)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ALIASED_ARGUMENTS_ENTRY_FIELDS)
-
-  OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
 };
 
 }  // namespace internal

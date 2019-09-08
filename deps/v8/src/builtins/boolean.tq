@@ -5,8 +5,8 @@
 namespace boolean {
   javascript builtin
   BooleanConstructor(
-      js-implicit context: Context, receiver: Object, newTarget: Object,
-      target: JSFunction)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny, newTarget: JSAny,
+      target: JSFunction)(...arguments): JSAny {
     const value = SelectBooleanConstant(ToBoolean(arguments[0]));
 
     if (newTarget == Undefined) {

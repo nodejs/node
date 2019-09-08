@@ -13,7 +13,7 @@ namespace typed_array_slice {
   macro FastCopy(
       src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: intptr,
       count: PositiveSmi) labels IfSlow {
-    GotoIfForceSlowPath() otherwise IfSlow;
+    if (IsForceSlowPath()) goto IfSlow;
 
     const srcKind: ElementsKind = src.elements_kind;
     const destInfo = typed_array::GetTypedArrayElementsInfo(dest);
@@ -53,7 +53,7 @@ namespace typed_array_slice {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.slice
   transitioning javascript builtin TypedArrayPrototypeSlice(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     // arguments[0] = start
     // arguments[1] = end
 

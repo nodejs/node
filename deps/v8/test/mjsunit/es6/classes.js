@@ -37,7 +37,7 @@
   literal = { __proto__: class {} };
   assertEquals('', literal.__proto__.name);
   assertEquals(
-      undefined, Object.getOwnPropertyDescriptor(literal.__proto__, 'name'));
+      '', Object.getOwnPropertyDescriptor(literal.__proto__, 'name').value);
 
   literal = { __proto__: class F {} };
   assertEquals('F', literal.__proto__.name);

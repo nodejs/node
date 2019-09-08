@@ -9,6 +9,7 @@
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compilation-dependency.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -81,11 +82,12 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
-    MaybeHandle<Map> transition_map) {
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
-                            field_representation, field_type, field_map,
-                            {{receiver_map}, zone}, std::move(dependencies));
+                            field_representation, field_type, field_owner_map,
+                            field_map, {{receiver_map}, zone},
+                            std::move(dependencies));
 }
 
 // static
@@ -93,11 +95,12 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
-    MaybeHandle<Map> transition_map) {
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(kDataConstant, holder, transition_map, field_index,
-                            field_representation, field_type, field_map,
-                            {{receiver_map}, zone}, std::move(dependencies));
+                            field_representation, field_type, field_owner_map,
+                            field_map, {{receiver_map}, zone},
+                            std::move(dependencies));
 }
 
 // static
@@ -155,7 +158,7 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map,
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
     ZoneVector<Handle<Map>>&& receiver_maps,
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
@@ -166,7 +169,11 @@ PropertyAccessInfo::PropertyAccessInfo(
       field_index_(field_index),
       field_representation_(field_representation),
       field_type_(field_type),
-      field_map_(field_map) {}
+      field_owner_map_(field_owner_map),
+      field_map_(field_map) {
+  DCHECK_IMPLIES(!transition_map.is_null(),
+                 field_owner_map.address() == transition_map.address());
+}
 
 bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                AccessMode access_mode, Zone* zone) {
@@ -258,6 +265,13 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   }
 }
 
+ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
+  if (IsDataConstant()) {
+    return ConstFieldInfo(field_owner_map_.ToHandleChecked());
+  }
+  return ConstFieldInfo::None();
+}
+
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
                                      Zone* zone)
@@ -276,35 +290,32 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(
-    ElementAccessFeedback const& processed, AccessMode access_mode,
+    ElementAccessFeedback const& feedback,
     ZoneVector<ElementAccessInfo>* access_infos) const {
+  AccessMode access_mode = feedback.keyed_mode().access_mode();
   if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
     // much faster than transitioning the elements to the worst case, trading a
     // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
     base::Optional<ElementAccessInfo> access_info =
-        ConsolidateElementLoad(processed);
+        ConsolidateElementLoad(feedback);
     if (access_info.has_value()) {
       access_infos->push_back(*access_info);
       return true;
     }
   }
 
-  for (Handle<Map> receiver_map : processed.receiver_maps) {
-    // Compute the element access information.
+  for (auto const& group : feedback.transition_groups()) {
+    DCHECK(!group.empty());
+    Handle<Map> target = group.front();
     base::Optional<ElementAccessInfo> access_info =
-        ComputeElementAccessInfo(receiver_map, access_mode);
+        ComputeElementAccessInfo(target, access_mode);
     if (!access_info.has_value()) return false;
 
-    // Collect the possible transitions for the {receiver_map}.
-    for (auto transition : processed.transitions) {
-      if (transition.second.equals(receiver_map)) {
-        access_info->AddTransitionSource(transition.first);
-      }
+    for (size_t i = 1; i < group.size(); ++i) {
+      access_info->AddTransitionSource(group[i]);
     }
-
-    // Schedule the access information.
     access_infos->push_back(*access_info);
   }
   return true;
@@ -378,15 +389,19 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     map_ref.SerializeOwnDescriptor(descriptor);
     constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
   }
+  Handle<Map> field_owner_map(map->FindFieldOwner(isolate(), descriptor),
+                              isolate());
   switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder);
+          details_representation, field_type, field_owner_map, field_map,
+          holder);
     case PropertyConstness::kConst:
       return PropertyAccessInfo::DataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder);
+          details_representation, field_type, field_owner_map, field_map,
+          holder);
   }
   UNREACHABLE();
 }
@@ -431,7 +446,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     CallOptimization optimization(isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
-            *broker()->native_context().object(), *map)) {
+            *broker()->target_native_context().object(), *map)) {
       return PropertyAccessInfo::Invalid(zone());
     }
 
@@ -537,11 +552,13 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
+    MapRef(broker(), map).SerializePrototype();
     if (!map->prototype().IsJSObject()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
-      if (Map::GetConstructorFunction(map, broker()->native_context().object())
+      if (Map::GetConstructorFunction(
+              map, broker()->target_native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
         DCHECK(map->prototype().IsJSObject());
@@ -615,6 +632,7 @@ void PropertyAccessInfo::RecordDependencies(
 bool AccessInfoFactory::FinalizePropertyAccessInfos(
     ZoneVector<PropertyAccessInfo> access_infos, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* result) const {
+  if (access_infos.empty()) return false;
   MergePropertyAccessInfos(access_infos, access_mode, result);
   for (PropertyAccessInfo const& info : *result) {
     if (info.IsInvalid()) return false;
@@ -668,22 +686,28 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 }  // namespace
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
-    ElementAccessFeedback const& processed) const {
-  ElementAccessFeedback::MapIterator it = processed.all_maps(broker());
-  MapRef first_map = it.current();
+    ElementAccessFeedback const& feedback) const {
+  if (feedback.transition_groups().empty()) return base::nullopt;
+
+  DCHECK(!feedback.transition_groups().front().empty());
+  MapRef first_map(broker(), feedback.transition_groups().front().front());
   InstanceType instance_type = first_map.instance_type();
   ElementsKind elements_kind = first_map.elements_kind();
+
   ZoneVector<Handle<Map>> maps(zone());
-  for (; !it.done(); it.advance()) {
-    MapRef map = it.current();
-    if (map.instance_type() != instance_type || !CanInlineElementAccess(map)) {
-      return base::nullopt;
+  for (auto const& group : feedback.transition_groups()) {
+    for (Handle<Map> map_handle : group) {
+      MapRef map(broker(), map_handle);
+      if (map.instance_type() != instance_type ||
+          !CanInlineElementAccess(map)) {
+        return base::nullopt;
+      }
+      if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
+               .To(&elements_kind)) {
+        return base::nullopt;
+      }
+      maps.push_back(map.object());
     }
-    if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
-             .To(&elements_kind)) {
-      return base::nullopt;
-    }
-    maps.push_back(map.object());
   }
 
   return ElementAccessInfo(std::move(maps), elements_kind, zone());
@@ -723,7 +747,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(zone(), map, {{}, zone()}, field_index,
-                                         field_representation, field_type);
+                                         field_representation, field_type, map);
   }
   return PropertyAccessInfo::Invalid(zone());
 }
@@ -799,12 +823,12 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder,
+          details_representation, field_type, transition_map, field_map, holder,
           transition_map);
     case PropertyConstness::kConst:
       return PropertyAccessInfo::DataConstant(
           zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder,
+          details_representation, field_type, transition_map, field_map, holder,
           transition_map);
   }
   UNREACHABLE();

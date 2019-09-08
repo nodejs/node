@@ -133,7 +133,7 @@ void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetObjectType());
+    catch_stack.Push(TypeOracle::GetJSAnyType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -170,7 +170,7 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetObjectType());
+    catch_stack.Push(TypeOracle::GetJSAnyType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -201,7 +201,7 @@ void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetObjectType());
+    catch_stack.Push(TypeOracle::GetJSAnyType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -236,7 +236,7 @@ void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetObjectType());
+    catch_stack.Push(TypeOracle::GetJSAnyType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -292,15 +292,14 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
 
 void CreateFieldReferenceInstruction::TypeInstruction(
     Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
-  ExpectSubtype(stack->Pop(), class_type);
-  stack->Push(TypeOracle::GetHeapObjectType());
+  ExpectSubtype(stack->Top(), type);
   stack->Push(TypeOracle::GetIntPtrType());
 }
 
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
   DCHECK_EQ(std::vector<const Type*>{type}, LowerType(type));
   stack->Push(type);
 }
@@ -309,7 +308,7 @@ void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                 ControlFlowGraph* cfg) const {
   ExpectSubtype(stack->Pop(), type);
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
 }
 
 bool CallRuntimeInstruction::IsBlockTerminator() const {

@@ -30,7 +30,12 @@ using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
 // n is the number of IsValid queries.
 class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
  public:
-  explicit InvalidatedSlotsFilter(MemoryChunk* chunk);
+  static InvalidatedSlotsFilter OldToOld(MemoryChunk* chunk);
+  static InvalidatedSlotsFilter OldToNew(MemoryChunk* chunk);
+
+  explicit InvalidatedSlotsFilter(MemoryChunk* chunk,
+                                  InvalidatedSlots* invalidated_slots,
+                                  bool slots_in_free_space_are_valid);
   inline bool IsValid(Address slot);
 
  private:
@@ -45,6 +50,32 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;
+#endif
+};
+
+class V8_EXPORT_PRIVATE InvalidatedSlotsCleanup {
+ public:
+  static InvalidatedSlotsCleanup OldToNew(MemoryChunk* chunk);
+  static InvalidatedSlotsCleanup NoCleanup(MemoryChunk* chunk);
+
+  explicit InvalidatedSlotsCleanup(MemoryChunk* chunk,
+                                   InvalidatedSlots* invalidated_slots);
+
+  inline void Free(Address free_start, Address free_end);
+
+ private:
+  InvalidatedSlots::iterator iterator_;
+  InvalidatedSlots::iterator iterator_end_;
+  InvalidatedSlots* invalidated_slots_;
+  InvalidatedSlots empty_;
+
+  Address sentinel_;
+  Address invalidated_start_;
+  Address invalidated_end_;
+
+  inline void NextInvalidatedObject();
+#ifdef DEBUG
+  Address last_free_;
 #endif
 };
 

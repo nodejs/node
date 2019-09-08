@@ -330,8 +330,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
            Operand(value));
   }
 
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
+  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+       !FLAG_incremental_marking) ||
+      FLAG_disable_write_barriers) {
     return;
   }
 
@@ -1300,6 +1301,18 @@ void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
     }
   }
   CheckTrampolinePoolQuick(1);
+}
+
+void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lw(rd, source);
+}
+
+void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
+  MemOperand dest = rs;
+  AdjustBaseAndOffset(dest);
+  sw(rd, dest);
 }
 
 void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
@@ -3837,6 +3850,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     }
   }
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
+}
+
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, reference);
+  Jump(scratch);
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,

@@ -51,7 +51,7 @@ namespace internal_coverage {
   }
 
   builtin IncBlockCounter(implicit context: Context)(
-      function: JSFunction, coverageArraySlotIndex: Smi): Object {
+      function: JSFunction, coverageArraySlotIndex: Smi): Undefined {
     // It's quite possible that a function contains IncBlockCounter bytecodes,
     // but no coverage info exists. This happens e.g. by selecting the
     // best-effort coverage collection mode, which triggers deletion of all

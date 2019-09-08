@@ -1606,32 +1606,35 @@ class LiftoffCompiler {
 
   void GenerateRuntimeCall(Runtime::FunctionId runtime_function, int num_args,
                            Register* args) {
-    auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
-        compilation_zone_, runtime_function, num_args,
-        compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
     // Currently, only one argument is supported. More arguments require some
     // caution for the parallel register moves (reuse StackTransferRecipe).
     DCHECK_EQ(1, num_args);
+#ifdef DEBUG
+    auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
+        compilation_zone_, runtime_function, num_args,
+        compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
     constexpr size_t kInputShift = 1;  // Input 0 is the call target.
     compiler::LinkageLocation param_loc =
         call_descriptor->GetInputLocation(kInputShift);
-    if (param_loc.IsRegister()) {
-      Register reg = Register::from_code(param_loc.AsRegister());
-      __ Move(LiftoffRegister(reg), LiftoffRegister(args[0]),
-              LiftoffAssembler::kWasmIntPtr);
-    } else {
-      DCHECK(param_loc.IsCallerFrameSlot());
-      LiftoffStackSlots stack_slots(&asm_);
-      stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
-                                                 LiftoffRegister(args[0])));
-      stack_slots.Construct();
-    }
+    // Runtime calls take their arguments on the stack.
+    DCHECK(param_loc.IsCallerFrameSlot());
+#endif
+    LiftoffStackSlots stack_slots(&asm_);
+    stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
+                                               LiftoffRegister(args[0])));
+    stack_slots.Construct();
 
     // Set context to "no context" for the runtime call.
     __ TurboAssembler::Move(kContextRegister,
                             Smi::FromInt(Context::kNoContext));
     Register centry = kJavaScriptCallCodeStartRegister;
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(centry, CEntryStub);
+    LOAD_INSTANCE_FIELD(centry, IsolateRoot, kSystemPointerSize);
+    // All cache registers are spilled and there are no register arguments.
+    LiftoffRegList pinned;
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+    __ LoadTaggedPointer(centry, centry, no_reg,
+                         IsolateData::builtin_slot_offset(centry_id), pinned);
     __ CallRuntimeWithCEntry(runtime_function, centry);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }

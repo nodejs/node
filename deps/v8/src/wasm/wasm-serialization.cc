@@ -625,12 +625,17 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
-  OwnedVector<uint8_t> wire_bytes_copy =
-      OwnedVector<uint8_t>::Of(wire_bytes_vec);
+  auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
+      isolate, enabled_features, std::move(decode_result.value()));
+  shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));
+  shared_native_module->SetRuntimeStubs(isolate);
+
+  Handle<FixedArray> export_wrappers;
+  CompileJsToWasmWrappers(isolate, shared_native_module->module(),
+                          &export_wrappers);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, enabled_features, std::move(decode_result).value(),
-      std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
+      isolate, std::move(shared_native_module), script, export_wrappers);
   NativeModule* native_module = module_object->native_module();
 
   NativeModuleDeserializer deserializer(native_module);
@@ -638,9 +643,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
-
-  CompileJsToWasmWrappers(isolate, native_module->module(),
-                          handle(module_object->export_wrappers(), isolate));
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);

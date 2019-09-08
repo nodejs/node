@@ -14,10 +14,8 @@ namespace v8 {
 namespace internal {
 
 // The HeapNumber class describes heap allocated numbers that cannot be
-// represented in a Smi (small integer). MutableHeapNumber is the same, but its
-// number value can change over time (it is used only as property storage).
-// HeapNumberBase merely exists to avoid code duplication.
-class HeapNumberBase : public HeapObject {
+// represented in a Smi (small integer).
+class HeapNumber : public HeapObject {
  public:
   // [value]: number value.
   inline double value() const;
@@ -58,27 +56,10 @@ class HeapNumberBase : public HeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
-  // Just to make the macro-generated constructor happy. Subclasses should
-  // perform their own proper type checking.
-  inline bool IsHeapNumberBase() const { return true; }
-
-  OBJECT_CONSTRUCTORS(HeapNumberBase, HeapObject);
-};
-
-class HeapNumber : public HeapNumberBase {
- public:
   DECL_CAST(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(HeapNumber, HeapNumberBase);
-};
-
-class MutableHeapNumber : public HeapNumberBase {
- public:
-  DECL_CAST(MutableHeapNumber)
-  V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
-
-  OBJECT_CONSTRUCTORS(MutableHeapNumber, HeapNumberBase);
+  OBJECT_CONSTRUCTORS(HeapNumber, HeapObject);
 };
 
 }  // namespace internal

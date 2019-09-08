@@ -91,9 +91,9 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 13
+frame size: 12
 parameter count: 1
-bytecode array length: 128
+bytecode array length: 124
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(3),
@@ -111,23 +111,22 @@ bytecodes: [
                 B(Ldar), R(6),
                 B(Inc), U8(3),
   /*  152 S> */ B(Star), R(6),
-                B(LdaNamedProperty), R(3), U8(0), U8(4),
+                B(GetIterator), R(3), U8(4),
                 B(Star), R(11),
                 B(CallProperty0), R(11), R(3), U8(6),
-                B(Mov), R(3), R(10),
                 B(Mov), R(1), R(4),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(9),
-                B(LdaNamedProperty), R(9), U8(1), U8(8),
+                B(LdaNamedProperty), R(9), U8(0), U8(8),
                 B(Star), R(8),
                 B(CallProperty0), R(8), R(9), U8(14),
-                B(Star), R(12),
+                B(Star), R(10),
                 B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(2), U8(16),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), U8(1),
+                B(LdaNamedProperty), R(10), U8(1), U8(16),
                 B(JumpIfToBooleanTrue), U8(19),
-                B(LdaNamedProperty), R(12), U8(3), U8(10),
+                B(LdaNamedProperty), R(10), U8(2), U8(10),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(Ldar), R(6),
                 B(Inc), U8(3),
@@ -147,7 +146,6 @@ bytecodes: [
   /*  162 S> */ B(Return),
 ]
 constant pool: [
-  SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],

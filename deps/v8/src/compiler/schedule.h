@@ -200,6 +200,7 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool IsScheduled(Node* node);
   BasicBlock* GetBlockById(BasicBlock::Id block_id);
+  void ClearBlockById(BasicBlock::Id block_id);
 
   size_t BasicBlockCount() const { return all_blocks_.size(); }
   size_t RpoBlockCount() const { return rpo_order_.size(); }
@@ -280,8 +281,6 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   void EliminateRedundantPhiNodes();
   // Ensure split-edge form for a hand-assembled schedule.
   void EnsureSplitEdgeForm(BasicBlock* block);
-  // Ensure entry into a deferred block happens from a single hot block.
-  void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
   // Move Phi operands to newly created merger blocks
   void MovePhis(BasicBlock* from, BasicBlock* to);
   // Copy deferred block markers down as far as possible

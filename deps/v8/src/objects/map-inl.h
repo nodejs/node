@@ -507,8 +507,12 @@ bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }
 
-bool Map::has_frozen_or_sealed_elements() const {
-  return IsFrozenOrSealedElementsKind(elements_kind());
+bool Map::has_any_nonextensible_elements() const {
+  return IsAnyNonextensibleElementsKind(elements_kind());
+}
+
+bool Map::has_nonextensible_elements() const {
+  return IsNonextensibleElementsKind(elements_kind());
 }
 
 bool Map::has_sealed_elements() const {

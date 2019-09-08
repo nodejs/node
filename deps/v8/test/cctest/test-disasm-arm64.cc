@@ -854,7 +854,7 @@ TEST_(branch) {
   COMPARE(br(x0), "br x0");
   COMPARE(blr(x1), "blr x1");
   COMPARE(ret(x2), "ret x2");
-  COMPARE(ret(lr), "ret")
+  COMPARE(ret(lr), "ret");
 
   CLEANUP();
 }
@@ -1881,6 +1881,14 @@ TEST_(system_nop) {
   CLEANUP();
 }
 
+TEST(system_pauth) {
+  SET_UP_ASM();
+
+  COMPARE(pacia1716(), "pacia1716");
+  COMPARE(paciasp(), "paciasp");
+  COMPARE(autia1716(), "autia1716");
+  COMPARE(autiasp(), "autiasp");
+}
 
 TEST_(debug) {
   InitializeVM();

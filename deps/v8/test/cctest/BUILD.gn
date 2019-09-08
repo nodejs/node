@@ -4,6 +4,13 @@
 
 import("../../gni/v8.gni")
 
+config("cctest_config") {
+  # Work around a bug in the gold linker.
+  if (use_gold && target_cpu == "x86") {
+    ldflags = [ "-Wl,--icf=none" ]
+  }
+}
+
 v8_executable("cctest") {
   testonly = true
 
@@ -28,6 +35,7 @@ v8_executable("cctest") {
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
+    ":cctest_config",
   ]
 
   ldflags = []
@@ -188,6 +196,7 @@ v8_source_set("cctest_sources") {
     "test-conversions.cc",
     "test-cpu-profiler.cc",
     "test-date.cc",
+    "test-debug-helper.cc",
     "test-debug.cc",
     "test-decls.cc",
     "test-deoptimization.cc",
@@ -313,11 +322,15 @@ v8_source_set("cctest_sources") {
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-macro-assembler-arm64.cc",
+      "test-pointer-auth-arm64.cc",
       "test-poison-disasm-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]
+    if (is_win) {
+      sources += [ "test-stack-unwinding-win64.cc" ]
+    }
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
@@ -356,7 +369,7 @@ v8_source_set("cctest_sources") {
       "test-macro-assembler-x64.cc",
     ]
     if (is_win) {
-      sources += [ "test-stack-unwinding-x64.cc" ]
+      sources += [ "test-stack-unwinding-win64.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
@@ -382,6 +395,7 @@ v8_source_set("cctest_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
+    "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
   ]
 

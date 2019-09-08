@@ -36,7 +36,7 @@ auto operator<<(std::ostream& out, const wasm::Val& val) -> std::ostream& {
 // A function to be called from Wasm code.
 auto print_callback(
   const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl << "> " << args[0] << std::endl;
   results[0] = args[0].copy();
   return nullptr;
@@ -46,7 +46,7 @@ auto print_callback(
 // A function closure.
 auto closure_callback(
   void* env, const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   auto i = *reinterpret_cast<int*>(env);
   std::cout << "Calling back closure..." << std::endl;
   std::cout << "> " << i << std::endl;
@@ -73,7 +73,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -81,14 +81,14 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Create external print functions.
   std::cout << "Creating callback..." << std::endl;
   auto print_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32)),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32)),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto print_func = wasm::Func::make(store, print_type.get(), print_callback);
 
@@ -96,8 +96,8 @@ void run() {
   std::cout << "Creating closure..." << std::endl;
   int i = 42;
   auto closure_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto closure_func = wasm::Func::make(store, closure_type.get(), closure_callback, &i);
 
@@ -107,7 +107,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), imports);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract export.
@@ -115,7 +115,7 @@ void run() {
   auto exports = instance->exports();
   if (exports.size() == 0 || exports[0]->kind() != wasm::EXTERN_FUNC || !exports[0]->func()) {
     std::cout << "> Error accessing export!" << std::endl;
-    return;
+    exit(1);
   }
   auto run_func = exports[0]->func();
 
@@ -125,7 +125,7 @@ void run() {
   wasm::Val results[1];
   if (run_func->call(args, results)) {
     std::cout << "> Error calling function!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Print result.

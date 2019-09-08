@@ -80,37 +80,73 @@ void int64_to_float32_wrapper(Address data) {
 
 void uint64_to_float32_wrapper(Address data) {
   uint64_t input = ReadUnalignedValue<uint64_t>(data);
-  float result = static_cast<float>(input);
-
-#if V8_CC_MSVC
-  // With MSVC we use static_cast<float>(uint32_t) instead of
-  // static_cast<float>(uint64_t) to achieve round-to-nearest-ties-even
-  // semantics. The idea is to calculate
-  // static_cast<float>(high_word) * 2^32 + static_cast<float>(low_word). To
-  // achieve proper rounding in all cases we have to adjust the high_word
-  // with a "rounding bit" sometimes. The rounding bit is stored in the LSB of
-  // the high_word if the low_word may affect the rounding of the high_word.
-  uint32_t low_word = static_cast<uint32_t>(input & 0xFFFFFFFF);
-  uint32_t high_word = static_cast<uint32_t>(input >> 32);
-
-  float shift = static_cast<float>(1ull << 32);
-  // If the MSB of the high_word is set, then we make space for a rounding bit.
-  if (high_word < 0x80000000) {
-    high_word <<= 1;
-    shift = static_cast<float>(1ull << 31);
+#if defined(V8_OS_WIN)
+  // On Windows, the FP stack registers calculate with less precision, which
+  // leads to a uint64_t to float32 conversion which does not satisfy the
+  // WebAssembly specification. Therefore we do a different approach here:
+  //
+  // / leading 0 \/  24 float data bits  \/  for rounding \/ trailing 0 \
+  // 00000000000001XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX100000000000000
+  //
+  // Float32 can only represent 24 data bit (1 implicit 1 bit + 23 mantissa
+  // bits). Starting from the most significant 1 bit, we can therefore extract
+  // 24 bits and do the conversion only on them. The other bits can affect the
+  // result only through rounding. Rounding works as follows:
+  // * If the most significant rounding bit is not set, then round down.
+  // * If the most significant rounding bit is set, and at least one of the
+  //   other rounding bits is set, then round up.
+  // * If the most significant rounding bit is set, but all other rounding bits
+  //   are not set, then round to even.
+  // We can aggregate 'all other rounding bits' in the second-most significant
+  // rounding bit.
+  // The resulting algorithm is therefore as follows:
+  // * Check if the distance between the most significant bit (MSB) and the
+  //   least significant bit (LSB) is greater than 25 bits. If the distance is
+  //   less or equal to 25 bits, the uint64 to float32 conversion is anyways
+  //   exact, and we just use the C++ conversion.
+  // * Find the most significant bit (MSB).
+  // * Starting from the MSB, extract 25 bits (24 data bits + the first rounding
+  //   bit).
+  // * The remaining rounding bits are guaranteed to contain at least one 1 bit,
+  //   due to the check we did above.
+  // * Store the 25 bits + 1 aggregated bit in an uint32_t.
+  // * Convert this uint32_t to float. The conversion does the correct rounding
+  //   now.
+  // * Shift the result back to the original magnitude.
+  uint32_t leading_zeros = base::bits::CountLeadingZeros(input);
+  uint32_t trailing_zeros = base::bits::CountTrailingZeros(input);
+  constexpr uint32_t num_extracted_bits = 25;
+  // Check if there are any rounding bits we have to aggregate.
+  if (leading_zeros + trailing_zeros + num_extracted_bits < 64) {
+    // Shift to extract the data bits.
+    uint32_t num_aggregation_bits = 64 - num_extracted_bits - leading_zeros;
+    // We extract the bits we want to convert. Note that we convert one bit more
+    // than necessary. This bit is a placeholder where we will store the
+    // aggregation bit.
+    int32_t extracted_bits =
+        static_cast<int32_t>(input >> (num_aggregation_bits - 1));
+    // Set the aggregation bit. We don't have to clear the slot first, because
+    // the bit there is also part of the aggregation.
+    extracted_bits |= 1;
+    float result = static_cast<float>(extracted_bits);
+    // We have to shift the result back. The shift amount is
+    // (num_aggregation_bits - 1), which is the shift amount we did originally,
+    // and (-2), which is for the two additional bits we kept originally for
+    // rounding.
+    int32_t shift_back = static_cast<int32_t>(num_aggregation_bits) - 1 - 2;
+    // Calculate the multiplier to shift the extracted bits back to the original
+    // magnitude. This multiplier is a power of two, so in the float32 bit
+    // representation we just have to construct the correct exponent and put it
+    // at the correct bit offset. The exponent consists of 8 bits, starting at
+    // the second MSB (a.k.a '<< 23'). The encoded exponent itself is
+    // ('actual exponent' - 127).
+    int32_t multiplier_bits = ((shift_back - 127) & 0xff) << 23;
+    result *= bit_cast<float>(multiplier_bits);
+    WriteUnalignedValue<float>(data, result);
+    return;
   }
-
-  if ((high_word & 0xFE000000) && low_word) {
-    // Set the rounding bit.
-    high_word |= 1;
-  }
-
-  result = static_cast<float>(high_word);
-  result *= shift;
-  result += static_cast<float>(low_word);
-#endif
-
-  WriteUnalignedValue<float>(data, result);
+#endif  // defined(V8_OS_WIN)
+  WriteUnalignedValue<float>(data, static_cast<float>(input));
 }
 
 void int64_to_float64_wrapper(Address data) {

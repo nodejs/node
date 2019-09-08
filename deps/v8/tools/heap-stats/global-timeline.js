@@ -63,9 +63,12 @@ class GlobalTimeline extends HTMLElement {
       {type: 'number', label: 'Ptr compression benefit'},
       {type: 'string', role: 'tooltip'},
       {type: 'number', label: 'Embedder fields'},
-      {type: 'number', label: 'Tagged fields'},
+      {type: 'number', label: 'Tagged fields (excl. in-object Smis)'},
+      {type: 'number', label: 'In-object Smi-only fields'},
       {type: 'number', label: 'Other raw fields'},
-      {type: 'number', label: 'Unboxed doubles'}
+      {type: 'number', label: 'Unboxed doubles'},
+      {type: 'number', label: 'Boxed doubles'},
+      {type: 'number', label: 'String data'}
     ];
     const chart_data = [labels];
     const isolate_data = this.data[this.selection.isolate];
@@ -78,10 +81,14 @@ class GlobalTimeline extends HTMLElement {
       const data = [];
       data.push(gc_data.time * kMillis2Seconds);
       const total = data_set.tagged_fields +
+                    data_set.inobject_smi_fields +
                     data_set.embedder_fields +
                     data_set.other_raw_fields +
-                    data_set.unboxed_double_fields;
-      const ptr_compr_benefit = data_set.tagged_fields / 2;
+                    data_set.unboxed_double_fields +
+                    data_set.boxed_double_fields +
+                    data_set.string_data;
+      const ptr_compr_benefit =
+          (data_set.inobject_smi_fields + data_set.tagged_fields) / 2;
       const ptr_compr_benefit_perc = ptr_compr_benefit / total * 100;
       sum_total += total;
       sum_ptr_compr_benefit_perc += ptr_compr_benefit_perc;
@@ -93,8 +100,11 @@ class GlobalTimeline extends HTMLElement {
       data.push(tooltip);
       data.push(data_set.embedder_fields / KB);
       data.push(data_set.tagged_fields / KB);
+      data.push(data_set.inobject_smi_fields / KB);
       data.push(data_set.other_raw_fields / KB);
       data.push(data_set.unboxed_double_fields / KB);
+      data.push(data_set.boxed_double_fields / KB);
+      data.push(data_set.string_data / KB);
       chart_data.push(data);
     });
     const avg_ptr_compr_benefit_perc =

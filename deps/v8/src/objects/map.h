@@ -423,7 +423,8 @@ class Map : public HeapObject {
   inline bool has_fast_string_wrapper_elements() const;
   inline bool has_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
-  inline bool has_frozen_or_sealed_elements() const;
+  inline bool has_any_nonextensible_elements() const;
+  inline bool has_nonextensible_elements() const;
   inline bool has_sealed_elements() const;
   inline bool has_frozen_elements() const;
 

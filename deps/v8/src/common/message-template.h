@@ -118,9 +118,9 @@ namespace internal {
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \
-  T(NonCoercible, "Cannot destructure 'undefined' or 'null'.")                 \
+  T(NonCoercible, "Cannot destructure '%' as it is %.")                        \
   T(NonCoercibleWithProperty,                                                  \
-    "Cannot destructure property `%` of 'undefined' or 'null'.")               \
+    "Cannot destructure property '%' of '%' as it is %.")                      \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
@@ -146,7 +146,8 @@ namespace internal {
   T(NotSuperConstructorAnonymousClass,                                         \
     "Super constructor % of anonymous class is not a constructor")             \
   T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
-  T(NotInt32SharedTypedArray, "% is not an int32 shared typed array.")         \
+  T(NotInt32OrBigInt64SharedTypedArray,                                        \
+    "% is not an int32 or BigInt64 shared typed array.")                       \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
@@ -412,11 +413,15 @@ namespace internal {
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(InvalidPrivateFieldResolution,                                             \
     "Private field '%' must be declared in an enclosing class")                \
-  T(InvalidPrivateFieldRead,                                                   \
-    "Read of private field % from an object which did not contain the field")  \
-  T(InvalidPrivateFieldWrite,                                                  \
-    "Write of private field % to an object which did not contain the field")   \
+  T(InvalidPrivateMemberRead,                                                  \
+    "Cannot read private member % from an object whose class did not declare " \
+    "it")                                                                      \
+  T(InvalidPrivateMemberWrite,                                                 \
+    "Cannot write private member % to an object whose class did not declare "  \
+    "it")                                                                      \
   T(InvalidPrivateMethodWrite, "Private method '%' is not writable")           \
+  T(InvalidPrivateGetterAccess, "'%' was defined without a getter")            \
+  T(InvalidPrivateSetterAccess, "'%' was defined without a setter")            \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
@@ -484,6 +489,7 @@ namespace internal {
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65534 allowed)")         \
+  T(TooManyProperties, "Too many properties to enumerate")                     \
   T(TooManySpreads,                                                            \
     "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
@@ -574,7 +580,10 @@ namespace internal {
     "FinalizationGroup.prototype.register: target and holdings must not be "   \
     "same")                                                                    \
   T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
-    "WeakRef: target must be an object")
+    "WeakRef: target must be an object")                                       \
+  T(OptionalChainingNoNew, "Invalid optional chain from new expression")       \
+  T(OptionalChainingNoSuper, "Invalid optional chain from super property")     \
+  T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

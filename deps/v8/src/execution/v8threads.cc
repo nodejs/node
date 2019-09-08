@@ -40,10 +40,6 @@ void Locker::Initialize(v8::Isolate* isolate) {
     // get the saved state for this thread and restore it.
     if (isolate_->thread_manager()->RestoreThread()) {
       top_level_ = false;
-    } else {
-      internal::ExecutionAccess access(isolate_);
-      isolate_->stack_guard()->ClearThread(access);
-      isolate_->thread_manager()->InitThread(access);
     }
   }
   DCHECK(isolate_->thread_manager()->IsLockedByCurrentThread());
@@ -88,6 +84,7 @@ Unlocker::~Unlocker() {
 namespace internal {
 
 void ThreadManager::InitThread(const ExecutionAccess& lock) {
+  isolate_->InitializeThreadLocal();
   isolate_->stack_guard()->InitThread(lock);
   isolate_->debug()->InitThread(lock);
 }

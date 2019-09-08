@@ -2989,34 +2989,72 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
 }
 
 LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
-    LiveRange* range, LifetimePosition pos) {
+    LiveRange* range, LifetimePosition pos, SpillMode spill_mode,
+    LiveRange** begin_spill_out) {
+  *begin_spill_out = range;
+  // TODO(herhut): Be more clever here as long as we do not move pos out of
+  // deferred code.
+  if (spill_mode == SpillMode::kSpillDeferred) return pos;
   const InstructionBlock* block = GetInstructionBlock(code(), pos.Start());
   const InstructionBlock* loop_header =
       block->IsLoopHeader() ? block : GetContainingLoop(code(), block);
-
   if (loop_header == nullptr) return pos;
 
-  const UsePosition* prev_use =
-      range->PreviousUsePositionRegisterIsBeneficial(pos);
-
-  while (loop_header != nullptr) {
-    // We are going to spill live range inside the loop.
-    // If possible try to move spilling position backwards to loop header.
-    // This will reduce number of memory moves on the back edge.
-    LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
-        loop_header->first_instruction_index());
-
-    if (range->Covers(loop_start)) {
-      if (prev_use == nullptr || prev_use->pos() < loop_start) {
+  if (data()->is_turbo_control_flow_aware_allocation()) {
+    while (loop_header != nullptr) {
+      // We are going to spill live range inside the loop.
+      // If possible try to move spilling position backwards to loop header.
+      // This will reduce number of memory moves on the back edge.
+      LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
+          loop_header->first_instruction_index());
+      auto& loop_header_state =
+          data()->GetSpillState(loop_header->rpo_number());
+      for (LiveRange* live_at_header : loop_header_state) {
+        if (live_at_header->TopLevel() != range->TopLevel() ||
+            !live_at_header->Covers(loop_start) || live_at_header->spilled()) {
+          continue;
+        }
+        LiveRange* check_use = live_at_header;
+        for (; check_use != nullptr && check_use->Start() < pos;
+             check_use = check_use->next()) {
+          UsePosition* next_use =
+              check_use->NextUsePositionRegisterIsBeneficial(loop_start);
+          if (next_use != nullptr && next_use->pos() < pos) {
+            return pos;
+          }
+        }
         // No register beneficial use inside the loop before the pos.
+        *begin_spill_out = live_at_header;
         pos = loop_start;
+        break;
       }
+
+      // Try hoisting out to an outer loop.
+      loop_header = GetContainingLoop(code(), loop_header);
     }
+  } else {
+    const UsePosition* prev_use =
+        range->PreviousUsePositionRegisterIsBeneficial(pos);
 
-    // Try hoisting out to an outer loop.
-    loop_header = GetContainingLoop(code(), loop_header);
+    while (loop_header != nullptr) {
+      // We are going to spill live range inside the loop.
+      // If possible try to move spilling position backwards to loop header
+      // inside the current range. This will reduce number of memory moves on
+      // the back edge.
+      LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
+          loop_header->first_instruction_index());
+
+      if (range->Covers(loop_start)) {
+        if (prev_use == nullptr || prev_use->pos() < loop_start) {
+          // No register beneficial use inside the loop before the pos.
+          pos = loop_start;
+        }
+      }
+
+      // Try hoisting out to an outer loop.
+      loop_header = GetContainingLoop(code(), loop_header);
+    }
   }
-
   return pos;
 }
 
@@ -3062,6 +3100,28 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
       next_inactive_ranges_change_(LifetimePosition::Invalid()) {
   active_live_ranges().reserve(8);
   inactive_live_ranges().reserve(8);
+}
+
+void LinearScanAllocator::MaybeSpillPreviousRanges(LiveRange* begin_range,
+                                                   LifetimePosition begin_pos,
+                                                   LiveRange* end_range) {
+  // Spill begin_range after begin_pos, then spill every live range of this
+  // virtual register until but excluding end_range.
+  DCHECK(begin_range->Covers(begin_pos));
+  DCHECK_EQ(begin_range->TopLevel(), end_range->TopLevel());
+
+  if (begin_range != end_range) {
+    DCHECK_LE(begin_range->End(), end_range->Start());
+    if (!begin_range->spilled()) {
+      SpillAfter(begin_range, begin_pos, SpillMode::kSpillAtDefinition);
+    }
+    for (LiveRange* range = begin_range->next(); range != end_range;
+         range = range->next()) {
+      if (!range->spilled()) {
+        range->Spill();
+      }
+    }
+  }
 }
 
 void LinearScanAllocator::MaybeUndoPreviousSplit(LiveRange* range) {
@@ -4407,11 +4467,10 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current,
     }
 
     UsePosition* next_pos = range->NextRegisterPosition(current->Start());
-    // TODO(herhut): Be more clever here as long as we do not move split_pos
-    // out of deferred code.
-    LifetimePosition spill_pos = spill_mode == SpillMode::kSpillDeferred
-                                     ? split_pos
-                                     : FindOptimalSpillingPos(range, split_pos);
+    LiveRange* begin_spill = nullptr;
+    LifetimePosition spill_pos =
+        FindOptimalSpillingPos(range, split_pos, spill_mode, &begin_spill);
+    MaybeSpillPreviousRanges(begin_spill, spill_pos, range);
     if (next_pos == nullptr) {
       SpillAfter(range, spill_pos, spill_mode);
     } else {

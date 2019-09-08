@@ -77,7 +77,7 @@ Node* RawMachineAssembler::OptimizedAllocate(
       size);
 }
 
-Schedule* RawMachineAssembler::Export() {
+Schedule* RawMachineAssembler::ExportForTest() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
   if (FLAG_trace_turbo_scheduler) {
@@ -106,6 +106,7 @@ Graph* RawMachineAssembler::ExportForOptimization() {
     StdoutStream{} << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
+  OptimizeControlFlow(schedule_, graph(), common());
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- SCHEDULE BEFORE GRAPH CREATION -------------------------\n");
@@ -115,6 +116,99 @@ Graph* RawMachineAssembler::ExportForOptimization() {
   // Invalidate RawMachineAssembler.
   schedule_ = nullptr;
   return graph();
+}
+
+void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
+                                              CommonOperatorBuilder* common) {
+  for (bool changed = true; changed;) {
+    changed = false;
+    for (size_t i = 0; i < schedule->all_blocks()->size(); ++i) {
+      BasicBlock* block = (*schedule->all_blocks())[i];
+      if (block == nullptr) continue;
+
+      // Short-circuit a goto if the succeeding block is not a control-flow
+      // merge. This is not really useful on it's own since graph construction
+      // has the same effect, but combining blocks improves the pattern-match on
+      // their structure below.
+      if (block->control() == BasicBlock::kGoto) {
+        DCHECK_EQ(block->SuccessorCount(), 1);
+        BasicBlock* successor = block->SuccessorAt(0);
+        if (successor->PredecessorCount() == 1) {
+          DCHECK_EQ(successor->PredecessorAt(0), block);
+          for (Node* node : *successor) {
+            schedule->SetBlockForNode(nullptr, node);
+            schedule->AddNode(block, node);
+          }
+          block->set_control(successor->control());
+          Node* control_input = successor->control_input();
+          block->set_control_input(control_input);
+          if (control_input) {
+            schedule->SetBlockForNode(block, control_input);
+          }
+          if (successor->deferred()) block->set_deferred(true);
+          block->ClearSuccessors();
+          schedule->MoveSuccessors(successor, block);
+          schedule->ClearBlockById(successor->id());
+          changed = true;
+          --i;
+          continue;
+        }
+      }
+      // Block-cloning in the simple case where a block consists only of a phi
+      // node and a branch on that phi. This just duplicates the branch block
+      // for each predecessor, replacing the phi node with the corresponding phi
+      // input.
+      if (block->control() == BasicBlock::kBranch && block->NodeCount() == 1) {
+        Node* phi = block->NodeAt(0);
+        if (phi->opcode() != IrOpcode::kPhi) continue;
+        Node* branch = block->control_input();
+        DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
+        if (NodeProperties::GetValueInput(branch, 0) != phi) continue;
+        if (phi->UseCount() != 1) continue;
+        DCHECK_EQ(phi->op()->ValueInputCount(), block->PredecessorCount());
+
+        // Turn projection blocks into normal blocks.
+        DCHECK_EQ(block->SuccessorCount(), 2);
+        BasicBlock* true_block = block->SuccessorAt(0);
+        BasicBlock* false_block = block->SuccessorAt(1);
+        DCHECK_EQ(true_block->NodeAt(0)->opcode(), IrOpcode::kIfTrue);
+        DCHECK_EQ(false_block->NodeAt(0)->opcode(), IrOpcode::kIfFalse);
+        (*true_block->begin())->Kill();
+        true_block->RemoveNode(true_block->begin());
+        (*false_block->begin())->Kill();
+        false_block->RemoveNode(false_block->begin());
+        true_block->ClearPredecessors();
+        false_block->ClearPredecessors();
+
+        size_t arity = block->PredecessorCount();
+        for (size_t i = 0; i < arity; ++i) {
+          BasicBlock* predecessor = block->PredecessorAt(i);
+          predecessor->ClearSuccessors();
+          if (block->deferred()) predecessor->set_deferred(true);
+          Node* branch_clone = graph->CloneNode(branch);
+          int phi_input = static_cast<int>(i);
+          NodeProperties::ReplaceValueInput(
+              branch_clone, NodeProperties::GetValueInput(phi, phi_input), 0);
+          BasicBlock* new_true_block = schedule->NewBasicBlock();
+          BasicBlock* new_false_block = schedule->NewBasicBlock();
+          new_true_block->AddNode(
+              graph->NewNode(common->IfTrue(), branch_clone));
+          new_false_block->AddNode(
+              graph->NewNode(common->IfFalse(), branch_clone));
+          schedule->AddGoto(new_true_block, true_block);
+          schedule->AddGoto(new_false_block, false_block);
+          DCHECK_EQ(predecessor->control(), BasicBlock::kGoto);
+          predecessor->set_control(BasicBlock::kNone);
+          schedule->AddBranch(predecessor, branch_clone, new_true_block,
+                              new_false_block);
+        }
+        branch->Kill();
+        schedule->ClearBlockById(block->id());
+        changed = true;
+        continue;
+      }
+    }
+  }
 }
 
 void RawMachineAssembler::MakeReschedulable() {
@@ -619,8 +713,10 @@ Node* CallCFunctionImpl(
   builder.AddReturn(return_type);
   for (const auto& arg : args) builder.AddParam(arg.first);
 
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build());
+  auto call_descriptor = Linkage::GetSimplifiedCDescriptor(
+      rasm->zone(), builder.Build(),
+      caller_saved_regs ? CallDescriptor::kCallerSavedRegisters
+                        : CallDescriptor::kNoFlags);
 
   if (caller_saved_regs) call_descriptor->set_save_fp_mode(mode);
 
@@ -631,10 +727,8 @@ Node* CallCFunctionImpl(
       [](const RawMachineAssembler::CFunctionArg& arg) { return arg.second; });
 
   auto common = rasm->common();
-  return rasm->AddNode(
-      caller_saved_regs ? common->CallWithCallerSavedRegisters(call_descriptor)
-                        : common->Call(call_descriptor),
-      static_cast<int>(nodes.size()), nodes.begin());
+  return rasm->AddNode(common->Call(call_descriptor),
+                       static_cast<int>(nodes.size()), nodes.begin());
 }
 
 }  // namespace

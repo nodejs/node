@@ -58,16 +58,18 @@ class JSFinalizationGroup : public JSObject {
 
   // Constructs an iterator for the WeakCells in the cleared_cells list and
   // calls the user's cleanup function.
-  static void Cleanup(Isolate* isolate,
-                      Handle<JSFinalizationGroup> finalization_group,
-                      Handle<Object> callback);
+  //
+  // Returns Nothing<bool> if exception occurs, otherwise returns Just(true).
+  static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
+      Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
+      Handle<Object> callback);
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSFINALIZATION_GROUP_FIELDS)
 
   // Bitfields in flags.
-  class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
+  using ScheduledForCleanupField = BitField<bool, 0, 1>;
 
   OBJECT_CONSTRUCTORS(JSFinalizationGroup, JSObject);
 };
@@ -131,27 +133,6 @@ class JSWeakRef : public JSObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSWeakRef, JSObject);
-};
-
-class FinalizationGroupCleanupJobTask : public Microtask {
- public:
-  DECL_ACCESSORS(finalization_group, JSFinalizationGroup)
-
-  DECL_CAST(FinalizationGroupCleanupJobTask)
-  DECL_VERIFIER(FinalizationGroupCleanupJobTask)
-  DECL_PRINTER(FinalizationGroupCleanupJobTask)
-
-// Layout description.
-#define FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS(V) \
-  V(kFinalizationGroupOffset, kTaggedSize)            \
-  /* Total size. */                                   \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
-                                FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS)
-#undef FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS
-
-  OBJECT_CONSTRUCTORS(FinalizationGroupCleanupJobTask, Microtask);
 };
 
 class JSFinalizationGroupCleanupIterator : public JSObject {

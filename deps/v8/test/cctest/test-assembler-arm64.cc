@@ -234,6 +234,15 @@ static void InitializeVM() {
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
   CHECK(Equal64(expected->ptr(), &core, result))
 
+#define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
+  {                                                 \
+    int64_t value0 = core.xreg(reg0.code());        \
+    int64_t value1 = core.xreg(reg1.code());        \
+    CHECK_NE(0, value0);                            \
+    CHECK_NE(0, value1);                            \
+    CHECK_NE(value0, value1);                       \
+  }
+
 #define CHECK_EQUAL_FP64(expected, result)                                    \
   CHECK(EqualFP64(expected, &core, result))
 
@@ -1982,75 +1991,142 @@ TEST(test_branch) {
   CHECK_EQUAL_64(0, x3);
 }
 
+namespace {
+// Generate a block of code that, when hit, always jumps to `landing_pad`.
+void GenerateLandingNops(MacroAssembler* masm, int n, Label* landing_pad) {
+  for (int i = 0; i < (n - 1); i++) {
+    if (i % 100 == 0) {
+      masm->B(landing_pad);
+    } else {
+      masm->Nop();
+    }
+  }
+  masm->B(landing_pad);
+}
+}  // namespace
+
 TEST(far_branch_backward) {
   INIT_V8();
 
-  // Test that the MacroAssembler correctly resolves backward branches to labels
-  // that are outside the immediate range of branch instructions.
-  int max_range =
-    std::max(Instruction::ImmBranchRange(TestBranchType),
-             std::max(Instruction::ImmBranchRange(CompareBranchType),
-                      Instruction::ImmBranchRange(CondBranchType)));
+  ImmBranchType branch_types[] = {TestBranchType, CompareBranchType,
+                                  CondBranchType};
 
-  SETUP_SIZE(max_range + 1000 * kInstrSize);
+  for (ImmBranchType type : branch_types) {
+    int range = Instruction::ImmBranchRange(type);
 
-  START();
+    SETUP_SIZE(range + 1000 * kInstrSize);
 
-  Label done, fail;
-  Label test_tbz, test_cbz, test_bcond;
-  Label success_tbz, success_cbz, success_bcond;
+    START();
 
-  __ Mov(x0, 0);
-  __ Mov(x1, 1);
-  __ Mov(x10, 0);
+    Label done, fail;
+    Label near, far, in_range, out_of_range;
 
-  __ B(&test_tbz);
-  __ Bind(&success_tbz);
-  __ Orr(x0, x0, 1 << 0);
-  __ B(&test_cbz);
-  __ Bind(&success_cbz);
-  __ Orr(x0, x0, 1 << 1);
-  __ B(&test_bcond);
-  __ Bind(&success_bcond);
-  __ Orr(x0, x0, 1 << 2);
+    __ Mov(x0, 0);
+    __ Mov(x1, 1);
+    __ Mov(x10, 0);
 
-  __ B(&done);
+    __ B(&near);
+    __ Bind(&in_range);
+    __ Orr(x0, x0, 1 << 0);
 
-  // Generate enough code to overflow the immediate range of the three types of
-  // branches below.
-  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      __ B(&fail);
-    } else {
-      __ Nop();
+    __ B(&far);
+    __ Bind(&out_of_range);
+    __ Orr(x0, x0, 1 << 1);
+
+    __ B(&done);
+
+    // We use a slack and an approximate budget instead of checking precisely
+    // when the branch limit is hit, since veneers and literal pool can mess
+    // with our calculation of where the limit is.
+    // In this test, we want to make sure we support backwards branches and the
+    // range is more-or-less correct. It's not a big deal if the macro-assembler
+    // got the range a little wrong, as long as it's not far off which could
+    // affect performance.
+
+    int budget =
+        (range - static_cast<int>(__ SizeOfCodeGeneratedSince(&in_range))) /
+        kInstrSize;
+
+    const int kSlack = 100;
+
+    // Generate enough code so that the next branch will be in range but we are
+    // close to the limit.
+    GenerateLandingNops(&masm, budget - kSlack, &fail);
+
+    __ Bind(&near);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 3, &in_range);
+        // This should be:
+        //     TBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &in_range);
+        // This should be:
+        //     CBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &in_range);
+        // This should be:
+        //     CMP
+        //     B.EQ <in_range>
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        break;
+      default:
+        UNREACHABLE();
+        break;
     }
+
+    // Now go past the limit so that branches are now out of range.
+    GenerateLandingNops(&masm, kSlack * 2, &fail);
+
+    __ Bind(&far);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 5, &out_of_range);
+        // This should be:
+        //     TBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &out_of_range);
+        // This should be:
+        //     CBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &out_of_range);
+        // This should be:
+        //     CMP
+        //     B.NE <skip>
+        //     B <out_of_range>
+        //  skip:
+        CHECK_EQ(3 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+
+    __ Bind(&fail);
+    __ Mov(x1, 0);
+    __ Bind(&done);
+
+    END();
+
+    RUN();
+
+    CHECK_EQUAL_64(0x3, x0);
+    CHECK_EQUAL_64(1, x1);
   }
-  __ B(&fail);
-
-  __ Bind(&test_tbz);
-  __ Tbz(x10, 7, &success_tbz);
-  __ Bind(&test_cbz);
-  __ Cbz(x10, &success_cbz);
-  __ Bind(&test_bcond);
-  __ Cmp(x10, 0);
-  __ B(eq, &success_bcond);
-
-  // For each out-of-range branch instructions, at least two instructions should
-  // have been generated.
-  CHECK_GE(7 * kInstrSize, __ SizeOfCodeGeneratedSince(&test_tbz));
-
-  __ Bind(&fail);
-  __ Mov(x1, 0);
-  __ Bind(&done);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x7, x0);
-  CHECK_EQUAL_64(0x1, x1);
 }
 
 TEST(far_branch_simple_veneer) {
@@ -2177,18 +2253,7 @@ TEST(far_branch_veneer_link_chain) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      // Also, the branches give the MacroAssembler the opportunity to emit the
-      // veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
-  }
-  __ B(&fail);
+  GenerateLandingNops(&masm, (max_range / kInstrSize) + 1, &fail);
 
   __ Bind(&success_tbz);
   __ Orr(x0, x0, 1 << 0);
@@ -2219,7 +2284,58 @@ TEST(far_branch_veneer_broken_link_chain) {
   // a branch from the link chain of a label and the two links on each side of
   // the removed branch cannot be linked together (out of range).
   //
-  // We test with tbz because it has a small range.
+  // We want to generate the following code, we test with tbz because it has a
+  // small range:
+  //
+  // ~~~
+  // 1: B <far>
+  //          :
+  //          :
+  //          :
+  // 2: TBZ <far> -------.
+  //          :          |
+  //          :          | out of range
+  //          :          |
+  // 3: TBZ <far>        |
+  //          |          |
+  //          | in range |
+  //          V          |
+  // far:              <-'
+  // ~~~
+  //
+  // If we say that the range of TBZ is 3 lines on this graph, then we can get
+  // into a situation where the link chain gets broken. When emitting the two
+  // TBZ instructions, we are in range of the previous branch in the chain so
+  // we'll generate a TBZ and not a TBNZ+B sequence that can encode a bigger
+  // range.
+  //
+  // However, the first TBZ (2), is out of range of the far label so a veneer
+  // will be generated after the second TBZ (3). And this will result in a
+  // broken chain because we can no longer link from (3) back to (1).
+  //
+  // ~~~
+  // 1: B <far>     <-.
+  //                  :
+  //                  : out of range
+  //                  :
+  // 2: TBZ <veneer>  :
+  //                  :
+  //                  :
+  //                  :
+  // 3: TBZ <far> ----'
+  //
+  //    B <skip>
+  // veneer:
+  //    B <far>
+  // skip:
+  //
+  // far:
+  // ~~~
+  //
+  // This test makes sure the MacroAssembler is able to resolve this case by,
+  // for instance, resolving (1) early and making it jump to <veneer> instead of
+  // <far>.
+
   int max_range = Instruction::ImmBranchRange(TestBranchType);
   int inter_range = max_range / 2 + max_range / 10;
 
@@ -2240,43 +2356,41 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 1);
   __ B(&far_target);
 
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
-  }
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Will need a veneer to point to reach the target.
   __ Bind(&test_2);
   __ Mov(x0, 2);
-  __ Tbz(x10, 7, &far_target);
-
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Does not need a veneer to reach the target, but the initial branch
   // instruction is out of range.
   __ Bind(&test_3);
   __ Mov(x0, 3);
-  __ Tbz(x10, 7, &far_target);
-
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Allow generating veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  // A veneer will be generated for the first TBZ, which will then remove the
+  // label from the chain and break it because the second TBZ is out of range of
+  // the first branch.
+  // The MacroAssembler should be able to cope with this.
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   __ B(&fail);
 
@@ -11478,6 +11592,79 @@ TEST(system_msr) {
   CHECK_EQUAL_64(0, x10);
 }
 
+TEST(system_pauth_a) {
+  SETUP();
+  START();
+
+  // Exclude x16 and x17 from the scratch register list so we can use
+  // Pac/Autia1716 safely.
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(x16, x17);
+  temps.Include(x10, x11);
+
+  // Backup stack pointer.
+  __ Mov(x20, sp);
+
+  // Modifiers
+  __ Mov(x16, 0x477d469dec0b8768);
+  __ Mov(sp, 0x477d469dec0b8760);
+
+  // Generate PACs using the 3 system instructions.
+  __ Mov(x17, 0x0000000012345678);
+  __ Pacia1716();
+  __ Mov(x0, x17);
+
+  __ Mov(lr, 0x0000000012345678);
+  __ Paciasp();
+  __ Mov(x2, lr);
+
+  // Authenticate the pointers above.
+  __ Mov(x17, x0);
+  __ Autia1716();
+  __ Mov(x3, x17);
+
+  __ Mov(lr, x2);
+  __ Autiasp();
+  __ Mov(x5, lr);
+
+  // Attempt to authenticate incorrect pointers.
+  __ Mov(x17, x2);
+  __ Autia1716();
+  __ Mov(x6, x17);
+
+  __ Mov(lr, x0);
+  __ Autiasp();
+  __ Mov(x8, lr);
+
+  // Restore stack pointer.
+  __ Mov(sp, x20);
+
+  // Mask out just the PAC code bits.
+  __ And(x0, x0, 0x007f000000000000);
+  __ And(x2, x2, 0x007f000000000000);
+
+  END();
+
+// TODO(all): test on real hardware when available
+#ifdef USE_SIMULATOR
+  RUN();
+
+  // Check PAC codes have been generated and aren't equal.
+  // NOTE: with a different ComputePAC implementation, there may be a collision.
+  CHECK_NE(0, core.xreg(2));
+  CHECK_NOT_ZERO_AND_NOT_EQUAL_64(x0, x2);
+
+  // Pointers correctly authenticated.
+  CHECK_EQUAL_64(0x0000000012345678, x3);
+  CHECK_EQUAL_64(0x0000000012345678, x5);
+
+  // Pointers corrupted after failing to authenticate.
+  CHECK_EQUAL_64(0x0020000012345678, x6);
+  CHECK_EQUAL_64(0x0020000012345678, x8);
+
+#endif  // USE_SIMULATOR
+}
+
 TEST(system) {
   INIT_V8();
   SETUP();
@@ -14703,6 +14890,7 @@ TEST(internal_reference_linked) {
 #undef CHECK_EQUAL_FP32
 #undef CHECK_EQUAL_64
 #undef CHECK_FULL_HEAP_OBJECT_IN_REGISTER
+#undef CHECK_NOT_ZERO_AND_NOT_EQUAL_64
 #undef CHECK_EQUAL_FP64
 #undef CHECK_EQUAL_128
 #undef CHECK_CONSTANT_POOL_SIZE

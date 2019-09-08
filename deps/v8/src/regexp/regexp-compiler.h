@@ -285,10 +285,11 @@ class Trace {
     void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
   };
 
-  class DeferredSetRegister : public DeferredAction {
+  class DeferredSetRegisterForLoop : public DeferredAction {
    public:
-    DeferredSetRegister(int reg, int value)
-        : DeferredAction(ActionNode::SET_REGISTER, reg), value_(value) {}
+    DeferredSetRegisterForLoop(int reg, int value)
+        : DeferredAction(ActionNode::SET_REGISTER_FOR_LOOP, reg),
+          value_(value) {}
     int value() { return value_; }
 
    private:
@@ -419,45 +420,13 @@ struct PreloadState {
   void init() { eats_at_least_ = kEatsAtLeastNotYetInitialized; }
 };
 
-// Assertion propagation moves information about assertions such as
-// \b to the affected nodes.  For instance, in /.\b./ information must
-// be propagated to the first '.' that whatever follows needs to know
-// if it matched a word or a non-word, and to the second '.' that it
-// has to check if it succeeds a word or non-word.  In this case the
-// result will be something like:
+// Analysis performs assertion propagation and computes eats_at_least_ values.
+// See the comments on AssertionPropagator and EatsAtLeastPropagator for more
+// details.
 //
-//   +-------+        +------------+
-//   |   .   |        |      .     |
-//   +-------+  --->  +------------+
-//   | word? |        | check word |
-//   +-------+        +------------+
-class Analysis : public NodeVisitor {
- public:
-  Analysis(Isolate* isolate, bool is_one_byte)
-      : isolate_(isolate), is_one_byte_(is_one_byte), error_message_(nullptr) {}
-  void EnsureAnalyzed(RegExpNode* node);
-
-#define DECLARE_VISIT(Type) void Visit##Type(Type##Node* that) override;
-  FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
-  void VisitLoopChoice(LoopChoiceNode* that) override;
-
-  bool has_failed() { return error_message_ != nullptr; }
-  const char* error_message() {
-    DCHECK(error_message_ != nullptr);
-    return error_message_;
-  }
-  void fail(const char* error_message) { error_message_ = error_message; }
-
-  Isolate* isolate() const { return isolate_; }
-
- private:
-  Isolate* isolate_;
-  bool is_one_byte_;
-  const char* error_message_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
-};
+// This method returns nullptr on success or a null-terminated failure message
+// on failure.
+const char* AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpNode* node);
 
 class FrequencyCollator {
  public:

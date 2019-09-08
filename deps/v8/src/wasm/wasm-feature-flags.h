@@ -5,29 +5,27 @@
 #ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
 #define V8_WASM_WASM_FEATURE_FLAGS_H_
 
-// The SEPARATOR argument allows generating proper comma-separated lists.
-#define FOREACH_WASM_FEATURE_FLAG(V, SEPARATOR)                       \
-  V(mv, "multi-value support", false)                                 \
-  SEPARATOR                                                           \
-  V(eh, "exception handling opcodes", false)                          \
-  SEPARATOR                                                           \
-  V(se, "sign extension opcodes", true)                               \
-  SEPARATOR                                                           \
-  V(sat_f2i_conversions, "saturating float conversion opcodes", true) \
-  SEPARATOR                                                           \
-  V(threads, "thread opcodes", false)                                 \
-  SEPARATOR                                                           \
-  V(simd, "SIMD opcodes", false)                                      \
-  SEPARATOR                                                           \
-  V(anyref, "anyref opcodes", false)                                  \
-  SEPARATOR                                                           \
-  V(bigint, "JS BigInt support", false)                               \
-  SEPARATOR                                                           \
-  V(bulk_memory, "bulk memory opcodes", true)                         \
-  SEPARATOR                                                           \
-  V(return_call, "return call opcodes", false)                        \
-  SEPARATOR                                                           \
-  V(type_reflection, "wasm type reflection in JS", false)             \
-  SEPARATOR                                                           \
+#define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \
+  V(mv, "multi-value support", false)             \
+  V(eh, "exception handling opcodes", false)      \
+  V(threads, "thread opcodes", false)             \
+  V(simd, "SIMD opcodes", false)                  \
+  V(bigint, "JS BigInt support", false)           \
+  V(return_call, "return call opcodes", false)    \
   V(compilation_hints, "compilation hints section", false)
+
+#define FOREACH_WASM_STAGING_FEATURE_FLAG(V) \
+  V(anyref, "anyref opcodes", false)         \
+  V(type_reflection, "wasm type reflection in JS", false)
+
+#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V)                          \
+  V(bulk_memory, "bulk memory opcodes", true)                         \
+  V(sat_f2i_conversions, "saturating float conversion opcodes", true) \
+  V(se, "sign extension opcodes", true)
+
+#define FOREACH_WASM_FEATURE_FLAG(V)        \
+  FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \
+  FOREACH_WASM_STAGING_FEATURE_FLAG(V)      \
+  FOREACH_WASM_SHIPPED_FEATURE_FLAG(V)
+
 #endif  // V8_WASM_WASM_FEATURE_FLAGS_H_

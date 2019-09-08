@@ -92,7 +92,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
     w->Newline();
   }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   {
     i::EmbeddedVector<char, kTemporaryStringLength> unwind_info_symbol;
     i::SNPrintF(unwind_info_symbol, "%s_Builtins_UnwindInfo",
@@ -102,7 +102,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                            EmbeddedBlobDataSymbol().c_str(), blob,
                            reinterpret_cast<const void*>(&unwind_infos_[0]));
   }
-#endif
+#endif  // V8_OS_WIN64
 
   w->FileEpilogue();
 }

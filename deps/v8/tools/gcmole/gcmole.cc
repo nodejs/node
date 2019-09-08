@@ -47,6 +47,7 @@ namespace {
 
 typedef std::string MangledName;
 typedef std::set<MangledName> CalleesSet;
+typedef std::map<MangledName, MangledName> CalleesMap;
 
 static bool GetMangledName(clang::MangleContext* ctx,
                            const clang::NamedDecl* decl,
@@ -138,14 +139,16 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   virtual bool VisitDeclRefExpr(clang::DeclRefExpr* expr) {
     // If function mentions EXTERNAL VMState add artificial garbage collection
     // mark.
-    if (IsExternalVMState(expr->getDecl())) AddCallee("CollectGarbage");
+    if (IsExternalVMState(expr->getDecl()))
+      AddCallee("CollectGarbage", "CollectGarbage");
     return true;
   }
 
   void AnalyzeFunction(const clang::FunctionDecl* f) {
     MangledName name;
     if (InV8Namespace(f) && GetMangledName(ctx_, f, &name)) {
-      AddCallee(name);
+      const std::string& function = f->getNameAsString();
+      AddCallee(name, function);
 
       const clang::FunctionDecl* body = NULL;
       if (f->hasBody(body) && !Analyzed(name)) {
@@ -176,21 +179,22 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     scopes_.pop();
   }
 
-  void AddCallee(const MangledName& name) {
+  void AddCallee(const MangledName& name, const MangledName& function) {
     if (!scopes_.empty()) scopes_.top()->insert(name);
+    mangled_to_function_[name] = function;
   }
 
   void PrintCallGraph() {
     for (Callgraph::const_iterator i = callgraph_.begin(), e = callgraph_.end();
          i != e;
          ++i) {
-      std::cout << i->first << "\n";
+      std::cout << i->first << "," << mangled_to_function_[i->first] << "\n";
 
       CalleesSet* callees = i->second;
       for (CalleesSet::const_iterator j = callees->begin(), e = callees->end();
            j != e;
            ++j) {
-        std::cout << "\t" << *j << "\n";
+        std::cout << "\t" << *j << "," << mangled_to_function_[*j] << "\n";
       }
     }
   }
@@ -200,6 +204,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
 
   std::stack<CalleesSet* > scopes_;
   Callgraph callgraph_;
+  CalleesMap mangled_to_function_;
 };
 
 
@@ -234,23 +239,40 @@ class FunctionDeclarationFinder
   CalleesPrinter* callees_printer_;
 };
 
-
-static bool loaded = false;
+static bool gc_suspects_loaded = false;
 static CalleesSet gc_suspects;
-
+static CalleesSet gc_functions;
+static bool whitelist_loaded = false;
+static CalleesSet suspects_whitelist;
 
 static void LoadGCSuspects() {
-  if (loaded) return;
+  if (gc_suspects_loaded) return;
 
   std::ifstream fin("gcsuspects");
-  std::string s;
+  std::string mangled, function;
 
-  while (fin >> s) gc_suspects.insert(s);
+  while (!fin.eof()) {
+    std::getline(fin, mangled, ',');
+    gc_suspects.insert(mangled);
+    std::getline(fin, function);
+    gc_functions.insert(function);
+  }
 
-  loaded = true;
+  gc_suspects_loaded = true;
 }
 
+static void LoadSuspectsWhitelist() {
+  if (whitelist_loaded) return;
 
+  std::ifstream fin("tools/gcmole/suspects.whitelist");
+  std::string s;
+
+  while (fin >> s) suspects_whitelist.insert(s);
+
+  whitelist_loaded = true;
+}
+
+// Looks for exact match of the mangled name
 static bool KnownToCauseGC(clang::MangleContext* ctx,
                            const clang::FunctionDecl* decl) {
   LoadGCSuspects();
@@ -265,6 +287,25 @@ static bool KnownToCauseGC(clang::MangleContext* ctx,
   return false;
 }
 
+// Looks for partial match of only the function name
+static bool SuspectedToCauseGC(clang::MangleContext* ctx,
+                               const clang::FunctionDecl* decl) {
+  LoadGCSuspects();
+
+  if (!InV8Namespace(decl)) return false;
+
+  LoadSuspectsWhitelist();
+  if (suspects_whitelist.find(decl->getNameAsString()) !=
+      suspects_whitelist.end()) {
+    return false;
+  }
+
+  if (gc_functions.find(decl->getNameAsString()) != gc_functions.end()) {
+    return true;
+  }
+
+  return false;
+}
 
 static const int kNoEffect = 0;
 static const int kCausesGC = 1;
@@ -910,8 +951,30 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(call->getType()));
 
     clang::FunctionDecl* callee = call->getDirectCallee();
-    if ((callee != NULL) && KnownToCauseGC(ctx_, callee)) {
-      out.setGC();
+    if (callee != NULL) {
+      if (KnownToCauseGC(ctx_, callee)) {
+        out.setGC();
+      }
+
+      clang::CXXMethodDecl* method =
+          llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
+      if (method != NULL && method->isVirtual()) {
+        clang::CXXMemberCallExpr* memcall =
+            llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(call);
+        if (memcall != NULL) {
+          clang::CXXMethodDecl* target = method->getDevirtualizedMethod(
+              memcall->getImplicitObjectArgument(), false);
+          if (target != NULL) {
+            if (KnownToCauseGC(ctx_, target)) {
+              out.setGC();
+            }
+          } else {
+            if (SuspectedToCauseGC(ctx_, method)) {
+              out.setGC();
+            }
+          }
+        }
+      }
     }
 
     return out;

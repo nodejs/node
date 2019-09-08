@@ -133,6 +133,13 @@ bool Object::IsNullOrUndefined() const {
 
 bool Object::IsZero() const { return *this == Smi::zero(); }
 
+bool Object::IsPublicSymbol() const {
+  return IsSymbol() && !Symbol::cast(*this).is_private();
+}
+bool Object::IsPrivateSymbol() const {
+  return IsSymbol() && Symbol::cast(*this).is_private();
+}
+
 bool Object::IsNoSharedNameSentinel() const {
   return *this == SharedFunctionInfo::kNoSharedNameSentinel;
 }
@@ -560,7 +567,7 @@ bool Object::FitsRepresentation(Representation representation) {
   if (FLAG_track_fields && representation.IsSmi()) {
     return IsSmi();
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
-    return IsMutableHeapNumber() || IsNumber();
+    return IsNumber();
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     return IsHeapObject();
   } else if (FLAG_track_fields && representation.IsNone()) {

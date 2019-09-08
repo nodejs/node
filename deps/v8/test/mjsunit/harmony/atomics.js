@@ -5,27 +5,47 @@
 // Flags: --harmony-sharedarraybuffer
 //
 
-function toRangeWrapped(value) {
-  var range = this.max - this.min + 1;
-  while (value < this.min) {
-    value += range;
+function toRangeWrapper(is_big) {
+  return function _toRangeWrapped(raw_value) {
+    var raw_range = this.max - this.min + (is_big ? 1n : 1);
+    let range = is_big ? BigInt(raw_range) : raw_range;
+    let value = is_big ? BigInt(raw_value) : raw_value;
+    while (value < this.min) {
+      value += range;
+    }
+    while (value > this.max) {
+      value -= range;
+    }
+    return value;
   }
-  while (value > this.max) {
-    value -= range;
-  }
-  return value;
 }
 
 function makeConstructorObject(constr, min, max, toRange) {
   var o = {constr: constr, min: min, max: max};
-  o.toRange = toRangeWrapped.bind(o);
+  let is_big = constr.name.startsWith('Big')
+  o.toRange = toRangeWrapper(is_big).bind(o);
   return o;
+}
+
+function IsBig(t) {
+  return t.constructor.name.startsWith('Big');
+}
+
+function MaybeIntToBigInt(arr, i) {
+  if (IsBig(arr)) {
+    return BigInt(i);
+  } else {
+    return i;
+  }
 }
 
 var IntegerTypedArrayConstructors = [
   makeConstructorObject(Int8Array, -128, 127),
   makeConstructorObject(Int16Array, -32768, 32767),
   makeConstructorObject(Int32Array, -0x80000000, 0x7fffffff),
+  makeConstructorObject(BigInt64Array, -0x8000_0000_0000_0000n,
+                        0x7fff_ffff_ffff_ffffn),
+  makeConstructorObject(BigUint64Array, 0n, 0xffff_ffff_ffff_ffffn),
   makeConstructorObject(Uint8Array, 0, 255),
   makeConstructorObject(Uint16Array, 0, 65535),
   makeConstructorObject(Uint32Array, 0, 0xffffffff),
@@ -189,16 +209,19 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
         // array[i] == 0, CAS will store
-        assertEquals(0, Atomics.compareExchange(array, i, 0, 50), name);
-        assertEquals(50, array[i], name);
+        assertEquals(_i(0), Atomics.compareExchange(array, i, _i(0), _i(50)),
+                    name);
+        assertEquals(_i(50), array[i], name);
 
         // array[i] == 50, CAS will not store
-        assertEquals(50, Atomics.compareExchange(array, i, 0, 100), name);
-        assertEquals(50, array[i], name);
+        assertEquals(_i(50), Atomics.compareExchange(array, i, _i(0), _i(100)),
+                     name);
+        assertEquals(_i(50), array[i], name);
       }
     })
   });
@@ -211,13 +234,14 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 0;
-        assertEquals(0, Atomics.load(array, i), name);
-        array[i] = 50;
-        assertEquals(50, Atomics.load(array, i), name);
+        array[i] = _i(0);
+        assertEquals(_i(0), Atomics.load(array, i), name);
+        array[i] = _i(50);
+        assertEquals(_i(50), Atomics.load(array, i), name);
       }
     })
   });
@@ -248,14 +272,15 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        assertEquals(50, Atomics.store(array, i, 50), name);
-        assertEquals(50, array[i], name);
+        assertEquals(_i(50), Atomics.store(array, i, _i(50)), name);
+        assertEquals(_i(50), array[i], name);
 
-        assertEquals(100, Atomics.store(array, i, 100), name);
-        assertEquals(100, array[i], name);
+        assertEquals(_i(100), Atomics.store(array, i, _i(100)), name);
+        assertEquals(_i(100), array[i], name);
       }
     })
   });
@@ -268,14 +293,15 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        assertEquals(0, Atomics.add(array, i, 50), name);
-        assertEquals(50, array[i], name);
+        assertEquals(_i(0), Atomics.add(array, i, _i(50)), name);
+        assertEquals(_i(50), array[i], name);
 
-        assertEquals(50, Atomics.add(array, i, 70), name);
-        assertEquals(120, array[i], name);
+        assertEquals(_i(50), Atomics.add(array, i, _i(70)), name);
+        assertEquals(_i(120), array[i], name);
       }
     })
   });
@@ -288,15 +314,16 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 120;
-        assertEquals(120, Atomics.sub(array, i, 50), name);
-        assertEquals(70, array[i], name);
+        array[i] = _i(120);
+        assertEquals(_i(120), Atomics.sub(array, i, _i(50)), name);
+        assertEquals(_i(70), array[i], name);
 
-        assertEquals(70, Atomics.sub(array, i, 70), name);
-        assertEquals(0, array[i], name);
+        assertEquals(_i(70), Atomics.sub(array, i, _i(70)), name);
+        assertEquals(_i(0), array[i], name);
       }
     })
   });
@@ -309,15 +336,16 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(sta);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 0x3f;
-        assertEquals(0x3f, Atomics.and(array, i, 0x30), name);
-        assertEquals(0x30, array[i], name);
+        array[i] = _i(0x3f);
+        assertEquals(_i(0x3f), Atomics.and(array, i, _i(0x30)), name);
+        assertEquals(_i(0x30), array[i], name);
 
-        assertEquals(0x30, Atomics.and(array, i, 0x20), name);
-        assertEquals(0x20, array[i], name);
+        assertEquals(_i(0x30), Atomics.and(array, i, _i(0x20)), name);
+        assertEquals(_i(0x20), array[i], name);
       }
     })
   });
@@ -330,15 +358,16 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 0x30;
-        assertEquals(0x30, Atomics.or(array, i, 0x1c), name);
-        assertEquals(0x3c, array[i], name);
+        array[i] = _i(0x30);
+        assertEquals(_i(0x30), Atomics.or(array, i, _i(0x1c)), name);
+        assertEquals(_i(0x3c), array[i], name);
 
-        assertEquals(0x3c, Atomics.or(array, i, 0x09), name);
-        assertEquals(0x3d, array[i], name);
+        assertEquals(_i(0x3c), Atomics.or(array, i, _i(0x09)), name);
+        assertEquals(_i(0x3d), array[i], name);
       }
     })
   });
@@ -351,15 +380,16 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 0x30;
-        assertEquals(0x30, Atomics.xor(array, i, 0x1c), name);
-        assertEquals(0x2c, array[i], name);
+        array[i] = _i(0x30);
+        assertEquals(_i(0x30), Atomics.xor(array, i, _i(0x1c)), name);
+        assertEquals(_i(0x2c), array[i], name);
 
-        assertEquals(0x2c, Atomics.xor(array, i, 0x09), name);
-        assertEquals(0x25, array[i], name);
+        assertEquals(_i(0x2c), Atomics.xor(array, i, _i(0x09)), name);
+        assertEquals(_i(0x25), array[i], name);
       }
     })
   });
@@ -372,15 +402,16 @@ function clearArray(sab) {
     var sta2 = new t.constr(sab, 5 * t.constr.BYTES_PER_ELEMENT);
 
     [sta, sta2].forEach(function(array) {
+      let _i = (i) => { return MaybeIntToBigInt(array, i); }
       clearArray(array.buffer);
       var name = Object.prototype.toString.call(array);
       for (var i = 0; i < array.length; ++i) {
-        array[i] = 0x30;
-        assertEquals(0x30, Atomics.exchange(array, i, 0x1c), name);
-        assertEquals(0x1c, array[i], name);
+        array[i] = _i(0x30);
+        assertEquals(_i(0x30), Atomics.exchange(array, i, _i(0x1c)), name);
+        assertEquals(_i(0x1c), array[i], name);
 
-        assertEquals(0x1c, Atomics.exchange(array, i, 0x09), name);
-        assertEquals(0x09, array[i], name);
+        assertEquals(_i(0x1c), Atomics.exchange(array, i, _i(0x09)), name);
+        assertEquals(_i(0x09), array[i], name);
       }
     })
   });
@@ -397,72 +428,73 @@ function clearArray(sab) {
   });
 
   // For all platforms we support, 1, 2 and 4 bytes should be lock-free.
-  assertEquals(true, Atomics.isLockFree(1));
-  assertEquals(true, Atomics.isLockFree(2));
-  assertEquals(true, Atomics.isLockFree(4));
+  assertTrue(Atomics.isLockFree(1));
+  assertTrue(Atomics.isLockFree(2));
+  assertTrue(Atomics.isLockFree(4));
 
-  // Sizes that aren't equal to a typedarray BYTES_PER_ELEMENT always return
-  // false.
-  var validSizes = {};
-  IntegerTypedArrayConstructors.forEach(function(t) {
-    validSizes[t.constr.BYTES_PER_ELEMENT] = true;
-  });
-
-  for (var i = 0; i < 1000; ++i) {
-    if (!validSizes[i]) {
-      assertEquals(false, Atomics.isLockFree(i));
-    }
-  }
+  assertFalse(Atomics.isLockFree(0));
+  assertFalse(Atomics.isLockFree(3));
+  assertFalse(Atomics.isLockFree(5));
+  assertFalse(Atomics.isLockFree(6));
+  assertFalse(Atomics.isLockFree(7));
+  // isLockFree(8) is platform dependent.
+  for (var i = 9; i < 100; ++i) assertFalse(Atomics.isLockFree(i));
 })();
 
 (function TestToNumber() {
   IntegerTypedArrayConstructors.forEach(function(t) {
     var sab = new SharedArrayBuffer(1 * t.constr.BYTES_PER_ELEMENT);
     var sta = new t.constr(sab);
+    let _i = (i) => { return MaybeIntToBigInt(sta, i); }
 
-    var valueOf = {valueOf: function(){ return 3;}};
+    var valueOf = {valueOf: function(){ return _i(3);}};
     var toString = {toString: function(){ return '3';}};
 
     [false, true, undefined, valueOf, toString].forEach(function(v) {
+      if (v === undefined && IsBig(sta)) {
+        // undefined does not convert to a BigInt.
+        return;
+      }
+      let _v = () => { return IsBig(sta) ? _i(v) : (v|0); }
       var name = Object.prototype.toString.call(sta) + ' - ' + v;
 
       // CompareExchange
-      sta[0] = 50;
-      assertEquals(50, Atomics.compareExchange(sta, 0, v, v), name);
+      sta[0] = _i(50);
+      assertEquals(_i(50), Atomics.compareExchange(sta, 0, v, v), name);
 
       // Store
-      assertEquals(v|0, Atomics.store(sta, 0, v), name);
-      assertEquals(v|0, sta[0], name);
+      assertEquals(_v(), Atomics.store(sta, 0, v), name);
+      assertEquals(_v(), sta[0], name);
 
       // Add
-      sta[0] = 120;
-      assertEquals(120, Atomics.add(sta, 0, v), name);
-      assertEquals(120 + (v|0), sta[0], name);
+      sta[0] = _i(120);
+      assertEquals(_i(120), Atomics.add(sta, 0, v), name);
+      assertEquals(_i(120) + _v(), sta[0], name);
 
       // Sub
-      sta[0] = 70;
-      assertEquals(70, Atomics.sub(sta, 0, v), name);
-      assertEquals(70 - (v|0), sta[0]);
+      sta[0] = _i(70);
+      assertEquals(_i(70), Atomics.sub(sta, 0, v), name);
+      assertEquals(_i(70) - _v(), sta[0]);
 
       // And
-      sta[0] = 0x20;
-      assertEquals(0x20, Atomics.and(sta, 0, v), name);
-      assertEquals(0x20 & (v|0), sta[0]);
+      sta[0] = _i(0x20);
+      assertEquals(_i(0x20), Atomics.and(sta, 0, v), name);
+      assertEquals(_i(0x20) & _v(), sta[0]);
 
       // Or
-      sta[0] = 0x3d;
-      assertEquals(0x3d, Atomics.or(sta, 0, v), name);
-      assertEquals(0x3d | (v|0), sta[0]);
+      sta[0] = _i(0x3d);
+      assertEquals(_i(0x3d), Atomics.or(sta, 0, v), name);
+      assertEquals(_i(0x3d) | _v(), sta[0]);
 
       // Xor
-      sta[0] = 0x25;
-      assertEquals(0x25, Atomics.xor(sta, 0, v), name);
-      assertEquals(0x25 ^ (v|0), sta[0]);
+      sta[0] = _i(0x25);
+      assertEquals(_i(0x25), Atomics.xor(sta, 0, v), name);
+      assertEquals(_i(0x25) ^ _v(), sta[0]);
 
       // Exchange
-      sta[0] = 0x09;
-      assertEquals(0x09, Atomics.exchange(sta, 0, v), name);
-      assertEquals(v|0, sta[0]);
+      sta[0] = _i(0x09);
+      assertEquals(_i(0x09), Atomics.exchange(sta, 0, v), name);
+      assertEquals(_v(), sta[0]);
     });
   });
 })();
@@ -472,7 +504,8 @@ function clearArray(sab) {
     var sab = new SharedArrayBuffer(10 * t.constr.BYTES_PER_ELEMENT);
     var sta = new t.constr(sab);
     var name = Object.prototype.toString.call(sta);
-    var range = t.max - t.min + 1;
+    let _i = (i) => { return MaybeIntToBigInt(sta, i); }
+    var range = t.max - t.min + _i(1);
     var offset;
     var operand;
     var val, newVal;
@@ -480,52 +513,52 @@ function clearArray(sab) {
 
     for (offset = -range; offset <= range; offset += range) {
       // CompareExchange
-      sta[0] = val = 0;
-      newVal = val + offset + 1;
+      sta[0] = val = _i(0);
+      newVal = val + offset + _i(1);
       newValWrapped = t.toRange(newVal);
       assertEquals(val, Atomics.compareExchange(sta, 0, val, newVal), name);
       assertEquals(newValWrapped, sta[0], name);
 
       sta[0] = val = t.min;
-      newVal = val + offset - 1;
+      newVal = val + offset - _i(1);
       newValWrapped = t.toRange(newVal);
       assertEquals(val, Atomics.compareExchange(sta, 0, val, newVal), name);
       assertEquals(newValWrapped, sta[0], name);
 
       // Store
-      sta[0] = 0;
-      val = t.max + offset + 1;
+      sta[0] = _i(0);
+      val = t.max + offset + _i(1);
       valWrapped = t.toRange(val);
       assertEquals(val, Atomics.store(sta, 0, val), name);
       assertEquals(valWrapped, sta[0], name);
 
-      sta[0] = val = t.min + offset - 1;
+      sta[0] = val = t.min + offset - _i(1);
       valWrapped = t.toRange(val);
       assertEquals(val, Atomics.store(sta, 0, val), name);
       assertEquals(valWrapped, sta[0], name);
 
       // Add
       sta[0] = val = t.max;
-      operand = offset + 1;
+      operand = offset + _i(1);
       valWrapped = t.toRange(val + operand);
       assertEquals(val, Atomics.add(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       sta[0] = val = t.min;
-      operand = offset - 1;
+      operand = offset - _i(1);
       valWrapped = t.toRange(val + operand);
       assertEquals(val, Atomics.add(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       // Sub
       sta[0] = val = t.max;
-      operand = offset - 1;
+      operand = offset - _i(1);
       valWrapped = t.toRange(val - operand);
       assertEquals(val, Atomics.sub(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       sta[0] = val = t.min;
-      operand = offset + 1;
+      operand = offset + _i(1);
       valWrapped = t.toRange(val - operand);
       assertEquals(val, Atomics.sub(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
@@ -535,29 +568,29 @@ function clearArray(sab) {
       // to memory.
 
       // And
-      sta[0] = val = 0xf;
-      operand = 0x3 + offset;
+      sta[0] = val = _i(0xf);
+      operand = _i(0x3) + offset;
       valWrapped = t.toRange(val & operand);
       assertEquals(val, Atomics.and(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       // Or
-      sta[0] = val = 0x12;
-      operand = 0x22 + offset;
+      sta[0] = val = _i(0x12);
+      operand = _i(0x22) + offset;
       valWrapped = t.toRange(val | operand);
       assertEquals(val, Atomics.or(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       // Xor
-      sta[0] = val = 0x12;
-      operand = 0x22 + offset;
+      sta[0] = val = _i(0x12);
+      operand = _i(0x22) + offset;
       valWrapped = t.toRange(val ^ operand);
       assertEquals(val, Atomics.xor(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
 
       // Exchange
-      sta[0] = val = 0x12;
-      operand = 0x22 + offset;
+      sta[0] = val = _i(0x12);
+      operand = _i(0x22) + offset;
       valWrapped = t.toRange(operand);
       assertEquals(val, Atomics.exchange(sta, 0, operand), name);
       assertEquals(valWrapped, sta[0], name);
@@ -574,7 +607,7 @@ function clearArray(sab) {
 
     // The index should be checked before calling ToInteger on the value, so
     // valueof_has_been_called should not be modified.
-    sta[0] = 0;
+    sta[0] = MaybeIntToBigInt(sta, 0);
     assertThrows(function() { op(sta, index, value, value); }, RangeError);
     assertEquals(0, valueof_has_been_called);
   };

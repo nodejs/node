@@ -9,12 +9,16 @@ group("v8_run_gcmole") {
 
   data = [
     "gccause.lua",
+    "GCMOLE.gn",
     "gcmole.lua",
     "gcmole-tools/",
     "parallel.py",
     "run-gcmole.py",
+    "suspects.whitelist",
+    "test-expectations.txt",
 
     # The following contains all relevant source and build files.
+    "../debug_helper/debug-helper.h",
     "../../BUILD.gn",
     "../../base/",
     "../../include/",

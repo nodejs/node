@@ -34,6 +34,7 @@ class Operator;
 class SourcePositionTable;
 class WasmDecorator;
 enum class TrapId : uint32_t;
+struct Int64LoweringSpecialCase;
 }  // namespace compiler
 
 namespace wasm {
@@ -46,14 +47,6 @@ struct WasmFeatures;
 }  // namespace wasm
 
 namespace compiler {
-
-bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
-                               wasm::CompilationEnv* env,
-                               const wasm::FunctionBody& func_body,
-                               int func_index, wasm::WasmFeatures* detected,
-                               MachineGraph* mcgraph,
-                               NodeOriginTable* node_origins,
-                               SourcePositionTable* source_positions);
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
@@ -117,7 +110,7 @@ constexpr WasmImportCallKind kDefaultImportCallKind =
 // another target, which is why the ultimate target is returned as well.
 V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
 ResolveWasmImportCall(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
-                      bool has_bigint_feature);
+                      const wasm::WasmFeatures& enabled_features);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
@@ -131,13 +124,20 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
 
 // Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::FunctionSig* sig, bool is_import);
+    Isolate* isolate, wasm::WasmEngine* wasm_engine, wasm::FunctionSig* sig,
+    bool is_import, const wasm::WasmFeatures& enabled_features);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmInterpreterEntry(
     wasm::WasmEngine*, const wasm::WasmFeatures& enabled_features,
     uint32_t func_index, wasm::FunctionSig*);
+
+// Compiles a stub with JS linkage that serves as an adapter for function
+// objects constructed via {WebAssembly.Function}. It performs a round-trip
+// simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
+MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
+                                       wasm::FunctionSig* sig);
 
 enum CWasmEntryParameters {
   kCodeEntry,
@@ -179,14 +179,14 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
-  Node** Buffer(size_t count) {
+  Vector<Node*> Buffer(size_t count) {
     if (count > cur_bufsize_) {
       size_t new_size = count + cur_bufsize_ + 5;
       cur_buffer_ =
           reinterpret_cast<Node**>(zone_->New(new_size * sizeof(Node*)));
       cur_bufsize_ = new_size;
     }
-    return cur_buffer_;
+    return {cur_buffer_, count};
   }
 
   //-----------------------------------------------------------------------
@@ -223,8 +223,8 @@ class WasmGraphBuilder {
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
-  Node** GetExceptionValues(Node* except_obj,
-                            const wasm::WasmException* exception);
+  Vector<Node*> GetExceptionValues(Node* except_obj,
+                                   const wasm::WasmException* exception);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -267,13 +267,12 @@ class WasmGraphBuilder {
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
-  Node* Return(unsigned count, Node** nodes);
+  Node* Return(Vector<Node*> nodes);
   template <typename... Nodes>
   Node* Return(Node* fst, Nodes*... more) {
     Node* arr[] = {fst, more...};
-    return Return(arraysize(arr), arr);
+    return Return(ArrayVector(arr));
   }
-  Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
   Node* CallDirect(uint32_t index, Node** args, Node*** rets,
@@ -364,7 +363,9 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  V8_EXPORT_PRIVATE void LowerInt64();
+  enum CallOrigin { kCalledFromWasm, kCalledFromJS };
+
+  V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
   V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();
 
@@ -378,9 +379,6 @@ class WasmGraphBuilder {
   Node* SimdOp(wasm::WasmOpcode opcode, Node* const* inputs);
 
   Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane, Node* const* inputs);
-
-  Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
-                    Node* const* inputs);
 
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
@@ -443,6 +441,7 @@ class WasmGraphBuilder {
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
   SetOncePointer<Node> stack_check_code_node_;
+  SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
   Node** cur_buffer_;
@@ -458,7 +457,11 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
+  std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
+
   Node* NoContextConstant();
+
+  Node* BuildLoadIsolateRoot();
 
   Node* MemBuffer(uint32_t offset);
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
@@ -596,9 +599,13 @@ class WasmGraphBuilder {
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);
   Node* BuildDecodeException64BitValue(Node* values_array, uint32_t* index);
 
-  Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
-    Node** buf = Buffer(new_count);
-    if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
+  Vector<Node*> Realloc(Node* const* buffer, size_t old_count,
+                        size_t new_count) {
+    DCHECK_GE(new_count, old_count);  // Only support growing.
+    Vector<Node*> buf = Buffer(new_count);
+    if (buf.begin() != buffer) {
+      memcpy(buf.begin(), buffer, old_count * sizeof(Node*));
+    }
     return buf;
   }
 
@@ -624,7 +631,7 @@ V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     WasmCallKind kind = kWasmFunction);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, CallDescriptor* call_descriptor);
+    Zone* zone, const CallDescriptor* call_descriptor);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
     Zone* zone, CallDescriptor* call_descriptor);

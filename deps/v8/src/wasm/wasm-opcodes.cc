@@ -10,6 +10,7 @@
 #include "src/codegen/signature.h"
 #include "src/execution/messages.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-features.h"
 
 namespace v8 {
 namespace internal {
@@ -229,11 +230,16 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Ne, "ne")
     CASE_I64x2_OP(Ne, "ne")
     CASE_SIMD_OP(Add, "add")
+    CASE_F64x2_OP(Add, "add")
     CASE_I64x2_OP(Add, "add")
     CASE_SIMD_OP(Sub, "sub")
+    CASE_F64x2_OP(Sub, "sub")
     CASE_I64x2_OP(Sub, "sub")
     CASE_SIMD_OP(Mul, "mul")
+    CASE_F64x2_OP(Mul, "mul")
     CASE_I64x2_OP(Mul, "mul")
+    CASE_F64x2_OP(Div, "div")
+    CASE_F32x4_OP(Div, "div")
     CASE_F64x2_OP(Splat, "splat")
     CASE_F64x2_OP(Lt, "lt")
     CASE_F64x2_OP(Le, "le")
@@ -244,7 +250,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(AddHoriz, "add_horizontal")
     CASE_F32x4_OP(RecipApprox, "recip_approx")
     CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
+    CASE_F64x2_OP(Min, "min")
     CASE_F32x4_OP(Min, "min")
+    CASE_F64x2_OP(Max, "max")
     CASE_F32x4_OP(Max, "max")
     CASE_F32x4_OP(Lt, "lt")
     CASE_F32x4_OP(Le, "le")
@@ -267,7 +275,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDI_OP(ExtractLane, "extract_lane")
     CASE_SIMDI_OP(ReplaceLane, "replace_lane")
     CASE_SIGN_OP(SIMDI, Min, "min")
+    CASE_SIGN_OP(I64x2, Min, "min")
     CASE_SIGN_OP(SIMDI, Max, "max")
+    CASE_SIGN_OP(I64x2, Max, "max")
     CASE_SIGN_OP(SIMDI, Lt, "lt")
     CASE_SIGN_OP(I64x2, Lt, "lt")
     CASE_SIGN_OP(SIMDI, Le, "le")
@@ -439,12 +449,13 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-bool IsJSCompatibleSignature(const FunctionSig* sig, bool has_bigint_feature) {
-  if (sig->return_count() > 1) {
+bool IsJSCompatibleSignature(const FunctionSig* sig,
+                             const WasmFeatures& enabled_features) {
+  if (!enabled_features.mv && sig->return_count() > 1) {
     return false;
   }
   for (auto type : sig->all()) {
-    if (!has_bigint_feature && type == kWasmI64) {
+    if (!enabled_features.bigint && type == kWasmI64) {
       return false;
     }
 

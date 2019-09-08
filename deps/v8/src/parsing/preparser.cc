@@ -107,9 +107,9 @@ void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
 
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, int* use_counts,
-    ProducedPreparseData** produced_preparse_data, int script_id) {
+    FunctionSyntaxKind function_syntax_kind, DeclarationScope* function_scope,
+    int* use_counts, ProducedPreparseData** produced_preparse_data,
+    int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
   set_script_id(script_id);
@@ -229,7 +229,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // arguments'.
       function_scope->DeclareArguments(ast_value_factory());
 
-      DeclareFunctionNameVar(function_name, function_type, function_scope);
+      DeclareFunctionNameVar(function_name, function_syntax_kind,
+                             function_scope);
 
       if (preparse_data_builder_->HasData()) {
         *produced_preparse_data =
@@ -267,12 +268,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
-    int function_token_pos, FunctionLiteral::FunctionType function_type,
+    int function_token_pos, FunctionSyntaxKind function_syntax_kind,
     LanguageMode language_mode,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   // Wrapped functions are not parsed in the preparser.
   DCHECK_NULL(arguments_for_wrapped_function);
-  DCHECK_NE(FunctionLiteral::kWrapped, function_type);
+  DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   const RuntimeCallCounterId counters[2] = {
@@ -323,8 +324,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                       : function_token_pos;
     AcceptINScope scope(this, true);
-    ParseFunctionBody(&body, function_name, pos, formals, kind, function_type,
-                      FunctionBodyType::kBlock);
+    ParseFunctionBody(&body, function_name, pos, formals, kind,
+                      function_syntax_kind, FunctionBodyType::kBlock);
 
     // Parsing the body may change the language mode in our scope.
     language_mode = function_scope->language_mode();
@@ -385,7 +386,7 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+  if (scope()->AsDeclarationScope()->sloppy_eval_can_extend_vars() &&
       preparse_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was

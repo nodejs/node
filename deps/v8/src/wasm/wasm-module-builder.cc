@@ -233,6 +233,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       global_imports_(zone),
       exports_(zone),
       functions_(zone),
+      tables_(zone),
       data_segments_(zone),
       indirect_functions_(zone),
       globals_(zone),
@@ -269,15 +270,29 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
 }
 
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
+  DCHECK(allocating_indirect_functions_allowed_);
   uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
   DCHECK_GE(FLAG_wasm_max_table_size, index);
   if (count > FLAG_wasm_max_table_size - index) {
     return std::numeric_limits<uint32_t>::max();
   }
-  DCHECK(max_table_size_ == 0 ||
-         indirect_functions_.size() + count <= max_table_size_);
-  indirect_functions_.resize(indirect_functions_.size() + count,
-                             WasmElemSegment::kNullIndex);
+  uint32_t new_size = static_cast<uint32_t>(indirect_functions_.size()) + count;
+  DCHECK(max_table_size_ == 0 || new_size <= max_table_size_);
+  indirect_functions_.resize(new_size, WasmElemSegment::kNullIndex);
+  uint32_t max = max_table_size_ > 0 ? max_table_size_ : new_size;
+  if (tables_.empty()) {
+    // This cannot use {AddTable} because that would flip the
+    // {allocating_indirect_functions_allowed_} flag.
+    tables_.push_back({kWasmFuncRef, new_size, max, true});
+  } else {
+    // There can only be the indirect function table so far, otherwise the
+    // {allocating_indirect_functions_allowed_} flag would have been false.
+    DCHECK_EQ(1u, tables_.size());
+    DCHECK_EQ(kWasmFuncRef, tables_[0].type);
+    DCHECK(tables_[0].has_maximum);
+    tables_[0].min_size = new_size;
+    tables_[0].max_size = max;
+  }
   return index;
 }
 
@@ -290,6 +305,27 @@ void WasmModuleBuilder::SetMaxTableSize(uint32_t max) {
   DCHECK_GE(FLAG_wasm_max_table_size, max);
   DCHECK_GE(max, indirect_functions_.size());
   max_table_size_ = max;
+  DCHECK(allocating_indirect_functions_allowed_);
+  if (!tables_.empty()) {
+    tables_[0].max_size = max;
+  }
+}
+
+uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size) {
+#if DEBUG
+  allocating_indirect_functions_allowed_ = false;
+#endif
+  tables_.push_back({type, min_size, 0, false});
+  return static_cast<uint32_t>(tables_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
+                                     uint32_t max_size) {
+#if DEBUG
+  allocating_indirect_functions_allowed_ = false;
+#endif
+  tables_.push_back({type, min_size, max_size, true});
+  return static_cast<uint32_t>(tables_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
@@ -408,21 +444,20 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit function table ====================================================
-  if (indirect_functions_.size() > 0) {
+  // == Emit tables ============================================================
+  if (tables_.size() > 0) {
     size_t start = EmitSection(kTableSectionCode, buffer);
-    buffer->write_u8(1);  // table count
-    buffer->write_u8(kLocalFuncRef);
-    buffer->write_u8(kHasMaximumFlag);
-    buffer->write_size(indirect_functions_.size());
-    size_t max =
-        max_table_size_ > 0 ? max_table_size_ : indirect_functions_.size();
-    DCHECK_GE(max, indirect_functions_.size());
-    buffer->write_size(max);
+    buffer->write_size(tables_.size());
+    for (const WasmTable& table : tables_) {
+      buffer->write_u8(ValueTypes::ValueTypeCodeFor(table.type));
+      buffer->write_u8(table.has_maximum ? kHasMaximumFlag : kNoMaximumFlag);
+      buffer->write_size(table.min_size);
+      if (table.has_maximum) buffer->write_size(table.max_size);
+    }
     FixupSection(buffer, start);
   }
 
-  // == emit memory declaration ================================================
+  // == Emit memory declaration ================================================
   {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer->write_u8(1);  // memory count
@@ -473,7 +508,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           buffer->write_u8(kExprGetGlobal);
           buffer->write_u32v(global.init.val.global_index);
           break;
-        default: {
+        case WasmInitExpr::kRefNullConst:
+          buffer->write_u8(kExprRefNull);
+          break;
+        case WasmInitExpr::kRefFuncConst:
+          UNIMPLEMENTED();
+          break;
+        case WasmInitExpr::kNone: {
           // No initializer, emit a default value.
           switch (global.type) {
             case kWasmI32:

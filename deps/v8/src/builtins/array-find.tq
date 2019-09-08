@@ -5,15 +5,14 @@
 namespace array_find {
   transitioning javascript builtin
   ArrayFindLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object,
-      length: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized find implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     //
     // Also, this great mass of casts is necessary because the signature
-    // of Torque javascript builtins requires Object type for all parameters
+    // of Torque javascript builtins requires JSAny type for all parameters
     // other than {context}.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
@@ -26,9 +25,9 @@ namespace array_find {
 
   transitioning javascript builtin
   ArrayFindLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      _callback: Object, _thisArg: Object, _initialK: Object, _length: Object,
-      _result: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      _callback: JSAny, _thisArg: JSAny, _initialK: JSAny, _length: JSAny,
+      _result: JSAny): JSAny {
     // This deopt continuation point is never actually called, it just
     // exists to make stack traces correct from a ThrowTypeError if the
     // callback was found to be non-callable.
@@ -40,9 +39,9 @@ namespace array_find {
   // before iteration continues.
   transitioning javascript builtin
   ArrayFindLoopAfterCallbackLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object, length: Object,
-      foundValue: Object, isFound: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
+      foundValue: JSAny, isFound: JSAny): JSAny {
     // All continuation points in the optimized find implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -65,8 +64,8 @@ namespace array_find {
   }
 
   transitioning builtin ArrayFindLoopContinuation(implicit context: Context)(
-      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      o: JSReceiver, initialK: Number, length: Number): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
+      o: JSReceiver, initialK: Number, length: Number): JSAny {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
     for (let k: Number = initialK; k < length; k++) {
@@ -75,12 +74,11 @@ namespace array_find {
       // side-effect free and HasProperty/GetProperty do the conversion inline.
 
       // 6b. i. Let kValue be ? Get(O, Pk).
-      const value: Object = GetProperty(o, k);
+      const value: JSAny = GetProperty(o, k);
 
       // 6c. Let testResult be ToBoolean(? Call(predicate, T, <<kValue, k,
       // O>>)).
-      const testResult: Object =
-          Call(context, callbackfn, thisArg, value, k, o);
+      const testResult: JSAny = Call(context, callbackfn, thisArg, value, k, o);
 
       // 6d. If testResult is true, return kValue.
       if (ToBoolean(testResult)) {
@@ -93,7 +91,7 @@ namespace array_find {
   }
 
   transitioning macro FastArrayFind(implicit context: Context)(
-      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
+      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: JSAny): JSAny
       labels Bailout(Smi) {
     let k: Smi = 0;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
@@ -107,8 +105,8 @@ namespace array_find {
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastOW.Get().length) goto Bailout(k);
 
-      const value: Object = fastOW.LoadElementOrUndefined(k);
-      const testResult: Object =
+      const value: JSAny = fastOW.LoadElementOrUndefined(k);
+      const testResult: JSAny =
           Call(context, callbackfn, thisArg, value, k, fastOW.Get());
       if (ToBoolean(testResult)) {
         return value;
@@ -119,8 +117,8 @@ namespace array_find {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.find
   transitioning javascript builtin
-  ArrayPrototypeFind(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  ArrayPrototypeFind(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.find');
 
@@ -138,7 +136,7 @@ namespace array_find {
           Cast<Callable>(arguments[0]) otherwise NotCallableError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+      const thisArg: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
 
       // Special cases.
       try {

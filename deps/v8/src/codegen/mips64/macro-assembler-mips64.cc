@@ -328,8 +328,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
            Operand(value));
   }
 
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
+  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+       !FLAG_incremental_marking) ||
+      FLAG_disable_write_barriers) {
     return;
   }
 
@@ -4198,6 +4199,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     }
   }
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
+}
+
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, reference);
+  Jump(scratch);
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.

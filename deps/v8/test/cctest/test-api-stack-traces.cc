@@ -250,31 +250,31 @@ static void AnalyzeStackInNativeCode(
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.name", 3, 1, true, false,
+    checkStackFrame(nullptr, "function.name", 1, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kDisplayName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
+    checkStackFrame(nullptr, "function.displayName", 1, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameAndDisplayName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
+    checkStackFrame(nullptr, "function.displayName", 1, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kDisplayNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.name", 3, 1, true, false,
+    checkStackFrame(nullptr, "function.name", 1, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "", 3, 1, true, false,
+    checkStackFrame(nullptr, "", 1, 1, true, false,
                     stackTrace->GetFrame(isolate, 0));
   }
 }

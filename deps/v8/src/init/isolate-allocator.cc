@@ -47,7 +47,7 @@ Address IsolateAllocator::InitReservation() {
   size_t reservation_size = kPtrComprHeapReservationSize;
   size_t base_alignment = kPtrComprIsolateRootAlignment;
 
-  const int kMaxAttempts = 3;
+  const int kMaxAttempts = 4;
   for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
     Address hint = RoundDown(reinterpret_cast<Address>(
                                  platform_page_allocator->GetRandomMmapAddr()),
@@ -72,35 +72,44 @@ Address IsolateAllocator::InitReservation() {
     // Fuchsia does not respect given hints so as a workaround we will use
     // overreserved address space region instead of trying to re-reserve
     // a subregion.
-    if (padded_reservation.InVM(address, reservation_size)) {
-      reservation_ = std::move(padded_reservation);
-      return address;
-    }
+    bool overreserve = true;
 #else
-    // Now free the padded reservation and immediately try to reserve an exact
-    // region at aligned address. We have to do this dancing because the
-    // reservation address requirement is more complex than just a certain
-    // alignment and not all operating systems support freeing parts of reserved
-    // address space regions.
-    padded_reservation.Free();
-
-    VirtualMemory reservation(platform_page_allocator, reservation_size,
-                              reinterpret_cast<void*>(address));
-    if (!reservation.IsReserved()) break;
-
-    // The reservation could still be somewhere else but we can accept it
-    // if the reservation has the required alignment.
-    Address aligned_address =
-        RoundUp(reservation.address() + kPtrComprIsolateRootBias,
-                base_alignment) -
-        kPtrComprIsolateRootBias;
-
-    if (reservation.address() == aligned_address) {
-      reservation_ = std::move(reservation);
-      CHECK_EQ(reservation_.size(), reservation_size);
-      return aligned_address;
-    }
+    // For the last attempt use the overreserved region to avoid an OOM crash.
+    // This case can happen if there are many isolates being created in
+    // parallel that race for reserving the regions.
+    bool overreserve = (attempt == kMaxAttempts - 1);
 #endif
+
+    if (overreserve) {
+      if (padded_reservation.InVM(address, reservation_size)) {
+        reservation_ = std::move(padded_reservation);
+        return address;
+      }
+    } else {
+      // Now free the padded reservation and immediately try to reserve an exact
+      // region at aligned address. We have to do this dancing because the
+      // reservation address requirement is more complex than just a certain
+      // alignment and not all operating systems support freeing parts of
+      // reserved address space regions.
+      padded_reservation.Free();
+
+      VirtualMemory reservation(platform_page_allocator, reservation_size,
+                                reinterpret_cast<void*>(address));
+      if (!reservation.IsReserved()) break;
+
+      // The reservation could still be somewhere else but we can accept it
+      // if the reservation has the required alignment.
+      Address aligned_address =
+          RoundUp(reservation.address() + kPtrComprIsolateRootBias,
+                  base_alignment) -
+          kPtrComprIsolateRootBias;
+
+      if (reservation.address() == aligned_address) {
+        reservation_ = std::move(reservation);
+        CHECK_EQ(reservation_.size(), reservation_size);
+        return aligned_address;
+      }
+    }
   }
   V8::FatalProcessOutOfMemory(nullptr,
                               "Failed to reserve memory for new V8 Isolate");
