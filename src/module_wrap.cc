@@ -871,7 +871,8 @@ Maybe<URL> PackageMainResolve(Environment* env,
           Local<Object> exports_obj = exports.As<Object>();
           Local<String> dot_string = String::NewFromUtf8(env->isolate(), ".",
               v8::NewStringType::kNormal).ToLocalChecked();
-          target = exports_obj->Get(env->context(), dot_string).ToLocalChecked();
+          target =
+              exports_obj->Get(env->context(), dot_string).ToLocalChecked();
         }
         if (target->IsString()) {
           Utf8Value target_utf8(isolate, target.As<v8::String>());
