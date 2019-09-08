@@ -2228,6 +2228,13 @@ documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
+```console
+$ node --throw-deprecation -p "process.throwDeprecation"
+true
+$ node -p "process.throwDeprecation"
+undefined
+```
+
 ## process.title
 <!-- YAML
 added: v0.1.104
