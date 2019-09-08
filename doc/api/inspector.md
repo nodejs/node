@@ -52,6 +52,21 @@ parameter usage.
 
 Return the URL of the active inspector, or `undefined` if there is none.
 
+```js
+// Node process was called with --inspect flag
+require('inspector').url()
+'ws://127.0.0.1:9229/whatever'
+
+// Node process was called with --inspect=localhost:3000 flag
+require('inspector').url()
+'ws://localhost:3000/whatever'
+// ---^ host ---^ port
+
+// Node process was called without --inspect flag
+require('inspector').url()
+undefined
+```
+
 ## inspector.waitForDebugger()
 <!-- YAML
 added: v12.7.0
