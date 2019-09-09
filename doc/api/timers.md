@@ -151,8 +151,9 @@ next event loop iteration.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-This method has a custom variant for promises that is available using
-[`util.promisify()`][]:
+If this method is invoked as its [`util.promisify()`][]ed version, it returns a
+Promise. The created `Immediate` is attached to the Promise as a `immediate`
+property.
 
 ```js
 const util = require('util');
@@ -170,6 +171,13 @@ async function timerExample() {
   console.log('After I/O callbacks');
 }
 timerExample();
+
+// You can access the immediate on promise.immediate
+const promise = setImmediatePromise();
+promise.then(() => {
+  // This callback is never called because the Immediate is cleared
+});
+clearImmediate(promise.immediate);
 ```
 
 ### setInterval(callback, delay[, ...args])
@@ -213,8 +221,9 @@ will be set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-This method has a custom variant for promises that is available using
-[`util.promisify()`][]:
+If this method is invoked as its [`util.promisify()`][]ed version, it returns a
+Promise. The created `Timeout` is attached to the Promise as a `timeout`
+property.
 
 ```js
 const util = require('util');
@@ -224,6 +233,12 @@ setTimeoutPromise(40, 'foobar').then((value) => {
   // value === 'foobar' (passing values is optional)
   // This is executed after about 40 milliseconds.
 });
+
+const promise = setTimeoutPromise(40, 'foobar');
+promise.then((value) => {
+  // This is never executed because the timeout is cleared
+});
+clearTimeout(promise.timeout);
 ```
 
 ## Cancelling Timers
