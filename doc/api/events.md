@@ -703,7 +703,7 @@ added: v11.13.0
 * `name` {string}
 * Returns: {Promise}
 
-Creates a `Promise` that is fulfill when the `EventEmitter` emits the given
+Creates a `Promise` that is fulfilled when the `EventEmitter` emits the given
 event or that is rejected when the `EventEmitter` emits `'error'`.
 The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
@@ -739,7 +739,7 @@ async function run() {
 
 run();
 ```
-
+[WHATWG-EventTarget](https://dom.spec.whatwg.org/#interface-eventtarget)
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
@@ -749,5 +749,4 @@ run();
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
 [`process.on('warning')`]: process.html#process_event_warning
-[WHATWG-EventTarget](https://dom.spec.whatwg.org/#interface-eventtarget)
 [stream]: stream.html
