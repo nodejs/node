@@ -17,10 +17,9 @@ const util = require('util');
     'baz = foo; typeofProcess = typeof process; typeof Object;',
     { context }
   );
-  assert.strictEqual(m.status, 'uninstantiated');
+  assert.strictEqual(m.status, 'unlinked');
   await m.link(common.mustNotCall());
-  m.instantiate();
-  assert.strictEqual(m.status, 'instantiated');
+  assert.strictEqual(m.status, 'linked');
   const result = await m.evaluate();
   assert.strictEqual(m.status, 'evaluated');
   assert.strictEqual(Object.getPrototypeOf(result), null);
@@ -37,7 +36,6 @@ const util = require('util');
     'global.vmResult = "foo"; Object.prototype.toString.call(process);'
   );
   await m.link(common.mustNotCall());
-  m.instantiate();
   const { result } = await m.evaluate();
   assert.strictEqual(global.vmResult, 'foo');
   assert.strictEqual(result, '[object process]');
@@ -47,22 +45,21 @@ const util = require('util');
 (async () => {
   const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
-  m.instantiate();
   await m.evaluate({ timeout: 500 })
     .then(() => assert(false), () => {});
 })();
 
-// Check the generated url for each module
+// Check the generated identifier for each module
 (async () => {
   const context1 = createContext({ });
   const context2 = createContext({ });
 
   const m1 = new SourceTextModule('1', { context: context1 });
-  assert.strictEqual(m1.url, 'vm:module(0)');
+  assert.strictEqual(m1.identifier, 'vm:module(0)');
   const m2 = new SourceTextModule('2', { context: context1 });
-  assert.strictEqual(m2.url, 'vm:module(1)');
+  assert.strictEqual(m2.identifier, 'vm:module(1)');
   const m3 = new SourceTextModule('3', { context: context2 });
-  assert.strictEqual(m3.url, 'vm:module(0)');
+  assert.strictEqual(m3.identifier, 'vm:module(0)');
 })();
 
 // Check inspection of the instance
@@ -72,13 +69,19 @@ const util = require('util');
 
   assert.strictEqual(
     util.inspect(m),
-    "SourceTextModule {\n  status: 'uninstantiated',\n  linkingStatus:" +
-    " 'unlinked',\n  url: 'vm:module(0)',\n  context: { foo: 'bar' }\n}"
+    `SourceTextModule {
+  status: 'unlinked',
+  identifier: 'vm:module(0)',
+  context: { foo: 'bar' }
+}`
   );
   assert.strictEqual(
     m[util.inspect.custom].call(Object.create(null)),
-    'SourceTextModule {\n  status: undefined,\n  linkingStatus: undefined,' +
-    '\n  url: undefined,\n  context: undefined\n}'
+    `SourceTextModule {
+  status: undefined,
+  identifier: undefined,
+  context: undefined
+}`,
   );
   assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
 }

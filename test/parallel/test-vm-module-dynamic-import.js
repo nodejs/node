@@ -10,7 +10,6 @@ const { Script, SourceTextModule, createContext } = require('vm');
 async function testNoCallback() {
   const m = new SourceTextModule('import("foo")', { context: createContext() });
   await m.link(common.mustNotCall());
-  m.instantiate();
   const { result } = await m.evaluate();
   let threw = false;
   try {
@@ -25,7 +24,6 @@ async function testNoCallback() {
 async function test() {
   const foo = new SourceTextModule('export const a = 1;');
   await foo.link(common.mustNotCall());
-  foo.instantiate();
   await foo.evaluate();
 
   {
@@ -50,7 +48,6 @@ async function test() {
       }),
     });
     await m.link(common.mustNotCall());
-    m.instantiate();
     const { result } = await m.evaluate();
     assert.strictEqual(foo.namespace, await result);
   }
@@ -63,7 +60,6 @@ async function testInvalid() {
     }),
   });
   await m.link(common.mustNotCall());
-  m.instantiate();
   const { result } = await m.evaluate();
   await result.catch(common.mustCall((e) => {
     assert.strictEqual(e.code, 'ERR_VM_MODULE_NOT_MODULE');

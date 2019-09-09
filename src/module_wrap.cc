@@ -331,7 +331,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
+void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -1328,8 +1328,12 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
   Local<Function> callback =
       env->host_initialize_import_meta_object_callback();
   Local<Value> args[] = { wrap, meta };
-  callback->Call(context, Undefined(env->isolate()), arraysize(args), args)
-      .ToLocalChecked();
+  TryCatchScope try_catch(env);
+  USE(callback->Call(
+        context, Undefined(env->isolate()), arraysize(args), args));
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+  }
 }
 
 void ModuleWrap::SetInitializeImportMetaObjectCallback(
@@ -1360,7 +1364,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetProtoMethodNoSideEffect(tpl, "namespace", Namespace);
+  env->SetProtoMethodNoSideEffect(tpl, "getNamespace", GetNamespace);
   env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
   env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
   env->SetProtoMethodNoSideEffect(tpl, "getStaticDependencySpecifiers",
