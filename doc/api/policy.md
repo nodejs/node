@@ -114,6 +114,42 @@ body for the resource which can be useful for local development. It is not
 recommended in production since it would allow unexpected alteration of
 resources to be considered valid.
 
+### Preloading Modules
+
+An application may wish to ensure that some modules run prior to any
+application code. Preloading modules can be enforced.
+
+```json
+{
+  "preloadAlways": ["./polyfills.js"]
+}
+```
+
+The nature of polyfilling and preloading modules means that preloading is done
+prior to any hardening of the global environment. As such, an application may
+limit preloading to a list of well known modules even if they are not always
+preloaded. If set to `true` all resources will be allowed as preloads, this is meant for debugging purposes and ergonomics and is not recommended in production.
+
+```json
+{
+  "preloadAllowed": ["./debug.js"],
+  "preloadAlways": ["./polyfills.js"]
+}
+```
+
+```json
+{
+  "preloadAllowed": ["./debug.js"],
+  "preloadAlways": true
+}
+```
+
+Would allow `./debug.js` to be optionally loaded using means such as `--require`.
+
+```console
+node --require ./debug.js app.js
+```
+
 ### Dependency Redirection
 
 An application may need to ship patched versions of modules or to prevent
@@ -123,7 +159,6 @@ replaced.
 
 ```json
 {
-  "builtins": [],
   "resources": {
     "./app/checked.js": {
       "dependencies": {
