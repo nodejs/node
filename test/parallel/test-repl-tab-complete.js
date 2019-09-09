@@ -402,37 +402,39 @@ testMe.complete('obj.', common.mustCall((error, data) => {
   putIn.run(['.clear']);
   process.chdir(__dirname);
 
-  const readFileSync = 'fs.readFileSync("';
-  const fixturePath = `${readFileSync}../fixtures/test-repl-tab-completion`;
+  const readFileSyncs = ['fs.readFileSync("', 'fs.promises.readFileSync("'];
   if (!common.isWindows) {
-    testMe.complete(fixturePath, common.mustCall((err, data) => {
-      assert.strictEqual(err, null);
-      assert.ok(data[0][0].includes('.hiddenfiles'));
-      assert.ok(data[0][1].includes('hellorandom.txt'));
-      assert.ok(data[0][2].includes('helloworld.js'));
-    }));
+    readFileSyncs.forEach((readFileSync) => {
+      const fixturePath = `${readFileSync}../fixtures/test-repl-tab-completion`;
+      testMe.complete(fixturePath, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.ok(data[0][0].includes('.hiddenfiles'));
+        assert.ok(data[0][1].includes('hellorandom.txt'));
+        assert.ok(data[0][2].includes('helloworld.js'));
+      }));
 
-    testMe.complete(`${fixturePath}/hello`,
-                    common.mustCall((err, data) => {
-                      assert.strictEqual(err, null);
-                      assert.ok(data[0][0].includes('hellorandom.txt'));
-                      assert.ok(data[0][1].includes('helloworld.js'));
-                    })
-    );
+      testMe.complete(`${fixturePath}/hello`,
+                      common.mustCall((err, data) => {
+                        assert.strictEqual(err, null);
+                        assert.ok(data[0][0].includes('hellorandom.txt'));
+                        assert.ok(data[0][1].includes('helloworld.js'));
+                      })
+      );
 
-    testMe.complete(`${fixturePath}/.h`,
-                    common.mustCall((err, data) => {
-                      assert.strictEqual(err, null);
-                      assert.ok(data[0][0].includes('.hiddenfiles'));
-                    })
-    );
+      testMe.complete(`${fixturePath}/.h`,
+                      common.mustCall((err, data) => {
+                        assert.strictEqual(err, null);
+                        assert.ok(data[0][0].includes('.hiddenfiles'));
+                      })
+      );
 
-    testMe.complete(`${readFileSync}./xxxRandom/random`,
-                    common.mustCall((err, data) => {
-                      assert.strictEqual(err, null);
-                      assert.strictEqual(data[0].length, 0);
-                    })
-    );
+      testMe.complete(`${readFileSync}./xxxRandom/random`,
+                      common.mustCall((err, data) => {
+                        assert.strictEqual(err, null);
+                        assert.strictEqual(data[0].length, 0);
+                      })
+      );
+    });
   }
 }
 
