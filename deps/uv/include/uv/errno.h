@@ -439,5 +439,10 @@
 # define UV__EFTYPE (-4028)
 #endif
 
+#if defined(EILSEQ) && !defined(_WIN32)
+# define UV__EILSEQ UV__ERR(EILSEQ)
+#else
+# define UV__EILSEQ (-4027)
+#endif
 
 #endif /* UV_ERRNO_H_ */

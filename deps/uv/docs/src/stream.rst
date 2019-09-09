@@ -50,8 +50,8 @@ Data types
     from the stream again is undefined.
 
     The callee is responsible for freeing the buffer, libuv does not reuse it.
-    The buffer may be a null buffer (where buf->base=NULL and buf->len=0) on
-    error.
+    The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
+    on error.
 
 .. c:type:: void (*uv_write_cb)(uv_write_t* req, int status)
 

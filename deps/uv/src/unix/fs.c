@@ -255,20 +255,10 @@ static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_open(uv_fs_t* req) {
-  static int no_cloexec_support;
-  int r;
-
-  /* Try O_CLOEXEC before entering locks */
-  if (no_cloexec_support == 0) {
 #ifdef O_CLOEXEC
-    r = open(req->path, req->flags | O_CLOEXEC, req->mode);
-    if (r >= 0)
-      return r;
-    if (errno != EINVAL)
-      return r;
-    no_cloexec_support = 1;
-#endif  /* O_CLOEXEC */
-  }
+  return open(req->path, req->flags | O_CLOEXEC, req->mode);
+#else  /* O_CLOEXEC */
+  int r;
 
   if (req->cb != NULL)
     uv_rwlock_rdlock(&req->loop->cloexec_lock);
@@ -289,6 +279,7 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
     uv_rwlock_rdunlock(&req->loop->cloexec_lock);
 
   return r;
+#endif  /* O_CLOEXEC */
 }
 
 

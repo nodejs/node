@@ -354,7 +354,7 @@ static void statfs_cb(uv_fs_t* req) {
   ASSERT(stats->f_files == 0);
   ASSERT(stats->f_ffree == 0);
 #else
-  ASSERT(stats->f_files > 0);
+  /* There is no assertion for stats->f_files that makes sense, so ignore it. */
   ASSERT(stats->f_ffree <= stats->f_files);
 #endif
   uv_fs_req_cleanup(req);

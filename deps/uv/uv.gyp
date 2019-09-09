@@ -20,6 +20,7 @@
           '_UNIX03_SOURCE',
           '_UNIX03_WITHDRAWN',
           '_OPEN_SYS_IF_EXT',
+          '_OPEN_SYS_SOCK_EXT3',
           '_OPEN_SYS_SOCK_IPV6',
           '_OPEN_MSGQ_EXT',
           '_XOPEN_SOURCE_EXTENDED',
