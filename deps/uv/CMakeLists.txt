@@ -1,5 +1,5 @@
 # TODO: determine CMAKE_SYSTEM_NAME on OS/390.  Currently assumes "OS/390".
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 2.8.12)
 project(libuv)
 
 if(MSVC)
@@ -116,6 +116,7 @@ set(uv_test_sources
     test/test-shutdown-eof.c
     test/test-shutdown-twice.c
     test/test-signal-multiple-loops.c
+    test/test-signal-pending-on-close.c
     test/test-signal.c
     test/test-socket-buffer-size.c
     test/test-spawn.c
@@ -127,6 +128,7 @@ set(uv_test_sources
     test/test-tcp-close-accept.c
     test/test-tcp-close-while-connecting.c
     test/test-tcp-close.c
+    test/test-tcp-close-reset.c
     test/test-tcp-connect-error-after-write.c
     test/test-tcp-connect-error.c
     test/test-tcp-connect-timeout.c
@@ -317,6 +319,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OS/390")
   list(APPEND uv_defines _OPEN_MSGQ_EXT)
   list(APPEND uv_defines _OPEN_SYS_FILE_EXT)
   list(APPEND uv_defines _OPEN_SYS_IF_EXT)
+  list(APPEND uv_defines _OPEN_SYS_SOCK_EXT3)
   list(APPEND uv_defines _OPEN_SYS_SOCK_IPV6)
   list(APPEND uv_defines _UNIX03_SOURCE)
   list(APPEND uv_defines _UNIX03_THREADS)
@@ -340,15 +343,17 @@ if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|Linux|NetBSD|OpenBSD")
 endif()
 
 add_library(uv SHARED ${uv_sources})
-target_compile_definitions(uv PRIVATE ${uv_defines} BUILDING_UV_SHARED=1)
+target_compile_definitions(uv
+                           INTERFACE USING_UV_SHARED=1
+                           PRIVATE ${uv_defines} BUILDING_UV_SHARED=1)
 target_compile_options(uv PRIVATE ${uv_cflags})
-target_include_directories(uv PRIVATE include src)
+target_include_directories(uv PUBLIC include PRIVATE src)
 target_link_libraries(uv ${uv_libraries})
 
 add_library(uv_a STATIC ${uv_sources})
 target_compile_definitions(uv_a PRIVATE ${uv_defines})
 target_compile_options(uv_a PRIVATE ${uv_cflags})
-target_include_directories(uv_a PRIVATE include src)
+target_include_directories(uv_a PUBLIC include PRIVATE src)
 target_link_libraries(uv_a ${uv_libraries})
 
 option(libuv_buildtests "Build the unit tests when BUILD_TESTING is enabled." ON)
@@ -360,7 +365,6 @@ if(BUILD_TESTING AND libuv_buildtests)
   target_compile_definitions(uv_run_tests
                              PRIVATE ${uv_defines} USING_UV_SHARED=1)
   target_compile_options(uv_run_tests PRIVATE ${uv_cflags})
-  target_include_directories(uv_run_tests PRIVATE include)
   target_link_libraries(uv_run_tests uv ${uv_test_libraries})
   add_test(NAME uv_test
            COMMAND uv_run_tests
@@ -368,7 +372,6 @@ if(BUILD_TESTING AND libuv_buildtests)
   add_executable(uv_run_tests_a ${uv_test_sources})
   target_compile_definitions(uv_run_tests_a PRIVATE ${uv_defines})
   target_compile_options(uv_run_tests_a PRIVATE ${uv_cflags})
-  target_include_directories(uv_run_tests_a PRIVATE include)
   target_link_libraries(uv_run_tests_a uv_a ${uv_test_libraries})
   add_test(NAME uv_test_a
            COMMAND uv_run_tests_a
@@ -383,6 +386,10 @@ if(UNIX)
   endforeach(x)
   file(STRINGS configure.ac configure_ac REGEX ^AC_INIT)
   string(REGEX MATCH [0-9]+[.][0-9]+[.][0-9]+ PACKAGE_VERSION "${configure_ac}")
+  string(REGEX MATCH ^[0-9]+ UV_VERSION_MAJOR "${PACKAGE_VERSION}")
+  # The version in the filename is mirroring the behaviour of autotools.
+  set_target_properties(uv PROPERTIES VERSION ${UV_VERSION_MAJOR}.0.0
+				      SOVERSION ${UV_VERSION_MAJOR})
   set(includedir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
   set(libdir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
   set(prefix ${CMAKE_INSTALL_PREFIX})

@@ -120,6 +120,8 @@ static int uv_tty_virtual_width = -1;
 static HANDLE uv__tty_console_handle = INVALID_HANDLE_VALUE;
 static int uv__tty_console_height = -1;
 static int uv__tty_console_width = -1;
+static HANDLE uv__tty_console_resized = INVALID_HANDLE_VALUE;
+static uv_mutex_t uv__tty_console_resize_mutex;
 
 static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param);
 static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
@@ -129,6 +131,8 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
                                                   LONG idChild,
                                                   DWORD dwEventThread,
                                                   DWORD dwmsEventTime);
+static DWORD WINAPI uv__tty_console_resize_watcher_thread(void* param);
+static void uv__tty_console_signal_resize(void);
 
 /* We use a semaphore rather than a mutex or critical section because in some
    cases (uv__cancel_read_console) we need take the lock in the main thread and
@@ -168,6 +172,7 @@ void uv_console_init(void) {
     QueueUserWorkItem(uv__tty_console_resize_message_loop_thread,
                       NULL,
                       WT_EXECUTELONGFUNCTION);
+    uv_mutex_init(&uv__tty_console_resize_mutex);
   }
 }
 
@@ -727,6 +732,12 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         goto out;
       }
       records_left--;
+
+      /* We might be not subscribed to EVENT_CONSOLE_LAYOUT or we might be
+       * running under some TTY emulator that does not send those events. */
+      if (handle->tty.rd.last_input_record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+        uv__tty_console_signal_resize();
+      }
 
       /* Ignore other events that are not key events. */
       if (handle->tty.rd.last_input_record.EventType != KEY_EVENT) {
@@ -2299,14 +2310,23 @@ static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
                                       sizeof(conhost_pid),
                                       NULL);
 
-  if (!NT_SUCCESS(status))
+  if (!NT_SUCCESS(status)) {
     /* We couldn't retrieve our console host process, probably because this
      * is a 32-bit process running on 64-bit Windows. Fall back to receiving
-     * console events from all processes. */
-    conhost_pid = 0;
+     * console events from the input stream only. */
+    return 0;
+  }
 
   /* Ensure the PID is a multiple of 4, which is required by SetWinEventHook */
   conhost_pid &= ~(ULONG_PTR)0x3;
+
+  uv__tty_console_resized = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (uv__tty_console_resized == NULL)
+    return 0;
+  if (QueueUserWorkItem(uv__tty_console_resize_watcher_thread,
+                        NULL,
+                        WT_EXECUTELONGFUNCTION) == 0)
+    return 0;
 
   if (!pSetWinEventHook(EVENT_CONSOLE_LAYOUT,
                         EVENT_CONSOLE_LAYOUT,
@@ -2331,6 +2351,20 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
                                                   LONG idChild,
                                                   DWORD dwEventThread,
                                                   DWORD dwmsEventTime) {
+  SetEvent(uv__tty_console_resized);
+}
+
+static DWORD WINAPI uv__tty_console_resize_watcher_thread(void* param) {
+  for (;;) {
+    /* Make sure to not overwhelm the system with resize events */
+    Sleep(33);
+    WaitForSingleObject(uv__tty_console_resized, INFINITE);
+    uv__tty_console_signal_resize();
+    ResetEvent(uv__tty_console_resized);
+  }
+}
+
+static void uv__tty_console_signal_resize(void) {
   CONSOLE_SCREEN_BUFFER_INFO sb_info;
   int width, height;
 
@@ -2340,9 +2374,13 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
   width = sb_info.dwSize.X;
   height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
+  uv_mutex_lock(&uv__tty_console_resize_mutex);
   if (width != uv__tty_console_width || height != uv__tty_console_height) {
     uv__tty_console_width = width;
     uv__tty_console_height = height;
+    uv_mutex_unlock(&uv__tty_console_resize_mutex);
     uv__signal_dispatch(SIGWINCH);
+  } else {
+    uv_mutex_unlock(&uv__tty_console_resize_mutex);
   }
 }

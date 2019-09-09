@@ -1180,6 +1180,10 @@ static void uv__read(uv_stream_t* stream) {
       } else if (errno == ECONNRESET && stream->type == UV_NAMED_PIPE) {
         uv__stream_eof(stream, &buf);
         return;
+#elif defined(_AIX)
+      } else if (errno == ECONNRESET && (stream->flags & UV_DISCONNECT)) {
+        uv__stream_eof(stream, &buf);
+        return;
 #endif
       } else {
         /* Error. User should call uv_close(). */
@@ -1403,7 +1407,7 @@ int uv_write2(uv_write_t* req,
     return UV_EBADF;
 
   if (!(stream->flags & UV_HANDLE_WRITABLE))
-    return -EPIPE;
+    return UV_EPIPE;
 
   if (send_handle) {
     if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc)
@@ -1557,7 +1561,7 @@ int uv_read_start(uv_stream_t* stream,
     return UV_EINVAL;
 
   if (!(stream->flags & UV_HANDLE_READABLE))
-    return -ENOTCONN;
+    return UV_ENOTCONN;
 
   /* The UV_HANDLE_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.

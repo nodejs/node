@@ -4109,7 +4109,7 @@
 #endif
 
 /* from winternl.h */
-#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32_)
+#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32__)
 #define __UNICODE_STRING_DEFINED
 #endif
 typedef struct _UNICODE_STRING {
