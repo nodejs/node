@@ -1984,11 +1984,6 @@ than the parent module. Linked modules must share the same context.
 
 The linker function returned a module for which linking has failed.
 
-<a id="ERR_VM_MODULE_NOT_LINKED"></a>
-### ERR_VM_MODULE_NOT_LINKED
-
-The module must be successfully linked before instantiation.
-
 <a id="ERR_VM_MODULE_NOT_MODULE"></a>
 ### ERR_VM_MODULE_NOT_MODULE
 
@@ -2274,6 +2269,11 @@ removed: v10.0.0
 -->
 
 Used when a given value is out of the accepted range.
+
+<a id="ERR_VM_MODULE_NOT_LINKED"></a>
+### ERR_VM_MODULE_NOT_LINKED
+
+The module must be successfully linked before instantiation.
 
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED
