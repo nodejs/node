@@ -2,7 +2,7 @@
 
 <!--introduced_in=v10.5.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The `worker_threads` module enables the use of threads that execute JavaScript
 in parallel. To access it:
