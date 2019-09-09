@@ -48,11 +48,6 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   return UV_ENOSYS;
 }
 
-void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
-  (void)cpu_infos;
-  (void)count;
-}
-
 uint64_t uv_get_constrained_memory(void) {
   return 0;  /* Memory constraints are unknown. */
 }

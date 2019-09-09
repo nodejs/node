@@ -202,14 +202,13 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (!(*cpu_infos))
     return UV_ENOMEM;
 
+  i = 0;
   *count = numcpus;
 
   which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
-  if (sysctl(which, 2, &cpuspeed, &size, NULL, 0)) {
-    uv__free(*cpu_infos);
-    return UV__ERR(errno);
-  }
+  if (sysctl(which, 2, &cpuspeed, &size, NULL, 0))
+    goto error;
 
   size = sizeof(info);
   which[0] = CTL_KERN;
@@ -217,10 +216,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   for (i = 0; i < numcpus; i++) {
     which[2] = i;
     size = sizeof(info);
-    if (sysctl(which, 3, &info, &size, NULL, 0)) {
-      uv__free(*cpu_infos);
-      return UV__ERR(errno);
-    }
+    if (sysctl(which, 3, &info, &size, NULL, 0))
+      goto error;
 
     cpu_info = &(*cpu_infos)[i];
 
@@ -235,15 +232,13 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
 
   return 0;
-}
 
+error:
+  *count = 0;
+  for (j = 0; j < i; j++)
+    uv__free((*cpu_infos)[j].model);
 
-void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(cpu_infos[i].model);
-  }
-
-  uv__free(cpu_infos);
+  uv__free(*cpu_infos);
+  *cpu_infos = NULL;
+  return UV__ERR(errno);
 }

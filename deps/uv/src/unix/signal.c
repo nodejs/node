@@ -477,9 +477,11 @@ static void uv__signal_event(uv_loop_t* loop,
        * yet dispatched, the uv__finish_close was deferred. Make close pending
        * now if this has happened.
        */
-      if ((handle->flags & UV_HANDLE_CLOSING) &&
-          (handle->caught_signals == handle->dispatched_signals)) {
-        uv__make_close_pending((uv_handle_t*) handle);
+      if (handle->caught_signals == handle->dispatched_signals) {
+        if (handle->signum == 0)
+          uv__handle_stop(handle);
+        if (handle->flags & UV_HANDLE_CLOSING)
+          uv__make_close_pending((uv_handle_t*) handle);
       }
     }
 
@@ -569,5 +571,6 @@ static void uv__signal_stop(uv_signal_t* handle) {
   uv__signal_unlock_and_unblock(&saved_sigmask);
 
   handle->signum = 0;
-  uv__handle_stop(handle);
+  if (handle->caught_signals == handle->dispatched_signals)
+    uv__handle_stop(handle);
 }

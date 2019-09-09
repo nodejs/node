@@ -88,6 +88,15 @@ TEST_IMPL(env_vars) {
   r = uv_os_unsetenv(name);
   ASSERT(r == 0);
 
+  /* Setting an environment variable to the empty string does not delete it. */
+  r = uv_os_setenv(name, "");
+  ASSERT(r == 0);
+  size = BUF_SIZE;
+  r = uv_os_getenv(name, buf, &size);
+  ASSERT(r == 0);
+  ASSERT(size == 0);
+  ASSERT(strlen(buf) == 0);
+
   /* Check getting all env variables. */
   r = uv_os_setenv(name, "123456789");
   ASSERT(r == 0);

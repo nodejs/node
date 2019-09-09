@@ -292,6 +292,19 @@ TEST_IMPL(timer_run_once) {
 }
 
 
+TEST_IMPL(timer_is_closing) {
+  uv_timer_t handle;
+
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &handle));
+  uv_close((uv_handle_t *)&handle, NULL);
+
+  ASSERT(UV_EINVAL == uv_timer_start(&handle, never_cb, 100, 100));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(timer_null_callback) {
   uv_timer_t handle;
 
