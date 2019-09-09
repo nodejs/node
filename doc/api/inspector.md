@@ -55,11 +55,11 @@ Return the URL of the active inspector, or `undefined` if there is none.
 ```js
 // Node.js process was called with --inspect flag.
 require('inspector').url()
-// 'ws://127.0.0.1:9229/whatever'
+// 'ws://127.0.0.1:9229/7a8d85cf-a3db-43f0-b7dc-7fa3c13bf26d'
 
 // Node.js process was called with --inspect=localhost:3000 flag.
 require('inspector').url()
-// 'ws://localhost:3000/whatever'
+// 'ws://localhost:3000/7a8d85cf-a3db-43f0-b7dc-7fa3c13bf26d'
 
 // Node.js process was called without --inspect flag.
 require('inspector').url()
