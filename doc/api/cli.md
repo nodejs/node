@@ -1123,7 +1123,7 @@ to an empty string (`''` or `' '`) disables persistent REPL history.
 
 ### `NODE_REPL_EXTERNAL_MODULE=file`
 <!-- YAML
-added: REPLACEME
+added: v13.0.0
 -->
 
 Path to a Node.js module which will be loaded in place of the built-in REPL.

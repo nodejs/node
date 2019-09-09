@@ -398,7 +398,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
     description: Circular references now include a marker to the reference.
   - version: v12.0.0

@@ -2441,7 +2441,7 @@ Node.js versions.
 ### DEP0129: ChildProcess._channel
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27949
     description: Runtime deprecation.
   - version: v11.14.0
@@ -2459,7 +2459,7 @@ instead.
 ### DEP0130: Module.createRequireFromPath()
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27951
     description: Runtime deprecation.
   - version: v12.2.0
@@ -2476,7 +2476,7 @@ Module.createRequireFromPath() is deprecated. Please use
 ### DEP0131: Legacy HTTP parser
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29589
     description: This feature has been removed.
   - version: v12.3.0
@@ -2487,7 +2487,7 @@ changes:
 Type: End-of-Life
 
 The legacy HTTP parser, used by default in versions of Node.js prior to 12.0.0,
-is deprecated and has been removed in REPLACEME. Prior to REPLACEME, the
+is deprecated and has been removed in v13.0.0. Prior to v13.0.0, the
 `--http-parser=legacy` command-line flag could be used to revert to using the
 legacy parser.
 
@@ -2536,7 +2536,7 @@ an officially supported API.
 ### DEP0135: `WriteStream.open()` and `ReadStream.open()` are internal
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29061
     description: Runtime deprecation.
 -->
