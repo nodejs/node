@@ -567,7 +567,7 @@ been aborted.
 ### request.connection
 <!-- YAML
 added: v0.3.0
-deprecated: REPLACEME
+deprecated: v13.0.0
 -->
 
 > Stability: 0 - Deprecated. Use [`request.socket`][].
@@ -679,7 +679,7 @@ request.removeHeader('Content-Type');
 ### request.reusedSocket
 
 <!-- YAML
-added: REPLACEME
+added: v13.0.0
 -->
 
 * {boolean} Whether the request is send through a reused socket.
@@ -1104,7 +1104,7 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27558
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
@@ -1128,7 +1128,7 @@ explicitly.
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27558
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
@@ -1222,7 +1222,7 @@ will result in a [`TypeError`][] being thrown.
 ### response.connection
 <!-- YAML
 added: v0.3.0
-deprecated: REPLACEME
+deprecated: v13.0.0
 -->
 
 > Stability: 0 - Deprecated. Use [`response.socket`][].
