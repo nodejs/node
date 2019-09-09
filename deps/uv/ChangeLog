@@ -1,3 +1,78 @@
+2019.09.10, Version 1.32.0 (Stable), 697bea87b3a0b0e9b4e5ff86b39d1dedb70ee46d
+
+Changes since version 1.31.0:
+
+* misc: enable stalebot (Saúl Ibarra Corretgé)
+
+* win: map ERROR_ENVVAR_NOT_FOUND to UV_ENOENT (cjihrig)
+
+* win: use L'\0' as UTF-16 null terminator (cjihrig)
+
+* win: support retrieving empty env variables (cjihrig)
+
+* unix,stream: fix returned error codes (Santiago Gimeno)
+
+* test: fix typo in DYLD_LIBRARY_PATH (Ben Noordhuis)
+
+* unix,signal: keep handle active if pending signal (Santiago Gimeno)
+
+* openbsd: fix uv_cpu_info (Santiago Gimeno)
+
+* src: move uv_free_cpu_info to uv-common.c (Santiago Gimeno)
+
+* tcp: add uv_tcp_close_reset method (Santiago Gimeno)
+
+* test: fix udp-multicast-join tests (Santiago Gimeno)
+
+* test: remove assertion in fs_statfs test (cjihrig)
+
+* doc: clarify uv_buf_t usage in uv_alloc_cb (Tomas Krizek)
+
+* win: fix typo in preprocessor expression (Konstantin Podsvirov)
+
+* timer: fix uv_timer_start on closing timer (seny)
+
+* udp: add source-specific multicast support (Vladimir Karnushin)
+
+* udp: fix error return values (Santiago Gimeno)
+
+* udp: drop IPV6_SSM_SUPPORT macro (Santiago Gimeno)
+
+* udp: fix uv__udp_set_source_membership6 (Santiago Gimeno)
+
+* udp: use sockaddr_storage instead of union (Santiago Gimeno)
+
+* build,zos: add _OPEN_SYS_SOCK_EXT3 flag (Santiago Gimeno)
+
+* test: add specific source multicast tests (Santiago Gimeno)
+
+* include: map EILSEQ error code (cjihrig)
+
+* win, tty: improve SIGWINCH performance (Bartosz Sosnowski)
+
+* build: fix ios build error (MaYuming)
+
+* aix: replace ECONNRESET with EOF if already closed (Milad Farazmand)
+
+* build: add cmake library VERSION, SOVERSION (Eneas U de Queiroz)
+
+* build: make include/ public in CMakeLists.txt (Ben Noordhuis)
+
+* build: export USING_UV_SHARED=1 to cmake deps (Ben Noordhuis)
+
+* build: cmake_minimum_required(VERSION 2.8.12) (Daniel Hahler)
+
+* aix: Fix broken cmpxchgi() XL C++ specialization. (Andrew Paprocki)
+
+* test: fix -Wsign-compare warning (Ben Noordhuis)
+
+* unix: simplify open(O_CLOEXEC) feature detection (Ben Noordhuis)
+
+* unix: fix UV_FS_O_DIRECT definition on Linux (Joran Dirk Greef)
+
+* doc: uv_handle_t documentation suggestion (Daniel Bevenius)
+
+
 2019.08.10, Version 1.31.0 (Stable), 0a6771cee4c15184c924bfe9d397bdd0c3b206ba
 
 Changes since version 1.30.1:

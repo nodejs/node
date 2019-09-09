@@ -20,6 +20,15 @@ Reception of some signals is emulated:
   program is given approximately 10 seconds to perform cleanup. After that
   Windows will unconditionally terminate it.
 
+* SIGWINCH is raised whenever libuv detects that the console has been
+  resized. When a libuv app is running under a console emulator, or when a
+  32-bit libuv app is running on 64-bit system, SIGWINCH will be emulated. In
+  such cases SIGWINCH signals may not always be delivered in a timely manner.
+  For a writable :c:type:`uv_tty_t` handle libuv will only detect size changes
+  when the cursor is moved. When a readable :c:type:`uv_tty_t` handle is used,
+  resizing of the console buffer will be detected only if the handle is in raw
+  mode and is being read.
+
 * Watchers for other signals can be successfully created, but these signals
   are never received. These signals are: `SIGILL`, `SIGABRT`, `SIGFPE`, `SIGSEGV`,
   `SIGTERM` and `SIGKILL.`
@@ -28,6 +37,8 @@ Reception of some signals is emulated:
   not detected by libuv; these will not trigger a signal watcher.
 
 .. versionchanged:: 1.15.0 SIGWINCH support on Windows was improved.
+.. versionchanged:: 1.31.0 32-bit libuv SIGWINCH support on 64-bit Windows was
+                           rolled back to old implementation.
 
 Unix notes
 ----------

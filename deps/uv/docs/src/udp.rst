@@ -56,15 +56,18 @@ Data types
 
     * `handle`: UDP handle
     * `nread`:  Number of bytes that have been received.
-      0 if there is no more data to read. You may discard or repurpose
-      the read buffer. Note that 0 may also mean that an empty datagram
-      was received (in this case `addr` is not NULL). < 0 if a transmission
-      error was detected.
+      0 if there is no more data to read. Note that 0 may also mean that an
+      empty datagram was received (in this case `addr` is not NULL). < 0 if
+      a transmission error was detected.
     * `buf`: :c:type:`uv_buf_t` with the received data.
     * `addr`: ``struct sockaddr*`` containing the address of the sender.
       Can be NULL. Valid for the duration of the callback only.
     * `flags`: One or more or'ed UV_UDP_* constants. Right now only
       ``UV_UDP_PARTIAL`` is used.
+
+    The callee is responsible for freeing the buffer, libuv does not reuse it.
+    The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
+    on error.
 
     .. note::
         The receive callback will be called with `nread` == 0 and `addr` == NULL when there is
@@ -218,6 +221,25 @@ API
     :param membership: Should be ``UV_JOIN_GROUP`` or ``UV_LEAVE_GROUP``.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+.. c:function:: int uv_udp_set_source_membership(uv_udp_t* handle, const char* multicast_addr, const char* interface_addr, const char* source_addr, uv_membership membership)
+
+    Set membership for a source-specific multicast group.
+
+    :param handle: UDP handle. Should have been initialized with
+        :c:func:`uv_udp_init`.
+
+    :param multicast_addr: Multicast address to set membership for.
+
+    :param interface_addr: Interface address.
+
+    :param source_addr: Source address.
+
+    :param membership: Should be ``UV_JOIN_GROUP`` or ``UV_LEAVE_GROUP``.
+
+    :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionadded:: 1.32.0
 
 .. c:function:: int uv_udp_set_multicast_loop(uv_udp_t* handle, int on)
 

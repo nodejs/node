@@ -240,7 +240,7 @@ TEST_IMPL(spawn_empty_env) {
    * in the environment, but of course that doesn't work with
    * the empty environment that we're testing here.
    */
-  if (NULL != getenv("DYLD_LIBARY_PATH") ||
+  if (NULL != getenv("DYLD_LIBRARY_PATH") ||
       NULL != getenv("LD_LIBRARY_PATH")) {
     RETURN_SKIP("doesn't work with DYLD_LIBRARY_PATH/LD_LIBRARY_PATH");
   }

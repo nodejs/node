@@ -36,10 +36,6 @@ UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval)) {
                         : "r" (newval), "0" (oldval)
                         : "memory");
   return out;
-#elif defined(_AIX) && defined(__xlC__)
-  const int out = (*(volatile int*) ptr);
-  __compare_and_swap(ptr, &oldval, newval);
-  return out;
 #elif defined(__MVS__)
   unsigned int op4;
   if (__plo_CSST(ptr, (unsigned int*) &oldval, newval,

@@ -27,6 +27,10 @@
 extern "C" {
 #endif
 
+#if defined(BUILDING_UV_SHARED) && defined(USING_UV_SHARED)
+#error "Define either BUILDING_UV_SHARED or USING_UV_SHARED, not both."
+#endif
+
 #ifdef _WIN32
   /* Windows - set up dll import/export decorators. */
 # if defined(BUILDING_UV_SHARED)
@@ -143,6 +147,7 @@ extern "C" {
   XX(EREMOTEIO, "remote I/O error")                                           \
   XX(ENOTTY, "inappropriate ioctl for device")                                \
   XX(EFTYPE, "inappropriate file type or format")                             \
+  XX(EILSEQ, "illegal byte sequence")                                         \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -559,6 +564,7 @@ UV_EXTERN int uv_tcp_getsockname(const uv_tcp_t* handle,
 UV_EXTERN int uv_tcp_getpeername(const uv_tcp_t* handle,
                                  struct sockaddr* name,
                                  int* namelen);
+UV_EXTERN int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb);
 UV_EXTERN int uv_tcp_connect(uv_connect_t* req,
                              uv_tcp_t* handle,
                              const struct sockaddr* addr,
@@ -645,6 +651,11 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
                                     const char* multicast_addr,
                                     const char* interface_addr,
                                     uv_membership membership);
+UV_EXTERN int uv_udp_set_source_membership(uv_udp_t* handle,
+                                           const char* multicast_addr,
+                                           const char* interface_addr,
+                                           const char* source_addr,
+                                           uv_membership membership);
 UV_EXTERN int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
 UV_EXTERN int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
 UV_EXTERN int uv_udp_set_multicast_interface(uv_udp_t* handle,
