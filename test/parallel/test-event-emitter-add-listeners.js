@@ -29,9 +29,6 @@ const EventEmitter = require('events');
   const events_new_listener_emitted = [];
   const listeners_new_listener_emitted = [];
 
-  // Sanity check
-  assert.strictEqual(ee.addListener, ee.on);
-
   ee.on('newListener', function(event, listener) {
     // Don't track newListener listeners.
     if (event === 'newListener')

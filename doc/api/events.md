@@ -734,7 +734,8 @@ run();
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
-[`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
+[`emitter.on()`]: #events_emitter_on_eventname_listener
+[`emitter.off()`]: #events_emitter_off_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
