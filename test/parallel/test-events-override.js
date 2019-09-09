@@ -1,8 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { once, EventEmitter: EE } = require('events');
-const { strictEqual, deepStrictEqual } = require('assert');
+const { EventEmitter: EE } = require('events');
 
 {
   const e = new EE();
