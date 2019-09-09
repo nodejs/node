@@ -9,8 +9,6 @@ prefix parallel
 test-fs-stat-bigint: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23207
 test-net-connect-options-port: PASS,FLAKY
-# https://github.com/nodejs/node/issues/26401
-test-worker-prof: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/20750
