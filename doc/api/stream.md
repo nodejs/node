@@ -1139,6 +1139,16 @@ added: v12.9.0
 
 Becomes `true` when [`'end'`][] event is emitted.
 
+##### readable.readableFlowing
+<!-- YAML
+added: v9.4.0
+-->
+
+* {boolean}
+
+This property reflects the current state of a `Readable` stream as described
+in the [Stream Three States][] section.
+
 ##### readable.readableHighWaterMark
 <!-- YAML
 added: v9.3.0
@@ -2781,6 +2791,7 @@ contain multi-byte characters.
 [stream-read]: #stream_readable_read_size
 [stream-resume]: #stream_readable_resume
 [stream-write]: #stream_writable_write_chunk_encoding_callback
+[Stream Three States]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
 [writable-new]: #stream_constructor_new_stream_writable_options
