@@ -30,8 +30,23 @@
 #define CHECK_HANDLE(handle) \
   ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
 
+#if defined(__APPLE__)          || \
+    defined(_AIX)               || \
+    defined(__MVS__)            || \
+    defined(__FreeBSD_kernel__) || \
+    defined(__NetBSD__)         || \
+    defined(__OpenBSD__)
+  #define MULTICAST_ADDR "ff02::1%lo0"
+  #define INTERFACE_ADDR "::1%lo0"
+#else
+  #define MULTICAST_ADDR "ff02::1"
+  #define INTERFACE_ADDR NULL
+#endif
+
 static uv_udp_t server;
 static uv_udp_t client;
+static uv_udp_send_t req;
+static uv_udp_send_t req_ss;
 
 static int cl_recv_cb_called;
 
@@ -63,7 +78,26 @@ static void sv_send_cb(uv_udp_send_t* req, int status) {
 
   sv_send_cb_called++;
 
-  uv_close((uv_handle_t*) req->handle, close_cb);
+  if (sv_send_cb_called == 2)
+    uv_close((uv_handle_t*) req->handle, close_cb);
+}
+
+
+static int do_send(uv_udp_send_t* send_req) {
+  uv_buf_t buf;
+  struct sockaddr_in6 addr;
+  
+  buf = uv_buf_init("PING", 4);
+
+  ASSERT(0 == uv_ip6_addr(MULTICAST_ADDR, TEST_PORT, &addr));
+
+  /* client sends "PING" */
+  return uv_udp_send(send_req,
+                     &client,
+                     &buf,
+                     1,
+                     (const struct sockaddr*) &addr,
+                     sv_send_cb);
 }
 
 
@@ -74,8 +108,6 @@ static void cl_recv_cb(uv_udp_t* handle,
                        unsigned flags) {
   CHECK_HANDLE(handle);
   ASSERT(flags == 0);
-
-  cl_recv_cb_called++;
 
   if (nread < 0) {
     ASSERT(0 && "unexpected error");
@@ -91,21 +123,57 @@ static void cl_recv_cb(uv_udp_t* handle,
   ASSERT(nread == 4);
   ASSERT(!memcmp("PING", buf->base, nread));
 
-  /* we are done with the client handle, we can close it */
-  uv_close((uv_handle_t*) &client, close_cb);
+  cl_recv_cb_called++;
+
+  if (cl_recv_cb_called == 2) {
+    /* we are done with the server handle, we can close it */
+    uv_close((uv_handle_t*) &server, close_cb);
+  } else {
+    int r;
+    char source_addr[64];
+
+    r = uv_ip6_name((const struct sockaddr_in6*)addr, source_addr, sizeof(source_addr));
+    ASSERT(r == 0);
+
+    r = uv_udp_set_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, UV_LEAVE_GROUP);
+    ASSERT(r == 0);
+
+    r = uv_udp_set_source_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, source_addr, UV_JOIN_GROUP);
+    ASSERT(r == 0);
+
+    r = do_send(&req_ss);
+    ASSERT(r == 0);
+  }
+}
+
+
+static int can_ipv6_external(void) {
+  uv_interface_address_t* addr;
+  int supported;
+  int count;
+  int i;
+
+  if (uv_interface_addresses(&addr, &count))
+    return 0;  /* Assume no IPv6 support on failure. */
+
+  supported = 0;
+  for (i = 0; supported == 0 && i < count; i += 1)
+    supported = (AF_INET6 == addr[i].address.address6.sin6_family &&
+                 !addr[i].is_internal);
+
+  uv_free_interface_addresses(addr, count);
+  return supported;
 }
 
 
 TEST_IMPL(udp_multicast_join6) {
   int r;
-  uv_udp_send_t req;
-  uv_buf_t buf;
   struct sockaddr_in6 addr;
 
-  if (!can_ipv6())
-    RETURN_SKIP("IPv6 not supported");
+  if (!can_ipv6_external())
+    RETURN_SKIP("No external IPv6 interface available");
 
-  ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -114,20 +182,10 @@ TEST_IMPL(udp_multicast_join6) {
   ASSERT(r == 0);
 
   /* bind to the desired port */
-  r = uv_udp_bind(&client, (const struct sockaddr*) &addr, 0);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
-  /* join the multicast channel */
-#if defined(__APPLE__)          || \
-    defined(_AIX)               || \
-    defined(__MVS__)            || \
-    defined(__FreeBSD_kernel__) || \
-    defined(__NetBSD__)         || \
-    defined(__OpenBSD__)
-  r = uv_udp_set_membership(&client, "ff02::1", "::1%lo0", UV_JOIN_GROUP);
-#else
-  r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);
-#endif
+  r = uv_udp_set_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, UV_JOIN_GROUP);
   if (r == UV_ENODEV) {
     MAKE_VALGRIND_HAPPY();
     RETURN_SKIP("No ipv6 multicast route");
@@ -135,18 +193,10 @@ TEST_IMPL(udp_multicast_join6) {
 
   ASSERT(r == 0);
 
-  r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);
+  r = uv_udp_recv_start(&server, alloc_cb, cl_recv_cb);
   ASSERT(r == 0);
-
-  buf = uv_buf_init("PING", 4);
-
-  /* server sends "PING" */
-  r = uv_udp_send(&req,
-                  &server,
-                  &buf,
-                  1,
-                  (const struct sockaddr*) &addr,
-                  sv_send_cb);
+  
+  r = do_send(&req);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 0);
@@ -156,8 +206,8 @@ TEST_IMPL(udp_multicast_join6) {
   /* run the loop till all events are processed */
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(cl_recv_cb_called == 1);
-  ASSERT(sv_send_cb_called == 1);
+  ASSERT(cl_recv_cb_called == 2);
+  ASSERT(sv_send_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
   MAKE_VALGRIND_HAPPY();

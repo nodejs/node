@@ -401,6 +401,8 @@ Check the [SUPPORTED_PLATFORMS file](SUPPORTED_PLATFORMS.md).
 
 ### AIX Notes
 
+AIX compilation using IBM XL C/C++ requires version 12.1 or greater.
+
 AIX support for filesystem events requires the non-default IBM `bos.ahafs`
 package to be installed.  This package provides the AIX Event Infrastructure
 that is detected by `autoconf`.

@@ -248,6 +248,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-shutdown-eof.c \
                          test/test-shutdown-twice.c \
                          test/test-signal-multiple-loops.c \
+                         test/test-signal-pending-on-close.c \
                          test/test-signal.c \
                          test/test-socket-buffer-size.c \
                          test/test-spawn.c \
@@ -259,6 +260,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-close-accept.c \
                          test/test-tcp-close-while-connecting.c \
                          test/test-tcp-close.c \
+                         test/test-tcp-close-reset.c \
                          test/test-tcp-create-socket-early.c \
                          test/test-tcp-connect-error-after-write.c \
                          test/test-tcp-connect-error.c \
@@ -517,6 +519,7 @@ libuv_la_CFLAGS += -D_UNIX03_THREADS \
                    -D_XOPEN_SOURCE_EXTENDED \
                    -D_ALL_SOURCE \
                    -D_LARGE_TIME_API \
+                   -D_OPEN_SYS_SOCK_EXT3 \
                    -D_OPEN_SYS_SOCK_IPV6 \
                    -D_OPEN_SYS_FILE_EXT \
                    -DUV_PLATFORM_SEM_T=int \
