@@ -123,17 +123,24 @@ async function onceWithEventTargetTwoArgs() {
 }
 
 async function onceWithEventTargetError() {
-  const emitter = new EventEmitter();
-  emitter.addEventListener = () => {};
-  const expected = 'EventTarget does not have `error` event semantics';
-  let actual;
-  try {
-    await once(emitter, 'error');
-  } catch (error) {
-    actual = error;
-  }
+  const emitter = new class EventTargetLike extends EventEmitter {
+    addEventListener = common.mustCall(function(name, listener, options) {
+      if (options.once) {
+        this.once(name, listener);
+      } else {
+        this.on(name, listener);
+      }
+    });
+  }();
+
+  const expected = new Error('kaboom');
+  process.nextTick(() => {
+    emitter.emit('error', expected);
+  });
+
+  const [err] = await once(emitter, 'error');
+  strictEqual(err, expected);
   strictEqual(emitter.listenerCount('error'), 0);
-  strictEqual(expected, actual);
 }
 
 Promise.all([
