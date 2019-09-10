@@ -11,6 +11,6 @@ const { EventEmitter: EE } = require('events');
 
 {
   const e = new EE();
-  e.off = common.mustCall();
-  e.removeListener('test', () => {});
+  e.removeListener = common.mustCall();
+  e.off('test', () => {});
 }
