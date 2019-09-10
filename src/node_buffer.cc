@@ -1047,6 +1047,40 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK_GE(args.Length(), 3);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsUint8Array());
+  CHECK(args[2]->IsUint32Array());
+
+  Local<String> source = args[0].As<String>();
+
+  Local<Uint8Array> dest = args[1].As<Uint8Array>();
+  Local<ArrayBuffer> buf = dest->Buffer();
+  char* write_result =
+      static_cast<char*>(buf->GetContents().Data()) + dest->ByteOffset();
+  size_t dest_length = dest->ByteLength();
+
+  // results = [ read, written ]
+  Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
+  uint32_t* results = reinterpret_cast<uint32_t*>(
+      static_cast<char*>(result_arr->Buffer()->GetContents().Data()) +
+      result_arr->ByteOffset());
+
+  int nchars;
+  int written = source->WriteUtf8(
+      isolate,
+      write_result,
+      dest_length,
+      &nchars,
+      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+  results[0] = nchars;
+  results[1] = written;
+}
+
+
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1078,6 +1112,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
 
+  env->SetMethod(target, "encodeInto", EncodeInto);
   env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),
