@@ -43,9 +43,6 @@
 
     ##### V8 defaults for Node.js #####
 
-    # Old time default, now explicitly stated.
-    'v8_use_snapshot': 1,
-
     # Turn on SipHash for hash seed generation, addresses HashWick
     'v8_use_siphash': 'true',
 
@@ -76,52 +73,27 @@
     # TODO(refack): make v8-perfetto happen
     'v8_use_perfetto': 0,
 
+    'v8_enable_pointer_compression': 0,
+    'v8_enable_31bit_smis_on_64bit_arch': 0,
+
     ##### end V8 defaults #####
 
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
         'v8_postmortem_support%': 0,
+        'obj_dir': '<(PRODUCT_DIR)/obj',
+        'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
       }, {
         'os_posix': 1,
         'v8_postmortem_support%': 1,
       }],
-      ['v8_use_snapshot==1', {
-        'conditions': [
-          ['GENERATOR == "ninja"', {
-            'obj_dir': '<(PRODUCT_DIR)/obj',
-            'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_snapshot.a',
-           }, {
-            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-            'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
-          }],
-          ['OS == "win"', {
-            'obj_dir': '<(PRODUCT_DIR)/obj',
-            'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
-          }],
-          ['OS == "mac"', {
-            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-            'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
-          }],
-        ],
+      ['GENERATOR == "ninja"', {
+        'obj_dir': '<(PRODUCT_DIR)/obj',
+        'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_snapshot.a',
       }, {
-        'conditions': [
-          ['GENERATOR == "ninja"', {
-            'obj_dir': '<(PRODUCT_DIR)/obj',
-            'v8_base': '<(PRODUCT_DIR)/obj/tools/v8_gypfiles/libv8_nosnapshot.a',
-           }, {
-            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-            'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_nosnapshot.a',
-          }],
-          ['OS == "win"', {
-            'obj_dir': '<(PRODUCT_DIR)/obj',
-            'v8_base': '<(PRODUCT_DIR)/lib/libv8_nosnapshot.a',
-          }],
-          ['OS == "mac"', {
-            'obj_dir%': '<(PRODUCT_DIR)/obj.target',
-            'v8_base': '<(PRODUCT_DIR)/libv8_nosnapshot.a',
-          }],
-        ],
+        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+        'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
       }],
       ['openssl_fips != ""', {
         'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
@@ -130,6 +102,8 @@
       }],
       ['OS=="mac"', {
         'clang%': 1,
+        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+        'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
     ],
   },
@@ -333,6 +307,12 @@
             'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
           }],
         ],
+      }],
+      ['v8_enable_pointer_compression == 1', {
+        'defines': ['V8_COMPRESS_POINTERS'],
+      }],
+      ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
+        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
       }],
       ['OS == "win"', {
         'defines': [
