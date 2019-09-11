@@ -50,7 +50,5 @@
   },
   "streams/*.js": {
     "fail": "No implementation of TextDecoderStream and TextEncoderStream"
-  },
-  "encodeInto.any.js": {
   }
 }

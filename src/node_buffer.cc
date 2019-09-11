@@ -1056,16 +1056,12 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32Array());
 
   Local<String> source = args[0].As<String>();
-  int source_utf8len = source->Utf8Length(isolate);
 
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
   Local<ArrayBuffer> buf = dest->Buffer();
   char* write_result =
       static_cast<char*>(buf->GetContents().Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
-
-  if (dest_length > static_cast<size_t>(source_utf8len))
-    dest_length = source_utf8len;
 
   // results = [ read, written ]
   Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
