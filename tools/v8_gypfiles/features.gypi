@@ -198,10 +198,6 @@
 
     # Variables from v8.gni
 
-    # Enable the snapshot feature, for fast context creation.
-    # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
-    'v8_use_snapshot%': 1,
-
     # Enable ECMAScript Internationalization API. Enabling this feature will
     # add a dependency on the ICU library.
     'v8_enable_i18n_support%': 1,
@@ -287,13 +283,8 @@
       # ['v8_enable_handle_zapping==1', {
       #  'defines': ['ENABLE_HANDLE_ZAPPING',],
       # }],
-      ['v8_use_snapshot==1', {
-        'defines': ['V8_USE_SNAPSHOT',],
-        'conditions': [
-          ['v8_enable_snapshot_native_code_counters==1', {
-            'defines': ['V8_SNAPSHOT_NATIVE_CODE_COUNTERS',],
-          }],
-        ],
+      ['v8_enable_snapshot_native_code_counters==1', {
+        'defines': ['V8_SNAPSHOT_NATIVE_CODE_COUNTERS',],
       }],
       ['v8_enable_single_generation==1', {
         'defines': ['V8_ENABLE_SINGLE_GENERATION',],
