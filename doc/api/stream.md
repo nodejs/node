@@ -1855,10 +1855,7 @@ or write buffered data before a stream ends.
 It is recommended that errors occurring during the processing of the
 `writable._write()` and `writable._writev()` methods are reported by invoking
 the callback and passing the error as the first argument. This will cause an
-`'error'` event to be emitted by the `Writable`. Throwing an `Error` from within
-`writable._write()` can result in unexpected and inconsistent behavior depending
-on how the stream is being used. Using the callback ensures consistent and
-predictable handling of errors.
+`'error'` event to be emitted by the `Writable`.
 
 If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
@@ -2129,30 +2126,6 @@ implementers, and only from within the `readable._read()` method.
 For streams not operating in object mode, if the `chunk` parameter of
 `readable.push()` is `undefined`, it will be treated as empty string or
 buffer. See [`readable.push('')`][] for more information.
-
-#### Errors While Reading
-
-It is recommended that errors occurring during the processing of the
-`readable._read()` method are emitted using the `'error'` event rather than
-being thrown. Throwing an `Error` from within `readable._read()` can result in
-unexpected and inconsistent behavior depending on whether the stream is
-operating in flowing or paused mode. Using the `'error'` event ensures
-consistent and predictable handling of errors.
-
-<!-- eslint-disable no-useless-return -->
-```js
-const { Readable } = require('stream');
-
-const myReadable = new Readable({
-  read(size) {
-    if (checkSomeErrorCondition()) {
-      process.nextTick(() => this.emit('error', err));
-      return;
-    }
-    // Do some work.
-  }
-});
-```
 
 #### An Example Counting Stream
 
