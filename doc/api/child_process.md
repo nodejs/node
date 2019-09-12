@@ -469,8 +469,10 @@ changes:
     See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. Unlike `command`, `args` will be quoted
+    and no metacharacters will be effective inside of it. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
+    (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -818,8 +820,10 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. Unlike `command`, `args` will be quoted
+    and no metacharacters will be effective inside of it. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
+    (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -949,8 +953,10 @@ changes:
     **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. Unlike `command`, `args` will be quoted
+    and no metacharacters will be effective inside of it. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
+    (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -1640,7 +1646,35 @@ The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
 should understand the `/d /s /c` switches and command-line parsing should be
 compatible.
 
-## Default Windows shell
+If `shell` and `args` are both specified, the shell should understand
+[POSIX single-quotes][]. If the shell is `'cmd.exe'`, it should understand the
+double-quoting used by Windows `cmd`. If the shell is `'powershell.exe'` or
+`'pwsh'`, it should understand a powershell-compatible single quoting.
+
+Since the `command` part is literally passed to the shell, you will be
+responsible for any escaping you perform. The specific way to call a file
+as a command-line program depends on the shell:
+
+* With POSIX shell, you quote the path using the usual single-quotes. You
+  may want to prefix it with `command --` or `env --` to suppress syntax,
+  function, and/or alias lookups. You can simply use `'command --'` as your
+  `command` argument and put the path on the first element of `args`.
+* With PowerShell, it is often needed to prefix the command with `&` when the
+  executable path is quoted. You can use a similar technique with `command`
+  set to `'&'`.
+* With CMD, you should wrap double quotes around the paths to the executable.
+  Do NOT escape anything inside of it.
+
+As a caveat for `'cmd'`, `args` should additionally not contain any newlines
+because `cmd` cannot handle such. See also [Windows Command Line][] for when
+else not to rely on the builtin escaping mechanism on Windows.
+
+In addition, PowerShell has an [ongoing, cross-platform issue][] with how it
+translates the `argv` for external programs to a Windows-style command-line
+string. Until it is fixed, the built-in PowerShell escape provided by Node.js
+is guaranteed to work for built-in commands only.
+
+## Default Windows Shell
 
 Although Microsoft specifies `%COMSPEC%` must contain the path to
 `'cmd.exe'` in the root environment, child processes are not always subject to
@@ -1648,7 +1682,21 @@ the same requirement. Thus, in `child_process` functions where a shell can be
 spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is
 unavailable.
 
-## Advanced serialization
+## Windows Command Line
+
+There is no universal way in Windows to do command-line escapes as every
+program are exposed natively to its full cmdline as a string, and each of them
+can have their own parsing rules, which includes optional glob expansion,
+officially provided as `_setargv`.
+
+The most common parsing is defined in the C runtime library as
+`CommandLineToArgvW`. Microsoft describes the rules in
+[Parsing C++ Command-Line Arguments][]. When any other rules are known to be
+used, `windowsVerbatimArguments` should be specified with manual argument
+quoting. Since `cmd` has a `/s` switch that allows for verbatim processing
+of the command string, we turn on the flag to take advantage of that feature.
+
+## Advanced Serialization
 <!-- YAML
 added:
  - v13.2.0
@@ -1704,6 +1752,13 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #child_process_subprocess_stdin
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
-[`util.promisify()`]: util.md#util_util_promisify_original
+[`util.promisify()`]: util.html#util_util_promisify_original
+[Default Windows Shell]: #child_process_default_windows_shell
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[Shell Requirements]: #child_process_shell_requirements
+[POSIX single-quotes]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_02_02
+[Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
+[Windows Command Line]: #child_process_windows_command_line
+[ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api

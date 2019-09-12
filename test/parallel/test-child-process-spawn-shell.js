@@ -24,7 +24,7 @@ const echo = cp.spawn('echo', ['foo'], {
 });
 let echoOutput = '';
 
-assert.strictEqual(echo.spawnargs[echo.spawnargs.length - 1].replace(/"/g, ''),
+assert.strictEqual(echo.spawnargs[echo.spawnargs.length - 1].replace(/['"]/g, ''),
                    'echo foo');
 echo.stdout.on('data', (data) => {
   echoOutput += data;

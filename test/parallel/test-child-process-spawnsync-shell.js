@@ -20,7 +20,7 @@ else
 
 // Verify that passing arguments works
 internalCp.spawnSync = common.mustCall(function(opts) {
-  assert.strictEqual(opts.args[opts.args.length - 1].replace(/"/g, ''),
+  assert.strictEqual(opts.args[opts.args.length - 1].replace(/["']/g, ''),
                      'echo foo');
   return oldSpawnSync(opts);
 });
