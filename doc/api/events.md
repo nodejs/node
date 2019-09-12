@@ -708,7 +708,7 @@ event or that is rejected when the `EventEmitter` emits `'error'`.
 The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
 
-Note: This method is intentionally generic and works with the web platform
+This method is intentionally generic and works with the web platform
 [EventTarget](WHATWG-EventTarget) interface, which have no special
 `'error'` event semantics and do not listen to the `'error'` event.
 
