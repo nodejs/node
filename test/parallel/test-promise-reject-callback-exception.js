@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const path = require('path');
@@ -21,11 +21,11 @@ for (const NODE_V8_COVERAGE of ['', tmpdir.path]) {
                             { env: { ...process.env, NODE_V8_COVERAGE } });
 
   assert(stdout.toString('utf8')
-      .startsWith('RangeError: Maximum call stack size exceeded'),
-      `stdout: <${stdout}>`);
+         .startsWith('RangeError: Maximum call stack size exceeded'),
+         `stdout: <${stdout}>`);
   assert(stderr.toString('utf8')
-      .startsWith('Exception in PromiseRejectCallback'),
-      `stderr: <${stderr}>`);
+         .startsWith('Exception in PromiseRejectCallback'),
+         `stderr: <${stderr}>`);
   assert.strictEqual(status, 0);
   assert.strictEqual(signal, null);
 }
