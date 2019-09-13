@@ -1084,7 +1084,7 @@ encoded bytes.
   * `read` {number} The read Unicode code units of src.
   * `written` {number} The written UTF-8 bytes of dest.
 
-UTF-8 encodes the `src` string to the `dest` Unit8Array and returns an object
+UTF-8 encodes the `src` string to the `dest` Uint8Array and returns an object
 containing the read Unicode code units and written UTF-8 bytes.
 
 ```js
