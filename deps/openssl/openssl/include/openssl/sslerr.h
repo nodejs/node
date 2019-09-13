@@ -11,6 +11,10 @@
 #ifndef HEADER_SSLERR_H
 # define HEADER_SSLERR_H
 
+# ifndef HEADER_SYMHACKS_H
+#  include <openssl/symhacks.h>
+# endif
+
 # ifdef  __cplusplus
 extern "C"
 # endif

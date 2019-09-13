@@ -2,8 +2,9 @@ IF[{- !$disabled{"engine"} -}]
 
   IF[{- $disabled{"dynamic-engine"} -}]
     LIBS=../libcrypto
-    SOURCE[../libcrypto]=\
-            e_padlock.c {- $target{padlock_asm_src} -}
+    IF[{- !$disabled{hw} && !$disabled{'hw-padlock'} -}]
+      SOURCE[../libcrypto]= e_padlock.c {- $target{padlock_asm_src} -}
+    ENDIF
     IF[{- !$disabled{capieng} -}]
       SOURCE[../libcrypto]=e_capi.c
     ENDIF
@@ -11,10 +12,12 @@ IF[{- !$disabled{"engine"} -}]
       SOURCE[../libcrypto]=e_afalg.c
     ENDIF
   ELSE
-    ENGINES=padlock
-    SOURCE[padlock]=e_padlock.c {- $target{padlock_asm_src} -}
-    DEPEND[padlock]=../libcrypto
-    INCLUDE[padlock]=../include
+    IF[{- !$disabled{hw} && !$disabled{'hw-padlock'} -}]
+      ENGINES=padlock
+      SOURCE[padlock]=e_padlock.c {- $target{padlock_asm_src} -}
+      DEPEND[padlock]=../libcrypto
+      INCLUDE[padlock]=../include
+    ENDIF
     IF[{- !$disabled{capieng} -}]
       ENGINES=capi
       SOURCE[capi]=e_capi.c

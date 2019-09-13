@@ -76,7 +76,7 @@ from the corresponding B<X509_STORE>, please see
 L<X509_STORE_set_verify(3)> for more information.
 
 
-=head1 WARNING
+=head1 WARNINGS
 
 In general a verification callback should B<NOT> unconditionally return 1 in
 all circumstances because this will allow verification to succeed no matter
@@ -202,7 +202,7 @@ and X509_STORE_CTX_get_cleanup() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -29,7 +29,7 @@ The MD5 algorithm which produces a 128-bit output from a given input.
 
 =item EVP_md5_sha1()
 
-A hash algorithm of SSL v3 that combines MD5 with SHA-1 as decirbed in RFC
+A hash algorithm of SSL v3 that combines MD5 with SHA-1 as described in RFC
 6101.
 
 WARNING: this algorithm is not intended for non-SSL usage.
@@ -54,7 +54,7 @@ L<EVP_DigestInit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

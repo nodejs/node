@@ -137,17 +137,17 @@ sub name_synopsis()
     }
 }
 
-# Check if SECTION is located before BEFORE
+# Check if SECTION ($3) is located before BEFORE ($4)
 sub check_section_location()
 {
-    my $filename = shift;
+    my $id = shift;
     my $contents = shift;
     my $section = shift;
     my $before = shift;
 
-    return unless $contents =~ /=head1 $section/
-        and $contents =~ /=head1 $before/;
-    print "$filename: $section should be placed before $before section\n"
+    return
+        unless $contents =~ /=head1 $section/ and $contents =~ /=head1 $before/;
+    print "$id $section should be placed before $before section\n"
         if $contents =~ /=head1 $before.*=head1 $section/ms;
 }
 
@@ -164,14 +164,14 @@ sub check()
         close POD;
     }
 
-    # Check if EXAMPLES is located after RETURN VALUES section.
-    &check_section_location($filename, $contents, "RETURN VALUES", "EXAMPLES") if $filename =~ m|man3/|;
-    # Check if HISTORY is located after SEE ALSO
-    &check_section_location($filename, $contents, "SEE ALSO", "HISTORY") if $filename =~ m|man3/|;
-    # Check if SEE ALSO is located after EXAMPLES
-    &check_section_location($filename, $contents, "EXAMPLES", "SEE ALSO") if $filename =~ m|man3/|;
-
     my $id = "${filename}:1:";
+
+    # Check ordering of some sections in man3
+    if ( $filename =~ m|man3/| ) {
+        &check_section_location($id, $contents, "RETURN VALUES", "EXAMPLES");
+        &check_section_location($id, $contents, "SEE ALSO", "HISTORY");
+        &check_section_location($id, $contents, "EXAMPLES", "SEE ALSO");
+    }
 
     &name_synopsis($id, $filename, $contents)
         unless $contents =~ /=for comment generic/
@@ -183,6 +183,10 @@ sub check()
         if $contents !~ /=cut\n$/;
     print "$id more than one cut line.\n"
         if $contents =~ /=cut.*=cut/ms;
+    print "$id EXAMPLE not EXAMPLES section.\n"
+        if $contents =~ /=head1 EXAMPLE[^S]/;
+    print "$id WARNING not WARNINGS section.\n"
+        if $contents =~ /=head1 WARNING[^S]/;
     print "$id missing copyright\n"
         if $contents !~ /Copyright .* The OpenSSL Project Authors/;
     print "$id copyright not last\n"

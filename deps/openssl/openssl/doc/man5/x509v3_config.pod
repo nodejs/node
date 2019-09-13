@@ -483,7 +483,7 @@ For example:
 
  basicConstraints=critical,DER:00:01:02:03
 
-=head1 WARNING
+=head1 WARNINGS
 
 There is no guarantee that a specific implementation will process a given
 extension. It may therefore be sometimes possible to use certificates for
@@ -492,7 +492,6 @@ not recognize or honour the values of the relevant extensions.
 
 The DER and ASN1 options should be used with caution. It is possible to create
 totally invalid extensions if they are not used carefully.
-
 
 =head1 NOTES
 
@@ -535,7 +534,7 @@ L<ASN1_generate_nconf(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

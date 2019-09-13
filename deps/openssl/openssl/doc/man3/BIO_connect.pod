@@ -24,7 +24,7 @@ but is present for future use.
 
 BIO_bind() binds the source address and service to a socket and
 may be useful before calling BIO_connect().  The options may include
-B<BIO_SOCK_REUSADDR>, which is described in L</FLAGS> below.
+B<BIO_SOCK_REUSEADDR>, which is described in L</FLAGS> below.
 
 BIO_connect() connects B<sock> to the address and service given by
 B<addr>.  Connection B<options> may be zero or any combination of

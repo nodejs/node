@@ -35,7 +35,7 @@ EVP_MD_CTX is freed).
 
 The digest B<type> may be NULL if the signing algorithm supports it.
 
-No B<EVP_PKEY_CTX> will be created by EVP_DigsetSignInit() if the passed B<ctx>
+No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit() if the passed B<ctx>
 has already been assigned one via L<EVP_MD_CTX_set_ctx(3)>. See also L<SM2(7)>.
 
 Only EVP_PKEY types that support signing can be used with these functions. This
@@ -125,8 +125,9 @@ and public key algorithms. This meant that "clone" digests such as EVP_dss1()
 needed to be used to sign using SHA1 and DSA. This is no longer necessary and
 the use of clone digest is now discouraged.
 
-For some key types and parameters the random number generator must be seeded
-or the operation will fail.
+For some key types and parameters the random number generator must be seeded.
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
 
 The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
 context. This means that calls to EVP_DigestSignUpdate() and
@@ -147,7 +148,8 @@ L<EVP_DigestVerifyInit(3)>,
 L<EVP_DigestInit(3)>,
 L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
 L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
-L<SHA1(3)>, L<dgst(1)>
+L<SHA1(3)>, L<dgst(1)>,
+L<RAND(7)>
 
 =head1 HISTORY
 
@@ -156,7 +158,7 @@ were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

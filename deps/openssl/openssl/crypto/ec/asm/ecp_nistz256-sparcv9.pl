@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2301,7 +2301,6 @@ my ($Z1sqr, $Z2sqr) = ($Hsqr, $Rsqr);
 # !in1infty, !in2infty and result of check for zero.
 
 $code.=<<___;
-.globl	ecp_nistz256_point_add_vis3
 .align	32
 ecp_nistz256_point_add_vis3:
 	save	%sp,-STACK64_FRAME-32*18-32,%sp

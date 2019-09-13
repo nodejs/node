@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -228,7 +228,7 @@ int OSSL_STORE_close(OSSL_STORE_CTX *ctx)
  * Functions to generate OSSL_STORE_INFOs, one function for each type we
  * support having in them as well as a generic constructor.
  *
- * In all cases, ownership of the object is transfered to the OSSL_STORE_INFO
+ * In all cases, ownership of the object is transferred to the OSSL_STORE_INFO
  * and will therefore be freed when the OSSL_STORE_INFO is freed.
  */
 static OSSL_STORE_INFO *store_info_new(int type, void *data)

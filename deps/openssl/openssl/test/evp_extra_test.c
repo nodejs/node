@@ -300,7 +300,7 @@ static const unsigned char kExampleECPubKeyDER[] = {
 };
 
 /*
- * kExampleBadECKeyDER is a sample EC public key with a wrong OID
+ * kExampleBadECPubKeyDER is a sample EC public key with a wrong OID
  * 1.2.840.10045.2.2 instead of 1.2.840.10045.2.1 - EC Public Key
  */
 static const unsigned char kExampleBadECPubKeyDER[] = {

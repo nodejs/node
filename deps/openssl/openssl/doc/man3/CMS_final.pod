@@ -12,7 +12,7 @@ CMS_final - finalise a CMS_ContentInfo structure
 
 =head1 DESCRIPTION
 
-CMS_final() finalises the structure B<cms>. It's purpose is to perform any
+CMS_final() finalises the structure B<cms>. Its purpose is to perform any
 operations necessary on B<cms> (digest computation for example) and set the
 appropriate fields. The parameter B<data> contains the content to be
 processed. The B<dcont> parameter contains a BIO to write content to after
@@ -36,7 +36,7 @@ L<CMS_encrypt(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

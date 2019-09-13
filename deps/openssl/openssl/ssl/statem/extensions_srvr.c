@@ -254,8 +254,8 @@ int tls_parse_ctos_ec_pt_formats(SSL *s, PACKET *pkt, unsigned int context,
 
     if (!s->hit) {
         if (!PACKET_memdup(&ec_point_format_list,
-                           &s->session->ext.ecpointformats,
-                           &s->session->ext.ecpointformats_len)) {
+                           &s->ext.peer_ecpointformats,
+                           &s->ext.peer_ecpointformats_len)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PARSE_CTOS_EC_PT_FORMATS, ERR_R_INTERNAL_ERROR);
             return 0;
@@ -962,12 +962,12 @@ int tls_parse_ctos_supported_groups(SSL *s, PACKET *pkt, unsigned int context,
     }
 
     if (!s->hit || SSL_IS_TLS13(s)) {
-        OPENSSL_free(s->session->ext.supportedgroups);
-        s->session->ext.supportedgroups = NULL;
-        s->session->ext.supportedgroups_len = 0;
+        OPENSSL_free(s->ext.peer_supportedgroups);
+        s->ext.peer_supportedgroups = NULL;
+        s->ext.peer_supportedgroups_len = 0;
         if (!tls1_save_u16(&supported_groups_list,
-                           &s->session->ext.supportedgroups,
-                           &s->session->ext.supportedgroups_len)) {
+                           &s->ext.peer_supportedgroups,
+                           &s->ext.peer_supportedgroups_len)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_PARSE_CTOS_SUPPORTED_GROUPS,
                      ERR_R_INTERNAL_ERROR);
@@ -1376,7 +1376,7 @@ EXT_RETURN tls_construct_stoc_ec_pt_formats(SSL *s, WPACKET *pkt,
     unsigned long alg_k = s->s3->tmp.new_cipher->algorithm_mkey;
     unsigned long alg_a = s->s3->tmp.new_cipher->algorithm_auth;
     int using_ecc = ((alg_k & SSL_kECDHE) || (alg_a & SSL_aECDSA))
-                    && (s->session->ext.ecpointformats != NULL);
+                    && (s->ext.peer_ecpointformats != NULL);
     const unsigned char *plist;
     size_t plistlen;
 
@@ -1487,6 +1487,10 @@ EXT_RETURN tls_construct_stoc_status_request(SSL *s, WPACKET *pkt,
                                              unsigned int context, X509 *x,
                                              size_t chainidx)
 {
+    /* We don't currently support this extension inside a CertificateRequest */
+    if (context == SSL_EXT_TLS1_3_CERTIFICATE_REQUEST)
+        return EXT_RETURN_NOT_SENT;
+
     if (!s->ext.status_expected)
         return EXT_RETURN_NOT_SENT;
 

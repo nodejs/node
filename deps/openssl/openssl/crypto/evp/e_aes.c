@@ -176,7 +176,7 @@ static void ctr64_inc(unsigned char *counter)
 # define HWAES_xts_decrypt aes_p8_xts_decrypt
 #endif
 
-#if     defined(AES_ASM) && !defined(I386_ONLY) &&      (  \
+#if     !defined(OPENSSL_NO_ASM) &&                     (  \
         ((defined(__i386)       || defined(__i386__)    || \
           defined(_M_IX86)) && defined(OPENSSL_IA32_SSE2))|| \
         defined(__x86_64)       || defined(__x86_64__)  || \
@@ -383,10 +383,25 @@ static int aesni_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                               const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key) {
+        /* The key is two half length keys in reality */
+        const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+
+        /*
+         * Verify that the two keys are different.
+         * 
+         * This addresses Rogaway's vulnerability.
+         * See comment in aes_xts_init_key() below.
+         */
+        if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+            EVPerr(EVP_F_AESNI_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+            return 0;
+        }
+
         /* key_len is two AES keys */
         if (enc) {
             aesni_set_encrypt_key(key, EVP_CIPHER_CTX_key_length(ctx) * 4,
@@ -787,11 +802,26 @@ static int aes_t4_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                                const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key) {
-        int bits = EVP_CIPHER_CTX_key_length(ctx) * 4;
+        /* The key is two half length keys in reality */
+        const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+        const int bits = bytes * 8;
+
+        /*
+         * Verify that the two keys are different.
+         * 
+         * This addresses Rogaway's vulnerability.
+         * See comment in aes_xts_init_key() below.
+         */
+        if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+            EVPerr(EVP_F_AES_T4_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+            return 0;
+        }
+
         xctx->stream = NULL;
         /* key_len is two AES keys */
         if (enc) {
@@ -1578,7 +1608,7 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 
     switch (type) {
     case EVP_CTRL_INIT:
-        ivlen = EVP_CIPHER_CTX_iv_length(c);
+        ivlen = EVP_CIPHER_iv_length(c->cipher);
         iv = EVP_CIPHER_CTX_iv_noconst(c);
         gctx->key_set = 0;
         gctx->iv_set = 0;
@@ -1587,6 +1617,10 @@ static int s390x_aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = gctx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:
@@ -2299,6 +2333,10 @@ static int s390x_aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         cctx->aes.ccm.tls_aad_len = -1;
         return 1;
 
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = 15 - cctx->aes.ccm.l;
+        return 1;
+
     case EVP_CTRL_AEAD_TLS1_AAD:
         if (arg != EVP_AEAD_TLS1_AAD_LEN)
             return 0;
@@ -2817,11 +2855,15 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_INIT:
         gctx->key_set = 0;
         gctx->iv_set = 0;
-        gctx->ivlen = c->cipher->iv_len;
+        gctx->ivlen = EVP_CIPHER_iv_length(c->cipher);
         gctx->iv = c->iv;
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = gctx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:
@@ -3273,7 +3315,7 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #define CUSTOM_FLAGS    (EVP_CIPH_FLAG_DEFAULT_ASN1 \
                 | EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER \
                 | EVP_CIPH_ALWAYS_CALL_INIT | EVP_CIPH_CTRL_INIT \
-                | EVP_CIPH_CUSTOM_COPY)
+                | EVP_CIPH_CUSTOM_COPY | EVP_CIPH_CUSTOM_IV_LENGTH)
 
 BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, gcm, GCM,
                     EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
@@ -3284,10 +3326,12 @@ BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, gcm, GCM,
 
 static int aes_xts_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
-    EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,c);
+    EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX, c);
+
     if (type == EVP_CTRL_COPY) {
         EVP_CIPHER_CTX *out = ptr;
         EVP_AES_XTS_CTX *xctx_out = EVP_C_DATA(EVP_AES_XTS_CTX,out);
+
         if (xctx->xts.key1) {
             if (xctx->xts.key1 != &xctx->ks1)
                 return 0;
@@ -3311,11 +3355,36 @@ static int aes_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX,ctx);
+
     if (!iv && !key)
         return 1;
 
     if (key)
         do {
+            /* The key is two half length keys in reality */
+            const int bytes = EVP_CIPHER_CTX_key_length(ctx) / 2;
+
+            /*
+             * Verify that the two keys are different.
+             *
+             * This addresses the vulnerability described in Rogaway's
+             * September 2004 paper:
+             *
+             *      "Efficient Instantiations of Tweakable Blockciphers and
+             *       Refinements to Modes OCB and PMAC".
+             *      (http://web.cs.ucdavis.edu/~rogaway/papers/offsets.pdf)
+             *
+             * FIPS 140-2 IG A.9 XTS-AES Key Generation Requirements states
+             * that:
+             *      "The check for Key_1 != Key_2 shall be done at any place
+             *       BEFORE using the keys in the XTS-AES algorithm to process
+             *       data with them."
+             */
+            if (enc && CRYPTO_memcmp(key, key + bytes, bytes) == 0) {
+                EVPerr(EVP_F_AES_XTS_INIT_KEY, EVP_R_XTS_DUPLICATED_KEYS);
+                return 0;
+            }
+
 #ifdef AES_XTS_ASM
             xctx->stream = enc ? AES_xts_encrypt : AES_xts_decrypt;
 #else
@@ -3448,7 +3517,9 @@ static int aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         cctx->len_set = 0;
         cctx->tls_aad_len = -1;
         return 1;
-
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = 15 - cctx->L;
+        return 1;
     case EVP_CTRL_AEAD_TLS1_AAD:
         /* Save the AAD for later use */
         if (arg != EVP_AEAD_TLS1_AAD_LEN)
@@ -3897,11 +3968,15 @@ static int aes_ocb_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_INIT:
         octx->key_set = 0;
         octx->iv_set = 0;
-        octx->ivlen = EVP_CIPHER_CTX_iv_length(c);
+        octx->ivlen = EVP_CIPHER_iv_length(c->cipher);
         octx->iv = EVP_CIPHER_CTX_iv_noconst(c);
         octx->taglen = 16;
         octx->data_buf_len = 0;
         octx->aad_buf_len = 0;
+        return 1;
+
+    case EVP_CTRL_GET_IVLEN:
+        *(int *)ptr = octx->ivlen;
         return 1;
 
     case EVP_CTRL_AEAD_SET_IVLEN:

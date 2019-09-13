@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2016 Viktor Dukhovni <openssl-users@dukhovni.org>.
 # All rights reserved.
 #
@@ -229,6 +229,35 @@ genee() {
 	    "subjectAltName = @alts" "DNS=${cn}")
     csr=$(req "$key" "CN = $cn") || return 1
     echo "$csr" |
+	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.pem" \
+	    -set_serial 2 -days "${DAYS}" "$@"
+}
+
+geneenocsr() {
+    local OPTIND=1
+    local purpose=serverAuth
+
+    while getopts p: o
+    do
+        case $o in
+        p) purpose="$OPTARG";;
+        *) echo "Usage: $0 genee [-p EKU] cn certname cakeyname cacertname" >&2
+           return 1;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+    local cn=$1; shift
+    local cert=$1; shift
+    local cakey=$1; shift
+    local ca=$1; shift
+
+    exts=$(printf "%s\n%s\n%s\n%s\n%s\n[alts]\n%s\n" \
+	    "subjectKeyIdentifier = hash" \
+	    "authorityKeyIdentifier = keyid, issuer" \
+	    "basicConstraints = CA:false" \
+	    "extendedKeyUsage = $purpose" \
+	    "subjectAltName = @alts" "DNS=${cn}")
 	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.pem" \
 	    -set_serial 2 -days "${DAYS}" "$@"
 }

@@ -57,7 +57,7 @@ operation is considered completed. The bytes are sent and a new write call with
 a new buffer (with the already sent bytes removed) must be started. A partial
 write is performed with the size of a message block, which is 16kB.
 
-=head1 WARNING
+=head1 WARNINGS
 
 When a write function call has to be repeated because L<SSL_get_error(3)>
 returned B<SSL_ERROR_WANT_READ> or B<SSL_ERROR_WANT_WRITE>, it must be repeated

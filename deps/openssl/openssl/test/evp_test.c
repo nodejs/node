@@ -403,6 +403,28 @@ static int digest_test_run(EVP_TEST *t)
     }
 
     if (EVP_MD_flags(expected->digest) & EVP_MD_FLAG_XOF) {
+        EVP_MD_CTX *mctx_cpy;
+        char dont[] = "touch";
+
+        if (!TEST_ptr(mctx_cpy = EVP_MD_CTX_new())) {
+            goto err;
+        }
+        if (!EVP_MD_CTX_copy(mctx_cpy, mctx)) {
+            EVP_MD_CTX_free(mctx_cpy);
+            goto err;
+        }
+        if (!EVP_DigestFinalXOF(mctx_cpy, (unsigned char *)dont, 0)) {
+            EVP_MD_CTX_free(mctx_cpy);
+            t->err = "DIGESTFINALXOF_ERROR";
+            goto err;
+        }
+        if (!TEST_str_eq(dont, "touch")) {
+            EVP_MD_CTX_free(mctx_cpy);
+            t->err = "DIGESTFINALXOF_ERROR";
+            goto err;
+        }
+        EVP_MD_CTX_free(mctx_cpy);
+
         got_len = expected->output_len;
         if (!EVP_DigestFinalXOF(mctx, got, got_len)) {
             t->err = "DIGESTFINALXOF_ERROR";
@@ -532,7 +554,7 @@ static int cipher_test_parse(EVP_TEST *t, const char *keyword,
             else if (strcmp(value, "FALSE") == 0)
                 cdat->tag_late = 0;
             else
-                return 0;
+                return -1;
             return 1;
         }
     }
@@ -543,7 +565,7 @@ static int cipher_test_parse(EVP_TEST *t, const char *keyword,
         else if (strcmp(value, "DECRYPT") == 0)
             cdat->enc = 0;
         else
-            return 0;
+            return -1;
         return 1;
     }
     return 0;
@@ -923,7 +945,7 @@ static int mac_test_parse(EVP_TEST *t,
     if (strcmp(keyword, "Algorithm") == 0) {
         mdata->alg = OPENSSL_strdup(value);
         if (!mdata->alg)
-            return 0;
+            return -1;
         return 1;
     }
     if (strcmp(keyword, "Input") == 0)
@@ -1270,9 +1292,9 @@ static int pderive_test_parse(EVP_TEST *t,
     if (strcmp(keyword, "PeerKey") == 0) {
         EVP_PKEY *peer;
         if (find_key(&peer, value, public_keys) == 0)
-            return 0;
+            return -1;
         if (EVP_PKEY_derive_set_peer(kdata->ctx, peer) <= 0)
-            return 0;
+            return -1;
         return 1;
     }
     if (strcmp(keyword, "SharedSecret") == 0)
@@ -2120,7 +2142,7 @@ static int digestsigver_test_parse(EVP_TEST *t,
     }
     if (strcmp(keyword, "Ctrl") == 0) {
         if (mdata->pctx == NULL)
-            return 0;
+            return -1;
         return pkey_test_ctrl(t, mdata->pctx, value);
     }
     return 0;
