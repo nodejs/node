@@ -3,35 +3,35 @@
 ## Contents
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
-  - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
-  - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
-  - [Author ready pull requests](#author-ready-pull-requests)
-  - [Handling own pull requests](#handling-own-pull-requests)
+  * [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
+  * [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
+  * [Author ready pull requests](#author-ready-pull-requests)
+  * [Handling own pull requests](#handling-own-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
-  - [Code Reviews](#code-reviews)
-  - [Consensus Seeking](#consensus-seeking)
-  - [Waiting for Approvals](#waiting-for-approvals)
-  - [Testing and CI](#testing-and-ci)
-    - [Useful CI Jobs](#useful-ci-jobs)
-  - [Internal vs. Public API](#internal-vs-public-api)
-  - [Breaking Changes](#breaking-changes)
-    - [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
-    - [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-    - [Unintended Breaking Changes](#unintended-breaking-changes)
-      - [Reverting commits](#reverting-commits)
-  - [Introducing New Modules](#introducing-new-modules)
-  - [Additions to N-API](#additions-to-n-api)
-  - [Deprecations](#deprecations)
-  - [Involving the TSC](#involving-the-tsc)
+  * [Code Reviews](#code-reviews)
+  * [Consensus Seeking](#consensus-seeking)
+  * [Waiting for Approvals](#waiting-for-approvals)
+  * [Testing and CI](#testing-and-ci)
+    * [Useful CI Jobs](#useful-ci-jobs)
+  * [Internal vs. Public API](#internal-vs-public-api)
+  * [Breaking Changes](#breaking-changes)
+    * [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
+    * [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
+    * [Unintended Breaking Changes](#unintended-breaking-changes)
+      * [Reverting commits](#reverting-commits)
+  * [Introducing New Modules](#introducing-new-modules)
+  * [Additions to N-API](#additions-to-n-api)
+  * [Deprecations](#deprecations)
+  * [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
-  - [Using `git-node`](#using-git-node)
-  - [Technical HOWTO](#technical-howto)
-  - [Troubleshooting](#troubleshooting)
-  - [I Made a Mistake](#i-made-a-mistake)
-  - [Long Term Support](#long-term-support)
-    - [What is LTS?](#what-is-lts)
-    - [How are LTS Branches Managed?](#how-are-lts-branches-managed)
-    - [How can I help?](#how-can-i-help)
+  * [Using `git-node`](#using-git-node)
+  * [Technical HOWTO](#technical-howto)
+  * [Troubleshooting](#troubleshooting)
+  * [I Made a Mistake](#i-made-a-mistake)
+  * [Long Term Support](#long-term-support)
+    * [What is LTS?](#what-is-lts)
+    * [How are LTS Branches Managed?](#how-are-lts-branches-managed)
+    * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
 This document explains how Collaborators manage the Node.js project.
@@ -371,10 +371,10 @@ deprecation level of an API.
 Collaborators may opt to elevate pull requests or issues to the [TSC][].
 Do this if a pull request or issue:
 
-- is labeled `semver-major`, or
-- has a significant impact on the codebase, or
-- is controversial, or
-- is at an impasse among Collaborators who are participating in the discussion.
+* is labeled `semver-major`, or
+* has a significant impact on the codebase, or
+* is controversial, or
+* is at an impasse among Collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to

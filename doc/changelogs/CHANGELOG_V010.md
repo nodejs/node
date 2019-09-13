@@ -106,8 +106,8 @@ This is a security release. All Node.js users should consult the security releas
 
 * buffer: Zero-fill excess bytes in new `Buffer` objects created with `Buffer.concat()` while providing a `totalLength` parameter that exceeds the total length of the original `Buffer` objects being concatenated. (Сковорода Никита Андреевич)
 * http:
-  - CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas)
-  - Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999. Lack of proper validation may also serve as a potential response splitting attack vector. Backported from v4.x. (Brian White)
+  * CVE-2016-5325 - Properly validate for allowable characters in the `reason` argument in `ServerResponse#writeHead()`. Fixes a possible response splitting attack vector. This introduces a new case where `throw` may occur when configuring HTTP responses, users should already be adopting try/catch here. Originally reported independently by Evan Lucas and Romain Gaucher. (Evan Lucas)
+  * Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999. Lack of proper validation may also serve as a potential response splitting attack vector. Backported from v4.x. (Brian White)
 * openssl: Upgrade to 1.0.1u, fixes a number of defects impacting Node.js: CVE-2016-6304 ("OCSP Status Request extension unbounded memory growth", high severity), CVE-2016-2183, CVE-2016-2183, CVE-2016-2178 and CVE-2016-6306.
 * tls: CVE-2016-7099 - Fix invalid wildcard certificate validation check whereby a TLS server may be able to serve an invalid wildcard certificate for its hostname due to improper validation of `*.` in the wildcard string. Originally reported by Alexander Minozhenko and James Bunton (Atlassian) (Ben Noordhuis)
 
@@ -150,8 +150,8 @@ This is a security release. All Node.js users should consult the security releas
 
 * npm: Correct erroneous version number in v2.15.1 code (Forrest L Norvell) https://github.com/nodejs/node/pull/5987
 * openssl: Upgrade to v1.0.1t, addressing security vulnerabilities (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
-  - Fixes CVE-2016-2107 "Padding oracle in AES-NI CBC MAC check"
-  - See https://nodejs.org/en/blog/vulnerability/openssl-may-2016/ for full details
+  * Fixes CVE-2016-2107 "Padding oracle in AES-NI CBC MAC check"
+  * See https://nodejs.org/en/blog/vulnerability/openssl-may-2016/ for full details
 
 ### Commits:
 
@@ -186,13 +186,13 @@ This is a security release. All Node.js users should consult the security releas
 
 * http_parser: Update to http-parser 1.2 to fix an unintentionally strict limitation of allowable header characters. (James M Snell) https://github.com/nodejs/node/pull/5242
 * domains:
-  - Prevent an exit due to an exception being thrown rather than emitting an `'uncaughtException'` event on the `process` object when no error handler is set on the domain within which an error is thrown and an `'uncaughtException'` event listener is set on `process`. (Julien Gilli) https://github.com/nodejs/node/pull/3887
-  - Fix an issue where the process would not abort in the proper function call if an error is thrown within a domain with no error handler and `--abort-on-uncaught-exception` is used. (Julien Gilli) https://github.com/nodejs/node/pull/3887
+  * Prevent an exit due to an exception being thrown rather than emitting an `'uncaughtException'` event on the `process` object when no error handler is set on the domain within which an error is thrown and an `'uncaughtException'` event listener is set on `process`. (Julien Gilli) https://github.com/nodejs/node/pull/3887
+  * Fix an issue where the process would not abort in the proper function call if an error is thrown within a domain with no error handler and `--abort-on-uncaught-exception` is used. (Julien Gilli) https://github.com/nodejs/node/pull/3887
 * openssl: Upgrade from 1.0.1r to 1.0.1s (Ben Noordhuis) https://github.com/nodejs/node/pull/5508
-  - Fix a double-free defect in parsing malformed DSA keys that may potentially be used for DoS or memory corruption attacks. It is likely to be very difficult to use this defect for a practical attack and is therefore considered low severity for Node.js users. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0705
-  - Fix a defect that can cause memory corruption in certain very rare cases relating to the internal `BN_hex2bn()` and `BN_dec2bn()` functions. It is believed that Node.js is not invoking the code paths that use these functions so practical attacks via Node.js using this defect are _unlikely_ to be possible. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0797
-  - Fix a defect that makes the CacheBleed Attack (https://ssrg.nicta.com.au/projects/TS/cachebleed/) possible. This defect enables attackers to execute side-channel attacks leading to the potential recovery of entire RSA private keys. It only affects the Intel Sandy Bridge (and possibly older) microarchitecture when using hyper-threading. Newer microarchitectures, including Haswell, are unaffected. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0702
-  - Remove SSLv2 support, the `--enable-ssl2` command line argument will now produce an error. The DROWN Attack (https://drownattack.com/) creates a vulnerability where SSLv2 is enabled by a server, even if a client connection is not using SSLv2. The SSLv2 protocol is widely considered unacceptably broken and should not be supported. More information is available at https://www.openssl.org/news/vulnerabilities.html#2016-0800
+  * Fix a double-free defect in parsing malformed DSA keys that may potentially be used for DoS or memory corruption attacks. It is likely to be very difficult to use this defect for a practical attack and is therefore considered low severity for Node.js users. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0705
+  * Fix a defect that can cause memory corruption in certain very rare cases relating to the internal `BN_hex2bn()` and `BN_dec2bn()` functions. It is believed that Node.js is not invoking the code paths that use these functions so practical attacks via Node.js using this defect are _unlikely_ to be possible. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0797
+  * Fix a defect that makes the CacheBleed Attack (https://ssrg.nicta.com.au/projects/TS/cachebleed/) possible. This defect enables attackers to execute side-channel attacks leading to the potential recovery of entire RSA private keys. It only affects the Intel Sandy Bridge (and possibly older) microarchitecture when using hyper-threading. Newer microarchitectures, including Haswell, are unaffected. More info is available at https://www.openssl.org/news/vulnerabilities.html#2016-0702
+  * Remove SSLv2 support, the `--enable-ssl2` command line argument will now produce an error. The DROWN Attack (https://drownattack.com/) creates a vulnerability where SSLv2 is enabled by a server, even if a client connection is not using SSLv2. The SSLv2 protocol is widely considered unacceptably broken and should not be supported. More information is available at https://www.openssl.org/news/vulnerabilities.html#2016-0800
 
 ### Commits:
 
@@ -215,11 +215,11 @@ This is an important security release. All Node.js users should consult the secu
 * http-parser: upgrade from 1.0 to 1.1
 * openssl: upgrade from 1.0.1q to 1.0.1r. To mitigate against the Logjam attack, TLS clients now reject Diffie-Hellman handshakes with parameters shorter than 1024-bits, up from the previous limit of 768-bits.
 * src:
-  - introduce new `--security-revert={cvenum}` command line flag for selective reversion of specific CVE fixes
-  - allow the fix for CVE-2016-2216 to be selectively reverted using `--security-revert=CVE-2016-2216`
+  * introduce new `--security-revert={cvenum}` command line flag for selective reversion of specific CVE fixes
+  * allow the fix for CVE-2016-2216 to be selectively reverted using `--security-revert=CVE-2016-2216`
 * build:
-  - xz compressed tar files will be made available from nodejs.org for v0.10 builds from v0.10.42 onward
-  - A headers.tar.gz file will be made available from nodejs.org for v0.10 builds from v0.10.42 onward, a future change to node-gyp will be required to make use of these
+  * xz compressed tar files will be made available from nodejs.org for v0.10 builds from v0.10.42 onward
+  * A headers.tar.gz file will be made available from nodejs.org for v0.10 builds from v0.10.42 onward, a future change to node-gyp will be required to make use of these
 
 ### Commits
 
@@ -432,7 +432,7 @@ https://github.com/nodejs/node/commit/ce82d6b8474bde7ac7df6d425fb88fb1bcba35bc
 * openssl: to 1.0.1h (CVE-2014-0224)
 * npm: upgrade to 1.4.14
 * utf8: Prevent Node from sending invalid UTF-8 (Felix Geisendörfer)
-  - *NOTE* this introduces a breaking change, previously you could construct
+  * *NOTE* this introduces a breaking change, previously you could construct
     invalid UTF-8 and invoke an error in a client that was expecting valid
     UTF-8, now unmatched surrogate pairs are replaced with the unknown UTF-8
     character. To restore the old functionality simply have NODE_INVALID_UTF8
@@ -573,7 +573,7 @@ https://github.com/nodejs/node/commit/e2da042844a830fafb8031f6c477eb4f96195210
 https://github.com/nodejs/node/commit/d7234c8d50a1af73f60d2d3c0cc7eed17429a481
 
 * tls: fix sporadic hang and partial reads (Fedor Indutny)
-  - fixes "npm ERR! cb() never called!"
+  * fixes "npm ERR! cb() never called!"
 
 <a id="0.10.19"></a>
 ## 2013.09.24, Version 0.10.19 (Stable)

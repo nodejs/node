@@ -118,8 +118,8 @@ Vulnerabilities fixed:
 ### Notable Changes
 
 * **n-api**:
-  - add API for asynchronous functions (Gabriel Schulhof) [#17887](https://github.com/nodejs/node/pull/17887)
-  - mark thread-safe function as stable (Gabriel Schulhof) [#25556](https://github.com/nodejs/node/pull/25556)
+  * add API for asynchronous functions (Gabriel Schulhof) [#17887](https://github.com/nodejs/node/pull/17887)
+  * mark thread-safe function as stable (Gabriel Schulhof) [#25556](https://github.com/nodejs/node/pull/25556)
 
 ### Commits
 
@@ -196,9 +196,9 @@ a missing CLI flag to adjust the max header size of the http parser.
 ### Notable Changes
 
 * **cli**:
-  - add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+  * add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
 * **http**:
-  - add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+  * add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
 
 ### Commits
 
@@ -215,9 +215,9 @@ a missing CLI flag to adjust the max header size of the http parser.
 ### Notable changes
 
 * **assert**:
-  - revert breaking change (Ruben Bridgewater) [#24786](https://github.com/nodejs/node/pull/24786)
+  * revert breaking change (Ruben Bridgewater) [#24786](https://github.com/nodejs/node/pull/24786)
 * **http2**:
-  - fix sequence of error/close events (Gerhard Stoebich) [#24789](https://github.com/nodejs/node/pull/24789)
+  * fix sequence of error/close events (Gerhard Stoebich) [#24789](https://github.com/nodejs/node/pull/24789)
 
 ### Commits
 
@@ -356,14 +356,14 @@ Fixes for the following CVEs are included in this release:
 ### Notable changes
 
 * **assert**:
-  - backport some assert commits (Ruben Bridgewater) [#23223](https://github.com/nodejs/node/pull/23223)
+  * backport some assert commits (Ruben Bridgewater) [#23223](https://github.com/nodejs/node/pull/23223)
 * **deps**:
-  - upgrade to libuv 1.23.2 (cjihrig) [#23336](https://github.com/nodejs/node/pull/23336)
-  - V8: cherry-pick 64-bit hash seed commits (Yang Guo) [#23274](https://github.com/nodejs/node/pull/23274)
+  * upgrade to libuv 1.23.2 (cjihrig) [#23336](https://github.com/nodejs/node/pull/23336)
+  * V8: cherry-pick 64-bit hash seed commits (Yang Guo) [#23274](https://github.com/nodejs/node/pull/23274)
 * **http**:
-  - added aborted property to request (Robert Nagy) [#20094](https://github.com/nodejs/node/pull/20094)
+  * added aborted property to request (Robert Nagy) [#20094](https://github.com/nodejs/node/pull/20094)
 * **http2**:
-  - graduate from experimental (James M Snell) [#22466](https://github.com/nodejs/node/pull/22466)
+  * graduate from experimental (James M Snell) [#22466](https://github.com/nodejs/node/pull/22466)
 
 ### Commits
 
@@ -502,39 +502,39 @@ Fixes for the following CVEs are included in this release:
 ### Notable Changes
 
 * **async_hooks**:
-  - rename PromiseWrap.parentId (Ali Ijaz Sheikh) [#18633](https://github.com/nodejs/node/pull/18633)
-  - remove runtime deprecation (Ali Ijaz Sheikh) [#19517](https://github.com/nodejs/node/pull/19517)
-  - deprecate unsafe emit{Before,After} (Ali Ijaz Sheikh) [#18513](https://github.com/nodejs/node/pull/18513)
+  * rename PromiseWrap.parentId (Ali Ijaz Sheikh) [#18633](https://github.com/nodejs/node/pull/18633)
+  * remove runtime deprecation (Ali Ijaz Sheikh) [#19517](https://github.com/nodejs/node/pull/19517)
+  * deprecate unsafe emit{Before,After} (Ali Ijaz Sheikh) [#18513](https://github.com/nodejs/node/pull/18513)
 * **cluster**:
-  - add cwd to cluster.settings (cjihrig) [#18399](https://github.com/nodejs/node/pull/18399)
-  - support windowsHide option for workers (Todd Wong) [#17412](https://github.com/nodejs/node/pull/17412)
+  * add cwd to cluster.settings (cjihrig) [#18399](https://github.com/nodejs/node/pull/18399)
+  * support windowsHide option for workers (Todd Wong) [#17412](https://github.com/nodejs/node/pull/17412)
 * **crypto**:
-  - allow passing null as IV unless required (Tobias Nießen) [#18644](https://github.com/nodejs/node/pull/18644)
+  * allow passing null as IV unless required (Tobias Nießen) [#18644](https://github.com/nodejs/node/pull/18644)
 * **deps**:
-  - upgrade npm to 6.4.1 (Kat Marchán) [#22591](https://github.com/nodejs/node/pull/22591)
-  - upgrade libuv to 1.19.2 (cjihrig) [#18918](https://github.com/nodejs/node/pull/18918)
-  - Upgrade node-inspect to 1.11.5 (Jan Krems) [#21055](https://github.com/nodejs/node/pull/21055)
+  * upgrade npm to 6.4.1 (Kat Marchán) [#22591](https://github.com/nodejs/node/pull/22591)
+  * upgrade libuv to 1.19.2 (cjihrig) [#18918](https://github.com/nodejs/node/pull/18918)
+  * Upgrade node-inspect to 1.11.5 (Jan Krems) [#21055](https://github.com/nodejs/node/pull/21055)
 * **fs,net**:
-  - support as and as+ flags in stringToFlags() (Sarat Addepalli) [#18801](https://github.com/nodejs/node/pull/18801)
-  - emit 'ready' for fs streams and sockets (Sameer Srivastava) [#19408](https://github.com/nodejs/node/pull/19408)
+  * support as and as+ flags in stringToFlags() (Sarat Addepalli) [#18801](https://github.com/nodejs/node/pull/18801)
+  * emit 'ready' for fs streams and sockets (Sameer Srivastava) [#19408](https://github.com/nodejs/node/pull/19408)
 * **http, http2**:
-  - add options to http.createServer() (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)-
-  - add 103 Early Hints status code (Yosuke Furukawa) [#16644](https://github.com/nodejs/node/pull/16644)
-  - add http fallback options to .createServer (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
+  * add options to http.createServer() (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)-
+  * add 103 Early Hints status code (Yosuke Furukawa) [#16644](https://github.com/nodejs/node/pull/16644)
+  * add http fallback options to .createServer (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
 * **n-api**:
-  - take n-api out of experimental (Michael Dawson) [#19262](https://github.com/nodejs/node/pull/19262)
+  * take n-api out of experimental (Michael Dawson) [#19262](https://github.com/nodejs/node/pull/19262)
 * **perf_hooks**:
-  - add warning when too many entries in the timeline (James M Snell) [#18087](https://github.com/nodejs/node/pull/18087)
+  * add warning when too many entries in the timeline (James M Snell) [#18087](https://github.com/nodejs/node/pull/18087)
 * **src**:
-  - add public API for managing NodePlatform (Cheng Zhao) [#16981](https://github.com/nodejs/node/pull/16981)
-  - allow --perf-(basic-)?prof in NODE\_OPTIONS (Leko) [#17600](https://github.com/nodejs/node/pull/17600)
-  - node internals' postmortem metadata (Matheus Marchini) [#14901](https://github.com/nodejs/node/pull/14901)
+  * add public API for managing NodePlatform (Cheng Zhao) [#16981](https://github.com/nodejs/node/pull/16981)
+  * allow --perf-(basic-)?prof in NODE\_OPTIONS (Leko) [#17600](https://github.com/nodejs/node/pull/17600)
+  * node internals' postmortem metadata (Matheus Marchini) [#14901](https://github.com/nodejs/node/pull/14901)
 * **tls**:
-  - expose Finished messages in TLSSocket (Anton Salikhmetov) [#19102](https://github.com/nodejs/node/pull/19102)
+  * expose Finished messages in TLSSocket (Anton Salikhmetov) [#19102](https://github.com/nodejs/node/pull/19102)
 * **trace_events**:
-  - add file pattern cli option (Andreas Madsen) [#18480](https://github.com/nodejs/node/pull/18480)
+  * add file pattern cli option (Andreas Madsen) [#18480](https://github.com/nodejs/node/pull/18480)
 * **util**:
-  - implement util.getSystemErrorName() (Joyee Cheung) [#18186](https://github.com/nodejs/node/pull/18186)
+  * implement util.getSystemErrorName() (Joyee Cheung) [#18186](https://github.com/nodejs/node/pull/18186)
 
 ### Commits
 
@@ -877,12 +877,12 @@ Fixes for the following CVEs are included in this release:
 ### Notable Changes
 
 * **deps**:
-  - update node-inspect to 1.11.3 (Jan Krems) [#18354](https://github.com/nodejs/node/pull/18354)
-  - update nghttp2 to 1.29.0 (James M Snell) [#17908](https://github.com/nodejs/node/pull/17908)
+  * update node-inspect to 1.11.3 (Jan Krems) [#18354](https://github.com/nodejs/node/pull/18354)
+  * update nghttp2 to 1.29.0 (James M Snell) [#17908](https://github.com/nodejs/node/pull/17908)
 * **http2**:
-  - Sync with current release stream
+  * Sync with current release stream
 * **n-api**:
-  - Sync with current release stream
+  * Sync with current release stream
 
 ### Commits
 
@@ -1822,10 +1822,10 @@ Fixes for the following CVEs are included in this release:
 
 ### Notable Changes
 
-- **console**:
-  - avoid adding infinite error listeners (Matteo Collina) [#16770](https://github.com/nodejs/node/pull/16770)
-- **http2**:
-  - improve errors thrown in header validation (Joyee Cheung) [#16718](https://github.com/nodejs/node/pull/16718)
+* **console**:
+  * avoid adding infinite error listeners (Matteo Collina) [#16770](https://github.com/nodejs/node/pull/16770)
+* **http2**:
+  * improve errors thrown in header validation (Joyee Cheung) [#16718](https://github.com/nodejs/node/pull/16718)
 
 ### Commits
 
@@ -1943,10 +1943,10 @@ Fixes for the following CVEs are included in this release:
 
 ### Notable Changes
 
-- **openssl**:
-  - upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
-- ***Revert*** "**https**:
-  - refactor to use http internals" (Myles Borins) [#16660](https://github.com/nodejs/node/pull/16660)
+* **openssl**:
+  * upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* ***Revert*** "**https**:
+  * refactor to use http internals" (Myles Borins) [#16660](https://github.com/nodejs/node/pull/16660)
 
 ### Commits
 
@@ -1972,15 +1972,15 @@ This release marks the transition of Node.js v8 into Long Term Support (LTS) wit
 ### Notable Changes
 
 * **doc**:
-  - add Gibson Fahnestock to Release team (Gibson Fahnestock) [#16620](https://github.com/nodejs/node/pull/16620)
+  * add Gibson Fahnestock to Release team (Gibson Fahnestock) [#16620](https://github.com/nodejs/node/pull/16620)
 * **deps**:
-  - update npm to 5.5.1 (Myles Borins) [#16509](https://github.com/nodejs/node/pull/16509)
+  * update npm to 5.5.1 (Myles Borins) [#16509](https://github.com/nodejs/node/pull/16509)
 * **http2**:
-  - The exposed http2 socket is no longer manipulatable (Anatoli Papirovski) [#16330](https://github.com/nodejs/node/pull/16330)
+  * The exposed http2 socket is no longer manipulatable (Anatoli Papirovski) [#16330](https://github.com/nodejs/node/pull/16330)
 * **module**:
-  - support custom paths to require.resolve() (cjihrig) [#16397](https://github.com/nodejs/node/pull/16397)
+  * support custom paths to require.resolve() (cjihrig) [#16397](https://github.com/nodejs/node/pull/16397)
 * **util**:
-  - util.TextEncoder and util.TextDecoder are no longer experimental. There will no longer be a warning when they are used  (James M Snell) [#15743](https://github.com/nodejs/node/pull/15743)
+  * util.TextEncoder and util.TextDecoder are no longer experimental. There will no longer be a warning when they are used  (James M Snell) [#15743](https://github.com/nodejs/node/pull/15743)
 
 ### Commits
 
@@ -2086,7 +2086,7 @@ This release marks the transition of Node.js v8 into Long Term Support (LTS) wit
 ### Notable Changes
 
 * **net**:
-  - Fix timeout with null handle issue. This is a regression in Node 8.8.0 [#16489](https://github.com/nodejs/node/pull/16489)
+  * Fix timeout with null handle issue. This is a regression in Node 8.8.0 [#16489](https://github.com/nodejs/node/pull/16489)
 
 ### Commits
 
@@ -2110,15 +2110,15 @@ This release marks the transition of Node.js v8 into Long Term Support (LTS) wit
 ### Notable Changes
 
 * **crypto**:
-  - expose ECDH class [#8188](https://github.com/nodejs/node/pull/8188)
+  * expose ECDH class [#8188](https://github.com/nodejs/node/pull/8188)
 * **http2**:
-  - http2 is now exposed by default without the need for a flag [#15685](https://github.com/nodejs/node/pull/15685)
-  - a new environment variable NODE\_NO\_HTTP2 has been added to allow userland http2 to be required [#15685](https://github.com/nodejs/node/pull/15685)
-  - support has been added for generic `Duplex` streams [#16269](https://github.com/nodejs/node/pull/16269)
+  * http2 is now exposed by default without the need for a flag [#15685](https://github.com/nodejs/node/pull/15685)
+  * a new environment variable NODE\_NO\_HTTP2 has been added to allow userland http2 to be required [#15685](https://github.com/nodejs/node/pull/15685)
+  * support has been added for generic `Duplex` streams [#16269](https://github.com/nodejs/node/pull/16269)
 * **module**:
-  - resolve and instantiate loader pipeline hooks have been added to the ESM lifecycle [#15445](https://github.com/nodejs/node/pull/15445)
+  * resolve and instantiate loader pipeline hooks have been added to the ESM lifecycle [#15445](https://github.com/nodejs/node/pull/15445)
 * **zlib**:
-  - CVE-2017-14919 - In zlib v1.2.9, a change was made that causes an error to be raised when a raw deflate stream is initialized with windowBits set to 8. On some versions this crashes Node and you cannot recover from it, while on some versions it throws an exception. Node.js will now gracefully set windowBits to 9 replicating the legacy behavior to avoid a DOS vector. [nodejs-private/node-private#95](https://github.com/nodejs-private/node-private/pull/95)
+  * CVE-2017-14919 - In zlib v1.2.9, a change was made that causes an error to be raised when a raw deflate stream is initialized with windowBits set to 8. On some versions this crashes Node and you cannot recover from it, while on some versions it throws an exception. Node.js will now gracefully set windowBits to 9 replicating the legacy behavior to avoid a DOS vector. [nodejs-private/node-private#95](https://github.com/nodejs-private/node-private/pull/95)
 
 ### Commits
 
@@ -3474,10 +3474,10 @@ Big thanks to @addaleax who prepared the vast majority of this release.
     [[`dc3f6b9ac1`](https://github.com/nodejs/node/commit/dc3f6b9ac1)]
     [#14235](https://github.com/nodejs/node/pull/14235)
   * `npm` Changelogs:
-    - [v5.0.4](https://github.com/npm/npm/releases/tag/v5.0.4)
-    - [v5.1.0](https://github.com/npm/npm/releases/tag/v5.1.0)
-    - [v5.2.0](https://github.com/npm/npm/releases/tag/v5.2.0)
-    - [v5.3.0](https://github.com/npm/npm/releases/tag/v5.3.0)
+    * [v5.0.4](https://github.com/npm/npm/releases/tag/v5.0.4)
+    * [v5.1.0](https://github.com/npm/npm/releases/tag/v5.1.0)
+    * [v5.2.0](https://github.com/npm/npm/releases/tag/v5.2.0)
+    * [v5.3.0](https://github.com/npm/npm/releases/tag/v5.3.0)
 
 ### Commits
 
@@ -3737,9 +3737,9 @@ This is a security release. All Node.js users should consult the security releas
 ### Notable changes
 
 * **build**:
-  - Disable V8 snapshots - The hashseed embedded in the snapshot is currently the same for all runs of the binary. This opens node up to collision attacks which could result in a Denial of Service. We have temporarily disabled snapshots until a more robust solution is found (Ali Ijaz Sheikh)
+  * Disable V8 snapshots - The hashseed embedded in the snapshot is currently the same for all runs of the binary. This opens node up to collision attacks which could result in a Denial of Service. We have temporarily disabled snapshots until a more robust solution is found (Ali Ijaz Sheikh)
 * **deps**:
-  - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(), which is used for parsing NAPTR responses, could be triggered to read memory outside of the given input buffer if the passed in DNS response packet was crafted in a particular way. This patch checks that there is enough data for the required elements of an NAPTR record (2 int16, 3 bytes for string lengths) before processing a record. (David Drysdale)
+  * CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(), which is used for parsing NAPTR responses, could be triggered to read memory outside of the given input buffer if the passed in DNS response packet was crafted in a particular way. This patch checks that there is enough data for the required elements of an NAPTR record (2 int16, 3 bytes for string lengths) before processing a record. (David Drysdale)
 
 ### Commits
 

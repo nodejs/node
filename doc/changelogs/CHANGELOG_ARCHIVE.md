@@ -1013,9 +1013,9 @@ https://github.com/nodejs/node/commit/2c4eef0d972838c51999d32c0d251857a713dc18
 https://github.com/nodejs/node/commit/c50c33e9397d7a0a8717e8ce7530572907c054ad
 
 * npm: Upgrade to v1.2.0
-  - peerDependencies (Domenic Denicola)
-  - node-gyp v0.8.2 (Nathan Rajlich)
-  - Faster installs from github user/project shorthands (Nathan Zadoks)
+  * peerDependencies (Domenic Denicola)
+  * node-gyp v0.8.2 (Nathan Rajlich)
+  * Faster installs from github user/project shorthands (Nathan Zadoks)
 
 * typed arrays: fix 32 bit size/index overflow (Ben Noordhuis)
 * http: Improve performance of single-packet responses (Ben Noordhuis)
@@ -1279,10 +1279,10 @@ https://github.com/nodejs/node/commit/2134aa3d5c622fc3c3b02ccb713fcde0e0df479a
 
 * V8: upgrade to v3.11.10.12
 * npm: upgrade to v1.1.33
-  - Support for parallel use of the cache folder
-  - Retry on registry timeouts or network failures (Trent Mick)
-  - Reduce 'engines' failures to a warning
-  - Use new zsh completion if available (Jeremy Cantrell)
+  * Support for parallel use of the cache folder
+  * Retry on registry timeouts or network failures (Trent Mick)
+  * Reduce 'engines' failures to a warning
+  * Use new zsh completion if available (Jeremy Cantrell)
 
 * Fix [#3577](https://github.com/joyent/node/issues/3577) Un-break require('sys')
 * util: speed up formatting of large arrays/objects (Ben Noordhuis)
@@ -1323,13 +1323,13 @@ https://github.com/nodejs/node/commit/8b8a7a7f9b41e74e1e810d0330738ad06fc302ec
 https://github.com/nodejs/node/commit/a72120190a8ffdbcd3d6ad2a2e6ceecd2087111e
 
 * npm: Upgrade to 1.1.30
-  - Improved 'npm init'
-  - Fix the 'cb never called' error from 'oudated' and 'update'
-  - Add --save-bundle|-B config
-  - Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
-  - Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
-  - `logstream` option to replace removed `logfd` (Rod Vagg)
-  - Read default descriptions from README.md files
+  * Improved 'npm init'
+  * Fix the 'cb never called' error from 'oudated' and 'update'
+  * Add --save-bundle|-B config
+  * Fix isaacs/npm[#2465](https://github.com/joyent/node/issues/2465): Make npm script and windows shims cygwin-aware
+  * Fix isaacs/npm[#2452](https://github.com/joyent/node/issues/2452) Use --save(-dev|-optional) in npm rm
+  * `logstream` option to replace removed `logfd` (Rod Vagg)
+  * Read default descriptions from README.md files
 
 * Shims to support deprecated ev_* and eio_* methods (Ben Noordhuis)
 * [#3118](https://github.com/joyent/node/issues/3118) net.Socket: Delay pause/resume until after connect (isaacs)
@@ -1390,9 +1390,9 @@ https://github.com/nodejs/node/commit/8d9766a9dfb1eea901219d2a865ce9300fe4d68e
 * child_process: new stdio API for .spawn() method (Fedor Indutny)
 * child_process: spawn().ref() and spawn().unref() (Fedor Indutny)
 * Upgrade npm to 1.1.25
-  - Enable npm link on windows
-  - Properly remove sh-shim on Windows
-  - Abstract out registry client and logger
+  * Enable npm link on windows
+  * Properly remove sh-shim on Windows
+  * Abstract out registry client and logger
 
 <a id="0.7.9"></a>
 ## 2012.05.28, Version 0.7.9 (unstable)
@@ -1477,11 +1477,11 @@ https://github.com/nodejs/node/commit/f06abda6f58e517349d1b63a2cbf5a8d04a03505
 
 * Upgrade v8 to 3.9.17
 * Upgrade npm to 1.1.8
-  - Add support for os/cpu fields in package.json (Adam Blackburn)
-  - Automatically node-gyp packages containing a binding.gyp
-  - Fix failures unpacking in UNC shares
-  - Never create un-listable directories
-  - Handle cases where an optionalDependency fails to build
+  * Add support for os/cpu fields in package.json (Adam Blackburn)
+  * Automatically node-gyp packages containing a binding.gyp
+  * Fix failures unpacking in UNC shares
+  * Never create un-listable directories
+  * Handle cases where an optionalDependency fails to build
 
 * events: newListener emit correct fn when using 'once' (Roly Fentanes)
 * url: Ignore empty port component (Łukasz Walukiewicz)
@@ -1696,12 +1696,12 @@ https://github.com/nodejs/node/commit/e513ffef7549a56a5af728e1f0c2c0c8f290518a
 * Add UV_ENOSPC and mappings to it (Bert Belder)
 * http-parser: Fix response body is not read (koichik)
 * Upgrade npm to 1.1.12
-  - upgrade node-gyp to 0.3.7
-  - work around AV-locked directories on Windows
-  - Fix isaacs/npm[#2293](https://github.com/joyent/node/issues/2293) Don't try to 'uninstall' /
-  - Exclude symbolic links from packages.
-  - Fix isaacs/npm[#2275](https://github.com/joyent/node/issues/2275) Spurious 'unresolvable cycle' error.
-  - Exclude/include dot files as if they were normal files
+  * upgrade node-gyp to 0.3.7
+  * work around AV-locked directories on Windows
+  * Fix isaacs/npm[#2293](https://github.com/joyent/node/issues/2293) Don't try to 'uninstall' /
+  * Exclude symbolic links from packages.
+  * Fix isaacs/npm[#2275](https://github.com/joyent/node/issues/2275) Spurious 'unresolvable cycle' error.
+  * Exclude/include dot files as if they were normal files
 
 <a id="0.6.13"></a>
 ## 2012.03.15 Version 0.6.13 (stable)
@@ -1714,15 +1714,15 @@ https://github.com/nodejs/node/commit/9f7f86b534f8556290eb8cad915984ff4ca54996
 * Windows: include syscall in fs errors (Bert Belder)
 * Fix fs.watch ENOSYS on Linux kernel version mismatch (Ben Noordhuis)
 * Update npm to 1.1.9
-  - upgrade node-gyp to 0.3.5 (Nathan Rajlich)
-  - Fix isaacs/npm[#2249](https://github.com/joyent/node/issues/2249) Add cache-max and cache-min configs
-  - Properly redirect across https/http registry requests
-  - log config usage if undefined key in set function (Kris Windham)
-  - Add support for os/cpu fields in package.json (Adam Blackburn)
-  - Automatically node-gyp packages containing a binding.gyp
-  - Fix failures unpacking in UNC shares
-  - Never create un-listable directories
-  - Handle cases where an optionalDependency fails to build
+  * upgrade node-gyp to 0.3.5 (Nathan Rajlich)
+  * Fix isaacs/npm[#2249](https://github.com/joyent/node/issues/2249) Add cache-max and cache-min configs
+  * Properly redirect across https/http registry requests
+  * log config usage if undefined key in set function (Kris Windham)
+  * Add support for os/cpu fields in package.json (Adam Blackburn)
+  * Automatically node-gyp packages containing a binding.gyp
+  * Fix failures unpacking in UNC shares
+  * Never create un-listable directories
+  * Handle cases where an optionalDependency fails to build
 
 <a id="0.6.12"></a>
 ## 2012.03.02 Version 0.6.12 (stable)
@@ -1744,13 +1744,13 @@ https://github.com/nodejs/node/commit/48a2d34cfe6b7e1c9d15202a4ef5e3c82d1fba35
 * windows: fs: handle EOF in read (Brandon Philips)
 * windows: avoid IOCP short-circuit on non-ifs lsps (Igor Zinkovsky)
 * Upgrade npm to 1.1.4 (isaacs)
-  - windows fixes
-  - Bundle nested bundleDependencies properly
-  - install: support --save with url install targets
-  - shrinkwrap: behave properly with url-installed modules
-  - support installing uncompressed tars or single file modules from urls etc.
-  - don't run make clean on rebuild
-  - support HTTPS-over-HTTP proxy tunneling
+  * windows fixes
+  * Bundle nested bundleDependencies properly
+  * install: support --save with url install targets
+  * shrinkwrap: behave properly with url-installed modules
+  * support installing uncompressed tars or single file modules from urls etc.
+  * don't run make clean on rebuild
+  * support HTTPS-over-HTTP proxy tunneling
 
 <a id="0.6.11"></a>
 ## 2012.02.17 Version 0.6.11 (stable)
@@ -1774,9 +1774,9 @@ https://github.com/nodejs/node/commit/1eb1fe32250fc88cb5b0a97cddf3e02be02e3f4a
 * unix: don't flush tty on switch to raw mode (Ben Noordhuis)
 * windows: reset brightness when reverting to default text color (Bert Belder)
 * npm: update to 1.1.1
-  - Update which, fstream, mkdirp, request, and rimraf
-  - Fix [#2123](https://github.com/joyent/node/issues/2123) Set path properly for lifecycle scripts on windows
-  - Mark the root as seen, so we don't recurse into it. Fixes [#1838](https://github.com/joyent/node/issues/1838). (Martin Cooper)
+  * Update which, fstream, mkdirp, request, and rimraf
+  * Fix [#2123](https://github.com/joyent/node/issues/2123) Set path properly for lifecycle scripts on windows
+  * Mark the root as seen, so we don't recurse into it. Fixes [#1838](https://github.com/joyent/node/issues/1838). (Martin Cooper)
 
 <a id="0.6.10"></a>
 ## 2012.02.02, Version 0.6.10 (stable)
@@ -1800,7 +1800,7 @@ https://github.com/nodejs/node/commit/051908e023f87894fa68f5b64d0b99a19a7db01e
 https://github.com/nodejs/node/commit/f19e20d33f57c4d2853aaea7d2724d44f3b0012f
 
 * dgram: Bring back missing functionality for Unix (Dan VerWeire, Roman Shtylman, Ben Noordhuis)
-  - Note: Windows UDP support not yet complete.
+  * Note: Windows UDP support not yet complete.
 
 * http: Fix parser memory leak (koichik)
 * zlib: Fix [#2365](https://github.com/joyent/node/issues/2365) crashes on invalid input (Nicolas LaCasse)
@@ -2544,8 +2544,8 @@ https://github.com/nodejs/node/commit/e8aef84191bc2c1ba2bcaa54f30aabde7f03769b
 https://github.com/nodejs/node/commit/eb155ea6f6a6aa341aa8c731dca8da545c6a4008
 
 * require() improvements (isaacs)
-  - understand package.json (isaacs)
-  - look for 'node_modules' dir
+  * understand package.json (isaacs)
+  * look for 'node_modules' dir
 
 * cmake fixes (Daniel Gröber)
 * http: fix buffer writes to outgoing messages (Russell Haering)
@@ -2677,13 +2677,13 @@ https://github.com/nodejs/node/commit/4bb914bde9f3c2d6de00853353b6b8fc9c66143a
 * 'make lint'
 * oprofile support (./configure --oprofile)
 * Lots of bug fixes, including:
-  - Memory leak in ChildProcess:Spawn(). (Tom Hughes)
-  - buffer.slice(0, 0)
-  - Global variable leaks
-  - clearTimeouts calling multiple times (Michael W)
-  - utils.inspect's detection of circular structures (Tim Cooijmans)
-  - Apple's threaded write()s bug (Jorge Chamorro Bieling)
-  - Make sure raw mode is disabled when exiting a terminal-based REPL.
+  * Memory leak in ChildProcess:Spawn(). (Tom Hughes)
+  * buffer.slice(0, 0)
+  * Global variable leaks
+  * clearTimeouts calling multiple times (Michael W)
+  * utils.inspect's detection of circular structures (Tim Cooijmans)
+  * Apple's threaded write()s bug (Jorge Chamorro Bieling)
+  * Make sure raw mode is disabled when exiting a terminal-based REPL.
     (Brian White)
 
 * Deprecate process.compile, process.ENV
@@ -2695,8 +2695,8 @@ https://github.com/nodejs/node/commit/4bb914bde9f3c2d6de00853353b6b8fc9c66143a
 https://github.com/nodejs/node/commit/ce9a54aa1fbf709dd30316af8a2f14d83150e947
 
 * TLS improvements (Paul Querna)
-  - Centralize error handling in SecureStream
-  - Add SecurePair for handling of a ssl/tls stream.
+  * Centralize error handling in SecureStream
+  * Add SecurePair for handling of a ssl/tls stream.
 
 * New documentation organization (Micheil Smith)
 * allowHalfOpen TCP connections disabled by default.
@@ -2725,9 +2725,9 @@ https://github.com/nodejs/node/commit/ce9a54aa1fbf709dd30316af8a2f14d83150e947
   could not be written to the file in a single write() call.
 
 * new path.join behavior (isaacs)
-  - Express desired path.join behavior in tests.
-  - Update fs.realpath to reflect new path.join behavior
-  - Update url.resolve() to use new path.join behavior.
+  * Express desired path.join behavior in tests.
+  * Update fs.realpath to reflect new path.join behavior
+  * Update url.resolve() to use new path.join behavior.
 
 * API: Move process.binding('evals') to require('vm')
 * Fix V8 build on Cygwin (Bert Belder)
@@ -2756,11 +2756,11 @@ https://github.com/nodejs/node/commit/1582cfebd6719b2d2373547994b3dca5c8c569c0
 * HTTP trailers (Mark Nottingham)
 * http 100-continue support (Mark Nottingham)
 * Module system simplifications (Herbert Vojčík, isaacs, Tim-Smart)
-  - remove require.async
-  - remove registerExtension, add .extensions
-  - expose require.resolve
-  - expose require.cache
-  - require looks in  node_modules folders
+  * remove require.async
+  * remove registerExtension, add .extensions
+  * expose require.resolve
+  * expose require.cache
+  * require looks in  node_modules folders
 
 * Add --eval command line option (TJ Holowaychuk)
 * Commas last in sys.inspect
@@ -3047,11 +3047,11 @@ https://github.com/nodejs/node/commit/311d7dee19034ff1c6bc9098c36973b8d687eaba
 https://github.com/nodejs/node/commit/07e64d45ffa1856e824c4fa6afd0442ba61d6fd8
 
 * Merge writing of networking system (net2)
-  - New Buffer object for binary data.
-  - Support UNIX sockets, Pipes
-  - Uniform stream API
-  - Currently no SSL
-  - Legacy modules can be accessed at 'http_old' and 'tcp_old'
+  * New Buffer object for binary data.
+  * Support UNIX sockets, Pipes
+  * Uniform stream API
+  * Currently no SSL
+  * Legacy modules can be accessed at 'http_old' and 'tcp_old'
 
 * Replace udns with c-ares. (Krishna Rajendran)
 * New documentation system using Markdown and Ronn
@@ -3099,8 +3099,8 @@ https://github.com/nodejs/node/commit/61c801413544a50000faa7f58376e9b33ba6254f
 https://github.com/nodejs/node/commit/39b63dfe1737d46a8c8818c92773ef181fd174b3
 
 * API:
-  - Move process.watchFile into fs module
-  - Move process.inherits to sys
+  * Move process.watchFile into fs module
+  * Move process.inherits to sys
 
 * Improve Solaris port
 * tcp.Connection.prototype.write now returns boolean to indicate if
@@ -3126,7 +3126,7 @@ https://github.com/nodejs/node/commit/39b63dfe1737d46a8c8818c92773ef181fd174b3
 https://github.com/nodejs/node/commit/bb0d1e65e1671aaeb21fac186b066701da0bc33b
 
 * Major API Changes
-  - Promises removed. See
+  * Promises removed. See
     http://groups.google.com/group/nodejs/msg/426f3071f3eec16b
     http://groups.google.com/group/nodejs/msg/df199d233ff17efa
     The API for fs was
@@ -3138,10 +3138,10 @@ https://github.com/nodejs/node/commit/bb0d1e65e1671aaeb21fac186b066701da0bc33b
           if (err) throw err;
           puts("/usr files: " + files);
         });
-  - Synchronous fs operations exposed, use with care.
-  - tcp.Connection.prototype.readPause() and readResume()
+  * Synchronous fs operations exposed, use with care.
+  * tcp.Connection.prototype.readPause() and readResume()
     renamed to pause() and resume()
-  - http.ServerResponse.prototype.sendHeader() renamed to
+  * http.ServerResponse.prototype.sendHeader() renamed to
     writeHeader(). Now accepts reasonPhrase.
 
 * Compact garbage on idle.
@@ -3159,20 +3159,20 @@ https://github.com/nodejs/node/commit/bb0d1e65e1671aaeb21fac186b066701da0bc33b
 https://github.com/nodejs/node/commit/87d5e5b316a4276bcf881f176971c1a237dcdc7a
 
 * Major API Changes
-  - Remove 'file' module
-  - require('posix') -----------------> require('fs')
-  - fs.cat ---------------------------> fs.readFile
-  - file.write -----------------------> fs.writeFile
-  - TCP 'receive' event --------------> 'data'
-  - TCP 'eof' event ------------------> 'end'
-  - TCP send() -----------------------> write()
-  - HTTP sendBody() ------------------> write()
-  - HTTP finish() --------------------> close()
-  - HTTP 'body' event ----------------> 'data'
-  - HTTP 'complete' event ------------> 'end'
-  - http.Client.prototype.close() (formerly finish()) no longer
+  * Remove 'file' module
+  * require('posix') -----------------> require('fs')
+  * fs.cat ---------------------------> fs.readFile
+  * file.write -----------------------> fs.writeFile
+  * TCP 'receive' event --------------> 'data'
+  * TCP 'eof' event ------------------> 'end'
+  * TCP send() -----------------------> write()
+  * HTTP sendBody() ------------------> write()
+  * HTTP finish() --------------------> close()
+  * HTTP 'body' event ----------------> 'data'
+  * HTTP 'complete' event ------------> 'end'
+  * http.Client.prototype.close() (formerly finish()) no longer
     takes an argument. Add the 'response' listener manually.
-  - Allow strings for the flag argument to fs.open
+  * Allow strings for the flag argument to fs.open
     ("r", "r+", "w", "w+", "a", "a+")
 
 * Added multiple arg support for sys.puts(), print(), etc.
@@ -3257,9 +3257,9 @@ https://github.com/nodejs/node/commit/da00413196e432247346d9e587f8c78ce5ceb087
   (Micheil Smith)
 
 * API: change some Promise behavior (Felix Geisendörfer)
-  - Removed Promise.cancel()
-  - Support late callback binding
-  - Make unhandled Promise errors throw an exception
+  * Removed Promise.cancel()
+  * Support late callback binding
+  * Make unhandled Promise errors throw an exception
 
 * Upgrade V8 to 2.0.6.1
 * Solaris port (Erich Ocean)
@@ -3428,16 +3428,16 @@ https://github.com/nodejs/node/commit/d1f69ef35dac810530df8249d523add168e09f03
 https://github.com/nodejs/node/commit/726865af7bbafe58435986f4a193ff11c84e4bfe
 
 * API: Use CommonJS-style module requiring
-  - require("/sys.js") becomes require("sys")
-  - require("circle.js") becomes require("./circle")
-  - process.path.join() becomes require("path").join()
-  - __module becomes module
+  * require("/sys.js") becomes require("sys")
+  * require("circle.js") becomes require("./circle")
+  * process.path.join() becomes require("path").join()
+  * __module becomes module
 
 * API: Many namespacing changes
-  - Move node.\* into process.\*
-  - Move node.dns into module "dns"
-  - Move node.fs into module "posix"
-  - process is no longer the global object. GLOBAL is.
+  * Move node.\* into process.\*
+  * Move node.dns into module "dns"
+  * Move node.fs into module "posix"
+  * process is no longer the global object. GLOBAL is.
 
 For more information on the API changes see:
   http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6

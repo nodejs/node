@@ -912,9 +912,9 @@ ensure the response is a properly formatted HTTP response message.
 
 `err` is an instance of `Error` with two extra columns:
 
-+ `bytesParsed`: the bytes count of request packet that Node.js may have parsed
+* `bytesParsed`: the bytes count of request packet that Node.js may have parsed
   correctly;
-+ `rawPacket`: the raw packet of current request.
+* `rawPacket`: the raw packet of current request.
 
 ### Event: 'close'
 <!-- YAML

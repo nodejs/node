@@ -6,17 +6,17 @@ Most tests in Node.js core are JavaScript programs that exercise a functionality
 provided by Node.js and check that it behaves as expected. Tests should exit
 with code `0` on success. A test will fail if:
 
-- It exits by setting `process.exitCode` to a non-zero number.
-  - This is usually done by having an assertion throw an uncaught Error.
-  - Occasionally, using `process.exit(code)` may be appropriate.
-- It never exits. In this case, the test runner will terminate the test because
+* It exits by setting `process.exitCode` to a non-zero number.
+  * This is usually done by having an assertion throw an uncaught Error.
+  * Occasionally, using `process.exit(code)` may be appropriate.
+* It never exits. In this case, the test runner will terminate the test because
   it sets a maximum time limit.
 
 Add tests when:
 
-- Adding new functionality.
-- Fixing regressions and bugs.
-- Expanding test coverage.
+* Adding new functionality.
+* Fixing regressions and bugs.
+* Expanding test coverage.
 
 ## Test directory structure
 
@@ -113,14 +113,14 @@ This is the body of the test. This test is simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
 request. Interesting things to notice:
 
-- If the test doesn't depend on a specific port number, then always use 0
+* If the test doesn't depend on a specific port number, then always use 0
   instead of an arbitrary value, as it allows tests to run in parallel safely,
   as the operating system will assign a random port. If the test requires a
   specific port, for example if the test checks that assigning a specific port
   works as expected, then it is ok to assign a specific port number.
-- The use of `common.mustCall` to check that some callbacks/listeners are
+* The use of `common.mustCall` to check that some callbacks/listeners are
   called.
-- The HTTP server closes once all the checks have run. This way, the test can
+* The HTTP server closes once all the checks have run. This way, the test can
   exit gracefully. Remember that for a test to succeed, it must exit with a
   status code of 0.
 
@@ -268,8 +268,8 @@ const freelist = require('internal/freelist');
 
 When writing assertions, prefer the strict versions:
 
-- `assert.strictEqual()` over `assert.equal()`
-- `assert.deepStrictEqual()` over `assert.deepEqual()`
+* `assert.strictEqual()` over `assert.equal()`
+* `assert.deepStrictEqual()` over `assert.deepEqual()`
 
 When using `assert.throws()`, if possible, provide the full error message:
 
@@ -318,9 +318,9 @@ features that can be used directly without a flag in
 [all maintained branches][]. [node.green][] lists available features
 in each release, such as:
 
-- `let` and `const` over `var`
-- Template literals over string concatenation
-- Arrow functions when appropriate
+* `let` and `const` over `var`
+* Template literals over string concatenation
+* Arrow functions when appropriate
 
 ## Naming Test Files
 

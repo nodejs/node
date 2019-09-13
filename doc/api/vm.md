@@ -520,9 +520,9 @@ This must be called after the module has been instantiated; otherwise it will
 throw an error. It could be called also when the module has already been
 evaluated, in which case it will do one of the following two things:
 
-- return `undefined` if the initial evaluation ended in success (`module.status`
+* return `undefined` if the initial evaluation ended in success (`module.status`
   is `'evaluated'`)
-- rethrow the same exception the initial evaluation threw if the initial
+* rethrow the same exception the initial evaluation threw if the initial
   evaluation ended in an error (`module.status` is `'errored'`)
 
 This method cannot be called while the module is being evaluated
@@ -570,8 +570,8 @@ The function is expected to return a `Module` object or a `Promise` that
 eventually resolves to a `Module` object. The returned `Module` must satisfy the
 following two invariants:
 
-- It must belong to the same context as the parent `Module`.
-- Its `linkingStatus` must not be `'errored'`.
+* It must belong to the same context as the parent `Module`.
+* Its `linkingStatus` must not be `'errored'`.
 
 If the returned `Module`'s `linkingStatus` is `'unlinked'`, this method will be
 recursively called on the returned `Module` with the same provided `linker`
@@ -585,9 +585,9 @@ The linker function roughly corresponds to the implementation-defined
 [HostResolveImportedModule][] abstract operation in the ECMAScript
 specification, with a few key differences:
 
-- The linker function is allowed to be asynchronous while
+* The linker function is allowed to be asynchronous while
   [HostResolveImportedModule][] is synchronous.
-- The linker function is executed during linking, a Node.js-specific stage
+* The linker function is executed during linking, a Node.js-specific stage
   before instantiation, while [HostResolveImportedModule][] is called during
   instantiation.
 
@@ -603,12 +603,12 @@ specification.
 
 The current linking status of `module`. It will be one of the following values:
 
-- `'unlinked'`: `module.link()` has not yet been called.
-- `'linking'`: `module.link()` has been called, but not all Promises returned by
+* `'unlinked'`: `module.link()` has not yet been called.
+* `'linking'`: `module.link()` has been called, but not all Promises returned by
   the linker function have been resolved yet.
-- `'linked'`: `module.link()` has been called, and all its dependencies have
+* `'linked'`: `module.link()` has been called, and all its dependencies have
   been successfully linked.
-- `'errored'`: `module.link()` has been called, but at least one of its
+* `'errored'`: `module.link()` has been called, but at least one of its
   dependencies failed to link, either because the callback returned a `Promise`
   that is rejected, or because the `Module` the callback returned is invalid.
 
@@ -628,28 +628,28 @@ specification.
 
 The current status of the module. Will be one of:
 
-- `'uninstantiated'`: The module is not instantiated. It may because of any of
+* `'uninstantiated'`: The module is not instantiated. It may because of any of
   the following reasons:
 
-  - The module was just created.
-  - `module.instantiate()` has been called on this module, but it failed for
+  * The module was just created.
+  * `module.instantiate()` has been called on this module, but it failed for
     some reason.
 
   This status does not convey any information regarding if `module.link()` has
   been called. See `module.linkingStatus` for that.
 
-- `'instantiating'`: The module is currently being instantiated through a
+* `'instantiating'`: The module is currently being instantiated through a
   `module.instantiate()` call on itself or a parent module.
 
-- `'instantiated'`: The module has been instantiated successfully, but
+* `'instantiated'`: The module has been instantiated successfully, but
   `module.evaluate()` has not yet been called.
 
-- `'evaluating'`: The module is being evaluated through a `module.evaluate()` on
+* `'evaluating'`: The module is being evaluated through a `module.evaluate()` on
   itself or a parent module.
 
-- `'evaluated'`: The module has been successfully evaluated.
+* `'evaluated'`: The module has been successfully evaluated.
 
-- `'errored'`: The module has been evaluated, but an exception was thrown.
+* `'errored'`: The module has been evaluated, but an exception was thrown.
 
 Other than `'errored'`, this status string corresponds to the specification's
 [Source Text Module Record][]'s `[[Status]]` field. `'errored'` corresponds to

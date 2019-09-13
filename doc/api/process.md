@@ -511,16 +511,16 @@ environment variable.
 representations.  `process.allowedNodeEnvironmentFlags.has()` will
 return `true` in the following cases:
 
-- Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
+* Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
   `inspect-brk` for `--inspect-brk`, or `r` for `-r`.
-- Flags passed through to V8 (as listed in `--v8-options`) may replace
+* Flags passed through to V8 (as listed in `--v8-options`) may replace
   one or more *non-leading* dashes for an underscore, or vice-versa;
   e.g., `--perf_basic_prof`, `--perf-basic-prof`, `--perf_basic-prof`,
   etc.
-- Flags may contain one or more equals (`=`) characters; all
+* Flags may contain one or more equals (`=`) characters; all
   characters after and including the first equals will be ignored;
   e.g., `--stack-trace-limit=100`.
-- Flags *must* be allowable within [`NODE_OPTIONS`][].
+* Flags *must* be allowable within [`NODE_OPTIONS`][].
 
 When iterating over `process.allowedNodeEnvironmentFlags`, flags will
 appear only *once*; each will begin with one or more dashes. Flags
@@ -1680,9 +1680,9 @@ tarball.
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
   release types, including _Current_ releases. Currently the valid values are:
-  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
-  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
-  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
+  * `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  * `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  * `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 <!-- eslint-skip -->
 ```js
@@ -2178,9 +2178,9 @@ important ways:
    respectively.
 2. Writes may be synchronous depending on what the stream is connected to
    and whether the system is Windows or POSIX:
-   - Files: *synchronous* on Windows and POSIX
-   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
-   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
+   * Files: *synchronous* on Windows and POSIX
+   * TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
+   * Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
 
 These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.

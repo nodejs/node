@@ -317,11 +317,11 @@ on the format, see the OpenSSL [cipher list format][] documentation.
 
 There are only 5 TLSv1.3 cipher suites:
 
-- `'TLS_AES_256_GCM_SHA384'`
-- `'TLS_CHACHA20_POLY1305_SHA256'`
-- `'TLS_AES_128_GCM_SHA256'`
-- `'TLS_AES_128_CCM_SHA256'`
-- `'TLS_AES_128_CCM_8_SHA256'`
+* `'TLS_AES_256_GCM_SHA384'`
+* `'TLS_CHACHA20_POLY1305_SHA256'`
+* `'TLS_AES_128_GCM_SHA256'`
+* `'TLS_AES_128_CCM_SHA256'`
+* `'TLS_AES_128_CCM_8_SHA256'`
 
 The first 3 are enabled by default. The last 2 `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
