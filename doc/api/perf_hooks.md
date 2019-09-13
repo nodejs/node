@@ -201,6 +201,25 @@ The value may be one of:
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
 
+### performanceEntry.flags
+<!-- YAML
+added v?
+-->
+
+* {number}
+
+When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
+property contain additional information about garbage collection operation.
+The value may be one of:
+
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_NO`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_FORCED`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_SYNCHRONOUS_PHANTOM_PROCESSING`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_ALL_AVAILABLE_GARBAGE`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE`
+
 ## Class: `PerformanceNodeTiming extends PerformanceEntry`
 <!-- YAML
 added: v8.5.0

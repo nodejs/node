@@ -21,6 +21,7 @@ namespace performance {
 
 using v8::FunctionCallbackInfo;
 using v8::GCType;
+using v8::GCCallbackFlags;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -110,19 +111,33 @@ enum PerformanceGCKind {
   NODE_PERFORMANCE_GC_WEAKCB = GCType::kGCTypeProcessWeakCallbacks
 };
 
+enum PerformanceGCFlags {
+  NODE_PERFORMANCE_GC_FLAGS_NO = GCCallbackFlags::kNoGCCallbackFlags,
+  NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED = GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos,
+  NODE_PERFORMANCE_GC_FLAGS_FORCED = GCCallbackFlags::kGCCallbackFlagForced,
+  NODE_PERFORMANCE_GC_FLAGS_SYNCHRONOUS_PHANTOM_PROCESSING = GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing,
+  NODE_PERFORMANCE_GC_FLAGS_ALL_AVAILABLE_GARBAGE = GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage,
+  NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY = GCCallbackFlags::kGCCallbackFlagCollectAllExternalMemory,
+  NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE = GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
+};
+
 class GCPerformanceEntry : public PerformanceEntry {
  public:
   GCPerformanceEntry(Environment* env,
                      PerformanceGCKind gckind,
+                     PerformanceGCFlags gcflags,
                      uint64_t startTime,
                      uint64_t endTime) :
                          PerformanceEntry(env, "gc", "gc", startTime, endTime),
-                         gckind_(gckind) { }
+                         gckind_(gckind),
+                         gcflags_(gcflags) { }
 
   PerformanceGCKind gckind() const { return gckind_; }
+  PerformanceGCFlags gcflags() const { return gcflags_; }
 
  private:
   PerformanceGCKind gckind_;
+  PerformanceGCFlags gcflags_;
 };
 
 class ELDHistogram : public HandleWrap, public Histogram {
