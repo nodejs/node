@@ -6,8 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
-
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
 const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
@@ -121,8 +119,6 @@ bob.generateKeys();
 const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.strictEqual(aSecret, bSecret);
-assert.strictEqual(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
-assert.strictEqual(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
@@ -153,8 +149,6 @@ const modp2buf = Buffer.from([
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
@@ -167,7 +161,6 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 {
@@ -179,7 +172,6 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 {
@@ -191,17 +183,20 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
-
+// Second OAKLEY group, see
+// https://github.com/nodejs/node-v0.x-archive/issues/2338 and
+// https://xml2rfc.tools.ietf.org/public/rfc/html/rfc2412.html#anchor49
 const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
           '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
           '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
           'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
-const bad_dh = crypto.createDiffieHellman(p, 'hex');
-assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
+crypto.createDiffieHellman(p, 'hex');
 
+// Confirm DH_check() results are exposed for optional examination.
+const bad_dh = crypto.createDiffieHellman('02', 'hex');
+assert.notStrictEqual(bad_dh.verifyError, 0);
 
 const availableCurves = new Set(crypto.getCurves());
 const availableHashes = new Set(crypto.getHashes());
