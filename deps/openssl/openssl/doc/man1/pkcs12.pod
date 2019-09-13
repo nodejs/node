@@ -225,7 +225,8 @@ for this search. If the search fails it is considered a fatal error.
 
 Encrypt the certificate using triple DES, this may render the PKCS#12
 file unreadable by some "export grade" software. By default the private
-key is encrypted using triple DES and the certificate using 40 bit RC2.
+key is encrypted using triple DES and the certificate using 40 bit RC2
+unless RC2 is disabled in which case triple DES is used.
 
 =item B<-keypbe alg>, B<-certpbe alg>
 

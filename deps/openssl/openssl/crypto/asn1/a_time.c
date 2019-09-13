@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -67,7 +67,7 @@ static void determine_days(struct tm *tm)
     }
     c = y / 100;
     y %= 100;
-    /* Zeller's congruance */
+    /* Zeller's congruence */
     tm->tm_wday = (d + (13 * m) / 5 + y + y / 4 + c / 4 + 5 * c + 6) % 7;
 }
 
@@ -79,7 +79,11 @@ int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
     char *a;
     int n, i, i2, l, o, min_l = 11, strict = 0, end = 6, btz = 5, md;
     struct tm tmp;
-
+#if defined(CHARSET_EBCDIC)
+    const char upper_z = 0x5A, num_zero = 0x30, period = 0x2E, minus = 0x2D, plus = 0x2B;
+#else
+    const char upper_z = 'Z', num_zero = '0', period = '.', minus = '-', plus = '+';
+#endif
     /*
      * ASN1_STRING_FLAG_X509_TIME is used to enforce RFC 5280
      * time string format, in which:
@@ -120,20 +124,20 @@ int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
     if (l < min_l)
         goto err;
     for (i = 0; i < end; i++) {
-        if (!strict && (i == btz) && ((a[o] == 'Z') || (a[o] == '+') || (a[o] == '-'))) {
+        if (!strict && (i == btz) && ((a[o] == upper_z) || (a[o] == plus) || (a[o] == minus))) {
             i++;
             break;
         }
-        if (!ossl_isdigit(a[o]))
+        if (!ascii_isdigit(a[o]))
             goto err;
-        n = a[o] - '0';
+        n = a[o] - num_zero;
         /* incomplete 2-digital number */
         if (++o == l)
             goto err;
 
-        if (!ossl_isdigit(a[o]))
+        if (!ascii_isdigit(a[o]))
             goto err;
-        n = (n * 10) + a[o] - '0';
+        n = (n * 10) + a[o] - num_zero;
         /* no more bytes to read, but we haven't seen time-zone yet */
         if (++o == l)
             goto err;
@@ -185,14 +189,14 @@ int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
      * Optional fractional seconds: decimal point followed by one or more
      * digits.
      */
-    if (d->type == V_ASN1_GENERALIZEDTIME && a[o] == '.') {
+    if (d->type == V_ASN1_GENERALIZEDTIME && a[o] == period) {
         if (strict)
             /* RFC 5280 forbids fractional seconds */
             goto err;
         if (++o == l)
             goto err;
         i = o;
-        while ((o < l) && ossl_isdigit(a[o]))
+        while ((o < l) && ascii_isdigit(a[o]))
             o++;
         /* Must have at least one digit after decimal point */
         if (i == o)
@@ -207,10 +211,10 @@ int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
      * 'o' can point to '\0' is either the subsequent if or the first
      * else if is true.
      */
-    if (a[o] == 'Z') {
+    if (a[o] == upper_z) {
         o++;
-    } else if (!strict && ((a[o] == '+') || (a[o] == '-'))) {
-        int offsign = a[o] == '-' ? 1 : -1;
+    } else if (!strict && ((a[o] == plus) || (a[o] == minus))) {
+        int offsign = a[o] == minus ? 1 : -1;
         int offset = 0;
 
         o++;
@@ -223,13 +227,13 @@ int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
         if (o + 4 != l)
             goto err;
         for (i = end; i < end + 2; i++) {
-            if (!ossl_isdigit(a[o]))
+            if (!ascii_isdigit(a[o]))
                 goto err;
-            n = a[o] - '0';
+            n = a[o] - num_zero;
             o++;
-            if (!ossl_isdigit(a[o]))
+            if (!ascii_isdigit(a[o]))
                 goto err;
-            n = (n * 10) + a[o] - '0';
+            n = (n * 10) + a[o] - num_zero;
             i2 = (d->type == V_ASN1_UTCTIME) ? i + 1 : i;
             if ((n < min[i2]) || (n > max[i2]))
                 goto err;
@@ -300,7 +304,7 @@ ASN1_TIME *asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
                                     ts->tm_mday, ts->tm_hour, ts->tm_min,
                                     ts->tm_sec);
 
-#ifdef CHARSET_EBCDIC_not
+#ifdef CHARSET_EBCDIC
     ebcdic2ascii(tmps->data, tmps->data, tmps->length);
 #endif
     return tmps;
@@ -467,6 +471,7 @@ int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm)
     char *v;
     int gmt = 0, l;
     struct tm stm;
+    const char upper_z = 0x5A, period = 0x2E;
 
     if (!asn1_time_to_tm(&stm, tm)) {
         /* asn1_time_to_tm will check the time type */
@@ -475,7 +480,7 @@ int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm)
 
     l = tm->length;
     v = (char *)tm->data;
-    if (v[l - 1] == 'Z')
+    if (v[l - 1] == upper_z)
         gmt = 1;
 
     if (tm->type == V_ASN1_GENERALIZEDTIME) {
@@ -486,10 +491,10 @@ int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm)
          * Try to parse fractional seconds. '14' is the place of
          * 'fraction point' in a GeneralizedTime string.
          */
-        if (tm->length > 15 && v[14] == '.') {
+        if (tm->length > 15 && v[14] == period) {
             f = &v[14];
             f_len = 1;
-            while (14 + f_len < l && ossl_isdigit(f[f_len]))
+            while (14 + f_len < l && ascii_isdigit(f[f_len]))
                 ++f_len;
         }
 

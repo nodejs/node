@@ -94,28 +94,31 @@ The actual protocol version used will be negotiated to the highest version
 mutually supported by the client and the server.
 The supported protocols are SSLv3, TLSv1, TLSv1.1, TLSv1.2 and TLSv1.3.
 Applications should use these methods, and avoid the version-specific
-methods described below.
+methods described below, which are deprecated.
 
 =item SSLv23_method(), SSLv23_server_method(), SSLv23_client_method()
 
-Use of these functions is deprecated. They have been replaced with the above
-TLS_method(), TLS_server_method() and TLS_client_method() respectively. New
-code should use those functions instead.
+These functions do not exist anymore, they have been renamed to
+TLS_method(), TLS_server_method() and TLS_client_method() respectively.
+Currently, the old function calls are renamed to the corresponding new
+ones by preprocessor macros, to ensure that existing code which uses the
+old function names still compiles. However, using the old function names
+is deprecated and new code should call the new functions instead.
 
 =item TLSv1_2_method(), TLSv1_2_server_method(), TLSv1_2_client_method()
 
 A TLS/SSL connection established with these methods will only understand the
-TLSv1.2 protocol.
+TLSv1.2 protocol. These methods are deprecated.
 
 =item TLSv1_1_method(), TLSv1_1_server_method(), TLSv1_1_client_method()
 
 A TLS/SSL connection established with these methods will only understand the
-TLSv1.1 protocol.
+TLSv1.1 protocol.  These methods are deprecated.
 
 =item TLSv1_method(), TLSv1_server_method(), TLSv1_client_method()
 
 A TLS/SSL connection established with these methods will only understand the
-TLSv1 protocol.
+TLSv1 protocol. These methods are deprecated.
 
 =item SSLv3_method(), SSLv3_server_method(), SSLv3_client_method()
 
@@ -131,10 +134,12 @@ Currently supported protocols are DTLS 1.0 and DTLS 1.2.
 =item DTLSv1_2_method(), DTLSv1_2_server_method(), DTLSv1_2_client_method()
 
 These are the version-specific methods for DTLSv1.2.
+These methods are deprecated.
 
 =item DTLSv1_method(), DTLSv1_server_method(), DTLSv1_client_method()
 
 These are the version-specific methods for DTLSv1.
+These methods are deprecated.
 
 =back
 

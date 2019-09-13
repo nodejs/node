@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,6 @@
 # define DRBG_MAX_LENGTH                         INT32_MAX
 
 
-
 /*
  * Maximum allocation size for RANDOM_POOL buffers
  *
@@ -72,6 +71,24 @@
  *                                1.5 * (RAND_DRBG_STRENGTH / 8))
  */
 
+/*
+ * Initial allocation minimum.
+ *
+ * There is a distinction between the secure and normal allocation minimums.
+ * Ideally, the secure allocation size should be a power of two.  The normal
+ * allocation size doesn't have any such restriction.
+ *
+ * The secure value is based on 128 bits of secure material, which is 16 bytes.
+ * Typically, the DRBGs will set a minimum larger than this so optimal
+ * allocation ought to take place (for full quality seed material).
+ *
+ * The normal value has been chosed by noticing that the rand_drbg_get_nonce
+ * function is usually the largest of the built in allocation (twenty four
+ * bytes and then appending another sixteen bytes).  This means the buffer ends
+ * with 40 bytes.  The value of forty eight is comfortably above this which
+ * allows some slack in the platform specific values used.
+ */
+# define RAND_POOL_MIN_ALLOCATION(secure) ((secure) ? 16 : 48)
 
 /* DRBG status values */
 typedef enum drbg_status_e {
@@ -150,9 +167,11 @@ struct rand_pool_st {
     size_t len; /* current number of random bytes contained in the pool */
 
     int attached;  /* true pool was attached to existing buffer */
+    int secure;    /* 1: allocated on the secure heap, 0: otherwise */
 
     size_t min_len; /* minimum number of random bytes requested */
     size_t max_len; /* maximum number of random bytes (allocated buffer size) */
+    size_t alloc_len; /* current number of bytes allocated */
     size_t entropy; /* current entropy count in bits */
     size_t entropy_requested; /* requested entropy count in bits */
 };
@@ -167,12 +186,12 @@ struct rand_drbg_st {
     int secure; /* 1: allocated on the secure heap, 0: otherwise */
     int type; /* the nid of the underlying algorithm */
     /*
-     * Stores the value of the rand_fork_count global as of when we last
-     * reseeded.  The DRBG reseeds automatically whenever drbg->fork_count !=
-     * rand_fork_count.  Used to provide fork-safety and reseed this DRBG in
-     * the child process.
+     * Stores the return value of openssl_get_fork_id() as of when we last
+     * reseeded.  The DRBG reseeds automatically whenever drbg->fork_id !=
+     * openssl_get_fork_id().  Used to provide fork-safety and reseed this
+     * DRBG in the child process.
      */
-    int fork_count;
+    int fork_id;
     unsigned short flags; /* various external flags */
 
     /*
@@ -263,19 +282,6 @@ struct rand_drbg_st {
 
 /* The global RAND method, and the global buffer and DRBG instance. */
 extern RAND_METHOD rand_meth;
-
-/*
- * A "generation count" of forks.  Incremented in the child process after a
- * fork.  Since rand_fork_count is increment-only, and only ever written to in
- * the child process of the fork, which is guaranteed to be single-threaded, no
- * locking is needed for normal (read) accesses; the rest of pthread fork
- * processing is assumed to introduce the necessary memory barriers.  Sibling
- * children of a given parent will produce duplicate values, but this is not
- * problematic because the reseeding process pulls input from the system CSPRNG
- * and/or other global sources, so the siblings will end up generating
- * different output streams.
- */
-extern int rand_fork_count;
 
 /* DRBG helpers */
 int rand_drbg_restart(RAND_DRBG *drbg,

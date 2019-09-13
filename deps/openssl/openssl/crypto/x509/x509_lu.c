@@ -289,24 +289,25 @@ X509_OBJECT *X509_STORE_CTX_get_obj_by_subject(X509_STORE_CTX *vs,
 int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, X509_LOOKUP_TYPE type,
                                   X509_NAME *name, X509_OBJECT *ret)
 {
-    X509_STORE *ctx = vs->ctx;
+    X509_STORE *store = vs->ctx;
     X509_LOOKUP *lu;
     X509_OBJECT stmp, *tmp;
     int i, j;
 
-    if (ctx == NULL)
+    if (store == NULL)
         return 0;
 
     stmp.type = X509_LU_NONE;
     stmp.data.ptr = NULL;
 
-    CRYPTO_THREAD_write_lock(ctx->lock);
-    tmp = X509_OBJECT_retrieve_by_subject(ctx->objs, type, name);
-    CRYPTO_THREAD_unlock(ctx->lock);
+
+    X509_STORE_lock(store);
+    tmp = X509_OBJECT_retrieve_by_subject(store->objs, type, name);
+    X509_STORE_unlock(store);
 
     if (tmp == NULL || type == X509_LU_CRL) {
-        for (i = 0; i < sk_X509_LOOKUP_num(ctx->get_cert_methods); i++) {
-            lu = sk_X509_LOOKUP_value(ctx->get_cert_methods, i);
+        for (i = 0; i < sk_X509_LOOKUP_num(store->get_cert_methods); i++) {
+            lu = sk_X509_LOOKUP_value(store->get_cert_methods, i);
             j = X509_LOOKUP_by_subject(lu, type, name, &stmp);
             if (j) {
                 tmp = &stmp;
@@ -317,15 +318,16 @@ int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, X509_LOOKUP_TYPE type,
             return 0;
     }
 
+    if (!X509_OBJECT_up_ref_count(tmp))
+        return 0;
+
     ret->type = tmp->type;
     ret->data.ptr = tmp->data.ptr;
-
-    X509_OBJECT_up_ref_count(ret);
 
     return 1;
 }
 
-static int x509_store_add(X509_STORE *ctx, void *x, int crl) {
+static int x509_store_add(X509_STORE *store, void *x, int crl) {
     X509_OBJECT *obj;
     int ret = 0, added = 0;
 
@@ -342,18 +344,20 @@ static int x509_store_add(X509_STORE *ctx, void *x, int crl) {
         obj->type = X509_LU_X509;
         obj->data.x509 = (X509 *)x;
     }
-    X509_OBJECT_up_ref_count(obj);
-
-    CRYPTO_THREAD_write_lock(ctx->lock);
-
-    if (X509_OBJECT_retrieve_match(ctx->objs, obj)) {
-        ret = 1;
-    } else {
-        added = sk_X509_OBJECT_push(ctx->objs, obj);
-        ret = added != 0;
+    if (!X509_OBJECT_up_ref_count(obj)) {
+        obj->type = X509_LU_NONE;
+        X509_OBJECT_free(obj);
+        return 0;
     }
 
-    CRYPTO_THREAD_unlock(ctx->lock);
+    X509_STORE_lock(store);
+    if (X509_OBJECT_retrieve_match(store->objs, obj)) {
+        ret = 1;
+    } else {
+        added = sk_X509_OBJECT_push(store->objs, obj);
+        ret = added != 0;
+    }
+    X509_STORE_unlock(store);
 
     if (added == 0)             /* obj not pushed */
         X509_OBJECT_free(obj);
@@ -534,12 +538,13 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
     STACK_OF(X509) *sk = NULL;
     X509 *x;
     X509_OBJECT *obj;
+    X509_STORE *store = ctx->ctx;
 
-    if (ctx->ctx == NULL)
+    if (store == NULL)
         return NULL;
 
-    CRYPTO_THREAD_write_lock(ctx->ctx->lock);
-    idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_X509, nm, &cnt);
+    X509_STORE_lock(store);
+    idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
     if (idx < 0) {
         /*
          * Nothing found in cache: do lookup to possibly add new objects to
@@ -547,7 +552,8 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
          */
         X509_OBJECT *xobj = X509_OBJECT_new();
 
-        CRYPTO_THREAD_unlock(ctx->ctx->lock);
+        X509_STORE_unlock(store);
+
         if (xobj == NULL)
             return NULL;
         if (!X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509, nm, xobj)) {
@@ -555,27 +561,31 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
             return NULL;
         }
         X509_OBJECT_free(xobj);
-        CRYPTO_THREAD_write_lock(ctx->ctx->lock);
-        idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_X509, nm, &cnt);
+        X509_STORE_lock(store);
+        idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
         if (idx < 0) {
-            CRYPTO_THREAD_unlock(ctx->ctx->lock);
+            X509_STORE_unlock(store);
             return NULL;
         }
     }
 
     sk = sk_X509_new_null();
     for (i = 0; i < cnt; i++, idx++) {
-        obj = sk_X509_OBJECT_value(ctx->ctx->objs, idx);
+        obj = sk_X509_OBJECT_value(store->objs, idx);
         x = obj->data.x509;
-        X509_up_ref(x);
+        if (!X509_up_ref(x)) {
+            X509_STORE_unlock(store);
+            sk_X509_pop_free(sk, X509_free);
+            return NULL;
+        }
         if (!sk_X509_push(sk, x)) {
-            CRYPTO_THREAD_unlock(ctx->ctx->lock);
+            X509_STORE_unlock(store);
             X509_free(x);
             sk_X509_pop_free(sk, X509_free);
             return NULL;
         }
     }
-    CRYPTO_THREAD_unlock(ctx->ctx->lock);
+    X509_STORE_unlock(store);
     return sk;
 }
 
@@ -585,37 +595,42 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx, X509_NAME *nm)
     STACK_OF(X509_CRL) *sk = sk_X509_CRL_new_null();
     X509_CRL *x;
     X509_OBJECT *obj, *xobj = X509_OBJECT_new();
+    X509_STORE *store = ctx->ctx;
 
     /* Always do lookup to possibly add new CRLs to cache */
     if (sk == NULL
             || xobj == NULL
-            || ctx->ctx == NULL
+            || store == NULL
             || !X509_STORE_CTX_get_by_subject(ctx, X509_LU_CRL, nm, xobj)) {
         X509_OBJECT_free(xobj);
         sk_X509_CRL_free(sk);
         return NULL;
     }
     X509_OBJECT_free(xobj);
-    CRYPTO_THREAD_write_lock(ctx->ctx->lock);
-    idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_CRL, nm, &cnt);
+    X509_STORE_lock(store);
+    idx = x509_object_idx_cnt(store->objs, X509_LU_CRL, nm, &cnt);
     if (idx < 0) {
-        CRYPTO_THREAD_unlock(ctx->ctx->lock);
+        X509_STORE_unlock(store);
         sk_X509_CRL_free(sk);
         return NULL;
     }
 
     for (i = 0; i < cnt; i++, idx++) {
-        obj = sk_X509_OBJECT_value(ctx->ctx->objs, idx);
+        obj = sk_X509_OBJECT_value(store->objs, idx);
         x = obj->data.crl;
-        X509_CRL_up_ref(x);
+        if (!X509_CRL_up_ref(x)) {
+            X509_STORE_unlock(store);
+            sk_X509_CRL_pop_free(sk, X509_CRL_free);
+            return NULL;
+        }
         if (!sk_X509_CRL_push(sk, x)) {
-            CRYPTO_THREAD_unlock(ctx->ctx->lock);
+            X509_STORE_unlock(store);
             X509_CRL_free(x);
             sk_X509_CRL_pop_free(sk, X509_CRL_free);
             return NULL;
         }
     }
-    CRYPTO_THREAD_unlock(ctx->ctx->lock);
+    X509_STORE_unlock(store);
     return sk;
 }
 
@@ -663,6 +678,7 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
 {
     X509_NAME *xn;
     X509_OBJECT *obj = X509_OBJECT_new(), *pobj = NULL;
+    X509_STORE *store = ctx->ctx;
     int i, ok, idx, ret;
 
     if (obj == NULL)
@@ -678,25 +694,28 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
     if (ctx->check_issued(ctx, x, obj->data.x509)) {
         if (x509_check_cert_time(ctx, obj->data.x509, -1)) {
             *issuer = obj->data.x509;
-            X509_up_ref(*issuer);
+            if (!X509_up_ref(*issuer)) {
+                *issuer = NULL;
+                ok = -1;
+            }
             X509_OBJECT_free(obj);
-            return 1;
+            return ok;
         }
     }
     X509_OBJECT_free(obj);
 
-    if (ctx->ctx == NULL)
+    if (store == NULL)
         return 0;
 
     /* Else find index of first cert accepted by 'check_issued' */
     ret = 0;
-    CRYPTO_THREAD_write_lock(ctx->ctx->lock);
-    idx = X509_OBJECT_idx_by_subject(ctx->ctx->objs, X509_LU_X509, xn);
+    X509_STORE_lock(store);
+    idx = X509_OBJECT_idx_by_subject(store->objs, X509_LU_X509, xn);
     if (idx != -1) {            /* should be true as we've had at least one
                                  * match */
         /* Look through all matching certs for suitable issuer */
-        for (i = idx; i < sk_X509_OBJECT_num(ctx->ctx->objs); i++) {
-            pobj = sk_X509_OBJECT_value(ctx->ctx->objs, i);
+        for (i = idx; i < sk_X509_OBJECT_num(store->objs); i++) {
+            pobj = sk_X509_OBJECT_value(store->objs, i);
             /* See if we've run past the matches */
             if (pobj->type != X509_LU_X509)
                 break;
@@ -717,9 +736,11 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
             }
         }
     }
-    CRYPTO_THREAD_unlock(ctx->ctx->lock);
-    if (*issuer)
-        X509_up_ref(*issuer);
+    if (*issuer && !X509_up_ref(*issuer)) {
+        *issuer = NULL;
+        ret = -1;
+    }
+    X509_STORE_unlock(store);
     return ret;
 }
 
