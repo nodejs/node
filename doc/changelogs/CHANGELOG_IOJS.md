@@ -330,15 +330,15 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 
 * **buffer**: Fixed a couple large memory leaks (Ben Noordhuis) [#2352](https://github.com/nodejs/node/pull/2352).
 * **crypto**:
-  - Fixed a couple of minor memory leaks (Karl Skomski) [#2375](https://github.com/nodejs/node/pull/2375).
-  - Signing now checks for OpenSSL errors (Minqi Pan) [#2342](https://github.com/nodejs/node/pull/2342). **Note that this may expose previously hidden errors in user code.**
+  * Fixed a couple of minor memory leaks (Karl Skomski) [#2375](https://github.com/nodejs/node/pull/2375).
+  * Signing now checks for OpenSSL errors (Minqi Pan) [#2342](https://github.com/nodejs/node/pull/2342). **Note that this may expose previously hidden errors in user code.**
 * **intl**: Intl support using small-icu is now enabled by default in builds (Steven R. Loomis) [#2264](https://github.com/nodejs/node/pull/2264).
-  - [`String#normalize()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize) can now be used for unicode normalization.
-  - The [`Intl`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Intl) object and various `String` and `Number` methods are present, but only support the English locale.
-  - For support of all locales, node must be built with [full-icu](https://github.com/nodejs/node#build-with-full-icu-support-all-locales-supported-by-icu).
+  * [`String#normalize()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize) can now be used for unicode normalization.
+  * The [`Intl`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Intl) object and various `String` and `Number` methods are present, but only support the English locale.
+  * For support of all locales, node must be built with [full-icu](https://github.com/nodejs/node#build-with-full-icu-support-all-locales-supported-by-icu).
 * **tls**: Fixed tls throughput being much lower after an incorrect merge (Fedor Indutny) [#2381](https://github.com/nodejs/node/pull/2381).
 * **tools**: The v8 tick processor now comes bundled with node (Matt Loring) [#2090](https://github.com/nodejs/node/pull/2090).
-  - This can be used by producing performance profiling output by running node with `--perf`, then running your appropriate platform's script on the output as found in [tools/v8-prof](https://github.com/nodejs/node/tree/master/tools/v8-prof).
+  * This can be used by producing performance profiling output by running node with `--perf`, then running your appropriate platform's script on the output as found in [tools/v8-prof](https://github.com/nodejs/node/tree/master/tools/v8-prof).
 * **util**: `util.inspect(obj)` now prints the constructor name of the object if there is one (Christopher Monsanto) [#1935](https://github.com/nodejs/io.js/pull/1935).
 
 ### Known issues
@@ -398,30 +398,30 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 ### Notable changes
 
 * **buffer**:
-  - Due to changes in V8, it has been necessary to reimplement `Buffer` on top of V8's `Uint8Array`. Every effort has been made to minimize the performance impact, however `Buffer` instantiation is measurably slower. Access operations may be faster in some circumstances but the exact performance profile and difference over previous versions will depend on how `Buffer` is used within applications. (Trevor Norris) [#1825](https://github.com/nodejs/node/pull/1825).
-  - `Buffer` can now take `ArrayBuffer`s as a constructor argument (Trevor Norris) [#2002](https://github.com/nodejs/node/pull/2002).
-  - When a single buffer is passed to `Buffer.concat()`, a new, copied `Buffer` object will be returned; previous behavior was to return the original `Buffer` object (Sakthipriyan Vairamani) [#1937](https://github.com/nodejs/node/pull/1937).
+  * Due to changes in V8, it has been necessary to reimplement `Buffer` on top of V8's `Uint8Array`. Every effort has been made to minimize the performance impact, however `Buffer` instantiation is measurably slower. Access operations may be faster in some circumstances but the exact performance profile and difference over previous versions will depend on how `Buffer` is used within applications. (Trevor Norris) [#1825](https://github.com/nodejs/node/pull/1825).
+  * `Buffer` can now take `ArrayBuffer`s as a constructor argument (Trevor Norris) [#2002](https://github.com/nodejs/node/pull/2002).
+  * When a single buffer is passed to `Buffer.concat()`, a new, copied `Buffer` object will be returned; previous behavior was to return the original `Buffer` object (Sakthipriyan Vairamani) [#1937](https://github.com/nodejs/node/pull/1937).
 * **build**: PPC support has been added to core to allow compiling on pLinux BE and LE (AIX support coming soon) (Michael Dawson) [#2124](https://github.com/nodejs/node/pull/2124).
 * **dgram**: If an error occurs within `socket.send()` and a callback has been provided, the error is only passed as the first argument to the callback and not emitted on the `socket` object; previous behavior was to do both (Matteo Collina & Chris Dickinson) [#1796](https://github.com/nodejs/node/pull/1796)
 * **freelist**: Deprecate the undocumented `freelist` core module (Sakthipriyan Vairamani) [#2176](https://github.com/nodejs/node/pull/2176).
 * **http**:
-  - Status codes now all use the official [IANA names](http://www.iana.org/assignments/http-status-codes) as per [RFC7231](https://tools.ietf.org/html/rfc7231), e.g. `http.STATUS_CODES[414]` now returns `'URI Too Long'` rather than `'Request-URI Too Large'` (jomo) [#1470](https://github.com/nodejs/node/pull/1470).
-  - Calling .getName() on an HTTP agent no longer returns a trailing colon, HTTPS agents will no longer return an extra colon near the middle of the string (Brendan Ashworth) [#1617](https://github.com/nodejs/node/pull/1617).
+  * Status codes now all use the official [IANA names](http://www.iana.org/assignments/http-status-codes) as per [RFC7231](https://tools.ietf.org/html/rfc7231), e.g. `http.STATUS_CODES[414]` now returns `'URI Too Long'` rather than `'Request-URI Too Large'` (jomo) [#1470](https://github.com/nodejs/node/pull/1470).
+  * Calling .getName() on an HTTP agent no longer returns a trailing colon, HTTPS agents will no longer return an extra colon near the middle of the string (Brendan Ashworth) [#1617](https://github.com/nodejs/node/pull/1617).
 * **node**:
-  - `NODE_MODULE_VERSION` has been bumped to `45` to reflect the break in ABI (Rod Vagg) [#2096](https://github.com/nodejs/node/pull/2096).
-  - Introduce a new `process.release` object that contains a `name` property set to `'io.js'` and `sourceUrl`, `headersUrl` and `libUrl` (Windows only) properties containing URLs for the relevant resources; this is intended to be used by node-gyp (Rod Vagg) [#2154](https://github.com/nodejs/node/pull/2154).
-  - The version of node-gyp bundled with io.js now downloads and uses a tarball of header files from iojs.org rather than the full source for compiling native add-ons; it is hoped this is a temporary floating patch and the change will be upstreamed to node-gyp soon (Rod Vagg) [#2066](https://github.com/nodejs/node/pull/2066).
+  * `NODE_MODULE_VERSION` has been bumped to `45` to reflect the break in ABI (Rod Vagg) [#2096](https://github.com/nodejs/node/pull/2096).
+  * Introduce a new `process.release` object that contains a `name` property set to `'io.js'` and `sourceUrl`, `headersUrl` and `libUrl` (Windows only) properties containing URLs for the relevant resources; this is intended to be used by node-gyp (Rod Vagg) [#2154](https://github.com/nodejs/node/pull/2154).
+  * The version of node-gyp bundled with io.js now downloads and uses a tarball of header files from iojs.org rather than the full source for compiling native add-ons; it is hoped this is a temporary floating patch and the change will be upstreamed to node-gyp soon (Rod Vagg) [#2066](https://github.com/nodejs/node/pull/2066).
 * **repl**: Persistent history is now enabled by default. The history file is located at ~/.node_repl_history, which can be overridden by the new environment variable `NODE_REPL_HISTORY`. This deprecates the previous `NODE_REPL_HISTORY_FILE` variable. Additionally, the format of the file has been changed to plain text to better handle file corruption. (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/node/pull/2224).
 * **smalloc**: The `smalloc` module has been removed as it is no longer possible to provide the API due to changes in V8 (Ben Noordhuis) [#2022](https://github.com/nodejs/node/pull/2022).
 * **tls**: Add `server.getTicketKeys()` and `server.setTicketKeys()` methods for [TLS session key](https://www.ietf.org/rfc/rfc5077.txt) rotation (Fedor Indutny) [#2227](https://github.com/nodejs/node/pull/2227).
 * **v8**: Upgraded to 4.4.63.26
-  - ES6: Enabled [computed property names](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Object_initializer#Computed_property_names)
-  - ES6: `Array` can now be subclassed in strict mode
-  - ES6: Implement [rest parameters](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/rest_parameters) in staging, use the `--harmony-rest-parameters` command line flag
-  - ES6: Implement the [spread operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator) in staging, use the `--harmony-spreadcalls` command line flag
-  - Removed `SetIndexedPropertiesToExternalArrayData` and related APIs, forcing a shift to `Buffer` to be reimplemented based on `Uint8Array`
-  - Introduction of `Maybe` and `MaybeLocal` C++ API for objects which _may_ or _may not_ have a value.
-  - Added support for PPC
+  * ES6: Enabled [computed property names](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Object_initializer#Computed_property_names)
+  * ES6: `Array` can now be subclassed in strict mode
+  * ES6: Implement [rest parameters](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/rest_parameters) in staging, use the `--harmony-rest-parameters` command line flag
+  * ES6: Implement the [spread operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator) in staging, use the `--harmony-spreadcalls` command line flag
+  * Removed `SetIndexedPropertiesToExternalArrayData` and related APIs, forcing a shift to `Buffer` to be reimplemented based on `Uint8Array`
+  * Introduction of `Maybe` and `MaybeLocal` C++ API for objects which _may_ or _may not_ have a value.
+  * Added support for PPC
 
 See also https://github.com/nodejs/node/wiki/Breaking-Changes#300-from-2x for a summary of the breaking changes (SEMVER-MAJOR).
 
@@ -705,8 +705,8 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * **v8**: Fixed an out-of-band write in utf8 decoder. **This is an important security update** as it can be used to cause a denial of service attack.
 * **openssl**: Upgrade to 1.0.2b and 1.0.2c, introduces DHE man-in-the-middle protection (Logjam) and fixes malformed ECParameters causing infinite loop (CVE-2015-1788). See the [security advisory](https://www.openssl.org/news/secadv_20150611.txt) for full details. (Shigeki Ohtsu) [#1950](https://github.com/nodejs/node/pull/1950) [#1958](https://github.com/nodejs/node/pull/1958)
 * **build**:
-  - Added support for compiling with Microsoft Visual C++ 2015
-  - Started building and distributing headers-only tarballs along with binaries
+  * Added support for compiling with Microsoft Visual C++ 2015
+  * Started building and distributing headers-only tarballs along with binaries
 
 ### Known issues
 
@@ -752,8 +752,8 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 ### Notable changes
 
 * **build**:
-  - Added support for compiling with Microsoft Visual C++ 2015
-  - Started building and distributing headers-only tarballs along with binaries
+  * Added support for compiling with Microsoft Visual C++ 2015
+  * Started building and distributing headers-only tarballs along with binaries
 
 ### Known issues
 
@@ -883,23 +883,23 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 ### Notable changes
 
 * **libuv**: Upgraded to 1.6.0 and 1.6.1, see [full ChangeLog](https://github.com/libuv/libuv/blob/60e515d9e6f3d86c0eedad583805201f32ea3aed/ChangeLog#L1-L36) for details. (Saúl Ibarra Corretgé) [#1905](https://github.com/nodejs/node/pull/1905) [#1889](https://github.com/nodejs/node/pull/1889). Highlights include:
-  - Fix TTY becoming blocked on OS X
-  - Fix UDP send callbacks to not to be synchronous
-  - Add `uv_os_homedir()` (exposed as `os.homedir()`, see below)
+  * Fix TTY becoming blocked on OS X
+  * Fix UDP send callbacks to not to be synchronous
+  * Add `uv_os_homedir()` (exposed as `os.homedir()`, see below)
 * **npm**: See full [release notes](https://github.com/npm/npm/releases/tag/v2.11.1) for details. (Kat Marchán) [#1899](https://github.com/nodejs/node/pull/1899). Highlight:
-  - Use GIT_SSH_COMMAND (available as of Git 2.3)
+  * Use GIT_SSH_COMMAND (available as of Git 2.3)
 * **openssl**:
-  - Upgrade to 1.0.2b and 1.0.2c, introduces DHE man-in-the-middle protection (Logjam) and fixes malformed ECParameters causing infinite loop (CVE-2015-1788). See the [security advisory](https://www.openssl.org/news/secadv_20150611.txt) for full details. (Shigeki Ohtsu) [#1950](https://github.com/nodejs/node/pull/1950) [#1958](https://github.com/nodejs/node/pull/1958)
-  - Support [FIPS](https://en.wikipedia.org/wiki/Federal_Information_Processing_Standards) mode of OpenSSL, see [README](https://github.com/nodejs/node#building-iojs-with-fips-compliant-openssl) for instructions. (Fedor Indutny) [#1890](https://github.com/nodejs/node/pull/1890)
+  * Upgrade to 1.0.2b and 1.0.2c, introduces DHE man-in-the-middle protection (Logjam) and fixes malformed ECParameters causing infinite loop (CVE-2015-1788). See the [security advisory](https://www.openssl.org/news/secadv_20150611.txt) for full details. (Shigeki Ohtsu) [#1950](https://github.com/nodejs/node/pull/1950) [#1958](https://github.com/nodejs/node/pull/1958)
+  * Support [FIPS](https://en.wikipedia.org/wiki/Federal_Information_Processing_Standards) mode of OpenSSL, see [README](https://github.com/nodejs/node#building-iojs-with-fips-compliant-openssl) for instructions. (Fedor Indutny) [#1890](https://github.com/nodejs/node/pull/1890)
 * **os**: Add `os.homedir()` method. (Colin Ihrig) [#1791](https://github.com/nodejs/node/pull/1791)
 * **smalloc**: Deprecate whole module. (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/node/pull/1822)
 * Add new collaborators:
-  - Alex Kocharin ([@rlidwka](https://github.com/rlidwka))
-  - Christopher Monsanto ([@monsanto](https://github.com/monsanto))
-  - Ali Ijaz Sheikh ([@ofrobots](https://github.com/ofrobots))
-  - Oleg Elifantiev ([@Olegas](https://github.com/Olegas))
-  - Domenic Denicola ([@domenic](https://github.com/domenic))
-  - Rich Trott ([@Trott](https://github.com/Trott))
+  * Alex Kocharin ([@rlidwka](https://github.com/rlidwka))
+  * Christopher Monsanto ([@monsanto](https://github.com/monsanto))
+  * Ali Ijaz Sheikh ([@ofrobots](https://github.com/ofrobots))
+  * Oleg Elifantiev ([@Olegas](https://github.com/Olegas))
+  * Domenic Denicola ([@domenic](https://github.com/domenic))
+  * Rich Trott ([@Trott](https://github.com/Trott))
 
 ### Known issues
 
@@ -1128,9 +1128,9 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 
 * **crypto**: significantly reduced memory usage for TLS (Fedor Indutny & Сковорода Никита Андреевич) [#1529](https://github.com/nodejs/node/pull/1529)
 * **npm**: Upgrade npm to 2.9.0. See the [v2.8.4](https://github.com/npm/npm/releases/tag/v2.8.4) and [v2.9.0](https://github.com/npm/npm/releases/tag/v2.9.0) release notes for details. Summary:
-  - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9
-  - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
-  - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
+  * Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9
+  * Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
+  * The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
 
 ### Known issues
 
@@ -1215,14 +1215,14 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 ### Notable changes
 
 * **async_wrap**: (Trevor Norris) [#1614](https://github.com/nodejs/node/pull/1614)
-  - it is now possible to filter by providers
-  - bit flags have been removed and replaced with method calls on the binding object
-  - _note that this is an unstable API so feature additions and breaking changes won't change io.js semver_
+  * it is now possible to filter by providers
+  * bit flags have been removed and replaced with method calls on the binding object
+  * _note that this is an unstable API so feature additions and breaking changes won't change io.js semver_
 * **libuv**: resolves numerous io.js issues:
-  - [#862](https://github.com/nodejs/node/issues/862) prevent spawning child processes with invalid stdio file descriptors
-  - [#1397](https://github.com/nodejs/node/issues/1397) fix EPERM error with fs.access(W_OK) on Windows
-  - [#1621](https://github.com/nodejs/node/issues/1621) build errors associated with the bundled libuv
-  - [#1512](https://github.com/nodejs/node/issues/1512) should properly fix Windows termination errors
+  * [#862](https://github.com/nodejs/node/issues/862) prevent spawning child processes with invalid stdio file descriptors
+  * [#1397](https://github.com/nodejs/node/issues/1397) fix EPERM error with fs.access(W_OK) on Windows
+  * [#1621](https://github.com/nodejs/node/issues/1621) build errors associated with the bundled libuv
+  * [#1512](https://github.com/nodejs/node/issues/1512) should properly fix Windows termination errors
 * **addons**: the `NODE_DEPRECATED` macro was causing problems when compiling addons with older compilers, this should now be resolved (Ben Noordhuis) [#1626](https://github.com/nodejs/node/pull/1626)
 * **V8**: upgrade V8 from 4.2.77.18 to 4.2.77.20 with minor fixes, including a bug preventing builds on FreeBSD
 
@@ -1275,30 +1275,30 @@ _Note: a new version of the 'url' module was reverted prior to release as it was
 * **crypto**: significantly reduced memory usage for TLS (Fedor Indutny & Сковорода Никита Андреевич) [#1529](https://github.com/nodejs/node/pull/1529)
 * **net**: `socket.connect()` now accepts a `'lookup'` option for a custom DNS resolution mechanism, defaults to `dns.lookup()` (Evan Lucas) [#1505](https://github.com/nodejs/node/pull/1505)
 * **npm**: Upgrade npm to 2.9.0. See the [v2.8.4](https://github.com/npm/npm/releases/tag/v2.8.4) and [v2.9.0](https://github.com/npm/npm/releases/tag/v2.9.0) release notes for details. Notable items:
-  - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
-  - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
-  - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
+  * Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
+  * Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
+  * The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
 * **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailing slash on any platform (Christian Tellnes) [#747](https://github.com/nodejs/node/pull/747)
 * **process**:
-  - `process.nextTick()` performance has been improved by between 2-42% across the benchmark suite, notable because this is heavily used across core (Brian White) [#1571](https://github.com/nodejs/node/pull/1571)
-  - New `process.geteuid()`, `process.seteuid(id)`, `process.getegid()` and `process.setegid(id)` methods allow you to get and set effective UID and GID of the process (Evan Lucas) [#1536](https://github.com/nodejs/node/pull/1536)
+  * `process.nextTick()` performance has been improved by between 2-42% across the benchmark suite, notable because this is heavily used across core (Brian White) [#1571](https://github.com/nodejs/node/pull/1571)
+  * New `process.geteuid()`, `process.seteuid(id)`, `process.getegid()` and `process.setegid(id)` methods allow you to get and set effective UID and GID of the process (Evan Lucas) [#1536](https://github.com/nodejs/node/pull/1536)
 * **repl**:
-  - REPL history can be persisted across sessions if the `NODE_REPL_HISTORY_FILE` environment variable is set to a user accessible file, `NODE_REPL_HISTORY_SIZE` can set the maximum history size and defaults to `1000` (Chris Dickinson) [#1513](https://github.com/nodejs/node/pull/1513)
-  - The REPL can be placed in to one of three modes using the `NODE_REPL_MODE` environment variable: `sloppy`, `strict` or `magic` (default); the new `magic` mode will automatically run "strict mode only" statements in strict mode (Chris Dickinson) [#1513](https://github.com/nodejs/node/pull/1513)
+  * REPL history can be persisted across sessions if the `NODE_REPL_HISTORY_FILE` environment variable is set to a user accessible file, `NODE_REPL_HISTORY_SIZE` can set the maximum history size and defaults to `1000` (Chris Dickinson) [#1513](https://github.com/nodejs/node/pull/1513)
+  * The REPL can be placed in to one of three modes using the `NODE_REPL_MODE` environment variable: `sloppy`, `strict` or `magic` (default); the new `magic` mode will automatically run "strict mode only" statements in strict mode (Chris Dickinson) [#1513](https://github.com/nodejs/node/pull/1513)
 * **smalloc**: the 'smalloc' module has been deprecated due to changes coming in V8 4.4 that will render it unusable
 * **util**: add Promise, Map and Set inspection support (Christopher Monsanto) [#1471](https://github.com/nodejs/node/pull/1471)
 * **V8**: upgrade to 4.2.77.18, see the [ChangeLog](https://chromium.googlesource.com/v8/v8/+/refs/heads/4.2.77/ChangeLog) for full details. Notable items:
-  - Classes have moved out of staging; the `class` keyword is now usable in strict mode without flags
-  - Object literal enhancements have moved out of staging; shorthand method and property syntax is now usable (`{ method() { }, property }`)
-  - Rest parameters (`function(...args) {}`) are implemented in staging behind the `--harmony-rest-parameters` flag
-  - Computed property names (`{['foo'+'bar']:'bam'}`) are implemented in staging behind the `--harmony-computed-property-names` flag
-  - Unicode escapes (`'\u{xxxx}'`) are implemented in staging behind the `--harmony_unicode` flag and the `--harmony_unicode_regexps` flag for use in regular expressions
+  * Classes have moved out of staging; the `class` keyword is now usable in strict mode without flags
+  * Object literal enhancements have moved out of staging; shorthand method and property syntax is now usable (`{ method() { }, property }`)
+  * Rest parameters (`function(...args) {}`) are implemented in staging behind the `--harmony-rest-parameters` flag
+  * Computed property names (`{['foo'+'bar']:'bam'}`) are implemented in staging behind the `--harmony-computed-property-names` flag
+  * Unicode escapes (`'\u{xxxx}'`) are implemented in staging behind the `--harmony_unicode` flag and the `--harmony_unicode_regexps` flag for use in regular expressions
 * **Windows**:
-  - Random process termination on Windows fixed (Fedor Indutny)  [#1512](https://github.com/nodejs/node/issues/1512) / [#1563](https://github.com/nodejs/node/pull/1563)
-  - The delay-load hook introduced to fix issues with process naming (iojs.exe / node.exe) has been made opt-out for native add-ons. Native add-ons should include `'win_delay_load_hook': 'false'` in their binding.gyp to disable this feature if they experience problems . (Bert Belder) [#1433](https://github.com/nodejs/node/pull/1433)
+  * Random process termination on Windows fixed (Fedor Indutny)  [#1512](https://github.com/nodejs/node/issues/1512) / [#1563](https://github.com/nodejs/node/pull/1563)
+  * The delay-load hook introduced to fix issues with process naming (iojs.exe / node.exe) has been made opt-out for native add-ons. Native add-ons should include `'win_delay_load_hook': 'false'` in their binding.gyp to disable this feature if they experience problems . (Bert Belder) [#1433](https://github.com/nodejs/node/pull/1433)
 * **Governance**:
-  - Rod Vagg (@rvagg) was added to the Technical Committee (TC)
-  - Jeremiah Senkpiel (@Fishrock123) was added to the Technical Committee (TC)
+  * Rod Vagg (@rvagg) was added to the Technical Committee (TC)
+  * Jeremiah Senkpiel (@Fishrock123) was added to the Technical Committee (TC)
 
 ### Known issues
 
@@ -1642,9 +1642,9 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
 * **fs**: corruption can be caused by `fs.writeFileSync()` and append-mode `fs.writeFile()` and `fs.writeFileSync()` under certain circumstances, reported in [#1058](https://github.com/nodejs/node/issues/1058), fixed in [#1063](https://github.com/nodejs/node/pull/1063) (Olov Lassus).
 * **iojs**: an "internal modules" API has been introduced to allow core code to share JavaScript modules internally only without having to expose them as a public API, this feature is for core-only [#848](https://github.com/nodejs/node/pull/848) (Vladimir Kurchatkin).
 * **timers**: two minor problems with timers have been fixed:
-  - `Timer#close()` is now properly idempotent [#1288](https://github.com/nodejs/node/issues/1288) (Petka Antonov).
-  - `setTimeout()` will only run the callback once now after an `unref()` during the callback [#1231](https://github.com/nodejs/node/pull/1231) (Roman Reiss).
-  - NOTE: there are still other unresolved concerns with the timers code, such as [#1152](https://github.com/nodejs/node/pull/1152).
+  * `Timer#close()` is now properly idempotent [#1288](https://github.com/nodejs/node/issues/1288) (Petka Antonov).
+  * `setTimeout()` will only run the callback once now after an `unref()` during the callback [#1231](https://github.com/nodejs/node/pull/1231) (Roman Reiss).
+  * NOTE: there are still other unresolved concerns with the timers code, such as [#1152](https://github.com/nodejs/node/pull/1152).
 * **Windows**: a "delay-load hook" has been added for compiled add-ons on Windows that should alleviate some of the problems that Windows users may be experiencing with add-ons in io.js [#1251](https://github.com/nodejs/node/pull/1251) (Bert Belder).
 * **V8**: minor bug-fix upgrade for V8 to 4.1.0.27.
 * **npm**: upgrade npm to 2.7.4. See [npm CHANGELOG.md](https://github.com/npm/npm/blob/master/CHANGELOG.md#v274-2015-03-20) for details. Summary:
@@ -2041,9 +2041,9 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
     deprecation warning to include which `package.json` is using it.
     ([@othiym23](https://github.com/othiym23))
 * Add new collaborators:
-  - Robert Kowalski ([@robertkowalski](https://github.com/robertkowalski))
-  - Christian Vaagland Tellnes ([@tellnes](https://github.com/tellnes))
-  - Brian White ([@mscdex](https://github.com/mscdex))
+  * Robert Kowalski ([@robertkowalski](https://github.com/robertkowalski))
+  * Christian Vaagland Tellnes ([@tellnes](https://github.com/tellnes))
+  * Brian White ([@mscdex](https://github.com/mscdex))
 
 ### Known issues
 
@@ -2212,34 +2212,34 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 ### Notable changes
 
 * **stream**:
-  - Simpler stream construction, see [readable-stream/issues#102](https://github.com/nodejs/readable-stream/issues/102) for details. This extends the streams base objects to make their constructors accept default implementation methods, reducing the boilerplate required to implement custom streams. An updated version of readable-stream will eventually be released to match this change in core. (@sonewman)
+  * Simpler stream construction, see [readable-stream/issues#102](https://github.com/nodejs/readable-stream/issues/102) for details. This extends the streams base objects to make their constructors accept default implementation methods, reducing the boilerplate required to implement custom streams. An updated version of readable-stream will eventually be released to match this change in core. (@sonewman)
 * **dns**:
-  - `lookup()` now supports an `'all'` boolean option, default to `false` but when turned on will cause the method to return an array of *all* resolved names for an address, see, [#744](https://github.com/nodejs/node/pull/744) (@silverwind)
+  * `lookup()` now supports an `'all'` boolean option, default to `false` but when turned on will cause the method to return an array of *all* resolved names for an address, see, [#744](https://github.com/nodejs/node/pull/744) (@silverwind)
 * **assert**:
-  - Remove `prototype` property comparison in `deepEqual()`, considered a bugfix, see [#636](https://github.com/nodejs/node/pull/636) (@vkurchatkin)
-  - Introduce a `deepStrictEqual()` method to mirror `deepEqual()` but performs strict equality checks on primitives, see [#639](https://github.com/nodejs/node/pull/639) (@vkurchatkin)
+  * Remove `prototype` property comparison in `deepEqual()`, considered a bugfix, see [#636](https://github.com/nodejs/node/pull/636) (@vkurchatkin)
+  * Introduce a `deepStrictEqual()` method to mirror `deepEqual()` but performs strict equality checks on primitives, see [#639](https://github.com/nodejs/node/pull/639) (@vkurchatkin)
 * **tracing**:
-  - Add [LTTng](http://lttng.org/) (Linux Trace Toolkit Next Generation) when compiled with the  `--with-lttng` option. Trace points match those available for DTrace and ETW. [#702](https://github.com/nodejs/node/pull/702) (@thekemkid)
+  * Add [LTTng](http://lttng.org/) (Linux Trace Toolkit Next Generation) when compiled with the  `--with-lttng` option. Trace points match those available for DTrace and ETW. [#702](https://github.com/nodejs/node/pull/702) (@thekemkid)
 * **docs**:
-  - Lots of doc updates, see individual commits
-  - New **Errors** page discussing JavaScript errors, V8 specifics, and io.js specific error details. (@chrisdickinson)
+  * Lots of doc updates, see individual commits
+  * New **Errors** page discussing JavaScript errors, V8 specifics, and io.js specific error details. (@chrisdickinson)
 * **npm** upgrade to 2.5.1, short changelog:
-  - [npm/0e8d473](https://github.com/npm/npm/commit/0e8d4736a1cbdda41ae8eba8a02c7ff7ce80c2ff) [#7281](https://github.com/npm/npm/issues/7281) `npm-registry-mock@1.0.0`: Clean up API, set `connection: close`, which makes tests pass on io.js 1.1.x.
+  * [npm/0e8d473](https://github.com/npm/npm/commit/0e8d4736a1cbdda41ae8eba8a02c7ff7ce80c2ff) [#7281](https://github.com/npm/npm/issues/7281) `npm-registry-mock@1.0.0`: Clean up API, set `connection: close`, which makes tests pass on io.js 1.1.x.
   ([@robertkowalski](https://github.com/robertkowalski))
-  - [npm/f9313a0](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
+  * [npm/f9313a0](https://github.com/npm/npm/commit/f9313a066c9889a0ee898d8a35676e40b8101e7f)
   [#7226](https://github.com/npm/npm/issues/7226) Ensure that all request
   settings are copied onto the agent.
   ([@othiym23](https://github.com/othiym23))
-  - [npm/fec4c96](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
+  * [npm/fec4c96](https://github.com/npm/npm/commit/fec4c967ee235030bf31393e8605e9e2811f4a39)
   Allow `--no-proxy` to override `HTTP_PROXY` setting in environment.
   ([@othiym23](https://github.com/othiym23))
-  - [npm/9d61e96](https://github.com/npm/npm/commit/9d61e96fb1f48687a85c211e4e0cd44c7f95a38e)
+  * [npm/9d61e96](https://github.com/npm/npm/commit/9d61e96fb1f48687a85c211e4e0cd44c7f95a38e)
   `npm outdated --long` now includes a column showing the type of dependency.
   ([@watilde](https://github.com/watilde))
 * **libuv** upgrade to 1.4.0, see [libuv ChangeLog](https://github.com/libuv/libuv/blob/v1.x/ChangeLog)
 * Add new collaborators:
-  - Aleksey Smolenchuk (@lxe)
-  - Shigeki Ohtsu (@shigeki)
+  * Aleksey Smolenchuk (@lxe)
+  * Shigeki Ohtsu (@shigeki)
 
 ### Known issues
 
@@ -2302,22 +2302,22 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * crypto: ~30% speedup on hashing functions.
 * crypto: added privateEncrypt/publicDecrypt functions.
 * errors
-  - better formatting via util.inspect
-  - more descriptive errors from fs. This necessitated a `NODE_MODULE_VERSION` bump.
-  - more descriptive errors from http.setHeader
+  * better formatting via util.inspect
+  * more descriptive errors from fs. This necessitated a `NODE_MODULE_VERSION` bump.
+  * more descriptive errors from http.setHeader
 * dep updates:
-  - npm: upgrade to 2.4.1
-  - http-parser: rollback to 2.3.0
-  - libuv: update to 1.3.0
-  - v8: update to 4.1.0.14
+  * npm: upgrade to 2.4.1
+  * http-parser: rollback to 2.3.0
+  * libuv: update to 1.3.0
+  * v8: update to 4.1.0.14
 * http.request: inherited properties on options are now respected
 * add iterable interface to buffers (`for (let byte of buffer.values()) { }`)
 * fs: fix fd leak on `fs.createReadStream`. See 497fd72 for details.
 * installer: on Windows, emit WM_SETTINGCHANGE after install to make other running
   processes aware of the PATH changes.
 * Added new collaborators:
-  - Vladimir Kurchatkin (@vkurchatkin)
-  - Micleușanu Nicu (@micnic)
+  * Vladimir Kurchatkin (@vkurchatkin)
+  * Micleușanu Nicu (@micnic)
 
 ### Known issues
 
@@ -2406,11 +2406,11 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * 'punycode' core module bumped from stability level 2-Unstable,
   to 3-Stable
 * Added new collaborators:
-  - Thorsten Lorenz (@thlorenz)
-  - Stephen Belanger (@qard)
-  - Jeremiah Senkpiel (@fishrock123)
-  - Evan Lucas (@evanlucas)
-  - Brendan Ashworth (@brendanashworth)
+  * Thorsten Lorenz (@thlorenz)
+  * Stephen Belanger (@qard)
+  * Jeremiah Senkpiel (@fishrock123)
+  * Evan Lucas (@evanlucas)
+  * Brendan Ashworth (@brendanashworth)
 
 ### Commits
 
@@ -2565,140 +2565,140 @@ repository and therefore can be seen as an extension to v0.11.
 
 ### General
 
-- The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5.9 in Node.js v0.10.35 and 3.26.33 in Node.js v0.11.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes and performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
-- Other bundled technologies were upgraded:
-  - c-ares: 1.9.0-DEV to 1.10.0-DEV
-  - http_parser: 1.0 to 2.3
-  - libuv: 0.10.30 to 1.2.0
-  - npm: 1.4.28 to 2.1.18
-  - openssl: 1.0.1j to 1.0.1k
-  - punycode: 1.2.0 to 1.3.2.
-- Performance and stability improvements on all platforms.
+* The V8 JavaScript engine bundled with io.js was upgraded dramatically, from version 3.14.5.9 in Node.js v0.10.35 and 3.26.33 in Node.js v0.11.14 to 3.31.74.1 for io.js v1.0.0. This brings along many fixes and performance improvements, as well as additional support for new ES6 language features! For more information on this, check out [the io.js ES6 page](https://iojs.org/es6.html).
+* Other bundled technologies were upgraded:
+  * c-ares: 1.9.0-DEV to 1.10.0-DEV
+  * http_parser: 1.0 to 2.3
+  * libuv: 0.10.30 to 1.2.0
+  * npm: 1.4.28 to 2.1.18
+  * openssl: 1.0.1j to 1.0.1k
+  * punycode: 1.2.0 to 1.3.2.
+* Performance and stability improvements on all platforms.
 
 ### buffer
 
 https://iojs.org/api/buffer.html
 
-- Added `buf.writeUIntLE`, `buf.writeUIntBE`, `buf.writeIntLE`, `buf.writeIntBE`, `buf.readUIntLE`, `buf.readUIntBE`, `buf.readIntLE` and `buf.readIntBE` methods that read and write value up to 6 bytes.
-- Added `Buffer.compare()` which does a `memcmp()` on two Buffer instances. Instances themselves also have a `compare()`.
-- Added `buffer.equals()` that checks equality of Buffers by their contents.
-- Added `new Buffer(otherBuffer)` constructor.
-- Tweaked `SlowBuffer`'s semantics.
-- Updated the output of `buffer.toJSON()` to not be the same as an array. Instead it is an object specifically tagged as a buffer, which can be recovered by passing it to (a new overload of) the `Buffer` constructor.
+* Added `buf.writeUIntLE`, `buf.writeUIntBE`, `buf.writeIntLE`, `buf.writeIntBE`, `buf.readUIntLE`, `buf.readUIntBE`, `buf.readIntLE` and `buf.readIntBE` methods that read and write value up to 6 bytes.
+* Added `Buffer.compare()` which does a `memcmp()` on two Buffer instances. Instances themselves also have a `compare()`.
+* Added `buffer.equals()` that checks equality of Buffers by their contents.
+* Added `new Buffer(otherBuffer)` constructor.
+* Tweaked `SlowBuffer`'s semantics.
+* Updated the output of `buffer.toJSON()` to not be the same as an array. Instead it is an object specifically tagged as a buffer, which can be recovered by passing it to (a new overload of) the `Buffer` constructor.
 
 ### child_process
 
 https://iojs.org/api/child_process.html
 
-- Added a `shell` option to `child_process.exec`.
-- Added synchronous counterparts for the child process functions: `child_process.spawnSync`, `child_process.execSync`, and `child_process.execFileSync`.
-- Added the path to any `ENOENT` errors, for easier debugging.
+* Added a `shell` option to `child_process.exec`.
+* Added synchronous counterparts for the child process functions: `child_process.spawnSync`, `child_process.execSync`, and `child_process.execFileSync`.
+* Added the path to any `ENOENT` errors, for easier debugging.
 
 ### console
 
 https://iojs.org/api/console.html
 
-- Added an `options` parameter to `console.dir`.
+* Added an `options` parameter to `console.dir`.
 
 ### cluster
 
 https://iojs.org/api/cluster.html
 
-- Updated `cluster` to use round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
-- `--debug` has been made cluster-aware.
-- Many bug fixes.
+* Updated `cluster` to use round-robin load balancing by default on non-Windows platforms. The scheduling policy is configurable however.
+* `--debug` has been made cluster-aware.
+* Many bug fixes.
 
 ### crypto
 
 https://iojs.org/api/crypto.html
 
-- Added support for custom generator values to `DiffieHellman` (defaulting to 2 for backwards compatibility).
-- Added support for custom pbkdf2 digest methods.
-- Added support for elliptic curve-based Diffie-Hellman.
-- Added support for loading and setting the engine for some/all OpenSSL functions.
-- Added support for passing in a passphrase for decrypting the signing key to `Sign.sign()`.
-- Added support for private key passphrase in every method that accepts it.
-- Added support for RSA public/private encryption/decryption functionality.
-- Added support for setting and getting of authentication tags and setting additional authentication data when using ciphers such as AES-GCM.
+* Added support for custom generator values to `DiffieHellman` (defaulting to 2 for backwards compatibility).
+* Added support for custom pbkdf2 digest methods.
+* Added support for elliptic curve-based Diffie-Hellman.
+* Added support for loading and setting the engine for some/all OpenSSL functions.
+* Added support for passing in a passphrase for decrypting the signing key to `Sign.sign()`.
+* Added support for private key passphrase in every method that accepts it.
+* Added support for RSA public/private encryption/decryption functionality.
+* Added support for setting and getting of authentication tags and setting additional authentication data when using ciphers such as AES-GCM.
 
 ### dgram
 
 https://iojs.org/api/dgram.html
 
-- Added support for receiving empty UDP packets.
+* Added support for receiving empty UDP packets.
 
 ### dns
 
 https://iojs.org/api/dns.html
 
-- Added `dns.resolveSoa`, `dns.getServers`, and `dns.setServers` methods.
-- Added `hostname` on error messages when available.
-- Improved error handling consistency.
+* Added `dns.resolveSoa`, `dns.getServers`, and `dns.setServers` methods.
+* Added `hostname` on error messages when available.
+* Improved error handling consistency.
 
 ### events
 
 https://iojs.org/api/events.html
 
-- Added chaining support to `EventEmitter.setMaxListeners`.
-- Updated `require('events')` to return the `EventEmitter` constructor, allowing the module to be used like `var EventEmitter = require('events')` instead of `var EventEmitter = require('events').EventEmitter`.
+* Added chaining support to `EventEmitter.setMaxListeners`.
+* Updated `require('events')` to return the `EventEmitter` constructor, allowing the module to be used like `var EventEmitter = require('events')` instead of `var EventEmitter = require('events').EventEmitter`.
 
 ### fs
 
 https://iojs.org/api/fs.html
 
-- Added `fs.access`, and deprecated `fs.exists`. Please read the documentation carefully.
-- Added more informative errors and method call site details when the `NODE_DEBUG` environment is set to ease debugging.
-- Added option to `fs.watch` for recursive sub-directory support (OS X only).
-- Fixed missing callbacks errors just being printed instead of thrown.
+* Added `fs.access`, and deprecated `fs.exists`. Please read the documentation carefully.
+* Added more informative errors and method call site details when the `NODE_DEBUG` environment is set to ease debugging.
+* Added option to `fs.watch` for recursive sub-directory support (OS X only).
+* Fixed missing callbacks errors just being printed instead of thrown.
 
 ### http
 
 https://iojs.org/api/http.html
 
-- Added support for `response.write` and `response.end` to receive a callback to know when the operation completes.
-- Added support for 308 status code (see RFC 7238).
-- Added `http.METHODS` array, listing the HTTP methods supported by the parser.
-- Added `request.flush` method.
-- Added `response.getHeader('header')` method that may be used before headers are flushed.
-- Added `response.statusMessage` property.
-- Added Client Keep-Alive behavior.  Set `keepAlive:true` in request options to reuse connections indefinitely.
-- Added `rawHeaders` and `rawTrailers` members on incoming message.
-- Removed default chunked encoding on `DELETE` and `OPTIONS`.
+* Added support for `response.write` and `response.end` to receive a callback to know when the operation completes.
+* Added support for 308 status code (see RFC 7238).
+* Added `http.METHODS` array, listing the HTTP methods supported by the parser.
+* Added `request.flush` method.
+* Added `response.getHeader('header')` method that may be used before headers are flushed.
+* Added `response.statusMessage` property.
+* Added Client Keep-Alive behavior.  Set `keepAlive:true` in request options to reuse connections indefinitely.
+* Added `rawHeaders` and `rawTrailers` members on incoming message.
+* Removed default chunked encoding on `DELETE` and `OPTIONS`.
 
 ### net
 
 https://iojs.org/api/net.html
 
-- Changed `net.Server.listen` such that, when the bind address is omitted, IPv6 is tried first, and IPv4 is used as a fallback.
+* Changed `net.Server.listen` such that, when the bind address is omitted, IPv6 is tried first, and IPv4 is used as a fallback.
 
 ### os
 
 https://iojs.org/api/os.html
 
-- Added MAC addresses, netmasks and scope IDs for IPv6 addresses to `os.networkInterfaces` method output.
-- Updated `os.tmpdir` on Windows to use the `%SystemRoot%` or `%WINDIR%` environment variables instead of the hard-coded value of `c:\windows` when determining the temporary directory location.
+* Added MAC addresses, netmasks and scope IDs for IPv6 addresses to `os.networkInterfaces` method output.
+* Updated `os.tmpdir` on Windows to use the `%SystemRoot%` or `%WINDIR%` environment variables instead of the hard-coded value of `c:\windows` when determining the temporary directory location.
 
 ### path
 
 https://iojs.org/api/path.html
 
-- Added `path.isAbsolute` and `path.parse` methods.
-- Added `path.win32` and `path.posix` objects that contain platform-specific versions of the various `path` functions.
-- Improved `path.join` performance.
+* Added `path.isAbsolute` and `path.parse` methods.
+* Added `path.win32` and `path.posix` objects that contain platform-specific versions of the various `path` functions.
+* Improved `path.join` performance.
 
 ### process
 
 https://iojs.org/api/process.html
 
-- Added `beforeExit` event.
-- Added `process.mainModule` and `process.exitCode`.
+* Added `beforeExit` event.
+* Added `process.mainModule` and `process.exitCode`.
 
 ### querystring
 
 https://iojs.org/api/querystring.html
 
-- Added the ability to pass custom versions of `encodeURIComponent` and `decodeURIComponent` when stringifying or parsing a querystring.
-- Fixed several issues with the formatting of query strings in edge cases.
+* Added the ability to pass custom versions of `encodeURIComponent` and `decodeURIComponent` when stringifying or parsing a querystring.
+* Fixed several issues with the formatting of query strings in edge cases.
 
 ### smalloc
 
@@ -2750,47 +2750,47 @@ For a detailed overview of how streams3 interact, [see this diagram](https://clo
 
 https://iojs.org/api/timers.html
 
-- Removed `process.maxTickDepth`, allowing `process.nextTick` to be used recursively without limit.
-- Updated `setImmediate` to process the full queue each turn of the event loop, instead of one per queue.
+* Removed `process.maxTickDepth`, allowing `process.nextTick` to be used recursively without limit.
+* Updated `setImmediate` to process the full queue each turn of the event loop, instead of one per queue.
 
 ### tls
 
 https://iojs.org/api/tls.html
 
-- Added `detailed` boolean flag to `getPeerCertificate` to return detailed certificate information (with raw DER bytes).
-- Added `renegotiate(options, callback)` method for session renegotiation.
-- Added `setMaxSendFragment` method for varying TLS fragment size.
-- Added a `dhparam` option for DH ciphers.
-- Added a `ticketKeys` option for TLS ticket AES encryption keys setup.
-- Added async OCSP-stapling callback.
-- Added async session storage events.
-- Added async SNI callback.
-- Added multi-key server support (for example, ECDSA+RSA server).
-- Added optional callback to `checkServerIdentity` for manual certificate validation in userland.
-- Added support for ECDSA/ECDHE cipher.
-- Implemented TLS streams in C++, boosting their performance.
-- Moved `createCredentials` to `tls` and renamed it to `createSecureContext`.
-- Removed SSLv2 and SSLv3 support.
+* Added `detailed` boolean flag to `getPeerCertificate` to return detailed certificate information (with raw DER bytes).
+* Added `renegotiate(options, callback)` method for session renegotiation.
+* Added `setMaxSendFragment` method for varying TLS fragment size.
+* Added a `dhparam` option for DH ciphers.
+* Added a `ticketKeys` option for TLS ticket AES encryption keys setup.
+* Added async OCSP-stapling callback.
+* Added async session storage events.
+* Added async SNI callback.
+* Added multi-key server support (for example, ECDSA+RSA server).
+* Added optional callback to `checkServerIdentity` for manual certificate validation in userland.
+* Added support for ECDSA/ECDHE cipher.
+* Implemented TLS streams in C++, boosting their performance.
+* Moved `createCredentials` to `tls` and renamed it to `createSecureContext`.
+* Removed SSLv2 and SSLv3 support.
 
 ### url
 
 https://iojs.org/api/url.html
 
-- Improved escaping of certain characters.
-- Improved parsing speed.
+* Improved escaping of certain characters.
+* Improved parsing speed.
 
 ### util
 
 https://iojs.org/api/util.html
 
-- Added `util.debuglog`.
-- Added a plethora of new type-testing methods. See [the docs](https://iojs.org/api/util.html).
-- Updated `util.format` to receive several changes:
-  - `-0` is now displayed as such, instead of as `0`.
-  - Anything that is `instanceof Error` is now formatted as an error.
-  - Circular references in JavaScript objects are now handled for the `%j` specifier.
-  - Custom `inspect` functions are now allowed to return an object.
-  - Custom `inspect` functions now receive any arguments passed to `util.inspect`.
+* Added `util.debuglog`.
+* Added a plethora of new type-testing methods. See [the docs](https://iojs.org/api/util.html).
+* Updated `util.format` to receive several changes:
+  * `-0` is now displayed as such, instead of as `0`.
+  * Anything that is `instanceof Error` is now formatted as an error.
+  * Circular references in JavaScript objects are now handled for the `%j` specifier.
+  * Custom `inspect` functions are now allowed to return an object.
+  * Custom `inspect` functions now receive any arguments passed to `util.inspect`.
 
 ## v8
 
@@ -2804,11 +2804,11 @@ https://iojs.org/api/vm.html
 
 The `vm` module has been rewritten to work better, based on the excellent [Contextify](https://github.com/brianmcd/contextify) native module. All of the functionality of Contextify is now in core, with improvements!
 
-- Added `vm.isContext(object)` method to determine whether `object` has been contextified.
-- Added `vm.runInDebugContext(code)` method to compile and execute `code` inside the V8 debug context.
-- Updated `vm.createContext(sandbox)` to "contextify" the sandbox, making it suitable for use as a global for `vm` scripts, and then return it. It no longer creates a separate context object.
-- Updated most `vm` and `vm.Script` methods to accept an `options` object, allowing you to configure a timeout for the script, the error display behavior, and sometimes the filename (for stack traces).
-- Updated the supplied sandbox object to be used directly as the global, remove error-prone copying of properties back and forth between the supplied sandbox object and the global that appears inside the scripts run by the `vm` module.
+* Added `vm.isContext(object)` method to determine whether `object` has been contextified.
+* Added `vm.runInDebugContext(code)` method to compile and execute `code` inside the V8 debug context.
+* Updated `vm.createContext(sandbox)` to "contextify" the sandbox, making it suitable for use as a global for `vm` scripts, and then return it. It no longer creates a separate context object.
+* Updated most `vm` and `vm.Script` methods to accept an `options` object, allowing you to configure a timeout for the script, the error display behavior, and sometimes the filename (for stack traces).
+* Updated the supplied sandbox object to be used directly as the global, remove error-prone copying of properties back and forth between the supplied sandbox object and the global that appears inside the scripts run by the `vm` module.
 
 For more information, see the `vm` documentation linked above.
 
@@ -2816,9 +2816,9 @@ For more information, see the `vm` documentation linked above.
 
 https://iojs.org/api/zlib.html
 
-- Added support for `zlib.flush` to specify a particular flush method (defaulting to `Z_FULL_FLUSH`).
-- Added support for `zlib.params` to dynamically update the compression level and strategy when deflating.
-- Added synchronous versions of the zlib methods.
+* Added support for `zlib.flush` to specify a particular flush method (defaulting to `Z_FULL_FLUSH`).
+* Added support for `zlib.params` to dynamically update the compression level and strategy when deflating.
+* Added synchronous versions of the zlib methods.
 
 ### C++ API Changes
 
@@ -2828,23 +2828,23 @@ In general it is recommended that you use [NAN](https://github.com/rvagg/nan) as
 
 #### V8 highlights
 
-- Exposed method signature has changed from `Handle<Value> Method(const Arguments& args)` to `void Method(const v8::FunctionCallbackInfo<Value>& args)` with the newly introduced `FunctionCallbackInfo` also taking the return value via `args.GetReturnValue().Set(value)` instead of `scope.Close(value)`, `Arguments` has been removed.
-- Exposed setter signature has changed from `void Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<void>& args)`.
-- Exposed getter signature has changed from `void Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Getter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
-- Exposed property setter signature has changed from `Handle<Value> Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
-- Exposed property getter signature has changed from `Handle<Value> Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Getter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
-- Similar changes have been made to property enumerators, property deleters, property query, index getter, index setter, index enumerator, index deleter, index query.
-- V8 objects instantiated in C++ now require an `Isolate*` argument as the first argument. In most cases it is OK to simply pass `v8::Isolate::GetCurrent()`, e.g. `Date::New(Isolate::GetCurrent(), time)`, or `String::NewFromUtf8(Isolate::GetCurrent(), "foobar")`.
-- `HandleScope scope` now requires an `Isolate*` argument, i.e. `HandleScope scope(isolate)`, in most cases `v8::Isolate::GetCurrent()` is OK.
-- Similar changes have been made to `Locker` and `Unlocker`.
-- V8 objects that need to "escape" a scope should be enclosed in a `EscapableHandleScope` rather than a `HandleScope` and should be returned with `scope.Escape(value)`.
-- Exceptions are now thrown from isolates with `isolate->ThrowException(ExceptionObject)`.
-- `Context::GetCurrent()` must now be done on an isolate, e.g. `Isolate::GetCurrent()->GetCurrentContext()`.
-- `String::NewSymbol()` has been removed, use plain strings instead.
-- `String::New()` has been removed, use `String::NewFromUtf8()` instead.
-- `Persistent` objects no longer inherit from `Handle` and cannot be instantiated with another object. Instead, the `Persistent` should simply be declared, e.g. `Persistent<Type> handle` and then have a `Local` assigned to it with `handle.Reset(isolate, value)`. To get a `Local` from a `Persistent` you must instantiate it as the argument, i.e. `Local::New(Isolate*, Persistent)`.
+* Exposed method signature has changed from `Handle<Value> Method(const Arguments& args)` to `void Method(const v8::FunctionCallbackInfo<Value>& args)` with the newly introduced `FunctionCallbackInfo` also taking the return value via `args.GetReturnValue().Set(value)` instead of `scope.Close(value)`, `Arguments` has been removed.
+* Exposed setter signature has changed from `void Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<void>& args)`.
+* Exposed getter signature has changed from `void Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Getter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+* Exposed property setter signature has changed from `Handle<Value> Setter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Setter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+* Exposed property getter signature has changed from `Handle<Value> Getter(Local<String> property, Local<Value> value, const v8::AccessorInfo& args)` `void Getter(Local<String> property, Local<Value> value, const v8::PropertyCallbackInfo<Value>& args)`.
+* Similar changes have been made to property enumerators, property deleters, property query, index getter, index setter, index enumerator, index deleter, index query.
+* V8 objects instantiated in C++ now require an `Isolate*` argument as the first argument. In most cases it is OK to simply pass `v8::Isolate::GetCurrent()`, e.g. `Date::New(Isolate::GetCurrent(), time)`, or `String::NewFromUtf8(Isolate::GetCurrent(), "foobar")`.
+* `HandleScope scope` now requires an `Isolate*` argument, i.e. `HandleScope scope(isolate)`, in most cases `v8::Isolate::GetCurrent()` is OK.
+* Similar changes have been made to `Locker` and `Unlocker`.
+* V8 objects that need to "escape" a scope should be enclosed in a `EscapableHandleScope` rather than a `HandleScope` and should be returned with `scope.Escape(value)`.
+* Exceptions are now thrown from isolates with `isolate->ThrowException(ExceptionObject)`.
+* `Context::GetCurrent()` must now be done on an isolate, e.g. `Isolate::GetCurrent()->GetCurrentContext()`.
+* `String::NewSymbol()` has been removed, use plain strings instead.
+* `String::New()` has been removed, use `String::NewFromUtf8()` instead.
+* `Persistent` objects no longer inherit from `Handle` and cannot be instantiated with another object. Instead, the `Persistent` should simply be declared, e.g. `Persistent<Type> handle` and then have a `Local` assigned to it with `handle.Reset(isolate, value)`. To get a `Local` from a `Persistent` you must instantiate it as the argument, i.e. `Local::New(Isolate*, Persistent)`.
 
 #### Node / io.js
 
-- Updated `node::Buffer::New()` to return a `Handle` directly so you no longer need to fetch the `handle_` property.
-- Updated `node::MakeCallback()` to require an `Isolate*` as the first argument. Generally `Isolate::GetCurrent()` will be OK for this.
+* Updated `node::Buffer::New()` to return a `Handle` directly so you no longer need to fetch the `handle_` property.
+* Updated `node::MakeCallback()` to require an `Isolate*` as the first argument. Generally `Isolate::GetCurrent()` will be OK for this.

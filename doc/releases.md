@@ -105,11 +105,11 @@ should be listed in the Node.js GitHub README.md file.
 
 Notes:
 
-- Dates listed below as _"YYYY-MM-DD"_ should be the date of the release **as
+* Dates listed below as _"YYYY-MM-DD"_ should be the date of the release **as
   UTC**. Use `date -u +'%Y-%m-%d'` to find out what this is.
-- Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
+* Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
-- Examples will use the fictional release version `1.2.3`.
+* Examples will use the fictional release version `1.2.3`.
 
 ### 0. Pre-release steps
 
@@ -145,10 +145,10 @@ Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://g
 
 For each PR:
 
-- Run or check that there is a passing CI.
-- Check approvals (you can approve yourself).
-- Check that the commit metadata was not changed from the `master` commit.
-- If there are merge conflicts, ask the PR author to rebase.
+* Run or check that there is a passing CI.
+* Check approvals (you can approve yourself).
+* Check that the commit metadata was not changed from the `master` commit.
+* If there are merge conflicts, ask the PR author to rebase.
 Simple conflicts can be resolved when landing.
 
 When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
@@ -174,11 +174,11 @@ cherry-picked.
 
 Carefully review the list of commits:
 
-- Checking for errors (incorrect `PR-URL`)
-- Checking semver status - Commits labeled as `semver-minor` or `semver-major`
+* Checking for errors (incorrect `PR-URL`)
+* Checking semver status - Commits labeled as `semver-minor` or `semver-major`
 should only be cherry-picked when appropriate for the type of release being
 made.
-- If you think it's risky so should wait for a while, add the `baking-for-lts`
+* If you think it's risky so should wait for a while, add the `baking-for-lts`
    tag.
 
 When cherry-picking commits, if there are simple conflicts you can resolve
@@ -225,10 +225,10 @@ be produced with a version string that does not have a trailing pre-release tag:
 This macro is used to signal an ABI version for native addons. It currently has
 two common uses in the community:
 
-- Determining what API to work against for compiling native addons, e.g.
+* Determining what API to work against for compiling native addons, e.g.
   [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for
   much of what it wraps.
-- Determining the ABI for downloading pre-built binaries of native addons, e.g.
+* Determining the ABI for downloading pre-built binaries of native addons, e.g.
   [node-pre-gyp](https://github.com/mapbox/node-pre-gyp) uses this value as
   exposed via `process.versions.modules` to help determine the appropriate
   binary to download at install-time.
@@ -504,8 +504,8 @@ remainder of the release steps.
 
 On release proposal branch, edit `src/node_version.h` again and:
 
-- Increment `NODE_PATCH_VERSION` by one
-- Change `NODE_VERSION_IS_RELEASE` back to `0`
+* Increment `NODE_PATCH_VERSION` by one
+* Change `NODE_VERSION_IS_RELEASE` back to `0`
 
 Commit this change with the following commit message format:
 
@@ -610,16 +610,16 @@ This script will use the promoted builds and changelog to generate the post. Run
 `npm run serve` to preview the post locally before pushing to the
 [nodejs.org](https://github.com/nodejs/nodejs.org) repo.
 
-- You can add a short blurb just under the main heading if you want to say
+* You can add a short blurb just under the main heading if you want to say
   something important, otherwise the text should be publication ready.
-- The links to the download files won't be complete unless you waited for the
+* The links to the download files won't be complete unless you waited for the
   ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to
   them. It's your responsibility to manually update these later when you have
   the outstanding builds.
-- The SHASUMS256.txt.asc content is at the bottom of the post. When you update
+* The SHASUMS256.txt.asc content is at the bottom of the post. When you update
   the list of tarballs you'll need to copy/paste the new contents of this file
   to reflect those changes.
-- Always use pull-requests on the nodejs.org repo. Be respectful of that working
+* Always use pull-requests on the nodejs.org repo. Be respectful of that working
   group, but you shouldn't have to wait for PR sign-off. Opening a PR and
   merging it immediately _should_ be fine. However, please follow the following
   commit message format:
@@ -630,16 +630,16 @@ This script will use the promoted builds and changelog to generate the post. Run
   Refs: <full URL to your release proposal PR>
   ```
 
-- Changes to `master` on the nodejs.org repo will trigger a new build of
+* Changes to `master` on the nodejs.org repo will trigger a new build of
   nodejs.org so your changes should appear in a few minutes after pushing.
 
 ### 16. Create the release on GitHub
 
-- Go to the [New release page](https://github.com/nodejs/node/releases/new).
-- Select the tag version you pushed earlier.
-- For release title, copy the title from the changelog.
-- For the description, copy the rest of the changelog entry.
-- Click on the "Publish release" button.
+* Go to the [New release page](https://github.com/nodejs/node/releases/new).
+* Select the tag version you pushed earlier.
+* For release title, copy the title from the changelog.
+* For the description, copy the rest of the changelog entry.
+* Click on the "Publish release" button.
 
 ### 17. Cleanup
 

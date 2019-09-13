@@ -301,8 +301,8 @@ added: v11.4.0
 
 Chooses an HTTP parser library. Available values are:
 
-- `llhttp` for https://llhttp.org/
-- `legacy` for https://github.com/nodejs/http-parser
+* `llhttp` for https://llhttp.org/
+* `legacy` for https://github.com/nodejs/http-parser
 
 The default is `llhttp`, unless otherwise specified when building Node.js.
 
@@ -987,79 +987,79 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
-- `--enable-fips`
-- `--es-module-specifier-resolution`
-- `--experimental-exports`
-- `--experimental-modules`
-- `--experimental-policy`
-- `--experimental-repl-await`
-- `--experimental-report`
-- `--experimental-vm-modules`
-- `--experimental-wasm-modules`
-- `--force-fips`
-- `--frozen-intrinsics`
-- `--heapsnapshot-signal`
-- `--http-parser`
-- `--icu-data-dir`
-- `--input-type`
-- `--inspect-brk`
-- `--inspect-port`, `--debug-port`
-- `--inspect-publish-uid`
-- `--inspect`
-- `--loader`
-- `--max-http-header-size`
-- `--napi-modules`
-- `--no-deprecation`
-- `--no-force-async-hooks-checks`
-- `--no-warnings`
-- `--openssl-config`
-- `--pending-deprecation`
-- `--policy-integrity`
-- `--preserve-symlinks-main`
-- `--preserve-symlinks`
-- `--prof-process`
-- `--redirect-warnings`
-- `--report-directory`
-- `--report-filename`
-- `--report-on-fatalerror`
-- `--report-on-signal`
-- `--report-signal`
-- `--report-uncaught-exception`
-- `--require`, `-r`
-- `--throw-deprecation`
-- `--title`
-- `--tls-cipher-list`
-- `--tls-max-v1.2`
-- `--tls-max-v1.3`
-- `--tls-min-v1.0`
-- `--tls-min-v1.1`
-- `--tls-min-v1.2`
-- `--tls-min-v1.3`
-- `--trace-deprecation`
-- `--trace-event-categories`
-- `--trace-event-file-pattern`
-- `--trace-events-enabled`
-- `--trace-sync-io`
-- `--trace-tls`
-- `--trace-warnings`
-- `--track-heap-objects`
-- `--unhandled-rejections`
-- `--use-bundled-ca`
-- `--use-openssl-ca`
-- `--v8-pool-size`
-- `--zero-fill-buffers`
+* `--enable-fips`
+* `--es-module-specifier-resolution`
+* `--experimental-exports`
+* `--experimental-modules`
+* `--experimental-policy`
+* `--experimental-repl-await`
+* `--experimental-report`
+* `--experimental-vm-modules`
+* `--experimental-wasm-modules`
+* `--force-fips`
+* `--frozen-intrinsics`
+* `--heapsnapshot-signal`
+* `--http-parser`
+* `--icu-data-dir`
+* `--input-type`
+* `--inspect-brk`
+* `--inspect-port`, `--debug-port`
+* `--inspect-publish-uid`
+* `--inspect`
+* `--loader`
+* `--max-http-header-size`
+* `--napi-modules`
+* `--no-deprecation`
+* `--no-force-async-hooks-checks`
+* `--no-warnings`
+* `--openssl-config`
+* `--pending-deprecation`
+* `--policy-integrity`
+* `--preserve-symlinks-main`
+* `--preserve-symlinks`
+* `--prof-process`
+* `--redirect-warnings`
+* `--report-directory`
+* `--report-filename`
+* `--report-on-fatalerror`
+* `--report-on-signal`
+* `--report-signal`
+* `--report-uncaught-exception`
+* `--require`, `-r`
+* `--throw-deprecation`
+* `--title`
+* `--tls-cipher-list`
+* `--tls-max-v1.2`
+* `--tls-max-v1.3`
+* `--tls-min-v1.0`
+* `--tls-min-v1.1`
+* `--tls-min-v1.2`
+* `--tls-min-v1.3`
+* `--trace-deprecation`
+* `--trace-event-categories`
+* `--trace-event-file-pattern`
+* `--trace-events-enabled`
+* `--trace-sync-io`
+* `--trace-tls`
+* `--trace-warnings`
+* `--track-heap-objects`
+* `--unhandled-rejections`
+* `--use-bundled-ca`
+* `--use-openssl-ca`
+* `--v8-pool-size`
+* `--zero-fill-buffers`
 <!-- node-options-node end -->
 
 V8 options that are allowed are:
 <!-- node-options-v8 start -->
-- `--abort-on-uncaught-exception`
-- `--interpreted-frames-native-stack`
-- `--max-old-space-size`
-- `--perf-basic-prof-only-functions`
-- `--perf-basic-prof`
-- `--perf-prof-unwinding-info`
-- `--perf-prof`
-- `--stack-trace-limit`
+* `--abort-on-uncaught-exception`
+* `--interpreted-frames-native-stack`
+* `--max-old-space-size`
+* `--perf-basic-prof-only-functions`
+* `--perf-basic-prof`
+* `--perf-prof-unwinding-info`
+* `--perf-prof`
+* `--stack-trace-limit`
 <!-- node-options-v8 end -->
 
 ### `NODE_PATH=path[:…]`
@@ -1194,12 +1194,12 @@ Asynchronous system APIs are used by Node.js whenever possible, but where they
 do not exist, libuv's threadpool is used to create asynchronous node APIs based
 on synchronous system APIs. Node.js APIs that use the threadpool are:
 
-- all `fs` APIs, other than the file watcher APIs and those that are explicitly
+* all `fs` APIs, other than the file watcher APIs and those that are explicitly
   synchronous
-- asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
+* asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
   `crypto.randomBytes()`, `crypto.randomFill()`, `crypto.generateKeyPair()`
-- `dns.lookup()`
-- all `zlib` APIs, other than those that are explicitly synchronous
+* `dns.lookup()`
+* all `zlib` APIs, other than those that are explicitly synchronous
 
 Because libuv's threadpool has a fixed size, it means that if for whatever
 reason any of these APIs takes a long time, other (seemingly unrelated) APIs
