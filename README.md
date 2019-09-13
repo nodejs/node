@@ -184,6 +184,8 @@ For information about the governance of the Node.js project, see
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
+* [tniessen](https://github.com/tniessen) -
+**Tobias Nießen** &lt;tniessen@tnie.de&gt;
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
