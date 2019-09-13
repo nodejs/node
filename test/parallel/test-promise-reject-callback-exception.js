@@ -15,6 +15,10 @@ tmpdir.refresh();
 // was enabled, it resulted in a hard crash.
 
 for (const NODE_V8_COVERAGE of ['', tmpdir.path]) {
+  // NODE_V8_COVERAGE does not work without the inspector.
+  // Refs: https://github.com/nodejs/node/issues/29542
+  if (!process.features.inspector && NODE_V8_COVERAGE !== '') continue;
+
   const { status, signal, stdout, stderr } =
     child_process.spawnSync(process.execPath,
                             [path.join(__dirname, 'test-ttywrap-stack.js')],
