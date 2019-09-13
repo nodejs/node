@@ -449,13 +449,13 @@ client.connect(41234, 'localhost', (err) => {
 The maximum size of an `IPv4/v6` datagram depends on the `MTU`
 (_Maximum Transmission Unit_) and on the `Payload Length` field size.
 
-- The `Payload Length` field is `16 bits` wide, which means that a normal
+* The `Payload Length` field is `16 bits` wide, which means that a normal
   payload exceed 64K octets _including_ the internet header and data
   (65,507 bytes = 65,535 − 8 bytes UDP header − 20 bytes IP header);
   this is generally true for loopback interfaces, but such long datagram
   messages are impractical for most hosts and networks.
 
-- The `MTU` is the largest size a given link layer technology can support for
+* The `MTU` is the largest size a given link layer technology can support for
   datagram messages. For any link, `IPv4` mandates a minimum `MTU` of `68`
   octets, while the recommended `MTU` for IPv4 is `576` (typically recommended
   as the `MTU` for dial-up type applications), whether they arrive whole or in

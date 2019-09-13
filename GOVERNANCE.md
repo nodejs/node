@@ -2,13 +2,13 @@
 
 <!-- TOC -->
 
-- [Collaborators](#collaborators)
-  - [Collaborator Activities](#collaborator-activities)
-- [Technical Steering Committee](#technical-steering-committee)
-  - [TSC Meetings](#tsc-meetings)
-- [Collaborator Nominations](#collaborator-nominations)
-  - [Onboarding](#onboarding)
-- [Consensus Seeking Process](#consensus-seeking-process)
+* [Collaborators](#collaborators)
+  * [Collaborator Activities](#collaborator-activities)
+* [Technical Steering Committee](#technical-steering-committee)
+  * [TSC Meetings](#tsc-meetings)
+* [Collaborator Nominations](#collaborator-nominations)
+  * [Onboarding](#onboarding)
+* [Consensus Seeking Process](#consensus-seeking-process)
 
 <!-- /TOC -->
 

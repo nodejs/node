@@ -180,9 +180,9 @@ added: v0.1.94
 Instances of the `Cipher` class are used to encrypt data. The class can be
 used in one of two ways:
 
-- As a [stream][] that is both readable and writable, where plain unencrypted
+* As a [stream][] that is both readable and writable, where plain unencrypted
   data is written to produce encrypted data on the readable side, or
-- Using the [`cipher.update()`][] and [`cipher.final()`][] methods to produce
+* Using the [`cipher.update()`][] and [`cipher.final()`][] methods to produce
   the encrypted data.
 
 The [`crypto.createCipher()`][] or [`crypto.createCipheriv()`][] methods are
@@ -286,7 +286,7 @@ added: v1.0.0
 
 * `buffer` {Buffer}
 * `options` {Object} [`stream.transform` options][]
-  - `plaintextLength` {number}
+  * `plaintextLength` {number}
 * Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
@@ -372,9 +372,9 @@ added: v0.1.94
 Instances of the `Decipher` class are used to decrypt data. The class can be
 used in one of two ways:
 
-- As a [stream][] that is both readable and writable, where plain encrypted
+* As a [stream][] that is both readable and writable, where plain encrypted
   data is written to produce unencrypted data on the readable side, or
-- Using the [`decipher.update()`][] and [`decipher.final()`][] methods to
+* Using the [`decipher.update()`][] and [`decipher.final()`][] methods to
   produce the unencrypted data.
 
 The [`crypto.createDecipher()`][] or [`crypto.createDecipheriv()`][] methods are
@@ -484,7 +484,7 @@ changes:
 
 * `buffer` {Buffer | TypedArray | DataView}
 * `options` {Object} [`stream.transform` options][]
-  - `plaintextLength` {number}
+  * `plaintextLength` {number}
 * Returns: {Decipher} for method chaining.
 
 When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
@@ -989,9 +989,9 @@ added: v0.1.92
 The `Hash` class is a utility for creating hash digests of data. It can be
 used in one of two ways:
 
-- As a [stream][] that is both readable and writable, where data is written
+* As a [stream][] that is both readable and writable, where data is written
   to produce a computed hash digest on the readable side, or
-- Using the [`hash.update()`][] and [`hash.digest()`][] methods to produce the
+* Using the [`hash.update()`][] and [`hash.digest()`][] methods to produce the
   computed hash.
 
 The [`crypto.createHash()`][] method is used to create `Hash` instances. `Hash`
@@ -1087,9 +1087,9 @@ added: v0.1.94
 The `Hmac` class is a utility for creating cryptographic HMAC digests. It can
 be used in one of two ways:
 
-- As a [stream][] that is both readable and writable, where data is written
+* As a [stream][] that is both readable and writable, where data is written
   to produce a computed HMAC digest on the readable side, or
-- Using the [`hmac.update()`][] and [`hmac.digest()`][] methods to produce the
+* Using the [`hmac.update()`][] and [`hmac.digest()`][] methods to produce the
   computed HMAC digest.
 
 The [`crypto.createHmac()`][] method is used to create `Hmac` instances. `Hmac`
@@ -1303,9 +1303,9 @@ added: v0.1.92
 The `Sign` class is a utility for generating signatures. It can be used in one
 of two ways:
 
-- As a writable [stream][], where data to be signed is written and the
+* As a writable [stream][], where data to be signed is written and the
   [`sign.sign()`][] method is used to generate and return the signature, or
-- Using the [`sign.update()`][] and [`sign.sign()`][] methods to produce the
+* Using the [`sign.update()`][] and [`sign.sign()`][] methods to produce the
   signature.
 
 The [`crypto.createSign()`][] method is used to create `Sign` instances. The
@@ -1370,8 +1370,8 @@ changes:
 -->
 
 * `privateKey` {Object | string | Buffer | KeyObject}
-  - `padding` {integer}
-  - `saltLength` {integer}
+  * `padding` {integer}
+  * `saltLength` {integer}
 * `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
@@ -1432,9 +1432,9 @@ added: v0.1.92
 The `Verify` class is a utility for verifying signatures. It can be used in one
 of two ways:
 
-- As a writable [stream][] where written data is used to validate against the
+* As a writable [stream][] where written data is used to validate against the
   supplied signature, or
-- Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
+* Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
   the signature.
 
 The [`crypto.createVerify()`][] method is used to create `Verify` instances.
@@ -1478,8 +1478,8 @@ changes:
 -->
 
 * `object` {Object | string | Buffer | KeyObject}
-  - `padding` {integer}
-  - `saltLength` {integer}
+  * `padding` {integer}
+  * `saltLength` {integer}
 * `signature` {string | Buffer | TypedArray | DataView}
 * `signatureEncoding` {string} The [encoding][] of the `signature` string.
 * Returns: {boolean} `true` or `false` depending on the validity of the
@@ -1942,11 +1942,11 @@ added: v11.6.0
 -->
 
 * `key` {Object | string | Buffer}
-  - `key`: {string | Buffer} The key material, either in PEM or DER format.
-  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
-  - `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
+  * `key`: {string | Buffer} The key material, either in PEM or DER format.
+  * `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
+  * `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
      required only if the `format` is `'der'` and ignored if it is `'pem'`.
-  - `passphrase`: {string | Buffer} The passphrase to use for decryption.
+  * `passphrase`: {string | Buffer} The passphrase to use for decryption.
 * Returns: {KeyObject}
 
 Creates and returns a new key object containing a private key. If `key` is a
@@ -1970,9 +1970,9 @@ changes:
 -->
 
 * `key` {Object | string | Buffer | KeyObject}
-  - `key`: {string | Buffer}
-  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
-  - `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
+  * `key`: {string | Buffer}
+  * `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
+  * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
     only if the `format` is `'der'`.
 * Returns: {KeyObject}
 
@@ -2060,16 +2060,16 @@ changes:
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
   `'x25519'`, or `'x448'`.
 * `options`: {Object}
-  - `modulusLength`: {number} Key size in bits (RSA, DSA).
-  - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
-  - `divisorLength`: {number} Size of `q` in bits (DSA).
-  - `namedCurve`: {string} Name of the curve to use (EC).
-  - `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
-  - `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
+  * `modulusLength`: {number} Key size in bits (RSA, DSA).
+  * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `divisorLength`: {number} Size of `q` in bits (DSA).
+  * `namedCurve`: {string} Name of the curve to use (EC).
+  * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
+  * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * `callback`: {Function}
-  - `err`: {Error}
-  - `publicKey`: {string | Buffer | KeyObject}
-  - `privateKey`: {string | Buffer | KeyObject}
+  * `err`: {Error}
+  * `publicKey`: {string | Buffer | KeyObject}
+  * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519
 and Ed448 are currently supported.
@@ -2121,15 +2121,15 @@ changes:
 
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, or `'ed448'`.
 * `options`: {Object}
-  - `modulusLength`: {number} Key size in bits (RSA, DSA).
-  - `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
-  - `divisorLength`: {number} Size of `q` in bits (DSA).
-  - `namedCurve`: {string} Name of the curve to use (EC).
-  - `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
-  - `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
+  * `modulusLength`: {number} Key size in bits (RSA, DSA).
+  * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `divisorLength`: {number} Size of `q` in bits (DSA).
+  * `namedCurve`: {string} Name of the curve to use (EC).
+  * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
+  * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * Returns: {Object}
-  - `publicKey`: {string | Buffer | KeyObject}
-  - `privateKey`: {string | Buffer | KeyObject}
+  * `publicKey`: {string | Buffer | KeyObject}
+  * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519
 and Ed448 are currently supported.
@@ -2268,8 +2268,8 @@ changes:
 * `keylen` {number}
 * `digest` {string}
 * `callback` {Function}
-  - `err` {Error}
-  - `derivedKey` {Buffer}
+  * `err` {Error}
+  * `derivedKey` {Buffer}
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation. A selected HMAC digest algorithm specified by `digest` is
@@ -2395,11 +2395,9 @@ changes:
 -->
 
 * `privateKey` {Object | string | Buffer | KeyObject}
-  - `oaepHash` {string} The hash function to use for OAEP padding.
+  * `oaepHash` {string} The hash function to use for OAEP padding.
     **Default:** `'sha1'`
-  - `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
-    padding. If not specified, no label is used.
-  - `padding` {crypto.constants} An optional padding value defined in
+  * `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
     `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
@@ -2424,9 +2422,9 @@ changes:
 -->
 
 * `privateKey` {Object | string | Buffer | KeyObject}
-  - `key` {string | Buffer | KeyObject} A PEM encoded private key.
-  - `passphrase` {string | Buffer} An optional passphrase for the private key.
-  - `padding` {crypto.constants} An optional padding value defined in
+  * `key` {string | Buffer | KeyObject} A PEM encoded private key.
+  * `passphrase` {string | Buffer} An optional passphrase for the private key.
+  * `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
 * `buffer` {Buffer | TypedArray | DataView}
@@ -2450,8 +2448,8 @@ changes:
 -->
 
 * `key` {Object | string | Buffer | KeyObject}
-  - `passphrase` {string | Buffer} An optional passphrase for the private key.
-  - `padding` {crypto.constants} An optional padding value defined in
+  * `passphrase` {string | Buffer} An optional passphrase for the private key.
+  * `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
 * `buffer` {Buffer | TypedArray | DataView}
@@ -2484,13 +2482,11 @@ changes:
 -->
 
 * `key` {Object | string | Buffer | KeyObject}
-  - `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
-  - `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
-    padding. If not specified, no label is used.
-  - `oaepHash` {string} The hash function to use for OAEP padding.
+  * `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
+  * `oaepHash` {string} The hash function to use for OAEP padding.
     **Default:** `'sha1'`
-  - `passphrase` {string | Buffer} An optional passphrase for the private key.
-  - `padding` {crypto.constants} An optional padding value defined in
+  * `passphrase` {string | Buffer} An optional passphrase for the private key.
+  * `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `crypto.constants.RSA_PKCS1_PADDING`, or
     `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
@@ -2521,8 +2517,8 @@ changes:
 
 * `size` {number}
 * `callback` {Function}
-  - `err` {Error}
-  - `buf` {Buffer}
+  * `err` {Error}
+  * `buf` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
 Generates cryptographically strong pseudo-random data. The `size` argument
@@ -2706,18 +2702,18 @@ changes:
 * `salt` {string|Buffer|TypedArray|DataView}
 * `keylen` {number}
 * `options` {Object}
-  - `cost` {number} CPU/memory cost parameter. Must be a power of two greater
+  * `cost` {number} CPU/memory cost parameter. Must be a power of two greater
     than one. **Default:** `16384`.
-  - `blockSize` {number} Block size parameter. **Default:** `8`.
-  - `parallelization` {number} Parallelization parameter. **Default:** `1`.
-  - `N` {number} Alias for `cost`. Only one of both may be specified.
-  - `r` {number} Alias for `blockSize`. Only one of both may be specified.
-  - `p` {number} Alias for `parallelization`. Only one of both may be specified.
-  - `maxmem` {number} Memory upper bound. It is an error when (approximately)
+  * `blockSize` {number} Block size parameter. **Default:** `8`.
+  * `parallelization` {number} Parallelization parameter. **Default:** `1`.
+  * `N` {number} Alias for `cost`. Only one of both may be specified.
+  * `r` {number} Alias for `blockSize`. Only one of both may be specified.
+  * `p` {number} Alias for `parallelization`. Only one of both may be specified.
+  * `maxmem` {number} Memory upper bound. It is an error when (approximately)
     `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 * `callback` {Function}
-  - `err` {Error}
-  - `derivedKey` {Buffer}
+  * `err` {Error}
+  * `derivedKey` {Buffer}
 
 Provides an asynchronous [scrypt][] implementation. Scrypt is a password-based
 key derivation function that is designed to be expensive computationally and
@@ -2764,14 +2760,14 @@ changes:
 * `salt` {string|Buffer|TypedArray|DataView}
 * `keylen` {number}
 * `options` {Object}
-  - `cost` {number} CPU/memory cost parameter. Must be a power of two greater
+  * `cost` {number} CPU/memory cost parameter. Must be a power of two greater
     than one. **Default:** `16384`.
-  - `blockSize` {number} Block size parameter. **Default:** `8`.
-  - `parallelization` {number} Parallelization parameter. **Default:** `1`.
-  - `N` {number} Alias for `cost`. Only one of both may be specified.
-  - `r` {number} Alias for `blockSize`. Only one of both may be specified.
-  - `p` {number} Alias for `parallelization`. Only one of both may be specified.
-  - `maxmem` {number} Memory upper bound. It is an error when (approximately)
+  * `blockSize` {number} Block size parameter. **Default:** `8`.
+  * `parallelization` {number} Parallelization parameter. **Default:** `1`.
+  * `N` {number} Alias for `cost`. Only one of both may be specified.
+  * `r` {number} Alias for `blockSize`. Only one of both may be specified.
+  * `p` {number} Alias for `parallelization`. Only one of both may be specified.
+  * `maxmem` {number} Memory upper bound. It is an error when (approximately)
     `128 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
 * Returns: {Buffer}
 
@@ -2970,12 +2966,12 @@ algorithm and key size according to their security requirements.
 
 Based on the recommendations of [NIST SP 800-131A][]:
 
-- MD5 and SHA-1 are no longer acceptable where collision resistance is
+* MD5 and SHA-1 are no longer acceptable where collision resistance is
   required such as digital signatures.
-- The key used with RSA, DSA, and DH algorithms is recommended to have
+* The key used with RSA, DSA, and DH algorithms is recommended to have
   at least 2048 bits and that of the curve of ECDSA and ECDH at least
   224 bits, to be safe to use for several years.
-- The DH groups of `modp1`, `modp2` and `modp5` have a key size
+* The DH groups of `modp1`, `modp2` and `modp5` have a key size
   smaller than 2048 bits and are not recommended.
 
 See the reference for other recommendations and details.
@@ -2985,24 +2981,24 @@ See the reference for other recommendations and details.
 CCM is one of the supported [AEAD algorithms][]. Applications which use this
 mode must adhere to certain restrictions when using the cipher API:
 
-- The authentication tag length must be specified during cipher creation by
+* The authentication tag length must be specified during cipher creation by
   setting the `authTagLength` option and must be one of 4, 6, 8, 10, 12, 14 or
   16 bytes.
-- The length of the initialization vector (nonce) `N` must be between 7 and 13
+* The length of the initialization vector (nonce) `N` must be between 7 and 13
   bytes (`7 ≤ N ≤ 13`).
-- The length of the plaintext is limited to `2 ** (8 * (15 - N))` bytes.
-- When decrypting, the authentication tag must be set via `setAuthTag()` before
+* The length of the plaintext is limited to `2 ** (8 * (15 - N))` bytes.
+* When decrypting, the authentication tag must be set via `setAuthTag()` before
   calling `update()`.
   Otherwise, decryption will fail and `final()` will throw an error in
   compliance with section 2.6 of [RFC 3610][].
-- Using stream methods such as `write(data)`, `end(data)` or `pipe()` in CCM
+* Using stream methods such as `write(data)`, `end(data)` or `pipe()` in CCM
   mode might fail as CCM cannot handle more than one chunk of data per instance.
-- When passing additional authenticated data (AAD), the length of the actual
+* When passing additional authenticated data (AAD), the length of the actual
   message in bytes must be passed to `setAAD()` via the `plaintextLength`
   option. This is not necessary if no AAD is used.
-- As CCM processes the whole message at once, `update()` can only be called
+* As CCM processes the whole message at once, `update()` can only be called
   once.
-- Even though calling `update()` is sufficient to encrypt/decrypt the message,
+* Even though calling `update()` is sufficient to encrypt/decrypt the message,
   applications *must* call `final()` to compute or verify the
   authentication tag.
 

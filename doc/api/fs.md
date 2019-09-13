@@ -3438,9 +3438,9 @@ Change the file system timestamps of the object referenced by `path`.
 
 The `atime` and `mtime` arguments follow these rules:
 
-- Values can be either numbers representing Unix epoch time, `Date`s, or a
+* Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
-- If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
 ## fs.utimesSync(path, atime, mtime)
@@ -3640,8 +3640,8 @@ event (its disappearance).
 
 This happens when:
 
-- the file is deleted, followed by a restore
-- the file is renamed twice - the second time back to its original name
+* the file is deleted, followed by a restore
+* the file is renamed twice - the second time back to its original name
 
 ## fs.write(fd, buffer[, offset[, length[, position]]], callback)
 <!-- YAML
@@ -4848,9 +4848,9 @@ resolves the `Promise` with no arguments upon success.
 
 The `atime` and `mtime` arguments follow these rules:
 
-- Values can be either numbers representing Unix epoch time, `Date`s, or a
+* Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
-- If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
 ### fsPromises.writeFile(file, data[, options])

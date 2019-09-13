@@ -17,13 +17,13 @@ for more information on N-API.
 When not using N-API, implementing Addons is complicated,
 involving knowledge of several components and APIs:
 
-- V8: the C++ library Node.js currently uses to provide the
+* V8: the C++ library Node.js currently uses to provide the
   JavaScript implementation. V8 provides the mechanisms for creating objects,
   calling functions, etc. V8's API is documented mostly in the
   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
   tree), which is also available [online][v8-docs].
 
-- [libuv][]: The C library that implements the Node.js event loop, its worker
+* [libuv][]: The C library that implements the Node.js event loop, its worker
   threads and all of the asynchronous behaviors of the platform. It also
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
@@ -35,11 +35,11 @@ involving knowledge of several components and APIs:
   off-loading work via libuv to non-blocking system operations, worker threads
   or a custom use of libuv's threads.
 
-- Internal Node.js libraries. Node.js itself exports a number of C++ APIs
+* Internal Node.js libraries. Node.js itself exports a number of C++ APIs
   that Addons can use &mdash; the most important of which is the
   `node::ObjectWrap` class.
 
-- Node.js includes a number of other statically linked libraries including
+* Node.js includes a number of other statically linked libraries including
   OpenSSL. These other libraries are located in the `deps/` directory in the
   Node.js source tree. Only the libuv, OpenSSL, V8 and zlib symbols are
   purposefully re-exported by Node.js and may be used to various extents by
@@ -262,8 +262,8 @@ signature.
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
 
-- Be an N-API addon, or
-- Be declared as context-aware using `NODE_MODULE_INIT()` as described above
+* Be an N-API addon, or
+* Be declared as context-aware using `NODE_MODULE_INIT()` as described above
 
 ### Building
 

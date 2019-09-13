@@ -69,7 +69,7 @@ See [`server.close()`][`http.close()`] from the HTTP module for details.
 added: v11.3.0
 -->
 
-- {number} **Default:** `40000`
+* {number} **Default:** `40000`
 
 See [`http.Server#headersTimeout`][].
 
@@ -80,7 +80,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.maxHeadersCount
 
-- {number} **Default:** `2000`
+* {number} **Default:** `2000`
 
 See [`http.Server#maxHeadersCount`][].
 
@@ -100,7 +100,7 @@ See [`http.Server#setTimeout()`][].
 added: v0.11.2
 -->
 
-- {number} **Default:** `120000` (2 minutes)
+* {number} **Default:** `120000` (2 minutes)
 
 See [`http.Server#timeout`][].
 
@@ -109,7 +109,7 @@ See [`http.Server#timeout`][].
 added: v8.0.0
 -->
 
-- {number} **Default:** `5000` (5 seconds)
+* {number} **Default:** `5000` (5 seconds)
 
 See [`http.Server#keepAliveTimeout`][].
 
@@ -224,9 +224,9 @@ changes:
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
-  - `protocol` **Default:** `'https:'`
-  - `port` **Default:** `443`
-  - `agent` **Default:** `https.globalAgent`
+  * `protocol` **Default:** `'https:'`
+  * `port` **Default:** `443`
+  * `agent` **Default:** `https.globalAgent`
 * `callback` {Function}
 
 Makes a request to a secure web server.

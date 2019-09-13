@@ -14,22 +14,22 @@ nonetheless.
 
 ## Public disclosure preferred
 
-- [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
+* [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
   function can be used to cause segfaults_. Requires the ability to execute
   arbitrary JavaScript code. That is already the highest level of privilege
   possible.
 
 ## Private disclosure preferred
 
-- [CVE-2016-7099](https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/):
+* [CVE-2016-7099](https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/):
   _Fix invalid wildcard certificate validation check_. This was a high-severity
   defect. It caused Node.js TLS clients to accept invalid wildcard certificates.
 
-- [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
+* [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
   the CacheBleed Attack possible_. Many, though not all, OpenSSL vulnerabilities
   in the TLS/SSL protocols also affect Node.js.
 
-- [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
+* [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
   _Fix defects in HTTP header parsing for requests and responses that can allow
   response splitting_. This was a remotely-exploitable defect in the Node.js
   HTTP implementation.
