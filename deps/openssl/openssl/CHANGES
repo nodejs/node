@@ -7,6 +7,101 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1c and 1.1.1d [10 Sep 2019]
+
+  *) Fixed a fork protection issue. OpenSSL 1.1.1 introduced a rewritten random
+     number generator (RNG). This was intended to include protection in the
+     event of a fork() system call in order to ensure that the parent and child
+     processes did not share the same RNG state. However this protection was not
+     being used in the default case.
+
+     A partial mitigation for this issue is that the output from a high
+     precision timer is mixed into the RNG state so the likelihood of a parent
+     and child process sharing state is significantly reduced.
+
+     If an application already calls OPENSSL_init_crypto() explicitly using
+     OPENSSL_INIT_ATFORK then this problem does not occur at all.
+     (CVE-2019-1549)
+     [Matthias St. Pierre]
+
+  *) For built-in EC curves, ensure an EC_GROUP built from the curve name is
+     used even when parsing explicit parameters, when loading a serialized key
+     or calling `EC_GROUP_new_from_ecpkparameters()`/
+     `EC_GROUP_new_from_ecparameters()`.
+     This prevents bypass of security hardening and performance gains,
+     especially for curves with specialized EC_METHODs.
+     By default, if a key encoded with explicit parameters is loaded and later
+     serialized, the output is still encoded with explicit parameters, even if
+     internally a "named" EC_GROUP is used for computation.
+     [Nicola Tuveri]
+
+  *) Compute ECC cofactors if not provided during EC_GROUP construction. Before
+     this change, EC_GROUP_set_generator would accept order and/or cofactor as
+     NULL. After this change, only the cofactor parameter can be NULL. It also
+     does some minimal sanity checks on the passed order.
+     (CVE-2019-1547)
+     [Billy Bob Brumley]
+
+  *) Fixed a padding oracle in PKCS7_dataDecode and CMS_decrypt_set1_pkey.
+     An attack is simple, if the first CMS_recipientInfo is valid but the
+     second CMS_recipientInfo is chosen ciphertext. If the second
+     recipientInfo decodes to PKCS #1 v1.5 form plaintext, the correct
+     encryption key will be replaced by garbage, and the message cannot be
+     decoded, but if the RSA decryption fails, the correct encryption key is
+     used and the recipient will not notice the attack.
+     As a work around for this potential attack the length of the decrypted
+     key must be equal to the cipher default key length, in case the
+     certifiate is not given and all recipientInfo are tried out.
+     The old behaviour can be re-enabled in the CMS code by setting the
+     CMS_DEBUG_DECRYPT flag.
+     (CVE-2019-1563)
+     [Bernd Edlinger]
+
+  *) Early start up entropy quality from the DEVRANDOM seed source has been
+     improved for older Linux systems.  The RAND subsystem will wait for
+     /dev/random to be producing output before seeding from /dev/urandom.
+     The seeded state is stored for future library initialisations using
+     a system global shared memory segment.  The shared memory identifier
+     can be configured by defining OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID to
+     the desired value.  The default identifier is 114.
+     [Paul Dale]
+
+  *) Correct the extended master secret constant on EBCDIC systems. Without this
+     fix TLS connections between an EBCDIC system and a non-EBCDIC system that
+     negotiate EMS will fail. Unfortunately this also means that TLS connections
+     between EBCDIC systems with this fix, and EBCDIC systems without this
+     fix will fail if they negotiate EMS.
+     [Matt Caswell]
+
+  *) Use Windows installation paths in the mingw builds
+
+     Mingw isn't a POSIX environment per se, which means that Windows
+     paths should be used for installation.
+     (CVE-2019-1552)
+     [Richard Levitte]
+
+  *) Changed DH_check to accept parameters with order q and 2q subgroups.
+     With order 2q subgroups the bit 0 of the private key is not secret
+     but DH_generate_key works around that by clearing bit 0 of the
+     private key for those. This avoids leaking bit 0 of the private key.
+     [Bernd Edlinger]
+
+  *) Significantly reduce secure memory usage by the randomness pools.
+     [Paul Dale]
+
+  *) Revert the DEVRANDOM_WAIT feature for Linux systems
+
+     The DEVRANDOM_WAIT feature added a select() call to wait for the
+     /dev/random device to become readable before reading from the
+     /dev/urandom device.
+
+     It turned out that this change had negative side effects on
+     performance which were not acceptable. After some discussion it
+     was decided to revert this feature and leave it up to the OS
+     resp. the platform maintainer to ensure a proper initialization
+     during early boot time.
+     [Matthias St. Pierre]
+
  Changes between 1.1.1b and 1.1.1c [28 May 2019]
 
   *) Add build tests for C++.  These are generated files that only do one
@@ -74,6 +169,16 @@
      Greef of Ronomon.
      (CVE-2019-1543)
      [Matt Caswell]
+
+  *) Add DEVRANDOM_WAIT feature for Linux systems
+
+     On older Linux systems where the getrandom() system call is not available,
+     OpenSSL normally uses the /dev/urandom device for seeding its CSPRNG.
+     Contrary to getrandom(), the /dev/urandom device will not block during
+     early boot when the kernel CSPRNG has not been seeded yet.
+
+     To mitigate this known weakness, use select() to wait for /dev/random to
+     become readable before reading from /dev/urandom.
 
   *) Ensure that SM2 only uses SM3 as digest algorithm
      [Paul Yang]
@@ -322,7 +427,7 @@
         SSL_set_ciphersuites()
      [Matt Caswell]
 
-  *) Memory allocation failures consistenly add an error to the error
+  *) Memory allocation failures consistently add an error to the error
      stack.
      [Rich Salz]
 
@@ -6860,7 +6965,7 @@
      reason texts, thereby removing some of the footprint that may not
      be interesting if those errors aren't displayed anyway.
 
-     NOTE: it's still possible for any application or module to have it's
+     NOTE: it's still possible for any application or module to have its
      own set of error texts inserted.  The routines are there, just not
      used by default when no-err is given.
      [Richard Levitte]
@@ -8826,7 +8931,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
  Changes between 0.9.6g and 0.9.6h  [5 Dec 2002]
 
   *) New function OPENSSL_cleanse(), which is used to cleanse a section of
-     memory from it's contents.  This is done with a counter that will
+     memory from its contents.  This is done with a counter that will
      place alternating values in each byte.  This can be used to solve
      two issues: 1) the removal of calls to memset() by highly optimizing
      compilers, and 2) cleansing with other values than 0, since those can

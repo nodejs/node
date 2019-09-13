@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,9 @@
 
 int ASN1_TYPE_get(const ASN1_TYPE *a)
 {
-    if ((a->value.ptr != NULL) || (a->type == V_ASN1_NULL))
+    if (a->type == V_ASN1_BOOLEAN
+            || a->type == V_ASN1_NULL
+            || a->value.ptr != NULL)
         return a->type;
     else
         return 0;
@@ -23,7 +25,9 @@ int ASN1_TYPE_get(const ASN1_TYPE *a)
 
 void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value)
 {
-    if (a->value.ptr != NULL) {
+    if (a->type != V_ASN1_BOOLEAN
+            && a->type != V_ASN1_NULL
+            && a->value.ptr != NULL) {
         ASN1_TYPE **tmp_a = &a;
         asn1_primitive_free((ASN1_VALUE **)tmp_a, NULL, 0);
     }

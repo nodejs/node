@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -87,6 +87,7 @@ typedef unsigned long long u64;
 #ifndef PEDANTIC
 # if defined(_MSC_VER)
 #  if defined(_WIN64)            /* applies to both IA-64 and AMD64 */
+#   include <stdlib.h>
 #   pragma intrinsic(_rotl64)
 #   define ROTATE(a,n) _rotl64((a),n)
 #  endif

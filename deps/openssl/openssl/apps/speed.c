@@ -1790,7 +1790,7 @@ int speed_main(int argc, char **argv)
         }
 
         buflen = lengths[size_num - 1];
-        if (buflen < 36)    /* size of random vector in RSA bencmark */
+        if (buflen < 36)    /* size of random vector in RSA benchmark */
             buflen = 36;
         buflen += MAX_MISALIGNMENT + 1;
         loopargs[i].buf_malloc = app_malloc(buflen, "input buffer");

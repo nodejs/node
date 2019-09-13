@@ -168,9 +168,19 @@ int tls_setup_handshake(SSL *s)
 static int get_cert_verify_tbs_data(SSL *s, unsigned char *tls13tbs,
                                     void **hdata, size_t *hdatalen)
 {
+#ifdef CHARSET_EBCDIC
+    static const char *servercontext = { 0x54, 0x4c, 0x53, 0x20, 0x31, 0x2e,
+     0x33, 0x2c, 0x20, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x20, 0x43, 0x65,
+     0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65, 0x56, 0x65, 0x72,
+     0x69, 0x66, 0x79, 0x00 };
+    static const char *clientcontext = { 0x54, 0x4c, 0x53, 0x20, 0x31, 0x2e,
+     0x33, 0x2c, 0x20, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x20, 0x43, 0x65,
+     0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65, 0x56, 0x65, 0x72,
+     0x69, 0x66, 0x79, 0x00 };
+#else
     static const char *servercontext = "TLS 1.3, server CertificateVerify";
     static const char *clientcontext = "TLS 1.3, client CertificateVerify";
-
+#endif
     if (SSL_IS_TLS13(s)) {
         size_t hashlen;
 
@@ -645,12 +655,9 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
     /*
      * If we get a request for us to update our sending keys too then, we need
      * to additionally send a KeyUpdate message. However that message should
-     * not also request an update (otherwise we get into an infinite loop). We
-     * ignore a request for us to update our sending keys too if we already
-     * sent close_notify.
+     * not also request an update (otherwise we get into an infinite loop).
      */
-    if (updatetype == SSL_KEY_UPDATE_REQUESTED
-            && (s->shutdown & SSL_SENT_SHUTDOWN) == 0)
+    if (updatetype == SSL_KEY_UPDATE_REQUESTED)
         s->key_update = SSL_KEY_UPDATE_NOT_REQUESTED;
 
     if (!tls13_update_key(s, 0)) {

@@ -129,9 +129,25 @@ BIO_set_ssl(), BIO_get_ssl(), BIO_set_ssl_mode(),
 BIO_set_ssl_renegotiate_bytes(), BIO_set_ssl_renegotiate_timeout(),
 BIO_get_num_renegotiates(), and BIO_do_handshake() are implemented as macros.
 
-=head1 EXAMPLE
+=head1 RETURN VALUES
 
-This SSL/TLS client example, attempts to retrieve a page from an
+BIO_f_ssl() returns the SSL B<BIO_METHOD> structure.
+
+BIO_set_ssl(), BIO_get_ssl(), BIO_set_ssl_mode(), BIO_set_ssl_renegotiate_bytes(),
+BIO_set_ssl_renegotiate_timeout() and BIO_get_num_renegotiates() return 1 on
+success or a value which is less than or equal to 0 if an error occurred.
+
+BIO_new_ssl(), BIO_new_ssl_connect() and BIO_new_buffer_ssl_connect() return
+a valid B<BIO> structure on success or B<NULL> if an error occurred.
+
+BIO_ssl_copy_session_id() returns 1 on success or 0 on error.
+
+BIO_do_handshake() returns 1 if the connection was established successfully.
+A zero or negative value is returned if the connection could not be established.
+
+=head1 EXAMPLES
+
+This SSL/TLS client example attempts to retrieve a page from an
 SSL/TLS web server. The I/O routines are identical to those of the
 unencrypted example in L<BIO_s_connect(3)>.
 
@@ -271,22 +287,6 @@ a client and also echoes the request to standard output.
  BIO_flush(sbio);
  BIO_free_all(sbio);
 
-=head1 RETURN VALUES
-
-BIO_f_ssl() returns the SSL B<BIO_METHOD> structure.
-
-BIO_set_ssl(), BIO_get_ssl(), BIO_set_ssl_mode(), BIO_set_ssl_renegotiate_bytes(),
-BIO_set_ssl_renegotiate_timeout() and BIO_get_num_renegotiates() return 1 on
-success or a value which is less than or equal to 0 if an error occurred.
-
-BIO_new_ssl(), BIO_new_ssl_connect() and BIO_new_buffer_ssl_connect() return
-a valid B<BIO> structure on success or B<NULL> if an error occurred.
-
-BIO_ssl_copy_session_id() returns 1 on success or 0 on error.
-
-BIO_do_handshake() returns 1 if the connection was established successfully.
-A zero or negative value is returned if the connection could not be established.
-
 =head1 HISTORY
 
 In OpenSSL before 1.0.0 the BIO_pop() call was handled incorrectly,
@@ -298,7 +298,7 @@ be modified to handle this fix or they may free up an already freed BIO.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

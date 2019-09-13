@@ -58,7 +58,7 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
 
     priv_key = EC_KEY_get0_private_key(ecdh);
     if (priv_key == NULL) {
-        ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_NO_PRIVATE_VALUE);
+        ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_MISSING_PRIVATE_KEY);
         goto err;
     }
 

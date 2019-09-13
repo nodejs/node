@@ -374,6 +374,13 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
     s->rlayer.wnum = 0;
 
     /*
+     * If we are supposed to be sending a KeyUpdate then go into init unless we
+     * have writes pending - in which case we should finish doing that first.
+     */
+    if (wb->left == 0 && s->key_update != SSL_KEY_UPDATE_NONE)
+        ossl_statem_set_in_init(s, 1);
+
+    /*
      * When writing early data on the server side we could be "in_init" in
      * between receiving the EoED and the CF - but we don't want to handle those
      * messages yet.
@@ -628,8 +635,9 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
              */
             s->s3->empty_fragment_done = 0;
 
-            if ((i == (int)n) && s->mode & SSL_MODE_RELEASE_BUFFERS &&
-                !SSL_IS_DTLS(s))
+            if (tmpwrit == n
+                    && (s->mode & SSL_MODE_RELEASE_BUFFERS) != 0
+                    && !SSL_IS_DTLS(s))
                 ssl3_release_write_buffer(s);
 
             *written = tot + tmpwrit;

@@ -2345,7 +2345,7 @@ int s_client_main(int argc, char **argv)
             (void)BIO_flush(fbio);
             /*
              * The first line is the HTTP response.  According to RFC 7230,
-             * it's formated exactly like this:
+             * it's formatted exactly like this:
              *
              * HTTP/d.d ddd Reason text\r\n
              */

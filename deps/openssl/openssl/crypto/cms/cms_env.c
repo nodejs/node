@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -363,12 +363,26 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
     unsigned char *ek = NULL;
     size_t eklen;
     int ret = 0;
+    size_t fixlen = 0;
     CMS_EncryptedContentInfo *ec;
     ec = cms->d.envelopedData->encryptedContentInfo;
 
     if (ktri->pkey == NULL) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_NO_PRIVATE_KEY);
         return 0;
+    }
+
+    if (cms->d.envelopedData->encryptedContentInfo->havenocert
+            && !cms->d.envelopedData->encryptedContentInfo->debug) {
+        X509_ALGOR *calg = ec->contentEncryptionAlgorithm;
+        const EVP_CIPHER *ciph = EVP_get_cipherbyobj(calg->algorithm);
+
+        if (ciph == NULL) {
+            CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_UNKNOWN_CIPHER);
+            return 0;
+        }
+
+        fixlen = EVP_CIPHER_key_length(ciph);
     }
 
     ktri->pctx = EVP_PKEY_CTX_new(pkey, NULL);
@@ -401,7 +415,9 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 
     if (EVP_PKEY_decrypt(ktri->pctx, ek, &eklen,
                          ktri->encryptedKey->data,
-                         ktri->encryptedKey->length) <= 0) {
+                         ktri->encryptedKey->length) <= 0
+            || eklen == 0
+            || (fixlen != 0 && eklen != fixlen)) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_CMS_LIB);
         goto err;
     }

@@ -96,7 +96,7 @@ static int test_dtls_unprocessed(int testidx)
 
     /*
      * Create the connection. We use "create_bare_ssl_connection" here so that
-     * we can force the connection to not do "SSL_read" once partly conencted.
+     * we can force the connection to not do "SSL_read" once partly connected.
      * We don't want to accidentally read the dummy records we injected because
      * they will fail to decrypt.
      */

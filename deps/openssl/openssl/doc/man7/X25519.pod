@@ -37,7 +37,7 @@ X25519 or X448 public keys can be set directly using
 L<EVP_PKEY_new_raw_public_key(3)> or loaded from a SubjectPublicKeyInfo
 structure in a PEM file using L<PEM_read_bio_PUBKEY(3)> (or similar function).
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This example generates an B<X25519> private key and writes it to standard
 output in PEM format:
@@ -64,7 +64,7 @@ L<EVP_PKEY_derive_set_peer(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
