@@ -51,7 +51,7 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code",
+        fixable: null,
         messages: {
             unexpected: "Unexpected negating the left operand of '{{operator}}' operator."
         }
@@ -70,15 +70,7 @@ module.exports = {
                         node,
                         loc: node.left.loc,
                         messageId: "unexpected",
-                        data: { operator: node.operator },
-
-                        fix(fixer) {
-                            const negationToken = sourceCode.getFirstToken(node.left);
-                            const fixRange = [negationToken.range[1], node.range[1]];
-                            const text = sourceCode.text.slice(fixRange[0], fixRange[1]);
-
-                            return fixer.replaceTextRange(fixRange, `(${text})`);
-                        }
+                        data: { operator: node.operator }
                     });
                 }
             }

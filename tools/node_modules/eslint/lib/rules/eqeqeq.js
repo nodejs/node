@@ -117,18 +117,6 @@ module.exports = {
         }
 
         /**
-         * Gets the location (line and column) of the binary expression's operator
-         * @param {ASTNode} node The binary expression node to check
-         * @returns {Object} { line, column } location of operator
-         * @private
-         */
-        function getOperatorLocation(node) {
-            const opToken = sourceCode.getTokenAfter(node.left);
-
-            return { line: opToken.loc.start.line, column: opToken.loc.start.column };
-        }
-
-        /**
          * Reports a message for this rule.
          * @param {ASTNode} node The binary expression node that was checked
          * @param {string} expectedOperator The operator that was expected (either '==', '!=', '===', or '!==')
@@ -136,21 +124,21 @@ module.exports = {
          * @private
          */
         function report(node, expectedOperator) {
+            const operatorToken = sourceCode.getFirstTokenBetween(
+                node.left,
+                node.right,
+                token => token.value === node.operator
+            );
+
             context.report({
                 node,
-                loc: getOperatorLocation(node),
+                loc: operatorToken.loc,
                 messageId: "unexpected",
                 data: { expectedOperator, actualOperator: node.operator },
                 fix(fixer) {
 
                     // If the comparison is a `typeof` comparison or both sides are literals with the same type, then it's safe to fix.
                     if (isTypeOfBinary(node) || areLiteralsAndSameType(node)) {
-                        const operatorToken = sourceCode.getFirstTokenBetween(
-                            node.left,
-                            node.right,
-                            token => token.value === node.operator
-                        );
-
                         return fixer.replaceText(operatorToken, expectedOperator);
                     }
                     return null;

@@ -26,6 +26,16 @@ module.exports = {
         schema: [
             {
                 enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    enforceForClassMembers: {
+                        type: "boolean",
+                        default: false
+                    }
+                },
+                additionalProperties: false
             }
         ],
 
@@ -41,6 +51,7 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
         const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+        const enforceForClassMembers = context.options[1] && context.options[1].enforceForClassMembers;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -178,10 +189,16 @@ module.exports = {
         // Public
         //--------------------------------------------------------------------------
 
-        return {
+        const listeners = {
             Property: checkSpacing("key"),
             MemberExpression: checkSpacing("property")
         };
+
+        if (enforceForClassMembers) {
+            listeners.MethodDefinition = checkSpacing("key");
+        }
+
+        return listeners;
 
     }
 };

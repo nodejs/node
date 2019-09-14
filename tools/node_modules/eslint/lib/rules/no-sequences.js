@@ -105,9 +105,9 @@ module.exports = {
                     }
                 }
 
-                const child = sourceCode.getTokenAfter(node.expressions[0]);
+                const firstCommaToken = sourceCode.getTokenAfter(node.expressions[0], astUtils.isCommaToken);
 
-                context.report({ node, loc: child.loc.start, message: "Unexpected use of comma operator." });
+                context.report({ node, loc: firstCommaToken.loc, message: "Unexpected use of comma operator." });
             }
         };
 
