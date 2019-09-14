@@ -286,7 +286,7 @@ Interpreter::NewSourcePositionCollectionJob(
   auto job = std::make_unique<InterpreterCompilationJob>(parse_info, literal,
                                                          allocator, nullptr);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
-  return job;
+  return std::unique_ptr<UnoptimizedCompilationJob> { static_cast<UnoptimizedCompilationJob*>(job.release()) };
 }
 
 void Interpreter::ForEachBytecode(
