@@ -347,18 +347,21 @@ var AjaxResponse = (function () {
     return AjaxResponse;
 }());
 exports.AjaxResponse = AjaxResponse;
-function AjaxErrorImpl(message, xhr, request) {
-    Error.call(this);
-    this.message = message;
-    this.name = 'AjaxError';
-    this.xhr = xhr;
-    this.request = request;
-    this.status = xhr.status;
-    this.responseType = xhr.responseType || request.responseType;
-    this.response = parseXhrResponse(this.responseType, xhr);
-    return this;
-}
-AjaxErrorImpl.prototype = Object.create(Error.prototype);
+var AjaxErrorImpl = (function () {
+    function AjaxErrorImpl(message, xhr, request) {
+        Error.call(this);
+        this.message = message;
+        this.name = 'AjaxError';
+        this.xhr = xhr;
+        this.request = request;
+        this.status = xhr.status;
+        this.responseType = xhr.responseType || request.responseType;
+        this.response = parseXhrResponse(this.responseType, xhr);
+        return this;
+    }
+    AjaxErrorImpl.prototype = Object.create(Error.prototype);
+    return AjaxErrorImpl;
+})();
 exports.AjaxError = AjaxErrorImpl;
 function parseJson(xhr) {
     if ('response' in xhr) {

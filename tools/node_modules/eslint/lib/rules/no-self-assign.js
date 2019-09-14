@@ -152,13 +152,14 @@ function eachSelfAssignment(left, right, props, report) {
     } else if (
         left.type === "Property" &&
         right.type === "Property" &&
-        !left.computed &&
-        !right.computed &&
         right.kind === "init" &&
-        !right.method &&
-        left.key.name === right.key.name
+        !right.method
     ) {
-        eachSelfAssignment(left.value, right.value, props, report);
+        const leftName = astUtils.getStaticPropertyName(left);
+
+        if (leftName !== null && leftName === astUtils.getStaticPropertyName(right)) {
+            eachSelfAssignment(left.value, right.value, props, report);
+        }
     } else if (
         props &&
         left.type === "MemberExpression" &&

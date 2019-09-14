@@ -4,7 +4,7 @@ var Observable_1 = require("../Observable");
 var isArray_1 = require("../util/isArray");
 var isFunction_1 = require("../util/isFunction");
 var map_1 = require("../operators/map");
-var toString = Object.prototype.toString;
+var toString = (function () { return Object.prototype.toString; })();
 function fromEvent(target, eventName, options, resultSelector) {
     if (isFunction_1.isFunction(options)) {
         resultSelector = options;

@@ -96,7 +96,7 @@ module.exports = {
                         grandparent.callee.name === "Boolean")
                 ) {
                     context.report({
-                        node,
+                        node: parent,
                         messageId: "unexpectedNegation",
                         fix: fixer => {
                             if (hasCommentsInside(parent)) {

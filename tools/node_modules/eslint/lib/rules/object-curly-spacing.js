@@ -167,7 +167,7 @@ module.exports = {
                 if (options.spaced && !firstSpaced) {
                     reportRequiredBeginningSpace(node, first);
                 }
-                if (!options.spaced && firstSpaced) {
+                if (!options.spaced && firstSpaced && second.type !== "Line") {
                     reportNoBeginningSpace(node, first);
                 }
             }

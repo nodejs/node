@@ -1588,17 +1588,22 @@ module.exports = {
                             return;
                         }
 
-                        // If the token matches the expected expected indentation, don't report it.
-                        if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
-                            return;
-                        }
-
                         if (astUtils.isCommentToken(firstTokenOfLine)) {
                             const tokenBefore = precedingTokens.get(firstTokenOfLine);
                             const tokenAfter = tokenBefore ? sourceCode.getTokenAfter(tokenBefore) : sourceCode.ast.tokens[0];
-
                             const mayAlignWithBefore = tokenBefore && !hasBlankLinesBetween(tokenBefore, firstTokenOfLine);
                             const mayAlignWithAfter = tokenAfter && !hasBlankLinesBetween(firstTokenOfLine, tokenAfter);
+
+                            /*
+                             * If a comment precedes a line that begins with a semicolon token, align to that token, i.e.
+                             *
+                             * let foo
+                             * // comment
+                             * ;(async () => {})()
+                             */
+                            if (tokenAfter && astUtils.isSemicolonToken(tokenAfter) && !astUtils.isTokenOnSameLine(firstTokenOfLine, tokenAfter)) {
+                                offsets.setDesiredOffset(firstTokenOfLine, tokenAfter, 0);
+                            }
 
                             // If a comment matches the expected indentation of the token immediately before or after, don't report it.
                             if (
@@ -1607,6 +1612,11 @@ module.exports = {
                             ) {
                                 return;
                             }
+                        }
+
+                        // If the token matches the expected indentation, don't report it.
+                        if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
+                            return;
                         }
 
                         // Otherwise, report the token/comment.
