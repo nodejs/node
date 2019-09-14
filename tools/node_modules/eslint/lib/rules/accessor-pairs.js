@@ -152,7 +152,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce getter and setter pairs in objects",
+            description: "enforce getter and setter pairs in objects and classes",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/accessor-pairs"
@@ -168,6 +168,10 @@ module.exports = {
                 setWithoutGet: {
                     type: "boolean",
                     default: true
+                },
+                enforceForClassMembers: {
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
@@ -177,13 +181,16 @@ module.exports = {
             missingGetterInPropertyDescriptor: "Getter is not present in property descriptor.",
             missingSetterInPropertyDescriptor: "Setter is not present in property descriptor.",
             missingGetterInObjectLiteral: "Getter is not present for {{ name }}.",
-            missingSetterInObjectLiteral: "Setter is not present for {{ name }}."
+            missingSetterInObjectLiteral: "Setter is not present for {{ name }}.",
+            missingGetterInClass: "Getter is not present for class {{ name }}.",
+            missingSetterInClass: "Setter is not present for class {{ name }}."
         }
     },
     create(context) {
         const config = context.options[0] || {};
         const checkGetWithoutSet = config.getWithoutSet === true;
         const checkSetWithoutGet = config.setWithoutGet !== false;
+        const enforceForClassMembers = config.enforceForClassMembers === true;
         const sourceCode = context.getSourceCode();
 
         /**
@@ -198,6 +205,13 @@ module.exports = {
                 context.report({
                     node,
                     messageId: `${messageKind}InObjectLiteral`,
+                    loc: astUtils.getFunctionHeadLoc(node.value, sourceCode),
+                    data: { name: astUtils.getFunctionNameWithKind(node.value) }
+                });
+            } else if (node.type === "MethodDefinition") {
+                context.report({
+                    node,
+                    messageId: `${messageKind}InClass`,
                     loc: astUtils.getFunctionHeadLoc(node.value, sourceCode),
                     data: { name: astUtils.getFunctionNameWithKind(node.value) }
                 });
@@ -313,15 +327,41 @@ module.exports = {
             }
         }
 
-        return {
-            ObjectExpression(node) {
-                if (checkSetWithoutGet || checkGetWithoutSet) {
-                    checkObjectLiteral(node);
-                    if (isPropertyDescriptor(node)) {
-                        checkPropertyDescriptor(node);
-                    }
-                }
+        /**
+         * Checks the given object expression as an object literal and as a possible property descriptor.
+         * @param {ASTNode} node `ObjectExpression` node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkObjectExpression(node) {
+            checkObjectLiteral(node);
+            if (isPropertyDescriptor(node)) {
+                checkPropertyDescriptor(node);
             }
-        };
+        }
+
+        /**
+         * Checks the given class body.
+         * @param {ASTNode} node `ClassBody` node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkClassBody(node) {
+            const methodDefinitions = node.body.filter(m => m.type === "MethodDefinition");
+
+            checkList(methodDefinitions.filter(m => m.static));
+            checkList(methodDefinitions.filter(m => !m.static));
+        }
+
+        const listeners = {};
+
+        if (checkSetWithoutGet || checkGetWithoutSet) {
+            listeners.ObjectExpression = checkObjectExpression;
+            if (enforceForClassMembers) {
+                listeners.ClassBody = checkClassBody;
+            }
+        }
+
+        return listeners;
     }
 };

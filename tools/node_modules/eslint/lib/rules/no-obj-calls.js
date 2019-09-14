@@ -6,6 +6,18 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { CALL, ReferenceTracker } = require("eslint-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect"];
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -20,23 +32,31 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-obj-calls"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedCall: "'{{name}}' is not a function."
+        }
     },
 
     create(context) {
 
         return {
-            CallExpression(node) {
+            Program() {
+                const scope = context.getScope();
+                const tracker = new ReferenceTracker(scope);
+                const traceMap = {};
 
-                if (node.callee.type === "Identifier") {
-                    const name = node.callee.name;
+                for (const global of nonCallableGlobals) {
+                    traceMap[global] = {
+                        [CALL]: true
+                    };
+                }
 
-                    if (name === "Math" || name === "JSON" || name === "Reflect") {
-                        context.report({ node, message: "'{{name}}' is not a function.", data: { name } });
-                    }
+                for (const { node } of tracker.iterateGlobalReferences(traceMap)) {
+                    context.report({ node, messageId: "unexpectedCall", data: { name: node.callee.name } });
                 }
             }
         };
-
     }
 };
