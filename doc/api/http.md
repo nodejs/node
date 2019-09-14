@@ -19,7 +19,7 @@ HTTP message headers are represented by an object like this:
 { 'content-length': '123',
   'content-type': 'text/plain',
   'connection': 'keep-alive',
-  'host': 'mysite.com',
+  'host': 'xaxdev.github.io',
   'accept': '*/*' }
 ```
 
@@ -43,7 +43,7 @@ list like the following:
   'content-LENGTH', '123',
   'content-type', 'text/plain',
   'CONNECTION', 'keep-alive',
-  'Host', 'mysite.com',
+  'Host', 'xaxdev.github.io',
   'accepT', '*/*' ]
 ```
 
@@ -381,7 +381,7 @@ proxy.listen(1337, '127.0.0.1', () => {
     port: 1337,
     host: '127.0.0.1',
     method: 'CONNECT',
-    path: 'www.google.com:80'
+    path: 'xaxdev.github.io:80'
   };
 
   const req = http.request(options);
@@ -754,7 +754,7 @@ may also be accessed via `request.connection`.
 ```js
 const http = require('http');
 const options = {
-  host: 'www.google.com',
+  host: 'xaxdev.github.io',
 };
 const req = http.get(options);
 req.end();
