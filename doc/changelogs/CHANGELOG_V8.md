@@ -3450,28 +3450,28 @@ Big thanks to @addaleax who prepared the vast majority of this release.
 * **Build**
   * The compiler version requirement to build Node with GCC has been raised to
     GCC 4.9.4.
-    [[`820b011ed6`](https://github.com/nodejs/node/commit/820b011ed6)]
+    [[`820b011ed6`](https://github.com/nodejs/node/commit/820b011ed6)] -
     [#13466](https://github.com/nodejs/node/pull/13466)
 
 * **Cluster**
   * Users now have more fine-grained control over the inspector port used by
     individual cluster workers. Previously, cluster workers were restricted to
     incrementing from the master's debug port.
-    [[`dfc46e262a`](https://github.com/nodejs/node/commit/dfc46e262a)]
+    [[`dfc46e262a`](https://github.com/nodejs/node/commit/dfc46e262a)] -
     [#14140](https://github.com/nodejs/node/pull/14140)
 
 * **DNS**
   * The server used for DNS queries can now use a custom port.
-    [[`ebe7bb29aa`](https://github.com/nodejs/node/commit/ebe7bb29aa)]
+    [[`ebe7bb29aa`](https://github.com/nodejs/node/commit/ebe7bb29aa)] -
     [#13723](https://github.com/nodejs/node/pull/13723)
   * Support for `dns.resolveAny()` has been added.
-    [[`6e30e2558e`](https://github.com/nodejs/node/commit/6e30e2558e)]
+    [[`6e30e2558e`](https://github.com/nodejs/node/commit/6e30e2558e)] -
     [#13137](https://github.com/nodejs/node/pull/13137)
 
 * **npm**
   * The `npm` CLI has been updated to version 5.3.0. In particular, it now comes
     with the `npx` binary, which is also shipped with Node.
-    [[`dc3f6b9ac1`](https://github.com/nodejs/node/commit/dc3f6b9ac1)]
+    [[`dc3f6b9ac1`](https://github.com/nodejs/node/commit/dc3f6b9ac1)] -
     [#14235](https://github.com/nodejs/node/pull/14235)
   * `npm` Changelogs:
     * [v5.0.4](https://github.com/npm/npm/releases/tag/v5.0.4)
@@ -3756,10 +3756,10 @@ This is a security release. All Node.js users should consult the security releas
   Two regressions with the `stream` module have been fixed:
   * The `finish` event will now always be emitted after the `error` event
     if one is emitted:
-    [[`0a9e96e86c`](https://github.com/nodejs/node/commit/0a9e96e86c)]
+    [[`0a9e96e86c`](https://github.com/nodejs/node/commit/0a9e96e86c)] -
     [#13850](https://github.com/nodejs/node/pull/13850)
   * In object mode, readable streams can now use `undefined` again.
-    [[`5840138e70`](https://github.com/nodejs/node/commit/5840138e70)]
+    [[`5840138e70`](https://github.com/nodejs/node/commit/5840138e70)] -
     [#13760](https://github.com/nodejs/node/pull/13760)
 
 ### Commits
@@ -3843,24 +3843,24 @@ Ref: https://github.com/nodejs/node/issues/13667
   * `stdout` and `stderr` are now available on the error output of a
     failed call to the `util.promisify()`ed version of
     `child_process.exec`.
-    [[`d66d4fc94c`](https://github.com/nodejs/node/commit/d66d4fc94c)]
+    [[`d66d4fc94c`](https://github.com/nodejs/node/commit/d66d4fc94c)] -
     [#13388](https://github.com/nodejs/node/pull/13388)
 
 * **HTTP**
   * A regression that broke certain scenarios in which HTTP is used together
     with the `cluster` module has been fixed.
-    [[`fff8a56d6f`](https://github.com/nodejs/node/commit/fff8a56d6f)]
+    [[`fff8a56d6f`](https://github.com/nodejs/node/commit/fff8a56d6f)] -
     [#13578](https://github.com/nodejs/node/pull/13578)
 
 * **HTTPS**
   * The `rejectUnauthorized` option now works properly for unix sockets.
-    [[`c4cbd99d37`](https://github.com/nodejs/node/commit/c4cbd99d37)]
+    [[`c4cbd99d37`](https://github.com/nodejs/node/commit/c4cbd99d37)] -
     [#13505](https://github.com/nodejs/node/pull/13505)
 
 * **Readline**
   * A change that broke `npm init` and other code which uses `readline`
     multiple times on the same input stream is reverted.
-    [[`0df6c0b5f0`](https://github.com/nodejs/node/commit/0df6c0b5f0)]
+    [[`0df6c0b5f0`](https://github.com/nodejs/node/commit/0df6c0b5f0)] -
     [#13560](https://github.com/nodejs/node/pull/13560)
 
 ### Commits
@@ -3923,30 +3923,30 @@ Ref: https://github.com/nodejs/node/issues/13667
 * **Async Hooks**
   * When one `Promise` leads to the creation of a new `Promise`, the parent
     `Promise` will be identified as the trigger
-    [[`135f4e6643`](https://github.com/nodejs/node/commit/135f4e6643)]
+    [[`135f4e6643`](https://github.com/nodejs/node/commit/135f4e6643)] -
     [#13367](https://github.com/nodejs/node/pull/13367).
 * **Dependencies**
   * libuv has been updated to 1.12.0
-    [[`968596ec77`](https://github.com/nodejs/node/commit/968596ec77)]
+    [[`968596ec77`](https://github.com/nodejs/node/commit/968596ec77)] -
     [#13306](https://github.com/nodejs/node/pull/13306).
   * npm has been updated to 5.0.3
-    [[`ffa7debd7a`](https://github.com/nodejs/node/commit/ffa7debd7a)]
+    [[`ffa7debd7a`](https://github.com/nodejs/node/commit/ffa7debd7a)] -
     [#13487](https://github.com/nodejs/node/pull/13487).
 * **File system**
   * The `fs.exists()` function now works correctly with `util.promisify()`
-    [[`6e0eccd7a1`](https://github.com/nodejs/node/commit/6e0eccd7a1)]
+    [[`6e0eccd7a1`](https://github.com/nodejs/node/commit/6e0eccd7a1)] -
     [#13316](https://github.com/nodejs/node/pull/13316).
   * fs.Stats times are now also available as numbers
-    [[`c756efb25a`](https://github.com/nodejs/node/commit/c756efb25a)]
+    [[`c756efb25a`](https://github.com/nodejs/node/commit/c756efb25a)] -
     [#13173](https://github.com/nodejs/node/pull/13173).
 * **Inspector**
   * It is now possible to bind to a random port using `--inspect=0`
-    [[`cc6ec2fb27`](https://github.com/nodejs/node/commit/cc6ec2fb27)]
+    [[`cc6ec2fb27`](https://github.com/nodejs/node/commit/cc6ec2fb27)] -
     [#5025](https://github.com/nodejs/node/pull/5025).
 * **Zlib**
   * A regression in the Zlib module that made it impossible to properly
     subclasses `zlib.Deflate` and other Zlib classes has been fixed.
-    [[`6aeb555cc4`](https://github.com/nodejs/node/commit/6aeb555cc4)]
+    [[`6aeb555cc4`](https://github.com/nodejs/node/commit/6aeb555cc4)] -
     [#13374](https://github.com/nodejs/node/pull/13374).
 
 ### Commits
@@ -4082,47 +4082,47 @@ LTS codename `'Carbon'`. Note that the
 
 * **Async Hooks**
   * The `async_hooks` module has landed in core
-    [[`4a7233c178`](https://github.com/nodejs/node/commit/4a7233c178)]
+    [[`4a7233c178`](https://github.com/nodejs/node/commit/4a7233c178)] -
     [#12892](https://github.com/nodejs/node/pull/12892).
 
 * **Buffer**
   * Using the `--pending-deprecation` flag will cause Node.js to emit a
     deprecation warning when using `new Buffer(num)` or `Buffer(num)`.
-    [[`d2d32ea5a2`](https://github.com/nodejs/node/commit/d2d32ea5a2)]
+    [[`d2d32ea5a2`](https://github.com/nodejs/node/commit/d2d32ea5a2)] -
     [#11968](https://github.com/nodejs/node/pull/11968).
   * `new Buffer(num)` and `Buffer(num)` will zero-fill new `Buffer` instances
-    [[`7eb1b4658e`](https://github.com/nodejs/node/commit/7eb1b4658e)]
+    [[`7eb1b4658e`](https://github.com/nodejs/node/commit/7eb1b4658e)] -
     [#12141](https://github.com/nodejs/node/pull/12141).
   * Many `Buffer` methods now accept `Uint8Array` as input
-    [[`beca3244e2`](https://github.com/nodejs/node/commit/beca3244e2)]
+    [[`beca3244e2`](https://github.com/nodejs/node/commit/beca3244e2)] -
     [#10236](https://github.com/nodejs/node/pull/10236).
 
 * **Child Process**
   * Argument and kill signal validations have been improved
-    [[`97a77288ce`](https://github.com/nodejs/node/commit/97a77288ce)]
+    [[`97a77288ce`](https://github.com/nodejs/node/commit/97a77288ce)] -
     [#12348](https://github.com/nodejs/node/pull/12348),
-    [[`d75fdd96aa`](https://github.com/nodejs/node/commit/d75fdd96aa)]
+    [[`d75fdd96aa`](https://github.com/nodejs/node/commit/d75fdd96aa)] -
     [#10423](https://github.com/nodejs/node/pull/10423).
   * Child Process methods accept `Uint8Array` as input
-    [[`627ecee9ed`](https://github.com/nodejs/node/commit/627ecee9ed)]
+    [[`627ecee9ed`](https://github.com/nodejs/node/commit/627ecee9ed)] -
     [#10653](https://github.com/nodejs/node/pull/10653).
 
 * **Console**
   * Error events emitted when using `console` methods are now supressed.
-    [[`f18e08d820`](https://github.com/nodejs/node/commit/f18e08d820)]
+    [[`f18e08d820`](https://github.com/nodejs/node/commit/f18e08d820)] -
     [#9744](https://github.com/nodejs/node/pull/9744).
 
 * **Dependencies**
   * The npm client has been updated to 5.0.0
-    [[`3c3b36af0f`](https://github.com/nodejs/node/commit/3c3b36af0f)]
+    [[`3c3b36af0f`](https://github.com/nodejs/node/commit/3c3b36af0f)] -
     [#12936](https://github.com/nodejs/node/pull/12936).
   * V8 has been updated to 5.8 with forward ABI stability to 6.0
-    [[`60d1aac8d2`](https://github.com/nodejs/node/commit/60d1aac8d2)]
+    [[`60d1aac8d2`](https://github.com/nodejs/node/commit/60d1aac8d2)] -
     [#12784](https://github.com/nodejs/node/pull/12784).
 
 * **Domains**
   * Native `Promise` instances are now `Domain` aware
-    [[`84dabe8373`](https://github.com/nodejs/node/commit/84dabe8373)]
+    [[`84dabe8373`](https://github.com/nodejs/node/commit/84dabe8373)] -
     [#12489](https://github.com/nodejs/node/pull/12489).
 
 * **Errors**
@@ -4132,118 +4132,118 @@ LTS codename `'Carbon'`. Note that the
 
 * **File System**
   * The utility class `fs.SyncWriteStream` has been deprecated
-    [[`7a55e34ef4`](https://github.com/nodejs/node/commit/7a55e34ef4)]
+    [[`7a55e34ef4`](https://github.com/nodejs/node/commit/7a55e34ef4)] -
     [#10467](https://github.com/nodejs/node/pull/10467).
   * The deprecated `fs.read()` string interface has been removed
-    [[`3c2a9361ff`](https://github.com/nodejs/node/commit/3c2a9361ff)]
+    [[`3c2a9361ff`](https://github.com/nodejs/node/commit/3c2a9361ff)] -
     [#9683](https://github.com/nodejs/node/pull/9683).
 
 * **HTTP**
   * Improved support for userland implemented Agents
-    [[`90403dd1d0`](https://github.com/nodejs/node/commit/90403dd1d0)]
+    [[`90403dd1d0`](https://github.com/nodejs/node/commit/90403dd1d0)] -
     [#11567](https://github.com/nodejs/node/pull/11567).
   * Outgoing Cookie headers are concatenated into a single string
-    [[`d3480776c7`](https://github.com/nodejs/node/commit/d3480776c7)]
+    [[`d3480776c7`](https://github.com/nodejs/node/commit/d3480776c7)] -
     [#11259](https://github.com/nodejs/node/pull/11259).
   * The `httpResponse.writeHeader()` method has been deprecated
-    [[`fb71ba4921`](https://github.com/nodejs/node/commit/fb71ba4921)]
+    [[`fb71ba4921`](https://github.com/nodejs/node/commit/fb71ba4921)] -
     [#11355](https://github.com/nodejs/node/pull/11355).
   * New methods for accessing HTTP headers have been added to `OutgoingMessage`
-    [[`3e6f1032a4`](https://github.com/nodejs/node/commit/3e6f1032a4)]
+    [[`3e6f1032a4`](https://github.com/nodejs/node/commit/3e6f1032a4)] -
     [#10805](https://github.com/nodejs/node/pull/10805).
 
 * **Lib**
   * All deprecation messages have been assigned static identifiers
-    [[`5de3cf099c`](https://github.com/nodejs/node/commit/5de3cf099c)]
+    [[`5de3cf099c`](https://github.com/nodejs/node/commit/5de3cf099c)] -
     [#10116](https://github.com/nodejs/node/pull/10116).
   * The legacy `linkedlist` module has been removed
-    [[`84a23391f6`](https://github.com/nodejs/node/commit/84a23391f6)]
+    [[`84a23391f6`](https://github.com/nodejs/node/commit/84a23391f6)] -
     [#12113](https://github.com/nodejs/node/pull/12113).
 
 * **N-API**
   * Experimental support for the new N-API API has been added
-    [[`56e881d0b0`](https://github.com/nodejs/node/commit/56e881d0b0)]
+    [[`56e881d0b0`](https://github.com/nodejs/node/commit/56e881d0b0)] -
     [#11975](https://github.com/nodejs/node/pull/11975).
 
 * **Process**
   * Process warning output can be redirected to a file using the
     `--redirect-warnings` command-line argument
-    [[`03e89b3ff2`](https://github.com/nodejs/node/commit/03e89b3ff2)]
+    [[`03e89b3ff2`](https://github.com/nodejs/node/commit/03e89b3ff2)] -
     [#10116](https://github.com/nodejs/node/pull/10116).
   * Process warnings may now include additional detail
-    [[`dd20e68b0f`](https://github.com/nodejs/node/commit/dd20e68b0f)]
+    [[`dd20e68b0f`](https://github.com/nodejs/node/commit/dd20e68b0f)] -
     [#12725](https://github.com/nodejs/node/pull/12725).
 
 * **REPL**
   * REPL magic mode has been deprecated
-    [[`3f27f02da0`](https://github.com/nodejs/node/commit/3f27f02da0)]
+    [[`3f27f02da0`](https://github.com/nodejs/node/commit/3f27f02da0)] -
     [#11599](https://github.com/nodejs/node/pull/11599).
 
 * **Src**
   * `NODE_MODULE_VERSION` has been updated to 57
-    [[`ec7cbaf266`](https://github.com/nodejs/node/commit/ec7cbaf266)]
+    [[`ec7cbaf266`](https://github.com/nodejs/node/commit/ec7cbaf266)] -
     [#12995](https://github.com/nodejs/node/pull/12995).
   * Add `--pending-deprecation` command-line argument and
     `NODE_PENDING_DEPRECATION` environment variable
-    [[`a16b570f8c`](https://github.com/nodejs/node/commit/a16b570f8c)]
+    [[`a16b570f8c`](https://github.com/nodejs/node/commit/a16b570f8c)] -
     [#11968](https://github.com/nodejs/node/pull/11968).
   * The `--debug` command-line argument has been deprecated. Note that
     using `--debug` will enable the *new* Inspector-based debug protocol
     as the legacy Debugger protocol previously used by Node.js has been
-    removed. [[`010f864426`](https://github.com/nodejs/node/commit/010f864426)]
+    removed. [[`010f864426`](https://github.com/nodejs/node/commit/010f864426)] -
     [#12949](https://github.com/nodejs/node/pull/12949).
   * Throw when the `-c` and `-e` command-line arguments are used at the same
-    time [[`a5f91ab230`](https://github.com/nodejs/node/commit/a5f91ab230)]
+    time [[`a5f91ab230`](https://github.com/nodejs/node/commit/a5f91ab230)] -
     [#11689](https://github.com/nodejs/node/pull/11689).
   * Throw when the `--use-bundled-ca` and `--use-openssl-ca` command-line
     arguments are used at the same time.
-    [[`8a7db9d4b5`](https://github.com/nodejs/node/commit/8a7db9d4b5)]
+    [[`8a7db9d4b5`](https://github.com/nodejs/node/commit/8a7db9d4b5)] -
     [#12087](https://github.com/nodejs/node/pull/12087).
 
 * **Stream**
   * `Stream` now supports `destroy()` and `_destroy()` APIs
-    [[`b6e1d22fa6`](https://github.com/nodejs/node/commit/b6e1d22fa6)]
+    [[`b6e1d22fa6`](https://github.com/nodejs/node/commit/b6e1d22fa6)] -
     [#12925](https://github.com/nodejs/node/pull/12925).
   * `Stream` now supports the `_final()` API
-    [[`07c7f198db`](https://github.com/nodejs/node/commit/07c7f198db)]
+    [[`07c7f198db`](https://github.com/nodejs/node/commit/07c7f198db)] -
     [#12828](https://github.com/nodejs/node/pull/12828).
 
 * **TLS**
   * The `rejectUnauthorized` option now defaults to `true`
-    [[`348cc80a3c`](https://github.com/nodejs/node/commit/348cc80a3c)]
+    [[`348cc80a3c`](https://github.com/nodejs/node/commit/348cc80a3c)] -
     [#5923](https://github.com/nodejs/node/pull/5923).
   * The `tls.createSecurePair()` API now emits a runtime deprecation
-    [[`a2ae08999b`](https://github.com/nodejs/node/commit/a2ae08999b)]
+    [[`a2ae08999b`](https://github.com/nodejs/node/commit/a2ae08999b)] -
     [#11349](https://github.com/nodejs/node/pull/11349).
   * A runtime deprecation will now be emitted when `dhparam` is less than
-    2048 bits [[`d523eb9c40`](https://github.com/nodejs/node/commit/d523eb9c40)]
+    2048 bits [[`d523eb9c40`](https://github.com/nodejs/node/commit/d523eb9c40)] -
     [#11447](https://github.com/nodejs/node/pull/11447).
 
 * **URL**
   * The WHATWG URL implementation is now a fully-supported Node.js API
-    [[`d080ead0f9`](https://github.com/nodejs/node/commit/d080ead0f9)]
+    [[`d080ead0f9`](https://github.com/nodejs/node/commit/d080ead0f9)] -
     [#12710](https://github.com/nodejs/node/pull/12710).
 
 * **Util**
   * `Symbol` keys are now displayed by default when using `util.inspect()`
-    [[`5bfd13b81e`](https://github.com/nodejs/node/commit/5bfd13b81e)]
+    [[`5bfd13b81e`](https://github.com/nodejs/node/commit/5bfd13b81e)] -
     [#9726](https://github.com/nodejs/node/pull/9726).
   * `toJSON` errors will be thrown when formatting `%j`
-    [[`455e6f1dd8`](https://github.com/nodejs/node/commit/455e6f1dd8)]
+    [[`455e6f1dd8`](https://github.com/nodejs/node/commit/455e6f1dd8)] -
     [#11708](https://github.com/nodejs/node/pull/11708).
   * Convert `inspect.styles` and `inspect.colors` to prototype-less objects
-    [[`aab0d202f8`](https://github.com/nodejs/node/commit/aab0d202f8)]
+    [[`aab0d202f8`](https://github.com/nodejs/node/commit/aab0d202f8)] -
     [#11624](https://github.com/nodejs/node/pull/11624).
   * The new `util.promisify()` API has been added
-    [[`99da8e8e02`](https://github.com/nodejs/node/commit/99da8e8e02)]
+    [[`99da8e8e02`](https://github.com/nodejs/node/commit/99da8e8e02)] -
     [#12442](https://github.com/nodejs/node/pull/12442).
 
 * **Zlib**
   * Support `Uint8Array` in Zlib convenience methods
-    [[`91383e47fd`](https://github.com/nodejs/node/commit/91383e47fd)]
+    [[`91383e47fd`](https://github.com/nodejs/node/commit/91383e47fd)] -
     [#12001](https://github.com/nodejs/node/pull/12001).
   * Zlib errors now use `RangeError` and `TypeError` consistently
-    [[`b514bd231e`](https://github.com/nodejs/node/commit/b514bd231e)]
+    [[`b514bd231e`](https://github.com/nodejs/node/commit/b514bd231e)] -
     [#11391](https://github.com/nodejs/node/pull/11391).
 
 ### Commits
