@@ -163,6 +163,7 @@ struct V8Platform v8_platform;
 }  // namespace per_process
 
 #ifdef __POSIX__
+
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
   ResetStdio();
   raise(signo);
@@ -548,6 +549,7 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
       struct sigaction sa;
       memset(&sa, 0, sizeof(sa));
       sa.sa_handler = SIG_DFL;
+      sigemptyset(&sa.sa_mask);
       CHECK_EQ(sigaction(signo, &sa, nullptr), 0);
 
       ResetStdio();
@@ -574,8 +576,8 @@ void RegisterSignalHandler(int signal,
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_sigaction = handler;
-  sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
   sigfillset(&sa.sa_mask);
+  sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
 #endif  // __POSIX__
@@ -623,6 +625,7 @@ inline void PlatformInit() {
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
   memset(&act, 0, sizeof(act));
+  sigemptyset(&act.sa_mask);
 
   // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
   // it evaluates to 32, 34 or 64, depending on whether RT signals are enabled.
@@ -675,6 +678,7 @@ inline void PlatformInit() {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = TrapWebAssemblyOrContinue;
+    sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
     CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
   }
