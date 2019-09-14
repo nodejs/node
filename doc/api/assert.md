@@ -1309,7 +1309,10 @@ second argument. This might lead to difficult-to-spot errors.
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_fn_error_message
+[`assert.equal()`]: #assert_assert_equal_actual_expected_message
+[`assert.notDeepEqual()`]: #assert_assert_notdeepequal_actual_expected_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
+[`assert.notEqual()`]: #assert_assert_notequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
