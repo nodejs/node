@@ -112,13 +112,20 @@ enum PerformanceGCKind {
 };
 
 enum PerformanceGCFlags {
-  NODE_PERFORMANCE_GC_FLAGS_NO = GCCallbackFlags::kNoGCCallbackFlags,
-  NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED = GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos,
-  NODE_PERFORMANCE_GC_FLAGS_FORCED = GCCallbackFlags::kGCCallbackFlagForced,
-  NODE_PERFORMANCE_GC_FLAGS_SYNCHRONOUS_PHANTOM_PROCESSING = GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing,
-  NODE_PERFORMANCE_GC_FLAGS_ALL_AVAILABLE_GARBAGE = GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage,
-  NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY = GCCallbackFlags::kGCCallbackFlagCollectAllExternalMemory,
-  NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE = GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
+  NODE_PERFORMANCE_GC_FLAGS_NO =
+    GCCallbackFlags::kNoGCCallbackFlags,
+  NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED =
+    GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos,
+  NODE_PERFORMANCE_GC_FLAGS_FORCED =
+    GCCallbackFlags::kGCCallbackFlagForced,
+  NODE_PERFORMANCE_GC_FLAGS_SYNCHRONOUS_PHANTOM_PROCESSING =
+    GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing,
+  NODE_PERFORMANCE_GC_FLAGS_ALL_AVAILABLE_GARBAGE =
+    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage,
+  NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY =
+    GCCallbackFlags::kGCCallbackFlagCollectAllExternalMemory,
+  NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE =
+    GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
 };
 
 class GCPerformanceEntry : public PerformanceEntry {
