@@ -6,5 +6,3 @@ setTimeout(() => {
     const c = 102;
   }
 }, 10);
-
-process.on('warning', console.log);
