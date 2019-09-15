@@ -1775,6 +1775,9 @@ napi_status napi_create_date(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
+This API does not observe leap seconds; they are ignored, as
+ECMAScript aligns with POSIX time specification.
+
 This API allocates a JavaScript `Date` object.
 
 JavaScript `Date` objects are described in
@@ -2433,6 +2436,9 @@ napi_status napi_get_date_value(napi_env env,
 * `[in] value`: `napi_value` representing a JavaScript `Date`.
 * `[out] result`: Time value as a `double` represented as milliseconds
 since midnight at the beginning of 01 January, 1970 UTC.
+
+This API does not observe leap seconds; they are ignored, as
+ECMAScript aligns with POSIX time specification.
 
 Returns `napi_ok` if the API succeeded. If a non-date `napi_value` is passed
 in it returns `napi_date_expected`.
