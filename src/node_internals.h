@@ -102,6 +102,8 @@ void RegisterSignalHandler(int signal,
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
 
+void InitializeContextRuntime(v8::Local<v8::Context>);
+
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
 }  // namespace task_queue
