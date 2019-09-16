@@ -130,7 +130,7 @@ as a string.
 const server = net.createServer((socket) => {
   socket.end('goodbye\n');
 }).on('error', (err) => {
-  // handle errors here
+  // Handle errors here.
   throw err;
 });
 
@@ -147,7 +147,7 @@ Don't call `server.address()` until the `'listening'` event has been emitted.
 added: v0.1.90
 -->
 
-* `callback` {Function} Called when the server is closed
+* `callback` {Function} Called when the server is closed.
 * Returns: {net.Server}
 
 Stops the server from accepting new connections and keeps existing
@@ -164,6 +164,8 @@ deprecated: v0.9.7
 -->
 
 > Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
+
+* {integer|null}
 
 The number of concurrent connections on the server.
 
@@ -269,9 +271,9 @@ changes:
     functions.
   * `exclusive` {boolean} **Default:** `false`
   * `readableAll` {boolean} For IPC servers makes the pipe readable
-    for all users. **Default:** `false`
+    for all users. **Default:** `false`.
   * `writableAll` {boolean} For IPC servers makes the pipe writable
-    for all users. **Default:** `false`
+    for all users. **Default:** `false`.
   * `ipv6Only` {boolean} For TCP servers, setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to host `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
@@ -353,6 +355,8 @@ added: v5.7.0
 <!-- YAML
 added: v0.2.0
 -->
+
+* {integer}
 
 Set this property to reject connections when the server's connection count gets
 high.
@@ -542,6 +546,8 @@ socket as reported by the operating system:
 added: v0.3.8
 -->
 
+* {integer}
+
 `net.Socket` has the property that `socket.write()` always works. This is to
 help users get up and running quickly. The computer cannot always keep up
 with the amount of data that is written to a socket - the network connection
@@ -564,12 +570,16 @@ Users who experience large or growing `bufferSize` should attempt to
 added: v0.5.3
 -->
 
+* {integer}
+
 The amount of received bytes.
 
 ### socket.bytesWritten
 <!-- YAML
 added: v0.5.3
 -->
+
+* {integer}
 
 The amount of bytes sent.
 
@@ -659,10 +669,10 @@ const net = require('net');
 net.connect({
   port: 80,
   onread: {
-    // Reuses a 4KiB Buffer for every read from the socket
+    // Reuses a 4KiB Buffer for every read from the socket.
     buffer: Buffer.alloc(4 * 1024),
     callback: function(nread, buf) {
-      // Received data is available in `buf` from 0 to `nread`
+      // Received data is available in `buf` from 0 to `nread`.
       console.log(buf.toString('utf8', 0, nread));
     }
   }
@@ -705,6 +715,8 @@ called with `{port: port, host: host}` as `options`.
 added: v6.1.0
 -->
 
+* {boolean}
+
 If `true`,
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`] was
 called and has not yet finished. It will stay `true` until the socket becomes
@@ -732,7 +744,7 @@ listeners for that event will receive `exception` as an argument.
 * {boolean} Indicates if the connection is destroyed or not. Once a
   connection is destroyed no further data can be transferred using it.
 
-### socket.end([data][, encoding][, callback])
+### socket.end([data[, encoding]][, callback])
 <!-- YAML
 added: v0.1.90
 -->
@@ -753,6 +765,8 @@ If `data` is specified, it is equivalent to calling
 added: v0.9.6
 -->
 
+* {string}
+
 The string representation of the local IP address the remote client is
 connecting on. For example, in a server listening on `'0.0.0.0'`, if a client
 connects on `'192.168.1.1'`, the value of `socket.localAddress` would be
@@ -762,6 +776,8 @@ connects on `'192.168.1.1'`, the value of `socket.localAddress` would be
 <!-- YAML
 added: v0.9.6
 -->
+
+* {integer}
 
 The numeric representation of the local port. For example, `80` or `21`.
 
@@ -799,6 +815,8 @@ If the socket is `ref`ed calling `ref` again will have no effect.
 added: v0.5.10
 -->
 
+* {string}
+
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
@@ -808,12 +826,16 @@ the socket is destroyed (for example, if the client disconnected).
 added: v0.11.14
 -->
 
+* {string}
+
 The string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### socket.remotePort
 <!-- YAML
 added: v0.5.10
 -->
+
+* {integer}
 
 The numeric representation of the remote port. For example, `80` or `21`.
 
@@ -946,6 +968,7 @@ added: v0.7.0
 
 * `options` {Object}
 * `connectListener` {Function}
+* Returns: {net.Socket}
 
 Alias to
 [`net.createConnection(options[, connectListener])`][`net.createConnection(options)`].
@@ -957,6 +980,7 @@ added: v0.1.90
 
 * `path` {string}
 * `connectListener` {Function}
+* Returns: {net.Socket}
 
 Alias to
 [`net.createConnection(path[, connectListener])`][`net.createConnection(path)`].
@@ -969,6 +993,7 @@ added: v0.1.90
 * `port` {number}
 * `host` {string}
 * `connectListener` {Function}
+* Returns: {net.Socket}
 
 Alias to
 [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`].
@@ -1023,7 +1048,7 @@ in the [`net.createServer()`][] section:
 ```js
 const net = require('net');
 const client = net.createConnection({ port: 8124 }, () => {
-  // 'connect' listener
+  // 'connect' listener.
   console.log('connected to server!');
   client.write('world!\r\n');
 });
@@ -1077,7 +1102,7 @@ added: v0.1.90
 * `connectListener` {Function} Common parameter of the
   [`net.createConnection()`][] functions, an "once" listener for the
   `'connect'` event on the initiating socket. Will be passed to
-  [`socket.connect(path[, connectListener])`][`socket.connect(port, host)`].
+  [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
 * Returns: {net.Socket} The newly created socket used to start the connection.
 
 Initiates a TCP connection.
@@ -1124,7 +1149,7 @@ on port 8124:
 ```js
 const net = require('net');
 const server = net.createServer((c) => {
-  // 'connection' listener
+  // 'connection' listener.
   console.log('client connected');
   c.on('end', () => {
     console.log('client disconnected');
@@ -1193,6 +1218,9 @@ added: v0.3.0
 
 Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
+[IPC]: #net_ipc_support
+[Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
+[Readable Stream]: stream.html#stream_class_stream_readable
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect
 [`'connection'`]: #net_event_connection
@@ -1238,9 +1266,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[IPC]: #net_ipc_support
-[Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
-[Readable Stream]: stream.html#stream_class_stream_readable
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
