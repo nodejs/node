@@ -2683,6 +2683,16 @@ added: v8.4.0
 The request authority pseudo header field. It can also be accessed via
 `req.headers[':authority']`.
 
+#### request.complete
+<!-- YAML
+added: v12.10.0
+-->
+
+* {boolean}
+
+The `request.complete` property will be `true` if the request has
+been completed, aborted, or destroyed.
+
 #### request.connection
 <!-- YAML
 added: v8.4.0
