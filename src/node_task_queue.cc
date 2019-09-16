@@ -56,7 +56,7 @@ bool RunNextTicksNative(Environment* env) {
 }
 
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  args.GetIsolate()->RunMicrotasks();
+  MicrotasksScope::PerformCheckpoint(args.GetIsolate());
 }
 
 static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
