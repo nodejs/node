@@ -28,6 +28,7 @@ const {
   restoreStderr
 } = require('../common/hijackstdio');
 const assert = require('assert');
+const path = require('path');
 const fixtures = require('../common/fixtures');
 const hasInspector = process.features.inspector;
 
@@ -434,6 +435,16 @@ testMe.complete('obj.', common.mustCall((error, data) => {
                         assert.strictEqual(data[0].length, 0);
                       })
       );
+
+      const testPath = fixturePath.slice(0, -1);
+      testMe.complete(testPath, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.ok(data[0][0].includes('test-repl-tab-completion'));
+        assert.strictEqual(
+          data[1],
+          path.basename(testPath)
+        );
+      }));
     });
   }
 }
