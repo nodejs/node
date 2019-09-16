@@ -246,16 +246,16 @@ publishing a package that contains both CommonJS and ES module sources:
    lack support for ES modules.
 
 1. Switch the package `"main"` entry point to an ES module file as part of a
-   semver major version bump. This version and above would only be usable on ES
-   module-supporting versions of Node.js. If the package still contains a
+   breaking change version bump. This version and above would only be usable on
+   ES module-supporting versions of Node.js. If the package still contains a
    CommonJS version, it would be accessible via a path within the package, e.g.
    `require('pkg/commonjs')`; this is essentially the inverse of the previous
    approach. Package consumers who are using CommonJS-only versions of Node.js
    would need to update their code from `require('pkg')` to e.g.
    `require('pkg/commonjs')`.
 
-Of course, a package could also include _only_ CommonJS or ES module sources. An
-existing package could make a semver major bump to an ES module-only version,
+Of course, a package could also include only CommonJS or only ES module sources.
+An existing package could make a semver major bump to an ES module-only version,
 that would only be supported in ES module-supporting versions of Node.js (and
 other runtimes). New packages could be published containing only ES module
 sources, and would be compatible only with ES module-supporting runtimes.
@@ -940,7 +940,6 @@ success!
 
 [CommonJS]: modules.html
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
-[package exports]: #esm_package_exports
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [Terminology]: #esm_terminology
@@ -952,5 +951,6 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[package exports]: #esm_package_exports
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
