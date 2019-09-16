@@ -488,7 +488,12 @@ enum DescriptorType {
 // Nothing for the "null" cache entries.
 inline Maybe<uv_file> OpenDescriptor(const std::string& path) {
   uv_fs_t fs_req;
+#ifdef _WIN32
+  std::string pth = "\\\\.\\" + path;
+  uv_file fd = uv_fs_open(nullptr, &fs_req, pth.c_str(), O_RDONLY, 0, nullptr);
+#else
   uv_file fd = uv_fs_open(nullptr, &fs_req, path.c_str(), O_RDONLY, 0, nullptr);
+#endif
   uv_fs_req_cleanup(&fs_req);
   if (fd < 0) return Nothing<uv_file>();
   return Just(fd);
