@@ -2532,6 +2532,24 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `process._tickCallback` property was never documented as
 an officially supported API.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: ClientRequest.prototype.\_ended
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29580
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `http` module [`request._ended`][] is deprecated. Use
+the public method [`response.readableEnded`][] on the
+response instead.
+
+The [`request._ended`][] property was never documented as an
+officially supported property.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2588,6 +2606,8 @@ an officially supported API.
 [`require.extensions`]: modules.html#modules_require_extensions
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
+[`request._ended`]: http.html#http_request__ended
+[`response.readableEnded`]: stream.html#stream_readable_readableEnded
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
