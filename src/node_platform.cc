@@ -279,8 +279,13 @@ void PerIsolatePlatformData::Shutdown() {
   if (flush_tasks_ == nullptr)
     return;
 
-  CHECK_NULL(foreground_delayed_tasks_.Pop());
-  CHECK_NULL(foreground_tasks_.Pop());
+  // While there should be no V8 tasks in the queues at this point, it is
+  // possible that Node.js-internal tasks from e.g. the inspector are still
+  // lying around. We clear these queues and ignore the return value,
+  // effectively deleting the tasks instead of running them.
+  foreground_delayed_tasks_.PopAll();
+  foreground_tasks_.PopAll();
+
   CancelPendingDelayedTasks();
 
   ShutdownCbList* copy = new ShutdownCbList(std::move(shutdown_callbacks_));
