@@ -134,9 +134,9 @@ It also maintains the LICENSE file in `test/fixtures/wpt`.
 Given a module, the `WPTRunner` class in [`test/common/wpt`](../common/wpt.js)
 loads:
 
-- `.js` test files (for example, `test/common/wpt/url/*.js` for `url`)
-- Status file (for example, `test/wpt/status/url.json` for `url`)
-- The WPT harness
+* `.js` test files (for example, `test/common/wpt/url/*.js` for `url`)
+* Status file (for example, `test/wpt/status/url.json` for `url`)
+* The WPT harness
 
 Then, for each test, it creates a vm with the globals and mocks,
 sets up the harness result hooks, loads the metadata in the test (including
