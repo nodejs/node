@@ -32,7 +32,6 @@ fi
 addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/acorn/LICENSE)"
 addlicense "Acorn plugins" "deps/acorn-plugins" "$(cat ${rootdir}/deps/acorn-plugins/acorn-class-fields/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
-addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
   addlicense "ICU" "deps/icu" \
