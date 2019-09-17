@@ -2576,6 +2576,10 @@ an officially supported API.
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`request.socket`]: http.html#http_request_socket
+[`request.connection`]: http.html#http_request_connection
+[`response.socket`]: http.html#http_response_socket
+[`response.connection`]: http.html#http_response_connection
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args

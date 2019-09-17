@@ -58,8 +58,8 @@
 
 * **crypto**: fix key requirements in asymmetric cipher (Tobias Nießen) [#30249](https://github.com/nodejs/node/pull/30249)
 * **deps**:
-    * update llhttp to 2.0.1 (Fedor Indutny) [#30553](https://github.com/nodejs/node/pull/30553)
-    * update nghttp2 to 1.40.0 (gengjiawen) [#30493](https://github.com/nodejs/node/pull/30493)
+  * update llhttp to 2.0.1 (Fedor Indutny) [#30553](https://github.com/nodejs/node/pull/30553)
+  * update nghttp2 to 1.40.0 (gengjiawen) [#30493](https://github.com/nodejs/node/pull/30493)
 * **v8**: mark serdes API as stable (Anna Henningsen) [#30234](https://github.com/nodejs/node/pull/30234)
 
 ### Commits
