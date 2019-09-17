@@ -185,6 +185,10 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29592
+    description: The output string's formatting will again dependent on the type
+                 of the first argument.
   - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29606
     description: The `%c` specifier is ignored now.
@@ -217,10 +221,11 @@ changes:
 * `...args` {any}
 * Returns: {string} The formatted string
 
-The `util.format()` method returns a formatted string using the first argument
-as a `printf`-like format string which can contain zero or more format
-specifiers. Each specifier is replaced with the converted value from the
-corresponding argument. Supported specifiers are:
+If the first argument `format` is a string and `args` is not empty, the
+`util.format()` method returns a formatted string using the first argument as a
+`printf`-like format string which can contain zero or more format specifiers.
+Each specifier is replaced with the converted value from the corresponding
+argument. Supported specifiers are:
 
 * `%s` - `String` will be used to convert all values except `BigInt`, `Object`
   and `-0`. `BigInt` values will be represented with an `n` and Objects that
@@ -251,32 +256,36 @@ util.format('%s:%s', 'foo');
 // Returns: 'foo:%s'
 ```
 
-Values that are not part of the format string are formatted using
-`util.inspect()` if their type is not `string`.
-
-If there are more arguments passed to the `util.format()` method than the
-number of specifiers, the extra arguments are concatenated to the returned
-string, separated by spaces:
+If there are more arguments than the number of specifiers, the extra arguments
+are concatenated to the returned string, separated by spaces:
 
 ```js
 util.format('%s:%s', 'foo', 'bar', 'baz');
 // Returns: 'foo:bar baz'
 ```
 
-If the first argument does not contain a valid format specifier, `util.format()`
-returns a string that is the concatenation of all arguments separated by spaces:
+Values that are not consumed by the format string are formatted using
+`util.inspect()` if their type is not `string`:
 
 ```js
-util.format(1, 2, 3);
-// Returns: '1 2 3'
+util.format('string', 5n, 'string');
+// Returns 'string 5n string'
 ```
 
-If only one argument is passed to `util.format()`, it is returned as it is
-without any formatting:
+All values are formatted using `util.inspect()`, if the first argument's type is
+not `string`:
 
 ```js
-util.format('%% %s');
-// Returns: '%% %s'
+util.format(5n, 'string \n line 1', [1]);
+// Returns: "5n 'string \\n line 1' [ 1 ]"
+```
+
+If only a single argument of type `string` is passed to `util.format()`, it is
+returned as it is without any formatting:
+
+```js
+util.format('%% %s \n line 2');
+// Returns: '%% %s \n line 2'
 ```
 
 `util.format()` is a synchronous method that is intended as a debugging tool.

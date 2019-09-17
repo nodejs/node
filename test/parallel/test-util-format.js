@@ -367,17 +367,17 @@ Object.setPrototypeOf(BadCustomError, Error);
 assert.strictEqual(util.format(new BadCustomError('foo')),
                    '[BadCustomError: foo]');
 
-// The format of arguments should not depend on type of the first argument
+// The argument formatting depends on the type of the first argument.
 assert.strictEqual(util.format('1', '1'), '1 1');
-assert.strictEqual(util.format(1, '1'), '1 1');
+assert.strictEqual(util.format(1, '1'), "1 '1'");
 assert.strictEqual(util.format('1', 1), '1 1');
 assert.strictEqual(util.format(1, -0), '1 -0');
 assert.strictEqual(util.format('1', () => {}), '1 [Function (anonymous)]');
 assert.strictEqual(util.format(1, () => {}), '1 [Function (anonymous)]');
 assert.strictEqual(util.format('1', "'"), "1 '");
-assert.strictEqual(util.format(1, "'"), "1 '");
+assert.strictEqual(util.format(1, "'"), '1 "\'"');
 assert.strictEqual(util.format('1', 'number'), '1 number');
-assert.strictEqual(util.format(1, 'number'), '1 number');
+assert.strictEqual(util.format(1, 'number'), "1 'number'");
 assert.strictEqual(util.format(5n), '5n');
 assert.strictEqual(util.format(5n, 5n), '5n 5n');
 
@@ -393,7 +393,15 @@ assert.strictEqual(
     '\u001b[33m1\u001b[39m ' +
     '\u001b[33m5n\u001b[39m ' +
     '\u001b[1mnull\u001b[22m ' +
-    'foobar'
+    "\u001b[32m'foobar'\u001b[39m"
+);
+
+assert.strictEqual(
+  util.formatWithOptions(
+    { colors: true },
+    'string', true, 'foobar'
+  ),
+  'string \u001b[33mtrue\u001b[39m foobar'
 );
 
 assert.strictEqual(
