@@ -27,10 +27,10 @@ async function post(session, method, params) {
     session.post(method, params, (error, success) => {
       messagesSent.push(method);
       if (error) {
-        console.log(`Message ${method} produced an error`);
+        process._rawDebug(`Message ${method} produced an error`);
         reject(error);
       } else {
-        console.log(`Message ${method} was sent`);
+        process._rawDebug(`Message ${method} was sent`);
         resolve(success);
       }
     });
