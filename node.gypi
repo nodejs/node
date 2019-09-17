@@ -139,7 +139,6 @@
 
     [ 'node_shared_http_parser=="false"', {
       'dependencies': [
-        'deps/http_parser/http_parser.gyp:http_parser',
         'deps/llhttp/llhttp.gyp:llhttp'
       ],
     } ],

@@ -10,7 +10,6 @@ const { getOptionValue } = require('internal/options');
 
 console.log('pid is', process.pid);
 console.log('max header size is', getOptionValue('--max-http-header-size'));
-console.log('current http parser is', getOptionValue('--http-parser'));
 
 // Verify that we cannot receive more than 8KB of headers.
 
@@ -33,12 +32,8 @@ function finished(client, callback) {
 function fillHeaders(headers, currentSize, valid = false) {
   // `llhttp` counts actual header name/value sizes, excluding the whitespace
   // and stripped chars.
-  if (getOptionValue('--http-parser') === 'llhttp') {
-    // OK, Content-Length, 0, X-CRASH, aaa...
-    headers += 'a'.repeat(MAX - currentSize);
-  } else {
-    headers += 'a'.repeat(MAX - headers.length - 3);
-  }
+  // OK, Content-Length, 0, X-CRASH, aaa...
+  headers += 'a'.repeat(MAX - currentSize);
 
   // Generate valid headers
   if (valid) {
