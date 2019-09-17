@@ -181,7 +181,7 @@ The `--throw-deprecation` command line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
-## util.format(format\[, ...args\])
+## util.format(\[format\]\[, ...args\])
 <!-- YAML
 added: v0.5.3
 changes:
@@ -214,6 +214,8 @@ changes:
 -->
 
 * `format` {string} A `printf`-like format string.
+* `...args` {any}
+* Returns: {string} The formatted string
 
 The `util.format()` method returns a formatted string using the first argument
 as a `printf`-like format string which can contain zero or more format
@@ -241,7 +243,6 @@ corresponding argument. Supported specifiers are:
 * `%c` - `CSS`. This specifier is currently ignored, and will skip any CSS
   passed in.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
-* Returns: {string} The formatted string
 
 If a specifier does not have a corresponding argument, it is not replaced:
 
@@ -282,13 +283,15 @@ util.format('%% %s');
 Some input values can have a significant performance overhead that can block the
 event loop. Use this function with care and never in a hot code path.
 
-## util.formatWithOptions(inspectOptions, format\[, ...args\])
+## util.formatWithOptions(inspectOptions\[, format\]\[, ...args\])
 <!-- YAML
 added: v10.0.0
 -->
 
 * `inspectOptions` {Object}
 * `format` {string}
+* `...args` {any}
+* Returns: {string}
 
 This function is identical to [`util.format()`][], except in that it takes
 an `inspectOptions` argument which specifies options that are passed along to
