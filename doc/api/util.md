@@ -185,6 +185,9 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29606
+    description: The `%c` specifier is ignored now.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23708
     description: The `%d`, `%f` and `%i` specifiers now support Symbols
@@ -240,6 +243,8 @@ corresponding argument. Supported specifiers are:
 * `%O` - `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
+* `%c` - `CSS`. This specifier is currently ignored, and will skip any CSS
+  passed in.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
 
