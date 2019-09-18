@@ -477,6 +477,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "addRootCerts", AddRootCerts);
   env->SetProtoMethod(t, "setCipherSuites", SetCipherSuites);
   env->SetProtoMethod(t, "setCiphers", SetCiphers);
+  env->SetProtoMethod(t, "setSigalgs", SetSigalgs);
   env->SetProtoMethod(t, "setECDHCurve", SetECDHCurve);
   env->SetProtoMethod(t, "setDHParam", SetDHParam);
   env->SetProtoMethod(t, "setMaxProto", SetMaxProto);
@@ -745,6 +746,23 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  Environment* env = sc->env();
+  ClearErrorOnReturn clear_error_on_return;
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  const node::Utf8Value sigalgs(env->isolate(), args[0]);
+
+  int rv = SSL_CTX_set1_sigalgs_list(sc->ctx_.get(), *sigalgs);
+
+  if (rv == 0) {
+    return ThrowCryptoError(env, ERR_get_error());
+  }
+}
 
 int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
@@ -1690,6 +1708,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethodNoSideEffect(t, "isSessionReused", IsSessionReused);
   env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
   env->SetProtoMethodNoSideEffect(t, "getCipher", GetCipher);
+  env->SetProtoMethodNoSideEffect(t, "getSharedSigalgs", GetSharedSigalgs);
   env->SetProtoMethod(t, "endParser", EndParser);
   env->SetProtoMethod(t, "certCbDone", CertCbDone);
   env->SetProtoMethod(t, "renegotiate", Renegotiate);
@@ -2620,6 +2639,88 @@ void SSLWrap<Base>::GetCipher(const FunctionCallbackInfo<Value>& args) {
   info->Set(context, env->version_string(),
             OneByteString(args.GetIsolate(), cipher_version)).Check();
   args.GetReturnValue().Set(info);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
+  Base* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = w->ssl_env();
+  std::vector<Local<Value>> ret_arr;
+
+  SSL* ssl = w->ssl_.get();
+  int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
+                                    nullptr);
+
+  for (int i = 0; i < nsig; i++) {
+    int hash_nid;
+    int sign_nid;
+    std::string sig_with_md;
+
+    SSL_get_shared_sigalgs(ssl, i, &sign_nid, &hash_nid, nullptr, nullptr,
+                           nullptr);
+
+    switch (sign_nid) {
+      case EVP_PKEY_RSA:
+        sig_with_md = "RSA+";
+        break;
+
+      case EVP_PKEY_RSA_PSS:
+        sig_with_md = "RSA-PSS+";
+        break;
+
+      case EVP_PKEY_DSA:
+        sig_with_md = "DSA+";
+        break;
+
+      case EVP_PKEY_EC:
+        sig_with_md = "ECDSA+";
+        break;
+
+      case NID_ED25519:
+        sig_with_md = "Ed25519+";
+        break;
+
+      case NID_ED448:
+        sig_with_md = "Ed448+";
+        break;
+
+      case NID_id_GostR3410_2001:
+        sig_with_md = "gost2001+";
+        break;
+
+      case NID_id_GostR3410_2012_256:
+        sig_with_md = "gost2012_256+";
+        break;
+
+      case NID_id_GostR3410_2012_512:
+        sig_with_md = "gost2012_512+";
+        break;
+
+      default:
+        const char* sn = OBJ_nid2sn(sign_nid);
+
+        if (sn != nullptr) {
+          sig_with_md = std::string(sn) + "+";
+        } else {
+          sig_with_md = "UNDEF+";
+        }
+        break;
+    }
+
+    const char* sn_hash = OBJ_nid2sn(hash_nid);
+    if (sn_hash != nullptr) {
+      sig_with_md += std::string(sn_hash);
+    } else {
+      sig_with_md += "UNDEF";
+    }
+
+    ret_arr.push_back(OneByteString(env->isolate(), sig_with_md.c_str()));
+  }
+
+  args.GetReturnValue().Set(
+                 Array::New(env->isolate(), ret_arr.data(), ret_arr.size()));
 }
 
 
