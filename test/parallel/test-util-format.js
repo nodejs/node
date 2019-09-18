@@ -317,6 +317,12 @@ assert.strictEqual(util.format('abc%', 1), 'abc% 1');
 assert.strictEqual(util.format('%i', 1, 'number'), '1 number');
 assert.strictEqual(util.format('%i', 1, () => {}), '1 [Function (anonymous)]');
 
+// %c from https://console.spec.whatwg.org/
+assert.strictEqual(util.format('%c'), '%c');
+assert.strictEqual(util.format('%cab'), '%cab');
+assert.strictEqual(util.format('%cab', 'color: blue'), 'ab');
+assert.strictEqual(util.format('%cab', 'color: blue', 'c'), 'ab c');
+
 {
   const o = {};
   o.o = o;
