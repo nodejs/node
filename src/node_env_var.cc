@@ -153,6 +153,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
   MaybeStackBuffer<Local<Value>, 256> env_v(count);
+  int env_v_index = 0;
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32
     // If the key starts with '=' it is a hidden environment variable.
@@ -166,10 +167,10 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
       return Local<Array>();
     }
-    env_v[i] = str.ToLocalChecked();
+    env_v[env_v_index++] = str.ToLocalChecked();
   }
 
-  return Array::New(isolate, env_v.out(), env_v.length());
+  return Array::New(isolate, env_v.out(), env_v_index);
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
