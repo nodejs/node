@@ -4600,7 +4600,7 @@ bool Hash::HashInit(const char* hash_type, Maybe<unsigned int> xof_md_len) {
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
-    if ((EVP_MD_meth_get_flags(md) & EVP_MD_FLAG_XOF) == 0) {
+    if ((EVP_MD_flags(md) & EVP_MD_FLAG_XOF) == 0) {
       EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
       return false;
     }
