@@ -1167,7 +1167,7 @@ added: v0.3.0
 
 See [`response.socket`][].
 
-### response.end([data][, encoding][, callback])
+### response.end([data[, encoding]][, callback])
 <!-- YAML
 added: v0.1.90
 changes:

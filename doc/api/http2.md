@@ -3016,7 +3016,7 @@ added: v8.4.0
 
 See [`response.socket`][].
 
-#### response.end([data][, encoding][, callback])
+#### response.end([data[, encoding]][, callback])
 <!-- YAML
 added: v8.4.0
 changes:
