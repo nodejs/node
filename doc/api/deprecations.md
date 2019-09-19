@@ -2531,7 +2531,8 @@ Type: Runtime
 
 [`WriteStream.open()`][] and [`ReadStream.open()`][] are undocumented internal
 APIs that do not make sense to use in userland. File streams should always be
-opened through the constructor or by passing a file descriptor in options.
+opened through their corresponding factory methods or by passing a file
+descriptor in options.
 
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
