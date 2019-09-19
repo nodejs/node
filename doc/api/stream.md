@@ -394,7 +394,7 @@ added: v8.0.0
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
-##### writable.end([chunk][, encoding][, callback])
+##### writable.end([chunk[, encoding]][, callback])
 <!-- YAML
 added: v0.9.4
 changes:
