@@ -2531,10 +2531,9 @@ Type: Runtime
 
 [`WriteStream.open()`][] and [`ReadStream.open()`][] are undocumented internal
 APIs that do not make sense to use in userland. File streams should always be
-opened through their corresponding factory methods or by passing a file
-descriptor in options.
+opened through their corresponding factory methods [`fs.createWriteStream()`][]
+and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 
-[`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2573,6 +2572,8 @@ descriptor in options.
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
 [`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
+[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
+[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
