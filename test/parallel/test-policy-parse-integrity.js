@@ -36,8 +36,16 @@ if (!tmpdirURL.pathname.endsWith('/')) {
   tmpdirURL.pathname += '/';
 }
 
+const packageFilepath = path.join(tmpdir.path, 'package.json');
+const packageURL = pathToFileURL(packageFilepath);
+const packageBody = '{"main": "dep.js"}';
+
 function test({ shouldFail, integrity }) {
   const resources = {
+    [packageURL]: {
+      body: packageBody,
+      integrity: `sha256-${hash('sha256', packageBody)}`
+    },
     [depURL]: {
       body: depBody,
       integrity
