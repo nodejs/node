@@ -978,7 +978,9 @@ void TriggerUncaughtException(Isolate* isolate,
 
   // Now we are certain that the exception is fatal.
   ReportFatalException(env, error, message, EnhanceFatalException::kEnhance);
-  WaitForInspectorDisconnect(env);
+#if HAVE_INSPECTOR
+  profiler::EndStartedProfilers(env);
+#endif
 
   // If the global uncaught exception handler sets process.exitCode,
   // exit with that code. Otherwise, exit with 1.
