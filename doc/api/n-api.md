@@ -3978,7 +3978,7 @@ Language Specification.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v12.9.2
+added: REPLACEME
 -->
 ```C
 napi_create_function_with_length(napi_env env,
@@ -4246,7 +4246,7 @@ the JavaScript function and the data to [`napi_add_finalizer`][].
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v12.9.2
+added: REPLACEME
 -->
 ```C
 napi_status
