@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.16.2">8.16.2</a><br/>
 <a href="#8.16.1">8.16.1</a><br/>
 <a href="#8.16.0">8.16.0</a><br/>
 <a href="#8.15.1">8.15.1</a><br/>
@@ -67,6 +68,42 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.16.2"></a>
+## 2019-10-09, Version 8.16.2 'Carbon' (LTS), @BethGriggs
+
+Node.js 8 is due to go End-of-Life on 31st December 2019.
+
+### Notable changes
+
+* **deps**: upgrade openssl sources to 1.0.2s (Sam Roberts) [#28230](https://github.com/nodejs/node/pull/28230)
+
+### Commits
+
+* [[`cc9d005628`](https://github.com/nodejs/node/commit/cc9d005628)] - **crypto**: update root certificates (Sam Roberts) [#28808](https://github.com/nodejs/node/pull/28808)
+* [[`347fcd35e3`](https://github.com/nodejs/node/commit/347fcd35e3)] - **crypto**: update root certificates (Sam Roberts) [#27374](https://github.com/nodejs/node/pull/27374)
+* [[`b2a6b3254d`](https://github.com/nodejs/node/commit/b2a6b3254d)] - **crypto**: update root certificates (Sam Roberts) [#25113](https://github.com/nodejs/node/pull/25113)
+* [[`5682e50325`](https://github.com/nodejs/node/commit/5682e50325)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`9663ae3546`](https://github.com/nodejs/node/commit/9663ae3546)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`87eee99466`](https://github.com/nodejs/node/commit/87eee99466)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`da99d3f972`](https://github.com/nodejs/node/commit/da99d3f972)] - **deps**: copy all openssl header files to include dir (Sam Roberts) [#28230](https://github.com/nodejs/node/pull/28230)
+* [[`dc9d645ac4`](https://github.com/nodejs/node/commit/dc9d645ac4)] - **deps**: upgrade openssl sources to 1.0.2s (Sam Roberts) [#28230](https://github.com/nodejs/node/pull/28230)
+* [[`37e24b19a0`](https://github.com/nodejs/node/commit/37e24b19a0)] - **deps**: V8: backport d520ebb (Michaël Zasso) [#27358](https://github.com/nodejs/node/pull/27358)
+* [[`1a5dc6a3e7`](https://github.com/nodejs/node/commit/1a5dc6a3e7)] - **http**: check for existance in resetHeadersTimeoutOnReqEnd (Matteo Collina) [#26402](https://github.com/nodejs/node/pull/26402)
+* [[`e45b6a3b98`](https://github.com/nodejs/node/commit/e45b6a3b98)] - **http2**: do not start reading after write if new write is on wire (Anna Henningsen) [#29399](https://github.com/nodejs/node/pull/29399)
+* [[`559a8e342b`](https://github.com/nodejs/node/commit/559a8e342b)] - **http2**: do not crash on stream listener removal w/ destroyed session (Anna Henningsen) [#29459](https://github.com/nodejs/node/pull/29459)
+* [[`dd285968c4`](https://github.com/nodejs/node/commit/dd285968c4)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`3ee076f03d`](https://github.com/nodejs/node/commit/3ee076f03d)] - **stream**: ensure writable.destroy() emits error once (Luigi Pinca) [#26057](https://github.com/nodejs/node/pull/26057)
+* [[`a7e5fe1f06`](https://github.com/nodejs/node/commit/a7e5fe1f06)] - **test**: unskip tests that now pass on AIX (Sam Roberts) [#29054](https://github.com/nodejs/node/pull/29054)
+* [[`65e9b0f5a2`](https://github.com/nodejs/node/commit/65e9b0f5a2)] - **test**: specialize OOM check for AIX (Sam Roberts) [#28857](https://github.com/nodejs/node/pull/28857)
+* [[`7aca9cb09b`](https://github.com/nodejs/node/commit/7aca9cb09b)] - **test**: fix pty test hangs on aix (Ben Noordhuis) [#28600](https://github.com/nodejs/node/pull/28600)
+* [[`588b761fca`](https://github.com/nodejs/node/commit/588b761fca)] - **test**: skip stringbytes-external-exceed-max on AIX (Sam Roberts) [#28516](https://github.com/nodejs/node/pull/28516)
+* [[`930647d0fe`](https://github.com/nodejs/node/commit/930647d0fe)] - **test**: skip tests related to CI failures on AIX (Sam Roberts) [#28469](https://github.com/nodejs/node/pull/28469)
+* [[`92a2f8bbe3`](https://github.com/nodejs/node/commit/92a2f8bbe3)] - **test,win**: cleanup exec-timeout processes (João Reis) [#28723](https://github.com/nodejs/node/pull/28723)
+* [[`d57f79726d`](https://github.com/nodejs/node/commit/d57f79726d)] - **tls**: partially backport pull request #26415 (Ben Noordhuis) [#26415](https://github.com/nodejs/node/pull/26415)
+* [[`c582fef5cc`](https://github.com/nodejs/node/commit/c582fef5cc)] - **tools**: update certdata.txt (Sam Roberts) [#28808](https://github.com/nodejs/node/pull/28808)
+* [[`4fbadf6a9e`](https://github.com/nodejs/node/commit/4fbadf6a9e)] - **tools**: update certdata.txt (Sam Roberts) [#27374](https://github.com/nodejs/node/pull/27374)
+* [[`529b2ad25f`](https://github.com/nodejs/node/commit/529b2ad25f)] - **tools**: update certdata.txt (Sam Roberts) [#25113](https://github.com/nodejs/node/pull/25113)
 
 <a id="8.16.1"></a>
 ## 2019-08-15, Version 8.16.1 'Carbon' (LTS), @BethGriggs
