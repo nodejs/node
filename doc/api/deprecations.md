@@ -2530,8 +2530,11 @@ changes:
 Type: Documentation-only
 
 [`response.finished`][] indicates whether the [`response.end()`] has been
-called, not whether the underlying data has been flushed and `'finish'` has been
-emitted. Use [`response.writableFinished`][] or [`response.writableEnded`][]
+called and [`response.writableEnded`][] is `true`, not whether the underlying
+data has been flushed, `'finish'` has been emitted and
+[`response.writableFinished`][] is `true`.
+
+Use [`response.writableFinished`][] or [`response.writableEnded`][]
 accordingly instead to avoid the ambigiuty.
 
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
