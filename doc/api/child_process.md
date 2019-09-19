@@ -112,7 +112,7 @@ bat.on('exit', (code) => {
 
 ```js
 // OR...
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 exec('my.bat', (err, stdout, stderr) => {
   if (err) {
     console.error(err);
