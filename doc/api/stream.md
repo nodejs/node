@@ -1757,6 +1757,12 @@ const myWritable = new Writable({
 ```
 
 #### writable.\_write(chunk, encoding, callback)
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29639
+    description: _write is optional when providing _writev.
+-->
 
 * `chunk` {Buffer|string|any} The `Buffer` to be written, converted from the
   `string` passed to [`stream.write()`][stream-write]. If the stream's
