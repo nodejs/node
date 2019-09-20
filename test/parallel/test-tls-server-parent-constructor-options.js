@@ -23,7 +23,7 @@ const options = {
   }));
 
   assert.strictEqual(server.allowHalfOpen, false);
-  assert.strictEqual(server.isPaused(), false);
+  assert.strictEqual(server.pauseOnConnect, false);
 
   server.listen(0, common.mustCall(() => {
     const socket = tls.connect({
