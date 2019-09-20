@@ -180,6 +180,58 @@ void V8ProfilerConnection::WriteProfile(Local<String> message) {
   if (!GetProfile(result).ToLocal(&profile)) {
     return;
   }
+
+  Local<String> result_s;
+  if (!v8::JSON::Stringify(context, profile).ToLocal(&result_s)) {
+    fprintf(stderr, "Failed to stringify %s profile result\n", type());
+    return;
+  }
+
+  // Create the directory if necessary.
+  std::string directory = GetDirectory();
+  DCHECK(!directory.empty());
+  if (!EnsureDirectory(directory, type())) {
+    return;
+  }
+
+  std::string filename = GetFilename();
+  DCHECK(!filename.empty());
+  std::string path = directory + kPathSeparator + filename;
+
+  WriteResult(env_, path.c_str(), result_s);
+}
+
+void V8CoverageConnection::WriteProfile(Local<String> message) {
+  Isolate* isolate = env_->isolate();
+  Local<Context> context = env_->context();
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(context);
+
+  // Get message.result from the response.
+  Local<Object> result;
+  if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
+    return;
+  }
+  // Generate the profile output from the subclass.
+  Local<Object> profile;
+  if (!GetProfile(result).ToLocal(&profile)) {
+    return;
+  }
+
+  // append source-map cache information to coverage object:
+  Local<Function> source_map_cache_getter = env_->source_map_cache_getter();
+  Local<Value> source_map_cache_v;
+  if (!source_map_cache_getter->Call(env()->context(),
+      Undefined(isolate), 0, nullptr)
+      .ToLocal(&source_map_cache_v)) {
+    return;
+  }
+  // Avoid writing to disk if no source-map data:
+  if (!source_map_cache_v->IsUndefined()) {
+    profile->Set(context, FIXED_ONE_BYTE_STRING(isolate, "source-map-cache"),
+                source_map_cache_v);
+  }
+
   Local<String> result_s;
   if (!v8::JSON::Stringify(context, profile).ToLocal(&result_s)) {
     fprintf(stderr, "Failed to stringify %s profile result\n", type());
@@ -385,12 +437,20 @@ static void SetCoverageDirectory(const FunctionCallbackInfo<Value>& args) {
   env->set_coverage_directory(*directory);
 }
 
+
+static void SetSourceMapCacheGetter(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  Environment* env = Environment::GetCurrent(args);
+  env->set_source_map_cache_getter(args[0].As<Function>());
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
+  env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
 }
 
 }  // namespace profiler
