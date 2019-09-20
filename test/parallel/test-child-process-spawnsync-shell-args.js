@@ -39,12 +39,12 @@ if (!bashPath) common.skip('Skipping test because bash is not found.');
 else console.info(`Using bash from ${bashPath}.`);
 
 const reprint = "printf '%q '";
-const testArgs = ['  Lore"m  Ipsu""m\ndolor\tsit', 'on \\a\x07 ringing chair.'];
-const testArgsLite = ['"Hello \\"World|&*', "y'all"];
+const testArgs = ['  Lore"> Ipsu""<\nd|or\tsit', 'on \\a\x07 ringing ch&air'];
+const testArgsLite = ['He\\\\o \\"Wor\tld\\|<>&*\\', "y'all\x07"];
 const reprintArgs = ['-c', `${reprint} "$@"`, '--', ...testArgs];
 const nodeEcho = [
   '-e',
-  'process.argv.slice(1).forEach((x) => console.log(x))',
+  'console.log(process.argv.slice(1).join("\\n"))',
   '--',
 ];
 
@@ -53,7 +53,9 @@ same(run(bashPath, 'printf "%s\n"', testArgs), echoOut);
 same(run(false, process.execPath, nodeEcho.concat(testArgs)), echoOut);
 
 const echoOutLite = testArgsLite.concat(['']).join('\n');
-same(run(bashPath, 'printf "%s\n"', testArgsLite), echoOutLite);
+// Git MSYS Bash cmdline parsing quirk
+if (!common.isWindows)
+  same(run(bashPath, 'printf "%s\n"', testArgsLite), echoOutLite);
 
 const reprintOut = run(bashPath, reprint, testArgs);
 same(run(false, 'bash', reprintArgs), reprintOut);

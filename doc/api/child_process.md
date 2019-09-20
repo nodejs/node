@@ -1655,10 +1655,9 @@ Since the `command` part is literally passed to the shell, you will be
 responsible for any escaping you perform. The specific way to call a file
 as a command-line program depends on the shell:
 
-* With POSIX shell, you quote the path using the usual single-quotes. You
-  may want to prefix it with `command --` or `env --` to suppress syntax,
-  function, and/or alias lookups. You can simply use `'command --'` as your
-  `command` argument and put the path on the first element of `args`.
+* With POSIX shell, you quote the path using the usual single-quotes.
+  To auto-escape the path, use `'command --'` as your `command` argument and
+  put the path on the first element of `args`.
 * With PowerShell, it is often needed to prefix the command with `&` when the
   executable path is quoted. You can use a similar technique with `command`
   set to `'&'`.
