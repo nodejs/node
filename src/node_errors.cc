@@ -324,6 +324,8 @@ static void ReportFatalException(Environment* env,
         break;
       }
       case EnhanceFatalException::kDontEnhance: {
+        USE(err_obj->Get(env->context(), env->stack_string())
+                .ToLocal(&stack_trace));
         report_to_inspector();
         break;
       }
