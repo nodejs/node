@@ -25,6 +25,14 @@ void SourceRangeAstVisitor::VisitBlock(Block* stmt) {
   }
 }
 
+void SourceRangeAstVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
+  AstTraversalVisitor::VisitSwitchStatement(stmt);
+  ZonePtrList<CaseClause>* clauses = stmt->cases();
+  for (CaseClause* clause : *clauses) {
+    MaybeRemoveLastContinuationRange(clause->statements());
+  }
+}
+
 void SourceRangeAstVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
   AstTraversalVisitor::VisitFunctionLiteral(expr);
   ZonePtrList<Statement>* stmts = expr->body();
