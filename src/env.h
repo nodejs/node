@@ -1251,6 +1251,10 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
+  // Only available if a MultiIsolatePlatform is in use.
+  void AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
+      std::shared_ptr<v8::ArrayBuffer::Allocator>);
+
  private:
   template <typename Fn>
   inline void CreateImmediate(Fn&& cb,
@@ -1424,6 +1428,10 @@ class Environment : public MemoryRetainer {
   // A custom async abstraction (a pair of async handle and a state variable)
   // Used by embedders to shutdown running Node instance.
   AsyncRequest thread_stopper_;
+
+  typedef std::unordered_set<std::shared_ptr<v8::ArrayBuffer::Allocator>>
+      ArrayBufferAllocatorList;
+  ArrayBufferAllocatorList* keep_alive_allocators_ = nullptr;
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);

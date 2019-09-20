@@ -50,6 +50,30 @@ class SABLifetimePartner : public BaseObject {
     : BaseObject(env, obj),
       reference(std::move(r)) {
     MakeWeak();
+    env->AddCleanupHook(CleanupHook, static_cast<void*>(this));
+  }
+
+  ~SABLifetimePartner() {
+    env()->RemoveCleanupHook(CleanupHook, static_cast<void*>(this));
+  }
+
+  static void CleanupHook(void* data) {
+    // There is another cleanup hook attached to this object because it is a
+    // BaseObject. Cleanup hooks are triggered in reverse order of addition,
+    // so if this object is destroyed through GC, the destructor removes all
+    // hooks associated with this object, meaning that this cleanup hook
+    // only runs at the end of the Environment’s lifetime.
+    // In that case, V8 still knows about the SharedArrayBuffer and tries to
+    // free it when the last Isolate with access to it is disposed; for that,
+    // the ArrayBuffer::Allocator needs to be kept alive longer than this
+    // object and longer than the Environment instance.
+    //
+    // This is a workaround for https://github.com/nodejs/node-v8/issues/115
+    // (introduced in V8 7.9) and we should be able to remove it once V8
+    // ArrayBuffer::Allocator refactoring/removal is complete.
+    SABLifetimePartner* self = static_cast<SABLifetimePartner*>(data);
+    self->env()->AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
+        self->reference->allocator());
   }
 
   SET_NO_MEMORY_INFO()
