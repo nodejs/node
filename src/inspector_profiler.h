@@ -59,13 +59,15 @@ class V8ProfilerConnection {
   // which will be then written as a JSON.
   virtual v8::MaybeLocal<v8::Object> GetProfile(
       v8::Local<v8::Object> result) = 0;
+  virtual void WriteProfile(v8::Local<v8::String> message);
 
  private:
   size_t next_id() { return id_++; }
-  void WriteProfile(v8::Local<v8::String> message);
   std::unique_ptr<inspector::InspectorSession> session_;
-  Environment* env_ = nullptr;
   size_t id_ = 1;
+
+ protected:
+  Environment* env_ = nullptr;
 };
 
 class V8CoverageConnection : public V8ProfilerConnection {
@@ -81,6 +83,8 @@ class V8CoverageConnection : public V8ProfilerConnection {
   std::string GetDirectory() const override;
   std::string GetFilename() const override;
   v8::MaybeLocal<v8::Object> GetProfile(v8::Local<v8::Object> result) override;
+  void WriteProfile(v8::Local<v8::String> message) override;
+  void WriteSourceMapCache();
 
  private:
   std::unique_ptr<inspector::InspectorSession> session_;
