@@ -1312,9 +1312,9 @@ else
 endif
 
 ifeq ($(V),1)
-	CPPLINT_QUIET =
+CPPLINT_QUIET =
 else
-	CPPLINT_QUIET = --quiet
+CPPLINT_QUIET = --quiet
 endif
 .PHONY: lint-cpp
 # Lints the C++ code with cpplint.py and check-imports.py.
