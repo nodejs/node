@@ -37,6 +37,7 @@ class SharedArrayBufferMetadata
   // count is increased by 1.
   v8::MaybeLocal<v8::SharedArrayBuffer> GetSharedArrayBuffer(
       Environment* env, v8::Local<v8::Context> context);
+  std::shared_ptr<v8::ArrayBuffer::Allocator> allocator() { return allocator_; }
 
   SharedArrayBufferMetadata(SharedArrayBufferMetadata&& other) = delete;
   SharedArrayBufferMetadata& operator=(

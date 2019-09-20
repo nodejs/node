@@ -1,3 +1,4 @@
+// Flags: --debug-arraybuffer-allocations
 'use strict';
 const common = require('../common');
 const assert = require('assert');
