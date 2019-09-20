@@ -1687,8 +1687,8 @@ const myWritable = new Writable({
 The `stream.Writable` class is extended to implement a [`Writable`][] stream.
 
 Custom `Writable` streams *must* call the `new stream.Writable([options])`
-constructor and implement the `writable._write()` method. The
-`writable._writev()` method *may* also be implemented.
+constructor and implement the `writable._write()` and/or `writable._writev()`
+method.
 
 #### Constructor: new stream.Writable([options])
 <!-- YAML
@@ -1777,6 +1777,12 @@ const myWritable = new Writable({
 ```
 
 #### writable.\_write(chunk, encoding, callback)
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29639
+    description: _write() is optional when providing _writev().
+-->
 
 * `chunk` {Buffer|string|any} The `Buffer` to be written, converted from the
   `string` passed to [`stream.write()`][stream-write]. If the stream's
@@ -1790,7 +1796,8 @@ const myWritable = new Writable({
   argument) when processing is complete for the supplied chunk.
 
 All `Writable` stream implementations must provide a
-[`writable._write()`][stream-_write] method to send data to the underlying
+[`writable._write()`][stream-_write] and/or
+[`writable._writev()`][stream-_writev] method to send data to the underlying
 resource.
 
 [`Transform`][] streams provide their own implementation of the
@@ -1833,8 +1840,8 @@ This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Writable` class
 methods only.
 
-The `writable._writev()` method may be implemented in addition to
-`writable._write()` in stream implementations that are capable of processing
+The `writable._writev()` method may be implemented in addition or alternatively
+to `writable._write()` in stream implementations that are capable of processing
 multiple chunks of data at once. If implemented, the method will be called with
 all chunks of data currently buffered in the write queue.
 
