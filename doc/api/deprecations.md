@@ -2526,6 +2526,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/29781
     description: Documentation-only deprecation.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/
+    description: Runtime deprecation.
 -->
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
