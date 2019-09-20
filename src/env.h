@@ -444,6 +444,7 @@ constexpr size_t kFsStatsBufferLength =
   V(primordials, v8::Object)                                                   \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
+  V(source_map_cache_getter, v8::Function)                                     \
   V(tick_callback_function, v8::Function)                                      \
   V(timers_callback_function, v8::Function)                                    \
   V(tls_wrap_constructor_function, v8::Function)                               \

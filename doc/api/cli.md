@@ -1110,9 +1110,19 @@ variable is strongly discouraged.
 
 ### `NODE_V8_COVERAGE=dir`
 
-When set, Node.js will begin outputting [V8 JavaScript code coverage][] to the
-directory provided as an argument. Coverage is output as an array of
-[ScriptCoverage][] objects:
+When set, Node.js will begin outputting [V8 JavaScript code coverage][] and
+[Source Map][] data to the directory provided as an argument (coverage
+information is written as JSON to files with a `coverage` prefix).
+
+`NODE_V8_COVERAGE` will automatically propagate to subprocesses, making it
+easier to instrument applications that call the `child_process.spawn()` family
+of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
+propagation.
+
+#### Coverage Output
+
+Coverage is output as an array of [ScriptCoverage][] objects on the top-level
+key `result`:
 
 ```json
 {
@@ -1126,13 +1136,46 @@ directory provided as an argument. Coverage is output as an array of
 }
 ```
 
-`NODE_V8_COVERAGE` will automatically propagate to subprocesses, making it
-easier to instrument applications that call the `child_process.spawn()` family
-of functions. `NODE_V8_COVERAGE` can be set to an empty string, to prevent
-propagation.
+#### Source Map Cache
 
-At this time coverage is only collected in the main thread and will not be
-output for code executed by worker threads.
+> Stability: 1 - Experimental
+
+If found, Source Map data is appended to the top-level key `source-map-cache`
+on the JSON coverage object.
+
+`source-map-cache` is an object with keys representing the files source maps
+were extracted from, and the values include the raw source-map URL
+(in the key `url`) and the parsed Source Map V3 information (in the key `data`).
+
+```json
+{
+  "result": [
+    {
+      "scriptId": "68",
+      "url": "file:///absolute/path/to/source.js",
+      "functions": []
+    }
+  ],
+  "source-map-cache": {
+    "file:///absolute/path/to/source.js": {
+      "url": "./path-to-map.json",
+      "data": {
+        "version": 3,
+        "sources": [
+          "file:///absolute/path/to/original.js"
+        ],
+        "names": [
+          "Foo",
+          "console",
+          "info"
+        ],
+        "mappings": "MAAMA,IACJC,YAAaC",
+        "sourceRoot": "./"
+      }
+    }
+  }
+}
+```
 
 ### `OPENSSL_CONF=file`
 <!-- YAML
@@ -1203,6 +1246,7 @@ greater than `4` (its current default value). For more information, see the
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
