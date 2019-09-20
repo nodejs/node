@@ -385,6 +385,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "silence all process warnings",
             &EnvironmentOptions::no_warnings,
             kAllowedInEnvironment);
+  AddOption("--force-context-aware",
+            "disable loading non-context-aware addons",
+            &EnvironmentOptions::force_context_aware,
+            kAllowedInEnvironment);
   AddOption("--pending-deprecation",
             "emit pending deprecation warnings",
             &EnvironmentOptions::pending_deprecation,

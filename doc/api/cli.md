@@ -411,6 +411,13 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--force-context-aware`
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable loading non-context-aware native addons.
+
 ### `--openssl-config=file`
 <!-- YAML
 added: v6.9.0
@@ -980,6 +987,7 @@ Node.js options that are allowed are:
 * `--experimental-report`
 * `--experimental-vm-modules`
 * `--experimental-wasm-modules`
+* `--force-context-aware`
 * `--force-fips`
 * `--frozen-intrinsics`
 * `--heapsnapshot-signal`
