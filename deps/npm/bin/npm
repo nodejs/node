@@ -2,12 +2,16 @@
 (set -o igncr) 2>/dev/null && set -o igncr; # cygwin encoding fix
 
 basedir=`dirname "$0"`
+isexe=0
 
 case `uname` in
     *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
 esac
 
 NODE_EXE="$basedir/node.exe"
+if [ -x "$NODE_EXE" ]; then
+  isexe=1
+fi
 if ! [ -x "$NODE_EXE" ]; then
   NODE_EXE="$basedir/node"
 fi
@@ -33,5 +37,9 @@ case `uname` in
     fi
     ;;
 esac
+
+if [ isexe==1 ] && [ -f "/bin/wslpath" ]; then # normalize back to Windows path
+  NPM_CLI_JS=`wslpath -w "$NPM_CLI_JS"`
+fi
 
 "$NODE_EXE" "$NPM_CLI_JS" "$@"
