@@ -97,6 +97,7 @@ class SecureContext : public BaseObject {
   X509Pointer issuer_;
 #ifndef OPENSSL_NO_ENGINE
   bool client_cert_engine_provided_ = false;
+  std::unique_ptr<ENGINE, std::function<void(ENGINE*)>> private_key_engine_;
 #endif  // !OPENSSL_NO_ENGINE
 
   static const int kMaxSessionSize = 10 * 1024;

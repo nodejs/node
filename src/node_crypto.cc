@@ -768,6 +768,14 @@ void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
 }
 
 #ifndef OPENSSL_NO_ENGINE
+// Helpers for the smart pointer.
+void ENGINE_free_fn(ENGINE* engine) { ENGINE_free(engine); }
+
+void ENGINE_finish_and_free_fn(ENGINE* engine) {
+  ENGINE_finish(engine);
+  ENGINE_free(engine);
+}
+
 void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -778,17 +786,22 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 
   char errmsg[1024];
   const node::Utf8Value engine_id(env->isolate(), args[1]);
-  ENGINE* e = LoadEngineById(*engine_id, &errmsg);
-  if (e == nullptr) {
+  std::unique_ptr<ENGINE, std::function<void(ENGINE*)>> e =
+                         { LoadEngineById(*engine_id, &errmsg),
+                           ENGINE_free_fn };
+  if (e.get() == nullptr) {
     return env->ThrowError(errmsg);
   }
 
-  if (!ENGINE_init(e)) {
+  if (!ENGINE_init(e.get())) {
     return env->ThrowError("ENGINE_init");
   }
 
+  e.get_deleter() = ENGINE_finish_and_free_fn;
+
   const node::Utf8Value key_name(env->isolate(), args[0]);
-  EVPKeyPointer key(ENGINE_load_private_key(e, *key_name, nullptr, nullptr));
+  EVPKeyPointer key(ENGINE_load_private_key(e.get(), *key_name,
+                                            nullptr, nullptr));
 
   if (!key) {
     return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
@@ -799,6 +812,8 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   if (rv == 0) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
   }
+
+  sc->private_key_engine_ = std::move(e);
 }
 #endif  // !OPENSSL_NO_ENGINE
 
@@ -1476,9 +1491,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
 
 
 #ifndef OPENSSL_NO_ENGINE
-// Helper for the smart pointer.
-void ENGINE_free_fn(ENGINE* engine) { ENGINE_free(engine); }
-
 void SecureContext::SetClientCertEngine(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
