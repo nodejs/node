@@ -122,9 +122,9 @@ function test(decode, uncork, multi, next) {
 
 {
   const w = new stream.Writable({
-    writev: function(chunks, cb) {
+    writev: common.mustCall(function(chunks, cb) {
       cb();
-    }
+    })
   });
   w.write('asd', common.mustCall());
 }
