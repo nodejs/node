@@ -434,8 +434,8 @@ TestCoverage(
 `,
 [{"start":0,"end":399,"count":1},
  {"start":1,"end":351,"count":1},
- {"start":154,"end":204,"count":0},
- {"start":226,"end":350,"count":0}]
+ {"start":154,"end":176,"count":0},
+ {"start":254,"end":276,"count":0}]
 );
 
 TestCoverage(
@@ -464,8 +464,8 @@ TestCoverage(
 `,
 [{"start":0,"end":999,"count":1},
  {"start":1,"end":951,"count":1},
- {"start":152,"end":202,"count":0},
- {"start":285,"end":353,"count":0}]
+ {"start":152,"end":168,"count":0},
+ {"start":287,"end":310,"count":0}]
 );
 
 TestCoverage(
@@ -1050,6 +1050,51 @@ try {                                     // 0500
  {"start":602,"end":616,"count":0},
  {"start":0,"end":201,"count":2},
  {"start":69,"end":153,"count":1}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9705",
+`
+function f(x) {                           // 0000
+  switch (x) {                            // 0050
+    case 40: nop();                       // 0100
+    case 41: nop(); return 1;             // 0150
+    case 42: nop(); break;                // 0200
+  }                                       // 0250
+  return 3;                               // 0300
+};                                        // 0350
+f(40);                                    // 0400
+f(41);                                    // 0450
+f(42);                                    // 0500
+f(43);                                    // 0550
+`,
+[{"start":0,"end":599,"count":1},
+ {"start":0,"end":351,"count":4},
+ {"start":104,"end":119,"count":1},
+ {"start":154,"end":179,"count":2},
+ {"start":204,"end":226,"count":1},
+ {"start":253,"end":350,"count":2}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9705",
+`
+function f(x) {                           // 0000
+  switch (x) {                            // 0050
+    case 40: nop();                       // 0100
+    case 41: nop(); return 1;             // 0150
+    case 42: nop(); break;                // 0200
+  }                                       // 0250
+  return 3;                               // 0300
+};                                        // 0350
+f(42);                                    // 0400
+f(43);                                    // 0450
+`,
+[{"start":0,"end":499,"count":1},
+ {"start":0,"end":351,"count":2},
+ {"start":104,"end":119,"count":0},
+ {"start":154,"end":179,"count":0},
+ {"start":204,"end":226,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

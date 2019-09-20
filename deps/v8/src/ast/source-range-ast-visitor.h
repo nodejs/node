@@ -34,6 +34,7 @@ class SourceRangeAstVisitor final
   friend class AstTraversalVisitor<SourceRangeAstVisitor>;
 
   void VisitBlock(Block* stmt);
+  void VisitSwitchStatement(SwitchStatement* stmt);
   void VisitFunctionLiteral(FunctionLiteral* expr);
   bool VisitNode(AstNode* node);
 
