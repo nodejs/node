@@ -1071,7 +1071,14 @@ be delivered to that process instead which can have unexpected results.
 While the function is called `kill`, the signal delivered to the child process
 may not actually terminate the process.
 
-See kill(2) for reference.
+On Unix-like systems, the function calls kill(2) with the pid and the signal(7)
+given. See the manual pages for reference. On Windows, a subset of these
+signals are supported via emulation.
+
+On System V-compatible systems, a negative pid causes the process group with
+the corresponding id to be killed. In combination with [`options.detached`]
+the function can exert limited control on child processes of child processes.
+This feature is not available on Windows.
 
 On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
