@@ -35,7 +35,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
-// Outputs coverage when process.exit(1) exits process.
+// Outputs coverage when error is thrown in first tick.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
