@@ -9,6 +9,7 @@ const run = (shell, command, args, ok = mkay) => {
   // eslint-disable-next-line prefer-const
   let { stdout, stderr, error, status } = cp.spawnSync(command, args, {
     shell: shell,
+    shellEscape: true
   });
   [stdout, stderr] = [stdout, stderr].map((i) => i.toString());
   ok(!error && !stderr, [error, status, stderr, stdout].join(' ||| '));

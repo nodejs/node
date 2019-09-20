@@ -103,7 +103,7 @@ When running on Windows, `.bat` and `.cmd` files can be invoked using
 [`child_process.exec()`][], or by spawning `cmd.exe` and passing the `.bat` or
 `.cmd` file as an argument (which is what the `shell` option and
 [`child_process.exec()`][] do). In any case, if the script filename contains
-spaces it needs to be quoted.
+spaces it needs to be quoted or invoked with `shellEscape: true`.
 
 ```js
 // On Windows Only...
@@ -278,8 +278,10 @@ changes:
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell requirements][] and
-    [Default Windows shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
+    for the shell selected. **Default:** `false` (no escaping).
   * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
@@ -469,10 +471,10 @@ changes:
     See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. Unlike `command`, `args` will be quoted
-    and no metacharacters will be effective inside of it. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
-    (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
+    for the shell selected. **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -820,10 +822,10 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. Unlike `command`, `args` will be quoted
-    and no metacharacters will be effective inside of it. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
-    (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
+    for the shell selected. **Default:** `false` (no escaping).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -953,10 +955,10 @@ changes:
     **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. Unlike `command`, `args` will be quoted
-    and no metacharacters will be effective inside of it. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:** `false`
-    (no shell).
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `shellEscape` {boolean} If `true`, escape `args[]`, but not `command`,
+    for the shell selected. **Default:** `false` (no escaping).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -1646,14 +1648,23 @@ The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
 should understand the `/d /s /c` switches and command-line parsing should be
 compatible.
 
-If `shell` and `args` are both specified, the shell should understand
-[POSIX single-quotes][]. If the shell is `'cmd.exe'`, it should understand the
-double-quoting used by Windows `cmd`. If the shell is `'powershell.exe'` or
-`'pwsh'`, it should understand a powershell-compatible single quoting.
+### Shell Escaping
 
-Since the `command` part is literally passed to the shell, you will be
-responsible for any escaping you perform. The specific way to call a file
-as a command-line program depends on the shell:
+`shellEscape` is an option introduced in Node 1X.Y.Z. It is intended to improve
+the safety of shell command-line by unifying the behavior of `args[]` with
+regard to metacharacters with the `shell: false` case. All metacharacters and
+shell-specific scripting should be placed in `command` instead. To preserve
+backward compatibility, it is designed as an opt-in feature.
+
+If all of `shell`, `args`, and `shellEscape` are specified, the shell should
+understand [POSIX single-quotes][]. If the shell is `'cmd.exe'`, it should
+understand the double-quoting used by Windows `cmd`. If the shell is
+`'powershell.exe'` or `'pwsh'`, it should understand a powershell-compatible
+single quoting.
+
+Since the `command` part is literally passed to the shell, you are responsible
+for any escaping you perform. The specific way to call a file as a command-line
+program depends on the shell:
 
 * With POSIX shell, you quote the path using the usual single-quotes.
   To auto-escape the path, use `'command --'` as your `command` argument and
