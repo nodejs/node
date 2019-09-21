@@ -8,6 +8,7 @@
 #include "nghttp2/nghttp2.h"
 
 #include "node_http2_state.h"
+#include "node_mem.h"
 #include "node_perf.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
@@ -705,7 +706,9 @@ enum SessionBitfieldFlags {
   kSessionHasAltsvcListeners
 };
 
-class Http2Session : public AsyncWrap, public StreamListener {
+class Http2Session : public AsyncWrap,
+                     public StreamListener,
+                     public mem::NgLibMemoryManager<Http2Session, nghttp2_mem> {
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
@@ -714,7 +717,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   class Http2Ping;
   class Http2Settings;
-  class MemoryAllocatorInfo;
 
   void EmitStatistics();
 
@@ -814,6 +816,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
   uv_buf_t OnStreamAlloc(size_t suggested_size) override;
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamAfterWrite(WriteWrap* w, int status) override;
+
+  // Implementation for mem::NgLibMemoryManager
+  void CheckAllocatedSize(size_t previous_size) const;
+  void IncreaseAllocatedSize(size_t size);
+  void DecreaseAllocatedSize(size_t size);
 
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
