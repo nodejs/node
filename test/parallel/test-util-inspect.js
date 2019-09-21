@@ -2114,6 +2114,21 @@ assert.strictEqual(
     inspect(obj),
     "Array <[Object: null prototype] {}> { '0': 1, '1': 2, '2': 3 }"
   );
+
+  StorageObject.prototype = Object.create(null);
+  Object.setPrototypeOf(StorageObject.prototype, Object.create(null));
+  Object.setPrototypeOf(
+    Object.getPrototypeOf(StorageObject.prototype),
+    Object.create(null)
+  );
+  assert.strictEqual(
+    util.inspect(new StorageObject()),
+    'StorageObject <Object <Object <[Object: null prototype] {}>>> {}'
+  );
+  assert.strictEqual(
+    util.inspect(new StorageObject(), { depth: 1 }),
+    'StorageObject <Object <Object <Complex prototype>>> {}'
+  );
 }
 
 // Check that the fallback always works.
