@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 'use strict';
 
 const common = require('../common');
@@ -97,3 +98,5 @@ const {
   }
   spinAWhile();
 }
+
+process.on('exit', global.gc);
