@@ -72,11 +72,11 @@ void HandleWrap::Close(Local<Value> close_callback) {
   if (state_ != kInitialized)
     return;
 
-  CHECK_EQ(false, persistent().IsEmpty());
   uv_close(handle_, OnClose);
   state_ = kClosing;
 
-  if (!close_callback.IsEmpty() && close_callback->IsFunction()) {
+  if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
+      !persistent().IsEmpty()) {
     object()->Set(env()->context(),
                   env()->handle_onclose_symbol(),
                   close_callback).Check();
