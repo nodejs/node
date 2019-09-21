@@ -1761,7 +1761,7 @@ const myWritable = new Writable({
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/29639
-    description: _write is optional when providing _writev.
+    description: _write() is optional when providing _writev().
 -->
 
 * `chunk` {Buffer|string|any} The `Buffer` to be written, converted from the
