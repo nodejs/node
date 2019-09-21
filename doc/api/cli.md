@@ -416,7 +416,7 @@ Silence all process warnings (including deprecations).
 added: REPLACEME
 -->
 
-Disable loading non-context-aware native addons.
+Disable loading native addons that are not [context-aware][].
 
 ### `--openssl-config=file`
 <!-- YAML
@@ -1264,3 +1264,4 @@ greater than `4` (its current default value). For more information, see the
 [experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[context-aware]: addons.html#addons_context_aware_addons
