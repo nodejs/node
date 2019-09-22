@@ -1531,7 +1531,7 @@ If this is unwanted behavior then the returned cleanup function needs to be
 invoked in the callback:
 
 ```js
-const cleanup = finished(...streams, err => {
+const cleanup = finished(...streams, (err) => {
   cleanup();
   // ...
 });
