@@ -1852,13 +1852,11 @@ or write buffered data before a stream ends.
 
 #### Errors While Writing
 
-It is recommended that errors occurring during the processing of the
-`writable._write()` and `writable._writev()` methods are reported by invoking
-the callback and passing the error as the first argument. This will cause an
-`'error'` event to be emitted by the `Writable`. Throwing an `Error` from within
-`writable._write()` can result in unexpected and inconsistent behavior depending
-on how the stream is being used. Using the callback ensures consistent and
-predictable handling of errors.
+Errors occurring during the processing of the [`writable._write()`][],
+[`writable._writev()`][] and [`writable._final()`] methods should be propagated
+by invoking the callback and passing the error as the first argument.
+Throwing an `Error` from within these methods or manually emitting an `'error'`
+event results in undefined behavior.
 
 If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
@@ -2761,6 +2759,9 @@ contain multi-byte characters.
 [`writable.cork()`]: #stream_writable_cork
 [`writable.end()`]: #stream_writable_end_chunk_encoding_callback
 [`writable.uncork()`]: #stream_writable_uncork
+[`writable._final()`]: #stream.html#stream_writable_final_callback
+[`writable._write()`]: #stream.html#stream_writable_write_chunk_encoding_callback_1
+[`writable._writev()`]: #stream.html#stream_writable_writev_chunks_callback
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [API for Stream Consumers]: #stream_api_for_stream_consumers
