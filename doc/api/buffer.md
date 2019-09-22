@@ -1025,6 +1025,9 @@ console.log(buf.toString('ascii'));
 * {ArrayBuffer} The underlying `ArrayBuffer` object based on
   which this `Buffer` object is created.
 
+This `ArrayBuffer` is not guaranteed to correspond exactly to the original
+`Buffer`. See the notes on `buf.byteOffset` for details.
+
 ```js
 const arrayBuffer = new ArrayBuffer(16);
 const buffer = Buffer.from(arrayBuffer);
