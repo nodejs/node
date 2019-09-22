@@ -97,7 +97,7 @@ assert.strictEqual(
     {
       code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
       type: RangeError,
-      message: 'Input buffers must have the same byteLength'
+      message: 'Input buffers must have the same number of bytes'
     }
   );
   common.expectsError(
@@ -115,7 +115,7 @@ assert.strictEqual(
     {
       code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
       type: RangeError,
-      message: 'Input buffers must have the same byteLength'
+      message: 'Input buffers must have the same number of bytes'
     }
   );
 }
@@ -125,7 +125,7 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     type: RangeError,
-    message: 'Input buffers must have the same byteLength'
+    message: 'Input buffers must have the same number of bytes'
   }
 );
 
