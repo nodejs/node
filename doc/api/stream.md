@@ -2132,24 +2132,22 @@ buffer. See [`readable.push('')`][] for more information.
 
 #### Errors While Reading
 
-It is recommended that errors occurring during the processing of the
-`readable._read()` method are emitted using the `'error'` event rather than
-being thrown. Throwing an `Error` from within `readable._read()` can result in
-unexpected and inconsistent behavior depending on whether the stream is
-operating in flowing or paused mode. Using the `'error'` event ensures
-consistent and predictable handling of errors.
+Errors occuring during processing of the [`readable._read()`][] should be
+propagated through the [`readable.destroy(err)`][readable-_destroy] method.
+Throwing an `Error` from within [`readable._read()`][] or manually emitting an
+`'error'` event results in undefined behavior.
 
-<!-- eslint-disable no-useless-return -->
 ```js
 const { Readable } = require('stream');
 
 const myReadable = new Readable({
   read(size) {
-    if (checkSomeErrorCondition()) {
-      process.nextTick(() => this.emit('error', err));
-      return;
+    const err = checkSomeErrorCondition();
+    if (err) {
+      this.destory(err);
+    } else {
+      // Do some work.
     }
-    // Do some work.
   }
 });
 ```
@@ -2751,6 +2749,7 @@ contain multi-byte characters.
 [`process.stdout`]: process.html#process_process_stdout
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
+[`readable._read()`]: stream.html#stream_readable_read_size_1
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
