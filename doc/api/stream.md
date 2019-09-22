@@ -1879,13 +1879,11 @@ or write buffered data before a stream ends.
 
 #### Errors While Writing
 
-It is recommended that errors occurring during the processing of the
-`writable._write()` and `writable._writev()` methods are reported by invoking
-the callback and passing the error as the first argument. This will cause an
-`'error'` event to be emitted by the `Writable`. Throwing an `Error` from within
-`writable._write()` can result in unexpected and inconsistent behavior depending
-on how the stream is being used. Using the callback ensures consistent and
-predictable handling of errors.
+Errors occurring during the processing of the [`writable._write()`][],
+[`writable._writev()`][] and [`writable._final()`] methods must be propagated
+by invoking the callback and passing the error as the first argument.
+Throwing an `Error` from within these methods or manually emitting an `'error'`
+event results in undefined behavior.
 
 If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
@@ -2159,24 +2157,22 @@ buffer. See [`readable.push('')`][] for more information.
 
 #### Errors While Reading
 
-It is recommended that errors occurring during the processing of the
-`readable._read()` method are emitted using the `'error'` event rather than
-being thrown. Throwing an `Error` from within `readable._read()` can result in
-unexpected and inconsistent behavior depending on whether the stream is
-operating in flowing or paused mode. Using the `'error'` event ensures
-consistent and predictable handling of errors.
+Errors occurring during processing of the [`readable._read()`][] must be
+propagated through the [`readable.destroy(err)`][readable-_destroy] method.
+Throwing an `Error` from within [`readable._read()`][] or manually emitting an
+`'error'` event results in undefined behavior.
 
-<!-- eslint-disable no-useless-return -->
 ```js
 const { Readable } = require('stream');
 
 const myReadable = new Readable({
   read(size) {
-    if (checkSomeErrorCondition()) {
-      process.nextTick(() => this.emit('error', err));
-      return;
+    const err = checkSomeErrorCondition();
+    if (err) {
+      this.destroy(err);
+    } else {
+      // Do some work.
     }
-    // Do some work.
   }
 });
 ```
@@ -2776,6 +2772,7 @@ contain multi-byte characters.
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
+[`readable._read()`]: #stream_readable_read_size_1
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
@@ -2786,6 +2783,9 @@ contain multi-byte characters.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
+[`writable._final()`]: #stream_writable_final_callback
+[`writable._write()`]: #stream_writable_write_chunk_encoding_callback_1
+[`writable._writev()`]: #stream_writable_writev_chunks_callback
 [`writable.cork()`]: #stream_writable_cork
 [`writable.end()`]: #stream_writable_end_chunk_encoding_callback
 [`writable.uncork()`]: #stream_writable_uncork
