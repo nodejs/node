@@ -23,6 +23,7 @@ const MakeDuplexPair = require('../common/duplexpair');
     res.on('data', common.mustCall((data) => {
       assert.strictEqual(data, testData);
     }));
+    res.on('end', common.mustCall());
   }));
   req.end();
 }
@@ -57,4 +58,83 @@ const MakeDuplexPair = require('../common/duplexpair');
   doRequest(() => {
     doRequest();
   });
+}
+
+// Test 3: Connection: close request/response with chunked
+{
+  const testData = 'Hello, World!\n';
+  const server = http.createServer(common.mustCall((req, res) => {
+    req.setEncoding('utf8');
+    req.resume();
+    req.on('data', common.mustCall(function test3_req_data(data) {
+      assert.strictEqual(data, testData);
+    }));
+    req.once('end', function() {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      res.write(testData);
+      res.end();
+    });
+  }));
+
+  const { clientSide, serverSide } = MakeDuplexPair();
+  server.emit('connection', serverSide);
+  clientSide.on('end', common.mustCall());
+  serverSide.on('end', common.mustCall());
+
+  const req = http.request({
+    createConnection: common.mustCall(() => clientSide),
+    method: 'PUT',
+    headers: { 'Connection': 'close' }
+  }, common.mustCall((res) => {
+    res.setEncoding('utf8');
+    res.on('data', common.mustCall(function test3_res_data(data) {
+      assert.strictEqual(data, testData);
+    }));
+    res.on('end', common.mustCall());
+  }));
+  req.write(testData);
+  req.end();
+}
+
+// Test 4: Connection: close request/response with Content-Length
+// The same as Test 3, but with Content-Length headers
+{
+  const testData = 'Hello, World!\n';
+  const server = http.createServer(common.mustCall((req, res) => {
+    assert.strictEqual(req.headers['content-length'], testData.length + '');
+    req.setEncoding('utf8');
+    req.on('data', common.mustCall(function test4_req_data(data) {
+      assert.strictEqual(data, testData);
+    }));
+    req.once('end', function() {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Length', testData.length);
+      res.write(testData);
+      res.end();
+    });
+
+  }));
+
+  const { clientSide, serverSide } = MakeDuplexPair();
+  server.emit('connection', serverSide);
+  clientSide.on('end', common.mustCall());
+  serverSide.on('end', common.mustCall());
+
+  const req = http.request({
+    createConnection: common.mustCall(() => clientSide),
+    method: 'PUT',
+    headers: { 'Connection': 'close' }
+  }, common.mustCall((res) => {
+    res.setEncoding('utf8');
+    assert.strictEqual(res.headers['content-length'], testData.length + '');
+    res.on('data', common.mustCall(function test4_res_data(data) {
+      assert.strictEqual(data, testData);
+    }));
+    res.on('end', common.mustCall());
+  }));
+  req.setHeader('Content-Length', testData.length);
+  req.write(testData);
+  req.end();
 }
