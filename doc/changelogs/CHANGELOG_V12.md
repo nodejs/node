@@ -1172,7 +1172,7 @@ Vulnerabilities fixed:
 * [[`8e28259bf8`](https://github.com/nodejs/node/commit/8e28259bf8)] - **test**: change formatting of fixtures/keys/Makefile (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
 * [[`d258504a31`](https://github.com/nodejs/node/commit/d258504a31)] - **test**: change fixtures.readSync to fixtures.readKey (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
 * [[`328b2d0c88`](https://github.com/nodejs/node/commit/328b2d0c88)] - **test**: remove uneeded agent keypair in fixtures/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
-* [[`a0d2862b1e`](https://github.om/nodejs/node/commit/a0d2862b1e)] - **test**: move foafssl certs to fixtures/keys/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
+* [[`a0d2862b1e`](https://github.com/nodejs/node/commit/a0d2862b1e)] - **test**: move foafssl certs to fixtures/keys/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
 * [[`af9eb9648e`](https://github.com/nodejs/node/commit/af9eb9648e)] - **test**: remove uneeded alice certs in fixtures/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
 * [[`ee62fa172c`](https://github.com/nodejs/node/commit/ee62fa172c)] - **test**: remove uneeded certs in fixtures/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
 * [[`f41dfd71a0`](https://github.com/nodejs/node/commit/f41dfd71a0)] - **test**: move dherror.pem to fixtures/keys/ (Alex Aubuchon) [#27962](https://github.com/nodejs/node/pull/27962)
