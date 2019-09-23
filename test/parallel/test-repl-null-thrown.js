@@ -20,5 +20,5 @@ replserver.emit('line', '.exit');
 
 setTimeout(() => {
   console.log(text);
-  assert(text.includes('Thrown: null'));
+  assert(text.includes('Uncaught null'));
 }, 0);
