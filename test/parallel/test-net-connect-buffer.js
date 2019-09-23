@@ -61,19 +61,16 @@ tcp.listen(0, common.mustCall(function() {
   [
     true,
     false,
-    undefined,
     1,
     1.0,
     +Infinity,
-    -Infinity,
-    [],
-    {}
+    -Infinity
   ].forEach((value) => {
     common.expectsError(() => socket.write(value), {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "chunk" argument must be one of type string or Buffer. ' +
-               `Received type ${typeof value}`
+      message: 'The "chunk" argument must be of type string or an instance ' +
+               `of Buffer. Received type ${typeof value} (${value})`
     });
   });
 

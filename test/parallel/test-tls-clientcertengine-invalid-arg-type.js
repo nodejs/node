@@ -10,5 +10,5 @@ const tls = require('tls');
   common.expectsError(
     () => { tls.createSecureContext({ clientCertEngine: 0 }); },
     { code: 'ERR_INVALID_ARG_TYPE',
-      message: / Received type number$/ });
+      message: / Received type number \(0\)/ });
 }

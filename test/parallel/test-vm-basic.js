@@ -102,8 +102,8 @@ const vm = require('vm');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type Object. ' +
-             `Received type ${typeof input}`
+    message: 'The "options" argument must be of type object.' +
+             common.invalidArgTypeHelper(input)
   });
 });
 
@@ -114,7 +114,7 @@ const vm = require('vm');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: `The "options.${propertyName}" property must be of type string. ` +
-             'Received type object'
+             'Received null'
   });
 });
 
@@ -125,7 +125,7 @@ const vm = require('vm');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: `The "options.${propertyName}" property must be of type string. ` +
-             'Received type object'
+             'Received null'
   });
 });
 
@@ -160,7 +160,7 @@ const vm = require('vm');
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "code" argument must be of type string. ' +
-      'Received type undefined'
+      'Received undefined'
   });
 
   vm.compileFunction(''); // Should pass without params or options
@@ -168,8 +168,8 @@ const vm = require('vm');
   common.expectsError(() => vm.compileFunction('', null), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "params" argument must be of type Array. ' +
-      'Received type object'
+    message: 'The "params" argument must be an instance of Array. ' +
+      'Received null'
   });
 
   // vm.compileFunction('', undefined, null);
@@ -184,14 +184,14 @@ const vm = require('vm');
 
   for (const option in optionTypes) {
     const typeErrorMessage = `The "options.${option}" property must be ` +
-       `${option === 'cachedData' ? 'one of' : 'of'} type`;
+      (option === 'cachedData' ? 'an instance of' : 'of type');
     common.expectsError(() => {
       vm.compileFunction('', undefined, { [option]: null });
     }, {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
       message: typeErrorMessage +
-        ` ${optionTypes[option]}. Received type object`
+        ` ${optionTypes[option]}. Received null`
     });
   }
 
@@ -203,8 +203,8 @@ const vm = require('vm');
       }, {
         type: TypeError,
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "options.parsingContext" property must be of type ' +
-          `Context. Received type ${typeof value}`
+        message: 'The "options.parsingContext" property must be an instance ' +
+          `of Context.${common.invalidArgTypeHelper(value)}`
       });
     }
   );
@@ -217,8 +217,8 @@ const vm = require('vm');
       }, {
         type: TypeError,
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "params" argument must be of type Array. ' +
-          `Received type ${typeof value}`
+        message: 'The "params" argument must be an instance of Array.' +
+          common.invalidArgTypeHelper(value)
       });
     }
   );
@@ -237,8 +237,8 @@ const vm = require('vm');
   }, {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options.contextExtensions" property must be of type Array' +
-       '. Received type object'
+    message: 'The "options.contextExtensions" property must be an instance of' +
+       ' Array. Received null'
   });
 
   common.expectsError(() => {
@@ -247,7 +247,7 @@ const vm = require('vm');
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "options.contextExtensions[0]" property must be of type ' +
-       'object. Received type number'
+       'object. Received type number (0)'
   });
 
   const oldLimit = Error.stackTraceLimit;

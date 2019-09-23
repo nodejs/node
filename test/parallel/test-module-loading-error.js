@@ -64,7 +64,7 @@ assert.throws(
   }
 );
 
-const re = /^The "id" argument must be of type string\. Received type \w+$/;
+const re = /^The "id" argument must be of type string\. Received /;
 [1, false, null, undefined, {}].forEach((value) => {
   common.expectsError(
     () => { require(value); },

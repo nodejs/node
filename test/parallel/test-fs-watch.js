@@ -99,9 +99,7 @@ for (const testCase of cases) {
     () => fs.watch(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "filename" argument must be one of type string, Buffer, ' +
-               `or URL. Received type ${typeof input}`
+      type: TypeError
     }
   );
 });

@@ -85,8 +85,8 @@ assert.throws(
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "keylen" argument must be of type number. ' +
-               `Received type ${typeof notNumber}`
+      message: 'The "keylen" argument must be of type number.' +
+               `${common.invalidArgTypeHelper(notNumber)}`
     });
 });
 
@@ -125,8 +125,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be one of type string or null. ' +
-             'Received type undefined'
+    message: 'The "digest" argument must be of type string or null. ' +
+             'Received undefined'
   });
 
 assert.throws(
@@ -134,19 +134,19 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be one of type string or null. ' +
-             'Received type undefined'
+    message: 'The "digest" argument must be of type string or null. ' +
+             'Received undefined'
   });
 
 [1, {}, [], true, undefined, null].forEach((input) => {
-  const msgPart2 = 'Buffer, TypedArray, or DataView.' +
-                   ` Received type ${typeof input}`;
+  const msgPart2 = 'an instance of Buffer, TypedArray, or DataView.' +
+                   common.invalidArgTypeHelper(input);
   assert.throws(
     () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "password" argument must be one of type string, ${msgPart2}`
+      message: `The "password" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -155,7 +155,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "salt" argument must be one of type string, ${msgPart2}`
+      message: `The "salt" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -164,7 +164,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "password" argument must be one of type string, ${msgPart2}`
+      message: `The "password" argument must be of type string or ${msgPart2}`
     }
   );
 
@@ -173,19 +173,19 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "salt" argument must be one of type string, ${msgPart2}`
+      message: `The "salt" argument must be of type string or ${msgPart2}`
     }
   );
 });
 
 ['test', {}, [], true, undefined, null].forEach((i) => {
-  const received = `Received type ${typeof i}`;
+  const received = common.invalidArgTypeHelper(i);
   assert.throws(
     () => crypto.pbkdf2('pass', 'salt', i, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number. ${received}`
+      message: `The "iterations" argument must be of type number.${received}`
     }
   );
 
@@ -194,7 +194,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number. ${received}`
+      message: `The "iterations" argument must be of type number.${received}`
     }
   );
 });

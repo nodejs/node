@@ -19,7 +19,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   message: 'The "id" argument must be one of type number or string. ' +
-    'Received type object'
+    'Received an instance of Object'
 });
 
 assert.throws(() => {

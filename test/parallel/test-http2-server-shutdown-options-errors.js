@@ -19,13 +19,14 @@ server.on('stream', common.mustCall((stream) => {
   const session = stream.session;
 
   types.forEach((input) => {
+    const received = common.invalidArgTypeHelper(input);
     common.expectsError(
       () => session.goaway(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "code" argument must be of type number. Received type ' +
-                 typeof input
+        message: 'The "code" argument must be of type number.' +
+                 received
       }
     );
     common.expectsError(
@@ -33,8 +34,8 @@ server.on('stream', common.mustCall((stream) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "lastStreamID" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+        message: 'The "lastStreamID" argument must be of type number.' +
+                 received
       }
     );
     common.expectsError(
@@ -42,8 +43,8 @@ server.on('stream', common.mustCall((stream) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "opaqueData" argument must be one of type Buffer, ' +
-                 `TypedArray, or DataView. Received type ${typeof input}`
+        message: 'The "opaqueData" argument must be an instance of Buffer, ' +
+                 `TypedArray, or DataView.${received}`
       }
     );
   });

@@ -967,19 +967,19 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "target" argument must be one of type Buffer or Uint8Array.' +
-             ' Received type undefined'
+    message: 'The "target" argument must be an instance of Buffer or ' +
+             'Uint8Array. Received undefined'
   });
 
 assert.throws(() => Buffer.from(), {
   name: 'TypeError',
-  message: 'The first argument must be one of type string, Buffer, ' +
-  'ArrayBuffer, Array, or Array-like Object. Received type undefined'
+  message: 'The first argument must be of type string or an instance of ' +
+  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined'
 });
 assert.throws(() => Buffer.from(null), {
   name: 'TypeError',
-  message: 'The first argument must be one of type string, Buffer, ' +
-  'ArrayBuffer, Array, or Array-like Object. Received type object'
+  message: 'The first argument must be of type string or an instance of ' +
+  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received null'
 });
 
 // Test prototype getters don't throw

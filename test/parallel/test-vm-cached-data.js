@@ -93,5 +93,5 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /must be one of type Buffer, TypedArray, or DataView/
+  message: /must be an instance of Buffer, TypedArray, or DataView/
 });
