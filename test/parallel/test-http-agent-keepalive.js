@@ -150,6 +150,8 @@ function checkListeners(socket) {
     socket.off('free', callback);
     socket.off('close', callback);
   });
+  assert.strictEqual(socket.listenerCount('error'), 1);
+  assert.strictEqual(socket.listenerCount('end'), 2);
   socket.once('free', callback);
   socket.once('close', callback);
 }
