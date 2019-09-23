@@ -182,7 +182,7 @@ function removeAsync(dir) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: /^The "options" argument must be of type object\./
+      message: /^The "options" argument must be an instance of Object\./
     });
   });
 

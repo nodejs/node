@@ -13,7 +13,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number'
+      ' Received type number (1)'
   });
 
 common.expectsError(
@@ -22,7 +22,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number'
+      ' Received type number (1)'
   });
 
 common.expectsError(
@@ -54,8 +54,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options.handshakeTimeout" property must ' +
-              'be of type number. Received type string'
+    message: 'The "options.handshakeTimeout" property must be of type number.' +
+              " Received type string ('abcd')"
   }
 );
 

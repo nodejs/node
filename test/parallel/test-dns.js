@@ -144,7 +144,7 @@ assert.deepStrictEqual(dns.getServers(), []);
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "rrtype" argument must be of type string. ' +
-             'Received type object'
+             'Received an instance of Array'
   };
   common.expectsError(() => {
     dns.resolve('example.com', [], common.mustNotCall());
@@ -158,7 +158,7 @@ assert.deepStrictEqual(dns.getServers(), []);
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "name" argument must be of type string. ' +
-             'Received type undefined'
+             'Received undefined'
   };
   common.expectsError(() => {
     dnsPromises.resolve();
@@ -170,7 +170,7 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "hostname" argument must be of type string\. Received type .*/
+    message: /^The "hostname" argument must be of type string\. Received .*/
   }, 10);
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);

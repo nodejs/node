@@ -88,8 +88,9 @@ server.listen(0, common.mustCall(() => {
           {
             type: TypeError,
             code: 'ERR_INVALID_ARG_TYPE',
-            message: 'The "payload" argument must be one of type Buffer, ' +
-                     `TypedArray, or DataView. Received type ${typeof payload}`
+            message: 'The "payload" argument must be an instance of Buffer, ' +
+                     'TypedArray, or DataView.' +
+                     common.invalidArgTypeHelper(payload)
           }
         )
       );

@@ -363,9 +363,7 @@ async function getHandle(dest) {
           async () => mkdir(dir, { recursive }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError',
-            message: 'The "recursive" argument must be of type boolean. ' +
-              `Received type ${typeof recursive}`
+            name: 'TypeError'
           }
         );
       });

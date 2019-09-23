@@ -26,12 +26,13 @@ const {
   [],
   [{}]
 ].forEach((input) => {
-  common.expectsError(() => assertIsObject(input, 'foo', 'Object'),
-                      {
-                        code: 'ERR_INVALID_ARG_TYPE',
-                        message: 'The "foo" argument must be of type Object. ' +
-                                 `Received type ${typeof input}`
-                      });
+  common.expectsError(
+    () => assertIsObject(input, 'foo', 'Object'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "foo" argument must be an instance of Object.' +
+                common.invalidArgTypeHelper(input)
+    });
 });
 
 assertWithinRange('foo', 1, 0, 2);

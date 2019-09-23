@@ -35,7 +35,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be of type Object. Received type string'
+    message: 'The "test" argument must be an instance of Object. Received ' +
+             "type string ('foo')"
   });
 
 common.expectsError(
@@ -43,7 +44,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be of type Date. Received type string'
+    message: 'The "test" argument must be an instance of Date. Received type ' +
+             "string ('foo')"
   });
 
 assertIsObject({}, 'test');

@@ -23,13 +23,10 @@ function testGid(input, errObj) {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "fd" argument must be of type number. Received type ' +
-             typeof input
+    message: /fd|uid|gid/
   };
   testFd(input, errObj);
-  errObj.message = errObj.message.replace('fd', 'uid');
   testUid(input, errObj);
-  errObj.message = errObj.message.replace('uid', 'gid');
   testGid(input, errObj);
 });
 

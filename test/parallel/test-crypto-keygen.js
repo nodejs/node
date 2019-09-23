@@ -598,8 +598,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     common.expectsError(() => generateKeyPairSync(type, {}), {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "type" argument must be of type string. Received type ' +
-               typeof type
+      message: 'The "type" argument must be of type string.' +
+               common.invalidArgTypeHelper(type)
     });
   }
 
@@ -615,8 +615,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   common.expectsError(() => generateKeyPair('rsa', common.mustNotCall()), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of ' +
-      'type object. Received type undefined'
+    message: 'The "options" argument must be an instance of Object. ' +
+      'Received undefined'
   });
 
   // Even if no options are required, it should be impossible to pass anything
@@ -624,8 +624,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   common.expectsError(() => generateKeyPair('ed448', 0, common.mustNotCall()), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of ' +
-      'type object. Received type number'
+    message: 'The "options" argument must be an instance of Object. ' +
+      'Received type number (0)'
   });
 }
 

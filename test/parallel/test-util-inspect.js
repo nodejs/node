@@ -1456,8 +1456,8 @@ if (typeof Symbol !== 'undefined') {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type Object. ' +
-             'Received type object'
+    message: 'The "options" argument must be an instance of Object. ' +
+             'Received null'
   }
   );
 
@@ -1466,8 +1466,8 @@ if (typeof Symbol !== 'undefined') {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type Object. ' +
-             'Received type string'
+    message: 'The "options" argument must be an instance of Object. ' +
+             "Received type string ('bad')"
   }
   );
 }

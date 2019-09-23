@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const result = process.cpuUsage();
 
@@ -38,8 +38,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "prevValue" argument must be of type object. ' +
-             'Received type number'
+    message: 'The "prevValue" argument must be an instance of Object. ' +
+             'Received type number (1)'
   }
 );
 
@@ -54,8 +54,8 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "prevValue.user" property must be of type number. ' +
-               `Received type ${typeof value.user}`
+      message: 'The "prevValue.user" property must be of type number.' +
+               common.invalidArgTypeHelper(value.user)
     }
   );
 });
@@ -69,8 +69,8 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "prevValue.system" property must be of type number. ' +
-               `Received type ${typeof value.system}`
+      message: 'The "prevValue.system" property must be of type number.' +
+               common.invalidArgTypeHelper(value.system)
     }
   );
 });

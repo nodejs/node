@@ -80,8 +80,8 @@ async function checkModuleState() {
     await m.evaluate(false);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type Object. ' +
-             'Received type boolean'
+    message: 'The "options" argument must be an instance of Object. ' +
+             'Received type boolean (false)'
   });
 
   common.expectsError(() => {
@@ -163,8 +163,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "options.importModuleDynamically"' +
-    ' property must be of type function. Received type string'
+  message: 'The "options.importModuleDynamically" property must be of type ' +
+    "function. Received type string ('hucairz')"
 });
 
 // Check the JavaScript engine deals with exceptions correctly
@@ -204,7 +204,7 @@ async function checkInvalidOptionForEvaluate() {
     name: 'TypeError',
     message:
       'The "options.breakOnSigint" property must be of type boolean. ' +
-      'Received type string',
+      "Received type string ('a-string')",
     code: 'ERR_INVALID_ARG_TYPE'
   });
 }

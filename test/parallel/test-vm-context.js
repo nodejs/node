@@ -67,19 +67,22 @@ assert.strictEqual(gh1140Exception.toString(), 'Error');
 const nonContextualSandboxError = {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /must be of type Object/
+  message: /must be an instance of Object/
 };
 const contextifiedSandboxError = {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /must be of type vm\.Context/
+  message: /The "contextifiedSandbox" argument must be an vm\.Context/
 };
 
 [
   [undefined, nonContextualSandboxError],
-  [null, nonContextualSandboxError], [0, nonContextualSandboxError],
-  [0.0, nonContextualSandboxError], ['', nonContextualSandboxError],
-  [{}, contextifiedSandboxError], [[], contextifiedSandboxError]
+  [null, nonContextualSandboxError],
+  [0, nonContextualSandboxError],
+  [0.0, nonContextualSandboxError],
+  ['', nonContextualSandboxError],
+  [{}, contextifiedSandboxError],
+  [[], contextifiedSandboxError]
 ].forEach((e) => {
   common.expectsError(() => { script.runInContext(e[0]); }, e[1]);
   common.expectsError(() => { vm.runInContext('', e[0]); }, e[1]);

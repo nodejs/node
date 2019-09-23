@@ -59,7 +59,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message:
-      'The "handle" argument must be of type object. Received type string'
+      'The "handle" argument must be an instance of Object. Received type ' +
+      "string ('')"
   });
 }
 
@@ -102,8 +103,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   common.expectsError(() => createPrivateKey(createPublicKey(privatePem)), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "key" argument must be one of type string, Buffer, ' +
-             'TypedArray, or DataView. Received type object'
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, or DataView. Received an instance of ' +
+             'PublicKeyObject'
   });
 
   // Similarly, passing an existing private key object to createPrivateKey
@@ -112,8 +114,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   common.expectsError(() => createPrivateKey(privateKey), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "key" argument must be one of type string, Buffer, ' +
-             'TypedArray, or DataView. Received type object'
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, or DataView. Received an instance of ' +
+             'PrivateKeyObject'
   });
 }
 
@@ -139,8 +142,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     common.expectsError(() => publicKey.export(opt), {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "options" argument must be of type object. Received type ' +
-               typeof opt
+      message: /^The "options" argument must be an instance of Object/
     });
   }
 

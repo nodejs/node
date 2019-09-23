@@ -19,8 +19,8 @@ const { Worker } = require('worker_threads');
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "filename" argument must be of type string. ' +
-                 `Received type ${typeof val}`
+        message: 'The "filename" argument must be of type string.' +
+                 common.invalidArgTypeHelper(val)
       }
     );
   });

@@ -21,7 +21,8 @@ server.on('stream', common.mustCall((stream) => {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "msecs" argument must be of type number. Received type string'
+        'The "msecs" argument must be of type number. Received type string' +
+        " ('100')"
     }
   );
   common.expectsError(

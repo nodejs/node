@@ -15,8 +15,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be one of type Buffer, TypedArray, ' +
-             'or DataView. Received type number'
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+             'TypedArray, or DataView. Received type number (4)'
   }
 );
 
@@ -30,9 +30,7 @@ assert.throws(
             common.mustNotCall());
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof value}`
+    name: 'TypeError'
   });
 });
 
@@ -84,8 +82,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be one of type Buffer, TypedArray, ' +
-             'or DataView. Received type number'
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+             'TypedArray, or DataView. Received type number (4)'
   }
 );
 
@@ -98,9 +96,7 @@ assert.throws(
                 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof value}`
+    name: 'TypeError'
   });
 });
 

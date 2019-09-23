@@ -46,8 +46,8 @@ common.expectsError(
   {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "source" argument must be one of type Buffer ' +
-             'or Uint8Array. Received type object'
+    message: 'The "source" argument must be an instance of Buffer ' +
+             'or Uint8Array. Received null'
   }
 );
 
