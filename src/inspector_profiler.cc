@@ -229,7 +229,7 @@ void V8CoverageConnection::WriteProfile(Local<String> message) {
   // Avoid writing to disk if no source-map data:
   if (!source_map_cache_v->IsUndefined()) {
     profile->Set(context, FIXED_ONE_BYTE_STRING(isolate, "source-map-cache"),
-                source_map_cache_v);
+                source_map_cache_v).ToChecked();
   }
 
   Local<String> result_s;
