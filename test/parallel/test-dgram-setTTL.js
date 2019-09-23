@@ -14,7 +14,8 @@ socket.on('listening', common.mustCall(() => {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "ttl" argument must be of type number. Received type string'
+    message: 'The "ttl" argument must be of type number. Received type string' +
+             " ('foo')"
   });
 
   // TTL must be a number from > 0 to < 256

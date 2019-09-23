@@ -179,13 +179,13 @@ function testFtruncate(cb) {
   process.on('exit', () => fs.closeSync(fd));
 
   ['', false, null, {}, []].forEach((input) => {
+    const received = common.invalidArgTypeHelper(input);
     assert.throws(
       () => fs.truncate(file5, input, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "len" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+        message: `The "len" argument must be of type number.${received}`
       }
     );
 
@@ -194,8 +194,7 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "len" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+        message: `The "len" argument must be of type number.${received}`
       }
     );
   });
@@ -268,8 +267,8 @@ function testFtruncate(cb) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "len" argument must be of type number. ' +
-               `Received type ${typeof input}`
+      message: 'The "len" argument must be of type number.' +
+               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -281,8 +280,8 @@ function testFtruncate(cb) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "fd" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+        message: 'The "fd" argument must be of type number.' +
+                 common.invalidArgTypeHelper(input)
       }
     );
   });

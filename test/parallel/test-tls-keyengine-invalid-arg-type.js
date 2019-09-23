@@ -12,7 +12,7 @@ common.expectsError(
                               privateKeyIdentifier: 'key' });
   },
   { code: 'ERR_INVALID_ARG_TYPE',
-    message: / Received type number$/ });
+    message: / Received type number \(0\)$/ });
 
 common.expectsError(
   () => {
@@ -20,4 +20,4 @@ common.expectsError(
                               privateKeyIdentifier: 0 });
   },
   { code: 'ERR_INVALID_ARG_TYPE',
-    message: / Received type number$/ });
+    message: / Received type number \(0\)$/ });

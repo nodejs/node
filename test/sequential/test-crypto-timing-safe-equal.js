@@ -47,8 +47,8 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message:
-      'The "buf1" argument must be one of type Buffer, TypedArray, or ' +
-      'DataView. Received type string'
+      'The "buf1" argument must be an instance of Buffer, TypedArray, or ' +
+      "DataView. Received type string ('not a buffer')"
   }
 );
 
@@ -58,7 +58,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message:
-      'The "buf2" argument must be one of type Buffer, TypedArray, or ' +
-      'DataView. Received type string'
+      'The "buf2" argument must be an instance of Buffer, TypedArray, or ' +
+      "DataView. Received type string ('not a buffer')"
   }
 );

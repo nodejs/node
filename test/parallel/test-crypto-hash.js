@@ -129,8 +129,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "data" argument must be one of type string, Buffer, ' +
-      'TypedArray, or DataView. Received type undefined'
+    message: 'The "data" argument must be of type string or an instance of ' +
+      'Buffer, TypedArray, or DataView. Received undefined'
   });
 
 // Default UTF-8 encoding
@@ -171,7 +171,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "algorithm" argument must be of type string. ' +
-             'Received type undefined'
+             'Received undefined'
   }
 );
 

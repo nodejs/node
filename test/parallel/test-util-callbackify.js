@@ -260,8 +260,8 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "original" argument must be of type Function. ' +
-               `Received type ${typeof value}`
+      message: 'The "original" argument must be of type function.' +
+               common.invalidArgTypeHelper(value)
     });
   });
 }
@@ -282,8 +282,8 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The last argument must be of type Function. ' +
-               `Received type ${typeof value}`
+      message: 'The last argument must be of type function.' +
+               common.invalidArgTypeHelper(value)
     });
   });
 }

@@ -93,7 +93,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
   common.expectsError(
@@ -101,8 +101,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-               'DataView, string, or KeyObject. Received type object'
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
   common.expectsError(
@@ -110,8 +110,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type number'
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 
@@ -130,7 +130,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
   common.expectsError(
@@ -138,8 +138,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-               'DataView, string, or KeyObject. Received type object'
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
   common.expectsError(
@@ -147,8 +147,8 @@ function testCipher3(key, iv) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type number'
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 

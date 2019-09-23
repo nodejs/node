@@ -38,7 +38,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type number'
+  message: 'The "time" argument must be an instance of Array. Received type ' +
+           'number (1)'
 });
 common.expectsError(() => {
   process.hrtime([]);

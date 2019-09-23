@@ -10,7 +10,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.flush" property must be of type number. ' +
-             'Received type string'
+             "Received type string ('foobar')"
   }
 );
 
@@ -32,7 +32,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options.finishFlush" property must be of type number. ' +
-             'Received type string'
+             "Received type string ('foobar')"
   }
 );
 

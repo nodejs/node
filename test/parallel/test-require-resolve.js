@@ -38,20 +38,21 @@ assert.strictEqual(require.resolve('path'), 'path');
 require(fixtures.path('require-resolve.js'));
 require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
 
-const re = /^The "request" argument must be of type string\. Received type \w+$/;
 [1, false, null, undefined, {}].forEach((value) => {
+  const message = 'The "request" argument must be of type string.' +
+    common.invalidArgTypeHelper(value);
   common.expectsError(
     () => { require.resolve(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: re
+      message
     });
 
   common.expectsError(
     () => { require.resolve.paths(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: re
+      message
     });
 });
 

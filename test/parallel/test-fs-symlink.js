@@ -74,13 +74,11 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "target" argument must be one of type string, Buffer, or ' +
-             `URL. Received type ${typeof input}`
+    message: /target|path/
   };
   assert.throws(() => fs.symlink(input, '', common.mustNotCall()), errObj);
   assert.throws(() => fs.symlinkSync(input, ''), errObj);
 
-  errObj.message = errObj.message.replace('target', 'path');
   assert.throws(() => fs.symlink('', input, common.mustNotCall()), errObj);
   assert.throws(() => fs.symlinkSync('', input), errObj);
 });

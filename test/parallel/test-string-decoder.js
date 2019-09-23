@@ -196,8 +196,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "buf" argument must be one of type Buffer, TypedArray,' +
-      ' or DataView. Received type object'
+    message: 'The "buf" argument must be an instance of Buffer, TypedArray,' +
+      ' or DataView. Received null'
   }
 );
 

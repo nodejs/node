@@ -21,7 +21,8 @@ const url = require('url');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: `The "url" argument must be of type string. Received type ${type}`
+    message: 'The "url" argument must be of type string.' +
+             common.invalidArgTypeHelper(val)
   });
 });
 

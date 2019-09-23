@@ -18,7 +18,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "hmac" argument must be of type string. Received type object'
+    message: 'The "hmac" argument must be of type string. Received null'
   });
 
 // This used to segfault. See: https://github.com/nodejs/node/issues/9819
@@ -36,8 +36,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-             'DataView, string, or KeyObject. Received type object'
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, DataView, or KeyObject. Received null'
   });
 
 function testHmac(algo, key, data, expected) {

@@ -28,8 +28,9 @@ process.chdir(tmpdir.path);
   common.expectsError(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ` Received type ${typeof i}`
+    message: 'The "path" argument must be of type string or an instance of ' +
+             'Buffer or URL.' +
+             common.invalidArgTypeHelper(i)
   });
 });
 

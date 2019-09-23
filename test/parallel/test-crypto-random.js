@@ -46,8 +46,8 @@ common.expectWarning('DeprecationWarning',
       const errObj = {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "size" argument must be of type number. ' +
-                `Received type ${typeof value}`
+        message: 'The "size" argument must be of type number.' +
+                 common.invalidArgTypeHelper(value)
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);
@@ -202,7 +202,7 @@ common.expectWarning('DeprecationWarning',
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "offset" argument must be of type number. ' +
-               'Received type string'
+               "Received type string ('test')"
     };
 
     assert.throws(() => crypto.randomFillSync(buf, 'test'), typeErrObj);
@@ -211,8 +211,7 @@ common.expectWarning('DeprecationWarning',
       () => crypto.randomFill(buf, 'test', common.mustNotCall()),
       typeErrObj);
 
-    typeErrObj.message = 'The "size" argument must be of type number. ' +
-                     'Received type string';
+    typeErrObj.message = typeErrObj.message.replace('offset', 'size');
     assert.throws(() => crypto.randomFillSync(buf, 0, 'test'), typeErrObj);
 
     assert.throws(

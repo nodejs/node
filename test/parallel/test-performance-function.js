@@ -65,8 +65,7 @@ const {
                         {
                           code: 'ERR_INVALID_ARG_TYPE',
                           type: TypeError,
-                          message: 'The "fn" argument must be of type ' +
-                                   `Function. Received type ${typeof input}`
+                          message: /The "fn" argument must be of type function/
                         });
   });
 }

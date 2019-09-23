@@ -91,7 +91,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
   common.expectsError(
@@ -99,8 +99,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "password" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "password" argument must be of type string or an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 
   common.expectsError(
@@ -108,8 +108,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "data" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "data" argument must be of type string or an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 
   common.expectsError(
@@ -117,8 +117,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "buffer" argument must be an instance' +
+               ' of Buffer, TypedArray, or DataView. Received null'
     });
 }
 
@@ -134,7 +134,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
   common.expectsError(
@@ -142,8 +142,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buffer" argument must be one of type Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "buffer" argument must be an instance of Buffer, ' +
+               'TypedArray, or DataView. Received null'
     });
 
   common.expectsError(
@@ -151,8 +151,8 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "password" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+      message: 'The "password" argument must be of type string or an ' +
+               'instance of Buffer, TypedArray, or DataView. Received null'
     });
 }
 

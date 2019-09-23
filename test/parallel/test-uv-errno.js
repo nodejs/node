@@ -31,8 +31,8 @@ function runTest(fn) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "err" argument must be of type number. ' +
-                 `Received type ${typeof err}`
+        message: 'The "err" argument must be of type number.' +
+                 common.invalidArgTypeHelper(err)
       });
   });
 

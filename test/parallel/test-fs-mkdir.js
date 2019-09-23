@@ -217,13 +217,14 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
 {
   const pathname = path.join(tmpdir.path, nextdir());
   ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
+    const received = common.invalidArgTypeHelper(recursive);
     common.expectsError(
       () => fs.mkdir(pathname, { recursive }, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "recursive" argument must be of type boolean. Received ' +
-          `type ${typeof recursive}`
+        message: 'The "recursive" argument must be of type boolean.' +
+          received
       }
     );
     common.expectsError(
@@ -231,8 +232,8 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "recursive" argument must be of type boolean. Received ' +
-          `type ${typeof recursive}`
+        message: 'The "recursive" argument must be of type boolean.' +
+          received
       }
     );
   });

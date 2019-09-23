@@ -109,8 +109,8 @@ promises.push(assert.rejects(
   assert.rejects('fail', {}),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "promiseFn" argument must be one of type ' +
-             'Function or Promise. Received type string'
+    message: 'The "promiseFn" argument must be of type function or an ' +
+             "instance of Promise. Received type string ('fail')"
   }
 ));
 
@@ -209,8 +209,8 @@ promises.push(assert.rejects(
     assert.doesNotReject(123),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "promiseFn" argument must be one of type ' +
-               'Function or Promise. Received type number'
+      message: 'The "promiseFn" argument must be of type ' +
+               'function or an instance of Promise. Received type number (123)'
     }
   ));
   /* eslint-enable no-restricted-syntax */
