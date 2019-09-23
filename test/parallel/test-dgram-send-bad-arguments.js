@@ -35,8 +35,8 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buffer" argument must be one of type ' +
-      'Buffer, Uint8Array, or string. Received type undefined'
+      message: 'The "buffer" argument must be of type string or an instance ' +
+      'of Buffer or Uint8Array. Received undefined'
     }
   );
 
@@ -89,8 +89,8 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buffer" argument must be one of type ' +
-      'Buffer, Uint8Array, or string. Received type number'
+      message: 'The "buffer" argument must be of type string or an instance ' +
+      'of Buffer or Uint8Array. Received type number (23)'
     }
   );
 
@@ -100,8 +100,8 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buffer list arguments" argument must be one of type ' +
-      'Buffer or string. Received type object'
+      message: 'The "buffer list arguments" argument must be of type string ' +
+      'or an instance of Buffer. Received an instance of Array'
     }
   );
 }

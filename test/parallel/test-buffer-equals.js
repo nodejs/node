@@ -19,7 +19,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "otherBuffer" argument must be one of type ' +
-    'Buffer or Uint8Array. Received type string'
+    message: 'The "otherBuffer" argument must be an instance of ' +
+             "Buffer or Uint8Array. Received type string ('abc')"
   }
 );

@@ -414,8 +414,8 @@ assert.throws(
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "fn" argument must be of type Function. Received ' +
-                 `type ${typeof fn}`
+        message: 'The "fn" argument must be of type function.' +
+                 common.invalidArgTypeHelper(fn)
       }
     );
   };
@@ -484,8 +484,8 @@ assert.throws(() => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "options" argument must be of type Object. ' +
-                 `Received type ${typeof input}`
+        message: 'The "options" argument must be of type object.' +
+                 common.invalidArgTypeHelper(input)
       });
   });
 }
@@ -931,8 +931,9 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "error" argument must be one of type Object, Error, ' +
-             'Function, or RegExp. Received type string'
+    message: 'The "error" argument must be of type function or ' +
+             'an instance of Error, RegExp, or Object. Received type string ' +
+             "('Error message')"
   }
 );
 
@@ -945,8 +946,9 @@ common.expectsError(
     () => assert.throws(() => {}, input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "error" argument must be one of type Object, Error, ' +
-               `Function, or RegExp. Received type ${typeof input}`
+      message: 'The "error" argument must be of type function or ' +
+               'an instance of Error, RegExp, or Object.' +
+               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -1024,8 +1026,8 @@ common.expectsError(
     {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "expected" argument must be one of type Function or ' +
-               'RegExp. Received type object'
+      message: 'The "expected" argument must be of type function or an ' +
+               'instance of RegExp. Received an instance of Object'
     }
   );
 

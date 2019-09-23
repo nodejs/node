@@ -27,7 +27,7 @@ common.expectsError(() => socket.write(null),
   socket.write(value, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "chunk" argument must be one of type string or Buffer. ' +
-              `Received type ${typeof value}`
+    message: 'The "chunk" argument must be of type string or an instance of ' +
+              `Buffer.${common.invalidArgTypeHelper(value)}`
   }));
 });
