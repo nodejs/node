@@ -4243,7 +4243,7 @@ then resolves the `Promise` with no arguments upon success.
 This function does not work on AIX versions before 7.1, it will resolve the
 `Promise` with an error using code `UV_ENOSYS`.
 
-#### filehandle.write(buffer, offset, length, position)
+#### filehandle.write(buffer[, offset[, length[, position]]])
 <!-- YAML
 added: v10.0.0
 -->
