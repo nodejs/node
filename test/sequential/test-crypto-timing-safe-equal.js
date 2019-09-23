@@ -37,7 +37,7 @@ common.expectsError(
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     type: RangeError,
-    message: 'Input buffers must have the same number of bytes'
+    message: 'Input buffers must have the same byte length'
   }
 );
 
