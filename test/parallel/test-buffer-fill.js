@@ -196,7 +196,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "encoding" argument must be of type ' +
-      `string. Received type ${args[3] === null ? 'null' : typeof args[3]}`
+      `string.${common.invalidArgTypeHelper(args[3])}`
     }
   );
 });
@@ -342,7 +342,8 @@ assert.strictEqual(
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "end" argument must be of type number. Received type object'
+    message: 'The "end" argument must be of type number. Received an ' +
+             'instance of Object'
   });
 }
 

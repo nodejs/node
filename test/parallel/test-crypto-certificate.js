@@ -75,8 +75,8 @@ assert(Certificate() instanceof Certificate);
     () => Certificate.verifySpkac(val),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "spkac" argument must be one of type Buffer, TypedArray, ' +
-               `or DataView. Received type ${typeof val}`
+      message: 'The "spkac" argument must be an instance of Buffer, ' +
+               `TypedArray, or DataView.${common.invalidArgTypeHelper(val)}`
     }
   );
 });
@@ -84,8 +84,9 @@ assert(Certificate() instanceof Certificate);
 [1, {}, [], Infinity, true, undefined, null].forEach((val) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "spkac" argument must be one of type string, Buffer,' +
-             ` TypedArray, or DataView. Received type ${typeof val}`
+    message: 'The "spkac" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, or DataView.' +
+             common.invalidArgTypeHelper(val)
   };
   assert.throws(() => Certificate.exportPublicKey(val), errObj);
   assert.throws(() => Certificate.exportChallenge(val), errObj);

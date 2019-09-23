@@ -22,8 +22,8 @@ server.listen(0, common.mustCall(() => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "method" argument must be of type string. ' +
-               `Received type ${typeof method}`
+      message: 'The "method" argument must be of type string.' +
+               common.invalidArgTypeHelper(method)
     });
   });
 

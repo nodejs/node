@@ -27,8 +27,8 @@ const client = connect({
     client.setServername(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "name" argument must be of type string. ' +
-             `Received type ${typeof value}`
+    message: 'The "name" argument must be of type string.' +
+             common.invalidArgTypeHelper(value)
   });
 });
 

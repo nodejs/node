@@ -26,7 +26,7 @@ const dnsPromises = require('dns').promises;
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "rrtype" argument must be of type string. ' +
-               `Received type ${typeof rrtype}`
+               `Received type ${typeof rrtype} (${rrtype})`
     }
   );
 }

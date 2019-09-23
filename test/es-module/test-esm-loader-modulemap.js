@@ -25,7 +25,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );
 
@@ -34,7 +35,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );
 
@@ -43,8 +45,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "job" argument must be of type ModuleJob. ' +
-             'Received type string'
+    message: 'The "job" argument must be an instance of ModuleJob. ' +
+             "Received type string ('notamodulejob')"
   }
 );
 
@@ -53,6 +55,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );
