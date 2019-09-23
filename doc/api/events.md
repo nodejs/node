@@ -709,7 +709,7 @@ The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
 
 This method is intentionally generic and works with the web platform
-[EventTarget](WHATWG-EventTarget) interface, which has no special
+[EventTarget][WHATWG-EventTarget] interface, which has no special
 `'error'` event semantics and does not listen to the `'error'` event.
 
 ```js
@@ -739,7 +739,8 @@ async function run() {
 
 run();
 ```
-[WHATWG-EventTarget](https://dom.spec.whatwg.org/#interface-eventtarget)
+
+[WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
