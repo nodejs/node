@@ -316,7 +316,7 @@ The port value can be an empty string in which case the port depends on
 the protocol/scheme:
 
 | protocol | port |
-| :------- | :--- |
+| -------- | ---- |
 | "ftp"    | 21   |
 | "file"   |      |
 | "gopher" | 70   |
