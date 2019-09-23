@@ -2223,9 +2223,9 @@ added: v0.9.12
 * {boolean}
 
 The initial value of `process.throwDeprecation` indicates whether the
-`--throw-deprecation` flag is set on the current Node.js process,
+`--throw-deprecation` flag is set on the current Node.js process.
 `process.throwDeprecation` is mutable, so whether or not deprecation
-warnings results in an error may be altered at runtime. See the
+warnings result in errors may be altered at runtime. See the
 documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information.
 
