@@ -1687,7 +1687,7 @@ This LTS release comes with 89 commits. This includes 46 commits that are docs r
 
 This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
 
-This release is specifically related to a Buffer overflow vulnerability discovered in v8, more details can be found [in the CVE](https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669)
+This release is specifically related to a Buffer overflow vulnerability discovered in v8, more details can be found [in the CVE](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669)
 
 ### Commits
 
