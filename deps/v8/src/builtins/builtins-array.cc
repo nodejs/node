@@ -7,6 +7,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
 #include "src/objects/contexts.h"
@@ -782,10 +783,10 @@ class ArrayConcatVisitor {
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
-  class FastElementsField : public BitField<bool, 0, 1> {};
-  class ExceedsLimitField : public BitField<bool, 1, 1> {};
-  class IsFixedArrayField : public BitField<bool, 2, 1> {};
-  class HasSimpleElementsField : public BitField<bool, 3, 1> {};
+  using FastElementsField = BitField<bool, 0, 1>;
+  using ExceedsLimitField = BitField<bool, 1, 1>;
+  using IsFixedArrayField = BitField<bool, 2, 1>;
+  using HasSimpleElementsField = BitField<bool, 3, 1>;
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -819,8 +820,10 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
@@ -887,9 +890,11 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       FixedArray elements = FixedArray::cast(object->elements());
@@ -1063,9 +1068,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
@@ -1219,7 +1226,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
-        if (IsFrozenOrSealedElementsKind(array_kind)) {
+        if (IsAnyNonextensibleElementsKind(array_kind)) {
           array_kind = PACKED_ELEMENTS;
         }
         kind = GetMoreGeneralElementsKind(kind, array_kind);
@@ -1315,9 +1322,11 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             case HOLEY_ELEMENTS:
             case HOLEY_FROZEN_ELEMENTS:
             case HOLEY_SEALED_ELEMENTS:
+            case HOLEY_NONEXTENSIBLE_ELEMENTS:
             case PACKED_ELEMENTS:
             case PACKED_FROZEN_ELEMENTS:
             case PACKED_SEALED_ELEMENTS:
+            case PACKED_NONEXTENSIBLE_ELEMENTS:
             case DICTIONARY_ELEMENTS:
             case NO_ELEMENTS:
               DCHECK_EQ(0u, length);
@@ -1460,7 +1469,7 @@ BUILTIN(ArrayConcat) {
   // Avoid a real species read to avoid extra lookups to the array constructor
   if (V8_LIKELY(receiver->IsJSArray() &&
                 Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
-                isolate->IsArraySpeciesLookupChainIntact())) {
+                Protectors::IsArraySpeciesLookupChainIntact(isolate))) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }

@@ -55,6 +55,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
                                         int parameter_count,
                                         Handle<ByteArray> handler_table);
 
+  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+
+#ifdef DEBUG
+  // Returns -1 if they match or the offset of the first mismatching byte.
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+#endif
+
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
 
  private:

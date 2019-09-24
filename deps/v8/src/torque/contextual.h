@@ -15,7 +15,7 @@ namespace internal {
 namespace torque {
 
 template <class Variable>
-V8_EXPORT_PRIVATE typename Variable::VariableType*& ContextualVariableTop();
+V8_EXPORT_PRIVATE typename Variable::Scope*& ContextualVariableTop();
 
 // {ContextualVariable} provides a clean alternative to a global variable.
 // The contextual variable is mutable, and supports managing the value of
@@ -30,8 +30,6 @@ V8_EXPORT_PRIVATE typename Variable::VariableType*& ContextualVariableTop();
 template <class Derived, class VarType>
 class ContextualVariable {
  public:
-  using VariableType = VarType;
-
   // A {Scope} contains a new object of type {VarType} and gives
   // ContextualVariable::Get() access to it. Upon destruction, the contextual
   // variable is restored to the state before the {Scope} was created. Scopes
@@ -41,18 +39,20 @@ class ContextualVariable {
    public:
     template <class... Args>
     explicit Scope(Args&&... args)
-        : current_(std::forward<Args>(args)...), previous_(Top()) {
-      Top() = &current_;
+        : value_(std::forward<Args>(args)...), previous_(Top()) {
+      Top() = this;
     }
     ~Scope() {
       // Ensure stack discipline.
-      DCHECK_EQ(&current_, Top());
+      DCHECK_EQ(this, Top());
       Top() = previous_;
     }
 
+    VarType& Value() { return value_; }
+
    private:
-    VarType current_;
-    VarType* previous_;
+    VarType value_;
+    Scope* previous_;
 
     static_assert(std::is_base_of<ContextualVariable, Derived>::value,
                   "Curiously Recurring Template Pattern");
@@ -65,13 +65,13 @@ class ContextualVariable {
   // for this contextual variable.
   static VarType& Get() {
     DCHECK_NOT_NULL(Top());
-    return *Top();
+    return Top()->Value();
   }
 
  private:
   template <class T>
-  friend typename T::VariableType*& ContextualVariableTop();
-  static VarType*& Top() { return ContextualVariableTop<Derived>(); }
+  friend typename T::Scope*& ContextualVariableTop();
+  static Scope*& Top() { return ContextualVariableTop<Derived>(); }
 
   static bool HasScope() { return Top() != nullptr; }
   friend class MessageBuilder;
@@ -82,11 +82,11 @@ class ContextualVariable {
   struct VarName                                  \
       : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {}
 
-#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                                    \
-  template <>                                                                  \
-  V8_EXPORT_PRIVATE VarName::VariableType*& ContextualVariableTop<VarName>() { \
-    static thread_local VarName::VariableType* top = nullptr;                  \
-    return top;                                                                \
+#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                             \
+  template <>                                                           \
+  V8_EXPORT_PRIVATE VarName::Scope*& ContextualVariableTop<VarName>() { \
+    static thread_local VarName::Scope* top = nullptr;                  \
+    return top;                                                         \
   }
 
 // By inheriting from {ContextualClass} a class can become a contextual variable

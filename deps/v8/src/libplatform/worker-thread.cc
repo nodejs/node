@@ -12,7 +12,7 @@ namespace platform {
 
 WorkerThread::WorkerThread(TaskQueue* queue)
     : Thread(Options("V8 WorkerThread")), queue_(queue) {
-  Start();
+  CHECK(Start());
 }
 
 WorkerThread::~WorkerThread() {

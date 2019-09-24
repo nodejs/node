@@ -359,7 +359,6 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
-      case IrOpcode::kCallWithCallerSavedRegisters:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -404,7 +403,6 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
-      case IrOpcode::kCallWithCallerSavedRegisters:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);
@@ -820,7 +818,7 @@ class SpecialRPONumberer : public ZoneObject {
     if (num_loops > static_cast<int>(loops_.size())) {
       // Otherwise, compute the loop information from the backedges in order
       // to perform a traversal that groups loop bodies together.
-      ComputeLoopInfo(stack_, num_loops, &backedges_);
+      ComputeLoopInfo(&stack_, num_loops, &backedges_);
 
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
@@ -962,9 +960,8 @@ class SpecialRPONumberer : public ZoneObject {
   }
 
   // Computes loop membership from the backedges of the control flow graph.
-  void ComputeLoopInfo(
-      ZoneVector<SpecialRPOStackFrame>& queue,  // NOLINT(runtime/references)
-      size_t num_loops, ZoneVector<Backedge>* backedges) {
+  void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>* queue,
+                       size_t num_loops, ZoneVector<Backedge>* backedges) {
     // Extend existing loop membership vectors.
     for (LoopInfo& loop : loops_) {
       loop.members->Resize(static_cast<int>(schedule_->BasicBlockCount()),
@@ -993,19 +990,19 @@ class SpecialRPONumberer : public ZoneObject {
         if (!loops_[loop_num].members->Contains(member->id().ToInt())) {
           loops_[loop_num].members->Add(member->id().ToInt());
         }
-        queue[queue_length++].block = member;
+        (*queue)[queue_length++].block = member;
       }
 
       // Propagate loop membership backwards. All predecessors of M up to the
       // loop header H are members of the loop too. O(|blocks between M and H|).
       while (queue_length > 0) {
-        BasicBlock* block = queue[--queue_length].block;
+        BasicBlock* block = (*queue)[--queue_length].block;
         for (size_t i = 0; i < block->PredecessorCount(); i++) {
           BasicBlock* pred = block->PredecessorAt(i);
           if (pred != header) {
             if (!loops_[loop_num].members->Contains(pred->id().ToInt())) {
               loops_[loop_num].members->Add(pred->id().ToInt());
-              queue[queue_length++].block = pred;
+              (*queue)[queue_length++].block = pred;
             }
           }
         }

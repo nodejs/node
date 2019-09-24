@@ -207,7 +207,9 @@ namespace internal {
   TFC(Typeof, Typeof)                                                          \
   TFC(GetSuperConstructor, Typeof)                                             \
   TFC(BigIntToI64, BigIntToI64)                                                \
+  TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
   TFC(I64ToBigInt, I64ToBigInt)                                                \
+  TFC(I32PairToBigInt, I32PairToBigInt)                                        \
                                                                                \
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter)            \
@@ -222,9 +224,9 @@ namespace internal {
   TFH(LoadIC_Slow, LoadWithVector)                                             \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
-  TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
+  TFH(LoadIC_NoFeedback, Load)                                                 \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
-  TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
+  TFH(StoreIC_NoFeedback, Store)                                               \
   TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
@@ -644,8 +646,6 @@ namespace internal {
   TFJ(MathCeil, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.floor */                                                    \
   TFJ(MathFloor, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.hypot */                                                    \
-  CPP(MathHypot)                                                               \
   /* ES6 #sec-math.imul */                                                     \
   TFJ(MathImul, 2, kReceiver, kX, kY)                                          \
   /* ES6 #sec-math.max */                                                      \
@@ -847,32 +847,11 @@ namespace internal {
   TFJ(RegExpPrototypeCompile, 2, kReceiver, kPattern, kFlags)                  \
   /* ES #sec-regexp.prototype.exec */                                          \
   TFJ(RegExpPrototypeExec, 1, kReceiver, kString)                              \
-  /* ES #sec-get-regexp.prototype.dotAll */                                    \
-  TFJ(RegExpPrototypeDotAllGetter, 0, kReceiver)                               \
-  /* ES #sec-get-regexp.prototype.flags */                                     \
-  TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver)                                \
-  /* ES #sec-get-regexp.prototype.global */                                    \
-  TFJ(RegExpPrototypeGlobalGetter, 0, kReceiver)                               \
-  /* ES #sec-get-regexp.prototype.ignorecase */                                \
-  TFJ(RegExpPrototypeIgnoreCaseGetter, 0, kReceiver)                           \
-  /* ES #sec-regexp.prototype-@@match */                                       \
-  TFJ(RegExpPrototypeMatch, 1, kReceiver, kString)                             \
   /* https://tc39.github.io/proposal-string-matchall/ */                       \
   TFJ(RegExpPrototypeMatchAll, 1, kReceiver, kString)                          \
-  /* ES #sec-get-regexp.prototype.multiline */                                 \
-  TFJ(RegExpPrototypeMultilineGetter, 0, kReceiver)                            \
   /* ES #sec-regexp.prototype-@@search */                                      \
   TFJ(RegExpPrototypeSearch, 1, kReceiver, kString)                            \
-  /* ES #sec-get-regexp.prototype.source */                                    \
-  TFJ(RegExpPrototypeSourceGetter, 0, kReceiver)                               \
-  /* ES #sec-get-regexp.prototype.sticky */                                    \
-  TFJ(RegExpPrototypeStickyGetter, 0, kReceiver)                               \
-  /* ES #sec-regexp.prototype.test */                                          \
-  TFJ(RegExpPrototypeTest, 1, kReceiver, kString)                              \
-  TFS(RegExpPrototypeTestFast, kReceiver, kString)                             \
   CPP(RegExpPrototypeToString)                                                 \
-  /* ES #sec-get-regexp.prototype.unicode */                                   \
-  TFJ(RegExpPrototypeUnicodeGetter, 0, kReceiver)                              \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
   /* ES #sec-regexp.prototype-@@split */                                       \
@@ -880,7 +859,7 @@ namespace internal {
   /* RegExp helpers */                                                         \
   TFS(RegExpExecAtom, kRegExp, kString, kLastIndex, kMatchInfo)                \
   TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
-  TFS(RegExpMatchFast, kReceiver, kPattern)                                    \
+  ASM(RegExpInterpreterTrampoline, CCall)                                      \
   TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
   TFS(RegExpSearchFast, kReceiver, kPattern)                                   \
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
@@ -926,8 +905,6 @@ namespace internal {
   CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
-  /* ES #sec-string-constructor */                                             \
-  TFJ(StringConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
@@ -945,11 +922,6 @@ namespace internal {
   TFJ(StringPrototypeMatchAll, 1, kReceiver, kRegexp)                          \
   /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
-  /* ES6 #sec-string.prototype.padEnd */                                       \
-  TFJ(StringPrototypePadEnd, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
-  /* ES6 #sec-string.prototype.padStart */                                     \
-  TFJ(StringPrototypePadStart,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kReceiver, kSearch, kReplace)                 \
   /* ES6 #sec-string.prototype.search */                                       \
@@ -1028,7 +1000,6 @@ namespace internal {
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFC(WasmI32AtomicWait, WasmI32AtomicWait)                                    \
   TFC(WasmI64AtomicWait, WasmI64AtomicWait)                                    \
-  TFC(WasmCallJavaScript, CallTrampoline)                                      \
   TFC(WasmMemoryGrow, WasmMemoryGrow)                                          \
   TFC(WasmTableGet, WasmTableGet)                                              \
   TFC(WasmTableSet, WasmTableSet)                                              \
@@ -1051,7 +1022,9 @@ namespace internal {
   TFS(ThrowWasmTrapElemSegmentDropped)                                         \
   TFS(ThrowWasmTrapTableOutOfBounds)                                           \
   TFC(WasmI64ToBigInt, I64ToBigInt)                                            \
+  TFC(WasmI32PairToBigInt, I32PairToBigInt)                                    \
   TFC(WasmBigIntToI64, BigIntToI64)                                            \
+  TFC(WasmBigIntToI32Pair, BigIntToI32Pair)                                    \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
@@ -1134,8 +1107,6 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
-  TFS(StringAdd_ConvertLeft, kLeft, kRight)                                    \
-  TFS(StringAdd_ConvertRight, kLeft, kRight)                                   \
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
@@ -1344,7 +1315,6 @@ namespace internal {
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait)                   \
   V(WasmI64AtomicWait)                   \
-  V(WasmCallJavaScript)                  \
   V(WasmMemoryGrow)                      \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
@@ -1356,7 +1326,9 @@ namespace internal {
   V(WasmRethrow)                         \
   V(DoubleToI)                           \
   V(WasmI64ToBigInt)                     \
-  V(WasmBigIntToI64)
+  V(WasmI32PairToBigInt)                 \
+  V(WasmBigIntToI64)                     \
+  V(WasmBigIntToI32Pair)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown

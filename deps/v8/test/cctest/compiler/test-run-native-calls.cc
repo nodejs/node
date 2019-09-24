@@ -439,7 +439,7 @@ class Computer {
       Graph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       build(desc, raw);
-      inner = CompileGraph("Compute", desc, &graph, raw.Export());
+      inner = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
     }
 
     CSignatureOf<int32_t> csig;
@@ -466,8 +466,8 @@ class Computer {
         Node* store = io.StoreOutput(raw, call);
         USE(store);
         raw.Return(raw.Int32Constant(seed));
-        wrapper =
-            CompileGraph("Compute-wrapper-const", cdesc, &graph, raw.Export());
+        wrapper = CompileGraph("Compute-wrapper-const", cdesc, &graph,
+                               raw.ExportForTest());
       }
 
       CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
@@ -501,7 +501,8 @@ class Computer {
         Node* store = io.StoreOutput(raw, call);
         USE(store);
         raw.Return(raw.Int32Constant(seed));
-        wrapper = CompileGraph("Compute-wrapper", cdesc, &graph, raw.Export());
+        wrapper =
+            CompileGraph("Compute-wrapper", cdesc, &graph, raw.ExportForTest());
       }
 
       CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
@@ -576,7 +577,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
                 kNoWriteBarrier);
     }
     raw.Return(raw.Int32Constant(42));
-    inner = CompileGraph("CopyTwentyInt32", desc, &graph, raw.Export());
+    inner = CompileGraph("CopyTwentyInt32", desc, &graph, raw.ExportForTest());
   }
 
   CSignatureOf<int32_t> csig;
@@ -599,8 +600,8 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
 
     Node* call = raw.CallN(desc, input_count, inputs);
     raw.Return(call);
-    wrapper =
-        CompileGraph("CopyTwentyInt32-wrapper", cdesc, &graph, raw.Export());
+    wrapper = CompileGraph("CopyTwentyInt32-wrapper", cdesc, &graph,
+                           raw.ExportForTest());
   }
 
   CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
@@ -962,7 +963,8 @@ static void Build_Select_With_Call(
     Graph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     raw.Return(raw.Parameter(which));
-    inner = CompileGraph("Select-indirection", desc, &graph, raw.Export());
+    inner =
+        CompileGraph("Select-indirection", desc, &graph, raw.ExportForTest());
     CHECK(!inner.is_null());
     CHECK(inner->IsCode());
   }
@@ -1058,7 +1060,7 @@ void MixedParamTest(int start) {
       Graph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
-      select = CompileGraph("Compute", desc, &graph, raw.Export());
+      select = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
     }
 
     {
@@ -1117,7 +1119,7 @@ void MixedParamTest(int start) {
         expected_ret = static_cast<int32_t>(constant);
         raw.Return(raw.Int32Constant(expected_ret));
         wrapper = CompileGraph("Select-mixed-wrapper-const", cdesc, &graph,
-                               raw.Export());
+                               raw.ExportForTest());
       }
 
       CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
@@ -1176,7 +1178,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
   g.Store(slot_type.representation(), g.Parameter(11), g.Parameter(10),
           WriteBarrierKind::kNoWriteBarrier);
   g.Return(g.Parameter(9));
-  inner = CompileGraph("Compute", desc, &graph, g.Export());
+  inner = CompileGraph("Compute", desc, &graph, g.ExportForTest());
 
   // Create function f with a stack slot which calls the inner function g.
   BufferedRawMachineAssemblerTester<T> f(slot_type);

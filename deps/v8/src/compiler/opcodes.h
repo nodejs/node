@@ -66,7 +66,6 @@
   V(ObjectId)                     \
   V(TypedObjectState)             \
   V(Call)                         \
-  V(CallWithCallerSavedRegisters) \
   V(Parameter)                    \
   V(OsrValue)                     \
   V(LoopExit)                     \
@@ -204,6 +203,7 @@
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
+  V(JSGetIterator)                     \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -617,15 +617,33 @@
   V(Float64Mod)                       \
   V(Float64Pow)
 
-#define MACHINE_WORD64_ATOMIC_OP_LIST(V) \
-  V(Word64AtomicLoad)                    \
-  V(Word64AtomicStore)                   \
-  V(Word64AtomicAdd)                     \
-  V(Word64AtomicSub)                     \
-  V(Word64AtomicAnd)                     \
-  V(Word64AtomicOr)                      \
-  V(Word64AtomicXor)                     \
-  V(Word64AtomicExchange)                \
+#define MACHINE_ATOMIC_OP_LIST(V)    \
+  V(Word32AtomicLoad)                \
+  V(Word32AtomicStore)               \
+  V(Word32AtomicExchange)            \
+  V(Word32AtomicCompareExchange)     \
+  V(Word32AtomicAdd)                 \
+  V(Word32AtomicSub)                 \
+  V(Word32AtomicAnd)                 \
+  V(Word32AtomicOr)                  \
+  V(Word32AtomicXor)                 \
+  V(Word32AtomicPairLoad)            \
+  V(Word32AtomicPairStore)           \
+  V(Word32AtomicPairAdd)             \
+  V(Word32AtomicPairSub)             \
+  V(Word32AtomicPairAnd)             \
+  V(Word32AtomicPairOr)              \
+  V(Word32AtomicPairXor)             \
+  V(Word32AtomicPairExchange)        \
+  V(Word32AtomicPairCompareExchange) \
+  V(Word64AtomicLoad)                \
+  V(Word64AtomicStore)               \
+  V(Word64AtomicAdd)                 \
+  V(Word64AtomicSub)                 \
+  V(Word64AtomicAnd)                 \
+  V(Word64AtomicOr)                  \
+  V(Word64AtomicXor)                 \
+  V(Word64AtomicExchange)            \
   V(Word64AtomicCompareExchange)
 
 #define MACHINE_OP_LIST(V)                  \
@@ -637,7 +655,7 @@
   MACHINE_FLOAT32_UNOP_LIST(V)              \
   MACHINE_FLOAT64_BINOP_LIST(V)             \
   MACHINE_FLOAT64_UNOP_LIST(V)              \
-  MACHINE_WORD64_ATOMIC_OP_LIST(V)          \
+  MACHINE_ATOMIC_OP_LIST(V)                 \
   V(AbortCSAAssert)                         \
   V(DebugBreak)                             \
   V(Comment)                                \
@@ -656,6 +674,8 @@
   V(BitcastTaggedSignedToWord)              \
   V(BitcastWordToTagged)                    \
   V(BitcastWordToTaggedSigned)              \
+  V(BitcastWord32ToCompressedSigned)        \
+  V(BitcastCompressedSignedToWord32)        \
   V(TruncateFloat64ToWord32)                \
   V(ChangeFloat32ToFloat64)                 \
   V(ChangeFloat64ToInt32)                   \
@@ -702,7 +722,6 @@
   V(TaggedPoisonOnSpeculation)              \
   V(Word32PoisonOnSpeculation)              \
   V(Word64PoisonOnSpeculation)              \
-  V(LoadStackPointer)                       \
   V(LoadFramePointer)                       \
   V(LoadParentFramePointer)                 \
   V(UnalignedLoad)                          \
@@ -716,30 +735,13 @@
   V(ProtectedLoad)                          \
   V(ProtectedStore)                         \
   V(MemoryBarrier)                          \
-  V(Word32AtomicLoad)                       \
-  V(Word32AtomicStore)                      \
-  V(Word32AtomicExchange)                   \
-  V(Word32AtomicCompareExchange)            \
-  V(Word32AtomicAdd)                        \
-  V(Word32AtomicSub)                        \
-  V(Word32AtomicAnd)                        \
-  V(Word32AtomicOr)                         \
-  V(Word32AtomicXor)                        \
-  V(Word32AtomicPairLoad)                   \
-  V(Word32AtomicPairStore)                  \
-  V(Word32AtomicPairAdd)                    \
-  V(Word32AtomicPairSub)                    \
-  V(Word32AtomicPairAnd)                    \
-  V(Word32AtomicPairOr)                     \
-  V(Word32AtomicPairXor)                    \
-  V(Word32AtomicPairExchange)               \
-  V(Word32AtomicPairCompareExchange)        \
   V(SignExtendWord8ToInt32)                 \
   V(SignExtendWord16ToInt32)                \
   V(SignExtendWord8ToInt64)                 \
   V(SignExtendWord16ToInt64)                \
   V(SignExtendWord32ToInt64)                \
-  V(UnsafePointerAdd)
+  V(UnsafePointerAdd)                       \
+  V(StackPointerGreaterThan)
 
 #define MACHINE_SIMD_OP_LIST(V) \
   V(F64x2Splat)                 \
@@ -747,6 +749,12 @@
   V(F64x2ReplaceLane)           \
   V(F64x2Abs)                   \
   V(F64x2Neg)                   \
+  V(F64x2Add)                   \
+  V(F64x2Sub)                   \
+  V(F64x2Mul)                   \
+  V(F64x2Div)                   \
+  V(F64x2Min)                   \
+  V(F64x2Max)                   \
   V(F64x2Eq)                    \
   V(F64x2Ne)                    \
   V(F64x2Lt)                    \
@@ -764,6 +772,7 @@
   V(F32x4AddHoriz)              \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
+  V(F32x4Div)                   \
   V(F32x4Min)                   \
   V(F32x4Max)                   \
   V(F32x4Eq)                    \
@@ -781,11 +790,15 @@
   V(I64x2Add)                   \
   V(I64x2Sub)                   \
   V(I64x2Mul)                   \
+  V(I64x2MinS)                  \
+  V(I64x2MaxS)                  \
   V(I64x2Eq)                    \
   V(I64x2Ne)                    \
   V(I64x2GtS)                   \
   V(I64x2GeS)                   \
   V(I64x2ShrU)                  \
+  V(I64x2MinU)                  \
+  V(I64x2MaxU)                  \
   V(I64x2GtU)                   \
   V(I64x2GeU)                   \
   V(I32x4Splat)                 \

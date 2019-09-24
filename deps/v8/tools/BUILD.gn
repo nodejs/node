@@ -10,6 +10,7 @@ group("gn_all") {
 
   data_deps = [
     ":v8_check_static_initializers",
+    "debug_helper:v8_debug_helper",
     "gcmole:v8_run_gcmole",
     "jsfunfuzz:v8_jsfunfuzz",
   ]

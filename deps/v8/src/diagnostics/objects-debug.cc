@@ -164,9 +164,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case HEAP_NUMBER_TYPE:
       CHECK(IsHeapNumber());
       break;
-    case MUTABLE_HEAP_NUMBER_TYPE:
-      CHECK(IsMutableHeapNumber());
-      break;
     case BIGINT_TYPE:
       BigInt::cast(*this).BigIntVerify(isolate);
       break;
@@ -582,7 +579,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       // There are two reasons why this can happen:
       // - in the middle of StoreTransitionStub when the new extended backing
       //   store is already set into the object and the allocation of the
-      //   MutableHeapNumber triggers GC while the map isn't updated yet.
+      //   HeapNumber triggers GC while the map isn't updated yet.
       // - deletion of the last property can leave additional backing store
       //   capacity behind.
       CHECK_GT(actual_unused_property_fields, map().UnusedPropertyFields());
@@ -607,7 +604,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           VerifyObjectField(isolate, index.offset());
         }
         Object value = RawFastPropertyAt(index);
-        if (r.IsDouble()) DCHECK(value.IsMutableHeapNumber());
+        if (r.IsDouble()) DCHECK(value.IsHeapNumber());
         if (value.IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value.IsSmi());
         if (r.IsHeapObject()) DCHECK(value.IsHeapObject());
@@ -638,7 +635,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine(isolate)) {
     CHECK_EQ((map().has_fast_smi_or_object_elements() ||
-              map().has_frozen_or_sealed_elements() ||
+              map().has_any_nonextensible_elements() ||
               (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
               HasFastStringWrapperElements()),
              (elements().map() == GetReadOnlyRoots().fixed_array_map() ||
@@ -681,7 +678,7 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
-                    IsHoleyFrozenOrSealedElementsKind(elements_kind()));
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     DCHECK(prototype_info() == Smi::kZero ||
@@ -698,8 +695,6 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }
-
-USE_TORQUE_VERIFIER(AliasedArgumentsEntry)
 
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::EmbedderDataArrayVerify(*this, isolate);
@@ -770,7 +765,7 @@ void Context::ContextVerify(Isolate* isolate) {
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   ContextVerify(isolate);
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
-  CHECK_EQ(kSize, map().instance_size());
+  CHECK_EQ(kVariableSizeSentinel, map().instance_size());
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -913,8 +908,6 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   CHECK_LE(maxMappedIndex, context_object.length());
   CHECK_LE(maxMappedIndex, arg_elements.length());
 }
-
-USE_TORQUE_VERIFIER(JSGeneratorObject)
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSAsyncFunctionObjectVerify(*this, isolate);
@@ -1140,8 +1133,6 @@ void Oddball::OddballVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(Cell)
-
 USE_TORQUE_VERIFIER(PropertyCell)
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
@@ -1185,10 +1176,11 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
     CHECK_EQ(elements(), ReadOnlyRoots(isolate).empty_fixed_array());
   }
   // Verify that the length and the elements backing store are in sync.
-  if (length().IsSmi() && (HasFastElements() || HasFrozenOrSealedElements())) {
+  if (length().IsSmi() &&
+      (HasFastElements() || HasAnyNonextensibleElements())) {
     if (elements().length() > 0) {
       CHECK_IMPLIES(HasDoubleElements(), elements().IsFixedDoubleArray());
-      CHECK_IMPLIES(HasSmiOrObjectElements() || HasFrozenOrSealedElements(),
+      CHECK_IMPLIES(HasSmiOrObjectElements() || HasAnyNonextensibleElements(),
                     elements().IsFixedArray());
     }
     int size = Smi::ToInt(length());
@@ -1215,8 +1207,6 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(JSCollection)
-
 void JSSet::JSSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSSetVerify(*this, isolate);
   CHECK(table().IsOrderedHashSet() || table().IsUndefined(isolate));
@@ -1228,8 +1218,6 @@ void JSMap::JSMapVerify(Isolate* isolate) {
   CHECK(table().IsOrderedHashMap() || table().IsUndefined(isolate));
   // TODO(arv): Verify OrderedHashTable too.
 }
-
-USE_TORQUE_VERIFIER(JSCollectionIterator)
 
 void JSSetIterator::JSSetIteratorVerify(Isolate* isolate) {
   CHECK(IsJSSetIterator());
@@ -1301,12 +1289,6 @@ void JSFinalizationGroupCleanupIterator::
   VerifyHeapPointer(isolate, finalization_group());
 }
 
-void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskVerify(
-    Isolate* isolate) {
-  CHECK(IsFinalizationGroupCleanupJobTask());
-  CHECK(finalization_group().IsJSFinalizationGroup());
-}
-
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
@@ -1334,35 +1316,15 @@ void JSStringIterator::JSStringIteratorVerify(Isolate* isolate) {
   CHECK_LE(index(), String::kMaxLength);
 }
 
-USE_TORQUE_VERIFIER(JSAsyncFromSyncIterator)
-
-USE_TORQUE_VERIFIER(JSWeakCollection)
-
 void JSWeakSet::JSWeakSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakSetVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
 }
 
-USE_TORQUE_VERIFIER(Microtask)
-
 void CallableTask::CallableTaskVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallableTaskVerify(*this, isolate);
   CHECK(callable().IsCallable());
 }
-
-USE_TORQUE_VERIFIER(CallbackTask)
-
-USE_TORQUE_VERIFIER(PromiseReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseFulfillReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseRejectReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseResolveThenableJobTask)
-
-USE_TORQUE_VERIFIER(PromiseCapability)
-
-USE_TORQUE_VERIFIER(PromiseReaction)
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSPromiseVerify(*this, isolate);
@@ -1456,22 +1418,38 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool is_native = RegExp::GeneratesNativeCode();
+      bool can_be_interpreted = RegExp::CanGenerateBytecode();
 
       FixedArray arr = FixedArray::cast(data());
       Object one_byte_data = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
-      // Code/ByteArray: Compiled code.
+      // Code: Compiled irregexp code or trampoline to the interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            (is_native ? one_byte_data.IsCode() : one_byte_data.IsByteArray()));
+            one_byte_data.IsCode());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            (is_native ? uc16_data.IsCode() : uc16_data.IsByteArray()));
+            uc16_data.IsCode());
+
+      Object one_byte_bytecode =
+          arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
+      // Smi : Not compiled yet (-1).
+      // ByteArray: Bytecode to interpret regexp.
+      CHECK((one_byte_bytecode.IsSmi() &&
+             Smi::ToInt(one_byte_bytecode) == JSRegExp::kUninitializedValue) ||
+            (can_be_interpreted && one_byte_bytecode.IsByteArray()));
+      Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
+      CHECK((uc16_bytecode.IsSmi() &&
+             Smi::ToInt(uc16_bytecode) == JSRegExp::kUninitializedValue) ||
+            (can_be_interpreted && uc16_bytecode.IsByteArray()));
+
+      CHECK_IMPLIES(one_byte_data.IsSmi(), one_byte_bytecode.IsSmi());
+      CHECK_IMPLIES(uc16_data.IsSmi(), uc16_bytecode.IsSmi());
 
       CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex).IsSmi());
+      CHECK(arr.get(JSRegExp::kIrregexpTierUpTicksIndex).IsSmi());
       break;
     }
     default:
@@ -1480,8 +1458,6 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
   }
 }
-
-USE_TORQUE_VERIFIER(JSRegExpStringIterator)
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSProxyVerify(*this, isolate);
@@ -1539,8 +1515,6 @@ void BigInt::BigIntVerify(Isolate* isolate) {
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }
-
-USE_TORQUE_VERIFIER(JSModuleNamespace)
 
 void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
     Isolate* isolate) {
@@ -1626,8 +1600,6 @@ void PrototypeUsers::Verify(WeakArrayList array) {
   CHECK_EQ(weak_maps_count + empty_slots_count + 1, array.length());
 }
 
-USE_TORQUE_VERIFIER(TemplateObjectDescription)
-
 void EnumCache::EnumCacheVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::EnumCacheVerify(*this, isolate);
   Heap* heap = isolate->heap();
@@ -1637,8 +1609,6 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(ClassPositions)
-
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
     Isolate* isolate) {
   CHECK(IsObjectBoilerplateDescription());
@@ -1647,13 +1617,9 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   this->FixedArrayVerify(isolate);
 }
 
-USE_TORQUE_VERIFIER(ArrayBoilerplateDescription)
-
 USE_TORQUE_VERIFIER(AsmWasmData)
 
 USE_TORQUE_VERIFIER(WasmDebugInfo)
-
-USE_TORQUE_VERIFIER(WasmExceptionTag)
 
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
@@ -1715,8 +1681,6 @@ USE_TORQUE_VERIFIER(AccessorInfo)
 
 USE_TORQUE_VERIFIER(AccessorPair)
 
-USE_TORQUE_VERIFIER(AccessCheckInfo)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1726,21 +1690,11 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
                      .next_call_side_effect_free_call_handler_info_map());
 }
 
-USE_TORQUE_VERIFIER(InterceptorInfo)
-
-USE_TORQUE_VERIFIER(TemplateInfo)
-
-USE_TORQUE_VERIFIER(FunctionTemplateInfo)
-
-USE_TORQUE_VERIFIER(FunctionTemplateRareData)
-
 USE_TORQUE_VERIFIER(WasmCapiFunctionData)
 
 USE_TORQUE_VERIFIER(WasmJSFunctionData)
 
 USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
-
-USE_TORQUE_VERIFIER(ObjectTemplateInfo)
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite());
@@ -1780,8 +1734,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(DebugInfo)
-
-USE_TORQUE_VERIFIER(StackTraceFrame)
 
 USE_TORQUE_VERIFIER(StackFrameInfo)
 
@@ -1868,9 +1820,11 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case HOLEY_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;

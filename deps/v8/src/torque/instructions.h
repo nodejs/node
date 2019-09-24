@@ -206,10 +206,9 @@ struct NamespaceConstantInstruction : InstructionBase {
 
 struct CreateFieldReferenceInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  CreateFieldReferenceInstruction(const ClassType* class_type,
-                                  std::string field_name)
-      : class_type(class_type), field_name(std::move(field_name)) {}
-  const ClassType* class_type;
+  CreateFieldReferenceInstruction(const Type* type, std::string field_name)
+      : type(type), field_name(std::move(field_name)) {}
+  const Type* type;
   std::string field_name;
 };
 

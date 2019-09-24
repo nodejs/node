@@ -243,6 +243,10 @@ void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 
   if (perf_output_handle_ == nullptr) return;
 
+  if (FLAG_perf_prof_annotate_wasm) {
+    LogWriteDebugInfo(code);
+  }
+
   WriteJitCodeLoadEntry(code->instructions().begin(),
                         code->instructions().length(), name, length);
 }
@@ -383,6 +387,73 @@ void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo shared) {
     LogWriteBytes(name_string.begin(),
                   static_cast<uint32_t>(name_string.size()) + 1);
   }
+  char padding_bytes[8] = {0};
+  LogWriteBytes(padding_bytes, padding);
+}
+
+void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
+  wasm::WasmModuleSourceMap* source_map =
+      code->native_module()->GetWasmSourceMap();
+  wasm::WireBytesRef code_ref =
+      code->native_module()->module()->functions[code->index()].code;
+  uint32_t code_offset = code_ref.offset();
+  uint32_t code_end_offset = code_ref.end_offset();
+
+  uint32_t entry_count = 0;
+  uint32_t size = 0;
+
+  if (!source_map || !source_map->IsValid() ||
+      !source_map->HasSource(code_offset, code_end_offset)) {
+    return;
+  }
+
+  for (SourcePositionTableIterator iterator(code->source_positions());
+       !iterator.done(); iterator.Advance()) {
+    uint32_t offset = iterator.source_position().ScriptOffset() + code_offset;
+    if (!source_map->HasValidEntry(code_offset, offset)) continue;
+    entry_count++;
+    size += source_map->GetFilename(offset).size() + 1;
+  }
+
+  if (entry_count == 0) return;
+
+  PerfJitCodeDebugInfo debug_info;
+
+  debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
+  debug_info.time_stamp_ = GetTimestamp();
+  debug_info.address_ =
+      reinterpret_cast<uintptr_t>(code->instructions().begin());
+  debug_info.entry_count_ = entry_count;
+
+  size += sizeof(debug_info);
+  // Add the sizes of fixed parts of entries.
+  size += entry_count * sizeof(PerfJitDebugEntry);
+
+  int padding = ((size + 7) & (~7)) - size;
+  debug_info.size_ = size + padding;
+  LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
+
+  uintptr_t code_begin =
+      reinterpret_cast<uintptr_t>(code->instructions().begin());
+
+  for (SourcePositionTableIterator iterator(code->source_positions());
+       !iterator.done(); iterator.Advance()) {
+    uint32_t offset = iterator.source_position().ScriptOffset() + code_offset;
+    if (!source_map->HasValidEntry(code_offset, offset)) continue;
+    PerfJitDebugEntry entry;
+    // The entry point of the function will be placed straight after the ELF
+    // header when processed by "perf inject". Adjust the position addresses
+    // accordingly.
+    entry.address_ = code_begin + iterator.code_offset() + kElfHeaderSize;
+    entry.line_number_ =
+        static_cast<int>(source_map->GetSourceLine(offset)) + 1;
+    entry.column_ = 1;
+    LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
+    std::string name_string = source_map->GetFilename(offset);
+    LogWriteBytes(name_string.c_str(),
+                  static_cast<int>(name_string.size() + 1));
+  }
+
   char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
 }

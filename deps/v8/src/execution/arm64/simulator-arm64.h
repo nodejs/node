@@ -1273,6 +1273,45 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   static inline const char* VRegNameForCode(unsigned code);
   static inline int CodeFromName(const char* name);
 
+  enum PointerType { kDataPointer, kInstructionPointer };
+
+  struct PACKey {
+    uint64_t high;
+    uint64_t low;
+    int number;
+  };
+
+  static const PACKey kPACKeyIA;
+
+  // Current implementation is that all pointers are tagged.
+  static bool HasTBI(uint64_t ptr, PointerType type) {
+    USE(ptr, type);
+    return true;
+  }
+
+  // Current implementation uses 48-bit virtual addresses.
+  static int GetBottomPACBit(uint64_t ptr, int ttbr) {
+    USE(ptr, ttbr);
+    DCHECK((ttbr == 0) || (ttbr == 1));
+    return 48;
+  }
+
+  // The top PAC bit is 55 for the purposes of relative bit fields with TBI,
+  // however bit 55 is the TTBR bit regardless of TBI so isn't part of the PAC
+  // codes in pointers.
+  static int GetTopPACBit(uint64_t ptr, PointerType type) {
+    return HasTBI(ptr, type) ? 55 : 63;
+  }
+
+  // Armv8.3 Pointer authentication helpers.
+  static uint64_t CalculatePACMask(uint64_t ptr, PointerType type, int ext_bit);
+  static uint64_t ComputePAC(uint64_t data, uint64_t context, PACKey key);
+  static uint64_t AuthPAC(uint64_t ptr, uint64_t context, PACKey key,
+                          PointerType type);
+  static uint64_t AddPAC(uint64_t ptr, uint64_t context, PACKey key,
+                         PointerType type);
+  static uint64_t StripPAC(uint64_t ptr, PointerType type);
+
  protected:
   // Simulation helpers ------------------------------------
   bool ConditionPassed(Condition cond) {

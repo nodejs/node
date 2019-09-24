@@ -1799,36 +1799,6 @@ TEST(HeapNumberAlignment) {
   }
 }
 
-TEST(MutableHeapNumberAlignment) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  HandleScope sc(isolate);
-
-  const auto required_alignment =
-      HeapObject::RequiredAlignment(*factory->mutable_heap_number_map());
-  const int maximum_misalignment =
-      Heap::GetMaximumFillToAlign(required_alignment);
-
-  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
-    AlignNewSpace(required_alignment, offset);
-    Handle<Object> number_new = factory->NewMutableHeapNumber(1.000123);
-    CHECK(number_new->IsMutableHeapNumber());
-    CHECK(Heap::InYoungGeneration(*number_new));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
-                                     required_alignment));
-
-    AlignOldSpace(required_alignment, offset);
-    Handle<Object> number_old =
-        factory->NewMutableHeapNumber(1.000321, AllocationType::kOld);
-    CHECK(number_old->IsMutableHeapNumber());
-    CHECK(heap->InOldSpace(*number_old));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
-                                     required_alignment));
-  }
-}
-
 TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   CcTest::InitializeVM();
   HeapObjectIterator iterator(CcTest::heap());

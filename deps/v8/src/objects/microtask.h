@@ -17,52 +17,35 @@ namespace internal {
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
-class Microtask : public Struct {
+class Microtask : public TorqueGeneratedMicrotask<Microtask, Struct> {
  public:
-  // Dispatched behavior.
-  DECL_CAST(Microtask)
-  DECL_VERIFIER(Microtask)
-
-  OBJECT_CONSTRUCTORS(Microtask, Struct);
+  TQ_OBJECT_CONSTRUCTORS(Microtask)
 };
 
 // A CallbackTask is a special Microtask that allows us to schedule
 // C++ microtask callbacks on the microtask queue. This is heavily
 // used by Blink for example.
-class CallbackTask : public Microtask {
+class CallbackTask
+    : public TorqueGeneratedCallbackTask<CallbackTask, Microtask> {
  public:
-  DECL_ACCESSORS(callback, Foreign)
-  DECL_ACCESSORS(data, Foreign)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
-                                TORQUE_GENERATED_CALLBACK_TASK_FIELDS)
-
   // Dispatched behavior.
-  DECL_CAST(CallbackTask)
   DECL_PRINTER(CallbackTask)
-  DECL_VERIFIER(CallbackTask)
 
-  OBJECT_CONSTRUCTORS(CallbackTask, Microtask);
+  TQ_OBJECT_CONSTRUCTORS(CallbackTask)
 };
 
 // A CallableTask is a special (internal) Microtask that allows us to
 // schedule arbitrary callables on the microtask queue. We use this
 // for various tests of the microtask queue.
-class CallableTask : public Microtask {
+class CallableTask
+    : public TorqueGeneratedCallableTask<CallableTask, Microtask> {
  public:
-  DECL_ACCESSORS(callable, JSReceiver)
-  DECL_ACCESSORS(context, Context)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
-                                TORQUE_GENERATED_CALLABLE_TASK_FIELDS)
-
   // Dispatched behavior.
-  DECL_CAST(CallableTask)
   DECL_PRINTER(CallableTask)
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(CallableTask, Microtask);
+  TQ_OBJECT_CONSTRUCTORS(CallableTask)
 };
 
 }  // namespace internal

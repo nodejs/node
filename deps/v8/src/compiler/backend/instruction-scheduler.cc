@@ -275,9 +275,10 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kIeee754Float64Tanh:
       return kNoOpcodeFlags;
 
-    case kArchStackPointer:
-      // ArchStackPointer instruction loads the current stack pointer value and
-      // must not be reordered with instruction with side effects.
+    case kArchStackPointerGreaterThan:
+      // The ArchStackPointerGreaterThan instruction loads the current stack
+      // pointer value and must not be reordered with instructions with side
+      // effects.
       return kIsLoadOperation;
 
     case kArchWordPoisonOnSpeculation:

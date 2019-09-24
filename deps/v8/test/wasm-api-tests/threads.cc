@@ -19,26 +19,27 @@ const int kNumThreads = 10;
 const int kIterationsPerThread = 3;
 int g_traces;
 
-own<Trap*> Callback(void* env, const Val args[], Val results[]) {
+own<Trap> Callback(void* env, const Val args[], Val results[]) {
   std::lock_guard<std::mutex> lock(*reinterpret_cast<std::mutex*>(env));
   g_traces += args[0].i32();
   return nullptr;
 }
 
 void Main(Engine* engine, Shared<Module>* shared, std::mutex* mutex, int id) {
-  own<Store*> store = Store::make(engine);
-  own<Module*> module = Module::obtain(store.get(), shared);
+  own<Store> store = Store::make(engine);
+  own<Module> module = Module::obtain(store.get(), shared);
   EXPECT_NE(nullptr, module.get());
   for (int i = 0; i < kIterationsPerThread; i++) {
     std::this_thread::sleep_for(std::chrono::microseconds(100));
 
     // Create imports.
-    own<FuncType*> func_type = FuncType::make(
-        vec<ValType*>::make(ValType::make(::wasm::I32)), vec<ValType*>::make());
-    own<Func*> func = Func::make(store.get(), func_type.get(), Callback, mutex);
-    own<::wasm::GlobalType*> global_type =
+    own<FuncType> func_type =
+        FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
+                       ownvec<ValType>::make());
+    own<Func> func = Func::make(store.get(), func_type.get(), Callback, mutex);
+    own<::wasm::GlobalType> global_type =
         ::wasm::GlobalType::make(ValType::make(::wasm::I32), ::wasm::CONST);
-    own<Global*> global =
+    own<Global> global =
         Global::make(store.get(), global_type.get(), Val::i32(id));
 
     // Instantiate and run.
@@ -46,9 +47,8 @@ void Main(Engine* engine, Shared<Module>* shared, std::mutex* mutex, int id) {
     // imports always come before function imports, regardless of the
     // order of builder()->Add*Import() calls below.
     Extern* imports[] = {global.get(), func.get()};
-    own<Instance*> instance =
-        Instance::make(store.get(), module.get(), imports);
-    vec<Extern*> exports = instance->exports();
+    own<Instance> instance = Instance::make(store.get(), module.get(), imports);
+    ownvec<Extern> exports = instance->exports();
     Func* run_func = exports[0]->func();
     run_func->call();
   }
@@ -70,7 +70,7 @@ TEST_F(WasmCapiTest, Threads) {
   FunctionSig empty_sig(0, 0, nullptr);
   AddExportedFunction(CStrVector("run"), code, sizeof(code), &empty_sig);
   Compile();
-  own<Shared<Module>*> shared = module()->share();
+  own<Shared<Module>> shared = module()->share();
 
   // Spawn threads.
   g_traces = 0;
@@ -92,9 +92,9 @@ TEST_F(WasmCapiTest, Threads) {
 
 TEST_F(WasmCapiTest, MultiStoresOneThread) {
   // These Stores intentionally have overlapping, but non-nested lifetimes.
-  own<Store*> store1 = Store::make(engine());
-  own<Store*> store2 = Store::make(engine());
-  own<Store*> store3 = Store::make(engine());
+  own<Store> store1 = Store::make(engine());
+  own<Store> store2 = Store::make(engine());
+  own<Store> store3 = Store::make(engine());
   store1.reset();
   store2.reset();
   store3.reset();

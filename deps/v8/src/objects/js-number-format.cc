@@ -172,16 +172,21 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
   status = U_ZERO_ERROR;
   // See the list in ecma402 #sec-issanctionedsimpleunitidentifier
   std::set<std::string> sanctioned(
-      {"acre",       "bit",         "byte",      "celsius",
-       "centimeter", "day",         "degree",    "fahrenheit",
-       "foot",       "gigabit",     "gigabyte",  "gram",
-       "hectare",    "hour",        "inch",      "kilobit",
-       "kilobyte",   "kilogram",    "kilometer", "megabit",
-       "megabyte",   "meter",       "mile",      "mile-scandinavian",
-       "millimeter", "millisecond", "minute",    "month",
-       "ounce",      "percent",     "petabyte",  "pound",
-       "second",     "stone",       "terabit",   "terabyte",
-       "week",       "yard",        "year"});
+      {"acre",       "bit",        "byte",
+       "celsius",    "centimeter", "day",
+       "degree",     "fahrenheit", "fluid-ounce",
+       "foot",       "gallon",     "gigabit",
+       "gigabyte",   "gram",       "hectare",
+       "hour",       "inch",       "kilobit",
+       "kilobyte",   "kilogram",   "kilometer",
+       "liter",      "megabit",    "megabyte",
+       "meter",      "mile",       "mile-scandinavian",
+       "millimeter", "milliliter", "millisecond",
+       "minute",     "month",      "ounce",
+       "percent",    "petabyte",   "pound",
+       "second",     "stone",      "terabit",
+       "terabyte",   "week",       "yard",
+       "year"});
   std::vector<icu::MeasureUnit> units(total);
   total = icu::MeasureUnit::getAvailable(units.data(), total, status);
   CHECK(U_SUCCESS(status));
@@ -1031,7 +1036,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
             isolate,
             NewTypeError(MessageTemplate::kInvalidUnit,
                          factory->NewStringFromStaticChars("Intl.NumberFormat"),
-                         factory->NewStringFromStaticChars("")),
+                         factory->empty_string()),
             JSNumberFormat);
       }
 

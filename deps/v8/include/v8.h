@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -128,6 +129,7 @@ class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
 class ScopedExternalStringLock;
+class ThreadLocalTop;
 
 namespace wasm {
 class NativeModule;
@@ -790,24 +792,43 @@ template <class T>
 using UniquePersistent = Global<T>;
 
 /**
- * A traced handle with move semantics, similar to std::unique_ptr. The handle
- * is to be used together with |v8::EmbedderHeapTracer| and specifies edges from
- * the embedder into V8's heap.
+ * Trait specifying behavior of |TracedGlobal<T>|.
+ */
+template <typename T>
+struct TracedGlobalTrait {
+  /**
+   * Specifies whether |TracedGlobal<T>| should clear its handle on destruction.
+   *
+   * V8 will *not* clear the embedder-side memory of the handle. The embedder is
+   * expected to report all |TracedGlobal<T>| handles through
+   * |EmbedderHeapTracer| upon garabge collection.
+   *
+   * See |EmbedderHeapTracer::IsRootForNonTracingGC| for handling with
+   * non-tracing GCs in V8.
+   */
+  static constexpr bool kRequiresExplicitDestruction = true;
+};
+
+/**
+ * A traced handle with copy and move semantics. The handle is to be used
+ * together with |v8::EmbedderHeapTracer| and specifies edges from the embedder
+ * into V8's heap.
  *
  * The exact semantics are:
  * - Tracing garbage collections use |v8::EmbedderHeapTracer|.
  * - Non-tracing garbage collections refer to
  *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
  *   be treated as root or not.
+ *
+ * For destruction semantics see |TracedGlobalTrait<T>|.
  */
 template <typename T>
-class V8_EXPORT TracedGlobal {
+class TracedGlobal {
  public:
   /**
    * An empty TracedGlobal without storage cell.
    */
   TracedGlobal() = default;
-  ~TracedGlobal() { Reset(); }
 
   /**
    * Construct a TracedGlobal from a Local.
@@ -824,7 +845,41 @@ class V8_EXPORT TracedGlobal {
   /**
    * Move constructor initializing TracedGlobal from an existing one.
    */
-  V8_INLINE TracedGlobal(TracedGlobal&& other);
+  V8_INLINE TracedGlobal(TracedGlobal&& other) {
+    // Forward to operator=.
+    *this = std::move(other);
+  }
+
+  /**
+   * Move constructor initializing TracedGlobal from an existing one.
+   */
+  template <typename S>
+  V8_INLINE TracedGlobal(TracedGlobal<S>&& other) {
+    // Forward to operator=.
+    *this = std::move(other);
+  }
+
+  /**
+   * Copy constructor initializing TracedGlobal from an existing one.
+   */
+  V8_INLINE TracedGlobal(const TracedGlobal& other) {
+    // Forward to operator=;
+    *this = other;
+  }
+
+  /**
+   * Copy constructor initializing TracedGlobal from an existing one.
+   */
+  template <typename S>
+  V8_INLINE TracedGlobal(const TracedGlobal<S>& other) {
+    // Forward to operator=;
+    *this = other;
+  }
+
+  /**
+   * Move assignment operator initializing TracedGlobal from an existing one.
+   */
+  V8_INLINE TracedGlobal& operator=(TracedGlobal&& rhs);
 
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
@@ -833,10 +888,21 @@ class V8_EXPORT TracedGlobal {
   V8_INLINE TracedGlobal& operator=(TracedGlobal<S>&& rhs);
 
   /**
-   * TracedGlobal only supports move semantics and forbids copying.
+   * Copy assignment operator initializing TracedGlobal from an existing one.
+   *
+   * Note: Prohibited when |other| has a finalization callback set through
+   * |SetFinalizationCallback|.
    */
-  TracedGlobal(const TracedGlobal&) = delete;
-  void operator=(const TracedGlobal&) = delete;
+  V8_INLINE TracedGlobal& operator=(const TracedGlobal& rhs);
+
+  /**
+   * Copy assignment operator initializing TracedGlobal from an existing one.
+   *
+   * Note: Prohibited when |other| has a finalization callback set through
+   * |SetFinalizationCallback|.
+   */
+  template <class S>
+  V8_INLINE TracedGlobal& operator=(const TracedGlobal<S>& rhs);
 
   /**
    * Returns true if this TracedGlobal is empty, i.e., has not been assigned an
@@ -870,8 +936,8 @@ class V8_EXPORT TracedGlobal {
 
   template <class S>
   V8_INLINE bool operator==(const TracedGlobal<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
+    internal::Address* a = reinterpret_cast<internal::Address*>(**this);
+    internal::Address* b = reinterpret_cast<internal::Address*>(*that);
     if (a == nullptr) return b == nullptr;
     if (b == nullptr) return false;
     return *a == *b;
@@ -879,8 +945,8 @@ class V8_EXPORT TracedGlobal {
 
   template <class S>
   V8_INLINE bool operator==(const Local<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
+    internal::Address* a = reinterpret_cast<internal::Address*>(**this);
+    internal::Address* b = reinterpret_cast<internal::Address*>(*that);
     if (a == nullptr) return b == nullptr;
     if (b == nullptr) return false;
     return *a == *b;
@@ -921,11 +987,32 @@ class V8_EXPORT TracedGlobal {
       void* parameter, WeakCallbackInfo<void>::Callback callback);
 
  private:
-  V8_INLINE static T* New(Isolate* isolate, T* that, T** slot);
+  // Wrapping type used when clearing on destruction is required.
+  struct WrappedForDestruction {
+    T* value;
+
+    explicit WrappedForDestruction(T* val) : value(val) {}
+    ~WrappedForDestruction();
+    operator T*() const { return value; }
+    T* operator*() const { return value; }
+    T* operator->() const { return value; }
+    WrappedForDestruction& operator=(const WrappedForDestruction& other) {
+      value = other.value;
+      return *this;
+    }
+    WrappedForDestruction& operator=(T* val) {
+      value = val;
+      return *this;
+    }
+  };
+
+  V8_INLINE static T* New(Isolate* isolate, T* that, void* slot);
 
   T* operator*() const { return this->val_; }
 
-  T* val_ = nullptr;
+  typename std::conditional<
+      TracedGlobalTrait<TracedGlobal<T>>::kRequiresExplicitDestruction,
+      WrappedForDestruction, T*>::type val_{nullptr};
 
   friend class EmbedderHeapTracer;
   template <typename F>
@@ -1968,6 +2055,7 @@ struct SampleInfo {
   StateTag vm_state;              // Current VM state.
   void* external_callback_entry;  // External callback address if VM is
                                   // executing an external callback.
+  void* top_context;              // Incumbent native context address.
 };
 
 struct MemoryRange {
@@ -3698,6 +3786,15 @@ class V8_EXPORT Object : public Value {
   bool IsConstructor();
 
   /**
+   * True if this object can carry information relevant to the embedder in its
+   * embedder fields, false otherwise. This is generally true for objects
+   * constructed through function templates but also holds for other types where
+   * V8 automatically adds internal fields at compile time, such as e.g.
+   * v8::ArrayBuffer.
+   */
+  bool IsApiWrapper();
+
+  /**
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
@@ -4762,8 +4859,8 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsDetachable() const;
 
   // TODO(913887): fix the use of 'neuter' in the API.
-  V8_DEPRECATE_SOON("Use IsDetachable() instead.",
-                    inline bool IsNeuterable() const) {
+  V8_DEPRECATED("Use IsDetachable() instead.",
+                inline bool IsNeuterable() const) {
     return IsDetachable();
   }
 
@@ -4776,7 +4873,7 @@ class V8_EXPORT ArrayBuffer : public Object {
   void Detach();
 
   // TODO(913887): fix the use of 'neuter' in the API.
-  V8_DEPRECATE_SOON("Use Detach() instead.", inline void Neuter()) { Detach(); }
+  V8_DEPRECATED("Use Detach() instead.", inline void Neuter()) { Detach(); }
 
   /**
    * Make this ArrayBuffer external. The pointer to underlying memory block
@@ -5379,6 +5476,32 @@ class V8_EXPORT RegExp : public Object {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * An instance of the built-in FinalizationGroup constructor.
+ *
+ * This API is experimental and may change significantly.
+ */
+class V8_EXPORT FinalizationGroup : public Object {
+ public:
+  /**
+   * Runs the cleanup callback of the given FinalizationGroup.
+   *
+   * V8 will inform the embedder that there are finalizer callbacks be
+   * called through HostCleanupFinalizationGroupCallback.
+   *
+   * HostCleanupFinalizationGroupCallback should schedule a task to
+   * call FinalizationGroup::Cleanup() at some point in the
+   * future. It's the embedders responsiblity to make this call at a
+   * time which does not interrupt synchronous ECMAScript code
+   * execution.
+   *
+   * If the result is Nothing<bool> then an exception has
+   * occurred. Otherwise the result is |true| if the cleanup callback
+   * was called successfully. The result is never |false|.
+   */
+  static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
+      Local<FinalizationGroup> finalization_group);
+};
 
 /**
  * A JavaScript value that wraps a C++ void*. This type of value is mainly used
@@ -6439,11 +6562,18 @@ class V8_EXPORT ResourceConstraints {
    * provided heap size limit. The heap size includes both the young and
    * the old generation.
    *
+   * \param initial_heap_size_in_bytes The initial heap size or zero.
+   *    By default V8 starts with a small heap and dynamically grows it to
+   *    match the set of live objects. This may lead to ineffective
+   *    garbage collections at startup if the live set is large.
+   *    Setting the initial heap size avoids such garbage collections.
+   *    Note that this does not affect young generation garbage collections.
+   *
    * \param maximum_heap_size_in_bytes The hard limit for the heap size.
    *    When the heap size approaches this limit, V8 will perform series of
-   *    garbage collections and invoke the NearHeapLimitCallback.
-   *    If the garbage collections do not help and the callback does not
-   * increase the limit, then V8 will crash with V8::FatalProcessOutOfMemory.
+   *    garbage collections and invoke the NearHeapLimitCallback. If the garbage
+   *    collections do not help and the callback does not increase the limit,
+   *    then V8 will crash with V8::FatalProcessOutOfMemory.
    */
   void ConfigureDefaultsFromHeapSize(size_t initial_heap_size_in_bytes,
                                      size_t maximum_heap_size_in_bytes);
@@ -6611,9 +6741,33 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
+// --- Crashkeys Callback ---
+enum class CrashKeyId {
+  kIsolateAddress,
+  kReadonlySpaceFirstPageAddress,
+  kMapSpaceFirstPageAddress,
+  kCodeSpaceFirstPageAddress,
+};
+
+typedef void (*AddCrashKeyCallback)(CrashKeyId id, const std::string& value);
+
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
+
+/**
+ * HostCleanupFinalizationGroupCallback is called when we require the
+ * embedder to enqueue a task that would call
+ * FinalizationGroup::Cleanup().
+ *
+ * The FinalizationGroup is the one for which the embedder needs to
+ * call FinalizationGroup::Cleanup() on.
+ *
+ * The context provided is the one in which the FinalizationGroup was
+ * created in.
+ */
+typedef void (*HostCleanupFinalizationGroupCallback)(
+    Local<Context> context, Local<FinalizationGroup> fg);
 
 /**
  * HostImportModuleDynamicallyCallback is called when we require the
@@ -6712,7 +6866,8 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
-typedef void (*MicrotasksCompletedCallback)(Isolate*);
+V8_DEPRECATE_SOON("Use *WithData version.",
+                  typedef void (*MicrotasksCompletedCallback)(Isolate*));
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
 
@@ -6883,6 +7038,10 @@ typedef void (*WasmStreamingCallback)(const FunctionCallbackInfo<Value>&);
 
 // --- Callback for checking if WebAssembly threads are enabled ---
 typedef bool (*WasmThreadsEnabledCallback)(Local<Context> context);
+
+// --- Callback for loading source map file for WASM profiling support
+typedef Local<String> (*WasmLoadSourceMapCallback)(Isolate* isolate,
+                                                   const char* name);
 
 // --- Garbage Collection Callbacks ---
 
@@ -7260,7 +7419,7 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called at the beginning of a GC cycle.
    */
-  V8_DEPRECATE_SOON("Use version with flags.", virtual void TracePrologue()) {}
+  V8_DEPRECATED("Use version with flags.", virtual void TracePrologue()) {}
   virtual void TracePrologue(TraceFlags flags);
 
   /**
@@ -7288,8 +7447,9 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  virtual void TraceEpilogue() {}
-  virtual void TraceEpilogue(TraceSummary* trace_summary) { TraceEpilogue(); }
+  V8_DEPRECATE_SOON("Use version with parameter.",
+                    virtual void TraceEpilogue()) {}
+  virtual void TraceEpilogue(TraceSummary* trace_summary);
 
   /**
    * Called upon entering the final marking pause. No more incremental marking
@@ -7311,13 +7471,36 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Returns true if the TracedGlobal handle should be considered as root for
    * the currently running non-tracing garbage collection and false otherwise.
+   * The default implementation will keep all TracedGlobal references as roots.
    *
-   * Default implementation will keep all TracedGlobal references as roots.
+   * If this returns false, then V8 may decide that the object referred to by
+   * such a handle is reclaimed. In that case:
+   * - No action is required if handles are used with destructors.
+   * - When run without destructors (by specializing
+   * |TracedGlobalTrait::kRequiresExplicitDestruction|) V8 calls
+   * |ResetHandleInNonTracingGC|.
+   *
+   * Note that the |handle| is different from the |TracedGlobal<T>| handle that
+   * the embedder holds for retaining the object. The embedder may use
+   * |TracedGlobal<T>::WrapperClassId()| to distinguish cases where it wants
+   * handles to be treated as roots from not being treated as roots.
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedGlobal<v8::Value>& handle) {
     return true;
   }
+
+  /**
+   * Used in combination with |IsRootForNonTracingGC|. Called by V8 when an
+   * object that is backed by a handle is reclaimed by a non-tracing garbage
+   * collection. It is up to the embedder to reset the original handle.
+   *
+   * Note that the |handle| is different from the |TracedGlobal<T>| handle that
+   * the embedder holds for retaining the object. It is up to the embedder to
+   * find the orignal |TracedGlobal<T>| handle via the object or class id.
+   */
+  virtual void ResetHandleInNonTracingGC(
+      const v8::TracedGlobal<v8::Value>& handle) {}
 
   /*
    * Called by the embedder to immediately perform a full garbage collection.
@@ -7550,6 +7733,9 @@ class V8_EXPORT Isolate {
    private:
     internal::Isolate* const isolate_;
     internal::MicrotaskQueue* const microtask_queue_;
+    internal::Address previous_stack_height_;
+
+    friend class internal::ThreadLocalTop;
   };
 
   /**
@@ -7663,9 +7849,10 @@ class V8_EXPORT Isolate {
     kStringNormalize = 75,
     kCallSiteAPIGetFunctionSloppyCall = 76,
     kCallSiteAPIGetThisSloppyCall = 77,
+    kRegExpMatchAllWithNonGlobalRegExp = 78,
 
     // If you add new values here, you'll also need to update Chromium's:
-    // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
+    // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
     // this list need to be landed first, then changes on the Chromium side.
     kUseCounterFeatureCount  // This enum value must be last.
   };
@@ -7724,6 +7911,18 @@ class V8_EXPORT Isolate {
   static Isolate* GetCurrent();
 
   /**
+   * Clears the set of objects held strongly by the heap. This set of
+   * objects are originally built when a WeakRef is created or
+   * successfully dereferenced.
+   *
+   * The embedder is expected to call this when a synchronous sequence
+   * of ECMAScript execution completes. It's the embedders
+   * responsiblity to make this call at a time which does not
+   * interrupt synchronous ECMAScript code execution.
+   */
+  void ClearKeptObjects();
+
+  /**
    * Custom callback used by embedders to help V8 determine if it should abort
    * when it throws and no internal handler is predicted to catch the
    * exception. If --abort-on-uncaught-exception is used on the command line,
@@ -7735,6 +7934,14 @@ class V8_EXPORT Isolate {
   typedef bool (*AbortOnUncaughtExceptionCallback)(Isolate*);
   void SetAbortOnUncaughtExceptionCallback(
       AbortOnUncaughtExceptionCallback callback);
+
+  /**
+   * This specifies the callback to be called when finalization groups
+   * are ready to be cleaned up and require FinalizationGroup::Cleanup()
+   * to be called in a future task.
+   */
+  void SetHostCleanupFinalizationGroupCallback(
+      HostCleanupFinalizationGroupCallback callback);
 
   /**
    * This specifies the callback called by the upcoming dynamic
@@ -8290,6 +8497,13 @@ class V8_EXPORT Isolate {
   void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
 
   /**
+   * Enables the host application to provide a mechanism for recording a
+   * predefined set of data as crash keys to be used in postmortem debugging in
+   * case of a crash.
+   */
+  void SetAddCrashKeyCallback(AddCrashKeyCallback);
+
+  /**
    * Optional notification that the embedder is idle.
    * V8 uses the notification to perform garbage collection.
    * This call can be used repeatedly if the embedder remains idle.
@@ -8487,6 +8701,8 @@ class V8_EXPORT Isolate {
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
 
   void SetWasmThreadsEnabledCallback(WasmThreadsEnabledCallback callback);
+
+  void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
@@ -8850,10 +9066,13 @@ class V8_EXPORT V8 {
                                                internal::Address* handle);
   static internal::Address* GlobalizeTracedReference(internal::Isolate* isolate,
                                                      internal::Address* handle,
-                                                     internal::Address* slot);
+                                                     internal::Address* slot,
+                                                     bool has_destructor);
   static void MoveGlobalReference(internal::Address** from,
                                   internal::Address** to);
   static void MoveTracedGlobalReference(internal::Address** from,
+                                        internal::Address** to);
+  static void CopyTracedGlobalReference(const internal::Address* const* from,
                                         internal::Address** to);
   static internal::Address* CopyGlobalReference(internal::Address* from);
   static void DisposeGlobal(internal::Address* global_handle);
@@ -9937,18 +10156,26 @@ Global<T>& Global<T>::operator=(Global<S>&& rhs) {
 }
 
 template <class T>
-T* TracedGlobal<T>::New(Isolate* isolate, T* that, T** slot) {
+TracedGlobal<T>::WrappedForDestruction::~WrappedForDestruction() {
+  if (value == nullptr) return;
+  V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(value));
+  value = nullptr;
+}
+
+template <class T>
+T* TracedGlobal<T>::New(Isolate* isolate, T* that, void* slot) {
   if (that == nullptr) return nullptr;
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
   return reinterpret_cast<T*>(V8::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,
-      reinterpret_cast<internal::Address*>(slot)));
+      reinterpret_cast<internal::Address*>(slot),
+      TracedGlobalTrait<TracedGlobal<T>>::kRequiresExplicitDestruction));
 }
 
 template <class T>
 void TracedGlobal<T>::Reset() {
   if (IsEmpty()) return;
-  V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(val_));
+  V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(**this));
   val_ = nullptr;
 }
 
@@ -9962,19 +10189,23 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
 }
 
 template <class T>
-TracedGlobal<T>::TracedGlobal(TracedGlobal&& other) : val_(other.val_) {
-  if (other.val_ != nullptr) {
-    V8::MoveTracedGlobalReference(
-        reinterpret_cast<internal::Address**>(&other.val_),
-        reinterpret_cast<internal::Address**>(&this->val_));
-    other.val_ = nullptr;
-  }
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
+  TYPE_CHECK(T, S);
+  *this = std::move(rhs.template As<T>());
+  return *this;
 }
 
 template <class T>
 template <class S>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal<S>& rhs) {
   TYPE_CHECK(T, S);
+  *this = rhs.template As<T>();
+  return *this;
+}
+
+template <class T>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) {
   if (this != &rhs) {
     this->Reset();
     if (rhs.val_ != nullptr) {
@@ -9989,10 +10220,23 @@ TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
 }
 
 template <class T>
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal& rhs) {
+  if (this != &rhs) {
+    this->Reset();
+    if (rhs.val_ != nullptr) {
+      V8::CopyTracedGlobalReference(
+          reinterpret_cast<const internal::Address* const*>(&rhs.val_),
+          reinterpret_cast<internal::Address**>(&this->val_));
+    }
+  }
+  return *this;
+}
+
+template <class T>
 void TracedGlobal<T>::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (IsEmpty()) return;
-  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
+  internal::Address* obj = reinterpret_cast<internal::Address*>(**this);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
@@ -10001,7 +10245,7 @@ template <class T>
 uint16_t TracedGlobal<T>::WrapperClassId() const {
   typedef internal::Internals I;
   if (IsEmpty()) return 0;
-  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
+  internal::Address* obj = reinterpret_cast<internal::Address*>(**this);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
 }
@@ -10010,7 +10254,7 @@ template <class T>
 void TracedGlobal<T>::SetFinalizationCallback(
     void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
   V8::SetFinalizationCallbackTraced(
-      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
+      reinterpret_cast<internal::Address*>(**this), parameter, callback);
 }
 
 template <typename T>
@@ -10944,9 +11188,12 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   }
 
   if (change_in_bytes < 0) {
-    const int64_t lower_limit = *external_memory_limit + change_in_bytes;
-    if (lower_limit > I::kExternalAllocationSoftLimit)
+    const int64_t lower_limit =
+        static_cast<int64_t>(static_cast<uint64_t>(*external_memory_limit) +
+                             static_cast<uint64_t>(change_in_bytes));
+    if (lower_limit > I::kExternalAllocationSoftLimit) {
       *external_memory_limit = lower_limit;
+    }
   } else if (change_in_bytes > 0 && amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }

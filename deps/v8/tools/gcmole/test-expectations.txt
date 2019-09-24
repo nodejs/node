@@ -1,0 +1,20 @@
+
+tools/gcmole/gcmole-test.cc:45:3: warning: Possible problem with evaluation order.
+  TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
+  ^
+tools/gcmole/gcmole-test.cc:57:3: warning: Possible problem with evaluation order.
+  TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
+  ^
+tools/gcmole/gcmole-test.cc:82:7: warning: Possible problem with evaluation order.
+  so->Method(*CauseGC(obj1, isolate));
+      ^
+tools/gcmole/gcmole-test.cc:84:7: warning: Possible problem with evaluation order.
+  so->Method(CauseGCRaw(*obj1, isolate));
+      ^
+tools/gcmole/gcmole-test.cc:128:14: warning: Possible problem with evaluation order.
+  so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
+             ^
+tools/gcmole/gcmole-test.cc:130:14: warning: Possible problem with evaluation order.
+  so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
+             ^
+6 warnings generated.

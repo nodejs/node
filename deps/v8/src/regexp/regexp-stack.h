@@ -46,8 +46,9 @@ class RegExpStack {
   // Gives the top of the memory used as stack.
   Address stack_base() {
     DCHECK_NE(0, thread_local_.memory_size_);
-    return reinterpret_cast<Address>(thread_local_.memory_) +
-           thread_local_.memory_size_;
+    DCHECK_EQ(thread_local_.memory_top_,
+              thread_local_.memory_ + thread_local_.memory_size_);
+    return reinterpret_cast<Address>(thread_local_.memory_top_);
   }
 
   // The total size of the memory allocated for the stack.
@@ -58,7 +59,7 @@ class RegExpStack {
   // There is only a limited number of locations below the stack limit,
   // so users of the stack should check the stack limit during any
   // sequence of pushes longer that this.
-  Address* limit_address() { return &(thread_local_.limit_); }
+  Address* limit_address_address() { return &(thread_local_.limit_); }
 
   // Ensures that there is a memory area with at least the specified size.
   // If passing zero, the default/minimum size buffer is allocated.
@@ -89,12 +90,15 @@ class RegExpStack {
   // Structure holding the allocated memory, size and limit.
   struct ThreadLocal {
     ThreadLocal() { Clear(); }
-    // If memory_size_ > 0 then memory_ must be non-nullptr.
+    // If memory_size_ > 0 then memory_ and memory_top_ must be non-nullptr
+    // and memory_top_ = memory_ + memory_size_
     byte* memory_;
+    byte* memory_top_;
     size_t memory_size_;
     Address limit_;
     void Clear() {
       memory_ = nullptr;
+      memory_top_ = nullptr;
       memory_size_ = 0;
       limit_ = kMemoryTop;
     }
@@ -102,13 +106,18 @@ class RegExpStack {
   };
 
   // Address of allocated memory.
-  Address memory_address() {
+  Address memory_address_address() {
     return reinterpret_cast<Address>(&thread_local_.memory_);
   }
 
   // Address of size of allocated memory.
   Address memory_size_address() {
     return reinterpret_cast<Address>(&thread_local_.memory_size_);
+  }
+
+  // Address of top of memory used as stack.
+  Address memory_top_address_address() {
+    return reinterpret_cast<Address>(&thread_local_.memory_top_);
   }
 
   // Resets the buffer if it has grown beyond the default/minimum size.

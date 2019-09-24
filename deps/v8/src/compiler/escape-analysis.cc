@@ -736,10 +736,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&map)) {
         if (map) {
           Type const map_type = NodeProperties::GetType(map);
-          AllowHandleDereference handle_dereference;
           if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  Handle<Map>::cast(map_type.AsHeapConstant()->Value()))) {
+                  map_type.AsHeapConstant()->Ref().AsMap().object())) {
             current->MarkForDeletion();
             break;
           }

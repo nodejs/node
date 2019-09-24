@@ -51,9 +51,9 @@ namespace typed_array {
     sizeLog2: uintptr;
     kind: ElementsKind;
   }
-  extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
+  extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
-      Context, Object, constexpr string): JSTypedArray;
+      Context, JSAny, constexpr string): JSTypedArray;
 
   extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
       RawPtr, RawPtr, uintptr): void;
@@ -72,10 +72,10 @@ namespace typed_array {
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind): Numeric;
   extern macro StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, Object, constexpr ElementsKind);
+      Context, JSTypedArray, Smi, JSAny, constexpr ElementsKind);
 
-  type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
-  type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
+  type LoadFn = builtin(Context, JSTypedArray, Smi) => JSAny;
+  type StoreFn = builtin(Context, JSTypedArray, Smi, JSAny) => JSAny;
 
   // AttachedJSTypedArray guards that the array's buffer is not detached.
   transient type AttachedJSTypedArray extends JSTypedArray;
@@ -100,7 +100,7 @@ namespace typed_array {
       this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
     }
 
-    Load(implicit context: Context)(k: Smi): Object {
+    Load(implicit context: Context)(k: Smi): JSAny {
       const lf: LoadFn = this.loadfn;
       return lf(context, this.unstable, k);
     }
@@ -190,14 +190,14 @@ namespace typed_array {
   }
 
   builtin LoadFixedElement<T: type>(
-      _context: Context, array: JSTypedArray, index: Smi): Object {
+      _context: Context, array: JSTypedArray, index: Smi): JSAny {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>());
   }
 
   builtin StoreFixedElement<T: type>(
       context: Context, typedArray: JSTypedArray, index: Smi,
-      value: Object): Object {
+      value: JSAny): JSAny {
     StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>());
     return Undefined;
@@ -205,7 +205,7 @@ namespace typed_array {
 
   transitioning macro CallCompare(
       implicit context: Context, array: JSTypedArray,
-      comparefn: Callable)(a: Object, b: Object): Number {
+      comparefn: Callable)(a: JSAny, b: JSAny): Number {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
     const v: Number =
         ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
@@ -238,8 +238,8 @@ namespace typed_array {
         target.objects[targetIndex] = source.objects[left++];
       } else if (left < middle) {
         // If both have elements, we need to compare.
-        const leftElement: Object = source.objects[left];
-        const rightElement: Object = source.objects[right];
+        const leftElement = UnsafeCast<JSAny>(source.objects[left]);
+        const rightElement = UnsafeCast<JSAny>(source.objects[right]);
         if (CallCompare(leftElement, rightElement) <= 0) {
           target.objects[targetIndex] = leftElement;
           left++;
@@ -259,7 +259,7 @@ namespace typed_array {
   transitioning builtin
   TypedArrayMergeSort(
       implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: Smi, to: Smi, target: FixedArray): Object {
+      source: FixedArray, from: Smi, to: Smi, target: FixedArray): JSAny {
     assert(to - from > 1);
     const middle: Smi = from + ((to - from) >> 1);
 
@@ -277,17 +277,16 @@ namespace typed_array {
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
   transitioning javascript builtin TypedArrayPrototypeSort(
       js-implicit context: Context,
-      receiver: Object)(...arguments): JSTypedArray {
+      receiver: JSAny)(...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
-    const comparefnObj: Object =
-        arguments.length > 0 ? arguments[0] : Undefined;
+    const comparefnObj: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
       ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
     }
 
     // 2. Let obj be the this value.
-    const obj: Object = receiver;
+    const obj: JSAny = receiver;
 
     // 3. Let buffer be ? ValidateTypedArray(obj).
     //    ValidateTypedArray currently returns the array, not the ViewBuffer.
@@ -363,7 +362,7 @@ namespace typed_array {
     const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
 
     for (let i: Smi = 0; i < len; ++i) {
-      const element: Object = loadfn(context, array, i);
+      const element: JSAny = loadfn(context, array, i);
       work1.objects[i] = element;
       work2.objects[i] = element;
     }
@@ -372,7 +371,7 @@ namespace typed_array {
 
     // work1 contains the sorted numbers. Write them back.
     for (let i: Smi = 0; i < len; ++i)
-      storefn(context, array, i, work1.objects[i]);
+      storefn(context, array, i, UnsafeCast<JSAny>(work1.objects[i]));
 
     return array;
   }

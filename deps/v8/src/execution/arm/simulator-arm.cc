@@ -1562,7 +1562,7 @@ using SimulatorRuntimeCall = int64_t (*)(int32_t arg0, int32_t arg1,
                                          int32_t arg2, int32_t arg3,
                                          int32_t arg4, int32_t arg5,
                                          int32_t arg6, int32_t arg7,
-                                         int32_t arg8);
+                                         int32_t arg8, int32_t arg9);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
@@ -1602,7 +1602,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t arg6 = stack_pointer[2];
       int32_t arg7 = stack_pointer[3];
       int32_t arg8 = stack_pointer[4];
-      STATIC_ASSERT(kMaxCParameters == 9);
+      int32_t arg9 = stack_pointer[5];
+      STATIC_ASSERT(kMaxCParameters == 10);
 
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -1761,9 +1762,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
-              "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
+              "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
               reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-              arg3, arg4, arg5, arg6, arg7, arg8);
+              arg3, arg4, arg5, arg6, arg7, arg8, arg9);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
@@ -1771,7 +1772,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         int64_t result =
-            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -4070,6 +4071,39 @@ void ShiftRightAndInsert(Simulator* simulator, int Vd, int Vm, int shift) {
   simulator->set_neon_register<T, SIZE>(Vd, dst);
 }
 
+template <typename T, typename S_T, int SIZE>
+void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static const int kElems = SIZE / sizeof(T);
+  T src[kElems];
+  S_T shift[kElems];
+  simulator->get_neon_register<T, SIZE>(Vm, src);
+  simulator->get_neon_register<S_T, SIZE>(Vn, shift);
+  for (int i = 0; i < kElems; i++) {
+    // Take lowest 8 bits of shift value (see F6.1.217 of ARM Architecture
+    // Reference Manual ARMv8), as signed 8-bit value.
+    int8_t shift_value = static_cast<int8_t>(shift[i]);
+    int size = static_cast<int>(sizeof(T) * 8);
+    // When shift value is greater/equal than size, we end up relying on
+    // undefined behavior, handle that and emulate what the hardware does.
+    if ((shift_value) >= 0) {
+      // If the shift value is greater/equal than size, zero out the result.
+      if (shift_value >= size) {
+        src[i] = 0;
+      } else {
+        src[i] <<= shift_value;
+      }
+    } else {
+      // If the shift value is greater/equal than size, always end up with -1.
+      if (-shift_value >= size) {
+        src[i] = -1;
+      } else {
+        src[i] = ArithmeticShiftRight(src[i], -shift_value);
+      }
+    }
+  }
+  simulator->set_neon_register<T, SIZE>(Vd, src);
+}
+
 template <typename T, int SIZE>
 void CompareEqual(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kElems = SIZE / sizeof(T);
@@ -4248,6 +4282,25 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               CompareGreater<int32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0x4: {
+          // vshl s<size> Qd, Qm, Qn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              ShiftByRegister<int8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              ShiftByRegister<int16_t, int16_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon32:
+              ShiftByRegister<int32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
               break;
             default:
               UNREACHABLE();
@@ -4637,6 +4690,27 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               CompareGreater<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0x4: {
+          // vshl s<size> Qd, Qm, Qn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              ShiftByRegister<uint8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              ShiftByRegister<uint16_t, int16_t, kSimd128Size>(this, Vd, Vm,
+                                                               Vn);
+              break;
+            case Neon32:
+              ShiftByRegister<uint32_t, int32_t, kSimd128Size>(this, Vd, Vm,
+                                                               Vn);
               break;
             default:
               UNREACHABLE();

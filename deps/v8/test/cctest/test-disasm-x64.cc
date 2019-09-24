@@ -517,6 +517,8 @@ TEST(DisasmX64) {
       __ haddps(xmm1, xmm0);
       __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
       __ lddqu(xmm1, Operand(rdx, 4));
+      __ movddup(xmm1, Operand(rax, 5));
+      __ movddup(xmm1, xmm2);
     }
   }
 

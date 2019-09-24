@@ -91,7 +91,7 @@ declare_args() {
   # Enable embedded builtins.
   v8_enable_embedded_builtins = true
 
-  # Enable the registration of unwinding info for Windows/x64.
+  # Enable the registration of unwinding info for Windows x64 and ARM64.
   v8_win64_unwinding_info = true
 
   # Enable code comments for builtins in the snapshot (impacts performance).
@@ -187,15 +187,21 @@ declare_args() {
   # Enable sharing read-only space across isolates.
   # Sets -DV8_SHARED_RO_HEAP.
   v8_enable_shared_ro_heap = ""
-}
 
-# We reuse the snapshot toolchain for building torque and other generators to
-# avoid building v8_libbase on the host more than once. On mips with big endian,
-# the snapshot toolchain is the target toolchain and, hence, can't be used.
-v8_generator_toolchain = v8_snapshot_toolchain
-if (host_cpu == "x64" &&
-    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
-  v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
+  # Enable lazy source positions by default.
+  v8_enable_lazy_source_positions = true
+
+  # Disable write barriers when GCs are non-incremental and
+  # heap has single generation.
+  v8_disable_write_barriers = false
+
+  # Redirect allocation in young generation so that there will be
+  # only one single generation.
+  v8_enable_single_generation = ""
+
+  # Use token threaded dispatch for the regular expression interpreter.
+  # Use switch-based dispatch if this is false
+  v8_enable_regexp_interpreter_threaded_dispatch = true
 }
 
 # Derived defaults.
@@ -230,6 +236,13 @@ if (v8_enable_shared_ro_heap == "") {
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
 }
+
+if (v8_enable_single_generation == "") {
+  v8_enable_single_generation = v8_disable_write_barriers
+}
+
+assert(!v8_disable_write_barriers || v8_enable_single_generation,
+       "Disabling write barriers works only with single generation")
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
@@ -424,11 +437,20 @@ config("features") {
       defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
     }
   }
+  if (v8_enable_single_generation) {
+    defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
+  }
+  if (v8_disable_write_barriers) {
+    defines += [ "V8_DISABLE_WRITE_BARRIERS" ]
+  }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
+  }
+  if (v8_enable_lazy_source_positions) {
+    defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
@@ -450,6 +472,9 @@ config("features") {
   }
   if (v8_win64_unwinding_info) {
     defines += [ "V8_WIN64_UNWINDING_INFO" ]
+  }
+  if (v8_enable_regexp_interpreter_threaded_dispatch) {
+    defines += [ "V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH" ]
   }
 }
 
@@ -968,16 +993,21 @@ torque_files = [
   "src/builtins/proxy-set-prototype-of.tq",
   "src/builtins/proxy.tq",
   "src/builtins/reflect.tq",
+  "src/builtins/regexp-match.tq",
   "src/builtins/regexp-replace.tq",
+  "src/builtins/regexp-source.tq",
+  "src/builtins/regexp-test.tq",
   "src/builtins/regexp.tq",
   "src/builtins/string.tq",
   "src/builtins/string-endswith.tq",
   "src/builtins/string-html.tq",
   "src/builtins/string-iterator.tq",
+  "src/builtins/string-pad.tq",
   "src/builtins/string-repeat.tq",
   "src/builtins/string-slice.tq",
   "src/builtins/string-startswith.tq",
   "src/builtins/string-substring.tq",
+  "src/builtins/torque-internal.tq",
   "src/builtins/typed-array-createtypedarray.tq",
   "src/builtins/typed-array-every.tq",
   "src/builtins/typed-array-filter.tq",
@@ -1002,6 +1032,7 @@ if (!v8_enable_i18n_support) {
 action("run_torque") {
   visibility = [
     ":*",
+    "tools/debug_helper/:*",
     "tools/gcmole/:*",
     "test/cctest/:*",
   ]
@@ -1023,6 +1054,8 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-definitions-tq-inl.h",
     "$target_gen_dir/torque-generated/class-definitions-tq.h",
+    "$target_gen_dir/torque-generated/class-debug-readers-tq.cc",
+    "$target_gen_dir/torque-generated/class-debug-readers-tq.h",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
@@ -1752,6 +1785,8 @@ v8_compiler_sources = [
   "src/compiler/escape-analysis-reducer.h",
   "src/compiler/escape-analysis.cc",
   "src/compiler/escape-analysis.h",
+  "src/compiler/feedback-source.cc",
+  "src/compiler/feedback-source.h",
   "src/compiler/frame-states.cc",
   "src/compiler/frame-states.h",
   "src/compiler/frame.cc",
@@ -1892,8 +1927,6 @@ v8_compiler_sources = [
   "src/compiler/types.h",
   "src/compiler/value-numbering-reducer.cc",
   "src/compiler/value-numbering-reducer.h",
-  "src/compiler/vector-slot-pair.cc",
-  "src/compiler/vector-slot-pair.h",
   "src/compiler/verifier.cc",
   "src/compiler/verifier.h",
   "src/compiler/wasm-compiler.cc",
@@ -2031,7 +2064,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-intl.cc",
     "src/builtins/builtins-json.cc",
-    "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-promise.cc",
@@ -2095,6 +2127,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/register-arch.h",
     "src/codegen/register-configuration.cc",
     "src/codegen/register-configuration.h",
+    "src/codegen/register.cc",
     "src/codegen/register.h",
     "src/codegen/reglist.h",
     "src/codegen/reloc-info.cc",
@@ -2194,6 +2227,9 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/messages.h",
     "src/execution/microtask-queue.cc",
     "src/execution/microtask-queue.h",
+    "src/execution/protectors-inl.h",
+    "src/execution/protectors.cc",
+    "src/execution/protectors.h",
     "src/execution/runtime-profiler.cc",
     "src/execution/runtime-profiler.h",
     "src/execution/simulator-base.cc",
@@ -2758,7 +2794,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime-wasm.cc",
-    "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/runtime/runtime.h",
     "src/sanitizer/asan.h",
@@ -2922,6 +2957,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-memory.h",
     "src/wasm/wasm-module-builder.cc",
     "src/wasm/wasm-module-builder.h",
+    "src/wasm/wasm-module-sourcemap.cc",
+    "src/wasm/wasm-module-sourcemap.h",
     "src/wasm/wasm-module.cc",
     "src/wasm/wasm-module.h",
     "src/wasm/wasm-objects-inl.h",
@@ -3109,6 +3146,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/diagnostics/arm64/eh-frame-arm64.cc",
       "src/execution/arm64/frame-constants-arm64.cc",
       "src/execution/arm64/frame-constants-arm64.h",
+      "src/execution/arm64/pointer-auth-arm64.cc",
       "src/execution/arm64/simulator-arm64.cc",
       "src/execution/arm64/simulator-arm64.h",
       "src/execution/arm64/simulator-logic-arm64.cc",
@@ -3116,6 +3154,12 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
       "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
+    if (is_win) {
+      sources += [
+        "src/diagnostics/unwinding-info-win64.cc",
+        "src/diagnostics/unwinding-info-win64.h",
+      ]
+    }
     jumbo_excluded_sources += [
       # TODO(mostynb@vewd.com): fix this code so it doesn't need
       # to be excluded, see the comments inside.
@@ -3325,6 +3369,7 @@ v8_source_set("torque_base") {
     "src/torque/ast.h",
     "src/torque/cfg.cc",
     "src/torque/cfg.h",
+    "src/torque/class-debug-reader-generator.cc",
     "src/torque/constants.h",
     "src/torque/contextual.h",
     "src/torque/csa-generator.cc",
@@ -3351,6 +3396,8 @@ v8_source_set("torque_base") {
     "src/torque/torque-compiler.h",
     "src/torque/torque-parser.cc",
     "src/torque/torque-parser.h",
+    "src/torque/type-inference.cc",
+    "src/torque/type-inference.h",
     "src/torque/type-oracle.cc",
     "src/torque/type-oracle.h",
     "src/torque/type-visitor.cc",

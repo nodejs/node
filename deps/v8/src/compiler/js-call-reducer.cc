@@ -14,6 +14,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
@@ -21,7 +22,6 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/vector-slot-pair.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
 #include "src/objects/arguments-inl.h"
@@ -179,101 +179,9 @@ Reduction JSCallReducer::ReduceMathMinMax(Node* node, const Operator* op,
   return Replace(value);
 }
 
-// ES section #sec-math.hypot Math.hypot ( value1, value2, ...values )
-Reduction JSCallReducer::ReduceMathHypot(Node* node) {
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-  if (node->op()->ValueInputCount() < 3) {
-    Node* value = jsgraph()->ZeroConstant();
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  NodeVector values(graph()->zone());
-
-  Node* max = effect =
-      graph()->NewNode(simplified()->SpeculativeToNumber(
-                           NumberOperationHint::kNumberOrOddball, p.feedback()),
-                       NodeProperties::GetValueInput(node, 2), effect, control);
-  max = graph()->NewNode(simplified()->NumberAbs(), max);
-  values.push_back(max);
-  for (int i = 3; i < node->op()->ValueInputCount(); ++i) {
-    Node* input = effect = graph()->NewNode(
-        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
-                                          p.feedback()),
-        NodeProperties::GetValueInput(node, i), effect, control);
-    input = graph()->NewNode(simplified()->NumberAbs(), input);
-    values.push_back(input);
-
-    // Make sure {max} is NaN in the end in case any argument was NaN.
-    max = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged),
-        graph()->NewNode(simplified()->NumberLessThanOrEqual(), input, max),
-        max, input);
-  }
-
-  Node* check0 = graph()->NewNode(simplified()->NumberEqual(), max,
-                                  jsgraph()->ZeroConstant());
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* vtrue0 = jsgraph()->ZeroConstant();
-
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* vfalse0;
-  {
-    Node* check1 = graph()->NewNode(simplified()->NumberEqual(), max,
-                                    jsgraph()->Constant(V8_INFINITY));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 = jsgraph()->Constant(V8_INFINITY);
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* vfalse1;
-    {
-      // Kahan summation to avoid rounding errors.
-      // Normalize the numbers to the largest one to avoid overflow.
-      Node* sum = jsgraph()->ZeroConstant();
-      Node* compensation = jsgraph()->ZeroConstant();
-      for (Node* value : values) {
-        Node* n = graph()->NewNode(simplified()->NumberDivide(), value, max);
-        Node* summand = graph()->NewNode(
-            simplified()->NumberSubtract(),
-            graph()->NewNode(simplified()->NumberMultiply(), n, n),
-            compensation);
-        Node* preliminary =
-            graph()->NewNode(simplified()->NumberAdd(), sum, summand);
-        compensation = graph()->NewNode(
-            simplified()->NumberSubtract(),
-            graph()->NewNode(simplified()->NumberSubtract(), preliminary, sum),
-            summand);
-        sum = preliminary;
-      }
-      vfalse1 = graph()->NewNode(
-          simplified()->NumberMultiply(),
-          graph()->NewNode(simplified()->NumberSqrt(), sum), max);
-    }
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue1, vfalse1, if_false0);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  Node* value =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), vtrue0,
-                       vfalse0, control);
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 Reduction JSCallReducer::Reduce(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
@@ -313,6 +221,8 @@ void JSCallReducer::Finalize() {
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* target = NodeProperties::GetValueInput(node, 0);
   CallParameters const& p = CallParametersOf(node->op());
@@ -480,14 +390,11 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   // TODO(mslekova): Since this introduces a Call that will get optimized by
   // the JSCallReducer, we basically might have to do all the serialization
   // that we do for that here as well. The only difference is that here we
-  // disable speculation (cf. the empty VectorSlotPair above), causing the
+  // disable speculation (cf. the empty FeedbackSource above), causing the
   // JSCallReducer to do much less work. We should revisit this later.
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
-  // TODO(mslekova): Remove once ReduceJSCall is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
+      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -495,6 +402,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 
 // ES section #sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -506,7 +415,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   //  - target, which is Function.prototype.bind JSFunction
   //  - receiver, which is the [[BoundTargetFunction]]
   //  - bound_this (optional), which is the [[BoundThis]]
-  //  - and all the remaining value inouts are [[BoundArguments]]
+  //  - and all the remaining value inputs are [[BoundArguments]]
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* bound_this = (node->op()->ValueInputCount() < 3)
                          ? jsgraph()->UndefinedConstant()
@@ -525,14 +434,24 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
 
   MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
-  first_receiver_map.SerializePrototype();
+
+  if (FLAG_concurrent_inlining && !first_receiver_map.serialized_prototype()) {
+    TRACE_BROKER_MISSING(broker(),
+                         "serialized prototype on map " << first_receiver_map);
+    return inference.NoChange();
+  }
   ObjectRef const prototype = first_receiver_map.prototype();
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map(broker(), map);
 
+    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(),
+                           "serialized prototype on map " << receiver_map);
+      return inference.NoChange();
+    }
+
     // Check for consistency among the {receiver_maps}.
     STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
-    receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
         receiver_map.instance_type() < FIRST_FUNCTION_TYPE) {
@@ -548,22 +467,31 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // recomputed even if the actual value of the object changes.
     // This mirrors the checks done in builtins-function-gen.cc at
     // runtime otherwise.
-    Handle<DescriptorArray> descriptors(
-        receiver_map.object()->instance_descriptors(), isolate());
-    if (descriptors->number_of_descriptors() < 2) return inference.NoChange();
-    if (descriptors->GetKey(JSFunction::kLengthDescriptorIndex) !=
-        ReadOnlyRoots(isolate()).length_string()) {
+    int minimum_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
+                                           JSFunction::kNameDescriptorIndex) +
+                                  1;
+    if (receiver_map.NumberOfOwnDescriptors() < minimum_nof_descriptors) {
       return inference.NoChange();
     }
-    if (!descriptors->GetStrongValue(JSFunction::kLengthDescriptorIndex)
-             .IsAccessorInfo()) {
+    if (!receiver_map.serialized_own_descriptor(
+            JSFunction::kLengthDescriptorIndex) ||
+        !receiver_map.serialized_own_descriptor(
+            JSFunction::kNameDescriptorIndex)) {
+      TRACE_BROKER_MISSING(broker(),
+                           "serialized descriptors on map " << receiver_map);
       return inference.NoChange();
     }
-    if (descriptors->GetKey(JSFunction::kNameDescriptorIndex) !=
-        ReadOnlyRoots(isolate()).name_string()) {
-      return inference.NoChange();
-    }
-    if (!descriptors->GetStrongValue(JSFunction::kNameDescriptorIndex)
+    ReadOnlyRoots roots(isolate());
+    StringRef length_string(broker(), roots.length_string_handle());
+    StringRef name_string(broker(), roots.name_string_handle());
+
+    if (!receiver_map.GetPropertyKey(JSFunction::kLengthDescriptorIndex)
+             .equals(length_string) ||
+        !receiver_map.GetStrongValue(JSFunction::kLengthDescriptorIndex)
+             .IsAccessorInfo() ||
+        !receiver_map.GetPropertyKey(JSFunction::kNameDescriptorIndex)
+             .equals(name_string) ||
+        !receiver_map.GetStrongValue(JSFunction::kNameDescriptorIndex)
              .IsAccessorInfo()) {
       return inference.NoChange();
     }
@@ -646,10 +574,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   }
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
-  // TODO(mslekova): Remove once ReduceJSCall is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
+      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -693,13 +618,19 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map(broker(), object_maps[0]);
-  candidate_map.SerializePrototype();
+  if (FLAG_concurrent_inlining && !candidate_map.serialized_prototype()) {
+    TRACE_BROKER_MISSING(broker(), "prototype for map " << candidate_map);
+    return inference.NoChange();
+  }
   ObjectRef candidate_prototype = candidate_map.prototype();
 
   // Check if we can constant-fold the {candidate_prototype}.
   for (size_t i = 0; i < object_maps.size(); ++i) {
     MapRef object_map(broker(), object_maps[i]);
-    object_map.SerializePrototype();
+    if (FLAG_concurrent_inlining && !object_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(), "prototype for map " << object_map);
+      return inference.NoChange();
+    }
     if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
         !object_map.prototype().equals(candidate_prototype)) {
       // We exclude special receivers, like JSProxy or API objects that
@@ -830,6 +761,8 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
 
 // ES #sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* value = node->op()->ValueInputCount() > 2
@@ -1048,7 +981,7 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   {
     // TODO(magardn): collect feedback so this can be optimized
     vtrue = etrue = if_true =
-        graph()->NewNode(javascript()->HasProperty(VectorSlotPair()), target,
+        graph()->NewNode(javascript()->HasProperty(FeedbackSource()), target,
                          key, context, frame_state, etrue, if_true);
   }
 
@@ -1114,10 +1047,10 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
   return true;
 }
 
-bool CanInlineArrayResizingBuiltin(
-    JSHeapBroker* broker, MapHandles const& receiver_maps,
-    std::vector<ElementsKind>& kinds,  // NOLINT(runtime/references)
-    bool builtin_is_push = false) {
+bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
+                                   MapHandles const& receiver_maps,
+                                   std::vector<ElementsKind>* kinds,
+                                   bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
   for (auto receiver_map : receiver_maps) {
     MapRef map(broker, receiver_map);
@@ -1128,14 +1061,14 @@ bool CanInlineArrayResizingBuiltin(
       return false;
     }
     ElementsKind current_kind = map.elements_kind();
-    auto kind_ptr = kinds.data();
+    auto kind_ptr = kinds->data();
     size_t i;
-    for (i = 0; i < kinds.size(); i++, kind_ptr++) {
+    for (i = 0; i < kinds->size(); i++, kind_ptr++) {
       if (UnionElementsKindUptoPackedness(kind_ptr, current_kind)) {
         break;
       }
     }
-    if (i == kinds.size()) kinds.push_back(current_kind);
+    if (i == kinds->size()) kinds->push_back(current_kind);
   }
   return true;
 }
@@ -1143,6 +1076,8 @@ bool CanInlineArrayResizingBuiltin(
 
 Reduction JSCallReducer::ReduceArrayForEach(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1309,6 +1244,8 @@ Reduction JSCallReducer::ReduceArrayForEach(
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, ArrayReduceDirection direction,
     const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1567,6 +1504,8 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
 Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1759,6 +1698,8 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
 Reduction JSCallReducer::ReduceArrayFilter(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1809,7 +1750,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
                 Type::Array());
     ab.Store(AccessBuilder::ForMap(), initial_map);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-    ab.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
+    ab.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
+             empty_fixed_array);
     ab.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
     ab.Store(AccessBuilder::ForJSArrayLength(packed_kind),
              jsgraph()->ZeroConstant());
@@ -1998,6 +1940,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
 Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
                                          const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2218,7 +2162,7 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
                                    : GrowFastElementsMode::kSmiOrObjectElements;
     elements = etrue = graph()->NewNode(
-        simplified()->MaybeGrowFastElements(mode, VectorSlotPair()), a,
+        simplified()->MaybeGrowFastElements(mode, FeedbackSource()), a,
         elements, checked_to, elements_length, etrue, if_true);
 
     // Update the length of {a}.
@@ -2288,7 +2232,7 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
 
 Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
                                      Node* control, Node** effect, Node** k,
-                                     const VectorSlotPair& feedback) {
+                                     const FeedbackSource& feedback) {
   // Make sure that the access is still in bounds, since the callback could
   // have changed the array's size.
   Node* length = *effect = graph()->NewNode(
@@ -2313,6 +2257,8 @@ Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
 
 Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                           const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2567,6 +2513,8 @@ Callable GetCallableForArrayIncludes(ElementsKind elements_kind,
 // #sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     SearchVariant search_variant, Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
@@ -2638,6 +2586,8 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
 
 Reduction JSCallReducer::ReduceArraySome(Node* node,
                                          const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2906,8 +2856,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
 
       // See if we can constant-fold the compatible receiver checks.
       HolderLookupResult api_holder =
-          function_template_info.LookupHolderOfExpectedType(first_receiver_map,
-                                                            false);
+          function_template_info.LookupHolderOfExpectedType(first_receiver_map);
       if (api_holder.lookup == CallOptimization::kHolderNotFound)
         return inference.NoChange();
 
@@ -2937,8 +2886,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       for (size_t i = 1; i < receiver_maps.size(); ++i) {
         MapRef receiver_map(broker(), receiver_maps[i]);
         HolderLookupResult holder_i =
-            function_template_info.LookupHolderOfExpectedType(receiver_map,
-                                                              false);
+            function_template_info.LookupHolderOfExpectedType(receiver_map);
 
         if (api_holder.lookup != holder_i.lookup) return inference.NoChange();
         if (!(api_holder.holder.has_value() && holder_i.holder.has_value()))
@@ -3059,7 +3007,7 @@ bool IsSafeArgumentsElements(Node* node) {
 
 Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* node, int arity, CallFrequency const& frequency,
-    VectorSlotPair const& feedback) {
+    FeedbackSource const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
          node->opcode() == IrOpcode::kJSCallWithSpread ||
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
@@ -3285,13 +3233,6 @@ bool ShouldUseCallICFeedback(Node* node) {
   return true;
 }
 
-base::Optional<HeapObjectRef> GetHeapObjectFeedback(
-    JSHeapBroker* broker, const FeedbackNexus& nexus) {
-  HeapObject object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
-  return HeapObjectRef(broker, handle(object, broker->isolate()));
-}
-
 }  // namespace
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
@@ -3309,7 +3250,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(), "data for function " << function);
+        return NoChange();
+      }
 
       // Don't inline cross native context.
       if (!function.native_context().equals(native_context())) {
@@ -3319,7 +3263,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(), "data for function " << function);
+        return NoChange();
+      }
 
       ObjectRef bound_this = function.bound_this();
       ConvertReceiverMode const convert_mode =
@@ -3342,7 +3289,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       }
 
       NodeProperties::ChangeOp(
-          node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
+          node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
                                    convert_mode));
 
       // Try to further reduce the JSCall {node}.
@@ -3390,7 +3337,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
             ? ConvertReceiverMode::kAny
             : ConvertReceiverMode::kNotNullOrUndefined;
     NodeProperties::ChangeOp(
-        node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
+        node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
                                  convert_mode));
 
     // Try to further reduce the JSCall {node}.
@@ -3398,19 +3345,18 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return reduction.Changed() ? reduction : Changed(node);
   }
 
-  // Extract feedback from the {node} using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.IsUninitialized()) {
+  ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForCall(FeedbackSource(p.feedback()));
+  if (feedback.IsInsufficient()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
-  base::Optional<HeapObjectRef> feedback =
-      GetHeapObjectFeedback(broker(), nexus);
-  if (feedback.has_value() && ShouldUseCallICFeedback(target) &&
-      feedback->map().is_callable()) {
-    Node* target_function = jsgraph()->Constant(*feedback);
+  base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+  if (feedback_target.has_value() && ShouldUseCallICFeedback(target) &&
+      feedback_target->map().is_callable()) {
+    Node* target_function = jsgraph()->Constant(*feedback_target);
 
     // Check that the {target} is still the {target_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -3630,8 +3576,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMathUnary(node, simplified()->NumberFloor());
     case Builtins::kMathFround:
       return ReduceMathUnary(node, simplified()->NumberFround());
-    case Builtins::kMathHypot:
-      return ReduceMathHypot(node);
     case Builtins::kMathLog:
       return ReduceMathUnary(node, simplified()->NumberLog());
     case Builtins::kMathLog1p:
@@ -3785,22 +3729,17 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       break;
   }
 
-  if (shared.object()->IsApiFunction()) {
+  if (shared.function_template_info().has_value()) {
     return ReduceCallApiFunction(node, shared);
   }
   return NoChange();
 }
 
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
-  // TODO(mslekova): Remove once ReduceJSCallWithArrayLike is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-
   DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
-  VectorSlotPair feedback;
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, 2, frequency,
-                                                    feedback);
+                                                    FeedbackSource());
 }
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
@@ -3809,7 +3748,7 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 1);
   CallFrequency frequency = p.frequency();
-  VectorSlotPair feedback = p.feedback();
+  FeedbackSource feedback = p.feedback();
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
                                                     feedback);
 }
@@ -3824,17 +3763,16 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Extract feedback from the {node} using the FeedbackNexus.
   if (p.feedback().IsValid()) {
-    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-    if (nexus.IsUninitialized()) {
+    ProcessedFeedback const& feedback =
+        broker()->GetFeedbackForCall(p.feedback());
+    if (feedback.IsInsufficient()) {
       return ReduceSoftDeoptimize(
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
-    base::Optional<HeapObjectRef> feedback =
-        GetHeapObjectFeedback(broker(), nexus);
-    if (feedback.has_value() && feedback->IsAllocationSite()) {
+    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+    if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the
@@ -3859,12 +3797,12 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       NodeProperties::ReplaceValueInput(node, array_function, 1);
       NodeProperties::ChangeOp(
           node, javascript()->CreateArray(
-                    arity, feedback->AsAllocationSite().object()));
+                    arity, feedback_target->AsAllocationSite().object()));
       return Changed(node);
-    } else if (feedback.has_value() &&
+    } else if (feedback_target.has_value() &&
                !HeapObjectMatcher(new_target).HasValue() &&
-               feedback->map().is_constructor()) {
-      Node* new_target_feedback = jsgraph()->Constant(*feedback);
+               feedback_target->map().is_constructor()) {
+      Node* new_target_feedback = jsgraph()->Constant(*feedback_target);
 
       // Check that the {new_target} is still the {new_target_feedback}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), new_target,
@@ -3902,7 +3840,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       // Do not reduce constructors with break points.
       if (function.shared().HasBreakInfo()) return NoChange();
@@ -3959,7 +3901,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       ObjectRef bound_target_function = function.bound_target_function();
       FixedArrayRef bound_arguments = function.bound_arguments();
@@ -3989,7 +3935,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // Update the JSConstruct operator on {node}.
       NodeProperties::ChangeOp(
           node,
-          javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
+          javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
 
       // Try to further reduce the JSConstruct {node}.
       Reduction const reduction = ReduceJSConstruct(node);
@@ -4030,7 +3976,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // Update the JSConstruct operator on {node}.
     NodeProperties::ChangeOp(
         node,
-        javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
+        javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
 
     // Try to further reduce the JSConstruct {node}.
     Reduction const reduction = ReduceJSConstruct(node);
@@ -4350,9 +4296,8 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
-  VectorSlotPair feedback;
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, 1, frequency,
-                                                    feedback);
+                                                    FeedbackSource());
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
@@ -4361,7 +4306,7 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
   CallFrequency frequency = p.frequency();
-  VectorSlotPair feedback = p.feedback();
+  FeedbackSource feedback = p.feedback();
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
                                                     feedback);
 }
@@ -4382,7 +4327,7 @@ Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
   Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kSoft, reason, VectorSlotPair()),
+      common()->Deoptimize(DeoptimizeKind::kSoft, reason, FeedbackSource()),
       frame_state, effect, control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
@@ -4440,6 +4385,8 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -4456,7 +4403,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds, true)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds, true)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
@@ -4574,6 +4521,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -4589,7 +4538,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
@@ -4707,6 +4656,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
 // ES6 section 22.1.3.22 Array.prototype.shift ( )
 Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -4725,7 +4676,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
@@ -4923,6 +4874,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
 // ES6 section 22.1.3.23 Array.prototype.slice ( )
 Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4999,6 +4952,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
 // ES6 section 22.1.2.2 Array.isArray ( arg )
 Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   // We certainly know that undefined is not an array.
   if (node->op()->ValueInputCount() < 3) {
     Node* value = jsgraph()->FalseConstant();
@@ -5022,6 +4977,8 @@ Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
@@ -5047,6 +5004,8 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
 
 // ES #sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   Node* iterator = NodeProperties::GetValueInput(node, 1);
@@ -5681,10 +5640,14 @@ Node* JSCallReducer::CreateArtificialFrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
+
+  static constexpr int kTargetInputIndex = 0;
+  static constexpr int kReceiverInputIndex = 1;
+  const int parameter_count_with_receiver = parameter_count + 1;
   std::vector<Node*> params;
-  params.reserve(parameter_count + 1);
-  for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
-    params.push_back(node->InputAt(1 + parameter));
+  params.reserve(parameter_count_with_receiver);
+  for (int i = 0; i < parameter_count_with_receiver; i++) {
+    params.push_back(node->InputAt(kReceiverInputIndex + i));
   }
   const Operator* op_param = common()->StateValues(
       static_cast<int>(params.size()), SparseInputMask::Dense());
@@ -5694,7 +5657,7 @@ Node* JSCallReducer::CreateArtificialFrameState(
     context = jsgraph()->UndefinedConstant();
   }
   return graph()->NewNode(op, params_node, node0, node0, context,
-                          node->InputAt(0), outer_frame_state);
+                          node->InputAt(kTargetInputIndex), outer_frame_state);
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
@@ -5804,7 +5767,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
 
   // 9. Call executor with both resolving functions
   effect = control = graph()->NewNode(
-      javascript()->Call(4, p.frequency(), VectorSlotPair(),
+      javascript()->Call(4, p.frequency(), FeedbackSource(),
                          ConvertReceiverMode::kNullOrUndefined,
                          SpeculationMode::kDisallowSpeculation),
       executor, jsgraph()->UndefinedConstant(), resolve, reject, context,
@@ -5817,7 +5780,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
         common()->IfException(), exception_control, exception_effect);
     // 10a. Call reject if the call to executor threw.
     exception_effect = exception_control = graph()->NewNode(
-        javascript()->Call(3, p.frequency(), VectorSlotPair(),
+        javascript()->Call(3, p.frequency(), FeedbackSource(),
                            ConvertReceiverMode::kNullOrUndefined,
                            SpeculationMode::kDisallowSpeculation),
         reject, jsgraph()->UndefinedConstant(), reason, context, frame_state,
@@ -5928,9 +5891,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return false;
-    if (!FLAG_concurrent_inlining) {
-      receiver_map.SerializePrototype();
-    } else if (!receiver_map.serialized_prototype()) {
+    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
       return false;
     }
@@ -6109,7 +6070,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -6177,7 +6138,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -6293,8 +6254,13 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
         jsgraph()->Constant(TYPE##_ELEMENTS -                          \
                             FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
     control = graph()->NewNode(common()->Branch(), check, control);    \
-    values.push_back(jsgraph()->HeapConstant(                          \
-        factory()->InternalizeUtf8String(#Type "Array")));             \
+    if (FLAG_concurrent_inlining) {                                    \
+      values.push_back(jsgraph()->Constant(                            \
+          broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS)));         \
+    } else {                                                           \
+      values.push_back(jsgraph()->HeapConstant(                        \
+          factory()->InternalizeUtf8String(#Type "Array")));           \
+    }                                                                  \
     effects.push_back(effect);                                         \
     controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
     control = graph()->NewNode(common()->IfFalse(), control);          \
@@ -6536,9 +6502,10 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     MapInference inference(broker(), receiver, effect);
     if (!inference.HaveMaps()) return NoChange();
     MapHandles const& receiver_maps = inference.GetMaps();
-    receiver_instance_type = receiver_maps[0]->instance_type();
+    receiver_instance_type = MapRef(broker(), receiver_maps[0]).instance_type();
     for (size_t i = 1; i < receiver_maps.size(); ++i) {
-      if (receiver_maps[i]->instance_type() != receiver_instance_type) {
+      if (MapRef(broker(), receiver_maps[i]).instance_type() !=
+          receiver_instance_type) {
         return inference.NoChange();
       }
     }
@@ -6799,6 +6766,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 }
 
 Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   Node* value = node->op()->ValueInputCount() >= 3
                     ? NodeProperties::GetValueInput(node, 2)
                     : jsgraph()->UndefinedConstant();
@@ -6811,6 +6780,8 @@ Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
 
 Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -7142,19 +7113,20 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!FLAG_concurrent_inlining) {
+  if (FLAG_concurrent_inlining) {
+    // Obtain precomputed access infos from the broker.
+    for (auto map : regexp_maps) {
+      MapRef map_ref(broker(), map);
+      PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+          map_ref, NameRef(broker(), isolate()->factory()->exec_string()),
+          AccessMode::kLoad);
+      access_infos.push_back(access_info);
+    }
+  } else {
     // Compute property access info for "exec" on {resolution}.
     access_info_factory.ComputePropertyAccessInfos(
         MapHandles(regexp_maps.begin(), regexp_maps.end()),
         factory()->exec_string(), AccessMode::kLoad, &access_infos);
-  } else {
-    // Obtain precomputed access infos from the broker.
-    for (auto map : regexp_maps) {
-      MapRef map_ref(broker(), map);
-      PropertyAccessInfo access_info =
-          broker()->GetAccessInfoForLoadingExec(map_ref);
-      access_infos.push_back(access_info);
-    }
   }
 
   PropertyAccessInfo ai_exec =
@@ -7171,7 +7143,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     JSObjectRef holder_ref(broker(), holder);
 
     // Bail out if the exec method is not the original one.
-    base::Optional<ObjectRef> constant = holder_ref.GetOwnProperty(
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
         ai_exec.field_representation(), ai_exec.field_index());
     if (!constant.has_value() ||
         !constant->equals(native_context().regexp_exec_function())) {
@@ -7287,7 +7259,7 @@ Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
 Factory* JSCallReducer::factory() const { return isolate()->factory(); }
 
 NativeContextRef JSCallReducer::native_context() const {
-  return broker()->native_context();
+  return broker()->target_native_context();
 }
 
 CommonOperatorBuilder* JSCallReducer::common() const {

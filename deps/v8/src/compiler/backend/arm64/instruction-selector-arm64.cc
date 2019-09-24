@@ -48,16 +48,6 @@ class Arm64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node, bool sp_allowed) {
-    if (sp_allowed && node->opcode() == IrOpcode::kLoadStackPointer)
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord64, sp.code());
-    return UseRegister(node);
-  }
-
   // Use the provided node if it has the required value, or create a
   // TempImmediate otherwise.
   InstructionOperand UseImmediateOrTemp(Node* node, int32_t value) {
@@ -158,6 +148,15 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
+}
+
+void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+                       Node* node) {
+  Arm64OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
@@ -554,23 +553,21 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   // is used when we merge a conversion into the load.
   outputs[0] = g.DefineAsRegister(output == nullptr ? node : output);
 
-  if (selector->CanAddressRelativeToRootsRegister()) {
-    ExternalReferenceMatcher m(base);
-    if (m.HasValue() && g.IsIntegerConstant(index)) {
-      ptrdiff_t const delta =
-          g.GetIntegerConstantValue(index) +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-              selector->isolate(), m.Value());
-      input_count = 1;
-      // Check that the delta is a 32-bit integer due to the limitations of
-      // immediate operands.
-      if (is_int32(delta)) {
-        inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
-        opcode |= AddressingModeField::encode(kMode_Root);
-        selector->Emit(opcode, arraysize(outputs), outputs, input_count,
-                       inputs);
-        return;
-      }
+  ExternalReferenceMatcher m(base);
+  if (m.HasValue() && g.IsIntegerConstant(index) &&
+      selector->CanAddressRelativeToRootsRegister(m.Value())) {
+    ptrdiff_t const delta =
+        g.GetIntegerConstantValue(index) +
+        TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            selector->isolate(), m.Value());
+    input_count = 1;
+    // Check that the delta is a 32-bit integer due to the limitations of
+    // immediate operands.
+    if (is_int32(delta)) {
+      inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
+      opcode |= AddressingModeField::encode(kMode_Root);
+      selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
+      return;
     }
   }
 
@@ -670,7 +667,8 @@ void InstructionSelector::VisitStore(Node* node) {
   MachineRepresentation rep = store_rep.representation();
 
   // TODO(arm64): I guess this could be done in a better way.
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1002,6 +1000,15 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
     return;
   }
   VisitRRO(this, kArm64Lsl, node, kShift64Imm);
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  Arm64OperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 namespace {
@@ -1625,23 +1632,23 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
     Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressPointer, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
     Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressSigned, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
@@ -1826,26 +1833,25 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont,
-                      bool commutative, ImmediateMode immediate_mode) {
+                      ImmediateMode immediate_mode) {
   Arm64OperandGenerator g(selector);
+
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  if (right->opcode() == IrOpcode::kLoadStackPointer ||
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right, immediate_mode) &&
       g.CanBeImmediate(left, immediate_mode)) {
-    if (!commutative) cont->Commute();
+    cont->Commute();
     std::swap(left, right);
   }
 
-  // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode,
-                 g.UseRegisterOrStackPointer(left, opcode == kArm64Cmp),
-                 g.UseImmediate(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
+                 cont);
   } else {
-    VisitCompare(selector, opcode,
-                 g.UseRegisterOrStackPointer(left, opcode == kArm64Cmp),
-                 g.UseRegister(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
+                 cont);
   }
 }
 
@@ -2370,8 +2376,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         if (m.right().Is(0)) {
           Node* const left = m.left().node();
           if (CanCover(value, left) && left->opcode() == IrOpcode::kWord64And) {
-            return VisitWordCompare(this, left, kArm64Tst, cont, true,
-                                    kLogical64Imm);
+            return VisitWordCompare(this, left, kArm64Tst, cont, kLogical64Imm);
           }
           // Merge the Word64Equal(x, 0) comparison into a cbz instruction.
           if ((cont->IsBranch() || cont->IsDeoptimize()) &&
@@ -2381,25 +2386,20 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
             return;
           }
         }
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       }
       case IrOpcode::kInt64LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kInt64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kUint64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kFloat32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat32Compare(this, value, cont);
@@ -2461,16 +2461,16 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         }
         break;
       case IrOpcode::kInt32Add:
-        return VisitWordCompare(this, value, kArm64Cmn32, cont, true,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmn32, cont, kArithmeticImm);
       case IrOpcode::kInt32Sub:
         return VisitWord32Compare(this, value, cont);
       case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kArm64Tst32, cont, true,
-                                kLogical32Imm);
+        return VisitWordCompare(this, value, kArm64Tst32, cont, kLogical32Imm);
       case IrOpcode::kWord64And:
-        return VisitWordCompare(this, value, kArm64Tst, cont, true,
-                                kLogical64Imm);
+        return VisitWordCompare(this, value, kArm64Tst, cont, kLogical64Imm);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2530,7 +2530,7 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
         case IrOpcode::kWord32And:
           return VisitWord32Compare(this, node, &cont);
         case IrOpcode::kInt32Sub:
-          return VisitWordCompare(this, value, kArm64Cmp32, &cont, false,
+          return VisitWordCompare(this, value, kArm64Cmp32, &cont,
                                   kArithmeticImm);
         case IrOpcode::kWord32Equal: {
           // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
@@ -2587,15 +2587,14 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kWord64And:
-          return VisitWordCompare(this, value, kArm64Tst, &cont, true,
-                                  kLogical64Imm);
+          return VisitWordCompare(this, value, kArm64Tst, &cont, kLogical64Imm);
         default:
           break;
       }
       return VisitWord64Test(this, value, &cont);
     }
   }
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
@@ -2653,24 +2652,24 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64LessThan(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitFloat32Neg(Node* node) {
@@ -3045,18 +3044,23 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 }
 
 #define SIMD_TYPE_LIST(V) \
+  V(F64x2)                \
   V(F32x4)                \
+  V(I64x2)                \
   V(I32x4)                \
   V(I16x8)                \
   V(I8x16)
 
 #define SIMD_UNOP_LIST(V)                                 \
+  V(F64x2Abs, kArm64F64x2Abs)                             \
+  V(F64x2Neg, kArm64F64x2Neg)                             \
   V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)         \
   V(F32x4Abs, kArm64F32x4Abs)                             \
   V(F32x4Neg, kArm64F32x4Neg)                             \
   V(F32x4RecipApprox, kArm64F32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)     \
+  V(I64x2Neg, kArm64I64x2Neg)                             \
   V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)         \
   V(I32x4SConvertI16x8Low, kArm64I32x4SConvertI16x8Low)   \
   V(I32x4SConvertI16x8High, kArm64I32x4SConvertI16x8High) \
@@ -3071,6 +3075,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8UConvertI8x16High, kArm64I16x8UConvertI8x16High) \
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(S128Not, kArm64S128Not)                               \
+  V(S1x2AnyTrue, kArm64S1x2AnyTrue)                       \
+  V(S1x2AllTrue, kArm64S1x2AllTrue)                       \
   V(S1x4AnyTrue, kArm64S1x4AnyTrue)                       \
   V(S1x4AllTrue, kArm64S1x4AllTrue)                       \
   V(S1x8AnyTrue, kArm64S1x8AnyTrue)                       \
@@ -3079,6 +3085,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(S1x16AllTrue, kArm64S1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
+  V(I64x2Shl)                 \
+  V(I64x2ShrS)                \
+  V(I64x2ShrU)                \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
   V(I32x4ShrU)                \
@@ -3090,16 +3099,35 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BINOP_LIST(V)                        \
+  V(F64x2Add, kArm64F64x2Add)                     \
+  V(F64x2Sub, kArm64F64x2Sub)                     \
+  V(F64x2Mul, kArm64F64x2Mul)                     \
+  V(F64x2Div, kArm64F64x2Div)                     \
+  V(F64x2Min, kArm64F64x2Min)                     \
+  V(F64x2Max, kArm64F64x2Max)                     \
+  V(F64x2Eq, kArm64F64x2Eq)                       \
+  V(F64x2Ne, kArm64F64x2Ne)                       \
+  V(F64x2Lt, kArm64F64x2Lt)                       \
+  V(F64x2Le, kArm64F64x2Le)                       \
   V(F32x4Add, kArm64F32x4Add)                     \
   V(F32x4AddHoriz, kArm64F32x4AddHoriz)           \
   V(F32x4Sub, kArm64F32x4Sub)                     \
   V(F32x4Mul, kArm64F32x4Mul)                     \
+  V(F32x4Div, kArm64F32x4Div)                     \
   V(F32x4Min, kArm64F32x4Min)                     \
   V(F32x4Max, kArm64F32x4Max)                     \
   V(F32x4Eq, kArm64F32x4Eq)                       \
   V(F32x4Ne, kArm64F32x4Ne)                       \
   V(F32x4Lt, kArm64F32x4Lt)                       \
   V(F32x4Le, kArm64F32x4Le)                       \
+  V(I64x2Add, kArm64I64x2Add)                     \
+  V(I64x2Sub, kArm64I64x2Sub)                     \
+  V(I64x2Eq, kArm64I64x2Eq)                       \
+  V(I64x2Ne, kArm64I64x2Ne)                       \
+  V(I64x2GtS, kArm64I64x2GtS)                     \
+  V(I64x2GeS, kArm64I64x2GeS)                     \
+  V(I64x2GtU, kArm64I64x2GtU)                     \
+  V(I64x2GeU, kArm64I64x2GeU)                     \
   V(I32x4Add, kArm64I32x4Add)                     \
   V(I32x4AddHoriz, kArm64I32x4AddHoriz)           \
   V(I32x4Sub, kArm64I32x4Sub)                     \
@@ -3194,7 +3222,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kArm64##Name, node);               \
+    VisitSimdShiftRRR(this, kArm64##Name, node);      \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP

@@ -580,7 +580,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:
-    case IrOpcode::kCallWithCallerSavedRegisters:
       // TODO(rossberg): what are the constraints on these?
       break;
     case IrOpcode::kTailCall:
@@ -765,6 +764,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is empty.
       CheckNotTyped(node);
       CHECK(StoreNamedOwnParametersOf(node->op()).feedback().IsValid());
+      break;
+    case IrOpcode::kJSGetIterator:
+      // Type can be anything
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kJSStoreDataPropertyInLiteral:
     case IrOpcode::kJSStoreInArrayLiteral:
@@ -1800,6 +1804,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastTaggedSignedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kBitcastWordToTaggedSigned:
+    case IrOpcode::kBitcastWord32ToCompressedSigned:
+    case IrOpcode::kBitcastCompressedSignedToWord32:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeTaggedToCompressed:
@@ -1838,7 +1844,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kWord32PoisonOnSpeculation:
     case IrOpcode::kWord64PoisonOnSpeculation:
-    case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kUnalignedLoad:
@@ -1877,6 +1882,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSignExtendWord16ToInt64:
     case IrOpcode::kSignExtendWord32ToInt64:
     case IrOpcode::kStaticAssert:
+    case IrOpcode::kStackPointerGreaterThan:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)

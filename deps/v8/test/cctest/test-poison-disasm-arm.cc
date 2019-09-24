@@ -71,7 +71,6 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "let o2 = { y : 1 };"
       "o2.x = 2;"
       "%PrepareFunctionForOptimization(poly);"
-      "poly(o1);"
       "poly(o2);"
       "poly(o1);"
       "poly(o2);"

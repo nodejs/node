@@ -148,7 +148,7 @@ TEST(SamplingCircularQueueMultithreading) {
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, &semaphore);
 
   CHECK(!scq.Peek());
-  producer1.Start();
+  CHECK(producer1.Start());
   semaphore.Wait();
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
@@ -160,7 +160,7 @@ TEST(SamplingCircularQueueMultithreading) {
   }
 
   CHECK(!scq.Peek());
-  producer2.Start();
+  CHECK(producer2.Start());
   semaphore.Wait();
   for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
@@ -172,7 +172,7 @@ TEST(SamplingCircularQueueMultithreading) {
   }
 
   CHECK(!scq.Peek());
-  producer3.Start();
+  CHECK(producer3.Start());
   semaphore.Wait();
   for (Record i = 20; i < 20 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());

@@ -45,6 +45,13 @@ class AddressRegion {
     return contains(region.address_, region.size_);
   }
 
+  base::AddressRegion GetOverlap(AddressRegion region) const {
+    Address overlap_start = std::max(begin(), region.begin());
+    Address overlap_end =
+        std::max(overlap_start, std::min(end(), region.end()));
+    return {overlap_start, overlap_end - overlap_start};
+  }
+
   bool operator==(AddressRegion other) const {
     return address_ == other.address_ && size_ == other.size_;
   }

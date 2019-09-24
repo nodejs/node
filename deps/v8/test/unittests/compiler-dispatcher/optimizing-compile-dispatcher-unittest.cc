@@ -27,8 +27,7 @@ namespace {
 class BlockingCompilationJob : public OptimizedCompilationJob {
  public:
   BlockingCompilationJob(Isolate* isolate, Handle<JSFunction> function)
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
-                                "BlockingCompilationJob",
+      : OptimizedCompilationJob(&info_, "BlockingCompilationJob",
                                 State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),

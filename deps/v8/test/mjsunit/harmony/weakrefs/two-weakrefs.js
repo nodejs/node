@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
+// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let o1 = {};
 let o2 = {};
@@ -21,28 +21,27 @@ gc();
   assertNotEquals(undefined, wr2.deref());
 })();
 
-%PerformMicrotaskCheckpoint();
-// New turn.
+// New task
+setTimeout(function() {
+  wr1.deref();
+  o1 = null;
+  gc(); // deref makes sure we don't clean up wr1
 
-wr1.deref();
-o1 = null;
-gc(); // deref makes sure we don't clean up wr1
+  // New task
+  setTimeout(function() {
+    wr2.deref();
+    o2 = null;
+    gc(); // deref makes sure we don't clean up wr2
 
-%PerformMicrotaskCheckpoint();
-// New turn.
+    // New task
+    setTimeout(function() {
+      assertEquals(undefined, wr1.deref());
+      gc();
 
-wr2.deref();
-o2 = null;
-gc(); // deref makes sure we don't clean up wr2
-
-%PerformMicrotaskCheckpoint();
-// New turn.
-
-assertEquals(undefined, wr1.deref());
-
-gc();
-
-%PerformMicrotaskCheckpoint();
-// New turn.
-
-assertEquals(undefined, wr2.deref());
+      // New task
+      setTimeout(function() {
+        assertEquals(undefined, wr2.deref());
+      }, 0);
+    }, 0);
+  }, 0);
+}, 0);

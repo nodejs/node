@@ -109,7 +109,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   TNode<HeapObject> base = AllocateInNewSpace(size);
 
   // Initialize the promise.
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> promise_function =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   TNode<Map> promise_map = LoadObjectField<Map>(
@@ -263,8 +263,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  Node* outer_promise = LoadObjectField(async_function_object,
-                                        JSAsyncFunctionObject::kPromiseOffset);
+  TNode<Object> outer_promise = LoadObjectField(
+      async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
   Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
   GotoIf(HasAsyncEventDelegate(), &call_debug_hook);

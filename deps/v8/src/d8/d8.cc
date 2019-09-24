@@ -36,6 +36,7 @@
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
+#include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -76,7 +77,6 @@ namespace {
 
 const int kMB = 1024 * 1024;
 
-const int kMaxWorkers = 100;
 const int kMaxSerializerMemoryUsage =
     1 * kMB;  // Arbitrary maximum for testing.
 
@@ -227,14 +227,13 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
     return nullptr;
   }
 
-  Worker* worker =
-      static_cast<Worker*>(object->GetAlignedPointerFromInternalField(0));
-  if (worker == nullptr) {
+  i::Handle<i::Object> handle = Utils::OpenHandle(*object->GetInternalField(0));
+  if (handle->IsSmi()) {
     Throw(isolate, "Worker is defunct because main thread is terminating");
     return nullptr;
   }
-
-  return worker;
+  auto managed = i::Handle<i::Managed<Worker>>::cast(handle);
+  return managed->raw();
 }
 
 base::Thread::Options GetThreadOptions(const char* name) {
@@ -333,7 +332,7 @@ const base::TimeTicks Shell::kInitialTicks =
 Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
-std::vector<Worker*> Shell::workers_;
+std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
 std::atomic<bool> Shell::script_executed_{false};
 base::LazyMutex Shell::isolate_status_lock_;
@@ -485,7 +484,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     } else if (options.stress_background_compile) {
       // Start a background thread compiling the script.
       BackgroundCompileThread background_compile_thread(isolate, source);
-      background_compile_thread.Start();
+      CHECK(background_compile_thread.Start());
 
       // In parallel, compile on the main thread to flush out any data races.
       {
@@ -762,6 +761,16 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   return MaybeLocal<Promise>();
 }
 
+void Shell::HostCleanupFinalizationGroup(Local<Context> context,
+                                         Local<FinalizationGroup> fg) {
+  Isolate* isolate = context->GetIsolate();
+  PerIsolateData::Get(isolate)->HostCleanupFinalizationGroup(fg);
+}
+
+void PerIsolateData::HostCleanupFinalizationGroup(Local<FinalizationGroup> fg) {
+  cleanup_finalization_groups_.emplace(isolate_, fg);
+}
+
 void Shell::HostInitializeImportMetaObject(Local<Context> context,
                                            Local<Module> module,
                                            Local<Object> meta) {
@@ -905,6 +914,15 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
   if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
   Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
   set_timeout_contexts_.pop();
+  return result;
+}
+
+MaybeLocal<FinalizationGroup> PerIsolateData::GetCleanupFinalizationGroup() {
+  if (cleanup_finalization_groups_.empty())
+    return MaybeLocal<FinalizationGroup>();
+  Local<FinalizationGroup> result =
+      cleanup_finalization_groups_.front().Get(isolate_);
+  cleanup_finalization_groups_.pop();
   return result;
 }
 
@@ -1392,30 +1410,36 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  // Initialize the embedder field to 0; if we return early without
+  // creating a new Worker (because the main thread is terminating) we can
+  // early-out from the instance calls.
+  args.Holder()->SetInternalField(0, v8::Integer::New(isolate, 0));
+
   {
+    // Don't allow workers to create more workers if the main thread
+    // is waiting for existing running workers to terminate.
     base::MutexGuard lock_guard(workers_mutex_.Pointer());
-    if (workers_.size() >= kMaxWorkers) {
-      Throw(args.GetIsolate(), "Too many workers, I won't let you create more");
-      return;
-    }
-
-    // Initialize the embedder field to nullptr; if we return early without
-    // creating a new Worker (because the main thread is terminating) we can
-    // early-out from the instance calls.
-    args.Holder()->SetAlignedPointerInInternalField(0, nullptr);
-
     if (!allow_new_workers_) return;
-
-    Worker* worker = new Worker;
-    args.Holder()->SetAlignedPointerInInternalField(0, worker);
-    workers_.push_back(worker);
 
     String::Utf8Value script(args.GetIsolate(), source);
     if (!*script) {
       Throw(args.GetIsolate(), "Can't get worker script");
       return;
     }
-    worker->StartExecuteInThread(*script);
+
+    // The C++ worker object's lifetime is shared between the Managed<Worker>
+    // object on the heap, which the JavaScript object points to, and an
+    // internal std::shared_ptr in the worker thread itself.
+    auto worker = std::make_shared<Worker>(*script);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
+    i::Handle<i::Object> managed = i::Managed<Worker>::FromSharedPtr(
+        i_isolate, kWorkerSizeEstimate, worker);
+    args.Holder()->SetInternalField(0, Utils::ToLocal(managed));
+    if (!Worker::StartWorkerThread(std::move(worker))) {
+      Throw(args.GetIsolate(), "Can't start thread");
+      return;
+    }
   }
 }
 
@@ -1475,7 +1499,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
-  CleanupWorkers();
+  WaitForRunningWorkers();
   args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
   base::OS::ExitProcess(exit_code);
@@ -1920,6 +1944,9 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   DCHECK(!context.IsEmpty());
+  if (i::FLAG_perf_prof_annotate_wasm) {
+    isolate->SetWasmLoadSourceMapCallback(ReadFile);
+  }
   InitializeModuleEmbedderData(context);
   if (options.include_arguments) {
     Context::Scope scope(context);
@@ -2468,6 +2495,8 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostCleanupFinalizationGroupCallback(
+      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -2504,7 +2533,7 @@ void SourceGroup::ExecuteInThread() {
 void SourceGroup::StartExecuteInThread() {
   if (thread_ == nullptr) {
     thread_ = new IsolateThread(this);
-    thread_->Start();
+    CHECK(thread_->Start());
   }
   next_semaphore_.Signal();
 }
@@ -2550,11 +2579,11 @@ void SerializationDataQueue::Clear() {
   data_.clear();
 }
 
-Worker::Worker()
+Worker::Worker(const char* script)
     : in_semaphore_(0),
       out_semaphore_(0),
       thread_(nullptr),
-      script_(nullptr),
+      script_(i::StrDup(script)),
       running_(false) {}
 
 Worker::~Worker() {
@@ -2562,15 +2591,29 @@ Worker::~Worker() {
   thread_ = nullptr;
   delete[] script_;
   script_ = nullptr;
-  in_queue_.Clear();
-  out_queue_.Clear();
 }
 
-void Worker::StartExecuteInThread(const char* script) {
-  running_ = true;
-  script_ = i::StrDup(script);
-  thread_ = new WorkerThread(this);
-  thread_->Start();
+bool Worker::StartWorkerThread(std::shared_ptr<Worker> worker) {
+  worker->running_ = true;
+  auto thread = new WorkerThread(worker);
+  worker->thread_ = thread;
+  if (thread->Start()) {
+    Shell::AddRunningWorker(std::move(worker));
+    return true;
+  }
+  return false;
+}
+
+void Worker::WorkerThread::Run() {
+  // Prevent a lifetime cycle from Worker -> WorkerThread -> Worker.
+  // We must clear the worker_ field of the thread, but we keep the
+  // worker alive via a stack root until the thread finishes execution
+  // and removes itself from the running set. Thereafter the only
+  // remaining reference can be from a JavaScript object via a Managed.
+  auto worker = std::move(worker_);
+  worker_ = nullptr;
+  worker->ExecuteInThread();
+  Shell::RemoveRunningWorker(worker);
 }
 
 void Worker::PostMessage(std::unique_ptr<SerializationData> data) {
@@ -2605,6 +2648,8 @@ void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostCleanupFinalizationGroupCallback(
+      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -2657,6 +2702,7 @@ void Worker::ExecuteInThread() {
                   .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
+            SealHandleScope shs(isolate);
             // Now wait for messages
             while (true) {
               in_semaphore_.Wait();
@@ -2666,6 +2712,7 @@ void Worker::ExecuteInThread() {
                 break;
               }
               v8::TryCatch try_catch(isolate);
+              HandleScope scope(isolate);
               Local<Value> value;
               if (Shell::DeserializeValue(isolate, std::move(data))
                       .ToLocal(&value)) {
@@ -2936,7 +2983,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       options.isolate_sources[i].WaitForThread();
     }
   }
-  CleanupWorkers();
+  WaitForRunningWorkers();
   // In order to finish successfully, success must be != expected_to_throw.
   return success == Shell::options.expected_to_throw ? 1 : 0;
 }
@@ -2966,6 +3013,40 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
 }
 
 namespace {
+bool RunSetTimeoutCallback(Isolate* isolate, bool* did_run) {
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Function> callback;
+  if (!data->GetTimeoutCallback().ToLocal(&callback)) return true;
+  Local<Context> context;
+  if (!data->GetTimeoutContext().ToLocal(&context)) return true;
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  Context::Scope context_scope(context);
+  if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
+    Shell::ReportException(isolate, &try_catch);
+    return false;
+  }
+  *did_run = true;
+  return true;
+}
+
+bool RunCleanupFinalizationGroupCallback(Isolate* isolate, bool* did_run) {
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  HandleScope handle_scope(isolate);
+  while (true) {
+    Local<FinalizationGroup> fg;
+    if (!data->GetCleanupFinalizationGroup().ToLocal(&fg)) return true;
+    *did_run = true;
+    TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
+    if (FinalizationGroup::Cleanup(fg).IsNothing()) {
+      Shell::ReportException(isolate, &try_catch);
+      return false;
+    }
+  }
+}
+
 bool ProcessMessages(
     Isolate* isolate,
     const std::function<platform::MessageLoopBehavior()>& behavior) {
@@ -2976,24 +3057,23 @@ bool ProcessMessages(
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
       MicrotasksScope::PerformCheckpoint(isolate);
+      isolate->ClearKeptObjects();
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
                                  50.0 / base::Time::kMillisecondsPerSecond);
     }
-    HandleScope handle_scope(isolate);
-    PerIsolateData* data = PerIsolateData::Get(isolate);
-    Local<Function> callback;
-    if (!data->GetTimeoutCallback().ToLocal(&callback)) break;
-    Local<Context> context;
-    if (!data->GetTimeoutContext().ToLocal(&context)) break;
-    TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    Context::Scope context_scope(context);
-    if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
-      Shell::ReportException(isolate, &try_catch);
+    bool ran_finalization_callback = false;
+    if (!RunCleanupFinalizationGroupCallback(isolate,
+                                             &ran_finalization_callback)) {
       return false;
     }
+    bool ran_set_timeout = false;
+    if (!RunSetTimeoutCallback(isolate, &ran_set_timeout)) {
+      return false;
+    }
+
+    if (!ran_set_timeout && !ran_finalization_callback) return true;
   }
   return true;
 }
@@ -3267,24 +3347,35 @@ MaybeLocal<Value> Shell::DeserializeValue(
   return deserializer.ReadValue(context);
 }
 
-void Shell::CleanupWorkers() {
-  // Make a copy of workers_, because we don't want to call Worker::Terminate
-  // while holding the workers_mutex_ lock. Otherwise, if a worker is about to
-  // create a new Worker, it would deadlock.
-  std::vector<Worker*> workers_copy;
+void Shell::AddRunningWorker(std::shared_ptr<Worker> worker) {
+  workers_mutex_.Pointer()->AssertHeld();  // caller should hold the mutex.
+  running_workers_.insert(worker);
+}
+
+void Shell::RemoveRunningWorker(const std::shared_ptr<Worker>& worker) {
+  base::MutexGuard lock_guard(workers_mutex_.Pointer());
+  auto it = running_workers_.find(worker);
+  if (it != running_workers_.end()) running_workers_.erase(it);
+}
+
+void Shell::WaitForRunningWorkers() {
+  // Make a copy of running_workers_, because we don't want to call
+  // Worker::Terminate while holding the workers_mutex_ lock. Otherwise, if a
+  // worker is about to create a new Worker, it would deadlock.
+  std::unordered_set<std::shared_ptr<Worker>> workers_copy;
   {
     base::MutexGuard lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = false;
-    workers_copy.swap(workers_);
+    workers_copy.swap(running_workers_);
   }
 
-  for (Worker* worker : workers_copy) {
+  for (auto& worker : workers_copy) {
     worker->WaitForThread();
-    delete worker;
   }
 
   // Now that all workers are terminated, we can re-enable Worker creation.
   base::MutexGuard lock_guard(workers_mutex_.Pointer());
+  DCHECK(running_workers_.empty());
   allow_new_workers_ = true;
   externalized_contents_.clear();
 }
@@ -3405,6 +3496,8 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostCleanupFinalizationGroupCallback(
+      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -3462,6 +3555,8 @@ int Shell::Main(int argc, char* argv[]) {
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
       Isolate* isolate2 = Isolate::New(create_params);
       i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
+      isolate2->SetHostCleanupFinalizationGroupCallback(
+          Shell::HostCleanupFinalizationGroup);
       isolate2->SetHostImportModuleDynamicallyCallback(
           Shell::HostImportModuleDynamically);
       isolate2->SetHostInitializeImportMetaObjectCallback(

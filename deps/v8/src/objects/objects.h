@@ -289,6 +289,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   V8_INLINE bool IsZero() const;
   V8_INLINE bool IsNoSharedNameSentinel() const;
+  V8_INLINE bool IsPrivateSymbol() const;
+  V8_INLINE bool IsPublicSymbol() const;
 
   enum class Conversion { kToNumber, kToNumeric };
 

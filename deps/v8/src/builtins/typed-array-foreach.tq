@@ -9,7 +9,7 @@ namespace typed_array_foreach {
 
   transitioning macro ForEachAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
-      thisArg: Object): Object {
+      thisArg: JSAny): Undefined {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
     // TODO(v8:4153): Support huge TypedArrays here.
     const length =
@@ -17,7 +17,7 @@ namespace typed_array_foreach {
     for (let k: Smi = 0; k < length; k++) {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;
-      const value: Object = witness.Load(k);
+      const value: JSAny = witness.Load(k);
       Call(context, callbackfn, thisArg, value, k, witness.GetStable());
     }
     return Undefined;
@@ -25,8 +25,8 @@ namespace typed_array_foreach {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
   transitioning javascript builtin
-  TypedArrayPrototypeForEach(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  TypedArrayPrototypeForEach(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): Undefined {
     // arguments[0] = callback
     // arguments[1] = this_arg.
 

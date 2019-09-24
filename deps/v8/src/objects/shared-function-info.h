@@ -8,6 +8,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/function-syntax-kind.h"
 #include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
@@ -256,6 +257,10 @@ class SharedFunctionInfo : public HeapObject {
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
+  // Set scope_info without moving the existing name onto the ScopeInfo.
+  inline void set_raw_scope_info(ScopeInfo scope_info,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
 
@@ -429,9 +434,6 @@ class SharedFunctionInfo : public HeapObject {
   // [flags] Bit field containing various flags about the function.
   DECL_INT32_ACCESSORS(flags)
 
-  // Is this function a named function expression in the source code.
-  DECL_BOOLEAN_ACCESSORS(is_named_expression)
-
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 
@@ -442,8 +444,11 @@ class SharedFunctionInfo : public HeapObject {
   inline LanguageMode language_mode() const;
   inline void set_language_mode(LanguageMode language_mode);
 
+  // How the function appears in source text.
+  DECL_PRIMITIVE_ACCESSORS(syntax_kind, FunctionSyntaxKind)
+
   // Indicates whether the source is implicitly wrapped in a function.
-  DECL_BOOLEAN_ACCESSORS(is_wrapped)
+  inline bool is_wrapped() const;
 
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
@@ -454,9 +459,6 @@ class SharedFunctionInfo : public HeapObject {
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
-  // Whether this function was created from a FunctionDeclaration.
-  DECL_BOOLEAN_ACCESSORS(is_declaration)
-
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
 
@@ -465,11 +467,6 @@ class SharedFunctionInfo : public HeapObject {
   // "anonymous".  We don't set the name itself so that the system does not
   // see a binding for it.
   DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
-
-  // Indicates that the function is either an anonymous expression
-  // or an arrow function (the name field can be set through the API,
-  // which does not change this flag).
-  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
 
   // Indicates that the function represented by the shared function info was
   // classed as an immediately invoked function execution (IIFE) function and
@@ -680,21 +677,18 @@ class SharedFunctionInfo : public HeapObject {
   V(FunctionKindBits, FunctionKind, 5, _)                    \
   V(IsNativeBit, bool, 1, _)                                 \
   V(IsStrictBit, bool, 1, _)                                 \
-  V(IsWrappedBit, bool, 1, _)                                \
+  V(FunctionSyntaxKindBits, FunctionSyntaxKind, 3, _)        \
   V(IsClassConstructorBit, bool, 1, _)                       \
   V(HasDuplicateParametersBit, bool, 1, _)                   \
   V(AllowLazyCompilationBit, bool, 1, _)                     \
   V(NeedsHomeObjectBit, bool, 1, _)                          \
-  V(IsDeclarationBit, bool, 1, _)                            \
   V(IsAsmWasmBrokenBit, bool, 1, _)                          \
   V(FunctionMapIndexBits, int, 5, _)                         \
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _)     \
   V(RequiresInstanceMembersInitializer, bool, 1, _)          \
   V(ConstructAsBuiltinBit, bool, 1, _)                       \
-  V(IsAnonymousExpressionBit, bool, 1, _)                    \
   V(NameShouldPrintAsAnonymousBit, bool, 1, _)               \
   V(HasReportedBinaryCoverageBit, bool, 1, _)                \
-  V(IsNamedExpressionBit, bool, 1, _)                        \
   V(IsTopLevelBit, bool, 1, _)                               \
   V(IsOneshotIIFEOrPropertiesAreFinalBit, bool, 1, _)        \
   V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)
@@ -706,6 +700,8 @@ class SharedFunctionInfo : public HeapObject {
                 DisabledOptimizationReasonBits::kMax);
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  STATIC_ASSERT(FunctionSyntaxKind::kLastFunctionSyntaxKind <=
+                FunctionSyntaxKindBits::kMax);
 
   // Indicates that this function uses a super property (or an eval that may
   // use a super property).

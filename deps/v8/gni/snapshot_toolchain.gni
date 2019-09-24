@@ -107,3 +107,12 @@ if (v8_snapshot_toolchain == "") {
 assert(v8_snapshot_toolchain != "",
        "Do not know how to build a snapshot for $current_toolchain " +
            "on $host_os $host_cpu")
+
+# We reuse the snapshot toolchain for building torque and other generators to
+# avoid building v8_libbase on the host more than once. On mips with big endian,
+# the snapshot toolchain is the target toolchain and, hence, can't be used.
+v8_generator_toolchain = v8_snapshot_toolchain
+if (host_cpu == "x64" &&
+    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+  v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
+}

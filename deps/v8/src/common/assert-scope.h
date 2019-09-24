@@ -81,8 +81,6 @@ class PerIsolateAssertScope {
   static bool IsAllowed(Isolate* isolate);
 
  private:
-  class DataBit;
-
   Isolate* isolate_;
   uint32_t old_data_;
 

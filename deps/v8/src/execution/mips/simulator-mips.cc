@@ -2152,7 +2152,7 @@ using SimulatorRuntimeCall = int64_t (*)(int32_t arg0, int32_t arg1,
                                          int32_t arg2, int32_t arg3,
                                          int32_t arg4, int32_t arg5,
                                          int32_t arg6, int32_t arg7,
-                                         int32_t arg8);
+                                         int32_t arg8, int32_t arg9);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
@@ -2194,7 +2194,8 @@ void Simulator::SoftwareInterrupt() {
     int32_t arg6 = stack_pointer[6];
     int32_t arg7 = stack_pointer[7];
     int32_t arg8 = stack_pointer[8];
-    STATIC_ASSERT(kMaxCParameters == 9);
+    int32_t arg9 = stack_pointer[9];
+    STATIC_ASSERT(kMaxCParameters == 10);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2378,12 +2379,12 @@ void Simulator::SoftwareInterrupt() {
       if (::v8::internal::FLAG_trace_sim) {
         PrintF(
             "Call to host function at %p "
-            "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x\n",
+            "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x\n",
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8);
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       }
       int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       set_register(v0, static_cast<int32_t>(result));
       set_register(v1, static_cast<int32_t>(result >> 32));
     }

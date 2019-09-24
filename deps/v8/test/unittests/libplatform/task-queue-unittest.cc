@@ -51,8 +51,8 @@ TEST(TaskQueueTest, TerminateMultipleReaders) {
   TaskQueue queue;
   TaskQueueThread thread1(&queue);
   TaskQueueThread thread2(&queue);
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   queue.Terminate();
   thread1.Join();
   thread2.Join();

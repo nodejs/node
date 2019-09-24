@@ -69,12 +69,12 @@ TEST(DateCache, AdoptDefaultFirst) {
   // We finish all the operation AdoptDefaultThread before
   // running all other thread so it won't show the problem of
   // AdoptDefault trashing newly create default.
-  t1.Start();
+  CHECK(t1.Start());
   t1.Join();
 
-  t2.Start();
-  t3.Start();
-  t4.Start();
+  CHECK(t2.Start());
+  CHECK(t3.Start());
+  CHECK(t4.Start());
 
   t2.Join();
   t3.Join();
@@ -92,10 +92,10 @@ TEST(DateCache, AdoptDefaultMixed) {
   // it will cause crash in other thread because the TimeZone
   // newly created by createDefault could be trashed by AdoptDefault
   // while a deleted DEFAULT_ZONE got cloned.
-  t1.Start();
-  t2.Start();
-  t3.Start();
-  t4.Start();
+  CHECK(t1.Start());
+  CHECK(t2.Start());
+  CHECK(t3.Start());
+  CHECK(t4.Start());
 
   t1.Join();
   t2.Join();

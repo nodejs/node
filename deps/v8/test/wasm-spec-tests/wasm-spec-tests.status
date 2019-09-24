@@ -5,56 +5,75 @@
 [
 [ALWAYS, {
   #TODO(ahaas): Add additional stack checks on mips.
-  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
+  'skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
-  'tests/linking': [FAIL],
-
-  # TODO(ahaas): Needs investigation, I disable the test for now.
-  'tests/conversions': [PASS, ['system == windows and arch == ia32', FAIL]],
-
-  # TODO(ahaas): Incorporate recent changes to the bulk-memory-operations
-  # proposal.
-  'tests/proposals/bulk-memory-operations/elem': [FAIL],
-  'tests/proposals/bulk-memory-operations/data': [FAIL],
+  'linking': [FAIL],
+  'elem': [FAIL],
+  'data': [FAIL],
+  # TODO(v8:9658): The encoding of element segments changed in the bulk memory
+  # proposal
+  'proposals/bulk-memory-operations/bulk': [FAIL],
+  'proposals/bulk-memory-operations/table_init': [FAIL],
+  'proposals/bulk-memory-operations/table_copy': [FAIL],
+  'proposals/bulk-memory-operations/elem': [FAIL],
+  'proposals/bulk-memory-operations/binary': [FAIL],
+  # TODO(mstarzinger): Roll newest tests into "js-types" repository.
+  'proposals/js-types/exports': [FAIL],
+  'proposals/js-types/globals': [FAIL],
+  'proposals/js-types/linking': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
   # These tests fail because mips does not support the correct NaN bit patterns.
-  'tests/float_misc': [SKIP],
-  'tests/float_exprs': [SKIP],
-  'tests/f32': [SKIP],
-  'tests/f64': [SKIP],
-  'tests/f32_bitwise': [SKIP],
-  'tests/f64_bitwise': [SKIP],
+  'float_misc': [SKIP],
+  'float_exprs': [SKIP],
+  'f32': [SKIP],
+  'f64': [SKIP],
+  'f32_bitwise': [SKIP],
+  'f64_bitwise': [SKIP],
+  'proposals/reference-types/conversions':  [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
+  'proposals/js-types/f32_bitwise': [SKIP],
+  'proposals/js-types/f64_bitwise': [SKIP],
+  'proposals/js-types/float_exprs': [SKIP],
+  'proposals/js-types/float_misc': [SKIP],
+  'proposals/js-types/conversions': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
   # This test fail because mips does not support the correct NaN bit patterns.
   # But it doesn't fail in simulator.
-  'tests/conversions': [SKIP],
+  'conversions': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
 
 ['arch == arm and not simulator_run', {
   # Too slow on chromebooks.
-  'tests/br_table': [SKIP],
+  'br_table': [SKIP],
 }],  # 'arch == arm and not simulator_run'
 
 ['arch == ppc or arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
-  'tests/f32': [SKIP],
-  'tests/f64': [SKIP],
+  'f32': [SKIP],
+  'f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
-  'tests/conversions': [SKIP],
-   'tests/proposals/reference-types/conversions':  [SKIP],
-   'tests/proposals/bulk-memory-operations/conversions': [SKIP],
+  'conversions': [SKIP],
+  'proposals/reference-types/conversions':  [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/js-types/conversions': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
   # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.
-  'tests/f32': [SKIP],
-  'tests/f64': [SKIP],
+  'f32': [SKIP],
+  'f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################

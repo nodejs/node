@@ -1,0 +1,106 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace torque_internal {
+  // TODO(gsps): Synthesize SizeOf<T> in the compiler
+
+  macro SizeOf<T: type>(): constexpr int31;
+  SizeOf<Object>(): constexpr int31 {
+    return kTaggedSize;
+  }
+  SizeOf<float64>(): constexpr int31 {
+    return kDoubleSize;
+  }
+
+  // Unsafe is a marker that we require to be passed when calling internal APIs
+  // that might lead to unsoundness when used incorrectly. Unsafe markers should
+  // therefore not be instantiated anywhere outside of this namespace.
+  struct Unsafe {}
+
+  struct Reference<T: type> {
+    const object: HeapObject;
+    const offset: intptr;
+    unsafeMarker: Unsafe;
+  }
+
+  macro UnsafeNewReference<T: type>(object: HeapObject, offset: intptr):&T {
+    return Reference<T>{
+      object: object,
+      offset: offset,
+      unsafeMarker: Unsafe {}
+    };
+  }
+
+  struct Slice<T: type> {
+    TryAtIndex(index: intptr):&T labels OutOfBounds {
+      if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
+        return UnsafeNewReference<T>(
+            this.object, this.offset + index * SizeOf<T>());
+      } else {
+        goto OutOfBounds;
+      }
+    }
+
+    AtIndex(index: intptr):&T {
+      return this.TryAtIndex(index) otherwise unreachable;
+    }
+
+    AtIndex(index: constexpr int31):&T {
+      const i: intptr = Convert<intptr>(index);
+      return this.TryAtIndex(i) otherwise unreachable;
+    }
+
+    AtIndex(index: Smi):&T {
+      const i: intptr = Convert<intptr>(index);
+      return this.TryAtIndex(i) otherwise unreachable;
+    }
+
+    Iterator(): SliceIterator<T> {
+      const end = this.offset + this.length * SizeOf<T>();
+      return SliceIterator<T>{
+        object: this.object,
+        start: this.offset,
+        end: end,
+        unsafeMarker: Unsafe {}
+      };
+    }
+
+    const object: HeapObject;
+    const offset: intptr;
+    const length: intptr;
+    unsafeMarker: Unsafe;
+  }
+
+  macro UnsafeNewSlice<T: type>(
+      object: HeapObject, offset: intptr, length: intptr): Slice<T> {
+    return Slice<T>{
+      object: object,
+      offset: offset,
+      length: length,
+      unsafeMarker: Unsafe {}
+    };
+  }
+
+  struct SliceIterator<T: type> {
+    Empty(): bool {
+      return this.start == this.end;
+    }
+
+    Next():&T labels NoMore {
+      if (this.Empty()) {
+        goto NoMore;
+      } else {
+        const result = UnsafeNewReference<T>(this.object, this.start);
+        this.start += SizeOf<T>();
+        return result;
+      }
+    }
+
+    object: HeapObject;
+    start: intptr;
+    end: intptr;
+    unsafeMarker: Unsafe;
+  }
+
+}  // namespace torque_internal

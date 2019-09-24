@@ -4,13 +4,12 @@
 
 #include "src/regexp/regexp-compiler.h"
 
-#include "src/diagnostics/code-tracer.h"
+#include "src/base/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -272,13 +271,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   isolate->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = nullptr;
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code && !FLAG_regexp_interpret_all) {
-    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-    OFStream os(trace_scope.file());
-    Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
-  }
-#endif
+
 #ifdef DEBUG
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
@@ -422,14 +415,14 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
          action = action->next()) {
       if (action->Mentions(reg)) {
         switch (action->action_type()) {
-          case ActionNode::SET_REGISTER: {
-            Trace::DeferredSetRegister* psr =
-                static_cast<Trace::DeferredSetRegister*>(action);
+          case ActionNode::SET_REGISTER_FOR_LOOP: {
+            Trace::DeferredSetRegisterForLoop* psr =
+                static_cast<Trace::DeferredSetRegisterForLoop*>(action);
             if (!absolute) {
               value += psr->value();
               absolute = true;
             }
-            // SET_REGISTER is currently only used for newly introduced loop
+            // SET_REGISTER_FOR_LOOP is only used for newly introduced loop
             // counters. They can have a significant previous value if they
             // occur in a loop. TODO(lrn): Propagate this information, so
             // we can set undo_action to IGNORE if we know there is no value to
@@ -634,9 +627,10 @@ void GuardedAlternative::AddGuard(Guard* guard, Zone* zone) {
   guards_->Add(guard, zone);
 }
 
-ActionNode* ActionNode::SetRegister(int reg, int val, RegExpNode* on_success) {
+ActionNode* ActionNode::SetRegisterForLoop(int reg, int val,
+                                           RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(SET_REGISTER, on_success);
+      new (on_success->zone()) ActionNode(SET_REGISTER_FOR_LOOP, on_success);
   result->data_.u_store_register.reg = reg;
   result->data_.u_store_register.value = val;
   return result;
@@ -704,10 +698,6 @@ ActionNode* ActionNode::EmptyMatchCheck(int start_register,
   void Type##Node::Accept(NodeVisitor* visitor) { visitor->Visit##Type(this); }
 FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 #undef DEFINE_ACCEPT
-
-void LoopChoiceNode::Accept(NodeVisitor* visitor) {
-  visitor->VisitLoopChoice(this);
-}
 
 // -------------------------------------------------------------------
 // Emit code.
@@ -1326,12 +1316,6 @@ bool RegExpNode::KeepRecursing(RegExpCompiler* compiler) {
          compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion;
 }
 
-int ActionNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start) {
-  if (budget <= 0) return 0;
-  if (action_type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
-  return on_success()->EatsAtLeast(still_to_find, budget - 1, not_at_start);
-}
-
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                               BoyerMooreLookahead* bm, bool not_at_start) {
   if (action_type_ == POSITIVE_SUBMATCH_SUCCESS) {
@@ -1344,16 +1328,16 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   SaveBMInfo(bm, not_at_start, offset);
 }
 
-int AssertionNode::EatsAtLeast(int still_to_find, int budget,
-                               bool not_at_start) {
-  if (budget <= 0) return 0;
-  // If we know we are not at the start and we are asked "how many characters
-  // will you match if you succeed?" then we can answer anything since false
-  // implies false.  So lets just return the max answer (still_to_find) since
-  // that won't prevent us from preloading a lot of characters for the other
-  // branches in the node graph.
-  if (assertion_type() == AT_START && not_at_start) return still_to_find;
-  return on_success()->EatsAtLeast(still_to_find, budget - 1, not_at_start);
+void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                      RegExpCompiler* compiler, int filled_in,
+                                      bool not_at_start) {
+  if (action_type_ == SET_REGISTER_FOR_LOOP) {
+    on_success()->GetQuickCheckDetailsFromLoopEntry(details, compiler,
+                                                    filled_in, not_at_start);
+  } else {
+    on_success()->GetQuickCheckDetails(details, compiler, filled_in,
+                                       not_at_start);
+  }
 }
 
 void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -1364,66 +1348,11 @@ void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   SaveBMInfo(bm, not_at_start, offset);
 }
 
-int BackReferenceNode::EatsAtLeast(int still_to_find, int budget,
-                                   bool not_at_start) {
-  if (read_backward()) return 0;
-  if (budget <= 0) return 0;
-  return on_success()->EatsAtLeast(still_to_find, budget - 1, not_at_start);
-}
-
-int TextNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start) {
-  if (read_backward()) return 0;
-  int answer = Length();
-  if (answer >= still_to_find) return answer;
-  if (budget <= 0) return answer;
-  // We are not at start after this node so we set the last argument to 'true'.
-  return answer +
-         on_success()->EatsAtLeast(still_to_find - answer, budget - 1, true);
-}
-
-int NegativeLookaroundChoiceNode::EatsAtLeast(int still_to_find, int budget,
-                                              bool not_at_start) {
-  if (budget <= 0) return 0;
-  // Alternative 0 is the negative lookahead, alternative 1 is what comes
-  // afterwards.
-  RegExpNode* node = alternatives_->at(1).node();
-  return node->EatsAtLeast(still_to_find, budget - 1, not_at_start);
-}
-
 void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
     bool not_at_start) {
-  // Alternative 0 is the negative lookahead, alternative 1 is what comes
-  // afterwards.
-  RegExpNode* node = alternatives_->at(1).node();
+  RegExpNode* node = continue_node();
   return node->GetQuickCheckDetails(details, compiler, filled_in, not_at_start);
-}
-
-int ChoiceNode::EatsAtLeastHelper(int still_to_find, int budget,
-                                  RegExpNode* ignore_this_node,
-                                  bool not_at_start) {
-  if (budget <= 0) return 0;
-  int min = 100;
-  int choice_count = alternatives_->length();
-  budget = (budget - 1) / choice_count;
-  for (int i = 0; i < choice_count; i++) {
-    RegExpNode* node = alternatives_->at(i).node();
-    if (node == ignore_this_node) continue;
-    int node_eats_at_least =
-        node->EatsAtLeast(still_to_find, budget, not_at_start);
-    if (node_eats_at_least < min) min = node_eats_at_least;
-    if (min == 0) return 0;
-  }
-  return min;
-}
-
-int LoopChoiceNode::EatsAtLeast(int still_to_find, int budget,
-                                bool not_at_start) {
-  return EatsAtLeastHelper(still_to_find, budget - 1, loop_node_, not_at_start);
-}
-
-int ChoiceNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start) {
-  return EatsAtLeastHelper(still_to_find, budget, nullptr, not_at_start);
 }
 
 // Takes the left-most 1-bit and smears it out, setting all bits to its right.
@@ -1459,12 +1388,78 @@ bool QuickCheckDetails::Rationalize(bool asc) {
   return found_useful_op;
 }
 
+int RegExpNode::EatsAtLeast(bool not_at_start) {
+  return not_at_start ? eats_at_least_.eats_at_least_from_not_start
+                      : eats_at_least_.eats_at_least_from_possibly_start;
+}
+
+EatsAtLeastInfo RegExpNode::EatsAtLeastFromLoopEntry() {
+  // SET_REGISTER_FOR_LOOP is only used to initialize loop counters, and it
+  // implies that the following node must be a LoopChoiceNode. If we need to
+  // set registers to constant values for other reasons, we could introduce a
+  // new action type SET_REGISTER that doesn't imply anything about its
+  // successor.
+  UNREACHABLE();
+}
+
+void RegExpNode::GetQuickCheckDetailsFromLoopEntry(QuickCheckDetails* details,
+                                                   RegExpCompiler* compiler,
+                                                   int characters_filled_in,
+                                                   bool not_at_start) {
+  // See comment in RegExpNode::EatsAtLeastFromLoopEntry.
+  UNREACHABLE();
+}
+
+EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
+  DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
+
+  if (read_backward()) {
+    // Can't do anything special for a backward loop, so return the basic values
+    // that we got during analysis.
+    return *eats_at_least_info();
+  }
+
+  // Figure out how much the loop body itself eats, not including anything in
+  // the continuation case. In general, the nodes in the loop body should report
+  // that they eat at least the number eaten by the continuation node, since any
+  // successful match in the loop body must also include the continuation node.
+  // However, in some cases involving positive lookaround, the loop body under-
+  // reports its appetite, so use saturated math here to avoid negative numbers.
+  uint8_t loop_body_from_not_start = base::saturated_cast<uint8_t>(
+      loop_node_->EatsAtLeast(true) - continue_node_->EatsAtLeast(true));
+  uint8_t loop_body_from_possibly_start = base::saturated_cast<uint8_t>(
+      loop_node_->EatsAtLeast(false) - continue_node_->EatsAtLeast(true));
+
+  // Limit the number of loop iterations to avoid overflow in subsequent steps.
+  int loop_iterations = base::saturated_cast<uint8_t>(min_loop_iterations());
+
+  EatsAtLeastInfo result;
+  result.eats_at_least_from_not_start =
+      base::saturated_cast<uint8_t>(loop_iterations * loop_body_from_not_start +
+                                    continue_node_->EatsAtLeast(true));
+  if (loop_iterations > 0 && loop_body_from_possibly_start > 0) {
+    // First loop iteration eats at least one, so all subsequent iterations
+    // and the after-loop chunk are guaranteed to not be at the start.
+    result.eats_at_least_from_possibly_start = base::saturated_cast<uint8_t>(
+        loop_body_from_possibly_start +
+        (loop_iterations - 1) * loop_body_from_not_start +
+        continue_node_->EatsAtLeast(true));
+  } else {
+    // Loop body might eat nothing, so only continue node contributes.
+    result.eats_at_least_from_possibly_start =
+        continue_node_->EatsAtLeast(false);
+  }
+  return result;
+}
+
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 Trace* bounds_check_trace, Trace* trace,
                                 bool preload_has_checked_bounds,
                                 Label* on_possible_success,
                                 QuickCheckDetails* details,
-                                bool fall_through_on_failure) {
+                                bool fall_through_on_failure,
+                                ChoiceNode* predecessor) {
+  DCHECK_NOT_NULL(predecessor);
   if (details->characters() == 0) return false;
   GetQuickCheckDetails(details, compiler, 0,
                        trace->at_start() == Trace::FALSE_VALUE);
@@ -1479,13 +1474,17 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 
   if (trace->characters_preloaded() != details->characters()) {
     DCHECK(trace->cp_offset() == bounds_check_trace->cp_offset());
-    // We are attempting to preload the minimum number of characters
+    // The bounds check is performed using the minimum number of characters
     // any choice would eat, so if the bounds check fails, then none of the
     // choices can succeed, so we can just immediately backtrack, rather
-    // than go to the next choice.
+    // than go to the next choice. The number of characters preloaded may be
+    // less than the number used for the bounds check.
+    int eats_at_least = predecessor->EatsAtLeast(
+        bounds_check_trace->at_start() == Trace::FALSE_VALUE);
+    DCHECK_GE(eats_at_least, details->characters());
     assembler->LoadCurrentCharacter(
         trace->cp_offset(), bounds_check_trace->backtrack(),
-        !preload_has_checked_bounds, details->characters());
+        !preload_has_checked_bounds, details->characters(), eats_at_least);
   }
 
   bool need_mask = true;
@@ -1579,7 +1578,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
             // and the mask-compare will determine definitely whether we have
             // a match at this character position.
             pos->mask = char_mask;
-            pos->value = c;
+            pos->value = chars[0];
             pos->determines_perfectly = true;
           } else {
             uint32_t common_bits = char_mask;
@@ -1764,6 +1763,37 @@ class VisitMarker {
   NodeInfo* info_;
 };
 
+// Temporarily sets traversed_loop_initialization_node_.
+class LoopInitializationMarker {
+ public:
+  explicit LoopInitializationMarker(LoopChoiceNode* node) : node_(node) {
+    DCHECK(!node_->traversed_loop_initialization_node_);
+    node_->traversed_loop_initialization_node_ = true;
+  }
+  ~LoopInitializationMarker() {
+    DCHECK(node_->traversed_loop_initialization_node_);
+    node_->traversed_loop_initialization_node_ = false;
+  }
+
+ private:
+  LoopChoiceNode* node_;
+  DISALLOW_COPY_AND_ASSIGN(LoopInitializationMarker);
+};
+
+// Temporarily decrements min_loop_iterations_.
+class IterationDecrementer {
+ public:
+  explicit IterationDecrementer(LoopChoiceNode* node) : node_(node) {
+    DCHECK_GT(node_->min_loop_iterations_, 0);
+    --node_->min_loop_iterations_;
+  }
+  ~IterationDecrementer() { ++node_->min_loop_iterations_; }
+
+ private:
+  LoopChoiceNode* node_;
+  DISALLOW_COPY_AND_ASSIGN(IterationDecrementer);
+};
+
 RegExpNode* SeqRegExpNode::FilterOneByte(int depth) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
@@ -1916,17 +1946,17 @@ RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth) {
   VisitMarker marker(info());
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
-  RegExpNode* node = alternatives_->at(1).node();
+  RegExpNode* node = continue_node();
   RegExpNode* replacement = node->FilterOneByte(depth - 1);
   if (replacement == nullptr) return set_replacement(nullptr);
-  alternatives_->at(1).set_node(replacement);
+  alternatives_->at(kContinueIndex).set_node(replacement);
 
-  RegExpNode* neg_node = alternatives_->at(0).node();
+  RegExpNode* neg_node = lookaround_node();
   RegExpNode* neg_replacement = neg_node->FilterOneByte(depth - 1);
   // If the negative lookahead is always going to fail then
   // we don't need to check it.
   if (neg_replacement == nullptr) return set_replacement(replacement);
-  alternatives_->at(0).set_node(neg_replacement);
+  alternatives_->at(kLookaroundIndex).set_node(neg_replacement);
   return set_replacement(this);
 }
 
@@ -1935,9 +1965,48 @@ void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           int characters_filled_in,
                                           bool not_at_start) {
   if (body_can_be_zero_length_ || info()->visited) return;
-  VisitMarker marker(info());
-  return ChoiceNode::GetQuickCheckDetails(details, compiler,
-                                          characters_filled_in, not_at_start);
+  not_at_start = not_at_start || this->not_at_start();
+  DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
+  if (traversed_loop_initialization_node_ && min_loop_iterations_ > 0 &&
+      loop_node_->EatsAtLeast(not_at_start) >
+          continue_node_->EatsAtLeast(true)) {
+    // Loop body is guaranteed to execute at least once, and consume characters
+    // when it does, meaning the only possible quick checks from this point
+    // begin with the loop body. We may recursively visit this LoopChoiceNode,
+    // but we temporarily decrease its minimum iteration counter so we know when
+    // to check the continue case.
+    IterationDecrementer next_iteration(this);
+    loop_node_->GetQuickCheckDetails(details, compiler, characters_filled_in,
+                                     not_at_start);
+  } else {
+    // Might not consume anything in the loop body, so treat it like a normal
+    // ChoiceNode (and don't recursively visit this node again).
+    VisitMarker marker(info());
+    ChoiceNode::GetQuickCheckDetails(details, compiler, characters_filled_in,
+                                     not_at_start);
+  }
+}
+
+void LoopChoiceNode::GetQuickCheckDetailsFromLoopEntry(
+    QuickCheckDetails* details, RegExpCompiler* compiler,
+    int characters_filled_in, bool not_at_start) {
+  if (traversed_loop_initialization_node_) {
+    // We already entered this loop once, exited via its continuation node, and
+    // followed an outer loop's back-edge to before the loop entry point. We
+    // could try to reset the minimum iteration count to its starting value at
+    // this point, but that seems like more trouble than it's worth. It's safe
+    // to keep going with the current (possibly reduced) minimum iteration
+    // count.
+    GetQuickCheckDetails(details, compiler, characters_filled_in, not_at_start);
+  } else {
+    // We are entering a loop via its counter initialization action, meaning we
+    // are guaranteed to run the loop body at least some minimum number of times
+    // before running the continuation node. Set a flag so that this node knows
+    // (now and any times we visit it again recursively) that it was entered
+    // from the top.
+    LoopInitializationMarker marker(this);
+    GetQuickCheckDetails(details, compiler, characters_filled_in, not_at_start);
+  }
 }
 
 void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -2014,12 +2083,7 @@ void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success, Trace* trace) {
   if (may_be_at_or_before_subject_string_start) {
     // The start of input counts as a newline in this context, so skip to ok if
     // we are at the start.
-    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
-    // that currently does not support a non-zero cp_offset.
-    Label not_at_start;
-    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
-    assembler->GoTo(&ok);
-    assembler->Bind(&not_at_start);
+    assembler->CheckAtStart(new_trace.cp_offset(), &ok);
   }
 
   // If we've already checked that we are not at the start of input, it's okay
@@ -2049,9 +2113,8 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
   bool not_at_start = (trace->at_start() == Trace::FALSE_VALUE);
   BoyerMooreLookahead* lookahead = bm_info(not_at_start);
   if (lookahead == nullptr) {
-    int eats_at_least = Min(kMaxLookaheadForBoyerMoore,
-                            EatsAtLeast(kMaxLookaheadForBoyerMoore,
-                                        kRecursionBudget, not_at_start));
+    int eats_at_least =
+        Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(not_at_start));
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           new (zone()) BoyerMooreLookahead(eats_at_least, compiler, zone());
@@ -2113,12 +2176,7 @@ void AssertionNode::BacktrackIfPrevious(
   if (may_be_at_or_before_subject_string_start) {
     // The start of input counts as a non-word character, so the question is
     // decided if we are at the start.
-    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
-    // that currently does not support a non-zero cp_offset.
-    Label not_at_start;
-    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
-    assembler->GoTo(non_word);
-    assembler->Bind(&not_at_start);
+    assembler->CheckAtStart(new_trace.cp_offset(), non_word);
   }
 
   // If we've already checked that we are not at the start of input, it's okay
@@ -2939,8 +2997,7 @@ void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
   if (state->eats_at_least_ == PreloadState::kEatsAtLeastNotYetInitialized) {
     // Save some time by looking at most one machine word ahead.
     state->eats_at_least_ =
-        EatsAtLeast(compiler->one_byte() ? 4 : 2, kRecursionBudget,
-                    current_trace->at_start() == Trace::FALSE_VALUE);
+        EatsAtLeast(current_trace->at_start() == Trace::FALSE_VALUE);
   }
   state->preload_characters_ =
       CalculatePreloadCharacters(compiler, state->eats_at_least_);
@@ -3090,9 +3147,7 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
   // small alternation.
   BoyerMooreLookahead* bm = bm_info(false);
   if (bm == nullptr) {
-    eats_at_least =
-        Min(kMaxLookaheadForBoyerMoore,
-            EatsAtLeast(kMaxLookaheadForBoyerMoore, kRecursionBudget, false));
+    eats_at_least = Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
     if (eats_at_least >= 1) {
       bm = new (zone()) BoyerMooreLookahead(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
@@ -3144,7 +3199,7 @@ void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
         alternative.node()->EmitQuickCheck(
             compiler, trace, &new_trace, preload->preload_has_checked_bounds_,
             &alt_gen->possible_success, &alt_gen->quick_check_details,
-            fall_through_on_failure)) {
+            fall_through_on_failure, this)) {
       // Quick check was generated for this choice.
       preload->preload_is_current_ = true;
       preload->preload_has_checked_bounds_ = true;
@@ -3253,9 +3308,9 @@ void ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       on_success()->Emit(compiler, &new_trace);
       break;
     }
-    case SET_REGISTER: {
-      Trace::DeferredSetRegister new_set(data_.u_store_register.reg,
-                                         data_.u_store_register.value);
+    case SET_REGISTER_FOR_LOOP: {
+      Trace::DeferredSetRegisterForLoop new_set(data_.u_store_register.reg,
+                                                data_.u_store_register.value);
       Trace new_trace = *trace;
       new_trace.add_action(&new_set);
       on_success()->Emit(compiler, &new_trace);
@@ -3377,26 +3432,6 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   on_success()->Emit(compiler, trace);
 }
 
-// -------------------------------------------------------------------
-// Analysis
-
-void Analysis::EnsureAnalyzed(RegExpNode* that) {
-  StackLimitCheck check(isolate());
-  if (check.HasOverflowed()) {
-    fail("Stack overflow");
-    return;
-  }
-  if (that->info()->been_analyzed || that->info()->being_analyzed) return;
-  that->info()->being_analyzed = true;
-  that->Accept(this);
-  that->info()->being_analyzed = false;
-  that->info()->been_analyzed = true;
-}
-
-void Analysis::VisitEnd(EndNode* that) {
-  // nothing to do
-}
-
 void TextNode::CalculateOffsets() {
   int element_count = elements()->length();
   // Set up the offsets of the elements relative to the start.  This is a fixed
@@ -3409,60 +3444,269 @@ void TextNode::CalculateOffsets() {
   }
 }
 
-void Analysis::VisitText(TextNode* that) {
-  that->MakeCaseIndependent(isolate(), is_one_byte_);
-  EnsureAnalyzed(that->on_success());
-  if (!has_failed()) {
-    that->CalculateOffsets();
-  }
-}
+namespace {
 
-void Analysis::VisitAction(ActionNode* that) {
-  RegExpNode* target = that->on_success();
-  EnsureAnalyzed(target);
-  if (!has_failed()) {
+// Assertion propagation moves information about assertions such as
+// \b to the affected nodes.  For instance, in /.\b./ information must
+// be propagated to the first '.' that whatever follows needs to know
+// if it matched a word or a non-word, and to the second '.' that it
+// has to check if it succeeds a word or non-word.  In this case the
+// result will be something like:
+//
+//   +-------+        +------------+
+//   |   .   |        |      .     |
+//   +-------+  --->  +------------+
+//   | word? |        | check word |
+//   +-------+        +------------+
+class AssertionPropagator : public AllStatic {
+ public:
+  static void VisitText(TextNode* that) {}
+
+  static void VisitAction(ActionNode* that) {
     // If the next node is interested in what it follows then this node
     // has to be interested too so it can pass the information on.
-    that->info()->AddFromFollowing(target->info());
+    that->info()->AddFromFollowing(that->on_success()->info());
   }
-}
 
-void Analysis::VisitChoice(ChoiceNode* that) {
-  NodeInfo* info = that->info();
-  for (int i = 0; i < that->alternatives()->length(); i++) {
-    RegExpNode* node = that->alternatives()->at(i).node();
-    EnsureAnalyzed(node);
-    if (has_failed()) return;
+  static void VisitChoice(ChoiceNode* that, int i) {
     // Anything the following nodes need to know has to be known by
     // this node also, so it can pass it on.
-    info->AddFromFollowing(node->info());
+    that->info()->AddFromFollowing(that->alternatives()->at(i).node()->info());
   }
-}
 
-void Analysis::VisitLoopChoice(LoopChoiceNode* that) {
-  NodeInfo* info = that->info();
-  for (int i = 0; i < that->alternatives()->length(); i++) {
-    RegExpNode* node = that->alternatives()->at(i).node();
-    if (node != that->loop_node()) {
-      EnsureAnalyzed(node);
-      if (has_failed()) return;
-      info->AddFromFollowing(node->info());
+  static void VisitLoopChoiceContinueNode(LoopChoiceNode* that) {
+    that->info()->AddFromFollowing(that->continue_node()->info());
+  }
+
+  static void VisitLoopChoiceLoopNode(LoopChoiceNode* that) {
+    that->info()->AddFromFollowing(that->loop_node()->info());
+  }
+
+  static void VisitNegativeLookaroundChoiceLookaroundNode(
+      NegativeLookaroundChoiceNode* that) {
+    VisitChoice(that, NegativeLookaroundChoiceNode::kLookaroundIndex);
+  }
+
+  static void VisitNegativeLookaroundChoiceContinueNode(
+      NegativeLookaroundChoiceNode* that) {
+    VisitChoice(that, NegativeLookaroundChoiceNode::kContinueIndex);
+  }
+
+  static void VisitBackReference(BackReferenceNode* that) {}
+
+  static void VisitAssertion(AssertionNode* that) {}
+};
+
+// Propagates information about the minimum size of successful matches from
+// successor nodes to their predecessors. Note that all eats_at_least values
+// are initialized to zero before analysis.
+class EatsAtLeastPropagator : public AllStatic {
+ public:
+  static void VisitText(TextNode* that) {
+    // The eats_at_least value is not used if reading backward.
+    if (!that->read_backward()) {
+      // We are not at the start after this node, and thus we can use the
+      // successor's eats_at_least_from_not_start value.
+      uint8_t eats_at_least = base::saturated_cast<uint8_t>(
+          that->Length() + that->on_success()
+                               ->eats_at_least_info()
+                               ->eats_at_least_from_not_start);
+      that->set_eats_at_least_info(EatsAtLeastInfo(eats_at_least));
     }
   }
-  // Check the loop last since it may need the value of this node
-  // to get a correct result.
-  EnsureAnalyzed(that->loop_node());
-  if (!has_failed()) {
-    info->AddFromFollowing(that->loop_node()->info());
+
+  static void VisitAction(ActionNode* that) {
+    // POSITIVE_SUBMATCH_SUCCESS rewinds input, so we must not consider
+    // successor nodes for eats_at_least. SET_REGISTER_FOR_LOOP indicates a loop
+    // entry point, which means the loop body will run at least the minimum
+    // number of times before the continuation case can run. Otherwise the
+    // current node eats at least as much as its successor.
+    switch (that->action_type()) {
+      case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
+        break;  // Was already initialized to zero.
+      case ActionNode::SET_REGISTER_FOR_LOOP:
+        that->set_eats_at_least_info(
+            that->on_success()->EatsAtLeastFromLoopEntry());
+        break;
+      default:
+        that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
+        break;
+    }
   }
-}
 
-void Analysis::VisitBackReference(BackReferenceNode* that) {
-  EnsureAnalyzed(that->on_success());
-}
+  static void VisitChoice(ChoiceNode* that, int i) {
+    // The minimum possible match from a choice node is the minimum of its
+    // successors.
+    EatsAtLeastInfo eats_at_least =
+        i == 0 ? EatsAtLeastInfo(UINT8_MAX) : *that->eats_at_least_info();
+    eats_at_least.SetMin(
+        *that->alternatives()->at(i).node()->eats_at_least_info());
+    that->set_eats_at_least_info(eats_at_least);
+  }
 
-void Analysis::VisitAssertion(AssertionNode* that) {
-  EnsureAnalyzed(that->on_success());
+  static void VisitLoopChoiceContinueNode(LoopChoiceNode* that) {
+    that->set_eats_at_least_info(*that->continue_node()->eats_at_least_info());
+  }
+
+  static void VisitLoopChoiceLoopNode(LoopChoiceNode* that) {}
+
+  static void VisitNegativeLookaroundChoiceLookaroundNode(
+      NegativeLookaroundChoiceNode* that) {}
+
+  static void VisitNegativeLookaroundChoiceContinueNode(
+      NegativeLookaroundChoiceNode* that) {
+    that->set_eats_at_least_info(*that->continue_node()->eats_at_least_info());
+  }
+
+  static void VisitBackReference(BackReferenceNode* that) {
+    if (!that->read_backward()) {
+      that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
+    }
+  }
+
+  static void VisitAssertion(AssertionNode* that) {
+    EatsAtLeastInfo eats_at_least = *that->on_success()->eats_at_least_info();
+    if (that->assertion_type() == AssertionNode::AT_START) {
+      // If we know we are not at the start and we are asked "how many
+      // characters will you match if you succeed?" then we can answer anything
+      // since false implies false.  So let's just set the max answer
+      // (UINT8_MAX) since that won't prevent us from preloading a lot of
+      // characters for the other branches in the node graph.
+      eats_at_least.eats_at_least_from_not_start = UINT8_MAX;
+    }
+    that->set_eats_at_least_info(eats_at_least);
+  }
+};
+
+}  // namespace
+
+// -------------------------------------------------------------------
+// Analysis
+
+// Iterates the node graph and provides the opportunity for propagators to set
+// values that depend on successor nodes.
+template <typename... Propagators>
+class Analysis : public NodeVisitor {
+ public:
+  Analysis(Isolate* isolate, bool is_one_byte)
+      : isolate_(isolate), is_one_byte_(is_one_byte), error_message_(nullptr) {}
+
+  void EnsureAnalyzed(RegExpNode* that) {
+    StackLimitCheck check(isolate());
+    if (check.HasOverflowed()) {
+      fail("Stack overflow");
+      return;
+    }
+    if (that->info()->been_analyzed || that->info()->being_analyzed) return;
+    that->info()->being_analyzed = true;
+    that->Accept(this);
+    that->info()->being_analyzed = false;
+    that->info()->been_analyzed = true;
+  }
+
+  bool has_failed() { return error_message_ != nullptr; }
+  const char* error_message() {
+    DCHECK(error_message_ != nullptr);
+    return error_message_;
+  }
+  void fail(const char* error_message) { error_message_ = error_message; }
+
+  Isolate* isolate() const { return isolate_; }
+
+  void VisitEnd(EndNode* that) override {
+    // nothing to do
+  }
+
+// Used to call the given static function on each propagator / variadic template
+// argument.
+#define STATIC_FOR_EACH(expr)       \
+  do {                              \
+    int dummy[] = {((expr), 0)...}; \
+    USE(dummy);                     \
+  } while (false)
+
+  void VisitText(TextNode* that) override {
+    that->MakeCaseIndependent(isolate(), is_one_byte_);
+    EnsureAnalyzed(that->on_success());
+    if (has_failed()) return;
+    that->CalculateOffsets();
+    STATIC_FOR_EACH(Propagators::VisitText(that));
+  }
+
+  void VisitAction(ActionNode* that) override {
+    EnsureAnalyzed(that->on_success());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitAction(that));
+  }
+
+  void VisitChoice(ChoiceNode* that) override {
+    for (int i = 0; i < that->alternatives()->length(); i++) {
+      EnsureAnalyzed(that->alternatives()->at(i).node());
+      if (has_failed()) return;
+      STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
+    }
+  }
+
+  void VisitLoopChoice(LoopChoiceNode* that) override {
+    DCHECK_EQ(that->alternatives()->length(), 2);  // Just loop and continue.
+
+    // First propagate all information from the continuation node.
+    EnsureAnalyzed(that->continue_node());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitLoopChoiceContinueNode(that));
+
+    // Check the loop last since it may need the value of this node
+    // to get a correct result.
+    EnsureAnalyzed(that->loop_node());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitLoopChoiceLoopNode(that));
+  }
+
+  void VisitNegativeLookaroundChoice(
+      NegativeLookaroundChoiceNode* that) override {
+    DCHECK_EQ(that->alternatives()->length(), 2);  // Lookaround and continue.
+
+    EnsureAnalyzed(that->lookaround_node());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(
+        Propagators::VisitNegativeLookaroundChoiceLookaroundNode(that));
+
+    EnsureAnalyzed(that->continue_node());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(
+        Propagators::VisitNegativeLookaroundChoiceContinueNode(that));
+  }
+
+  void VisitBackReference(BackReferenceNode* that) override {
+    EnsureAnalyzed(that->on_success());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitBackReference(that));
+  }
+
+  void VisitAssertion(AssertionNode* that) override {
+    EnsureAnalyzed(that->on_success());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitAssertion(that));
+  }
+
+#undef STATIC_FOR_EACH
+
+ private:
+  Isolate* isolate_;
+  bool is_one_byte_;
+  const char* error_message_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
+};
+
+const char* AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
+                          RegExpNode* node) {
+  Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(isolate,
+                                                                is_one_byte);
+  DCHECK_EQ(node->info()->been_analyzed, false);
+  analysis.EnsureAnalyzed(node);
+  DCHECK_IMPLIES(analysis.has_failed(), analysis.error_message() != nullptr);
+  return analysis.has_failed() ? analysis.error_message() : nullptr;
 }
 
 void BackReferenceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,

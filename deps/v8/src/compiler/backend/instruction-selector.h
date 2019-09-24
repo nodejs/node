@@ -12,6 +12,7 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -60,7 +61,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
                                          DeoptimizeKind kind,
                                          DeoptimizeReason reason,
-                                         VectorSlotPair const& feedback,
+                                         FeedbackSource const& feedback,
                                          Node* frame_state) {
     return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
                              feedback, frame_state);
@@ -69,7 +70,7 @@ class FlagsContinuation final {
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimizeAndPoison(
       FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
-      VectorSlotPair const& feedback, Node* frame_state) {
+      FeedbackSource const& feedback, Node* frame_state) {
     return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
                              reason, feedback, frame_state);
   }
@@ -110,7 +111,7 @@ class FlagsContinuation final {
     DCHECK(IsDeoptimize());
     return reason_;
   }
-  VectorSlotPair const& feedback() const {
+  FeedbackSource const& feedback() const {
     DCHECK(IsDeoptimize());
     return feedback_;
   }
@@ -196,7 +197,7 @@ class FlagsContinuation final {
 
   FlagsContinuation(FlagsMode mode, FlagsCondition condition,
                     DeoptimizeKind kind, DeoptimizeReason reason,
-                    VectorSlotPair const& feedback, Node* frame_state)
+                    FeedbackSource const& feedback, Node* frame_state)
       : mode_(mode),
         condition_(condition),
         kind_(kind),
@@ -226,7 +227,7 @@ class FlagsContinuation final {
   FlagsCondition condition_;
   DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
   DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
-  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize*
+  FeedbackSource feedback_;      // Only valid if mode_ == kFlags_deoptimize*
   Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
@@ -270,6 +271,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      size_t* max_unoptimized_frame_height,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -352,7 +354,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                               InstructionOperand* outputs, size_t input_count,
                               InstructionOperand* inputs, DeoptimizeKind kind,
                               DeoptimizeReason reason,
-                              VectorSlotPair const& feedback,
+                              FeedbackSource const& feedback,
                               Node* frame_state);
 
   // ===========================================================================
@@ -446,7 +448,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
-  bool CanAddressRelativeToRootsRegister() const;
+  bool CanAddressRelativeToRootsRegister(
+      const ExternalReference& reference) const;
   // Check if we can use the roots register to access GC roots.
   bool CanUseRootsRegister() const;
 
@@ -496,7 +499,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
                                  DeoptimizeKind kind, DeoptimizeReason reason,
-                                 VectorSlotPair const& feedback,
+                                 FeedbackSource const& feedback,
                                  Node* frame_state);
 
   void EmitTableSwitch(
@@ -543,7 +546,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsSimd128(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  void MarkAsReference(Node* node) {
+  void MarkAsTagged(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
   void MarkAsCompressed(Node* node) {
@@ -621,8 +624,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
-  void VisitCallWithCallerSavedRegisters(Node* call,
-                                         BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
   void VisitTrapIf(Node* node, TrapId trap_id);
@@ -632,13 +633,15 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       VectorSlotPair const& feedback, Node* value);
+                       FeedbackSource const& feedback, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
   void VisitUnreachable(Node* node);
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
+
+  void VisitStackPointerGreaterThan(Node* node, FlagsContinuation* cont);
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
@@ -782,6 +785,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
+
+  // Store the maximal unoptimized frame height. Later used to apply an offset
+  // to stack checks.
+  size_t* max_unoptimized_frame_height_;
 };
 
 }  // namespace compiler

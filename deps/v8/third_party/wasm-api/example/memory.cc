@@ -7,7 +7,7 @@
 #include "wasm.hh"
 
 
-auto get_export_memory(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Memory* {
+auto get_export_memory(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Memory* {
   if (exports.size() <= i || !exports[i]->memory()) {
     std::cout << "> Error accessing memory export " << i << "!" << std::endl;
     exit(1);
@@ -15,7 +15,7 @@ auto get_export_memory(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Mem
   return exports[i]->memory();
 }
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "!" << std::endl;
     exit(1);
@@ -79,7 +79,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -87,7 +87,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Instantiate.
@@ -95,7 +95,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), nullptr);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract export.
@@ -106,6 +106,9 @@ void run() {
   auto size_func = get_export_func(exports, i++);
   auto load_func = get_export_func(exports, i++);
   auto store_func = get_export_func(exports, i++);
+
+  // Try cloning.
+  assert(memory->copy()->same(memory));
 
   // Check initial memory.
   std::cout << "Checking memory..." << std::endl;

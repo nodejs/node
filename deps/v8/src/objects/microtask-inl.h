@@ -18,19 +18,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Microtask, Struct)
-OBJECT_CONSTRUCTORS_IMPL(CallbackTask, Microtask)
-OBJECT_CONSTRUCTORS_IMPL(CallableTask, Microtask)
-
-CAST_ACCESSOR(Microtask)
-CAST_ACCESSOR(CallbackTask)
-CAST_ACCESSOR(CallableTask)
-
-ACCESSORS(CallableTask, callable, JSReceiver, kCallableOffset)
-ACCESSORS(CallableTask, context, Context, kContextOffset)
-
-ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
-ACCESSORS(CallbackTask, data, Foreign, kDataOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Microtask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(CallbackTask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(CallableTask)
 
 }  // namespace internal
 }  // namespace v8

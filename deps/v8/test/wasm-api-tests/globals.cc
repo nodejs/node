@@ -90,21 +90,21 @@ TEST_F(WasmCapiTest, Globals) {
                       &param_i64);
 
   // Create imported globals.
-  own<GlobalType*> const_f32_type =
+  own<GlobalType> const_f32_type =
       GlobalType::make(ValType::make(::wasm::F32), ::wasm::CONST);
-  own<GlobalType*> const_i64_type =
+  own<GlobalType> const_i64_type =
       GlobalType::make(ValType::make(::wasm::I64), ::wasm::CONST);
-  own<GlobalType*> var_f32_type =
+  own<GlobalType> var_f32_type =
       GlobalType::make(ValType::make(::wasm::F32), ::wasm::VAR);
-  own<GlobalType*> var_i64_type =
+  own<GlobalType> var_i64_type =
       GlobalType::make(ValType::make(::wasm::I64), ::wasm::VAR);
-  own<Global*> const_f32_import =
+  own<Global> const_f32_import =
       Global::make(store(), const_f32_type.get(), Val::f32(1));
-  own<Global*> const_i64_import =
+  own<Global> const_i64_import =
       Global::make(store(), const_i64_type.get(), Val::i64(2));
-  own<Global*> var_f32_import =
+  own<Global> var_f32_import =
       Global::make(store(), var_f32_type.get(), Val::f32(3));
-  own<Global*> var_i64_import =
+  own<Global> var_i64_import =
       Global::make(store(), var_i64_type.get(), Val::i64(4));
   Extern* imports[] = {const_f32_import.get(), const_i64_import.get(),
                        var_f32_import.get(), var_i64_import.get()};
@@ -129,6 +129,9 @@ TEST_F(WasmCapiTest, Globals) {
   Func* set_var_i64_import = GetExportedFunction(i++);
   Func* set_var_f32_export = GetExportedFunction(i++);
   Func* set_var_i64_export = GetExportedFunction(i++);
+
+  // Try cloning.
+  EXPECT_TRUE(var_f32_import->copy()->same(var_f32_import.get()));
 
   // Check initial values.
   EXPECT_EQ(1.f, const_f32_import->get().f32());

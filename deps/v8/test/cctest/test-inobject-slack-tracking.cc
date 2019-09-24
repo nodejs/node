@@ -84,8 +84,8 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
     return obj.RawFastDoublePropertyAt(field_index);
   } else {
     Object value = obj.RawFastPropertyAt(field_index);
-    if (value.IsMutableHeapNumber()) {
-      return MutableHeapNumber::cast(value).value();
+    if (value.IsHeapNumber()) {
+      return HeapNumber::cast(value).value();
     } else {
       return value.Number();
     }

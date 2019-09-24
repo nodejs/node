@@ -133,7 +133,6 @@ enum InstanceType : uint16_t {
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
-  MUTABLE_HEAP_NUMBER_TYPE,
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   BYTECODE_ARRAY_TYPE,
@@ -181,8 +180,7 @@ enum InstanceType : uint16_t {
   CALLBACK_TASK_TYPE,
   PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
   PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-  PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-  FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
+  PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
 #define MAKE_TORQUE_INSTANCE_TYPE(V) V,
   TORQUE_DEFINED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
@@ -346,7 +344,7 @@ enum InstanceType : uint16_t {
   LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
-  LAST_MICROTASK_TYPE = FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,
+  LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
   // Boundaries of module record types
   FIRST_MODULE_TYPE = SOURCE_TEXT_MODULE_TYPE,
   LAST_MODULE_TYPE = SYNTHETIC_MODULE_TYPE,
@@ -462,7 +460,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                          \
   V(Map, MAP_TYPE)                                                           \
-  V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                             \
   V(NameDictionary, NAME_DICTIONARY_TYPE)                                    \
   V(NativeContext, NATIVE_CONTEXT_TYPE)                                      \
   V(NumberDictionary, NUMBER_DICTIONARY_TYPE)                                \

@@ -61,6 +61,13 @@ class StringShape {
   inline void invalidate() {}
 #endif
 
+  // Run different behavior for each concrete string class type, as defined by
+  // the dispatcher.
+  template <typename TDispatcher, typename TResult, typename... TArgs>
+  inline TResult DispatchToSpecificTypeWithoutCast(TArgs&&... args);
+  template <typename TDispatcher, typename TResult, typename... TArgs>
+  inline TResult DispatchToSpecificType(String str, TArgs&&... args);
+
  private:
   uint32_t type_;
 #ifdef DEBUG

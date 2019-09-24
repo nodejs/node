@@ -8,8 +8,11 @@
 
 #include "src/objects/js-date-time-format.h"
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "src/date/date.h"
@@ -1191,6 +1194,12 @@ class DateTimePatternGeneratorCache {
     UErrorCode status = U_ZERO_ERROR;
     map_[key].reset(icu::DateTimePatternGenerator::createInstance(
         icu::Locale(key.c_str()), status));
+    // Fallback to use "root".
+    if (U_FAILURE(status)) {
+      status = U_ZERO_ERROR;
+      map_[key].reset(
+          icu::DateTimePatternGenerator::createInstance("root", status));
+    }
     CHECK(U_SUCCESS(status));
     return map_[key]->clone();
   }

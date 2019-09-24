@@ -101,6 +101,7 @@ ALLOWED_LINE_DIFFS = [
   r'^(.*)TypeError: .* is not a function$',
   r'^(.*)TypeError: .* is not a constructor$',
   r'^(.*)TypeError: (.*) is not .*$',
+  r'^(.*):\d+: TypeError: Message suppressed for fuzzers.*$',
   r'^(.*)ReferenceError: .* is not defined$',
   r'^(.*):\d+: ReferenceError: .* is not defined$',
 

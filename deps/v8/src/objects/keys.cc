@@ -22,6 +22,17 @@
 namespace v8 {
 namespace internal {
 
+#define RETURN_NOTHING_IF_NOT_SUCCESSFUL(call) \
+  do {                                         \
+    if (!(call)) return Nothing<bool>();       \
+  } while (false)
+
+#define RETURN_FAILURE_IF_NOT_SUCCESSFUL(call)          \
+  do {                                                  \
+    ExceptionStatus status_enum_result = (call);        \
+    if (!status_enum_result) return status_enum_result; \
+  } while (false)
+
 namespace {
 
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
@@ -64,32 +75,39 @@ Handle<OrderedHashSet> KeyAccumulator::keys() {
   return Handle<OrderedHashSet>::cast(keys_);
 }
 
-void KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
-  AddKey(handle(key, isolate_), convert);
+ExceptionStatus KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
+  return AddKey(handle(key, isolate_), convert);
 }
 
-void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
+ExceptionStatus KeyAccumulator::AddKey(Handle<Object> key,
+                                       AddKeyConversion convert) {
   if (filter_ == PRIVATE_NAMES_ONLY) {
-    if (!key->IsSymbol()) return;
-    if (!Symbol::cast(*key).is_private_name()) return;
+    if (!key->IsSymbol()) return ExceptionStatus::kSuccess;
+    if (!Symbol::cast(*key).is_private_name()) return ExceptionStatus::kSuccess;
   } else if (key->IsSymbol()) {
-    if (filter_ & SKIP_SYMBOLS) return;
-
-    if (Symbol::cast(*key).is_private()) return;
+    if (filter_ & SKIP_SYMBOLS) return ExceptionStatus::kSuccess;
+    if (Symbol::cast(*key).is_private()) return ExceptionStatus::kSuccess;
   } else if (filter_ & SKIP_STRINGS) {
-    return;
+    return ExceptionStatus::kSuccess;
   }
 
-  if (IsShadowed(key)) return;
+  if (IsShadowed(key)) return ExceptionStatus::kSuccess;
   if (keys_.is_null()) {
-    keys_ = OrderedHashSet::Allocate(isolate_, 16);
+    keys_ = OrderedHashSet::Allocate(isolate_, 16).ToHandleChecked();
   }
   uint32_t index;
   if (convert == CONVERT_TO_ARRAY_INDEX && key->IsString() &&
       Handle<String>::cast(key)->AsArrayIndex(&index)) {
     key = isolate_->factory()->NewNumberFromUint(index);
   }
-  Handle<OrderedHashSet> new_set = OrderedHashSet::Add(isolate(), keys(), key);
+  MaybeHandle<OrderedHashSet> new_set_candidate =
+      OrderedHashSet::Add(isolate(), keys(), key);
+  Handle<OrderedHashSet> new_set;
+  if (!new_set_candidate.ToHandle(&new_set)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate_, NewRangeError(MessageTemplate::kTooManyProperties),
+        ExceptionStatus::kException);
+  }
   if (*new_set != *keys_) {
     // The keys_ Set is converted directly to a FixedArray in GetKeys which can
     // be left-trimmer. Hence the previous Set should not keep a pointer to the
@@ -97,22 +115,24 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
     keys_->set(OrderedHashSet::NextTableIndex(), Smi::kZero);
     keys_ = new_set;
   }
+  return ExceptionStatus::kSuccess;
 }
 
-void KeyAccumulator::AddKeys(Handle<FixedArray> array,
-                             AddKeyConversion convert) {
+ExceptionStatus KeyAccumulator::AddKeys(Handle<FixedArray> array,
+                                        AddKeyConversion convert) {
   int add_length = array->length();
   for (int i = 0; i < add_length; i++) {
     Handle<Object> current(array->get(i), isolate_);
-    AddKey(current, convert);
+    RETURN_FAILURE_IF_NOT_SUCCESSFUL(AddKey(current, convert));
   }
+  return ExceptionStatus::kSuccess;
 }
 
-void KeyAccumulator::AddKeys(Handle<JSObject> array_like,
-                             AddKeyConversion convert) {
+ExceptionStatus KeyAccumulator::AddKeys(Handle<JSObject> array_like,
+                                        AddKeyConversion convert) {
   DCHECK(array_like->IsJSArray() || array_like->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = array_like->GetElementsAccessor();
-  accessor->AddElementsToKeyAccumulator(array_like, this, convert);
+  return accessor->AddElementsToKeyAccumulator(array_like, this, convert);
 }
 
 MaybeHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
@@ -162,7 +182,8 @@ Maybe<bool> KeyAccumulator::AddKeysFromJSProxy(Handle<JSProxy> proxy,
       return Just(true);
     }
   }
-  AddKeys(keys, is_for_in_ ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
+  RETURN_NOTHING_IF_NOT_SUCCESSFUL(
+      AddKeys(keys, is_for_in_ ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT));
   return Just(true);
 }
 
@@ -488,12 +509,10 @@ namespace {
 
 enum IndexedOrNamed { kIndexed, kNamed };
 
-void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
-                                   Handle<JSObject> object,
-                                   Handle<InterceptorInfo> interceptor,
-                                   KeyAccumulator* accumulator,
-                                   Handle<JSObject> result,
-                                   IndexedOrNamed type) {
+V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
+    Handle<JSReceiver> receiver, Handle<JSObject> object,
+    Handle<InterceptorInfo> interceptor, KeyAccumulator* accumulator,
+    Handle<JSObject> result, IndexedOrNamed type) {
   DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
@@ -521,10 +540,12 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
       int32_t value;
       CHECK(attributes->ToInt32(&value));
       if ((value & DONT_ENUM) == 0) {
-        accumulator->AddKey(element, DO_NOT_CONVERT);
+        RETURN_FAILURE_IF_NOT_SUCCESSFUL(
+            accumulator->AddKey(element, DO_NOT_CONVERT));
       }
     }
   }
+  return ExceptionStatus::kSuccess;
 }
 
 // Returns |true| on success, |nothing| on exception.
@@ -551,11 +572,11 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
 
   if ((accumulator->filter() & ONLY_ENUMERABLE) &&
       !interceptor->query().IsUndefined(isolate)) {
-    FilterForEnumerableProperties(receiver, object, interceptor, accumulator,
-                                  result, type);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(FilterForEnumerableProperties(
+        receiver, object, interceptor, accumulator, result, type));
   } else {
-    accumulator->AddKeys(
-        result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(accumulator->AddKeys(
+        result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT));
   }
   return Just(true);
 }
@@ -589,18 +610,17 @@ Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
   if (filter_ & SKIP_STRINGS || skip_indices_) return Just(true);
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  accessor->CollectElementIndices(object, this);
-
+  RETURN_NOTHING_IF_NOT_SUCCESSFUL(
+      accessor->CollectElementIndices(object, this));
   return CollectInterceptorKeys(receiver, object, this, kIndexed);
 }
 
 namespace {
 
 template <bool skip_symbols>
-int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
-                                    KeyAccumulator* keys,
-                                    Handle<DescriptorArray> descs,
-                                    int start_index, int limit) {
+base::Optional<int> CollectOwnPropertyNamesInternal(
+    Handle<JSObject> object, KeyAccumulator* keys,
+    Handle<DescriptorArray> descs, int start_index, int limit) {
   int first_skipped = -1;
   PropertyFilter filter = keys->filter();
   KeyCollectionMode mode = keys->mode();
@@ -633,7 +653,9 @@ int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
     if (is_shadowing_key) {
       keys->AddShadowingKey(key);
     } else {
-      keys->AddKey(key, DO_NOT_CONVERT);
+      if (keys->AddKey(key, DO_NOT_CONVERT) != ExceptionStatus::kSuccess) {
+        return base::Optional<int>();
+      }
     }
   }
   return first_skipped;
@@ -696,48 +718,50 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
         }
       }
     }
-    AddKeys(enum_keys, DO_NOT_CONVERT);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(AddKeys(enum_keys, DO_NOT_CONVERT));
   } else {
     if (object->HasFastProperties()) {
       int limit = object->map().NumberOfOwnDescriptors();
       Handle<DescriptorArray> descs(object->map().instance_descriptors(),
                                     isolate_);
       // First collect the strings,
-      int first_symbol =
+      base::Optional<int> first_symbol =
           CollectOwnPropertyNamesInternal<true>(object, this, descs, 0, limit);
       // then the symbols.
-      if (first_symbol != -1) {
-        CollectOwnPropertyNamesInternal<false>(object, this, descs,
-                                               first_symbol, limit);
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(first_symbol);
+      if (first_symbol.value() != -1) {
+        RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectOwnPropertyNamesInternal<false>(
+            object, this, descs, first_symbol.value(), limit));
       }
     } else if (object->IsJSGlobalObject()) {
-      GlobalDictionary::CollectKeysTo(
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(GlobalDictionary::CollectKeysTo(
           handle(JSGlobalObject::cast(*object).global_dictionary(), isolate_),
-          this);
+          this));
     } else {
-      NameDictionary::CollectKeysTo(
-          handle(object->property_dictionary(), isolate_), this);
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(NameDictionary::CollectKeysTo(
+          handle(object->property_dictionary(), isolate_), this));
     }
   }
   // Add the property keys from the interceptor.
   return CollectInterceptorKeys(receiver, object, this, kNamed);
 }
 
-void KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
-                                         Handle<JSObject> object) {
+ExceptionStatus KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
+                                                    Handle<JSObject> object) {
   if (object->HasFastProperties()) {
     int limit = object->map().NumberOfOwnDescriptors();
     Handle<DescriptorArray> descs(object->map().instance_descriptors(),
                                   isolate_);
     CollectOwnPropertyNamesInternal<false>(object, this, descs, 0, limit);
   } else if (object->IsJSGlobalObject()) {
-    GlobalDictionary::CollectKeysTo(
+    RETURN_FAILURE_IF_NOT_SUCCESSFUL(GlobalDictionary::CollectKeysTo(
         handle(JSGlobalObject::cast(*object).global_dictionary(), isolate_),
-        this);
+        this));
   } else {
-    NameDictionary::CollectKeysTo(
-        handle(object->property_dictionary(), isolate_), this);
+    RETURN_FAILURE_IF_NOT_SUCCESSFUL(NameDictionary::CollectKeysTo(
+        handle(object->property_dictionary(), isolate_), this));
   }
+  return ExceptionStatus::kSuccess;
 }
 
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
@@ -795,7 +819,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
   if (filter_ & PRIVATE_NAMES_ONLY) {
-    CollectPrivateNames(receiver, object);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(receiver, object));
     return Just(true);
   }
 
@@ -843,8 +867,8 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                                   Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
   if (filter_ == PRIVATE_NAMES_ONLY) {
-    NameDictionary::CollectKeysTo(
-        handle(proxy->property_dictionary(), isolate_), this);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(NameDictionary::CollectKeysTo(
+        handle(proxy->property_dictionary(), isolate_), this));
     return Just(true);
   }
 
@@ -1018,5 +1042,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
   return result;
 }
 
+#undef RETURN_NOTHING_IF_NOT_SUCCESSFUL
+#undef RETURN_FAILURE_IF_NOT_SUCCESSFUL
 }  // namespace internal
 }  // namespace v8

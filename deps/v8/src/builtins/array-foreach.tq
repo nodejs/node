@@ -5,9 +5,8 @@
 namespace array_foreach {
   transitioning javascript builtin
   ArrayForEachLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object,
-      length: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -23,9 +22,9 @@ namespace array_foreach {
 
   transitioning javascript builtin
   ArrayForEachLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object, length: Object,
-      _result: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
+      _result: JSAny): JSAny {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -40,9 +39,9 @@ namespace array_foreach {
   }
 
   transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
-      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      _array: Object, o: JSReceiver, initialK: Number, len: Number,
-      _to: Object): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
+      _array: JSAny, o: JSReceiver, initialK: Number, len: Number,
+      _to: JSAny): JSAny {
     // variables {array} and {to} are ignored.
 
     // 5. Let k be 0.
@@ -58,7 +57,7 @@ namespace array_foreach {
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(o, k);
+        const kValue: JSAny = GetProperty(o, k);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);
@@ -70,7 +69,7 @@ namespace array_foreach {
   }
 
   transitioning macro FastArrayForEach(implicit context: Context)(
-      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
+      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: JSAny): JSAny
       labels Bailout(Smi) {
     let k: Smi = 0;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
@@ -83,7 +82,7 @@ namespace array_foreach {
 
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastOW.Get().length) goto Bailout(k);
-      const value: Object = fastOW.LoadElementNoHole(k)
+      const value: JSAny = fastOW.LoadElementNoHole(k)
           otherwise continue;
       Call(context, callbackfn, thisArg, value, k, fastOW.Get());
     }
@@ -92,8 +91,8 @@ namespace array_foreach {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
   transitioning javascript builtin
-  ArrayForEach(js-implicit context: Context, receiver: Object)(...arguments):
-      Object {
+  ArrayForEach(js-implicit context: Context, receiver: JSAny)(...arguments):
+      JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.forEach');
 
@@ -110,7 +109,7 @@ namespace array_foreach {
       const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+      const thisArg: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
 
       // Special cases.
       let k: Number = 0;

@@ -28,7 +28,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
   Label receiver_not_date(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &receiver_not_date);
-  Node* receiver_instance_type = LoadInstanceType(receiver);
+  TNode<Uint16T> receiver_instance_type = LoadInstanceType(receiver);
   GotoIfNot(InstanceTypeEqual(receiver_instance_type, JS_DATE_TYPE),
             &receiver_not_date);
 
@@ -38,20 +38,20 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
   } else {
     if (field_index < JSDate::kFirstUncachedField) {
       Label stamp_mismatch(this, Label::kDeferred);
-      Node* date_cache_stamp = Load(
-          MachineType::AnyTagged(),
+      TNode<Object> date_cache_stamp = Load<Object>(
           ExternalConstant(ExternalReference::date_cache_stamp(isolate())));
 
-      Node* cache_stamp = LoadObjectField(receiver, JSDate::kCacheStampOffset);
-      GotoIf(WordNotEqual(date_cache_stamp, cache_stamp), &stamp_mismatch);
+      TNode<Object> cache_stamp =
+          LoadObjectField(receiver, JSDate::kCacheStampOffset);
+      GotoIf(TaggedNotEqual(date_cache_stamp, cache_stamp), &stamp_mismatch);
       Return(LoadObjectField(receiver,
                              JSDate::kValueOffset + field_index * kTaggedSize));
 
       BIND(&stamp_mismatch);
     }
 
-    Node* field_index_smi = SmiConstant(field_index);
-    Node* function =
+    TNode<Smi> field_index_smi = SmiConstant(field_index);
+    TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::get_date_field_function());
     Node* result = CallCFunction(
         function, MachineType::AnyTagged(),
@@ -182,7 +182,7 @@ TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
 TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* hint = Parameter(Descriptor::kHint);
+  TNode<Object> hint = CAST(Parameter(Descriptor::kHint));
 
   // Check if the {receiver} is actually a JSReceiver.
   Label receiver_is_invalid(this, Label::kDeferred);
@@ -194,25 +194,25 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
       hint_is_invalid(this, Label::kDeferred);
 
   // Fast cases for internalized strings.
-  Node* number_string = LoadRoot(RootIndex::knumber_string);
-  GotoIf(WordEqual(hint, number_string), &hint_is_number);
-  Node* default_string = LoadRoot(RootIndex::kdefault_string);
-  GotoIf(WordEqual(hint, default_string), &hint_is_string);
-  Node* string_string = LoadRoot(RootIndex::kstring_string);
-  GotoIf(WordEqual(hint, string_string), &hint_is_string);
+  TNode<String> number_string = numberStringConstant();
+  GotoIf(TaggedEqual(hint, number_string), &hint_is_number);
+  TNode<String> default_string = DefaultStringConstant();
+  GotoIf(TaggedEqual(hint, default_string), &hint_is_string);
+  TNode<String> string_string = StringStringConstant();
+  GotoIf(TaggedEqual(hint, string_string), &hint_is_string);
 
   // Slow-case with actual string comparisons.
   GotoIf(TaggedIsSmi(hint), &hint_is_invalid);
-  GotoIfNot(IsString(hint), &hint_is_invalid);
-  GotoIf(WordEqual(
+  GotoIfNot(IsString(CAST(hint)), &hint_is_invalid);
+  GotoIf(TaggedEqual(
              CallBuiltin(Builtins::kStringEqual, context, hint, number_string),
              TrueConstant()),
          &hint_is_number);
-  GotoIf(WordEqual(
+  GotoIf(TaggedEqual(
              CallBuiltin(Builtins::kStringEqual, context, hint, default_string),
              TrueConstant()),
          &hint_is_string);
-  GotoIf(WordEqual(
+  GotoIf(TaggedEqual(
              CallBuiltin(Builtins::kStringEqual, context, hint, string_string),
              TrueConstant()),
          &hint_is_string);
@@ -223,7 +223,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kNumber);
-    Node* result = CallStub(callable, context, receiver);
+    TNode<Object> result = CallStub(callable, context, receiver);
     Return(result);
   }
 
@@ -232,7 +232,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kString);
-    Node* result = CallStub(callable, context, receiver);
+    TNode<Object> result = CallStub(callable, context, receiver);
     Return(result);
   }
 

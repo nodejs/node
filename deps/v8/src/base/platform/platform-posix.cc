@@ -137,10 +137,10 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
   return flags;
 }
 
-void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
+void* Allocate(void* hint, size_t size, OS::MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int flags = GetFlagsForMemoryPermission(access);
-  void* result = mmap(address, size, prot, flags, kMmapFd, kMmapFdOffset);
+  void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
@@ -278,16 +278,16 @@ void* OS::GetRandomMmapAddr() {
 // TODO(bbudge) Move Cygwin and Fuchsia stuff into platform-specific files.
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 // static
-void* OS::Allocate(void* address, size_t size, size_t alignment,
+void* OS::Allocate(void* hint, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
-  address = AlignedAddress(address, alignment);
+  hint = AlignedAddress(hint, alignment);
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
   request_size = RoundUp(request_size, OS::AllocatePageSize());
-  void* result = base::Allocate(address, request_size, access);
+  void* result = base::Allocate(hint, request_size, access);
   if (result == nullptr) return nullptr;
 
   // Unmap memory allocated before the aligned base address.
@@ -761,13 +761,12 @@ void Thread::set_name(const char* name) {
   name_[sizeof(name_) - 1] = '\0';
 }
 
-
-void Thread::Start() {
+bool Thread::Start() {
   int result;
   pthread_attr_t attr;
   memset(&attr, 0, sizeof(attr));
   result = pthread_attr_init(&attr);
-  DCHECK_EQ(0, result);
+  if (result != 0) return false;
   size_t stack_size = stack_size_;
   if (stack_size == 0) {
 #if V8_OS_MACOSX
@@ -780,17 +779,17 @@ void Thread::Start() {
   }
   if (stack_size > 0) {
     result = pthread_attr_setstacksize(&attr, stack_size);
-    DCHECK_EQ(0, result);
+    if (result != 0) return pthread_attr_destroy(&attr), false;
   }
   {
     MutexGuard lock_guard(&data_->thread_creation_mutex_);
     result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
+    if (result != 0 || data_->thread_ == kNoThread) {
+      return pthread_attr_destroy(&attr), false;
+    }
   }
-  DCHECK_EQ(0, result);
   result = pthread_attr_destroy(&attr);
-  DCHECK_EQ(0, result);
-  DCHECK_NE(data_->thread_, kNoThread);
-  USE(result);
+  return result == 0;
 }
 
 void Thread::Join() { pthread_join(data_->thread_, nullptr); }

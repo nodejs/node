@@ -67,7 +67,6 @@ namespace internal {
                                                          \
   V(MAP_TYPE)                                            \
   V(CODE_TYPE)                                           \
-  V(MUTABLE_HEAP_NUMBER_TYPE)                            \
   V(FOREIGN_TYPE)                                        \
   V(BYTE_ARRAY_TYPE)                                     \
   V(BYTECODE_ARRAY_TYPE)                                 \
@@ -116,7 +115,6 @@ namespace internal {
   V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)              \
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)               \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)              \
-  V(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE)            \
                                                          \
   TORQUE_DEFINED_INSTANCE_TYPES(V)                       \
                                                          \
@@ -348,9 +346,7 @@ namespace internal {
   V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,    \
     promise_reject_reaction_job_task)                                          \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask,  \
-    promise_resolve_thenable_job_task)                                         \
-  V(_, FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,                               \
-    FinalizationGroupCleanupJobTask, finalization_group_cleanup_job_task)
+    promise_resolve_thenable_job_task)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)

@@ -52,6 +52,12 @@ int StackTraceFrame::GetPromiseAllIndex(Handle<StackTraceFrame> frame) {
 }
 
 // static
+int StackTraceFrame::GetFunctionOffset(Handle<StackTraceFrame> frame) {
+  DCHECK(IsWasm(frame));
+  return GetFrameInfo(frame)->function_offset();
+}
+
+// static
 Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
   auto name = GetFrameInfo(frame)->script_name();
   return handle(name, frame->GetIsolate());
@@ -93,6 +99,13 @@ Handle<Object> StackTraceFrame::GetWasmModuleName(
     Handle<StackTraceFrame> frame) {
   auto module = GetFrameInfo(frame)->wasm_module_name();
   return handle(module, frame->GetIsolate());
+}
+
+// static
+Handle<WasmInstanceObject> StackTraceFrame::GetWasmInstance(
+    Handle<StackTraceFrame> frame) {
+  Object instance = GetFrameInfo(frame)->wasm_instance();
+  return handle(WasmInstanceObject::cast(instance), frame->GetIsolate());
 }
 
 // static

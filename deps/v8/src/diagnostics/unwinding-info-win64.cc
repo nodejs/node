@@ -4,42 +4,17 @@
 
 #include "src/diagnostics/unwinding-info-win64.h"
 
-#if defined(V8_OS_WIN_X64)
-
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/x64/assembler-x64.h"
 #include "src/utils/allocation.h"
 
-// Forward declaration to keep this independent of Win8
-NTSYSAPI
-DWORD
-NTAPI
-RtlAddGrowableFunctionTable(
-    _Out_ PVOID* DynamicTable,
-    _In_reads_(MaximumEntryCount) PRUNTIME_FUNCTION FunctionTable,
-    _In_ DWORD EntryCount,
-    _In_ DWORD MaximumEntryCount,
-    _In_ ULONG_PTR RangeBase,
-    _In_ ULONG_PTR RangeEnd
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlGrowFunctionTable(
-    _Inout_ PVOID DynamicTable,
-    _In_ DWORD NewEntryCount
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlDeleteGrowableFunctionTable(
-    _In_ PVOID DynamicTable
-    );
-
+#if defined(V8_OS_WIN_X64)
+#include "src/codegen/x64/assembler-x64.h"
+#elif defined(V8_OS_WIN_ARM64)
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
+#else
+#error "Unsupported OS"
+#endif  // V8_OS_WIN_X64
 
 namespace v8 {
 namespace internal {
@@ -53,8 +28,35 @@ bool CanRegisterUnwindInfoForNonABICompliantCodeRange() {
 
 bool RegisterUnwindInfoForExceptionHandlingOnly() {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
+#if defined(V8_OS_WIN_ARM64)
+  return !FLAG_win64_unwinding_info;
+#else
   return !IsWindows8OrGreater() || !FLAG_win64_unwinding_info;
+#endif
 }
+
+v8::UnhandledExceptionCallback unhandled_exception_callback_g = nullptr;
+
+void SetUnhandledExceptionCallback(
+    v8::UnhandledExceptionCallback unhandled_exception_callback) {
+  unhandled_exception_callback_g = unhandled_exception_callback;
+}
+
+// This function is registered as exception handler for V8-generated code as
+// part of the registration of unwinding info. It is referenced by
+// RegisterNonABICompliantCodeRange(), below, and by the unwinding info for
+// builtins declared in the embedded blob.
+extern "C" __declspec(dllexport) int CRASH_HANDLER_FUNCTION_NAME(
+    PEXCEPTION_RECORD ExceptionRecord, ULONG64 EstablisherFrame,
+    PCONTEXT ContextRecord, PDISPATCHER_CONTEXT DispatcherContext) {
+  if (unhandled_exception_callback_g != nullptr) {
+    EXCEPTION_POINTERS info = {ExceptionRecord, ContextRecord};
+    return unhandled_exception_callback_g(&info);
+  }
+  return ExceptionContinueSearch;
+}
+
+#if defined(V8_OS_WIN_X64)
 
 #pragma pack(push, 1)
 
@@ -80,9 +82,12 @@ struct UNWIND_INFO {
   unsigned char FrameOffset : 4;
 };
 
+static constexpr int kNumberOfUnwindCodes = 2;
+static constexpr int kMaxExceptionThunkSize = 12;
+
 struct V8UnwindData {
   UNWIND_INFO unwind_info;
-  UNWIND_CODE unwind_codes[2];
+  UNWIND_CODE unwind_codes[kNumberOfUnwindCodes];
 
   V8UnwindData() {
     static constexpr int kOpPushNonvol = 0;
@@ -118,45 +123,243 @@ struct ExceptionHandlerUnwindData {
   }
 };
 
-#pragma pack(pop)
-
-v8::UnhandledExceptionCallback unhandled_exception_callback_g = nullptr;
-
-void SetUnhandledExceptionCallback(
-    v8::UnhandledExceptionCallback unhandled_exception_callback) {
-  unhandled_exception_callback_g = unhandled_exception_callback;
-}
-
-// This function is registered as exception handler for V8-generated code as
-// part of the registration of unwinding info. It is referenced by
-// RegisterNonABICompliantCodeRange(), below, and by the unwinding info for
-// builtins declared in the embedded blob.
-extern "C" __declspec(dllexport) int CRASH_HANDLER_FUNCTION_NAME(
-    PEXCEPTION_RECORD ExceptionRecord, ULONG64 EstablisherFrame,
-    PCONTEXT ContextRecord, PDISPATCHER_CONTEXT DispatcherContext) {
-  if (unhandled_exception_callback_g != nullptr) {
-    EXCEPTION_POINTERS info = {ExceptionRecord, ContextRecord};
-    return unhandled_exception_callback_g(&info);
-  }
-  return ExceptionContinueSearch;
-}
-
-static constexpr int kMaxExceptionThunkSize = 12;
-
 struct CodeRangeUnwindingRecord {
-  RUNTIME_FUNCTION runtime_function;
+  void* dynamic_table;
+  uint32_t runtime_function_count;
   V8UnwindData unwind_info;
   uint32_t exception_handler;
   uint8_t exception_thunk[kMaxExceptionThunkSize];
-  void* dynamic_table;
+  RUNTIME_FUNCTION runtime_function[kDefaultRuntimeFunctionCount];
 };
 
 struct ExceptionHandlerRecord {
-  RUNTIME_FUNCTION runtime_function;
+  uint32_t runtime_function_count;
+  RUNTIME_FUNCTION runtime_function[kDefaultRuntimeFunctionCount];
   ExceptionHandlerUnwindData unwind_info;
   uint32_t exception_handler;
   uint8_t exception_thunk[kMaxExceptionThunkSize];
 };
+
+#pragma pack(pop)
+
+std::vector<uint8_t> GetUnwindInfoForBuiltinFunctions() {
+  V8UnwindData xdata;
+  return std::vector<uint8_t>(
+      reinterpret_cast<uint8_t*>(&xdata),
+      reinterpret_cast<uint8_t*>(&xdata) + sizeof(xdata));
+}
+
+template <typename Record>
+void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
+  // We assume that the first page of the code range is executable and
+  // committed and reserved to contain PDATA/XDATA.
+
+  // All addresses are 32bit relative offsets to start.
+  record->runtime_function[0].BeginAddress = 0;
+  record->runtime_function[0].EndAddress =
+      static_cast<DWORD>(code_size_in_bytes);
+  record->runtime_function[0].UnwindData = offsetof(Record, unwind_info);
+  record->runtime_function_count = 1;
+  record->exception_handler = offsetof(Record, exception_thunk);
+
+  // Hardcoded thunk.
+  AssemblerOptions options;
+  options.record_reloc_info_for_serialization = false;
+  MacroAssembler masm(nullptr, options, CodeObjectRequired::kNo,
+                      NewAssemblerBuffer(64));
+  masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
+  masm.jmp(rax);
+  DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
+}
+
+#elif defined(V8_OS_WIN_ARM64)
+
+#pragma pack(push, 1)
+
+// ARM64 unwind codes are defined in below doc.
+// https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+enum UnwindOp8Bit {
+  OpNop = 0xE3,
+  OpSaveFpLr = 0x40,
+  OpSaveFpLrX = 0x80,
+  OpSetFp = 0xE1,
+  OpEnd = 0xE4,
+};
+
+typedef uint32_t UNWIND_CODE;
+
+constexpr UNWIND_CODE Combine8BitUnwindCodes(uint8_t code0,
+                                             uint8_t code1 = OpNop,
+                                             uint8_t code2 = OpNop,
+                                             uint8_t code3 = OpNop) {
+  return static_cast<uint32_t>(code0) | (static_cast<uint32_t>(code1) << 8) |
+         (static_cast<uint32_t>(code2) << 16) |
+         (static_cast<uint32_t>(code3) << 24);
+}
+
+// UNWIND_INFO defines the static part (first 32-bit) of the .xdata record in
+// below doc.
+// https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#xdata-records
+struct UNWIND_INFO {
+  uint32_t FunctionLength : 18;
+  uint32_t Version : 2;
+  uint32_t X : 1;
+  uint32_t E : 1;
+  uint32_t EpilogCount : 5;
+  uint32_t CodeWords : 5;
+};
+
+static constexpr int kNumberOfUnwindCodes = 1;
+static constexpr int kMaxExceptionThunkSize = 16;
+static constexpr int kFunctionLengthShiftSize = 2;
+static constexpr int kFunctionLengthMask = (1 << kFunctionLengthShiftSize) - 1;
+static constexpr int kFramePointerAdjustmentShiftSize = 3;
+static constexpr int kFramePointerAdjustmentShiftMask =
+    (1 << kFramePointerAdjustmentShiftSize) - 1;
+
+struct V8UnwindData {
+  UNWIND_INFO unwind_info;
+  UNWIND_CODE unwind_codes[kNumberOfUnwindCodes];
+
+  V8UnwindData() {
+    memset(&unwind_info, 0, sizeof(UNWIND_INFO));
+    unwind_info.X = 1;  // has exception handler after unwind-codes.
+    unwind_info.CodeWords = 1;
+
+    // stp fp, lr, [sp, #offset]!
+    unwind_codes[0] = Combine8BitUnwindCodes(OpSetFp, OpSaveFpLrX, OpEnd);
+  }
+};
+
+struct CodeRangeUnwindingRecord {
+  void* dynamic_table;
+  uint32_t runtime_function_count;
+  V8UnwindData unwind_info;
+  uint32_t exception_handler;
+
+  // For Windows ARM64 unwinding, register 2 unwind_info for each code range,
+  // unwind_info for all full size ranges (1MB - 4 bytes) and unwind_info1 for
+  // the remaining non full size range. There is at most 1 range which is less
+  // than full size.
+  V8UnwindData unwind_info1;
+  uint32_t exception_handler1;
+  uint8_t exception_thunk[kMaxExceptionThunkSize];
+
+  // More RUNTIME_FUNCTION structs could follow below array because the number
+  // of RUNTIME_FUNCTION needed to cover given code range is computed at
+  // runtime.
+  RUNTIME_FUNCTION runtime_function[kDefaultRuntimeFunctionCount];
+};
+
+#pragma pack(pop)
+
+std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(uint32_t func_len,
+                                                     int32_t fp_adjustment) {
+  DCHECK_LE(func_len, kMaxFunctionLength);
+  DCHECK_EQ((func_len & kFunctionLengthMask), 0);
+  USE(kFunctionLengthMask);
+
+  // Unwind code save_fplr requires the offset to be within range [0, 504].
+  // This range is defined in below doc for unwind code save_fplr.
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+  DCHECK_GE(fp_adjustment, 0);
+  DCHECK_LE(fp_adjustment, 504);
+  DCHECK_EQ((fp_adjustment & kFramePointerAdjustmentShiftMask), 0);
+  USE(kFramePointerAdjustmentShiftMask);
+
+  V8UnwindData xdata;
+  // FunctionLength is ensured to be aligned at instruction size and Windows
+  // ARM64 doesn't encoding its 2 LSB.
+  xdata.unwind_info.FunctionLength = func_len >> kFunctionLengthShiftSize;
+  xdata.unwind_info.CodeWords = 1;
+  xdata.unwind_codes[0] = Combine8BitUnwindCodes(
+      OpSetFp,
+      (OpSaveFpLr | (fp_adjustment >> kFramePointerAdjustmentShiftSize)),
+      OpEnd);
+
+  return std::vector<uint8_t>(
+      reinterpret_cast<uint8_t*>(&xdata),
+      reinterpret_cast<uint8_t*>(&xdata) + sizeof(xdata));
+}
+
+template <typename Record>
+void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
+  // We assume that the first page of the code range is executable and
+  // committed and reserved to contain multiple PDATA/XDATA to cover the whole
+  // range. All addresses are 32bit relative offsets to start.
+
+  // Maximum RUNTIME_FUNCTION count available in reserved memory, this includes
+  // static part in Record as kDefaultRuntimeFunctionCount plus dynamic part in
+  // the remaining reserved memory.
+  constexpr uint32_t max_runtime_function_count = static_cast<uint32_t>(
+      (kOSPageSize - sizeof(Record)) / sizeof(RUNTIME_FUNCTION) +
+      kDefaultRuntimeFunctionCount);
+
+  uint32_t runtime_function_index = 0;
+  uint32_t current_unwind_start_address = 0;
+  int64_t remaining_size_in_bytes = static_cast<int64_t>(code_size_in_bytes);
+
+  // Divide the code range into chunks in size kMaxFunctionLength and create a
+  // RUNTIME_FUNCTION for each of them. All the chunks in the same size can
+  // share 1 unwind_info struct, but a separate unwind_info is needed for the
+  // last chunk if it is smaller than kMaxFunctionLength, because unlike X64,
+  // unwind_info encodes the function/chunk length.
+  while (remaining_size_in_bytes >= kMaxFunctionLength &&
+         runtime_function_index < max_runtime_function_count) {
+    record->runtime_function[runtime_function_index].BeginAddress =
+        current_unwind_start_address;
+    record->runtime_function[runtime_function_index].UnwindData =
+        static_cast<DWORD>(offsetof(Record, unwind_info));
+
+    runtime_function_index++;
+    current_unwind_start_address += kMaxFunctionLength;
+    remaining_size_in_bytes -= kMaxFunctionLength;
+  }
+  // FunctionLength is ensured to be aligned at instruction size and Windows
+  // ARM64 doesn't encoding 2 LSB.
+  record->unwind_info.unwind_info.FunctionLength = kMaxFunctionLength >> 2;
+
+  if (remaining_size_in_bytes > 0 &&
+      runtime_function_index < max_runtime_function_count) {
+    DCHECK_EQ(remaining_size_in_bytes % kInstrSize, 0);
+
+    record->unwind_info1.unwind_info.FunctionLength = static_cast<uint32_t>(
+        remaining_size_in_bytes >> kFunctionLengthShiftSize);
+    record->runtime_function[runtime_function_index].BeginAddress =
+        current_unwind_start_address;
+    record->runtime_function[runtime_function_index].UnwindData =
+        static_cast<DWORD>(offsetof(Record, unwind_info1));
+
+    remaining_size_in_bytes -= kMaxFunctionLength;
+    record->exception_handler1 = offsetof(Record, exception_thunk);
+    record->runtime_function_count = runtime_function_index + 1;
+  } else {
+    record->runtime_function_count = runtime_function_index;
+  }
+
+  // 1 page can cover kMaximalCodeRangeSize for ARM64 (128MB). If
+  // kMaximalCodeRangeSize is changed for ARM64 and makes 1 page insufficient to
+  // cover it, more pages will need to reserved for unwind data.
+  DCHECK_LE(remaining_size_in_bytes, 0);
+
+  record->exception_handler = offsetof(Record, exception_thunk);
+
+  // Hardcoded thunk.
+  AssemblerOptions options;
+  options.record_reloc_info_for_serialization = false;
+  TurboAssembler masm(nullptr, options, CodeObjectRequired::kNo,
+                      NewAssemblerBuffer(64));
+  masm.Mov(x16,
+           Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));
+  masm.Br(x16);
+  DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
+}
+
+#endif  // V8_OS_WIN_X64
 
 namespace {
 
@@ -216,37 +419,6 @@ void DeleteGrowableFunctionTable(PVOID dynamic_table) {
 
 }  // namespace
 
-std::vector<uint8_t> GetUnwindInfoForBuiltinFunctions() {
-  V8UnwindData xdata;
-  return std::vector<uint8_t>(
-      reinterpret_cast<uint8_t*>(&xdata),
-      reinterpret_cast<uint8_t*>(&xdata) + sizeof(xdata));
-}
-
-template <typename Record>
-void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
-  // We assume that the first page of the code range is executable and
-  // committed and reserved to contain PDATA/XDATA.
-
-  // All addresses are 32bit relative offsets to start.
-  record->runtime_function.BeginAddress = 0;
-  record->runtime_function.EndAddress = static_cast<DWORD>(code_size_in_bytes);
-  record->runtime_function.UnwindData = offsetof(Record, unwind_info);
-
-  record->exception_handler = offsetof(Record, exception_thunk);
-
-  // Hardcoded thunk.
-  AssemblerOptions options;
-  options.record_reloc_info_for_serialization = false;
-  MacroAssembler masm(nullptr, options, CodeObjectRequired::kNo,
-                      NewAssemblerBuffer(64));
-  masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
-  masm.jmp(rax);
-  DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  memcpy(&record->exception_thunk[0], masm.buffer_start(),
-         masm.instruction_size());
-}
-
 void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
 
@@ -262,24 +434,30 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
   // by the embedder (like Crashpad).
 
   if (RegisterUnwindInfoForExceptionHandlingOnly()) {
+#if defined(V8_OS_WIN_X64)
+    // Windows ARM64 starts since 1709 Windows build, no need to have exception
+    // handling only unwind info for compatibility.
     if (unhandled_exception_callback_g) {
       ExceptionHandlerRecord* record = new (start) ExceptionHandlerRecord();
       InitUnwindingRecord(record, size_in_bytes);
 
-      CHECK(::RtlAddFunctionTable(&record->runtime_function, 1,
+      CHECK(::RtlAddFunctionTable(record->runtime_function,
+                                  kDefaultRuntimeFunctionCount,
                                   reinterpret_cast<DWORD64>(start)));
 
       // Protect reserved page against modifications.
       DWORD old_protect;
-      CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
+      CHECK(VirtualProtect(start, sizeof(ExceptionHandlerRecord),
                            PAGE_EXECUTE_READ, &old_protect));
     }
+#endif  // V8_OS_WIN_X64
   } else {
     CodeRangeUnwindingRecord* record = new (start) CodeRangeUnwindingRecord();
     InitUnwindingRecord(record, size_in_bytes);
 
     CHECK(AddGrowableFunctionTable(
-        &record->dynamic_table, &record->runtime_function, 1, 1,
+        &record->dynamic_table, record->runtime_function,
+        record->runtime_function_count, record->runtime_function_count,
         reinterpret_cast<DWORD64>(start),
         reinterpret_cast<DWORD64>(reinterpret_cast<uint8_t*>(start) +
                                   size_in_bytes)));
@@ -295,11 +473,15 @@ void UnregisterNonABICompliantCodeRange(void* start) {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
 
   if (RegisterUnwindInfoForExceptionHandlingOnly()) {
+#if defined(V8_OS_WIN_X64)
+    // Windows ARM64 starts since 1709 Windows build, no need to have exception
+    // handling only unwind info for compatibility.
     if (unhandled_exception_callback_g) {
       ExceptionHandlerRecord* record =
           reinterpret_cast<ExceptionHandlerRecord*>(start);
-      CHECK(::RtlDeleteFunctionTable(&record->runtime_function));
+      CHECK(::RtlDeleteFunctionTable(record->runtime_function));
     }
+#endif  // V8_OS_WIN_X64
   } else {
     CodeRangeUnwindingRecord* record =
         reinterpret_cast<CodeRangeUnwindingRecord*>(start);
@@ -309,19 +491,41 @@ void UnregisterNonABICompliantCodeRange(void* start) {
   }
 }
 
+#if defined(V8_OS_WIN_X64)
+
 void XdataEncoder::onPushRbp() {
-  current_push_rbp_offset_ = assembler_.pc_offset() - kPushRbpInstructionLength;
+  current_frame_code_offset_ =
+      assembler_.pc_offset() - kPushRbpInstructionLength;
 }
 
 void XdataEncoder::onMovRbpRsp() {
-  if (current_push_rbp_offset_ >= 0 &&
-      current_push_rbp_offset_ == assembler_.pc_offset() - kRbpPrefixLength) {
-    fp_offsets_.push_back(current_push_rbp_offset_);
+  if (current_frame_code_offset_ >= 0 &&
+      current_frame_code_offset_ == assembler_.pc_offset() - kRbpPrefixLength) {
+    fp_offsets_.push_back(current_frame_code_offset_);
   }
 }
+
+#elif defined(V8_OS_WIN_ARM64)
+
+void XdataEncoder::onSaveFpLr() {
+  current_frame_code_offset_ = assembler_.pc_offset() - 4;
+  fp_offsets_.push_back(current_frame_code_offset_);
+  fp_adjustments_.push_back(current_frame_adjustment_);
+  if (current_frame_adjustment_ != 0) {
+    current_frame_adjustment_ = 0;
+  }
+}
+
+void XdataEncoder::onFramePointerAdjustment(int bytes) {
+  // According to below doc, offset for save_fplr is aligned to pointer size.
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+  DCHECK_EQ((bytes & kPointerAlignmentMask), 0);
+
+  current_frame_adjustment_ = bytes;
+}
+
+#endif  // V8_OS_WIN_X64
 
 }  // namespace win64_unwindinfo
 }  // namespace internal
 }  // namespace v8
-
-#endif  // defined(V8_OS_WIN_X64)

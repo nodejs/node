@@ -211,7 +211,8 @@ Instruction* Instruction::ImmPCOffsetTarget() {
 
 bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
                                      ptrdiff_t offset) {
-  return is_intn(offset, ImmBranchRangeBitwidth(branch_type));
+  DCHECK_EQ(offset % kInstrSize, 0);
+  return is_intn(offset / kInstrSize, ImmBranchRangeBitwidth(branch_type));
 }
 
 bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
@@ -251,8 +252,7 @@ void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
   DCHECK(IsAligned(DistanceTo(target), kInstrSize));
-  DCHECK(
-      IsValidImmPCOffset(BranchType(), DistanceTo(target) >> kInstrSizeLog2));
+  DCHECK(IsValidImmPCOffset(BranchType(), DistanceTo(target)));
   int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;

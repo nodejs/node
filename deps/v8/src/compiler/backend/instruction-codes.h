@@ -88,13 +88,13 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchThrowTerminator)                  \
   V(ArchDeoptimize)                       \
   V(ArchRet)                              \
-  V(ArchStackPointer)                     \
   V(ArchFramePointer)                     \
   V(ArchParentFramePointer)               \
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
   V(ArchStackSlot)                        \
   V(ArchWordPoisonOnSpeculation)          \
+  V(ArchStackPointerGreaterThan)          \
   V(Word32AtomicLoadInt8)                 \
   V(Word32AtomicLoadUint8)                \
   V(Word32AtomicLoadInt16)                \
@@ -237,6 +237,9 @@ enum FlagsCondition {
   kPositiveOrZero,
   kNegative
 };
+
+static constexpr FlagsCondition kStackPointerGreaterThanCondition =
+    kUnsignedGreaterThan;
 
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
   return static_cast<FlagsCondition>(condition ^ 1);

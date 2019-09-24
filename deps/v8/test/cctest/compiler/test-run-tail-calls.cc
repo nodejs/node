@@ -28,8 +28,9 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   int param_count = static_cast<int>(call_descriptor->StackParameterCount());
   Node* sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
-    Node* product = __ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1));
-    sum = __ IntPtrAdd(sum, product);
+    TNode<WordT> product =
+        __ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1));
+    sum = __ Signed(__ IntPtrAdd(sum, product));
   }
   __ Return(sum);
   return tester.GenerateCodeCloseAndEscape();

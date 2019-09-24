@@ -209,5 +209,11 @@ TEST(FlagsJitlessImplications) {
   }
 }
 
+TEST(FlagsRegexpInterpretAllImplications) {
+  if (FLAG_regexp_interpret_all) {
+    CHECK(!FLAG_regexp_tier_up);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

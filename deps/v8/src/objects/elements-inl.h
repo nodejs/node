@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_ELEMENTS_INL_H_
 #define V8_OBJECTS_ELEMENTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/objects/elements.h"
 
 #include "src/handles/handles-inl.h"
@@ -13,10 +14,11 @@
 namespace v8 {
 namespace internal {
 
-inline void ElementsAccessor::CollectElementIndices(Handle<JSObject> object,
-                                                    KeyAccumulator* keys) {
-  CollectElementIndices(object, handle(object->elements(), keys->isolate()),
-                        keys);
+V8_WARN_UNUSED_RESULT inline ExceptionStatus
+ElementsAccessor::CollectElementIndices(Handle<JSObject> object,
+                                        KeyAccumulator* keys) {
+  return CollectElementIndices(
+      object, handle(object->elements(), keys->isolate()), keys);
 }
 
 inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(

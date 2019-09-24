@@ -17,19 +17,20 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* context = Parameter(Descriptor::kContext);
   Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
 
   // Check that receiver has instance type of JS_FUNCTION_TYPE
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   GotoIf(TaggedIsSmi(receiver), &slow);
 
-  Node* receiver_map = LoadMap(receiver);
+  TNode<Map> receiver_map = LoadMap(CAST(receiver));
   {
-    Node* instance_type = LoadMapInstanceType(receiver_map);
+    TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
     GotoIfNot(
         Word32Or(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
                  InstanceTypeEqual(instance_type, JS_BOUND_FUNCTION_TYPE)),
@@ -45,35 +46,34 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // AccessorInfo objects. In that case, their value can be recomputed even if
   // the actual value on the object changes.
   Comment("Check descriptor array length");
-  TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
   // Minimum descriptor array length required for fast path.
   const int min_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
-                                         JSFunction::kNameDescriptorIndex);
-  TNode<Int32T> nof_descriptors = LoadNumberOfDescriptors(descriptors);
-  GotoIf(
-      Int32LessThanOrEqual(nof_descriptors, Int32Constant(min_nof_descriptors)),
-      &slow);
+                                         JSFunction::kNameDescriptorIndex) +
+                                  1;
+  TNode<Int32T> nof_descriptors = LoadNumberOfOwnDescriptors(receiver_map);
+  GotoIf(Int32LessThan(nof_descriptors, Int32Constant(min_nof_descriptors)),
+         &slow);
 
   // Check whether the length and name properties are still present as
   // AccessorInfo objects. In that case, their value can be recomputed even if
   // the actual value on the object changes.
   Comment("Check name and length properties");
   {
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
     const int length_index = JSFunction::kLengthDescriptorIndex;
     TNode<Name> maybe_length =
         LoadKeyByDescriptorEntry(descriptors, length_index);
-    GotoIf(WordNotEqual(maybe_length, LoadRoot(RootIndex::klength_string)),
-           &slow);
+    GotoIf(TaggedNotEqual(maybe_length, LengthStringConstant()), &slow);
 
     TNode<Object> maybe_length_accessor =
         LoadValueByDescriptorEntry(descriptors, length_index);
     GotoIf(TaggedIsSmi(maybe_length_accessor), &slow);
-    Node* length_value_map = LoadMap(CAST(maybe_length_accessor));
+    TNode<Map> length_value_map = LoadMap(CAST(maybe_length_accessor));
     GotoIfNot(IsAccessorInfoMap(length_value_map), &slow);
 
     const int name_index = JSFunction::kNameDescriptorIndex;
     TNode<Name> maybe_name = LoadKeyByDescriptorEntry(descriptors, name_index);
-    GotoIf(WordNotEqual(maybe_name, LoadRoot(RootIndex::kname_string)), &slow);
+    GotoIf(TaggedNotEqual(maybe_name, NameStringConstant()), &slow);
 
     TNode<Object> maybe_name_accessor =
         LoadValueByDescriptorEntry(descriptors, name_index);
@@ -89,7 +89,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   {
     Label with_constructor(this);
     VariableList vars({&bound_function_map}, zone());
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
 
     Label map_done(this, vars);
     GotoIf(IsConstructorMap(receiver_map), &with_constructor);
@@ -108,9 +108,10 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Verify that __proto__ matches that of a the target bound function.
   Comment("Verify that __proto__ matches target bound function");
-  Node* prototype = LoadMapPrototype(receiver_map);
-  Node* expected_prototype = LoadMapPrototype(bound_function_map.value());
-  GotoIf(WordNotEqual(prototype, expected_prototype), &slow);
+  TNode<HeapObject> prototype = LoadMapPrototype(receiver_map);
+  TNode<HeapObject> expected_prototype =
+      LoadMapPrototype(bound_function_map.value());
+  GotoIf(TaggedNotEqual(prototype, expected_prototype), &slow);
 
   // Allocate the arguments array.
   Comment("Allocate the arguments array");
@@ -126,12 +127,13 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     VARIABLE(index, MachineType::PointerRepresentation());
     index.Bind(IntPtrConstant(0));
     VariableList foreach_vars({&index}, zone());
-    args.ForEach(foreach_vars,
-                 [this, elements, &index](Node* arg) {
-                   StoreFixedArrayElement(elements, index.value(), arg);
-                   Increment(&index);
-                 },
-                 IntPtrConstant(1));
+    args.ForEach(
+        foreach_vars,
+        [this, elements, &index](Node* arg) {
+          StoreFixedArrayElement(elements, index.value(), arg);
+          Increment(&index);
+        },
+        IntPtrConstant(1));
     argument_array.Bind(elements);
     Goto(&arguments_done);
 
@@ -162,7 +164,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // Allocate the resulting bound function.
   Comment("Allocate the resulting bound function");
   {
-    Node* bound_function = Allocate(JSBoundFunction::kSize);
+    TNode<HeapObject> bound_function = Allocate(JSBoundFunction::kSize);
     StoreMapNoWriteBarrier(bound_function, bound_function_map.value());
     StoreObjectFieldNoWriteBarrier(
         bound_function, JSBoundFunction::kBoundTargetFunctionOffset, receiver);
@@ -172,7 +174,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     StoreObjectFieldNoWriteBarrier(bound_function,
                                    JSBoundFunction::kBoundArgumentsOffset,
                                    argument_array.value());
-    Node* empty_fixed_array = EmptyFixedArrayConstant();
+    TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
     StoreObjectFieldNoWriteBarrier(
         bound_function, JSObject::kPropertiesOrHashOffset, empty_fixed_array);
     StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kElementsOffset,

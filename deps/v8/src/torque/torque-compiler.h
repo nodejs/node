@@ -24,6 +24,12 @@ struct TorqueCompilerOptions {
   // language server support for statements inside asserts, this flag
   // can force generate them.
   bool force_assert_statements = false;
+
+  // Forge (Google3) can only run 64-bit executables. As Torque runs as part
+  // of the build process, we need a "cross-compile" mode when we target 32-bit
+  // architectures. Note that this does not needed in Chromium/V8 land, since we
+  // always build with the same bit width as the target architecture.
+  bool force_32bit_output = false;
 };
 
 struct TorqueCompilerResult {

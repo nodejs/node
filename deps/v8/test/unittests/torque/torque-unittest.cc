@@ -20,6 +20,13 @@ constexpr const char* kTestTorquePrelude = R"(
 type void;
 type never;
 
+namespace torque_internal {
+  struct Reference<T: type> {
+    const object: HeapObject;
+    const offset: intptr;
+  }
+}
+
 type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
 type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 

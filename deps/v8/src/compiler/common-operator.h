@@ -10,8 +10,8 @@
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/string-constants.h"
 #include "src/common/globals.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/vector-slot-pair.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
@@ -104,7 +104,7 @@ int ValueInputCountOfReturn(Operator const* const op);
 class DeoptimizeParameters final {
  public:
   DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       VectorSlotPair const& feedback,
+                       FeedbackSource const& feedback,
                        IsSafetyCheck is_safety_check)
       : kind_(kind),
         reason_(reason),
@@ -113,13 +113,13 @@ class DeoptimizeParameters final {
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const FeedbackSource& feedback() const { return feedback_; }
   IsSafetyCheck is_safety_check() const { return is_safety_check_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
   IsSafetyCheck is_safety_check_;
 };
 
@@ -468,14 +468,14 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfDefault(BranchHint hint = BranchHint::kNone);
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                             VectorSlotPair const& feedback);
+                             FeedbackSource const& feedback);
   const Operator* DeoptimizeIf(
       DeoptimizeKind kind, DeoptimizeReason reason,
-      VectorSlotPair const& feedback,
+      FeedbackSource const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   const Operator* DeoptimizeUnless(
       DeoptimizeKind kind, DeoptimizeReason reason,
-      VectorSlotPair const& feedback,
+      FeedbackSource const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
@@ -530,8 +530,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
   const Operator* Call(const CallDescriptor* call_descriptor);
-  const Operator* CallWithCallerSavedRegisters(
-      const CallDescriptor* call_descriptor);
   const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
