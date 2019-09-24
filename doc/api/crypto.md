@@ -1736,7 +1736,7 @@ changes:
 -->
 
 * `algorithm` {string}
-* `key` {string | Buffer | TypedArray | DataView}
+* `key` {string | Buffer | TypedArray | DataView | KeyObject}
 * `iv` {string | Buffer | TypedArray | DataView | null}
 * `options` {Object} [`stream.transform` options][]
 * Returns: {Decipher}
