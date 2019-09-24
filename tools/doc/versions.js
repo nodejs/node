@@ -1,5 +1,6 @@
 'use strict';
 
+const https = require('https');
 const { readFileSync } = require('fs');
 const path = require('path');
 const srcRoot = path.join(__dirname, '..', '..');
@@ -14,7 +15,6 @@ const isRelease = () => {
 
 const getUrl = (url) => {
   return new Promise((resolve, reject) => {
-    const https = require('https');
     const request = https.get(url, { timeout: 5000 }, (response) => {
       if (response.statusCode !== 200) {
         reject(new Error(

@@ -21,9 +21,8 @@
 
 'use strict';
 
-const common = require('./common.js');
 const fs = require('fs');
-const getVersions = require('./versions.js');
+const path = require('path');
 const unified = require('unified');
 const find = require('unist-util-find');
 const visit = require('unist-util-visit');
@@ -31,7 +30,9 @@ const markdown = require('remark-parse');
 const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
-const path = require('path');
+
+const common = require('./common.js');
+const getVersions = require('./versions.js');
 const typeParser = require('./type-parser.js');
 
 module.exports = {

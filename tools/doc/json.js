@@ -22,9 +22,9 @@
 'use strict';
 
 const unified = require('unified');
-const common = require('./common.js');
 const html = require('remark-html');
 const select = require('unist-util-select');
+const common = require('./common.js');
 
 module.exports = { jsonAPI };
 
