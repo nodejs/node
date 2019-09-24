@@ -125,7 +125,7 @@ Connects a session to the inspector back-end.
 
 ### session.connectToMainThread()
 <!-- YAML
-added: REPLACEME
+added: v12.11.0
 -->
 
 Connects a session to the main thread inspector back-end. An exception will

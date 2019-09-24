@@ -185,7 +185,7 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
-  - version: REPLACEME
+  - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29606
     description: The `%c` specifier is ignored now.
   - version: v11.4.0

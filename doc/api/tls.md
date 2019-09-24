@@ -844,7 +844,7 @@ for more information.
 
 ### tlsSocket.getSharedSigalgs()
 <!-- YAML
-added: REPLACEME
+added: v12.11.0
 -->
 
 * Returns: {Array} List of signature algorithms shared between the server and
@@ -1358,7 +1358,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29598
     description: Added `sigalgs` option to override supported signature
                  algorithms.
