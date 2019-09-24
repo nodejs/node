@@ -2142,7 +2142,7 @@ const myReadable = new Readable({
   read(size) {
     const err = checkSomeErrorCondition();
     if (err) {
-      this.destory(err);
+      this.destroy(err);
     } else {
       // Do some work.
     }
