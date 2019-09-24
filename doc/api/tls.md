@@ -842,18 +842,6 @@ See
 [SSL_CIPHER_get_name](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
 for more information.
 
-### tlsSocket.getSharedSigalgs()
-<!-- YAML
-added: v12.11.0
--->
-
-* Returns: {Array} List of signature algorithms shared between the server and
-the client in the order of decreasing preference.
-
-See
-[SSL_get_shared_sigalgs](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_shared_sigalgs.html)
-for more information.
-
 ### tlsSocket.getEphemeralKeyInfo()
 <!-- YAML
 added: v5.0.0
@@ -1048,6 +1036,18 @@ See [Session Resumption][] for more information.
 
 Note: `getSession()` works only for TLSv1.2 and below. For TLSv1.3, applications
 must use the [`'session'`][] event (it also works for TLSv1.2 and below).
+
+### tlsSocket.getSharedSigalgs()
+<!-- YAML
+added: v12.11.0
+-->
+
+* Returns: {Array} List of signature algorithms shared between the server and
+the client in the order of decreasing preference.
+
+See
+[SSL_get_shared_sigalgs](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_shared_sigalgs.html)
+for more information.
 
 ### tlsSocket.getTLSTicket()
 <!-- YAML
@@ -1422,7 +1422,7 @@ changes:
     order as their private keys in `key`. If the intermediate certificates are
     not provided, the peer will not be able to validate the certificate, and the
     handshake will fail.
-  * `sigalgs` {string}` Colon-separated list of supported signature algorithms.
+  * `sigalgs` {string} Colon-separated list of supported signature algorithms.
     The list can contain digest algorithms (`SHA256`, `MD5` etc.), public key
     algorithms (`RSA-PSS`, `ECDSA` etc.), combination of both (e.g
     'RSA+SHA384') or TLS v1.3 scheme names (e.g. `rsa_pss_pss_sha512`).
