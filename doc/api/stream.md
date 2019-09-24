@@ -1779,7 +1779,7 @@ const myWritable = new Writable({
 #### writable.\_write(chunk, encoding, callback)
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.11.0
     pr-url: https://github.com/nodejs/node/pull/29639
     description: _write() is optional when providing _writev().
 -->

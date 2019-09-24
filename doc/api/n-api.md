@@ -167,7 +167,7 @@ listed as supporting a later version.
 | v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |
 | v10.x |         |          | v10.0.0  | v10.16.0 |           |
 | v11.x |         |          | v11.0.0  | v11.8.0  |           |
-| v12.x |         |          |          | v12.0.0  |           |
+| v12.x |         |          |          | v12.0.0  | v12.11.0  |
 | v13.x |         |          |          |          | REPLACEME |
 
 \* Indicates that the N-API version was released as experimental
