@@ -2747,7 +2747,7 @@ contain multi-byte characters.
 [`process.stdout`]: process.html#process_process_stdout
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
-[`readable._read()`]: stream.html#stream_readable_read_size_1
+[`readable._read()`]: #stream_readable_read_size_1
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
