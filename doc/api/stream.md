@@ -1853,7 +1853,7 @@ or write buffered data before a stream ends.
 #### Errors While Writing
 
 Errors occurring during the processing of the [`writable._write()`][],
-[`writable._writev()`][] and [`writable._final()`] methods should be propagated
+[`writable._writev()`][] and [`writable._final()`] methods must be propagated
 by invoking the callback and passing the error as the first argument.
 Throwing an `Error` from within these methods or manually emitting an `'error'`
 event results in undefined behavior.
