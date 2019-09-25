@@ -17,13 +17,16 @@ const WORKER_ACCOUNT = 3;
 
 if (cluster.isMaster) {
   const workers = new Map();
-  let address;
 
   const countdown = new Countdown(WORKER_ACCOUNT, () => {
-    // Make sure the `ipv6Only` option works.
+    // Make sure the `ipv6Only` option works. This is the part of the test that
+    // requires the whole test to use `common.PORT` rather than port `0`. If it
+    // used port `0` instead, then the operating system can supply a port that
+    // is available for the IPv6 interface but in use by the IPv4 interface.
+    // Refs: https://github.com/nodejs/node/issues/29679
     const server = net.createServer().listen({
       host: '0.0.0.0',
-      port: address.port,
+      port: common.PORT,
     }, common.mustCall(() => {
       // Exit.
       server.close();
@@ -37,13 +40,9 @@ if (cluster.isMaster) {
     const worker = cluster.fork().on('exit', common.mustCall((statusCode) => {
       assert.strictEqual(statusCode, 0);
     })).on('listening', common.mustCall((workerAddress) => {
-      if (!address) {
-        address = workerAddress;
-      } else {
-        assert.strictEqual(address.addressType, workerAddress.addressType);
-        assert.strictEqual(address.host, workerAddress.host);
-        assert.strictEqual(address.port, workerAddress.port);
-      }
+      assert.strictEqual(workerAddress.addressType, 6);
+      assert.strictEqual(workerAddress.address, host);
+      assert.strictEqual(workerAddress.port, common.PORT);
       countdown.dec();
     }));
 
@@ -52,7 +51,7 @@ if (cluster.isMaster) {
 } else {
   net.createServer().listen({
     host,
-    port: 0,
+    port: common.PORT,
     ipv6Only: true,
   }, common.mustCall());
 }
