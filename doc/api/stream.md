@@ -2148,8 +2148,8 @@ class SourceWrapper extends Readable {
 }
 ```
 
-The `readable.push()` method is intended be called only by `Readable`
-implementers, and only from within the `readable._read()` method.
+The `readable.push()` method is used to push the content
+into the internal buffer. It can be driven by the `readable._read()` method.
 
 For streams not operating in object mode, if the `chunk` parameter of
 `readable.push()` is `undefined`, it will be treated as empty string or
