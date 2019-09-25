@@ -2760,7 +2760,7 @@ contain multi-byte characters.
 [`writable.end()`]: #stream_writable_end_chunk_encoding_callback
 [`writable.uncork()`]: #stream_writable_uncork
 [`writable._final()`]: #stream_writable_final_callback
-[`writable._write()`]: #stream.html#stream_writable_write_chunk_encoding_callback_1
+[`writable._write()`]: #stream_writable_write_chunk_encoding_callback_1
 [`writable._writev()`]: #stream_writable_writev_chunks_callback
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
