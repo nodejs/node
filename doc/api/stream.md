@@ -2761,7 +2761,7 @@ contain multi-byte characters.
 [`writable.uncork()`]: #stream_writable_uncork
 [`writable._final()`]: #stream.html#stream_writable_final_callback
 [`writable._write()`]: #stream.html#stream_writable_write_chunk_encoding_callback_1
-[`writable._writev()`]: #stream.html#stream_writable_writev_chunks_callback
+[`writable._writev()`]: #stream_writable_writev_chunks_callback
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [API for Stream Consumers]: #stream_api_for_stream_consumers
