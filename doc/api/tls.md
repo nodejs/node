@@ -1422,7 +1422,7 @@ changes:
     order as their private keys in `key`. If the intermediate certificates are
     not provided, the peer will not be able to validate the certificate, and the
     handshake will fail.
-  * `sigalgs` {string}` Colon-separated list of supported signature algorithms.
+  * `sigalgs` {string} Colon-separated list of supported signature algorithms.
     The list can contain digest algorithms (`SHA256`, `MD5` etc.), public key
     algorithms (`RSA-PSS`, `ECDSA` etc.), combination of both (e.g
     'RSA+SHA384') or TLS v1.3 scheme names (e.g. `rsa_pss_pss_sha512`).
