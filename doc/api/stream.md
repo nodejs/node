@@ -2745,9 +2745,9 @@ contain multi-byte characters.
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
+[`readable._read()`]: #stream_readable_read_size_1
 [`readable.push('')`]: #stream_readable_push
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
-[`readable._read()`]: #stream_readable_read_size_1
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
@@ -2756,12 +2756,12 @@ contain multi-byte characters.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
-[`writable.cork()`]: #stream_writable_cork
-[`writable.end()`]: #stream_writable_end_chunk_encoding_callback
-[`writable.uncork()`]: #stream_writable_uncork
 [`writable._final()`]: #stream_writable_final_callback
 [`writable._write()`]: #stream_writable_write_chunk_encoding_callback_1
 [`writable._writev()`]: #stream_writable_writev_chunks_callback
+[`writable.cork()`]: #stream_writable_cork
+[`writable.end()`]: #stream_writable_end_chunk_encoding_callback
+[`writable.uncork()`]: #stream_writable_uncork
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [API for Stream Consumers]: #stream_api_for_stream_consumers
