@@ -1556,14 +1556,14 @@ Returns an object containing commonly used constants for file system
 operations. The specific constants currently defined are described in
 [FS Constants][].
 
-## `fs.copyFile(src, dest[, flags], callback)`
+## `fs.copyFile(src, dest[, mode], callback)`
 <!-- YAML
 added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`.
+* `mode` {integer} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -1572,7 +1572,7 @@ callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
 
-`flags` is an optional integer that specifies the behavior
+`mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
@@ -1596,7 +1596,7 @@ fs.copyFile('source.txt', 'destination.txt', (err) => {
 });
 ```
 
-If the third argument is a number, then it specifies `flags`:
+If the third argument is a number, then it specifies `mode`:
 
 ```js
 const fs = require('fs');
@@ -1606,21 +1606,21 @@ const { COPYFILE_EXCL } = fs.constants;
 fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 ```
 
-## `fs.copyFileSync(src, dest[, flags])`
+## `fs.copyFileSync(src, dest[, mode])`
 <!-- YAML
 added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`.
+* `mode` {integer} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
 atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
 
-`flags` is an optional integer that specifies the behavior
+`mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
@@ -1642,7 +1642,7 @@ fs.copyFileSync('source.txt', 'destination.txt');
 console.log('source.txt was copied to destination.txt');
 ```
 
-If the third argument is a number, then it specifies `flags`:
+If the third argument is a number, then it specifies `mode`:
 
 ```js
 const fs = require('fs');
@@ -1796,12 +1796,11 @@ changes:
   * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.WriteStream} See [Writable Stream][].
 
-`options` may also include a `start` option to allow writing data at
-some position past the beginning of the file, allowed values are in the
-[0, [`Number.MAX_SAFE_INTEGER`][]] range. Modifying a file rather
-than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`. The `encoding` can be any one of those accepted by
-[`Buffer`][].
+`options` may also include a `start` option to allow writing data at some
+position past the beginning of the file, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. Modifying a file rather than replacing
+it may require the `flags` option to be set to `r+` rather than the default `w`.
+The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `autoClose` is set to true (default behavior) on `'error'` or `'finish'`
 the file descriptor will be closed automatically. If `autoClose` is false,
@@ -2466,7 +2465,7 @@ changes:
 Asynchronously creates a directory. No arguments other than a possible exception
 are given to the completion callback.
 
-The optional `options` argument can be an integer specifying mode (permission
+The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent folders should be created. Calling
 `fs.mkdir()` when `path` is a directory that exists results in an error only
@@ -2617,7 +2616,7 @@ changes:
     description: The `flags` argument is now optional and defaults to `'r'`.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18801
-    description: The `as` and `as+` modes are supported now.
+    description: The `as` and `as+` flags are supported now.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -2709,7 +2708,7 @@ changes:
     description: The `flags` argument is now optional and defaults to `'r'`.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18801
-    description: The `as` and `as+` modes are supported now.
+    description: The `as` and `as+` flags are supported now.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -3276,16 +3275,16 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-  `EPERM` error is encountered, Node.js will retry the operation with a linear
-  backoff wait of `retryDelay` ms longer on each try. This option represents the
-  number of retries. This option is ignored if the `recursive` option is not
-  `true`. **Default:** `0`.
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` ms longer on each try. This option represents
+    the number of retries. This option is ignored if the `recursive` option is
+    not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-  recursive mode, errors are not reported if `path` does not exist, and
-  operations are retried on failure. **Default:** `false`.
+    recursive mode, errors are not reported if `path` does not exist, and
+    operations are retried on failure. **Default:** `false`.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
-  retries. This option is ignored if the `recursive` option is not `true`.
-  **Default:** `100`.
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -3321,16 +3320,16 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-  `EPERM` error is encountered, Node.js will retry the operation with a linear
-  backoff wait of `retryDelay` ms longer on each try. This option represents the
-  number of retries. This option is ignored if the `recursive` option is not
-  `true`. **Default:** `0`.
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` ms longer on each try. This option represents
+    the number of retries. This option is ignored if the `recursive` option is
+    not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-  recursive mode, errors are not reported if `path` does not exist, and
-  operations are retried on failure. **Default:** `false`.
+    recursive mode, errors are not reported if `path` does not exist, and
+    operations are retried on failure. **Default:** `false`.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
-  retries. This option is ignored if the `recursive` option is not `true`.
-  **Default:** `100`.
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -4687,14 +4686,14 @@ added: v10.0.0
 Changes the ownership of a file then resolves the `Promise` with no arguments
 upon success.
 
-### `fsPromises.copyFile(src, dest[, flags])`
+### `fsPromises.copyFile(src, dest[, mode])`
 <!-- YAML
 added: v10.0.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`.
+* `mode` {integer} modifiers for copy operation. **Default:** `0`.
 * Returns: {Promise}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -4704,7 +4703,7 @@ Node.js makes no guarantees about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, Node.js
 will attempt to remove the destination.
 
-`flags` is an optional integer that specifies the behavior
+`mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
@@ -4727,7 +4726,7 @@ fsPromises.copyFile('source.txt', 'destination.txt')
   .catch(() => console.log('The file could not be copied'));
 ```
 
-If the third argument is a number, then it specifies `flags`:
+If the third argument is a number, then it specifies `mode`:
 
 ```js
 const fs = require('fs');
@@ -4813,7 +4812,7 @@ added: v10.0.0
 Asynchronously creates a directory then resolves the `Promise` with no
 arguments upon success.
 
-The optional `options` argument can be an integer specifying mode (permission
+The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent folders should be created. Calling
 `fsPromises.mkdir()` when `path` is a directory that exists results in a
@@ -5044,16 +5043,16 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-  `EPERM` error is encountered, Node.js will retry the operation with a linear
-  backoff wait of `retryDelay` ms longer on each try. This option represents the
-  number of retries. This option is ignored if the `recursive` option is not
-  `true`. **Default:** `0`.
+    `EPERM` error is encountered, Node.js will retry the operation with a linear
+    backoff wait of `retryDelay` ms longer on each try. This option represents
+    the number of retries. This option is ignored if the `recursive` option is
+    not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-  recursive mode, errors are not reported if `path` does not exist, and
-  operations are retried on failure. **Default:** `false`.
+    recursive mode, errors are not reported if `path` does not exist, and
+    operations are retried on failure. **Default:** `false`.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
-  retries. This option is ignored if the `recursive` option is not `true`.
-  **Default:** `100`.
+    retries. This option is ignored if the `recursive` option is not `true`.
+    **Default:** `100`.
 * Returns: {Promise}
 
 Removes the directory identified by `path` then resolves the `Promise` with
@@ -5541,7 +5540,7 @@ the file contents.
 [`fs.access()`]: #fs_fs_access_path_mode_callback
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
-[`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
+[`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
