@@ -3249,22 +3249,32 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous symlink(2). No arguments other than a possible exception are given
-to the completion callback. The `type` argument is only available on Windows
-and ignored on other platforms. It can be set to `'dir'`, `'file'`, or
-`'junction'`. If the `type` argument is not set, Node will autodetect `target`
-type and use `'file'` or `'dir'`. If the `target` does not exist, `'file'` will
-be used. Windows junction points require the destination path to be absolute.
-When using `'junction'`, the `target` argument will automatically be normalized
-to absolute path.
+Asynchronous symlink(2) which creates the link called `path` pointing to
+`target`.  No arguments other than a possible exception are given to the
+completion callback.
 
-Here is an example below:
+The `type` argument is only available on Windows and ignored on other platforms.
+It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
+not set, Node will autodetect `target` type and use `'file'` or `'dir'`. If the
+`target` does not exist, `'file'` will be used. Windows junction points require
+the destination path to be absolute.  When using `'junction'`, the `target`
+argument will automatically be normalized to absolute path.
+
+Relative targets are relative to the link’s parent directory.
 
 ```js
-fs.symlink('./foo', './new-port', callback);
+fs.symlink('./mew', './example/mewtwo', callback);
 ```
 
-It creates a symbolic link named "new-port" that points to "foo".
+The above example creates a symbolic link `mewtwo` in the `example` which points
+to `mew` in the same directory:
+
+```bash
+$ tree example/
+example/
+├── mew
+└── mewtwo -> ./mew
+```
 
 ## fs.symlinkSync(target, path[, type])
 <!-- YAML
