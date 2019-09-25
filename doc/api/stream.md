@@ -2130,7 +2130,7 @@ buffer. See [`readable.push('')`][] for more information.
 
 #### Errors While Reading
 
-Errors occuring during processing of the [`readable._read()`][] should be
+Errors occurring during processing of the [`readable._read()`][] must be
 propagated through the [`readable.destroy(err)`][readable-_destroy] method.
 Throwing an `Error` from within [`readable._read()`][] or manually emitting an
 `'error'` event results in undefined behavior.
