@@ -63,7 +63,8 @@ function checkDataAndSockets(body) {
 
 function second() {
   // Request second, use the same socket
-  get('/second', common.mustCall((res) => {
+  const req = get('/second', common.mustCall((res) => {
+    assert.strictEqual(req.reusedSocket, true);
     assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', common.mustCall(() => {
@@ -80,7 +81,8 @@ function second() {
 
 function remoteClose() {
   // Mock remote server close the socket
-  get('/remote_close', common.mustCall((res) => {
+  const req = get('/remote_close', common.mustCall((res) => {
+    assert.deepStrictEqual(req.reusedSocket, true);
     assert.deepStrictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', common.mustCall(() => {
@@ -120,7 +122,8 @@ function remoteError() {
 server.listen(0, common.mustCall(() => {
   name = `localhost:${server.address().port}:`;
   // Request first, and keep alive
-  get('/first', common.mustCall((res) => {
+  const req = get('/first', common.mustCall((res) => {
+    assert.strictEqual(req.reusedSocket, false);
     assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', common.mustCall(() => {
