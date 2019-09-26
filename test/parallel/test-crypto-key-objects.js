@@ -59,7 +59,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
     message:
-      'The "handle" argument must be an instance of Object. Received type ' +
+      'The "handle" argument must be of type object. Received type ' +
       "string ('')"
   });
 }
@@ -142,7 +142,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     common.expectsError(() => publicKey.export(opt), {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "options" argument must be an instance of Object/
+      message: /^The "options" argument must be of type object/
     });
   }
 

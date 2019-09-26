@@ -102,7 +102,7 @@ const vm = require('vm');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be an instance of Object.' +
+    message: 'The "options" argument must be of type object.' +
              common.invalidArgTypeHelper(input)
   });
 });
@@ -246,8 +246,8 @@ const vm = require('vm');
   }, {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options.contextExtensions[0]" property must be an instance' +
-       ' of Object. Received type number (0)'
+    message: 'The "options.contextExtensions[0]" property must be of type ' +
+       'object. Received type number (0)'
   });
 
   const oldLimit = Error.stackTraceLimit;

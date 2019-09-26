@@ -38,7 +38,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "prevValue" argument must be an instance of Object. ' +
+    message: 'The "prevValue" argument must be of type object. ' +
              'Received type number (1)'
   }
 );

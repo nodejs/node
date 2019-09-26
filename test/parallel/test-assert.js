@@ -484,7 +484,7 @@ assert.throws(() => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "options" argument must be an instance of Object.' +
+        message: 'The "options" argument must be of type object.' +
                  common.invalidArgTypeHelper(input)
       });
   });
@@ -937,8 +937,9 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "error" argument must be of type function or an instance of' +
-             " Object, Error, or RegExp. Received type string ('Error message')"
+    message: 'The "error" argument must be of type function or ' +
+             'an instance of Error, RegExp, or Object. Received type string ' +
+             "('Error message')"
   }
 );
 
@@ -951,8 +952,8 @@ common.expectsError(
     () => assert.throws(() => {}, input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "error" argument must be of type function or an instance ' +
-               'of Object, Error, or RegExp.' +
+      message: 'The "error" argument must be of type function or ' +
+               'an instance of Error, RegExp, or Object.' +
                common.invalidArgTypeHelper(input)
     }
   );

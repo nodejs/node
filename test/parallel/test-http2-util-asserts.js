@@ -30,7 +30,7 @@ const {
     () => assertIsObject(input, 'foo', 'Object'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "foo" argument must be an instance of Object.' +
+      message: 'The "foo" argument must be of type object.' +
                 common.invalidArgTypeHelper(input)
     });
 });

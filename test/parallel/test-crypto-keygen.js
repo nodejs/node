@@ -615,7 +615,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   common.expectsError(() => generateKeyPair('rsa', common.mustNotCall()), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be an instance of Object. ' +
+    message: 'The "options" argument must be of type object. ' +
       'Received undefined'
   });
 
@@ -624,7 +624,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   common.expectsError(() => generateKeyPair('ed448', 0, common.mustNotCall()), {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be an instance of Object. ' +
+    message: 'The "options" argument must be of type object. ' +
       'Received type number (0)'
   });
 }

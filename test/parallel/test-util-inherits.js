@@ -88,8 +88,8 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor.prototype" property must be an ' +
-           'instance of Object. Received undefined'
+  message: 'The "superCtor.prototype" property must be of type object. ' +
+           'Received undefined'
 });
 
 common.expectsError(function() {

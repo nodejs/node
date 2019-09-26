@@ -19,8 +19,8 @@ for (const urlObject of throwsObjsAndReportTypes) {
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "urlObject" argument must be of type string or an instance ' +
-             `of Object.${common.invalidArgTypeHelper(urlObject)}`
+    message: 'The "urlObject" argument must be one of type object or string.' +
+             common.invalidArgTypeHelper(urlObject)
   });
 }
 assert.strictEqual(url.format(''), '');

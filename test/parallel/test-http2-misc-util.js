@@ -35,7 +35,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be an instance of Object. Received ' +
+    message: 'The "test" argument must be of type object. Received ' +
              "type string ('foo')"
   });
 

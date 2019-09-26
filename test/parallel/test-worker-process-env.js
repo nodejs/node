@@ -28,7 +28,7 @@ if (!workerData && process.argv[2] !== 'child') {
   }, {
     type: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options.env" property must be an instance of Object or ' +
+    message: 'The "options.env" property must be of type object or ' +
       'one of undefined, null, or worker_threads.SHARE_ENV. Received type ' +
       'number (42)'
   });

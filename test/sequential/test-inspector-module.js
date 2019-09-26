@@ -41,7 +41,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "params" argument must be an instance of Object.' +
+        'The "params" argument must be of type object.' +
         common.invalidArgTypeHelper(i)
     }
   );

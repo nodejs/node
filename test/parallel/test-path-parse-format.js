@@ -220,7 +220,7 @@ function checkFormat(path, testCases) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "pathObject" argument must be an instance of Object.' +
+      message: 'The "pathObject" argument must be of type object.' +
                common.invalidArgTypeHelper(pathObject)
     });
   });

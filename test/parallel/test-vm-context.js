@@ -67,7 +67,7 @@ assert.strictEqual(gh1140Exception.toString(), 'Error');
 const nonContextualSandboxError = {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /must be an instance of Object/
+  message: /must be of type object/
 };
 const contextifiedSandboxError = {
   code: 'ERR_INVALID_ARG_TYPE',
