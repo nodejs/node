@@ -244,7 +244,7 @@
             'src/unix/sysinfo-memory.c',
           ],
           'link_settings': {
-            'libraries': [ '-ldl', '-lrt' ],
+            'libraries': [ '-ldl' ],
           },
         }],
         [ 'OS=="android"', {
