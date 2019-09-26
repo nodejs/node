@@ -273,27 +273,26 @@ const { promisify } = require('util');
 }
 
 {
-  // Premature close if stream never emitted 'finish'
-  // even if writableFinished says something else.
+  // No error if stream never emitted 'end'
+  // even if readableEnded says something else.
 
   const streamLike = new EE();
   streamLike.writable = true;
-  finished(streamLike, common.expectsError({
-    code: 'ERR_STREAM_PREMATURE_CLOSE'
+  finished(streamLike, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
   }));
   streamLike.writableFinished = true;
   streamLike.emit('close');
 }
 
-
 {
-  // Premature close if stream never emitted 'end'
-  // even if readableEnded says something else.
+  // No error if stream never emitted 'finished'
+  // even if writableFinished says something else.
 
   const streamLike = new EE();
   streamLike.readable = true;
-  finished(streamLike, common.expectsError({
-    code: 'ERR_STREAM_PREMATURE_CLOSE'
+  finished(streamLike, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
   }));
   streamLike.readableEnded = true;
   streamLike.emit('close');

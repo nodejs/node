@@ -1525,6 +1525,11 @@ Especially useful in error handling scenarios where a stream is destroyed
 prematurely (like an aborted HTTP request), and will not emit `'end'`
 or `'finish'`.
 
+`stream.finished()` will error with `ERR_STREAM_PREMATURE_CLOSE` if:
+* `Writable` emits `'close'` before `'finish'` and
+[`writable.writableFinished`][].
+* `Readable` emits `'close'` before `'end'` and [`readable.readableEnded`][].
+
 The `finished` API is promisify-able as well;
 
 ```js
@@ -1646,6 +1651,10 @@ run().catch(console.error);
 `stream.pipeline()` will call `stream.destroy(err)` on all streams except:
 * `Readable` streams which have emitted `'end'` or `'close'`.
 * `Writable` streams which have emitted `'finish'` or `'close'`.
+
+If any `Writable` or `Readable` stream emits `'close'` without being able to
+fully flush or drain, `stream.pipeline()` will error with
+`ERR_STREAM_PREMATURE_CLOSE`.
 
 `stream.pipeline()` leaves dangling event listeners on the streams
 after the `callback` has been invoked. In the case of reuse of streams after
@@ -2865,6 +2874,7 @@ contain multi-byte characters.
 [`process.stdout`]: process.html#process_process_stdout
 [`readable._read()`]: #stream_readable_read_size_1
 [`readable.push('')`]: #stream_readable_push
+[`readable.readableEnded`]: #stream_readable_readableended
 [`readable.setEncoding()`]: #stream_readable_setencoding_encoding
 [`stream.Readable.from()`]: #stream_stream_readable_from_iterable_options
 [`stream.cork()`]: #stream_writable_cork

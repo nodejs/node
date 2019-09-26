@@ -55,7 +55,7 @@ const { finished } = require('stream');
     }).end();
     finished(req, (err) => {
       common.expectsError({
-        type: Error,
+        name: 'Error',
         code: 'ERR_STREAM_PREMATURE_CLOSE'
       })(err);
       finished(req, common.mustCall(() => {

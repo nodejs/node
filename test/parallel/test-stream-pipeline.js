@@ -912,4 +912,35 @@ const { promisify } = require('util');
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
   }));
+  // Make sure 'close' before 'end' finishes without error
+  // if readable has received eof.
+  // Ref: https://github.com/nodejs/node/issues/29699
+  const r = new Readable();
+  const w = new Writable({
+    write(chunk, encoding, cb) {
+      cb();
+    }
+  });
+  pipeline(r, w, (err) => {
+    assert.strictEqual(err, undefined);
+  });
+  r.push(null);
+  r.destroy();
+}
+
+{
+  // Make sure 'close' before 'end' finishes without error
+  // if readable has received eof.
+  // Ref: https://github.com/nodejs/node/issues/29699
+  const r = new Readable();
+  const w = new Writable({
+    write(chunk, encoding, cb) {
+      cb();
+    }
+  });
+  pipeline(r, w, (err) => {
+    assert.strictEqual(err, undefined);
+  });
+  r.push(null);
+  r.emit('close');
 }
