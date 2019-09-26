@@ -1167,6 +1167,14 @@ Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
+### `NODE_REPL_EXTERNAL_MODULE=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+Path to a Node.js module which will be loaded in place of the built-in REPL.
+Overriding this value to an empty string (`''`) will use the built-in REPL.
+
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
