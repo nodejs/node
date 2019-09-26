@@ -106,7 +106,7 @@
 * [[`19e38e0def`](https://github.com/nodejs/node/commit/19e38e0def)] - **(SEMVER-MINOR)** **deps**: V8: fix BUILDING\_V8\_SHARED issues (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
 * [[`8aaa0abd26`](https://github.com/nodejs/node/commit/8aaa0abd26)] - **(SEMVER-MINOR)** **deps**: V8: add workaround for MSVC optimizer bug (Refael Ackermann) [#28016](https://github.com/nodejs/node/pull/28016)
 * [[`07ed874446`](https://github.com/nodejs/node/commit/07ed874446)] - **(SEMVER-MINOR)** **deps**: V8: use ATOMIC\_VAR\_INIT instead of std::atomic\_init (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
-* [[`1ed3909ca3`](https://github.com/nodejs/node/commit/1ed3909ca3)] - **(SEMVER-MINOR)** **deps**: V8: forward declaration of `Rtl\*FunctionTable` (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
+* [[`1ed3909ca3`](https://github.com/nodejs/node/commit/1ed3909ca3)] - **(SEMVER-MINOR)** **deps**: V8: forward declaration of `Rtl*FunctionTable` (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
 * [[`242f6174e5`](https://github.com/nodejs/node/commit/242f6174e5)] - **(SEMVER-MINOR)** **deps**: V8: patch register-arm64.h (Refael Ackermann) [#27375](https://github.com/nodejs/node/pull/27375)
 * [[`63093e9d49`](https://github.com/nodejs/node/commit/63093e9d49)] - **(SEMVER-MINOR)** **deps**: V8: update postmortem metadata generation script (cjihrig) [#28918](https://github.com/nodejs/node/pull/28918)
 * [[`b54ee2185e`](https://github.com/nodejs/node/commit/b54ee2185e)] - **(SEMVER-MINOR)** **deps**: V8: silence irrelevant warning (Michaël Zasso) [#26685](https://github.com/nodejs/node/pull/26685)
