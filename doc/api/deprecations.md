@@ -133,7 +133,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can lead to accidental security issues.
