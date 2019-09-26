@@ -291,6 +291,11 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
+    [ 'OS=="linux"', {
+      'libraries!': [
+        '-lrt'
+      ],
+    }],
     [ 'OS in "freebsd linux"', {
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
