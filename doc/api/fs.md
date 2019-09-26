@@ -1588,19 +1588,15 @@ then the operation will fail.
 
 ```js
 const fs = require('fs');
+const { COPYFILE_EXCL } = fs.constants;
 
-// destination.txt will be created or overwritten by default.
-fs.copyFile('source.txt', 'destination.txt', (err) => {
+function callback(err) {
   if (err) throw err;
   console.log('source.txt was copied to destination.txt');
-});
-```
+}
 
-If the third argument is a number, then it specifies `mode`:
-
-```js
-const fs = require('fs');
-const { COPYFILE_EXCL } = fs.constants;
+// destination.txt will be created or overwritten by default.
+fs.copyFile('source.txt', 'destination.txt', callback);
 
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
 fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
@@ -1636,17 +1632,11 @@ then the operation will fail.
 
 ```js
 const fs = require('fs');
+const { COPYFILE_EXCL } = fs.constants;
 
 // destination.txt will be created or overwritten by default.
 fs.copyFileSync('source.txt', 'destination.txt');
 console.log('source.txt was copied to destination.txt');
-```
-
-If the third argument is a number, then it specifies `mode`:
-
-```js
-const fs = require('fs');
-const { COPYFILE_EXCL } = fs.constants;
 
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
 fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
@@ -4718,20 +4708,17 @@ create a copy-on-write reflink. If the platform does not support copy-on-write,
 then the operation will fail.
 
 ```js
-const fsPromises = require('fs').promises;
+const {
+  promises: fsPromises,
+  constants: {
+    COPYFILE_EXCL
+  }
+} = require('fs');
 
 // destination.txt will be created or overwritten by default.
 fsPromises.copyFile('source.txt', 'destination.txt')
   .then(() => console.log('source.txt was copied to destination.txt'))
   .catch(() => console.log('The file could not be copied'));
-```
-
-If the third argument is a number, then it specifies `mode`:
-
-```js
-const fs = require('fs');
-const fsPromises = fs.promises;
-const { COPYFILE_EXCL } = fs.constants;
 
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
 fsPromises.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL)
