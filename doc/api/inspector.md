@@ -216,7 +216,7 @@ session.on('HeapProfiler.addHeapSnapshotChunk', (m) => {
 });
 
 session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
-  console.log('Runtime.takeHeapSnapshot done:', err, r);
+  console.log('HeapProfiler.takeHeapSnapshot done:', err, r);
   session.disconnect();
   fs.closeSync(fd);
 });
