@@ -1037,7 +1037,6 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/deps/uv/samples
 	$(RM) -r $(TARNAME)/deps/uv/test
 	$(RM) -r $(TARNAME)/deps/v8/samples
-	$(RM) -r $(TARNAME)/deps/v8/test
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/deps/zlib/contrib # too big, unused
@@ -1049,6 +1048,8 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/tools/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
+	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
+	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
