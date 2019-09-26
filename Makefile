@@ -1048,7 +1048,8 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/tools/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
-	find $(TARNAME)/deps/v8/test -mindepth 1 ! -regex '.*/test/torque\(/.*\)?' -delete
+	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
+	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
