@@ -10,9 +10,11 @@ language: cpp
 # To experiment with Python 3, comment out Python 2.7 and uncomment one of the Python 3 versions.
 env:
   global:
-    - PYTHON_VERSION="2.7.15"
+    # - PYTHON_VERSION="2.7.15"
     # - PYTHON_VERSION="3.6.7"
-    # - PYTHON_VERSION="3.7.1"
+    - PYTHON_VERSION="3.7.1"
+    - PYTHON=python3
+    - EXPERIMENTAL_NODE_GYP_PYTHON3="yes"
 jobs:
   include:
     - stage: "Compile"
