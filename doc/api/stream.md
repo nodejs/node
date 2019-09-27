@@ -1590,6 +1590,12 @@ async function run() {
 run().catch(console.error);
 ```
 
+On completion or error `stream.pipeline()` will call `stream.destroy(err)` on
+all provided stream except for `Readable` streams which have emitted `'end'`
+or `'close'` and `Writable` streams which have emitted `'finish'` or `'close'`.
+Unless `autoDestroy` is enabled these streams will not be automatically cleaned
+up.
+
 `stream.pipeline()` leaves dangling event listeners on the streams
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
