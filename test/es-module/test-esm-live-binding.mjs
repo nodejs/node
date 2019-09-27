@@ -1,7 +1,7 @@
 // Flags: --experimental-modules
 import '../common/index.mjs';
 import assert from 'assert';
-import { syncESMExports } from 'module';
+import { syncBuiltinESMExports } from 'module';
 
 import fs, { readFile, readFileSync } from 'fs';
 import events, { defaultMaxListeners } from 'events';
@@ -15,12 +15,12 @@ const s = Symbol();
 const fn = () => s;
 
 Reflect.deleteProperty(fs, 'readFile');
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([fs.readFile, readFile], [undefined, undefined]);
 
 fs.readFile = fn;
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([fs.readFile(), readFile()], [s, s]);
 
@@ -29,12 +29,12 @@ Reflect.defineProperty(fs, 'readFile', {
   configurable: true,
   writable: true,
 });
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([fs.readFile(), readFile()], [s, s]);
 
 Reflect.deleteProperty(fs, 'readFile');
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([fs.readFile, readFile], [undefined, undefined]);
 
@@ -44,12 +44,12 @@ Reflect.defineProperty(fs, 'readFile', {
   get() { return count; },
   configurable: true,
 });
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([readFile, fs.readFile], [0, 0]);
 
 count++;
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([fs.readFile, readFile], [1, 1]);
 
@@ -71,7 +71,7 @@ Reflect.defineProperty(fs, 'readFileSync', {
 });
 
 fs.readFile = 2;
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.deepStrictEqual([readFile, readFileSync], [undefined, 2]);
 
@@ -96,7 +96,7 @@ Reflect.defineProperty(Function.prototype, 'defaultMaxListeners', {
     });
   },
 });
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(defaultMaxListeners, originDefaultMaxListeners);
 assert.strictEqual(events.defaultMaxListeners, originDefaultMaxListeners);
@@ -106,13 +106,13 @@ events.defaultMaxListeners += 1;
 assert.strictEqual(events.defaultMaxListeners,
                    originDefaultMaxListeners + 1);
 
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(defaultMaxListeners, originDefaultMaxListeners + 1);
 assert.strictEqual(Function.prototype.defaultMaxListeners, 1);
 
 Function.prototype.defaultMaxListeners = 'foo';
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(Function.prototype.defaultMaxListeners, 'foo');
 assert.strictEqual(events.defaultMaxListeners, originDefaultMaxListeners + 1);
@@ -133,19 +133,19 @@ const p = {
 };
 
 util.__proto__ = p; // eslint-disable-line no-proto
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(util.foo, 1);
 
 util.foo = 'bar';
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(count, 1);
 assert.strictEqual(util.foo, 'bar');
 assert.strictEqual(p.foo, 2);
 
 p.foo = 'foo';
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.strictEqual(p.foo, 'foo');
 
@@ -154,7 +154,7 @@ util.__proto__ = utilProto; // eslint-disable-line no-proto
 
 Reflect.deleteProperty(util, 'foo');
 Reflect.deleteProperty(Function.prototype, 'defaultMaxListeners');
-syncESMExports();
+syncBuiltinESMExports();
 
 assert.throws(
   () => Object.defineProperty(events, 'defaultMaxListeners', { value: 3 }),
