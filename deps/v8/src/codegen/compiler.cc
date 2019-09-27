@@ -2234,18 +2234,22 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // this function, replace the uncompiled data with one that includes it.
     if (literal->produced_preparse_data() != nullptr &&
         existing->HasUncompiledDataWithoutPreparseData()) {
-      DCHECK(literal->inferred_name()->Equals(
-          existing->uncompiled_data().inferred_name()));
+      Handle<UncompiledData> existing_uncompiled_data =
+          handle(existing->uncompiled_data(), isolate);
       DCHECK_EQ(literal->start_position(),
-                existing->uncompiled_data().start_position());
+                existing_uncompiled_data->start_position());
       DCHECK_EQ(literal->end_position(),
-                existing->uncompiled_data().end_position());
+                existing_uncompiled_data->end_position());
+      // Use existing uncompiled data's inferred name as it may be more
+      // accurate than the literal we preparsed.
+      Handle<String> inferred_name =
+          handle(existing_uncompiled_data->inferred_name(), isolate);
       Handle<PreparseData> preparse_data =
           literal->produced_preparse_data()->Serialize(isolate);
       Handle<UncompiledData> new_uncompiled_data =
           isolate->factory()->NewUncompiledDataWithPreparseData(
-              literal->inferred_name(), literal->start_position(),
-              literal->end_position(), preparse_data);
+              inferred_name, existing_uncompiled_data->start_position(),
+              existing_uncompiled_data->end_position(), preparse_data);
       existing->set_uncompiled_data(*new_uncompiled_data);
     }
     return existing;
