@@ -776,6 +776,17 @@ With the list of module exports provided upfront, the `execute` function will
 then be called at the exact point of module evaluation order for that module
 in the import tree.
 
+### Transform hook
+
+This hook is called only for modules that return `format: 'module'` from
+the `resolve` hook.
+
+```js
+export async function transformSource(url, source) {
+  return source.replace(/'original'/, "'replacement'");
+}
+```
+
 ## Resolution Algorithm
 
 ### Features
