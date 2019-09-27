@@ -15,11 +15,11 @@ export function resolve(specifier, parentModuleURL = baseURL /*, defaultResolve 
       format: 'builtin'
     };
   }
-  if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
+  if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
     // return defaultResolve(specifier, parentModuleURL);
     throw new Error(
-      `imports must begin with '/', './', or '../'; '${specifier}' does not`);
+      `imports must be URLs or begin with './', or '../'; '${specifier}' does not`);
   }
   const resolved = new url.URL(specifier, parentModuleURL);
   const ext = path.extname(resolved.pathname);
