@@ -555,10 +555,11 @@ cjs === 'cjs'; // true
 
 ## Builtin modules
 
-Builtin modules will provide named exports of their public API, as well as a
-default export which can be used for, among other things, modifying the named
-exports. Named exports of builtin modules are updated when the corresponding
-exports property is accessed, redefined, or deleted.
+Builtin modules will provide named exports of their public API. A
+default export is also provided which is the value of the CommonJS exports.
+The default export can be used for, among other things, modifying the named
+exports. Named exports of builtin modules are updated only by calling
+[`module.syncBuiltinESMExports()`][].
 
 ```js
 import EventEmitter from 'events';
@@ -578,8 +579,10 @@ readFile('./foo.txt', (err, source) => {
 
 ```js
 import fs, { readFileSync } from 'fs';
+import { syncBuiltinESMExports } from 'module';
 
 fs.readFileSync = () => Buffer.from('Hello, ESM');
+syncBuiltinESMExports();
 
 fs.readFileSync === readFileSync;
 ```
@@ -1008,6 +1011,7 @@ success!
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
+[`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [package exports]: #esm_package_exports
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
