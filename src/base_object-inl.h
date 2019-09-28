@@ -63,10 +63,6 @@ BaseObject::~BaseObject() {
   }
 }
 
-void BaseObject::RemoveCleanupHook() {
-  env_->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
-}
-
 void BaseObject::Detach() {
   CHECK_GT(pointer_data()->strong_ptr_count, 0);
   pointer_data()->is_detached = true;
