@@ -165,6 +165,13 @@ added: v12.7.0
 
 Enable experimental resolution using the `exports` field in `package.json`.
 
+### `--experimental-json-modules`
+<!-- YAML
+added: v12.9.0
+-->
+
+Enable experimental JSON support for the ES Module loader.
+
 ### `--experimental-modules`
 <!-- YAML
 added: v8.5.0
@@ -992,6 +999,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--es-module-specifier-resolution`
 * `--experimental-exports`
+* `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-policy`
