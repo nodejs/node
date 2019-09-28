@@ -1851,7 +1851,8 @@ methods only.
 The `callback` method must be called to signal either that the write completed
 successfully or failed with an error. The first argument passed to the
 `callback` must be the `Error` object if the call failed or `null` if the
-write succeeded.
+write succeeded. The `callback` method will always be called asynchronously and
+before `'error'` is emitted.
 
 All calls to `writable.write()` that occur between the time `writable._write()`
 is called and the `callback` is called will cause the written data to be

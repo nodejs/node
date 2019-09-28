@@ -1,17 +1,21 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 const socket = net.Stream({ highWaterMark: 0 });
 
 // Make sure that anything besides a buffer or a string throws.
-assert.throws(() => socket.write(null),
-              {
-                code: 'ERR_STREAM_NULL_VALUES',
-                name: 'TypeError',
-                message: 'May not write null values to stream'
-              });
+socket.write(null, common.expectsError({
+  code: 'ERR_STREAM_NULL_VALUES',
+  type: TypeError,
+  message: 'May not write null values to stream'
+}));
+socket.on('error', common.expectsError({
+  code: 'ERR_STREAM_NULL_VALUES',
+  type: TypeError,
+  message: 'May not write null values to stream'
+}));
+
 [
   true,
   false,

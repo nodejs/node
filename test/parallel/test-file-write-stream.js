@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const path = require('path');
@@ -46,9 +46,6 @@ file
     callbacks.open++;
     assert.strictEqual(typeof fd, 'number');
   })
-  .on('error', function(err) {
-    throw err;
-  })
   .on('drain', function() {
     console.error('drain!', callbacks.drain);
     callbacks.drain++;
@@ -65,17 +62,13 @@ file
     assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
     callbacks.close++;
-    assert.throws(
-      () => {
-        console.error('write after end should not be allowed');
-        file.write('should not work anymore');
-      },
-      {
-        code: 'ERR_STREAM_WRITE_AFTER_END',
-        name: 'Error',
-        message: 'write after end'
-      }
-    );
+    console.error('write after end should not be allowed');
+    file.write('should not work anymore');
+    file.on('error', common.expectsError({
+      code: 'ERR_STREAM_WRITE_AFTER_END',
+      name: 'Error',
+      message: 'write after end'
+    }));
 
     fs.unlinkSync(fn);
   });
