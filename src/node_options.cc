@@ -135,6 +135,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
+  if (experimental_json_modules && !experimental_modules) {
+    errors->push_back("--experimental-json-modules requires "
+                      "--experimental-modules be enabled");
+  }
+
   if (experimental_wasm_modules && !experimental_modules) {
     errors->push_back("--experimental-wasm-modules requires "
                       "--experimental-modules be enabled");
@@ -311,6 +316,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-exports",
             "experimental support for exports in package.json",
             &EnvironmentOptions::experimental_exports,
+  AddOption("--experimental-json-modules",
+            "experimental JSON interop support for the ES Module loader",
+            &EnvironmentOptions::experimental_json_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-loader",
             "(with --experimental-modules) use the specified file as a "
