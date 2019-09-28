@@ -632,7 +632,7 @@ would provide the exports interface for the instantiation of `module.wasm`.
 <!-- type=misc -->
 
 To customize the default module resolution, loader hooks can optionally be
-provided via a `--loader ./loader-name.mjs` argument to Node.js.
+provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
@@ -731,7 +731,7 @@ export async function resolve(specifier,
 With this loader, running:
 
 ```console
-NODE_OPTIONS='--experimental-modules --loader ./custom-loader.mjs' node x.js
+NODE_OPTIONS='--experimental-modules --experimental-loader ./custom-loader.mjs' node x.js
 ```
 
 would load the module `x.js` as an ES module with relative resolution support
