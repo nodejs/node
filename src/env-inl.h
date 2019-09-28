@@ -1151,6 +1151,14 @@ void Environment::ForEachBaseObject(T&& iterator) {
   }
 }
 
+void Environment::modify_base_object_count(int64_t delta) {
+  base_object_count_ += delta;
+}
+
+int64_t Environment::base_object_count() const {
+  return base_object_count_;
+}
+
 bool AsyncRequest::is_stopped() const {
   return stopped_.load();
 }

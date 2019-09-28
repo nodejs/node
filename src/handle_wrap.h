@@ -76,14 +76,13 @@ class HandleWrap : public AsyncWrap {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
-  void MakeWeak();  // This hides BaseObject::MakeWeak()
-
  protected:
   HandleWrap(Environment* env,
              v8::Local<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
   virtual void OnClose() {}
+  void OnGCCollect() final;
 
   void MarkAsInitialized();
   void MarkAsUninitialized();
