@@ -341,7 +341,7 @@ const assert = require('assert');
     write.destroy();
     let ticked = false;
     write.end(common.mustCall((err) => {
-      assert.strictEqual(ticked, false);
+      assert.strictEqual(ticked, true);
       assert.strictEqual(err.code, 'ERR_STREAM_ALREADY_FINISHED');
     }));
     ticked = true;
