@@ -97,7 +97,6 @@ class BaseObject : public MemoryRetainer {
   inline void Detach();
 
  protected:
-  inline void RemoveCleanupHook();  // TODO(addaleax): Remove.
   virtual inline void OnGCCollect();
 
  private:

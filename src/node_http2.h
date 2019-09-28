@@ -456,8 +456,8 @@ class Http2Stream : public AsyncWrap,
 
   nghttp2_stream* operator*();
 
-  Http2Session* session() { return session_; }
-  const Http2Session* session() const { return session_; }
+  Http2Session* session() { return session_.get(); }
+  const Http2Session* session() const { return session_.get(); }
 
   void EmitStatistics();
 
@@ -609,7 +609,7 @@ class Http2Stream : public AsyncWrap,
               nghttp2_headers_category category,
               int options);
 
-  Http2Session* session_ = nullptr;             // The Parent HTTP/2 Session
+  BaseObjectWeakPtr<Http2Session> session_;     // The Parent HTTP/2 Session
   int32_t id_ = 0;                              // The Stream Identifier
   int32_t code_ = NGHTTP2_NO_ERROR;             // The RST_STREAM code (if any)
   int flags_ = NGHTTP2_STREAM_FLAG_NONE;        // Internal state flags
@@ -822,11 +822,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
     return env()->event_loop();
   }
 
-  std::unique_ptr<Http2Ping> PopPing();
-  Http2Ping* AddPing(std::unique_ptr<Http2Ping> ping);
+  BaseObjectPtr<Http2Ping> PopPing();
+  Http2Ping* AddPing(BaseObjectPtr<Http2Ping> ping);
 
-  std::unique_ptr<Http2Settings> PopSettings();
-  Http2Settings* AddSettings(std::unique_ptr<Http2Settings> settings);
+  BaseObjectPtr<Http2Settings> PopSettings();
+  Http2Settings* AddSettings(BaseObjectPtr<Http2Settings> settings);
 
   void IncrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ += amount;
@@ -1001,10 +1001,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
   size_t stream_buf_offset_ = 0;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
-  std::queue<std::unique_ptr<Http2Ping>> outstanding_pings_;
+  std::queue<BaseObjectPtr<Http2Ping>> outstanding_pings_;
 
   size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
-  std::queue<std::unique_ptr<Http2Settings>> outstanding_settings_;
+  std::queue<BaseObjectPtr<Http2Settings>> outstanding_settings_;
 
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
