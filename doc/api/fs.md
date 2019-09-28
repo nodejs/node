@@ -2064,8 +2064,8 @@ changes:
 -->
 
 * `fd` {integer}
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
@@ -2086,8 +2086,8 @@ changes:
 -->
 
 * `fd` {integer}
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
@@ -3429,8 +3429,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
@@ -3462,8 +3462,8 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 
 Returns `undefined`.
 
@@ -4233,8 +4233,8 @@ The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 added: v10.0.0
 -->
 
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the `FileHandle`
@@ -4839,8 +4839,8 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {integer|string|Date}
-* `mtime` {integer|string|Date}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by `path` then
