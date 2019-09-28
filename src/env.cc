@@ -431,6 +431,8 @@ Environment::~Environment() {
       addon.Close();
     }
   }
+
+  CHECK_EQ(base_object_count(), 0);
 }
 
 void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
@@ -1088,6 +1090,10 @@ AsyncRequest::~AsyncRequest() {
 // Not really any better place than env.cc at this moment.
 void BaseObject::DeleteMe(void* data) {
   BaseObject* self = static_cast<BaseObject*>(data);
+  if (self->has_pointer_data() &&
+      self->pointer_data()->strong_ptr_count > 0) {
+    return self->Detach();
+  }
   delete self;
 }
 
