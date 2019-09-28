@@ -30,6 +30,8 @@ namespace node {
 
 class MemoryTracker;
 class MemoryRetainerNode;
+template <typename T, bool kIsWeak>
+class BaseObjectPtrImpl;
 
 namespace crypto {
 class NodeBIO;
@@ -138,10 +140,16 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const std::unique_ptr<T>& value,
                          const char* node_name = nullptr);
+
   template <typename T>
   inline void TrackField(const char* edge_name,
                          const std::shared_ptr<T>& value,
                          const char* node_name = nullptr);
+
+  template <typename T, bool kIsWeak>
+  void TrackField(const char* edge_name,
+                  const BaseObjectPtrImpl<T, kIsWeak>& value,
+                  const char* node_name = nullptr);
 
   // For containers, the elements will be graphed as grandchildren nodes
   // if the container is not empty.

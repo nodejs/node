@@ -84,14 +84,8 @@ void HandleWrap::Close(Local<Value> close_callback) {
 }
 
 
-void HandleWrap::MakeWeak() {
-  persistent().SetWeak(
-      this,
-      [](const v8::WeakCallbackInfo<HandleWrap>& data) {
-        HandleWrap* handle_wrap = data.GetParameter();
-        handle_wrap->persistent().Reset();
-        handle_wrap->Close();
-      }, v8::WeakCallbackType::kParameter);
+void HandleWrap::OnGCCollect() {
+  Close();
 }
 
 
@@ -122,7 +116,9 @@ HandleWrap::HandleWrap(Environment* env,
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
-  std::unique_ptr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
+  BaseObjectPtr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
+  wrap->Detach();
+
   Environment* env = wrap->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());

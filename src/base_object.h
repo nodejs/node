@@ -31,6 +31,8 @@
 namespace node {
 
 class Environment;
+template <typename T, bool kIsWeak>
+class BaseObjectPtrImpl;
 
 class BaseObject : public MemoryRetainer {
  public:
@@ -62,10 +64,12 @@ class BaseObject : public MemoryRetainer {
   static inline T* FromJSObject(v8::Local<v8::Object> object);
 
   // Make the `v8::Global` a weak reference and, `delete` this object once
-  // the JS object has been garbage collected.
+  // the JS object has been garbage collected and there are no (strong)
+  // BaseObjectPtr references to it.
   inline void MakeWeak();
 
-  // Undo `MakeWeak()`, i.e. turn this into a strong reference.
+  // Undo `MakeWeak()`, i.e. turn this into a strong reference that is a GC
+  // root and will not be touched by the garbage collector.
   inline void ClearWeak();
 
   // Utility to create a FunctionTemplate with one internal field (used for
@@ -86,11 +90,15 @@ class BaseObject : public MemoryRetainer {
   // This is a bit of a hack. See the override in async_wrap.cc for details.
   virtual bool IsDoneInitializing() const;
 
+  // Can be used to avoid this object keepling itself alive as a GC root
+  // indefinitely, for example when this object is owned and deleted by another
+  // BaseObject once that is torn down. This can only be called when there is
+  // a BaseObjectPtr to this object.
+  inline void Detach();
+
  protected:
-  // Can be used to avoid the automatic object deletion when the Environment
-  // exits, for example when this object is owned and deleted by another
-  // BaseObject at that point.
-  inline void RemoveCleanupHook();
+  inline void RemoveCleanupHook();  // TODO(addaleax): Remove.
+  virtual inline void OnGCCollect();
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
@@ -103,11 +111,43 @@ class BaseObject : public MemoryRetainer {
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
   friend class CleanupHookCallback;
+  template <typename T, bool kIsWeak>
+  friend class BaseObjectPtrImpl;
 
   v8::Global<v8::Object> persistent_handle_;
-  Environment* env_;
-};
 
+  // Metadata that is associated with this BaseObject if there are BaseObjectPtr
+  // or BaseObjectWeakPtr references to it.
+  // This object is deleted when the BaseObject itself is destroyed, and there
+  // are no weak references to it.
+  struct PointerData {
+    // Number of BaseObjectPtr instances that refer to this object. If this
+    // is non-zero, the BaseObject is always a GC root and will not be destroyed
+    // during cleanup until the count drops to zero again.
+    unsigned int strong_ptr_count = 0;
+    // Number of BaseObjectWeakPtr instances that refer to this object.
+    unsigned int weak_ptr_count = 0;
+    // Indicates whether MakeWeak() has been called.
+    bool wants_weak_jsobj = false;
+    // Indicates whether Detach() has been called. If that is the case, this
+    // object will be destryoed once the strong pointer count drops to zero.
+    bool is_detached = false;
+    // Reference to the original BaseObject. This is used by weak pointers.
+    BaseObject* self = nullptr;
+  };
+
+  inline bool has_pointer_data() const;
+  // This creates a PointerData struct if none was associated with this
+  // BaseObject before.
+  inline PointerData* pointer_data();
+
+  // Functions that adjust the strong pointer count.
+  inline void decrease_refcount();
+  inline void increase_refcount();
+
+  Environment* env_;
+  PointerData* pointer_data_ = nullptr;
+};
 
 // Global alias for FromJSObject() to avoid churn.
 template <typename T>
@@ -123,6 +163,63 @@ inline T* Unwrap(v8::Local<v8::Object> obj) {
     if (*ptr == nullptr)                                                      \
       return __VA_ARGS__;                                                     \
   } while (0)
+
+// Implementation of a generic strong or weak pointer to a BaseObject.
+// If strong, this will keep the target BaseObject alive regardless of other
+// circumstances such das GC or Environment cleanup.
+// If weak, destruction behaviour is not affected, but the pointer will be
+// reset to nullptr once the BaseObject is destroyed.
+// The API matches std::shared_ptr closely.
+template <typename T, bool kIsWeak>
+class BaseObjectPtrImpl final {
+ public:
+  inline BaseObjectPtrImpl();
+  inline ~BaseObjectPtrImpl();
+  inline explicit BaseObjectPtrImpl(T* target);
+
+  // Copy and move constructors. Note that the templated version is not a copy
+  // or move constructor in the C++ sense of the word, so an identical
+  // untemplated version is provided.
+  template <typename U, bool kW>
+  inline BaseObjectPtrImpl(const BaseObjectPtrImpl<U, kW>& other);
+  inline BaseObjectPtrImpl(const BaseObjectPtrImpl& other);
+  template <typename U, bool kW>
+  inline BaseObjectPtrImpl& operator=(const BaseObjectPtrImpl<U, kW>& other);
+  inline BaseObjectPtrImpl& operator=(const BaseObjectPtrImpl& other);
+  inline BaseObjectPtrImpl(BaseObjectPtrImpl&& other);
+  inline BaseObjectPtrImpl& operator=(BaseObjectPtrImpl&& other);
+
+  inline void reset(T* ptr = nullptr);
+  inline T* get() const;
+  inline T& operator*() const;
+  inline T* operator->() const;
+  inline operator bool() const;
+
+ private:
+  union {
+    BaseObject* target;  // Used for strong pointers.
+    BaseObject::PointerData* pointer_data;  // Used for weak pointers.
+  } data_;
+
+  inline BaseObject* get_base_object() const;
+  inline BaseObject::PointerData* pointer_data() const;
+};
+
+template <typename T>
+using BaseObjectPtr = BaseObjectPtrImpl<T, false>;
+template <typename T>
+using BaseObjectWeakPtr = BaseObjectPtrImpl<T, true>;
+
+// Create a BaseObject instance and return a pointer to it.
+// This variant leaves the object as a GC root by default.
+template <typename T, typename... Args>
+inline BaseObjectPtr<T> MakeBaseObject(Args&&... args);
+// Create a BaseObject instance and return a pointer to it.
+// This variant detaches the object by default, meaning that the caller fully
+// owns it, and once the last BaseObjectPtr to it is destroyed, the object
+// itself is also destroyed.
+template <typename T, typename... Args>
+inline BaseObjectPtr<T> MakeDetachedBaseObject(Args&&... args);
 
 }  // namespace node
 
