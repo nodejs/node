@@ -18,20 +18,6 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) {
-      this.destroy(new Error('asd'));
-      cb();
-    }
-  });
-
-  write.on('error', common.mustCall());
-  write.on('finish', common.mustNotCall());
-  write.end('asd');
-  assert.strictEqual(write.destroyed, true);
-}
-
-{
-  const write = new Writable({
     write(chunk, enc, cb) { cb(); }
   });
 
