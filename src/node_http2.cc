@@ -243,7 +243,6 @@ Http2Session::Http2Settings::Http2Settings(Environment* env,
     : AsyncWrap(env, obj, PROVIDER_HTTP2SETTINGS),
       session_(session),
       startTime_(start_time) {
-  RemoveCleanupHook();  // This object is owned by the Http2Session.
   Init();
 }
 
@@ -586,8 +585,6 @@ Http2Session::Http2Session(Environment* env,
 Http2Session::~Http2Session() {
   CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
   Debug(this, "freeing nghttp2 session");
-  for (const auto& iter : streams_)
-    iter.second->session_ = nullptr;
   nghttp2_session_del(session_);
   CHECK_EQ(current_nghttp2_memory_, 0);
 }
@@ -695,7 +692,7 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   // If there are outstanding pings, those will need to be canceled, do
   // so on the next iteration of the event loop to avoid calling out into
   // javascript since this may be called during garbage collection.
-  while (std::unique_ptr<Http2Ping> ping = PopPing()) {
+  while (BaseObjectPtr<Http2Ping> ping = PopPing()) {
     ping->DetachFromSession();
     env()->SetImmediate(
         [ping = std::move(ping)](Environment* env) {
@@ -1451,7 +1448,7 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
   Local<Value> arg;
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (ack) {
-    std::unique_ptr<Http2Ping> ping = PopPing();
+    BaseObjectPtr<Http2Ping> ping = PopPing();
 
     if (!ping) {
       // PING Ack is unsolicited. Treat as a connection error. The HTTP/2
@@ -1490,7 +1487,7 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
 
   // If this is an acknowledgement, we should have an Http2Settings
   // object for it.
-  std::unique_ptr<Http2Settings> settings = PopSettings();
+  BaseObjectPtr<Http2Settings> settings = PopSettings();
   if (settings) {
     settings->Done(true);
     return;
@@ -1951,12 +1948,11 @@ Http2Stream::~Http2Stream() {
     nghttp2_rcbuf_decref(header.value);
   }
 
-  if (session_ == nullptr)
+  if (!session_)
     return;
   Debug(this, "tearing down stream");
   session_->DecrementCurrentSessionMemory(current_headers_length_);
   session_->RemoveStream(this);
-  session_ = nullptr;
 }
 
 std::string Http2Stream::diagnostic_name() const {
@@ -2164,8 +2160,10 @@ Http2Stream* Http2Stream::SubmitPushPromise(nghttp2_nv* nva,
                                      id_, nva, len, nullptr);
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   Http2Stream* stream = nullptr;
-  if (*ret > 0)
-    stream = Http2Stream::New(session_, *ret, NGHTTP2_HCAT_HEADERS, options);
+  if (*ret > 0) {
+    stream = Http2Stream::New(
+        session_.get(), *ret, NGHTTP2_HCAT_HEADERS, options);
+  }
 
   return stream;
 }
@@ -2832,7 +2830,8 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
   if (obj->Set(env->context(), env->ondone_string(), args[1]).IsNothing())
     return;
 
-  Http2Ping* ping = session->AddPing(std::make_unique<Http2Ping>(session, obj));
+  Http2Ping* ping = session->AddPing(
+      MakeDetachedBaseObject<Http2Ping>(session, obj));
   // To prevent abuse, we strictly limit the number of unacknowledged PING
   // frames that may be sent at any given time. This is configurable in the
   // Options when creating a Http2Session.
@@ -2861,16 +2860,16 @@ void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
   if (obj->Set(env->context(), env->ondone_string(), args[0]).IsNothing())
     return;
 
-  Http2Session::Http2Settings* settings = session->AddSettings(
-      std::make_unique<Http2Settings>(session->env(), session, obj, 0));
+  Http2Settings* settings = session->AddSettings(
+      MakeDetachedBaseObject<Http2Settings>(session->env(), session, obj, 0));
   if (settings == nullptr) return args.GetReturnValue().Set(false);
 
   settings->Send();
   args.GetReturnValue().Set(true);
 }
 
-std::unique_ptr<Http2Session::Http2Ping> Http2Session::PopPing() {
-  std::unique_ptr<Http2Ping> ping;
+BaseObjectPtr<Http2Session::Http2Ping> Http2Session::PopPing() {
+  BaseObjectPtr<Http2Ping> ping;
   if (!outstanding_pings_.empty()) {
     ping = std::move(outstanding_pings_.front());
     outstanding_pings_.pop();
@@ -2880,7 +2879,7 @@ std::unique_ptr<Http2Session::Http2Ping> Http2Session::PopPing() {
 }
 
 Http2Session::Http2Ping* Http2Session::AddPing(
-    std::unique_ptr<Http2Session::Http2Ping> ping) {
+    BaseObjectPtr<Http2Session::Http2Ping> ping) {
   if (outstanding_pings_.size() == max_outstanding_pings_) {
     ping->Done(false);
     return nullptr;
@@ -2891,8 +2890,8 @@ Http2Session::Http2Ping* Http2Session::AddPing(
   return ptr;
 }
 
-std::unique_ptr<Http2Session::Http2Settings> Http2Session::PopSettings() {
-  std::unique_ptr<Http2Settings> settings;
+BaseObjectPtr<Http2Session::Http2Settings> Http2Session::PopSettings() {
+  BaseObjectPtr<Http2Settings> settings;
   if (!outstanding_settings_.empty()) {
     settings = std::move(outstanding_settings_.front());
     outstanding_settings_.pop();
@@ -2902,7 +2901,7 @@ std::unique_ptr<Http2Session::Http2Settings> Http2Session::PopSettings() {
 }
 
 Http2Session::Http2Settings* Http2Session::AddSettings(
-    std::unique_ptr<Http2Session::Http2Settings> settings) {
+    BaseObjectPtr<Http2Session::Http2Settings> settings) {
   if (outstanding_settings_.size() == max_outstanding_settings_) {
     settings->Done(false);
     return nullptr;
@@ -2917,7 +2916,6 @@ Http2Session::Http2Ping::Http2Ping(Http2Session* session, Local<Object> obj)
     : AsyncWrap(session->env(), obj, AsyncWrap::PROVIDER_HTTP2PING),
       session_(session),
       startTime_(uv_hrtime()) {
-  RemoveCleanupHook();  // This object is owned by the Http2Session.
 }
 
 void Http2Session::Http2Ping::Send(const uint8_t* payload) {
