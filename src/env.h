@@ -1226,6 +1226,12 @@ class Environment : public MemoryRetainer {
 
   inline int32_t stack_trace_limit() const { return 10; }
 
+  // The BaseObject count is a debugging helper that makes sure that there are
+  // no memory leaks caused by BaseObjects staying alive longer than expected
+  // (in particular, no circular BaseObjectPtr references).
+  inline void modify_base_object_count(int64_t delta);
+  inline int64_t base_object_count() const;
+
 #if HAVE_INSPECTOR
   void set_coverage_connection(
       std::unique_ptr<profiler::V8CoverageConnection> connection);
@@ -1440,6 +1446,8 @@ class Environment : public MemoryRetainer {
                      CleanupHookCallback::Equal> cleanup_hooks_;
   uint64_t cleanup_hook_counter_ = 0;
   bool started_cleanup_ = false;
+
+  int64_t base_object_count_ = 0;
 
   // A custom async abstraction (a pair of async handle and a state variable)
   // Used by embedders to shutdown running Node instance.
