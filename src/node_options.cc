@@ -114,7 +114,8 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   if (!userland_loader.empty() && !experimental_modules) {
-    errors->push_back("--loader requires --experimental-modules be enabled");
+    errors->push_back("--experimental-loader requires "
+                      "--experimental-modules be enabled");
   }
   if (has_policy_integrity_string && experimental_policy.empty()) {
     errors->push_back("--policy-integrity requires "
@@ -311,6 +312,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental support for exports in package.json",
             &EnvironmentOptions::experimental_exports,
             kAllowedInEnvironment);
+  AddOption("--experimental-loader",
+            "(with --experimental-modules) use the specified file as a "
+            "custom loader",
+            &EnvironmentOptions::userland_loader,
+            kAllowedInEnvironment);
+  AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules",
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
@@ -362,11 +369,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--input-type",
             "set module type for string input",
             &EnvironmentOptions::module_type,
-            kAllowedInEnvironment);
-  AddOption("--loader",
-            "(with --experimental-modules) use the specified file as a "
-            "custom loader",
-            &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
   AddOption("--es-module-specifier-resolution",
             "Select extension resolution algorithm for es modules; "

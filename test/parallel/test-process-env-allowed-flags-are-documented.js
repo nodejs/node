@@ -87,6 +87,7 @@ const undocumented = difference(process.allowedNodeEnvironmentFlags,
 assert(undocumented.delete('--debug-arraybuffer-allocations'));
 assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--no-node-snapshot'));
+assert(undocumented.delete('--loader'));
 
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +
