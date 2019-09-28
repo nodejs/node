@@ -432,6 +432,18 @@ file.end('world!');
 // Writing more now is not allowed!
 ```
 
+[`stream.end()`][stream-end] will error with (in order of precedence):
+* `ERR_STREAM_WRITE_AFTER_END` if `chunk` is not nully and
+[`stream.end()`][stream-end] has been called.
+* `ERR_STREAM_DESTROYED` if `chunk` is not nully and
+[`stream.destroy()`][stream-destroy] has been called.
+* `ERR_INVALID_ARG_TYPE` if `chunk` is not nully and
+`chunk` is not a `string` when not in `objectMode`.
+* `ERR_STREAM_ALREADY_FINISHED` if
+[`writable.writableFinished`][].
+* Any error emitted by the instance through `'error'` before
+[`writable.writableFinished`][].
+
 ##### writable.setDefaultEncoding(encoding)
 <!-- YAML
 added: v0.11.15
@@ -618,6 +630,13 @@ write('hello', () => {
 ```
 
 A `Writable` stream in object mode will always ignore the `encoding` argument.
+
+`stream.write()` will error with (in order of precedence):
+* `ERR_STREAM_WRITE_AFTER_END` if [`stream.end()`][stream-end] has been called.
+* `ERR_STREAM_DESTROYED` if [`stream.destroy()`][stream-destroy] has been called.
+* `ERR_STREAM_NULL_VALUES` if `chunk` is `null`.
+* `ERR_INVALID_ARG_TYPE` if `chunk` is not a `string` when not in `objectMode`.
+* Any error forwarded by `writable._write()`.
 
 ### Readable Streams
 
