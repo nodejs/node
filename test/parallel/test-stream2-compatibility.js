@@ -44,7 +44,7 @@ class TestReader extends R {
 }
 
 const reader = new TestReader();
-setImmediate(function() {
+process.nextTick(function() {
   assert.strictEqual(ondataCalled, 1);
   console.log('ok');
   reader.push(null);
