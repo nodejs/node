@@ -5,4 +5,4 @@ if (true) {
   const c = 102;
 }
 process.exit(1);
-//# sourceMappingURL=https://http.cat/404
+//# sourceMappingURL=https://ci.nodejs.org/404

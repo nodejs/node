@@ -5,4 +5,4 @@ if (true) {
   const c = 102;
 }
 process.kill(process.pid, "SIGINT");
-//# sourceMappingURL=https://http.cat/402
+//# sourceMappingURL=https://ci.nodejs.org/402
