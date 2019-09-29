@@ -1,4 +1,4 @@
 export function foo () {
   return 'foo';
 };
-//# sourceMappingURL=https://http.cat/422
+//# sourceMappingURL=https://ci.nodejs.org/422

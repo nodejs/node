@@ -135,6 +135,15 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`.)
 
+### `--enable-source-maps`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental Source Map V3 support for stack traces.
+
 ### `--es-module-specifier-resolution=mode`
 <!-- YAML
 added: v12.0.0
@@ -980,6 +989,7 @@ node --require "./a.js" --require "./b.js"
 Node.js options that are allowed are:
 <!-- node-options-node start -->
 * `--enable-fips`
+* `--enable-source-maps`
 * `--es-module-specifier-resolution`
 * `--experimental-exports`
 * `--experimental-loader`

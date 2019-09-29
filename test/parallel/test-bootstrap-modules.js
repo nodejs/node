@@ -55,7 +55,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/task_queues',
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
-  'NativeModule internal/source_map',
+  'NativeModule internal/source_map/source_map_cache',
   'NativeModule internal/timers',
   'NativeModule internal/url',
   'NativeModule internal/util',
