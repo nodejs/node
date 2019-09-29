@@ -308,6 +308,10 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--enable-source-maps",
+            "experimental Source Map V3 support",
+            &EnvironmentOptions::enable_source_maps,
+            kAllowedInEnvironment);
   AddOption("--experimental-exports",
             "experimental support for exports in package.json",
             &EnvironmentOptions::experimental_exports,
