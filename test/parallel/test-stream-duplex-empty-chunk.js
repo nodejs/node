@@ -9,6 +9,7 @@ serverSide.resume();
 serverSide.on('end', function(buf) {
   serverSide.write('out');
   serverSide.write('');
+  serverSide.write('');
   serverSide.end();
 });
 
