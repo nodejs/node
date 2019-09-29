@@ -196,9 +196,15 @@ function nextdir() {
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
-    const maybeSourceMapCache = require(
-      path.join(coverageDirectory, jsonFile)
-    )['source-map-cache'] || {};
+    let maybeSourceMapCache;
+    try {
+      maybeSourceMapCache = require(
+        path.join(coverageDirectory, jsonFile)
+      )['source-map-cache'] || {};
+    } catch (err) {
+      console.warn(err);
+      maybeSourceMapCache = {};
+    }
     const keys = Object.keys(maybeSourceMapCache);
     for (const key of keys) {
       if (key.includes(fixtureFile)) {
