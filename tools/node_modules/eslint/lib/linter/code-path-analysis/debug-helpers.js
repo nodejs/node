@@ -21,7 +21,7 @@ const debug = require("debug")("eslint:code-path");
  * @returns {string} Id of the segment.
  */
 /* istanbul ignore next */
-function getId(segment) { // eslint-disable-line require-jsdoc
+function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc
     return segment.id + (segment.reachable ? "" : "!");
 }
 

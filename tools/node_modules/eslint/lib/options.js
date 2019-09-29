@@ -225,6 +225,12 @@ module.exports = optionator({
             description: "Run config initialization wizard"
         },
         {
+            option: "env-info",
+            type: "Boolean",
+            default: "false",
+            description: "Output execution environment information"
+        },
+        {
             option: "debug",
             type: "Boolean",
             default: false,
