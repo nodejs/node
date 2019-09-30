@@ -46,6 +46,7 @@ const expectedModules = new Set([
   'NativeModule internal/fs/utils',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
+  'NativeModule internal/main/main',
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
   'NativeModule internal/options',
