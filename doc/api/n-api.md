@@ -371,6 +371,8 @@ typedef enum {
   napi_closing,
   napi_bigint_expected,
   napi_date_expected,
+  napi_arraybuffer_expected,
+  napi_detachable_arraybuffer_expected,
 } napi_status;
 ```
 
@@ -3148,6 +3150,30 @@ Returns `napi_ok` if the API succeeded.
 This API represents the invocation of the Strict Equality algorithm as
 defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 
+### napi_detach_arraybuffer
+<!-- YAML
+added: REPLACEME
+-->
+
+```C
+napi_status napi_detach_arraybuffer(napi_env env,
+                                    napi_value arraybuffer)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] arraybuffer`: The JavaScript `ArrayBuffer` to be detached.
+
+Returns `napi_ok` if the API succeeded. If a non-detachable `ArrayBuffer` is
+passed in it returns `napi_detachable_arraybuffer_expected`.
+
+Generally, an `ArrayBuffer` is non-detachable if it has been detached before.
+The engine may impose additional conditions on whether an `ArrayBuffer` is
+detachable. For example, V8 requires that the `ArrayBuffer` be external,
+that is, created with [`napi_create_external_arraybuffer`][].
+
+This API represents the invocation of the `ArrayBuffer` detach operation as
+defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
+
 ## Working with JavaScript Properties
 
 N-API exposes a set of APIs to get and set properties on JavaScript
@@ -5144,6 +5170,7 @@ This API may only be called from the main thread.
 [Section 22.1.4.1]: https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length
 [Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
 [Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
+[Section 24.1.1.3]: https://tc39.es/ecma262/#sec-detacharraybuffer
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
