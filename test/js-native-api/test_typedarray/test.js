@@ -74,3 +74,21 @@ nonByteArrayTypes.forEach((currentType) => {
     console.log(`start of offset ${currentType}`);
   }, RangeError);
 });
+
+// Test detaching
+arrayTypes.forEach((currentType) => {
+  const buffer = Reflect.construct(currentType, [8]);
+  assert.throws(
+    () => test_typedarray.Detach(buffer),
+    /A detachable arraybuffer was expected/);
+});
+{
+  const buffer = test_typedarray.External();
+  assert.ok(externalResult instanceof Int8Array);
+  assert.strictEqual(externalResult.length, 3);
+  assert.strictEqual(externalResult.byteLength, 3);
+  test_typedarray.Detach(buffer);
+  assert.ok(externalResult instanceof Int8Array);
+  assert.strictEqual(buffer.length, 0);
+  assert.strictEqual(buffer.byteLength, 0);
+}

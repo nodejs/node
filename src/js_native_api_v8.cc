@@ -703,6 +703,8 @@ const char* error_messages[] = {nullptr,
                                 "Thread-safe function handle is closing",
                                 "A bigint was expected",
                                 "A date was expected",
+                                "An arraybuffer was expected",
+                                "A detachable arraybuffer was expected",
 };
 
 napi_status napi_get_last_error_info(napi_env env,
@@ -714,7 +716,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // message in the `napi_status` enum each time a new error message is added.
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
-  const int last_status = napi_date_expected;
+  const int last_status = napi_detachable_arraybuffer_expected;
 
   static_assert(
       NAPI_ARRAYSIZE(error_messages) == last_status + 1,
@@ -3034,6 +3036,25 @@ napi_status napi_get_instance_data(napi_env env,
   CHECK_ARG(env, data);
 
   *data = env->instance_data.data;
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_detach_arraybuffer(napi_env env, napi_value arraybuffer) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, arraybuffer);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
+  RETURN_STATUS_IF_FALSE(
+      env, value->IsArrayBuffer(), napi_arraybuffer_expected);
+
+  v8::Local<v8::ArrayBuffer> it = value.As<v8::ArrayBuffer>();
+  RETURN_STATUS_IF_FALSE(
+      env, it->IsExternal(), napi_detachable_arraybuffer_expected);
+  RETURN_STATUS_IF_FALSE(
+      env, it->IsDetachable(), napi_detachable_arraybuffer_expected);
+
+  it->Detach();
 
   return napi_clear_last_error(env);
 }
