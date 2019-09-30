@@ -2494,6 +2494,33 @@ Type: Runtime
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
+<a id="DEP0133"></a>
+### DEP0133: http connection
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29015
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Prefer [`response.socket`][] over [`response.connection`] and
+[`request.socket`][] over [`request.connection`].
+
+<a id="DEP0XXX"></a>
+### DEP0XXX: process._tickCallback
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29781
+    description: Documentation-only deprecation.
+-->
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The `process._tickCallback` property was never documented as
+an officially supported API.
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
