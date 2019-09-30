@@ -932,26 +932,9 @@ Per the [WHATWG Encoding Standard][], the encodings supported by the
 one or more aliases may be used.
 
 Different Node.js build configurations support different sets of encodings.
-While a very basic set of encodings is supported even on Node.js builds without
-ICU enabled, support for some encodings is provided only when Node.js is built
-with ICU and using the full ICU data (see [Internationalization][]).
+(see [Internationalization][])
 
-#### Encodings Supported Without ICU
-
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
-
-#### Encodings Supported by Default (With ICU)
-
-| Encoding     | Aliases                           |
-| -----------  | --------------------------------- |
-| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
-| `'utf-16le'` | `'utf-16'`                        |
-| `'utf-16be'` |                                   |
-
-#### Encodings Requiring Full ICU Data
+#### Encodings Supported by Default (With Full ICU Data)
 
 | Encoding           | Aliases                          |
 | -----------------  | -------------------------------- |
@@ -990,6 +973,21 @@ with ICU and using the full ICU data (see [Internationalization][]).
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
+#### Encodings Supported when Node.js is built with the `small-icu` option
+
+| Encoding     | Aliases                           |
+| -----------  | --------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
+| `'utf-16le'` | `'utf-16'`                        |
+| `'utf-16be'` |                                   |
+
+#### Encodings Supported when ICU is disabled
+
+| Encoding     | Aliases                           |
+| -----------  | --------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
+| `'utf-16le'` | `'utf-16'`                        |
+
 The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
@@ -1005,9 +1003,9 @@ changes:
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
   supports. **Default:** `'utf-8'`.
 * `options` {Object}
-  * `fatal` {boolean} `true` if decoding failures are fatal. This option is only
-    supported when ICU is enabled (see [Internationalization][]). **Default:**
-    `false`.
+  * `fatal` {boolean} `true` if decoding failures are fatal.
+    This option is not supported when ICU is disabled
+    (see [Internationalization][]). **Default:** `false`.
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
      order mark in the decoded result. When `false`, the byte order mark will
      be removed from the output. This option is only used when `encoding` is

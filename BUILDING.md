@@ -35,7 +35,7 @@ file a new issue.
     * [Building Node.js](#building-nodejs-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-  * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
+  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
     * [Unix/macOS](#unixmacos)
     * [Windows](#windows-1)
@@ -598,20 +598,11 @@ $ make
 ## `Intl` (ECMA-402) support
 
 [Intl](https://github.com/nodejs/node/blob/master/doc/api/intl.md) support is
-enabled by default, with English data only.
-
-### Default: `small-icu` (English only) support
-
-By default, only English data is included, but
-the full `Intl` (ECMA-402) APIs.  It does not need to download
-any dependencies to function. You can add full
-data at runtime.
+enabled by default.
 
 ### Build with full ICU support (all locales supported by ICU)
 
-With the `--download=all`, this may download ICU if you don't have an
-ICU in `deps/icu`. (The embedded `small-icu` included in the default
-Node.js source does not include all locales.)
+This is the default option.
 
 #### Unix/macOS
 
@@ -623,6 +614,22 @@ $ ./configure --with-intl=full-icu --download=all
 
 ```console
 > .\vcbuild full-icu download-all
+```
+
+### Trimmed: `small-icu` (English only) support
+
+ In this configuration, only English data is included, but
+the full `Intl` (ECMA-402) APIs.  It does not need to download
+any dependencies to function. You can add full data at runtime.
+
+```console
+$ ./configure --with-intl=small-icu
+```
+
+#### Windows
+
+```console
+> .\vcbuild small-icu
 ```
 
 ### Building without Intl support

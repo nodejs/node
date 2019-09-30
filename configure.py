@@ -11,6 +11,8 @@ import re
 import shlex
 import subprocess
 import shutil
+import bz2
+
 from distutils.spawn import find_executable as which
 
 # If not run from node/, cd to node/.
@@ -409,7 +411,7 @@ parser.add_option('--use-largepages-script-lld',
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    default='small-icu',
+    default='full-icu',
     choices=valid_intl_modes,
     help='Intl mode (valid choices: {0}) [default: %default]'.format(
         ', '.join(valid_intl_modes)))
@@ -1399,7 +1401,8 @@ def configure_intl(o):
   icu_parent_path = 'deps'
 
   # The full path to the ICU source directory. Should not include './'.
-  icu_full_path = 'deps/icu'
+  icu_deps_path = 'deps/icu'
+  icu_full_path = icu_deps_path
 
   # icu-tmp is used to download and unpack the ICU tarball.
   icu_tmp_path = os.path.join(icu_parent_path, 'icu-tmp')
@@ -1407,30 +1410,26 @@ def configure_intl(o):
   # canned ICU. see tools/icu/README.md to update.
   canned_icu_dir = 'deps/icu-small'
 
+  # use the README to verify what the canned ICU is
+  canned_is_full = os.path.isfile(os.path.join(canned_icu_dir, 'README-FULL-ICU.txt'))
+  canned_is_small = os.path.isfile(os.path.join(canned_icu_dir, 'README-SMALL-ICU.txt'))
+  if canned_is_small:
+    warn('Ignoring %s - in-repo small icu is no longer supported.' % canned_icu_dir)
+
   # We can use 'deps/icu-small' - pre-canned ICU *iff*
-  # - with_intl == small-icu (the default!)
-  # - with_icu_locales == 'root,en' (the default!)
-  # - deps/icu-small exists!
+  # - canned_is_full AND
   # - with_icu_source is unset (i.e. no other ICU was specified)
-  # (Note that this is the *DEFAULT CASE*.)
   #
   # This is *roughly* equivalent to
-  # $ configure --with-intl=small-icu --with-icu-source=deps/icu-small
+  # $ configure --with-intl=full-icu --with-icu-source=deps/icu-small
   # .. Except that we avoid copying icu-small over to deps/icu.
   # In this default case, deps/icu is ignored, although make clean will
   # still harmlessly remove deps/icu.
 
-  # are we using default locales?
-  using_default_locales = ( options.with_icu_locales == icu_default_locales )
-
-  # make sure the canned ICU really exists
-  canned_icu_available = os.path.isdir(canned_icu_dir)
-
-  if (o['variables']['icu_small'] == b(True)) and using_default_locales and (not with_icu_source) and canned_icu_available:
+  if (not with_icu_source) and canned_is_full:
     # OK- we can use the canned ICU.
-    icu_config['variables']['icu_small_canned'] = 1
     icu_full_path = canned_icu_dir
-
+    icu_config['variables']['icu_full_canned'] = 1
   # --with-icu-source processing
   # now, check that they didn't pass --with-icu-source=deps/icu
   elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
@@ -1508,29 +1507,40 @@ def configure_intl(o):
   icu_endianness = sys.byteorder[0]
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
-  icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
+  icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l') # LE filename
   icu_data_file = 'icudt%s%s.dat' % (icu_ver_major, icu_endianness)
   # relative to configure
   icu_data_path = os.path.join(icu_full_path,
                                'source/data/in',
-                               icu_data_file_l)
+                               icu_data_file_l) # LE
+  compressed_data = '%s.bz2' % (icu_data_path)
+  if not os.path.isfile(icu_data_path) and os.path.isfile(compressed_data):
+    # unpack. deps/icu is a temporary path
+    if os.path.isdir(icu_tmp_path):
+      shutil.rmtree(icu_tmp_path)
+    os.mkdir(icu_tmp_path)
+    icu_data_path = os.path.join(icu_tmp_path, icu_data_file_l)
+    with open(icu_data_path, 'wb') as outf:
+        with bz2.BZ2File(compressed_data, 'rb') as inf:
+            shutil.copyfileobj(inf, outf)
+    # Now, proceed..
+
   # relative to dep..
-  icu_data_in = os.path.join('..','..', icu_full_path, 'source/data/in', icu_data_file_l)
+  icu_data_in = os.path.join('..','..', icu_data_path)
   if not os.path.isfile(icu_data_path) and icu_endianness != 'l':
     # use host endianness
     icu_data_path = os.path.join(icu_full_path,
                                  'source/data/in',
-                                 icu_data_file)
-    # relative to dep..
-    icu_data_in = os.path.join('..', icu_full_path, 'source/data/in',
-                               icu_data_file)
-  # this is the input '.dat' file to use .. icudt*.dat
-  # may be little-endian if from a icu-project.org tarball
-  o['variables']['icu_data_in'] = icu_data_in
+                                 icu_data_file) # will be generated
   if not os.path.isfile(icu_data_path):
     # .. and we're not about to build it from .gyp!
     error('''ICU prebuilt data file %s does not exist.
        See the README.md.''' % icu_data_path)
+
+  # this is the input '.dat' file to use .. icudt*.dat
+  # may be little-endian if from a icu-project.org tarball
+  o['variables']['icu_data_in'] = icu_data_in
+
   # map from variable name to subdirs
   icu_src = {
     'stubdata': 'stubdata',
@@ -1547,6 +1557,31 @@ def configure_intl(o):
     var  = 'icu_src_%s' % i
     path = '../../%s/source/%s' % (icu_full_path, icu_src[i])
     icu_config['variables'][var] = glob_to_var('tools/icu', path, 'patches/%s/source/%s' % (icu_ver_major, icu_src[i]) )
+  # calculate platform-specific genccode args
+  # print("platform %s, flavor %s" % (sys.platform, flavor))
+  # if sys.platform == 'darwin':
+  #   shlib_suffix = '%s.dylib'
+  # elif sys.platform.startswith('aix'):
+  #   shlib_suffix = '%s.a'
+  # else:
+  #   shlib_suffix = 'so.%s'
+  if flavor == 'win':
+    icu_config['variables']['icu_asm_ext'] = 'obj'
+    icu_config['variables']['icu_asm_opts'] = [ '-o ' ]
+  elif with_intl == 'small-icu' or options.cross_compiling:
+    icu_config['variables']['icu_asm_ext'] = 'c'
+    icu_config['variables']['icu_asm_opts'] = []
+  elif flavor == 'mac':
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'gcc-darwin' ]
+  elif sys.platform.startswith('aix'):
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]
+  else:
+    # assume GCC-compatible asm is OK
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'gcc' ]
+
   # write updated icu_config.gypi with a bunch of paths
   write(icu_config_name, do_not_edit +
         pprint.pformat(icu_config, indent=2) + '\n')
