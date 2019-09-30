@@ -886,13 +886,13 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.exports_ is not **null** or **undefined**, then
 >    1. If _pjson.exports_ is a String or Array, then
->       1. Return _PACKAGE_EXPORTS_TARGET_RESOLVE(packageURL, pjson.exports,
->          "")_.
+>       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
+>          _pjson.exports_, "")_.
 >    1. If _pjson.exports is an Object, then
 >       1. If _pjson.exports_ contains a _"."_ property, then
 >          1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
->          1. Return _PACKAGE_EXPORTS_TARGET_RESOLVE(packageURL, mainExport,
->             "")_.
+>          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
+>             _mainExport_, "")_.
 > 1. If _pjson.main_ is a String, then
 >    1. Let _resolvedMain_ be the URL resolution of _packageURL_, "/", and
 >       _pjson.main_.
