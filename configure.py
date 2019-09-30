@@ -80,6 +80,11 @@ parser.add_option('--coverage',
     dest='coverage',
     help='Build node with code coverage enabled')
 
+parser.add_option('--arch-triplet',
+    action='store',
+    dest='arch_triplet',
+    help='arch triplet used by distro')
+
 parser.add_option('--debug',
     action='store_true',
     dest='debug',
@@ -112,6 +117,11 @@ parser.add_option('--gdb',
     action='store_true',
     dest='gdb',
     help='add gdb support')
+
+parser.add_option('--node-relative-path',
+    action='store',
+    dest='node_relative_path',
+    help='Node path(s) used by require, resolved relative to prefix dir.')
 
 parser.add_option('--no-ifaddrs',
     action='store_true',
@@ -1131,6 +1141,16 @@ def configure_node(o):
 def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
+
+  if options.arch_triplet:
+    output['variables']['arch_triplet'] = options.arch_triplet
+  else:
+    output['variables']['arch_triplet'] = 'unknown-unknown-unknown'
+
+  if options.node_relative_path:
+    output['variables']['node_relative_path'] = options.node_relative_path
+  else:
+    output['variables']['node_relative_path']= ''
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
