@@ -74,14 +74,14 @@ jobs:
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
 
-    - name: "Linter"
+    - name: "Run Linter and Build Docs"
       language: node_js
       node_js: "node"
       install:
         - pyenv global ${PYTHON_VERSION}
         - make lint-py-build || true
       script:
-        - NODE=$(which node) make lint lint-py
+        - NODE=$(which node) make lint-py doc-only lint
 
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
