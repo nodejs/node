@@ -2518,6 +2518,20 @@ Type: Documentation-only
 Prefer [`response.socket`][] over [`response.connection`] and
 [`request.socket`][] over [`request.connection`].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: process._tickCallback
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull
+    description: Documentation-only deprecation.
+-->
+Type: Documentation-only
+
+The `process._tickCallback` property was never documented as
+an officially supported API.
+
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
