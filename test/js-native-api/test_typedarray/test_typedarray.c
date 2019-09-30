@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include <string.h>
 #include "../common.h"
@@ -165,12 +166,30 @@ static napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
+static napi_value Detach(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NAPI_ASSERT(env, argc == 1, "Wrong number of arguments.");
+
+  bool is_typedarray;
+  NAPI_CALL(env, napi_is_typedarray(env, args[0], &is_typedarray));
+  NAPI_ASSERT(env, is_typedarray, "Wrong type of arguments. Expects a typedarray as first argument.");
+
+  napi_value arraybuffer;
+  NAPI_CALL(env, napi_get_typedarray_info(env, args[0], NULL, NULL, NULL, &arraybuffer, NULL));
+  NAPI_CALL(env, napi_detach_arraybuffer(env, arraybuffer));
+
+  return NULL;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Multiply", Multiply),
     DECLARE_NAPI_PROPERTY("External", External),
     DECLARE_NAPI_PROPERTY("CreateTypedArray", CreateTypedArray),
+    DECLARE_NAPI_PROPERTY("Detach", Detach),
   };
 
   NAPI_CALL(env, napi_define_properties(
