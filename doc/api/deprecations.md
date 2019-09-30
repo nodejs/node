@@ -2523,7 +2523,7 @@ Prefer [`response.socket`][] over [`response.connection`] and
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull
+    pr-url: https://github.com/nodejs/node/pull/29781
     description: Documentation-only deprecation.
 -->
 Type: Documentation-only
