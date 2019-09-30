@@ -35,21 +35,23 @@ file a new issue.
     * [Building Node.js](#building-nodejs-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
     * [Unix/macOS](#unixmacos)
     * [Windows](#windows-1)
-  * [Building without Intl support](#building-without-intl-support)
+  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
     * [Unix/macOS](#unixmacos-1)
     * [Windows](#windows-2)
-  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
-  * [Build with a specific ICU](#build-with-a-specific-icu)
+  * [Building without Intl support](#building-without-intl-support)
     * [Unix/macOS](#unixmacos-2)
     * [Windows](#windows-3)
+  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
+  * [Build with a specific ICU](#build-with-a-specific-icu)
+    * [Unix/macOS](#unixmacos-3)
+    * [Windows](#windows-4)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-3)
-  * [Windows](#windows-4)
+  * [Unix/macOS](#unixmacos-4)
+  * [Windows](#windows-5)
 * [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
 ## Supported platforms
@@ -607,13 +609,13 @@ This is the default option.
 #### Unix/macOS
 
 ```console
-$ ./configure --with-intl=full-icu --download=all
+$ ./configure --with-intl=full-icu
 ```
 
 #### Windows
 
 ```console
-> .\vcbuild full-icu download-all
+> .\vcbuild full-icu
 ```
 
 ### Trimmed: `small-icu` (English only) support
@@ -621,6 +623,8 @@ $ ./configure --with-intl=full-icu --download=all
  In this configuration, only English data is included, but
 the full `Intl` (ECMA-402) APIs.  It does not need to download
 any dependencies to function. You can add full data at runtime.
+
+#### Unix/macOS
 
 ```console
 $ ./configure --with-intl=small-icu
