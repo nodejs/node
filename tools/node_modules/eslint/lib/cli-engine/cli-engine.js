@@ -85,8 +85,8 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
  * @property {number} warningCount Number of warnings for the result.
  * @property {number} fixableErrorCount Number of fixable errors for the result.
  * @property {number} fixableWarningCount Number of fixable warnings for the result.
- * @property {string=} [source] The source code of the file that was linted.
- * @property {string=} [output] The source code of the file that was linted, with as many fixes applied as possible.
+ * @property {string} [source] The source code of the file that was linted.
+ * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
  */
 
 /**
@@ -329,7 +329,6 @@ function getRule(ruleId, configArrays) {
 /**
  * Collect used deprecated rules.
  * @param {ConfigArray[]} usedConfigArrays The config arrays which were used.
- * @param {Map<string, Object>} ruleMap The rule definitions which were used (built-ins).
  * @returns {IterableIterator<DeprecatedRuleInfo>} Used deprecated rules.
  */
 function *iterateRuleDeprecationWarnings(usedConfigArrays) {
@@ -530,7 +529,6 @@ class CLIEngine {
     /**
      * Creates a new instance of the core CLI engine.
      * @param {CLIEngineOptions} providedOptions The options for this instance.
-     * @constructor
      */
     constructor(providedOptions) {
         const options = Object.assign(

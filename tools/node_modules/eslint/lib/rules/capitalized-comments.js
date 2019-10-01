@@ -59,7 +59,7 @@ const DEFAULTS = {
  * @param {string} which Either "line" or "block".
  * @returns {Object} The normalized options.
  */
-function getNormalizedOptions(rawOptions = {}, which) {
+function getNormalizedOptions(rawOptions, which) {
     return Object.assign({}, DEFAULTS, rawOptions[which] || rawOptions);
 }
 
@@ -70,7 +70,7 @@ function getNormalizedOptions(rawOptions = {}, which) {
  * @returns {Object} An object with "Line" and "Block" keys and corresponding
  * normalized options objects.
  */
-function getAllNormalizedOptions(rawOptions) {
+function getAllNormalizedOptions(rawOptions = {}) {
     return {
         Line: getNormalizedOptions(rawOptions, "line"),
         Block: getNormalizedOptions(rawOptions, "block")

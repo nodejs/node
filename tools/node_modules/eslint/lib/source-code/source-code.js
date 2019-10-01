@@ -93,7 +93,6 @@ class SourceCode extends TokenStore {
      * @param {ScopeManager|null} textOrConfig.scopeManager - The scope of this source code.
      * @param {Object|null} textOrConfig.visitorKeys - The visitor keys to traverse AST.
      * @param {ASTNode} [astIfNoConfig] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
-     * @constructor
      */
     constructor(textOrConfig, astIfNoConfig) {
         let text, ast, parserServices, scopeManager, visitorKeys;
@@ -206,9 +205,9 @@ class SourceCode extends TokenStore {
 
     /**
      * Gets the source code for the given node.
-     * @param {ASTNode=} node The AST node to get the text for.
-     * @param {int=} beforeCount The number of characters before the node to retrieve.
-     * @param {int=} afterCount The number of characters after the node to retrieve.
+     * @param {ASTNode} [node] The AST node to get the text for.
+     * @param {int} [beforeCount] The number of characters before the node to retrieve.
+     * @param {int} [afterCount] The number of characters after the node to retrieve.
      * @returns {string} The text representing the AST node.
      * @public
      */

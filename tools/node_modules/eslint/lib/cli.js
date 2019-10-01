@@ -20,7 +20,8 @@ const fs = require("fs"),
     mkdirp = require("mkdirp"),
     { CLIEngine } = require("./cli-engine"),
     options = require("./options"),
-    log = require("./shared/logging");
+    log = require("./shared/logging"),
+    RuntimeInfo = require("./shared/runtime-info");
 
 const debug = require("debug")("eslint:cli");
 
@@ -159,13 +160,18 @@ const cli = {
         }
 
         const files = currentOptions._;
-
         const useStdin = typeof text === "string";
 
-        if (currentOptions.version) { // version from package.json
-
-            log.info(`v${require("../package.json").version}`);
-
+        if (currentOptions.version) {
+            log.info(RuntimeInfo.version());
+        } else if (currentOptions.envInfo) {
+            try {
+                log.info(RuntimeInfo.environment());
+                return 0;
+            } catch (err) {
+                log.error(err.message);
+                return 2;
+            }
         } else if (currentOptions.printConfig) {
             if (files.length) {
                 log.error("The --print-config option must be used with exactly one file name.");
@@ -177,17 +183,13 @@ const cli = {
             }
 
             const engine = new CLIEngine(translateOptions(currentOptions));
-
             const fileConfig = engine.getConfigForFile(currentOptions.printConfig);
 
             log.info(JSON.stringify(fileConfig, null, "  "));
             return 0;
         } else if (currentOptions.help || (!files.length && !useStdin)) {
-
             log.info(options.generateHelp());
-
         } else {
-
             debug(`Running on ${useStdin ? "text" : "files"}`);
 
             if (currentOptions.fix && currentOptions.fixDryRun) {
@@ -227,9 +229,8 @@ const cli = {
 
                 return (report.errorCount || tooManyWarnings) ? 1 : 0;
             }
+
             return 2;
-
-
         }
 
         return 0;

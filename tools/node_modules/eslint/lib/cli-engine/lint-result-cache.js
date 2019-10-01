@@ -47,7 +47,6 @@ class LintResultCache {
 
     /**
      * Creates a new LintResultCache instance.
-     * @constructor
      * @param {string} cacheFileLocation The cache file location.
      *   configuration lookup by file path).
      */

@@ -163,7 +163,7 @@ function checkDevDeps(packages) {
 /**
  * Check whether package.json is found in current path.
  *
- * @param   {string=} startDir Starting directory
+ * @param   {string} [startDir] Starting directory
  * @returns {boolean} Whether a package.json is found in current path.
  */
 function checkPackageJson(startDir) {

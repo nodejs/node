@@ -78,7 +78,7 @@ function mergeDefaultOptions(options) {
     return Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
-/* eslint-disable valid-jsdoc */
+/* eslint-disable jsdoc/check-param-names, jsdoc/require-param */
 /**
  * Normalize the path separators in a given string.
  * On Windows environment, this replaces `\` by `/`.
@@ -89,7 +89,7 @@ function mergeDefaultOptions(options) {
 const normalizePathSeps = path.sep === "/"
     ? (str => str)
     : ((seps, str) => str.replace(seps, "/")).bind(null, new RegExp(`\\${path.sep}`, "gu"));
-/* eslint-enable valid-jsdoc */
+/* eslint-enable jsdoc/check-param-names, jsdoc/require-param */
 
 /**
  * Converts a glob pattern to a new glob pattern relative to a different directory
@@ -298,7 +298,7 @@ class IgnoredPaths {
 
     /**
      * read ignore filepath
-     * @param {string} filePath, file to add to ig
+     * @param {string} filePath file to add to ig
      * @returns {Array} raw ignore rules
      */
     readIgnoreFile(filePath) {

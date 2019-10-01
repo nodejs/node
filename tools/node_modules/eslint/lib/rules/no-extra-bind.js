@@ -40,6 +40,7 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
         let scopeInfo = null;
 
         /**
@@ -71,8 +72,13 @@ module.exports = {
                         return null;
                     }
 
-                    const firstTokenToRemove = context.getSourceCode()
+                    const firstTokenToRemove = sourceCode
                         .getFirstTokenBetween(node.parent.object, node.parent.property, astUtils.isNotClosingParenToken);
+                    const lastTokenToRemove = sourceCode.getLastToken(node.parent.parent);
+
+                    if (sourceCode.commentsExistBetween(firstTokenToRemove, lastTokenToRemove)) {
+                        return null;
+                    }
 
                     return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
                 }
