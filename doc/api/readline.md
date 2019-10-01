@@ -313,7 +313,7 @@ The `rl.write()` method will write the data to the `readline` `Interface`'s
 <!-- YAML
 added: v11.4.0
 changes:
-  - version: REPLACEME
+  - version: v10.17.0
     pr-url: https://github.com/nodejs/node/pull/26989
     description: Symbol.asyncIterator support is no longer experimental.
 -->

@@ -403,7 +403,7 @@ Track heap object allocations for heap snapshots.
 
 ### `--unhandled-rejections=mode`
 <!-- YAML
-added: REPLACEME
+added: v10.17.0
 -->
 
 By default all unhandled rejections trigger a warning plus a deprecation warning

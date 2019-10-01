@@ -1276,7 +1276,7 @@ myReader.on('readable', () => {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v10.17.0
     pr-url: https://github.com/nodejs/node/pull/26989
     description: Symbol.asyncIterator support is no longer experimental.
 -->

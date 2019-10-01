@@ -150,7 +150,7 @@ available to the module code.
 | v6.x  |         |          | v6.14.2* |          |           |
 | v8.x  | v8.0.0* | v8.10.0* | v8.11.2  |          |           |
 | v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |
-| v10.x |         |          | v10.0.0  | v10.16.0 | REPLACEME |
+| v10.x |         |          | v10.0.0  | v10.16.0 | v10.17.0  |
 | v11.x |         |          | v11.0.0  | v11.8.0  |           |
 | v12.x |         |          |          | v12.0.0  |           |
 | v13.x |         |          |          |          |           |
@@ -1474,7 +1474,7 @@ structure, in most cases using a `TypedArray` will suffice.
 
 #### napi_create_date
 <!-- YAML
-added: REPLACEME
+added: v10.17.0
 napiVersion: 4
 -->
 
@@ -2117,7 +2117,7 @@ This API returns various properties of a `DataView`.
 
 #### napi_get_date_value
 <!-- YAML
-added: REPLACEME
+added: v10.17.0
 napiVersion: 4
 -->
 
@@ -2724,7 +2724,7 @@ This API checks if the `Object` passed in is a buffer.
 
 ### napi_is_date
 <!-- YAML
-added: REPLACEME
+added: v10.17.0
 napiVersion: 4
 -->
 
@@ -4540,7 +4540,7 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 added: v10.6.0
 napiVersion: 4
 changes:
-  - version: REPLACEME
+  - version: v10.17.0
     pr-url: https://github.com/nodejs/node/pull/27791
     description: Made `func` parameter optional with custom `call_js_cb`.
 -->
