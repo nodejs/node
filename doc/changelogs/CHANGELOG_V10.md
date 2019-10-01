@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.17.0">10.17.0</a><br/>
 <a href="#10.16.3">10.16.3</a><br/>
 <a href="#10.16.2">10.16.2</a><br/>
 <a href="#10.16.1">10.16.1</a><br/>
@@ -57,6 +58,78 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.17.0"></a>
+## 2019-10-22, Version 10.17.0 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+* **crypto**:
+  * add support for chacha20-poly1305 for AEAD (chux0519) [#24081](https://github.com/nodejs/node/pull/24081)
+  * increase maxmem range from 32 to 53 bits (Tobias Nießen) [#28799](https://github.com/nodejs/node/pull/28799)
+* **deps**:
+  * update npm to 6.11.3 (claudiahdz) [#29430](https://github.com/nodejs/node/pull/29430)
+  * upgrade openssl sources to 1.1.1d (Sam Roberts) [#29921](https://github.com/nodejs/node/pull/29921)
+* **dns**: remove dns.promises experimental warning (cjihrig) [#26592](https://github.com/nodejs/node/pull/26592)
+* **fs**: remove experimental warning for fs.promises (Anna Henningsen) [#26581](https://github.com/nodejs/node/pull/26581)
+* **http**: makes response.writeHead return the response (Mark S. Everitt) [#25974](https://github.com/nodejs/node/pull/25974)
+* **http2**: makes response.writeHead return the response (Mark S. Everitt) [#25974](https://github.com/nodejs/node/pull/25974)
+* **n-api**:
+  * make func argument of napi\_create\_threadsafe\_function optional (legendecas) [#27791](https://github.com/nodejs/node/pull/27791)
+  * mark version 5 N-APIs as stable (Gabriel Schulhof) [#29401](https://github.com/nodejs/node/pull/29401)
+  * implement date object (Jarrod Connolly) [#25917](https://github.com/nodejs/node/pull/25917)
+* **process**: add --unhandled-rejections flag (Ruben Bridgewater) [#26599](https://github.com/nodejs/node/pull/26599)
+* **stream**:
+  * implement Readable.from async iterator utility (Guy Bedford) [#27660](https://github.com/nodejs/node/pull/27660)
+  * make Symbol.asyncIterator support stable (Matteo Collina) [#26989](https://github.com/nodejs/node/pull/26989)
+
+### Commits
+
+* [[`f1a5a36961`](https://github.com/nodejs/node/commit/f1a5a36961)] - **build**: update Windows icon to Feb 2016 rebrand (Mike MacCana) [#28524](https://github.com/nodejs/node/pull/28524)
+* [[`63de2ade85`](https://github.com/nodejs/node/commit/63de2ade85)] - **(SEMVER-MINOR)** **crypto**: add support for chacha20-poly1305 for AEAD (chux0519) [#24081](https://github.com/nodejs/node/pull/24081)
+* [[`4f0f12c3d6`](https://github.com/nodejs/node/commit/4f0f12c3d6)] - **crypto**: fix rsa key gen with non-default exponent (Sam Roberts) [#27092](https://github.com/nodejs/node/pull/27092)
+* [[`7735824d2c`](https://github.com/nodejs/node/commit/7735824d2c)] - **(SEMVER-MINOR)** **crypto**: increase maxmem range from 32 to 53 bits (Tobias Nießen) [#28799](https://github.com/nodejs/node/pull/28799)
+* [[`e53dbba6bc`](https://github.com/nodejs/node/commit/e53dbba6bc)] - **deps**: update npm to 6.11.3 (claudiahdz) [#29430](https://github.com/nodejs/node/pull/29430)
+* [[`55cd01c5c3`](https://github.com/nodejs/node/commit/55cd01c5c3)] - **(SEMVER-MINOR)** **deps**: update npm to 6.10.3 (isaacs) [#29023](https://github.com/nodejs/node/pull/29023)
+* [[`e2291cf805`](https://github.com/nodejs/node/commit/e2291cf805)] - **deps**: upgrade npm to 6.10.2 (isaacs) [#28853](https://github.com/nodejs/node/pull/28853)
+* [[`03b69660f9`](https://github.com/nodejs/node/commit/03b69660f9)] - **deps**: upgrade npm to 6.10.0 (isaacs) [#28525](https://github.com/nodejs/node/pull/28525)
+* [[`333963ef73`](https://github.com/nodejs/node/commit/333963ef73)] - **deps**: dlloads node static linked executable (Luca Lindhorst) [#28045](https://github.com/nodejs/node/pull/28045)
+* [[`7202792ad3`](https://github.com/nodejs/node/commit/7202792ad3)] - **deps**: update archs files for OpenSSL-1.1.1d (Sam Roberts) [#29921](https://github.com/nodejs/node/pull/29921)
+* [[`9c393f1d02`](https://github.com/nodejs/node/commit/9c393f1d02)] - **deps**: upgrade openssl sources to 1.1.1d (Sam Roberts) [#29921](https://github.com/nodejs/node/pull/29921)
+* [[`7f48519413`](https://github.com/nodejs/node/commit/7f48519413)] - **deps**: do not link against librt (Sam Roberts) [#29729](https://github.com/nodejs/node/pull/29729)
+* [[`fcc22d31a0`](https://github.com/nodejs/node/commit/fcc22d31a0)] - **(SEMVER-MINOR)** **dns**: make dns.promises enumerable (cjihrig) [#26592](https://github.com/nodejs/node/pull/26592)
+* [[`fa27aac5fb`](https://github.com/nodejs/node/commit/fa27aac5fb)] - **(SEMVER-MINOR)** **dns**: remove dns.promises experimental warning (cjihrig) [#26592](https://github.com/nodejs/node/pull/26592)
+* [[`90fb146933`](https://github.com/nodejs/node/commit/90fb146933)] - **(SEMVER-MINOR)** **doc**: move dns.promises to stable status (cjihrig) [#26592](https://github.com/nodejs/node/pull/26592)
+* [[`65e68d1f4f`](https://github.com/nodejs/node/commit/65e68d1f4f)] - **doc**: add documentation for stream readableFlowing (Chetan Karande) [#29506](https://github.com/nodejs/node/pull/29506)
+* [[`c285e694e2`](https://github.com/nodejs/node/commit/c285e694e2)] - **doc**: fix the links tls default version sections (Chetan Karande) [#28827](https://github.com/nodejs/node/pull/28827)
+* [[`cef5010135`](https://github.com/nodejs/node/commit/cef5010135)] - **doc**: describe tls.DEFAULT\_MIN\_VERSION/\_MAX\_VERSION (Chetan Karande) [#28827](https://github.com/nodejs/node/pull/28827)
+* [[`15c2eb0e58`](https://github.com/nodejs/node/commit/15c2eb0e58)] - **doc**: update N-API version matrix (Gabriel Schulhof) [#29461](https://github.com/nodejs/node/pull/29461)
+* [[`a3eda2896d`](https://github.com/nodejs/node/commit/a3eda2896d)] - **doc**: fixup changelog for v10.16.3 (Andrew Hughes) [#29159](https://github.com/nodejs/node/pull/29159)
+* [[`56a834a53f`](https://github.com/nodejs/node/commit/56a834a53f)] - **doc,test**: clarify that Http2Stream is destroyed after data is read (Alba Mendez) [#27891](https://github.com/nodejs/node/pull/27891)
+* [[`85ce8ef19a`](https://github.com/nodejs/node/commit/85ce8ef19a)] - **(SEMVER-MINOR)** **fs**: remove experimental warning for fs.promises (Anna Henningsen) [#26581](https://github.com/nodejs/node/pull/26581)
+* [[`ccf2823f83`](https://github.com/nodejs/node/commit/ccf2823f83)] - **(SEMVER-MINOR)** **http**: makes response.writeHead return the response (Mark S. Everitt) [#25974](https://github.com/nodejs/node/pull/25974)
+* [[`66387cd45e`](https://github.com/nodejs/node/commit/66387cd45e)] - **http2**: send out pending data earlier (Anna Henningsen) [#29398](https://github.com/nodejs/node/pull/29398)
+* [[`925849650b`](https://github.com/nodejs/node/commit/925849650b)] - **(SEMVER-MINOR)** **http2**: makes response.writeHead return the response (Mark S. Everitt) [#25974](https://github.com/nodejs/node/pull/25974)
+* [[`69b0212df3`](https://github.com/nodejs/node/commit/69b0212df3)] - **http2**: do not start reading after write if new write is on wire (Anna Henningsen) [#29399](https://github.com/nodejs/node/pull/29399)
+* [[`36a0e9a063`](https://github.com/nodejs/node/commit/36a0e9a063)] - **http2**: do not crash on stream listener removal w/ destroyed session (Anna Henningsen) [#29459](https://github.com/nodejs/node/pull/29459)
+* [[`c74c6a5ccf`](https://github.com/nodejs/node/commit/c74c6a5ccf)] - **n-api**: mark version 5 N-APIs as stable (Gabriel Schulhof) [#29401](https://github.com/nodejs/node/pull/29401)
+* [[`f8622762e3`](https://github.com/nodejs/node/commit/f8622762e3)] - **(SEMVER-MINOR)** **n-api**: make func argument of napi\_create\_threadsafe\_function optional (legendecas) [#27791](https://github.com/nodejs/node/pull/27791)
+* [[`4f41e4f471`](https://github.com/nodejs/node/commit/4f41e4f471)] - **(SEMVER-MINOR)** **n-api**: implement date object (Jarrod Connolly) [#25917](https://github.com/nodejs/node/pull/25917)
+* [[`69bf5b7944`](https://github.com/nodejs/node/commit/69bf5b7944)] - **net**: treat ENOTCONN at shutdown as success (Anna Henningsen) [#29912](https://github.com/nodejs/node/pull/29912)
+* [[`d6c998a478`](https://github.com/nodejs/node/commit/d6c998a478)] - **process**: use public readableFlowing property (Chetan Karande) [#29502](https://github.com/nodejs/node/pull/29502)
+* [[`b43d7e8f42`](https://github.com/nodejs/node/commit/b43d7e8f42)] - **(SEMVER-MINOR)** **process**: add --unhandled-rejections flag (Ruben Bridgewater) [#26599](https://github.com/nodejs/node/pull/26599)
+* [[`79f3844fb0`](https://github.com/nodejs/node/commit/79f3844fb0)] - **(SEMVER-MINOR)** **readline**: make Symbol.asyncIterator support stable (Matteo Collina) [#26989](https://github.com/nodejs/node/pull/26989)
+* [[`18b140ae75`](https://github.com/nodejs/node/commit/18b140ae75)] - **src**: use maybe version v8::Function::Call (Ouyang Yadong) [#23826](https://github.com/nodejs/node/pull/23826)
+* [[`1bb5102999`](https://github.com/nodejs/node/commit/1bb5102999)] - **src**: use more explicit return type in Sign::SignFinal() (Anna Henningsen) [#23779](https://github.com/nodejs/node/pull/23779)
+* [[`859d47593e`](https://github.com/nodejs/node/commit/859d47593e)] - **src**: reduce platform worker barrier lifetime (Ali Ijaz Sheikh) [#23419](https://github.com/nodejs/node/pull/23419)
+* [[`00831f0293`](https://github.com/nodejs/node/commit/00831f0293)] - **(SEMVER-MINOR)** **stream**: make Symbol.asyncIterator support stable (Matteo Collina) [#26989](https://github.com/nodejs/node/pull/26989)
+* [[`ddb5152e9b`](https://github.com/nodejs/node/commit/ddb5152e9b)] - **(SEMVER-MINOR)** **stream**: implement Readable.from async iterator utility (Guy Bedford) [#27660](https://github.com/nodejs/node/pull/27660)
+* [[`13d8549abd`](https://github.com/nodejs/node/commit/13d8549abd)] - **test**: well-defined DH groups now verify clean (Sam Roberts) [#29550](https://github.com/nodejs/node/pull/29550)
+* [[`f78ecc3f93`](https://github.com/nodejs/node/commit/f78ecc3f93)] - **test**: fix race in test-http2-origin (Alba Mendez) [#28903](https://github.com/nodejs/node/pull/28903)
+* [[`2afbb3efab`](https://github.com/nodejs/node/commit/2afbb3efab)] - **test,win**: cleanup exec-timeout processes (João Reis) [#28723](https://github.com/nodejs/node/pull/28723)
+* [[`fe58bca878`](https://github.com/nodejs/node/commit/fe58bca878)] - **tls**: group chunks into TLS segments (Alba Mendez) [#27861](https://github.com/nodejs/node/pull/27861)
+* [[`2eae030a4b`](https://github.com/nodejs/node/commit/2eae030a4b)] - **(SEMVER-MINOR)** **worker**: add missing return value in case of fatal exceptions (Ruben Bridgewater) [#29036](https://github.com/nodejs/node/pull/29036)
+* [[`e8c90bf4d1`](https://github.com/nodejs/node/commit/e8c90bf4d1)] - **zlib**: do not coalesce multiple `.flush()` calls (Anna Henningsen) [#28520](https://github.com/nodejs/node/pull/28520)
 
 <a id="10.16.3"></a>
 ## 2019-08-15, Version 10.16.3 'Dubnium' (LTS), @BethGriggs
