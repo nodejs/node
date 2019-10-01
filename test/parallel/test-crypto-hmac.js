@@ -408,12 +408,9 @@ const rfc2202_sha1 = [
 for (const { key, data, hmac } of rfc2202_sha1)
   testHmac('sha1', key, data, hmac);
 
-common.expectsError(
-  () => crypto.createHmac('sha256', 'w00t').digest('ucs2'),
-  {
-    code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
-    type: Error
-  });
+assert.strictEqual(
+  crypto.createHmac('sha256', 'w00t').digest('ucs2'),
+  crypto.createHmac('sha256', 'w00t').digest().toString('ucs2'));
 
 // Check initialized -> uninitialized state transition after calling digest().
 {
