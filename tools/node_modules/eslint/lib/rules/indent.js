@@ -81,6 +81,9 @@ const KNOWN_NODES = new Set([
     "WhileStatement",
     "WithStatement",
     "YieldExpression",
+    "JSXFragment",
+    "JSXOpeningFragment",
+    "JSXClosingFragment",
     "JSXIdentifier",
     "JSXNamespacedName",
     "JSXMemberExpression",
@@ -1451,6 +1454,31 @@ module.exports = {
                 const firstToken = sourceCode.getFirstToken(node);
 
                 offsets.setDesiredOffsets(node.name.range, firstToken, 1);
+            },
+
+            JSXFragment(node) {
+                const firstOpeningToken = sourceCode.getFirstToken(node.openingFragment);
+                const firstClosingToken = sourceCode.getFirstToken(node.closingFragment);
+
+                addElementListIndent(node.children, firstOpeningToken, firstClosingToken, 1);
+            },
+
+            JSXOpeningFragment(node) {
+                const firstToken = sourceCode.getFirstToken(node);
+                const closingToken = sourceCode.getLastToken(node);
+
+                offsets.setDesiredOffsets(node.range, firstToken, 1);
+                offsets.matchOffsetOf(firstToken, closingToken);
+            },
+
+            JSXClosingFragment(node) {
+                const firstToken = sourceCode.getFirstToken(node);
+                const slashToken = sourceCode.getLastToken(node, { skip: 1 });
+                const closingToken = sourceCode.getLastToken(node);
+                const tokenToMatch = astUtils.isTokenOnSameLine(slashToken, closingToken) ? slashToken : closingToken;
+
+                offsets.setDesiredOffsets(node.range, firstToken, 1);
+                offsets.matchOffsetOf(firstToken, tokenToMatch);
             },
 
             JSXExpressionContainer(node) {
