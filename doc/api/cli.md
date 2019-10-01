@@ -989,6 +989,7 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--es-module-specifier-resolution`
 * `--experimental-exports`
+* `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-policy`
