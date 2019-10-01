@@ -1809,9 +1809,15 @@ Returns `napi_ok` if the API succeeded.
 
 This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
-later by native code. The API allows the caller to pass in a finalize callback,
-in case the underlying native resource needs to be cleaned up when the external
-JavaScript value gets collected.
+later by native code using [`napi_get_value_external`].
+
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
 
 The created value is not an object, and therefore does not support additional
 properties. It is considered a distinct value type: calling `napi_typeof()` with
@@ -1850,6 +1856,14 @@ The underlying byte buffer of the `ArrayBuffer` is externally allocated and
 managed. The caller must ensure that the byte buffer remains valid until the
 finalize callback is called.
 
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
+
 JavaScript `ArrayBuffer`s are described in
 [Section 24.1][] of the ECMAScript Language Specification.
 
@@ -1883,6 +1897,14 @@ Returns `napi_ok` if the API succeeded.
 This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a `TypedArray` will suffice.
+
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
 
 For Node.js >=4 `Buffers` are `Uint8Array`s.
 
@@ -4228,7 +4250,8 @@ in `js_object` is ready for garbage collection. This API is similar to
 * the native data cannot be retrieved later using `napi_unwrap()`,
 * nor can it be removed later using `napi_remove_wrap()`, and
 * the API can be called multiple times with different data items in order to
-  attach each of them to the JavaScript object.
+  attach each of them to the JavaScript object, and
+* the object manipulated by the API can be used with `napi_wrap()`.
 
 *Caution*: The optional returned reference (if obtained) should be deleted via
 [`napi_delete_reference`][] ONLY in response to the finalize callback
@@ -5164,6 +5187,7 @@ This API may only be called from the main thread.
 [`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
 [`napi_get_property`]: #n_api_napi_get_property
 [`napi_get_reference_value`]: #n_api_napi_get_reference_value
+[`napi_get_value_external`]: #n_api_napi_get_value_external
 [`napi_has_own_property`]: #n_api_napi_has_own_property
 [`napi_has_property`]: #n_api_napi_has_property
 [`napi_is_error`]: #n_api_napi_is_error
