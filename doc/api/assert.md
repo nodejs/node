@@ -624,14 +624,14 @@ changes:
                  deprecated and emits a warning.
 -->
 
+> Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
+> functions instead.
+
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
 * `operator` {string} **Default:** `'!='`
 * `stackStartFn` {Function} **Default:** `assert.fail`
-
-> Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
-> functions instead.
 
 If `message` is falsy, the error message is set as the values of `actual` and
 `expected` separated by the provided `operator`. If just the two `actual` and
