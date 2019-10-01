@@ -229,10 +229,10 @@ added: v0.9.12
 deprecated: v4.0.0
 -->
 
+> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+
 * `emitter` {EventEmitter} The emitter to query
 * `eventName` {string|symbol} The event name
-
-> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
 
 A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.

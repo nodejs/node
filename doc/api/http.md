@@ -1169,9 +1169,9 @@ added: v0.3.0
 deprecated: REPLACEME
 -->
 
-* {net.Socket}
-
 > Stability: 0 - Deprecated. Use [`response.socket`][].
+
+* {net.Socket}
 
 See [`response.socket`][].
 
