@@ -2074,7 +2074,7 @@ state, usually after `.close()` has been called.
 ### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
 <!-- YAML
 added: v9.0.0
-removed: REPLACME
+removed: REPLACEME
 -->
 
 The UTF-16 encoding was used with [`hash.digest()`][]. While the
