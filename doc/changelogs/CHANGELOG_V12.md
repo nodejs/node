@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#12.11.1">12.11.1</a><br/>
 <a href="#12.11.0">12.11.0</a><br/>
 <a href="#12.10.0">12.10.0</a><br/>
 <a href="#12.9.1">12.9.1</a><br/>
@@ -41,6 +42,52 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.11.1"></a>
+## 2019-10-01, Version 12.11.1 (Current), @targos
+
+### Notable changes
+
+* **build**:
+  * This release fixes a regression that prevented from building Node.js using
+    the official source tarball (Richard Lau) [#29712](https://github.com/nodejs/node/pull/29712).
+* **deps**:
+  * Updated small-icu data to support "unit" style in the `Intl.NumberFormat` API (Michaël Zasso) [#29735](https://github.com/nodejs/node/pull/29735).
+
+### Commits
+
+* [[`35e1d8c5ba`](https://github.com/nodejs/node/commit/35e1d8c5ba)] - **build**: include deps/v8/test/torque in source tarball (Richard Lau) [#29712](https://github.com/nodejs/node/pull/29712)
+* [[`ae461964a7`](https://github.com/nodejs/node/commit/ae461964a7)] - **build,win**: goto lint only after defining node\_exe (João Reis) [#29616](https://github.com/nodejs/node/pull/29616)
+* [[`588b388181`](https://github.com/nodejs/node/commit/588b388181)] - **crypto**: use byteLength in timingSafeEqual (Tobias Nießen) [#29657](https://github.com/nodejs/node/pull/29657)
+* [[`298d92785c`](https://github.com/nodejs/node/commit/298d92785c)] - **deps**: enable unit data in small-icu (Michaël Zasso) [#29735](https://github.com/nodejs/node/pull/29735)
+* [[`0041f1c0d3`](https://github.com/nodejs/node/commit/0041f1c0d3)] - **doc**: sync security policy with nodejs.org (Sam Roberts) [#29682](https://github.com/nodejs/node/pull/29682)
+* [[`038cbb08de`](https://github.com/nodejs/node/commit/038cbb08de)] - **doc**: fix output in inspector HeapProfile example (Kirill Fomichev) [#29711](https://github.com/nodejs/node/pull/29711)
+* [[`d86f10cf0b`](https://github.com/nodejs/node/commit/d86f10cf0b)] - **doc**: add KeyObject to type for crypto.createDecipheriv() argument (exoego) [#29689](https://github.com/nodejs/node/pull/29689)
+* [[`1303e3551f`](https://github.com/nodejs/node/commit/1303e3551f)] - **doc**: clarify description of `readable.push()` method (imhype) [#29687](https://github.com/nodejs/node/pull/29687)
+* [[`d258e0242c`](https://github.com/nodejs/node/commit/d258e0242c)] - **doc**: clarify stream errors while reading and writing (Robert Nagy) [#29653](https://github.com/nodejs/node/pull/29653)
+* [[`0fc85ff96a`](https://github.com/nodejs/node/commit/0fc85ff96a)] - **doc**: specify `display=fallback` for Google Fonts (XhmikosR) [#29688](https://github.com/nodejs/node/pull/29688)
+* [[`c2791dcd9c`](https://github.com/nodejs/node/commit/c2791dcd9c)] - **doc**: fix some recent nits (Vse Mozhet Byt) [#29670](https://github.com/nodejs/node/pull/29670)
+* [[`7a6b05a26f`](https://github.com/nodejs/node/commit/7a6b05a26f)] - **doc**: fix 404 links (XhmikosR) [#29661](https://github.com/nodejs/node/pull/29661)
+* [[`2b76cb6dda`](https://github.com/nodejs/node/commit/2b76cb6dda)] - **doc**: remove align from tables (XhmikosR) [#29668](https://github.com/nodejs/node/pull/29668)
+* [[`3de1fc6958`](https://github.com/nodejs/node/commit/3de1fc6958)] - **doc**: document that iv may be null when using createCipheriv() (Ruben Bridgewater) [#29684](https://github.com/nodejs/node/pull/29684)
+* [[`91e4cc7500`](https://github.com/nodejs/node/commit/91e4cc7500)] - **doc**: update AUTHORS list (Anna Henningsen) [#29608](https://github.com/nodejs/node/pull/29608)
+* [[`2ea4cc0732`](https://github.com/nodejs/node/commit/2ea4cc0732)] - **doc**: clarify pipeline stream cleanup (Robert Nagy) [#29738](https://github.com/nodejs/node/pull/29738)
+* [[`ab060bfdab`](https://github.com/nodejs/node/commit/ab060bfdab)] - **doc**: clarify fs.symlink() usage (Simon A. Eugster) [#29700](https://github.com/nodejs/node/pull/29700)
+* [[`b5c24dfbe8`](https://github.com/nodejs/node/commit/b5c24dfbe8)] - **doc**: fix type of atime/mtime (TATSUNO Yasuhiro) [#29666](https://github.com/nodejs/node/pull/29666)
+* [[`6579b1a547`](https://github.com/nodejs/node/commit/6579b1a547)] - **doc,http**: indicate callback is optional for message.setTimeout() (Trivikram Kamat) [#29654](https://github.com/nodejs/node/pull/29654)
+* [[`a04fc86723`](https://github.com/nodejs/node/commit/a04fc86723)] - **http2**: optimize the altsvc Max bytes limit, define and use constants (rickyes) [#29673](https://github.com/nodejs/node/pull/29673)
+* [[`d1f4befd09`](https://github.com/nodejs/node/commit/d1f4befd09)] - **module**: pass full URL to loader for top-level load (Guy Bedford) [#29736](https://github.com/nodejs/node/pull/29736)
+* [[`3f028551a8`](https://github.com/nodejs/node/commit/3f028551a8)] - **module**: move cjs type check behind flag (Guy Bedford) [#29732](https://github.com/nodejs/node/pull/29732)
+* [[`c3a1303bc2`](https://github.com/nodejs/node/commit/c3a1303bc2)] - **src**: rename --loader to --experimental-loader (Alex Aubuchon) [#29752](https://github.com/nodejs/node/pull/29752)
+* [[`17c3478d78`](https://github.com/nodejs/node/commit/17c3478d78)] - **src**: fix asan build for gcc/clang (David Carlier) [#29383](https://github.com/nodejs/node/pull/29383)
+* [[`64740d44b5`](https://github.com/nodejs/node/commit/64740d44b5)] - **src**: fix compiler warning in inspector\_profiler.cc (Daniel Bevenius) [#29660](https://github.com/nodejs/node/pull/29660)
+* [[`a86b71f745`](https://github.com/nodejs/node/commit/a86b71f745)] - **src**: disconnect inspector before exiting out of fatal exception (Joyee Cheung) [#29611](https://github.com/nodejs/node/pull/29611)
+* [[`8d88010277`](https://github.com/nodejs/node/commit/8d88010277)] - **src**: try showing stack traces when process.\_fatalException is not set (Joyee Cheung) [#29624](https://github.com/nodejs/node/pull/29624)
+* [[`2a6b7b0476`](https://github.com/nodejs/node/commit/2a6b7b0476)] - **test**: fix flaky test-cluster-net-listen-ipv6only-none (Rich Trott) [#29681](https://github.com/nodejs/node/pull/29681)
+* [[`69f26340e9`](https://github.com/nodejs/node/commit/69f26340e9)] - **tls**: simplify setSecureContext() option parsing (cjihrig) [#29704](https://github.com/nodejs/node/pull/29704)
+* [[`c361180c07`](https://github.com/nodejs/node/commit/c361180c07)] - **tools**: make mailmap processing for author list case-insensitive (Anna Henningsen) [#29608](https://github.com/nodejs/node/pull/29608)
+* [[`ef033d046a`](https://github.com/nodejs/node/commit/ef033d046a)] - **worker**: fix process.\_fatalException return type (Ruben Bridgewater) [#29706](https://github.com/nodejs/node/pull/29706)
+* [[`04df7dbadb`](https://github.com/nodejs/node/commit/04df7dbadb)] - **worker**: keep allocators for transferred SAB instances alive longer (Anna Henningsen) [#29637](https://github.com/nodejs/node/pull/29637)
 
 <a id="12.11.0"></a>
 ## 2019-09-25, Version 12.11.0 (Current), @BridgeAR
