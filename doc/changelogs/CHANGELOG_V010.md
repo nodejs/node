@@ -93,9 +93,9 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits
 
-* [a14a6a3a11] - deps: c-ares, avoid single-byte buffer overwrite (Rod Vagg) https://github.com/nodejs/node/pull/9108
-* [b798f598af] - tls: fix minor jslint failure (Rod Vagg) https://github.com/nodejs/node/pull/9107
-* [92b232ba01] - win,build: try multiple timeservers when signing (Rod Vagg) https://github.com/nodejs/node/pull/9155
+* [[`a14a6a3a11`](https://github.com/nodejs/node/commit/a14a6a3a11)] - deps: c-ares, avoid single-byte buffer overwrite (Rod Vagg) https://github.com/nodejs/node/pull/9108
+* [[`b798f598af`](https://github.com/nodejs/node/commit/b798f598af)] - tls: fix minor jslint failure (Rod Vagg) https://github.com/nodejs/node/pull/9107
+* [[`92b232ba01`](https://github.com/nodejs/node/commit/92b232ba01)] - win,build: try multiple timeservers when signing (Rod Vagg) https://github.com/nodejs/node/pull/9155
 
 <a id="0.10.47"></a>
 ## 2016-09-27, Version 0.10.47 (Maintenance), @rvagg
@@ -113,20 +113,20 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits:
 
-* [fc259c7dc4] - buffer: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) https://github.com/nodejs/node-private/pull/67
-* [35b49ed4bb] - build: turn on -fno-delete-null-pointer-checks (Ben Noordhuis) https://github.com/nodejs/node/pull/6738
-* [03f4920d6a] - crypto: don't build hardware engines (Rod Vagg) https://github.com/nodejs/node-private/pull/68
-* [1cbdb1957d] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25368
-* [c66408cd0c] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/nodejs/node-v0.x-archive/pull/25654
-* [68f88ea792] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
-* [884d50b348] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
-* [bfd6cb5699] - deps: upgrade openssl sources to 1.0.1u (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
-* [3614a173d0] - http: check reason chars in writeHead (Evan Lucas) https://github.com/nodejs/node-private/pull/48
-* [f2433430ca] - http: disallow sending obviously invalid status codes (Evan Lucas) https://github.com/nodejs/node-private/pull/48
-* [0d7e21ee7b] - lib: make tls.checkServerIdentity() more strict (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
-* [1f4a6f5bd1] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
-* [88dcc7f5bb] - v8: fix -Wsign-compare warning in Zone::New() (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
-* [fd8ac56c75] - v8: fix build errors with g++ 6.1.1 (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
+* [[`fc259c7dc4`](https://github.com/nodejs/node/commit/fc259c7dc4)] - buffer: zero-fill uninitialized bytes in .concat() (Сковорода Никита Андреевич) https://github.com/nodejs/node-private/pull/67
+* [[`35b49ed4bb`](https://github.com/nodejs/node/commit/35b49ed4bb)] - build: turn on -fno-delete-null-pointer-checks (Ben Noordhuis) https://github.com/nodejs/node/pull/6738
+* [[`03f4920d6a`](https://github.com/nodejs/node/commit/03f4920d6a)] - crypto: don't build hardware engines (Rod Vagg) https://github.com/nodejs/node-private/pull/68
+* [[`1cbdb1957d`](https://github.com/nodejs/node/commit/1cbdb1957d)] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25368
+* [[`c66408cd0c`](https://github.com/nodejs/node/commit/c66408cd0c)] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [[`68f88ea792`](https://github.com/nodejs/node/commit/68f88ea792)] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [[`884d50b348`](https://github.com/nodejs/node/commit/884d50b348)] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [[`bfd6cb5699`](https://github.com/nodejs/node/commit/bfd6cb5699)] - deps: upgrade openssl sources to 1.0.1u (Shigeki Ohtsu) https://github.com/nodejs/node/pull/8718
+* [[`3614a173d0`](https://github.com/nodejs/node/commit/3614a173d0)] - http: check reason chars in writeHead (Evan Lucas) https://github.com/nodejs/node-private/pull/48
+* [[`f2433430ca`](https://github.com/nodejs/node/commit/f2433430ca)] - http: disallow sending obviously invalid status codes (Evan Lucas) https://github.com/nodejs/node-private/pull/48
+* [[`0d7e21ee7b`](https://github.com/nodejs/node/commit/0d7e21ee7b)] - lib: make tls.checkServerIdentity() more strict (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
+* [[`1f4a6f5bd1`](https://github.com/nodejs/node/commit/1f4a6f5bd1)] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25654
+* [[`88dcc7f5bb`](https://github.com/nodejs/node/commit/88dcc7f5bb)] - v8: fix -Wsign-compare warning in Zone::New() (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
+* [[`fd8ac56c75`](https://github.com/nodejs/node/commit/fd8ac56c75)] - v8: fix build errors with g++ 6.1.1 (Ben Noordhuis) https://github.com/nodejs/node-private/pull/62
 
 <a id="0.10.46"></a>
 ## 2016-06-23, Version 0.10.46 (Maintenance), @rvagg
@@ -140,8 +140,8 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits:
 
-* [3374f57973] - deps: update libuv to 0.10.37 (Saúl Ibarra Corretgé) https://github.com/nodejs/node/pull/7293
-* [fcb9145e29] - deps: backport 3a9bfec from v8 upstream (Myles Borins) https://github.com/nodejs/node-private/pull/43
+* [[`3374f57973`](https://github.com/nodejs/node/commit/3374f57973)] - deps: update libuv to 0.10.37 (Saúl Ibarra Corretgé) https://github.com/nodejs/node/pull/7293
+* [[`fcb9145e29`](https://github.com/nodejs/node/commit/fcb9145e29)] - deps: backport 3a9bfec from v8 upstream (Myles Borins) https://github.com/nodejs/node-private/pull/43
 
 <a id="0.10.45"></a>
 ## 2016-05-06, Version 0.10.45 (Maintenance), @rvagg
@@ -155,14 +155,14 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits:
 
-* [3cff81c7d6] - deps: completely upgrade npm in LTS to 2.15.1 (Forrest L Norvell) https://github.com/nodejs/node/pull/5987
-* [7c22f19009] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/joyent/node/pull/25368
-* [5d78366937] - deps: update openssl asm files (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
-* [2bc2427cb7] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/joyent/node/pull/25654
-* [8df4b0914c] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
-* [11eefefb17] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
-* [61ccc27b54] - deps: upgrade openssl sources to 1.0.1t (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
-* [aa02438274] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
+* [[`3cff81c7d6`](https://github.com/nodejs/node/commit/3cff81c7d6)] - deps: completely upgrade npm in LTS to 2.15.1 (Forrest L Norvell) https://github.com/nodejs/node/pull/5987
+* [[`7c22f19009`](https://github.com/nodejs/node/commit/7c22f19009)] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/joyent/node/pull/25368
+* [[`5d78366937`](https://github.com/nodejs/node/commit/5d78366937)] - deps: update openssl asm files (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [[`2bc2427cb7`](https://github.com/nodejs/node/commit/2bc2427cb7)] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/joyent/node/pull/25654
+* [[`8df4b0914c`](https://github.com/nodejs/node/commit/8df4b0914c)] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
+* [[`11eefefb17`](https://github.com/nodejs/node/commit/11eefefb17)] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [[`61ccc27b54`](https://github.com/nodejs/node/commit/61ccc27b54)] - deps: upgrade openssl sources to 1.0.1t (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [[`aa02438274`](https://github.com/nodejs/node/commit/aa02438274)] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
 
 <a id="0.10.44"></a>
 ## 2016-03-31, Version 0.10.44 (Maintenance), @rvagg
@@ -174,10 +174,10 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits
 
-* [feceb77d7e] - deps: upgrade npm in LTS to 2.15.1 (Forrest L Norvell) https://github.com/nodejs/node/pull/5968
-* [0847954331] - deps: Disable EXPORT and LOW ciphers in openssl (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
-* [6bb86e727a] - test: change tls tests not to use LOW cipher (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
-* [905bec29ad] - win,build: support Visual C++ Build Tools 2015 (João Reis) https://github.com/nodejs/node/pull/5627
+* [[`feceb77d7e`](https://github.com/nodejs/node/commit/feceb77d7e)] - deps: upgrade npm in LTS to 2.15.1 (Forrest L Norvell) https://github.com/nodejs/node/pull/5968
+* [[`0847954331`](https://github.com/nodejs/node/commit/0847954331)] - deps: Disable EXPORT and LOW ciphers in openssl (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
+* [[`6bb86e727a`](https://github.com/nodejs/node/commit/6bb86e727a)] - test: change tls tests not to use LOW cipher (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
+* [[`905bec29ad`](https://github.com/nodejs/node/commit/905bec29ad)] - win,build: support Visual C++ Build Tools 2015 (João Reis) https://github.com/nodejs/node/pull/5627
 
 <a id="0.10.43"></a>
 ## 2016-03-04, Version 0.10.43 (Maintenance), @rvagg
@@ -196,13 +196,13 @@ This is a security release. All Node.js users should consult the security releas
 
 ### Commits:
 
-* [164157abbb] - build: update Node.js logo on OSX installer (Rod Vagg) https://github.com/nodejs/node/pull/5401
-* [f8cb0dcf67] - crypto,tls: remove SSLv2 support (Ben Noordhuis) https://github.com/nodejs/node/pull/5529
-* [42ded2a590] - deps: upgrade openssl to 1.0.1s (Ben Noordhuis) https://github.com/nodejs/node/pull/5508
-* [1e45a6111c] - deps: update http-parser to version 1.2 (James M Snell) https://github.com/nodejs/node/pull/5242
-* [6db377b2f4] - doc: remove SSLv2 descriptions (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5541
-* [563c359f5c] - domains: fix handling of uncaught exceptions (Julien Gilli) https://github.com/nodejs/node/pull/3887
-* [e483f3fd26] - test: fix hanging http obstext test (Ben Noordhuis) https://github.com/nodejs/node/pull/5511
+* [[`164157abbb`](https://github.com/nodejs/node/commit/164157abbb)] - build: update Node.js logo on OSX installer (Rod Vagg) https://github.com/nodejs/node/pull/5401
+* [[`f8cb0dcf67`](https://github.com/nodejs/node/commit/f8cb0dcf67)] - crypto,tls: remove SSLv2 support (Ben Noordhuis) https://github.com/nodejs/node/pull/5529
+* [[`42ded2a590`](https://github.com/nodejs/node/commit/42ded2a590)] - deps: upgrade openssl to 1.0.1s (Ben Noordhuis) https://github.com/nodejs/node/pull/5508
+* [[`1e45a6111c`](https://github.com/nodejs/node/commit/1e45a6111c)] - deps: update http-parser to version 1.2 (James M Snell) https://github.com/nodejs/node/pull/5242
+* [[`6db377b2f4`](https://github.com/nodejs/node/commit/6db377b2f4)] - doc: remove SSLv2 descriptions (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5541
+* [[`563c359f5c`](https://github.com/nodejs/node/commit/563c359f5c)] - domains: fix handling of uncaught exceptions (Julien Gilli) https://github.com/nodejs/node/pull/3887
+* [[`e483f3fd26`](https://github.com/nodejs/node/commit/e483f3fd26)] - test: fix hanging http obstext test (Ben Noordhuis) https://github.com/nodejs/node/pull/5511
 
 <a id="0.10.42"></a>
 ## 2016-02-09, Version 0.10.42 (Maintenance), @jasnell
@@ -223,14 +223,14 @@ This is an important security release. All Node.js users should consult the secu
 
 ### Commits
 
-* [fdc332183e] - build: enable xz compressed tarballs where possible (Rod Vagg) https://github.com/nodejs/node/pull/4894
-* [2d35b421b5] - deps: upgrade openssl sources to 1.0.1r (Shigeki Ohtsu) https://github.com/joyent/node/pull/25368
-* [b31c0f3ea4] - deps: update http-parser to version 1.1 (James M Snell)
-* [616ec1d6b0] - doc: clarify v0.10.41 openssl tls security impact (Rod Vagg) https://github.com/nodejs/node/pull/4153
-* [ccb3c2377c] - http: strictly forbid invalid characters from headers (James M Snell)
-* [f0af0d1f96] - src: avoid compiler warning in node_revert.cc (James M Snell)
-* [df80e856c6] - src: add --security-revert command line flag (James M Snell)
-* [ff58dcdd74] - tools: backport tools/install.py for headers (Richard Lau) https://github.com/nodejs/node/pull/4149
+* [[`fdc332183e`](https://github.com/nodejs/node/commit/fdc332183e)] - build: enable xz compressed tarballs where possible (Rod Vagg) https://github.com/nodejs/node/pull/4894
+* [[`2d35b421b5`](https://github.com/nodejs/node/commit/2d35b421b5)] - deps: upgrade openssl sources to 1.0.1r (Shigeki Ohtsu) https://github.com/joyent/node/pull/25368
+* [[`b31c0f3ea4`](https://github.com/nodejs/node/commit/b31c0f3ea4)] - deps: update http-parser to version 1.1 (James M Snell)
+* [[`616ec1d6b0`](https://github.com/nodejs/node/commit/616ec1d6b0)] - doc: clarify v0.10.41 openssl tls security impact (Rod Vagg) https://github.com/nodejs/node/pull/4153
+* [[`ccb3c2377c`](https://github.com/nodejs/node/commit/ccb3c2377c)] - http: strictly forbid invalid characters from headers (James M Snell)
+* [[`f0af0d1f96`](https://github.com/nodejs/node/commit/f0af0d1f96)] - src: avoid compiler warning in node_revert.cc (James M Snell)
+* [[`df80e856c6`](https://github.com/nodejs/node/commit/df80e856c6)] - src: add --security-revert command line flag (James M Snell)
+* [[`ff58dcdd74`](https://github.com/nodejs/node/commit/ff58dcdd74)] - tools: backport tools/install.py for headers (Richard Lau) https://github.com/nodejs/node/pull/4149
 
 <a id="0.10.41"></a>
 ## 2015-12-04, Version 0.10.41 (Maintenance), @rvagg
@@ -245,45 +245,45 @@ Security Update
 
 ### Commits
 
-* [16ca0779f5] - src/node.cc: fix build error without OpenSSL support (Jörg Krause) https://github.com/nodejs/node-v0.x-archive/pull/25862
-* [c559c7911d] - build: backport tools/release.sh (Rod Vagg) https://github.com/nodejs/node/pull/3965
-* [268d2b4637] - build: backport config for new CI infrastructure (Rod Vagg) https://github.com/nodejs/node/pull/3965
-* [c88a0b26da] - build: update manifest to include Windows 10 (Lucien Greathouse) https://github.com/nodejs/node/pull/2838
-* [8564a9f5f7] - build: gcc version detection on openSUSE Tumbleweed (Henrique Aparecido Lavezzo) https://github.com/nodejs/node-v0.x-archive/pull/25671
-* [9c7bd6de56] - build: run-ci makefile rule (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [ffa1e1f31d] - build: support flaky tests in test-ci (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [100dd19e61] - build: support Jenkins via test-ci (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [ec861f6f90] - build: make release process easier for multi users (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25638
-* [d7ae79a452] - build,win: fix node.exe resource version (João Reis) https://github.com/nodejs/node/pull/3053
-* [6ac47aa9f5] - build,win: try next MSVS version on failure (João Reis) https://github.com/nodejs/node/pull/2910
-* [e669b27740] - crypto: replace rwlocks with simple mutexes (Ben Noordhuis) https://github.com/nodejs/node/pull/2723
-* [ce0a48826e] - deps: upgrade to openssl 1.0.1q (Ben Noordhuis) https://github.com/nodejs/node/pull/4132
-* [b68781e500] - deps: upgrade npm to 1.4.29 (Forrest L Norvell) https://github.com/nodejs/node/pull/3639
-* [7cf0d9c1d9] - deps: fix openssl for MSVS 2015 (Andy Polyakov) https://github.com/nodejs/node-v0.x-archive/pull/25857
-* [9ee8a14f9e] - deps: fix gyp to work on MacOSX without XCode (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25857
-* [a525c7244e] - deps: update gyp to 25ed9ac (João Reis) https://github.com/nodejs/node-v0.x-archive/pull/25857
-* [6502160294] - dns: allow v8 to optimize lookup() (Brian White) https://github.com/nodejs/node-v0.x-archive/pull/8942
-* [5d829a63ab] - doc: backport README.md (Rod Vagg) https://github.com/nodejs/node/pull/3965
-* [62c8948109] - doc: fix Folders as Modules omission of index.json (Elan Shanker) https://github.com/nodejs/node-v0.x-archive/pull/8868
-* [572663f303] - https: don't overwrite servername option (skenqbx) https://github.com/nodejs/node-v0.x-archive/pull/9368
-* [75c84b2439] - test: add test for https agent servername option (skenqbx) https://github.com/nodejs/node-v0.x-archive/pull/9368
-* [841a6dd264] - test: mark more tests as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25807
-* [a7fee30da1] - test: mark test-tls-securepair-server as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25807
-* [7df57703dd] - test: mark test-net-error-twice flaky on SmartOS (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25760
-* [e10892cccc] - test: make test-abort-fatal-error non flaky (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25755
-* [a2f879f197] - test: mark recently failing tests as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [e7010bdf92] - test: runner should return 0 on flaky tests (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [c283c9bbb3] - test: support writing test output to file (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [eeaed586bb] - test: runner support for flaky tests (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [3bb8174b94] - test: refactor to use common testcfg (Timothy J Fontaine) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [df59d43586] - tools: pass constant to logger instead of string (Johan Bergström) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [d103d4ed9a] - tools: fix test.py after v8 upgrade (Ben Noordhuis) https://github.com/nodejs/node-v0.x-archive/pull/25686
-* [8002192b4e] - win: manifest node.exe for Windows 8.1 (Alexis Campailla) https://github.com/nodejs/node/pull/2838
-* [66ec1dae8f] - win: add MSVS 2015 support (Rod Vagg) https://github.com/nodejs/node-v0.x-archive/pull/25857
-* [e192f61514] - win: fix custom actions for WiX older than 3.9 (João Reis) https://github.com/nodejs/node-v0.x-archive/pull/25569
-* [16bcd68dc5] - win: fix custom actions on Visual Studio != 2013 (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25569
-* [517986c2f4] - win: backport bringing back xp/2k3 support (Bert Belder) https://github.com/nodejs/node-v0.x-archive/pull/25569
-* [10f251e8dd] - win: backport set env before generating projects (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25569
+* [[`16ca0779f5`](https://github.com/nodejs/node/commit/16ca0779f5)] - src/node.cc: fix build error without OpenSSL support (Jörg Krause) https://github.com/nodejs/node-v0.x-archive/pull/25862
+* [[`c559c7911d`](https://github.com/nodejs/node/commit/c559c7911d)] - build: backport tools/release.sh (Rod Vagg) https://github.com/nodejs/node/pull/3965
+* [[`268d2b4637`](https://github.com/nodejs/node/commit/268d2b4637)] - build: backport config for new CI infrastructure (Rod Vagg) https://github.com/nodejs/node/pull/3965
+* [[`c88a0b26da`](https://github.com/nodejs/node/commit/c88a0b26da)] - build: update manifest to include Windows 10 (Lucien Greathouse) https://github.com/nodejs/node/pull/2838
+* [[`8564a9f5f7`](https://github.com/nodejs/node/commit/8564a9f5f7)] - build: gcc version detection on openSUSE Tumbleweed (Henrique Aparecido Lavezzo) https://github.com/nodejs/node-v0.x-archive/pull/25671
+* [[`9c7bd6de56`](https://github.com/nodejs/node/commit/9c7bd6de56)] - build: run-ci makefile rule (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`ffa1e1f31d`](https://github.com/nodejs/node/commit/ffa1e1f31d)] - build: support flaky tests in test-ci (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`100dd19e61`](https://github.com/nodejs/node/commit/100dd19e61)] - build: support Jenkins via test-ci (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`ec861f6f90`](https://github.com/nodejs/node/commit/ec861f6f90)] - build: make release process easier for multi users (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25638
+* [[`d7ae79a452`](https://github.com/nodejs/node/commit/d7ae79a452)] - build,win: fix node.exe resource version (João Reis) https://github.com/nodejs/node/pull/3053
+* [[`6ac47aa9f5`](https://github.com/nodejs/node/commit/6ac47aa9f5)] - build,win: try next MSVS version on failure (João Reis) https://github.com/nodejs/node/pull/2910
+* [[`e669b27740`](https://github.com/nodejs/node/commit/e669b27740)] - crypto: replace rwlocks with simple mutexes (Ben Noordhuis) https://github.com/nodejs/node/pull/2723
+* [[`ce0a48826e`](https://github.com/nodejs/node/commit/ce0a48826e)] - deps: upgrade to openssl 1.0.1q (Ben Noordhuis) https://github.com/nodejs/node/pull/4132
+* [[`b68781e500`](https://github.com/nodejs/node/commit/b68781e500)] - deps: upgrade npm to 1.4.29 (Forrest L Norvell) https://github.com/nodejs/node/pull/3639
+* [[`7cf0d9c1d9`](https://github.com/nodejs/node/commit/7cf0d9c1d9)] - deps: fix openssl for MSVS 2015 (Andy Polyakov) https://github.com/nodejs/node-v0.x-archive/pull/25857
+* [[`9ee8a14f9e`](https://github.com/nodejs/node/commit/9ee8a14f9e)] - deps: fix gyp to work on MacOSX without XCode (Shigeki Ohtsu) https://github.com/nodejs/node-v0.x-archive/pull/25857
+* [[`a525c7244e`](https://github.com/nodejs/node/commit/a525c7244e)] - deps: update gyp to 25ed9ac (João Reis) https://github.com/nodejs/node-v0.x-archive/pull/25857
+* [[`6502160294`](https://github.com/nodejs/node/commit/6502160294)] - dns: allow v8 to optimize lookup() (Brian White) https://github.com/nodejs/node-v0.x-archive/pull/8942
+* [[`5d829a63ab`](https://github.com/nodejs/node/commit/5d829a63ab)] - doc: backport README.md (Rod Vagg) https://github.com/nodejs/node/pull/3965
+* [[`62c8948109`](https://github.com/nodejs/node/commit/62c8948109)] - doc: fix Folders as Modules omission of index.json (Elan Shanker) https://github.com/nodejs/node-v0.x-archive/pull/8868
+* [[`572663f303`](https://github.com/nodejs/node/commit/572663f303)] - https: don't overwrite servername option (skenqbx) https://github.com/nodejs/node-v0.x-archive/pull/9368
+* [[`75c84b2439`](https://github.com/nodejs/node/commit/75c84b2439)] - test: add test for https agent servername option (skenqbx) https://github.com/nodejs/node-v0.x-archive/pull/9368
+* [[`841a6dd264`](https://github.com/nodejs/node/commit/841a6dd264)] - test: mark more tests as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25807
+* [[`a7fee30da1`](https://github.com/nodejs/node/commit/a7fee30da1)] - test: mark test-tls-securepair-server as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25807
+* [[`7df57703dd`](https://github.com/nodejs/node/commit/7df57703dd)] - test: mark test-net-error-twice flaky on SmartOS (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25760
+* [[`e10892cccc`](https://github.com/nodejs/node/commit/e10892cccc)] - test: make test-abort-fatal-error non flaky (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25755
+* [[`a2f879f197`](https://github.com/nodejs/node/commit/a2f879f197)] - test: mark recently failing tests as flaky (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`e7010bdf92`](https://github.com/nodejs/node/commit/e7010bdf92)] - test: runner should return 0 on flaky tests (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`c283c9bbb3`](https://github.com/nodejs/node/commit/c283c9bbb3)] - test: support writing test output to file (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`eeaed586bb`](https://github.com/nodejs/node/commit/eeaed586bb)] - test: runner support for flaky tests (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`3bb8174b94`](https://github.com/nodejs/node/commit/3bb8174b94)] - test: refactor to use common testcfg (Timothy J Fontaine) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`df59d43586`](https://github.com/nodejs/node/commit/df59d43586)] - tools: pass constant to logger instead of string (Johan Bergström) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`d103d4ed9a`](https://github.com/nodejs/node/commit/d103d4ed9a)] - tools: fix test.py after v8 upgrade (Ben Noordhuis) https://github.com/nodejs/node-v0.x-archive/pull/25686
+* [[`8002192b4e`](https://github.com/nodejs/node/commit/8002192b4e)] - win: manifest node.exe for Windows 8.1 (Alexis Campailla) https://github.com/nodejs/node/pull/2838
+* [[`66ec1dae8f`](https://github.com/nodejs/node/commit/66ec1dae8f)] - win: add MSVS 2015 support (Rod Vagg) https://github.com/nodejs/node-v0.x-archive/pull/25857
+* [[`e192f61514`](https://github.com/nodejs/node/commit/e192f61514)] - win: fix custom actions for WiX older than 3.9 (João Reis) https://github.com/nodejs/node-v0.x-archive/pull/25569
+* [[`16bcd68dc5`](https://github.com/nodejs/node/commit/16bcd68dc5)] - win: fix custom actions on Visual Studio != 2013 (Julien Gilli) https://github.com/nodejs/node-v0.x-archive/pull/25569
+* [[`517986c2f4`](https://github.com/nodejs/node/commit/517986c2f4)] - win: backport bringing back xp/2k3 support (Bert Belder) https://github.com/nodejs/node-v0.x-archive/pull/25569
+* [[`10f251e8dd`](https://github.com/nodejs/node/commit/10f251e8dd)] - win: backport set env before generating projects (Alexis Campailla) https://github.com/nodejs/node-v0.x-archive/pull/25569
 
 <a id="0.10.40"></a>
 ## 2015-07-09, Version 0.10.40 (Maintenance)
