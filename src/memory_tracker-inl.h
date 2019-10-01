@@ -107,9 +107,9 @@ void MemoryTracker::TrackField(const char* edge_name,
   }
 }
 
-template <typename T>
+template <typename T, typename D>
 void MemoryTracker::TrackField(const char* edge_name,
-                               const std::unique_ptr<T>& value,
+                               const std::unique_ptr<T, D>& value,
                                const char* node_name) {
   if (value.get() == nullptr) {
     return;

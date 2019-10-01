@@ -140,9 +140,9 @@ class MemoryTracker {
                                        const char* node_name = nullptr);
 
   // Shortcut to extract the underlying object out of the smart pointer
-  template <typename T>
+  template <typename T, typename D>
   inline void TrackField(const char* edge_name,
-                         const std::unique_ptr<T>& value,
+                         const std::unique_ptr<T, D>& value,
                          const char* node_name = nullptr);
 
   template <typename T>
