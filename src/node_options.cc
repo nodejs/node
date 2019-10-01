@@ -316,6 +316,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-exports",
             "experimental support for exports in package.json",
             &EnvironmentOptions::experimental_exports,
+            kAllowedInEnvironment);
   AddOption("--experimental-json-modules",
             "experimental JSON interop support for the ES Module loader",
             &EnvironmentOptions::experimental_json_modules,
