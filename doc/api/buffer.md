@@ -100,7 +100,7 @@ to one of these new APIs.*
 * [`Buffer.from(buffer)`][] returns a new `Buffer` that *contains a copy* of the
   contents of the given `Buffer`.
 * [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] returns a new
-  `Buffer` that *contains a copy* of the provided string.
+  `Buffer` that *contains a copy* of the provided string. (When `'hex'` encoding a string, using odd number of characters may result in an unpredictable behaviour).
 * [`Buffer.alloc(size[, fill[, encoding]])`][`Buffer.alloc()`] returns a new
   initialized `Buffer` of the specified size. This method is slower than
   [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] but guarantees that newly
