@@ -4678,7 +4678,6 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() >= 1) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
-  CHECK_NE(encoding, UCS2);  // Digest does not support UTF-16
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;

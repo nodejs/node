@@ -161,13 +161,9 @@ common.expectsError(
     type: Error
   });
 
-common.expectsError(
-  () => crypto.createHash('sha256').digest('ucs2'),
-  {
-    code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
-    type: Error
-  }
-);
+assert.strictEqual(
+  crypto.createHash('sha256').update('test').digest('ucs2'),
+  crypto.createHash('sha256').update('test').digest().toString('ucs2'));
 
 common.expectsError(
   () => crypto.createHash(),
