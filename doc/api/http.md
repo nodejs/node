@@ -679,12 +679,12 @@ request.removeHeader('Content-Type');
 ### request.reusedSocket
 
 <!-- YAML
-added: v12.12.0
+added: REPLACEME
 -->
 
 * {boolean} Whether the request is send through a reused socket.
 
-When sending request through a keep-alive enabled agent, the underlying socket 
+When sending request through a keep-alive enabled agent, the underlying socket
 might be reused. But if server closes connection at unfortunate time, client
 may run into a 'ECONNRESET' error.
 
@@ -709,7 +709,7 @@ setInterval(() => {
 }, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
 ```
 
-By marking a request whether it reused socket or not, we can do 
+By marking a request whether it reused socket or not, we can do
 automatic error retry base on it.
 
 ```js
