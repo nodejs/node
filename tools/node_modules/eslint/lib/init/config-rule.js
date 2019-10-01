@@ -99,7 +99,7 @@ function groupByProperty(objects) {
  * Configs may also have one or more additional elements to specify rule
  * configuration or options.
  *
- * @typedef {array|number} ruleConfig
+ * @typedef {Array|number} ruleConfig
  * @param {number}  0  The rule's severity (0, 1, 2).
  */
 
@@ -185,7 +185,7 @@ class RuleConfigSet {
 
         /**
          * Stored valid rule configurations for this instance
-         * @type {array}
+         * @type {Array}
          */
         this.ruleConfigs = configs || [];
     }

@@ -205,7 +205,14 @@ module.exports = {
             const lastToken = sourceCode.getLastToken(newExpression);
             const penultimateToken = sourceCode.getTokenBefore(lastToken);
 
-            return newExpression.arguments.length > 0 || astUtils.isOpeningParenToken(penultimateToken) && astUtils.isClosingParenToken(lastToken);
+            return newExpression.arguments.length > 0 ||
+                (
+
+                    // The expression should end with its own parens, e.g., new new foo() is not a new expression with parens
+                    astUtils.isOpeningParenToken(penultimateToken) &&
+                    astUtils.isClosingParenToken(lastToken) &&
+                    newExpression.callee.range[1] < newExpression.range[1]
+                );
         }
 
         /**
@@ -338,7 +345,7 @@ module.exports = {
             function finishReport() {
                 context.report({
                     node,
-                    loc: leftParenToken.loc.start,
+                    loc: leftParenToken.loc,
                     messageId: "unexpected",
                     fix(fixer) {
                         const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
@@ -884,6 +891,12 @@ module.exports = {
                 if (nodeObjHasExcessParens &&
                   node.object.type === "CallExpression" &&
                   node.parent.type !== "NewExpression") {
+                    report(node.object);
+                }
+
+                if (nodeObjHasExcessParens &&
+                  node.object.type === "NewExpression" &&
+                  isNewExpressionWithParens(node.object)) {
                     report(node.object);
                 }
 

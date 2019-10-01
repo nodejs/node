@@ -472,7 +472,6 @@ function normalizeFilename(filename) {
     return index === -1 ? filename : parts.slice(index).join(path.sep);
 }
 
-// eslint-disable-next-line valid-jsdoc
 /**
  * Normalizes the possible options for `linter.verify` and `linter.verifyAndFix` to a
  * consistent shape.

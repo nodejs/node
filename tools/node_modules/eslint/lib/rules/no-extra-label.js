@@ -116,7 +116,15 @@ module.exports = {
                             node: labelNode,
                             messageId: "unexpected",
                             data: labelNode,
-                            fix: fixer => fixer.removeRange([sourceCode.getFirstToken(node).range[1], labelNode.range[1]])
+                            fix(fixer) {
+                                const breakOrContinueToken = sourceCode.getFirstToken(node);
+
+                                if (sourceCode.commentsExistBetween(breakOrContinueToken, labelNode)) {
+                                    return null;
+                                }
+
+                                return fixer.removeRange([breakOrContinueToken.range[1], labelNode.range[1]]);
+                            }
                         });
                     }
                     return;
