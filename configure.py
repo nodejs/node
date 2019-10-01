@@ -1150,7 +1150,7 @@ def configure_napi(output):
   if options.node_relative_path:
     output['variables']['node_relative_path'] = options.node_relative_path
   else:
-    output['variables']['node_relative_path']= ''
+    output['variables']['node_relative_path'] = ''
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
