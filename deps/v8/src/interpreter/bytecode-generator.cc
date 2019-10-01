@@ -3030,7 +3030,9 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         case VariableMode::kDynamicGlobal: {
           int depth =
               current_scope()->ContextChainLengthUntilOutermostSloppyEval();
-          FeedbackSlot slot = GetCachedLoadGlobalICSlot(typeof_mode, variable);
+          // TODO(1008414): Add back caching here when bug is fixed properly.
+          FeedbackSlot slot = feedback_spec()->AddLoadGlobalICSlot(typeof_mode);
+
           builder()->LoadLookupGlobalSlot(variable->raw_name(), typeof_mode,
                                           feedback_index(slot), depth);
           break;

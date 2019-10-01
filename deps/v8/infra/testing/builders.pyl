@@ -43,7 +43,7 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262_variants', 'variant': 'default', 'shards': 7},
+      {'name': 'test262', 'variant': 'default', 'shards': 7},
     ],
   },
   ##############################################################################
@@ -59,7 +59,7 @@
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
@@ -175,6 +175,7 @@
       {
         'name': 'test262',
         'suffix': 'nosse3',
+        'variant': 'default',
         'test_args': [
           '--extra-flags',
           '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
@@ -198,6 +199,7 @@
       {
         'name': 'test262',
         'suffix': 'nosse4',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
       },
       {
@@ -225,7 +227,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 7},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
@@ -246,7 +248,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
@@ -273,7 +275,7 @@
       {'name': 'benchmarks'},
       {'name': 'mozilla'},
       {'name': 'optimize_for_size'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 2},
     ],
   },
@@ -288,7 +290,7 @@
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
@@ -325,7 +327,7 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 5},
     ],
   },
@@ -413,7 +415,7 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'slow_path'},
@@ -452,7 +454,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
@@ -473,7 +475,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 12},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
@@ -533,7 +535,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
     ],
   },
@@ -554,7 +556,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
@@ -566,7 +568,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 2},
     ],
   },
@@ -577,7 +579,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -600,7 +602,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
@@ -621,7 +623,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -691,7 +693,7 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
@@ -730,6 +732,7 @@
       {
         'name': 'test262',
         'suffix': 'nosse3',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx']
       },
       {
@@ -747,6 +750,7 @@
       {
         'name': 'test262',
         'suffix': 'nosse4',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx']
       },
       {
@@ -858,7 +862,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -911,6 +915,7 @@
       {
         'name': 'test262',
         'suffix': 'noavx',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-avx']
       },
       {
@@ -928,7 +933,7 @@
       {'name': 'benchmarks'},
       {'name': 'mozilla'},
       {'name': 'optimize_for_size'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -967,6 +972,7 @@
       {
         'name': 'test262',
         'suffix': 'noavx',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--noenable-avx']
       },
       {
@@ -1044,7 +1050,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1086,7 +1092,7 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
@@ -1112,6 +1118,7 @@
       },
       {
         'name': 'test262',
+        'variant': 'default',
         'test_args': ['--extra-flags=--stress-incremental-marking'],
         'shards': 4,
       },
@@ -1136,7 +1143,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing'},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -1148,7 +1155,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -1160,7 +1167,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
@@ -1190,7 +1197,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1201,7 +1208,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 5},
     ],
   },
@@ -1220,7 +1227,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -1231,7 +1238,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
     ],
@@ -1242,7 +1249,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1353,7 +1360,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'trusted'},
@@ -1366,6 +1373,7 @@
       {
         'name': 'test262',
         'suffix': 'armv8-a',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--enable-armv8']
       },
       {
@@ -1375,8 +1383,17 @@
         'shards': 4
       },
       # Novfp3.
-      {'name': 'mozilla', 'suffix': 'novfp3', 'test_args': ['--novfp3']},
-      {'name': 'test262', 'suffix': 'novfp3', 'test_args': ['--novfp3']},
+      {
+        'name': 'mozilla',
+        'suffix': 'novfp3',
+        'test_args': ['--novfp3'],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'novfp3',
+        'variant': 'default',
+        'test_args': ['--novfp3'],
+      },
       {
         'name': 'v8testing',
         'suffix': 'novfp3',
@@ -1392,7 +1409,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access', 'shards': 4},
       {'name': 'mozilla', 'shards': 4},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
@@ -1406,6 +1423,7 @@
       {
         'name': 'test262',
         'suffix': 'armv8-a',
+        'variant': 'default',
         'test_args': ['--extra-flags', '--enable-armv8'],
         'shards': 3,
       },
@@ -1460,7 +1478,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'trusted'},
@@ -1477,7 +1495,7 @@
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
@@ -1510,7 +1528,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
@@ -1524,7 +1542,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
@@ -1710,7 +1728,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1720,7 +1738,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
     ],
   },
@@ -1730,7 +1748,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1740,7 +1758,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
     ],
   },
@@ -1750,7 +1768,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1760,7 +1778,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
     ],
   },
@@ -1770,7 +1788,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing'},
     ],
   },
@@ -1780,7 +1798,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
     ],
   },
@@ -1790,7 +1808,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
@@ -1800,7 +1818,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 8},
     ],
   },
@@ -1810,7 +1828,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 4},
     ],
   },
@@ -1820,7 +1838,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 8},
     ],
   },
