@@ -15,7 +15,7 @@ const stream = require('stream');
 
   rs.pipe(ws);
   ws.destroy();
-  ws.on('error', common.mustCall(err => {
+  ws.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
 }
@@ -32,7 +32,7 @@ const stream = require('stream');
 
   rs.pipe(ws);
   ws.destroy(new Error('asd'));
-  ws.on('error', common.mustCall(err => {
+  ws.on('error', common.mustCall((err) => {
     assert.strictEqual(err.message, 'asd');
   }));
 }
