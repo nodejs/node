@@ -689,7 +689,7 @@ might be reused. But if server closes connection at unfortunate time, client
 may run into a 'ECONNRESET' error.
 
 ```js
-const http = require('http')
+const http = require('http');
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -702,10 +702,10 @@ http
 setInterval(() => {
   // Adapting a keep-alive agent
   http.get('http://localhost:3000', { agent }, (res) => {
-    res.on('data', data => {
+    res.on('data', (data) => {
       // Do nothing
     });
-  })
+  });
 }, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
 ```
 
