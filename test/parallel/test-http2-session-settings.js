@@ -38,6 +38,12 @@ server.on(
   })
 );
 
+server.on('session', (session) => {
+  session.settings({
+    maxConcurrentStreams: 2
+  });
+});
+
 server.listen(
   0,
   common.mustCall(() => {
@@ -57,11 +63,18 @@ server.listen(
         assert.strictEqual(settings.maxFrameSize, 16384);
       }, 2)
     );
+
+    let calledOnce = false;
     client.on(
       'remoteSettings',
       common.mustCall((settings) => {
         assert(settings);
-      })
+        assert.strictEqual(
+          settings.maxConcurrentStreams,
+          calledOnce ? 2 : (2 ** 32) - 1
+        );
+        calledOnce = true;
+      }, 2)
     );
 
     const headers = { ':path': '/' };
