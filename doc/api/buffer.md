@@ -100,7 +100,7 @@ to one of these new APIs.*
 * [`Buffer.from(buffer)`][] returns a new `Buffer` that *contains a copy* of the
   contents of the given `Buffer`.
 * [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] returns a new
-  `Buffer` that *contains a copy* of the provided string. (When `'hex'` encoding a string, using odd number of characters may result in an unpredictable behaviour).
+  `Buffer` that *contains a copy* of the provided string.
 * [`Buffer.alloc(size[, fill[, encoding]])`][`Buffer.alloc()`] returns a new
   initialized `Buffer` of the specified size. This method is slower than
   [`Buffer.allocUnsafe(size)`][`Buffer.allocUnsafe()`] but guarantees that newly
@@ -203,7 +203,8 @@ The character encodings currently supported by Node.js include:
 
 * `'binary'` - Alias for `'latin1'`.
 
-* `'hex'` - Encode each byte as two hexadecimal characters.
+* `'hex'` - Encode each byte as two hexadecimal characters. If the number of
+hexadecimal characters is odd, the first incomplete hexadecimal pair is ignored.
 
 Modern Web browsers follow the [WHATWG Encoding Standard][] which aliases
 both `'latin1'` and `'ISO-8859-1'` to `'win-1252'`. This means that while doing
