@@ -587,8 +587,8 @@ fs.readFileSync === readFileSync;
 ## Experimental JSON Modules
 
 Currently importing JSON modules are only supported in the `commonjs` mode
-and are loaded using the CJS loader. [WHATWG JSON modules][] are currently
-being standardized, and are experimentally supported by including the
+and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
+still being standardized, and are experimentally supported by including the
 additional flag `--experimental-json-modules` when running Node.js.
 
 When the `--experimental-json-modules` flag is included both the
