@@ -3,7 +3,7 @@ from __future__ import print_function
 import json
 import sys
 import errno
-import optparse
+import argparse
 import os
 import pipes
 import pprint
@@ -40,8 +40,8 @@ from gyp_node import run_gyp
 sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
 from fetch_deps import FetchDeps
 
-# parse our options
-parser = optparse.OptionParser()
+# parse our args
+parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
@@ -57,98 +57,101 @@ with open ('tools/icu/icu_versions.json') as f:
   icu_versions = json.load(f)
 
 # create option groups
-shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
+shared_group = parser.add_argument_group(
+    "Shared libraries",
     "Flags that allows you to control whether you want to build against "
     "built-in dependencies or its shared representations. If necessary, "
     "provide multiple libraries with comma.")
-intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
+intl_group = parser.add_argument_group(
+    "Internationalization",
     "Flags that lets you enable i18n features in Node.js as well as which "
     "library you want to build against.")
-http2_optgroup = optparse.OptionGroup(parser, "HTTP2",
+http2_group = parser.add_argument_group(
+    "HTTP2",
     "Flags that allows you to control HTTP2 features in Node.js")
 
-# Options should be in alphabetical order but keep --prefix at the top,
+# args should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
-parser.add_option('--prefix',
+parser.add_argument('--prefix',
     action='store',
     dest='prefix',
     default='/usr/local',
-    help='select the install prefix [default: %default]')
+    help='select the install prefix [default: %(default)s]')
 
-parser.add_option('--coverage',
+parser.add_argument('--coverage',
     action='store_true',
     dest='coverage',
     help='Build node with code coverage enabled')
 
-parser.add_option('--debug',
+parser.add_argument('--debug',
     action='store_true',
     dest='debug',
     help='also build debug build')
 
-parser.add_option('--dest-cpu',
+parser.add_argument('--dest-cpu',
     action='store',
     dest='dest_cpu',
     choices=valid_arch,
     help='CPU architecture to build for ({0})'.format(', '.join(valid_arch)))
 
-parser.add_option('--cross-compiling',
+parser.add_argument('--cross-compiling',
     action='store_true',
     dest='cross_compiling',
     default=None,
     help='force build to be considered as cross compiled')
-parser.add_option('--no-cross-compiling',
+parser.add_argument('--no-cross-compiling',
     action='store_false',
     dest='cross_compiling',
     default=None,
     help='force build to be considered as NOT cross compiled')
 
-parser.add_option('--dest-os',
+parser.add_argument('--dest-os',
     action='store',
     dest='dest_os',
     choices=valid_os,
     help='operating system to build for ({0})'.format(', '.join(valid_os)))
 
-parser.add_option('--gdb',
+parser.add_argument('--gdb',
     action='store_true',
     dest='gdb',
     help='add gdb support')
 
-parser.add_option('--no-ifaddrs',
+parser.add_argument('--no-ifaddrs',
     action='store_true',
     dest='no_ifaddrs',
     help='use on deprecated SunOS systems that do not support ifaddrs.h')
 
-parser.add_option("--fully-static",
+parser.add_argument("--fully-static",
     action="store_true",
     dest="fully_static",
     help="Generate an executable without external dynamic libraries. This "
          "will not work on OSX when using the default compilation environment")
 
-parser.add_option("--partly-static",
+parser.add_argument("--partly-static",
     action="store_true",
     dest="partly_static",
     help="Generate an executable with libgcc and libstdc++ libraries. This "
          "will not work on OSX when using the default compilation environment")
 
-parser.add_option("--enable-pgo-generate",
+parser.add_argument("--enable-pgo-generate",
     action="store_true",
     dest="enable_pgo_generate",
     help="Enable profiling with pgo of a binary. This feature is only available "
          "on linux with gcc and g++ 5.4.1 or newer.")
 
-parser.add_option("--enable-pgo-use",
+parser.add_argument("--enable-pgo-use",
     action="store_true",
     dest="enable_pgo_use",
     help="Enable use of the profile generated with --enable-pgo-generate. This "
          "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
 
-parser.add_option("--enable-lto",
+parser.add_argument("--enable-lto",
     action="store_true",
     dest="enable_lto",
     help="Enable compiling with lto of a binary. This feature is only available "
          "on linux with gcc and g++ 5.4.1 or newer.")
 
-parser.add_option("--link-module",
+parser.add_argument("--link-module",
     action="append",
     dest="linked_module",
     help="Path to a JS file to be bundled in the binary as a builtin. "
@@ -156,451 +159,451 @@ parser.add_option("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
-parser.add_option("--openssl-no-asm",
+parser.add_argument("--openssl-no-asm",
     action="store_true",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
-parser.add_option('--openssl-fips',
+parser.add_argument('--openssl-fips',
     action='store',
     dest='openssl_fips',
     help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
-parser.add_option('--openssl-is-fips',
+parser.add_argument('--openssl-is-fips',
     action='store_true',
     dest='openssl_is_fips',
     help='specifies that the OpenSSL library is FIPS compatible')
 
-parser.add_option('--openssl-use-def-ca-store',
+parser.add_argument('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
     help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
 
-parser.add_option('--openssl-system-ca-path',
+parser.add_argument('--openssl-system-ca-path',
     action='store',
     dest='openssl_system_ca_path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
-parser.add_option('--experimental-http-parser',
+parser.add_argument('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
     help='(no-op)')
 
-shared_optgroup.add_option('--shared-http-parser',
+shared_group.add_argument('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
     help='link to a shared http_parser DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-http-parser-includes',
+shared_group.add_argument('--shared-http-parser-includes',
     action='store',
     dest='shared_http_parser_includes',
     help='directory containing http_parser header files')
 
-shared_optgroup.add_option('--shared-http-parser-libname',
+shared_group.add_argument('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
     default='http_parser',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-http-parser-libpath',
+shared_group.add_argument('--shared-http-parser-libpath',
     action='store',
     dest='shared_http_parser_libpath',
     help='a directory to search for the shared http_parser DLL')
 
-shared_optgroup.add_option('--shared-libuv',
+shared_group.add_argument('--shared-libuv',
     action='store_true',
     dest='shared_libuv',
     help='link to a shared libuv DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-libuv-includes',
+shared_group.add_argument('--shared-libuv-includes',
     action='store',
     dest='shared_libuv_includes',
     help='directory containing libuv header files')
 
-shared_optgroup.add_option('--shared-libuv-libname',
+shared_group.add_argument('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
     default='uv',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-libuv-libpath',
+shared_group.add_argument('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
 
-shared_optgroup.add_option('--shared-nghttp2',
+shared_group.add_argument('--shared-nghttp2',
     action='store_true',
     dest='shared_nghttp2',
     help='link to a shared nghttp2 DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-nghttp2-includes',
+shared_group.add_argument('--shared-nghttp2-includes',
     action='store',
     dest='shared_nghttp2_includes',
     help='directory containing nghttp2 header files')
 
-shared_optgroup.add_option('--shared-nghttp2-libname',
+shared_group.add_argument('--shared-nghttp2-libname',
     action='store',
     dest='shared_nghttp2_libname',
     default='nghttp2',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-nghttp2-libpath',
+shared_group.add_argument('--shared-nghttp2-libpath',
     action='store',
     dest='shared_nghttp2_libpath',
     help='a directory to search for the shared nghttp2 DLLs')
 
-shared_optgroup.add_option('--shared-openssl',
+shared_group.add_argument('--shared-openssl',
     action='store_true',
     dest='shared_openssl',
     help='link to a shared OpenSSl DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-openssl-includes',
+shared_group.add_argument('--shared-openssl-includes',
     action='store',
     dest='shared_openssl_includes',
     help='directory containing OpenSSL header files')
 
-shared_optgroup.add_option('--shared-openssl-libname',
+shared_group.add_argument('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
     default='crypto,ssl',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-openssl-libpath',
+shared_group.add_argument('--shared-openssl-libpath',
     action='store',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
-shared_optgroup.add_option('--shared-zlib',
+shared_group.add_argument('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
     help='link to a shared zlib DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-zlib-includes',
+shared_group.add_argument('--shared-zlib-includes',
     action='store',
     dest='shared_zlib_includes',
     help='directory containing zlib header files')
 
-shared_optgroup.add_option('--shared-zlib-libname',
+shared_group.add_argument('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
     default='z',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-zlib-libpath',
+shared_group.add_argument('--shared-zlib-libpath',
     action='store',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
-shared_optgroup.add_option('--shared-cares',
+shared_group.add_argument('--shared-cares',
     action='store_true',
     dest='shared_libcares',
     help='link to a shared cares DLL instead of static linking')
 
-shared_optgroup.add_option('--shared-cares-includes',
+shared_group.add_argument('--shared-cares-includes',
     action='store',
     dest='shared_libcares_includes',
     help='directory containing cares header files')
 
-shared_optgroup.add_option('--shared-cares-libname',
+shared_group.add_argument('--shared-cares-libname',
     action='store',
     dest='shared_libcares_libname',
     default='cares',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
-shared_optgroup.add_option('--shared-cares-libpath',
+shared_group.add_argument('--shared-cares-libpath',
     action='store',
     dest='shared_libcares_libpath',
     help='a directory to search for the shared cares DLL')
 
-parser.add_option_group(shared_optgroup)
+parser.add_argument_group(shared_group)
 
-parser.add_option('--systemtap-includes',
+parser.add_argument('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
     help='directory containing systemtap header files')
 
-parser.add_option('--tag',
+parser.add_argument('--tag',
     action='store',
     dest='tag',
     help='custom build tag')
 
-parser.add_option('--release-urlbase',
+parser.add_argument('--release-urlbase',
     action='store',
     dest='release_urlbase',
     help='Provide a custom URL prefix for the `process.release` properties '
          '`sourceUrl` and `headersUrl`. When compiling a release build, this '
          'will default to https://nodejs.org/download/release/')
 
-parser.add_option('--enable-d8',
+parser.add_argument('--enable-d8',
     action='store_true',
     dest='enable_d8',
-    help=optparse.SUPPRESS_HELP)  # Unsupported, undocumented.
+    help=argparse.SUPPRESS)  # Unsupported, undocumented.
 
-parser.add_option('--enable-trace-maps',
+parser.add_argument('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
 
-parser.add_option('--v8-options',
+parser.add_argument('--v8-args',
     action='store',
-    dest='v8_options',
-    help='v8 options to pass, see `node --v8-options` for examples.')
+    dest='v8_args',
+    help='v8 args to pass, see `node --v8-args` for examples.')
 
-parser.add_option('--with-arm-float-abi',
+parser.add_argument('--with-arm-float-abi',
     action='store',
     dest='arm_float_abi',
     choices=valid_arm_float_abi,
     help='specifies which floating-point ABI to use ({0}).'.format(
         ', '.join(valid_arm_float_abi)))
 
-parser.add_option('--with-arm-fpu',
+parser.add_argument('--with-arm-fpu',
     action='store',
     dest='arm_fpu',
     choices=valid_arm_fpu,
-    help='ARM FPU mode ({0}) [default: %default]'.format(
+    help='ARM FPU mode ({0}) [default: %(default)s]'.format(
         ', '.join(valid_arm_fpu)))
 
-parser.add_option('--with-mips-arch-variant',
+parser.add_argument('--with-mips-arch-variant',
     action='store',
     dest='mips_arch_variant',
     default='r2',
     choices=valid_mips_arch,
-    help='MIPS arch variant ({0}) [default: %default]'.format(
+    help='MIPS arch variant ({0}) [default: %(default)s]'.format(
         ', '.join(valid_mips_arch)))
 
-parser.add_option('--with-mips-fpu-mode',
+parser.add_argument('--with-mips-fpu-mode',
     action='store',
     dest='mips_fpu_mode',
     default='fp32',
     choices=valid_mips_fpu,
-    help='MIPS FPU mode ({0}) [default: %default]'.format(
+    help='MIPS FPU mode ({0}) [default: %(default)s]'.format(
         ', '.join(valid_mips_fpu)))
 
-parser.add_option('--with-mips-float-abi',
+parser.add_argument('--with-mips-float-abi',
     action='store',
     dest='mips_float_abi',
     default='hard',
     choices=valid_mips_float_abi,
-    help='MIPS floating-point ABI ({0}) [default: %default]'.format(
+    help='MIPS floating-point ABI ({0}) [default: %(default)s]'.format(
         ', '.join(valid_mips_float_abi)))
 
-parser.add_option('--with-dtrace',
+parser.add_argument('--with-dtrace',
     action='store_true',
     dest='with_dtrace',
     help='build with DTrace (default is true on sunos and darwin)')
 
-parser.add_option('--with-etw',
+parser.add_argument('--with-etw',
     action='store_true',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
-parser.add_option('--use-largepages',
+parser.add_argument('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     help='build with Large Pages support. This feature is supported only on Linux kernel' +
          '>= 2.6.38 with Transparent Huge pages enabled and FreeBSD')
 
-parser.add_option('--use-largepages-script-lld',
+parser.add_argument('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
     help='link against the LLVM ld linker script. Implies -fuse-ld=lld in the linker flags')
 
-intl_optgroup.add_option('--with-intl',
+intl_group.add_argument('--with-intl',
     action='store',
     dest='with_intl',
     default='small-icu',
     choices=valid_intl_modes,
-    help='Intl mode (valid choices: {0}) [default: %default]'.format(
+    help='Intl mode (valid choices: {0}) [default: %(default)s]'.format(
         ', '.join(valid_intl_modes)))
 
-intl_optgroup.add_option('--without-intl',
+intl_group.add_argument('--without-intl',
     action='store_const',
     dest='with_intl',
     const='none',
     help='Disable Intl, same as --with-intl=none (disables inspector)')
 
-intl_optgroup.add_option('--with-icu-path',
+intl_group.add_argument('--with-icu-path',
     action='store',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
 
 icu_default_locales='root,en'
 
-intl_optgroup.add_option('--with-icu-locales',
+intl_group.add_argument('--with-icu-locales',
     action='store',
     dest='with_icu_locales',
     default=icu_default_locales,
     help='Comma-separated list of locales for "small-icu". "root" is assumed. '
-        '[default: %default]')
+        '[default: %(default)s]')
 
-intl_optgroup.add_option('--with-icu-source',
+intl_group.add_argument('--with-icu-source',
     action='store',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of '
         'the icu4c source archive. '
         'v%d.x or later recommended.' % icu_versions['minimum_icu'])
 
-parser.add_option('--with-ltcg',
+parser.add_argument('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
     help='Use Link Time Code Generation. This feature is only available on Windows.')
 
-parser.add_option('--without-node-snapshot',
+parser.add_argument('--without-node-snapshot',
     action='store_true',
     dest='without_node_snapshot',
     help='Turn off V8 snapshot integration. Currently experimental.')
 
-intl_optgroup.add_option('--download',
+intl_group.add_argument('--download',
     action='store',
     dest='download_list',
     help=nodedownload.help())
 
-intl_optgroup.add_option('--download-path',
+intl_group.add_argument('--download-path',
     action='store',
     dest='download_path',
     default='deps',
-    help='Download directory [default: %default]')
+    help='Download directory [default: %(default)s]')
 
-parser.add_option_group(intl_optgroup)
+parser.add_argument_group(intl_group)
 
-parser.add_option('--debug-lib',
+parser.add_argument('--debug-lib',
     action='store_true',
     dest='node_debug_lib',
     help='build lib with DCHECK macros')
 
-http2_optgroup.add_option('--debug-nghttp2',
+http2_group.add_argument('--debug-nghttp2',
     action='store_true',
     dest='debug_nghttp2',
     help='build nghttp2 with DEBUGBUILD (default is false)')
 
-parser.add_option_group(http2_optgroup)
+parser.add_argument_group(http2_group)
 
-parser.add_option('--without-dtrace',
+parser.add_argument('--without-dtrace',
     action='store_true',
     dest='without_dtrace',
     help='build without DTrace')
 
-parser.add_option('--without-etw',
+parser.add_argument('--without-etw',
     action='store_true',
     dest='without_etw',
     help='build without ETW')
 
-parser.add_option('--without-npm',
+parser.add_argument('--without-npm',
     action='store_true',
     dest='without_npm',
     help='do not install the bundled npm (package manager)')
 
-parser.add_option('--without-report',
+parser.add_argument('--without-report',
     action='store_true',
     dest='without_report',
     help='build without report')
 
 # Dummy option for backwards compatibility
-parser.add_option('--with-snapshot',
+parser.add_argument('--with-snapshot',
     action='store_true',
     dest='unused_with_snapshot',
-    help=optparse.SUPPRESS_HELP)
+    help=argparse.SUPPRESS)
 
-parser.add_option('--without-snapshot',
+parser.add_argument('--without-snapshot',
     action='store_true',
     dest='without_snapshot',
-    help=optparse.SUPPRESS_HELP)
+    help=argparse.SUPPRESS)
 
-parser.add_option('--without-siphash',
+parser.add_argument('--without-siphash',
     action='store_true',
     dest='without_siphash',
-    help=optparse.SUPPRESS_HELP)
+    help=argparse.SUPPRESS)
 
 # End dummy list.
 
-parser.add_option('--without-ssl',
+parser.add_argument('--without-ssl',
     action='store_true',
     dest='without_ssl',
     help='build without SSL (disables crypto, https, inspector, etc.)')
 
-parser.add_option('--without-node-options',
+parser.add_argument('--without-node-args',
     action='store_true',
-    dest='without_node_options',
-    help='build without NODE_OPTIONS support')
+    dest='without_node_args',
+    help='build without NODE_args support')
 
-parser.add_option('--ninja',
+parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
     help='generate build files for use with Ninja')
 
-parser.add_option('--enable-asan',
+parser.add_argument('--enable-asan',
     action='store_true',
     dest='enable_asan',
     help='build with asan')
 
-parser.add_option('--enable-static',
+parser.add_argument('--enable-static',
     action='store_true',
     dest='enable_static',
     help='build as static library')
 
-parser.add_option('--no-browser-globals',
+parser.add_argument('--no-browser-globals',
     action='store_true',
     dest='no_browser_globals',
     help='do not export browser globals like setTimeout, console, etc. ' +
          '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-inspector',
+parser.add_argument('--without-inspector',
     action='store_true',
     dest='without_inspector',
     help='disable the V8 inspector protocol')
 
-parser.add_option('--shared',
+parser.add_argument('--shared',
     action='store_true',
     dest='shared',
     help='compile shared library for embedding node in another project. ' +
          '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-v8-platform',
+parser.add_argument('--without-v8-platform',
     action='store_true',
     dest='without_v8_platform',
     default=False,
     help='do not initialize v8 platform during node.js startup. ' +
          '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--without-bundled-v8',
+parser.add_argument('--without-bundled-v8',
     action='store_true',
     dest='without_bundled_v8',
     default=False,
     help='do not use V8 includes from the bundled deps folder. ' +
          '(This mode is not officially supported for regular applications)')
 
-parser.add_option('--build-v8-with-gn',
+parser.add_argument('--build-v8-with-gn',
     action='store_true',
     dest='build_v8_with_gn',
     default=False,
     help='build V8 using GN instead of gyp')
 
-parser.add_option('--verbose',
+parser.add_argument('--verbose',
     action='store_true',
     dest='verbose',
     default=False,
     help='get more output from this script')
 
-parser.add_option('--v8-non-optimized-debug',
+parser.add_argument('--v8-non-optimized-debug',
     action='store_true',
     dest='v8_non_optimized_debug',
     default=False,
     help='compile V8 with minimal optimizations and with runtime checks')
 
 # Create compile_commands.json in out/Debug and out/Release.
-parser.add_option('-C',
+parser.add_argument('-C',
     action='store_true',
     dest='compile_commands_json',
-    help=optparse.SUPPRESS_HELP)
+    help=argparse.SUPPRESS)
 
-(options, args) = parser.parse_args()
+args = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
-options.prefix = os.path.expanduser(options.prefix or '')
+args.prefix = os.path.expanduser(args.prefix or '')
 
 # set up auto-download list
-auto_downloads = nodedownload.parse(options.download_list)
+auto_downloads = nodedownload.parse(args.download_list)
 
 
 def error(msg):
@@ -621,7 +624,7 @@ def info(msg):
   print('%s: %s' % (prefix, msg))
 
 def print_verbose(x):
-  if not options.verbose:
+  if not args.verbose:
     return
   if type(x) is str:
     print(x)
@@ -761,7 +764,7 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
-    if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
+    if not args.openssl_no_asm and args.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
       if nasm_version == 0:
@@ -786,7 +789,7 @@ def check_compiler(o):
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
-  if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
+  if args.without_ssl or args.openssl_no_asm or args.shared_openssl:
     return
 
   if is_clang:
@@ -898,8 +901,8 @@ def host_arch_win():
 
 
 def configure_arm(o):
-  if options.arm_float_abi:
-    arm_float_abi = options.arm_float_abi
+  if args.arm_float_abi:
+    arm_float_abi = args.arm_float_abi
   elif is_arm_hard_float_abi():
     arm_float_abi = 'hard'
   else:
@@ -916,19 +919,19 @@ def configure_arm(o):
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
 
-  if options.dest_os == 'android':
+  if args.dest_os == 'android':
     arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
 
-  o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
+  o['variables']['arm_fpu'] = args.arm_fpu or arm_fpu
 
 
 def configure_mips(o):
-  can_use_fpu_instructions = (options.mips_float_abi != 'soft')
+  can_use_fpu_instructions = (args.mips_float_abi != 'soft')
   o['variables']['v8_can_use_fpu_instructions'] = b(can_use_fpu_instructions)
   o['variables']['v8_use_mips_abi_hardfloat'] = b(can_use_fpu_instructions)
-  o['variables']['mips_arch_variant'] = options.mips_arch_variant
-  o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
+  o['variables']['mips_arch_variant'] = args.mips_arch_variant
+  o['variables']['mips_fpu_mode'] = args.mips_fpu_mode
 
 
 def gcc_version_ge(version_checked):
@@ -941,15 +944,15 @@ def gcc_version_ge(version_checked):
 
 
 def configure_node(o):
-  if options.dest_os == 'android':
+  if args.dest_os == 'android':
     o['variables']['OS'] = 'android'
-  o['variables']['node_prefix'] = options.prefix
-  o['variables']['node_install_npm'] = b(not options.without_npm)
-  o['variables']['node_report'] = b(not options.without_report)
-  o['default_configuration'] = 'Debug' if options.debug else 'Release'
+  o['variables']['node_prefix'] = args.prefix
+  o['variables']['node_install_npm'] = b(not args.without_npm)
+  o['variables']['node_report'] = b(not args.without_report)
+  o['default_configuration'] = 'Debug' if args.debug else 'Release'
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
-  target_arch = options.dest_cpu or host_arch
+  target_arch = args.dest_cpu or host_arch
   # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
   # the Makefile resets this to x86 afterward
   if target_arch == 'x86':
@@ -961,14 +964,14 @@ def configure_node(o):
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
 
-  cross_compiling = (options.cross_compiling
-                     if options.cross_compiling is not None
+  cross_compiling = (args.cross_compiling
+                     if args.cross_compiling is not None
                      else target_arch != host_arch)
-  want_snapshots = not options.without_snapshot
+  want_snapshots = not args.without_snapshot
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
 
-  if not options.without_node_snapshot:
+  if not args.without_node_snapshot:
     o['variables']['node_use_node_snapshot'] = b(
         not cross_compiling and want_snapshots)
   else:
@@ -982,35 +985,35 @@ def configure_node(o):
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
 
-  if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
+  if flavor != 'linux' and (args.enable_pgo_generate or args.enable_pgo_use):
     raise Exception(
       'The pgo option is supported only on linux.')
 
   if flavor == 'linux':
-    if options.enable_pgo_generate or options.enable_pgo_use:
+    if args.enable_pgo_generate or args.enable_pgo_use:
       version_checked = (5, 4, 1)
       if not gcc_version_ge(version_checked):
         version_checked_str = ".".join(map(str, version_checked))
         raise Exception(
-          'The options --enable-pgo-generate and --enable-pgo-use '
+          'The args --enable-pgo-generate and --enable-pgo-use '
           'are supported for gcc and gxx %s or newer only.' % (version_checked_str))
 
-    if options.enable_pgo_generate and options.enable_pgo_use:
+    if args.enable_pgo_generate and args.enable_pgo_use:
       raise Exception(
-        'Only one of the --enable-pgo-generate or --enable-pgo-use options '
+        'Only one of the --enable-pgo-generate or --enable-pgo-use args '
         'can be specified at a time. You would like to use '
         '--enable-pgo-generate first, profile node, and then recompile '
         'with --enable-pgo-use')
 
-  o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
-  o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
+  o['variables']['enable_pgo_generate'] = b(args.enable_pgo_generate)
+  o['variables']['enable_pgo_use']      = b(args.enable_pgo_use)
 
-  if flavor != 'linux' and (options.enable_lto):
+  if flavor != 'linux' and (args.enable_lto):
     raise Exception(
       'The lto option is supported only on linux.')
 
   if flavor == 'linux':
-    if options.enable_lto:
+    if args.enable_lto:
       version_checked = (5, 4, 1)
       if not gcc_version_ge(version_checked):
         version_checked_str = ".".join(map(str, version_checked))
@@ -1018,29 +1021,29 @@ def configure_node(o):
           'The option --enable-lto is supported for gcc and gxx %s'
           ' or newer only.' % (version_checked_str))
 
-  o['variables']['enable_lto'] = b(options.enable_lto)
+  o['variables']['enable_lto'] = b(args.enable_lto)
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
-    use_dtrace = not options.without_dtrace
+    use_dtrace = not args.without_dtrace
     # Don't enable by default on linux and freebsd
     if flavor in ('linux', 'freebsd'):
-      use_dtrace = options.with_dtrace
+      use_dtrace = args.with_dtrace
 
     if flavor == 'linux':
-      if options.systemtap_includes:
-        o['include_dirs'] += [options.systemtap_includes]
+      if args.systemtap_includes:
+        o['include_dirs'] += [args.systemtap_includes]
     o['variables']['node_use_dtrace'] = b(use_dtrace)
-  elif options.with_dtrace:
+  elif args.with_dtrace:
     raise Exception(
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
-  if options.node_use_large_pages and not flavor in ('linux', 'freebsd', 'mac'):
+  if args.node_use_large_pages and not flavor in ('linux', 'freebsd', 'mac'):
     raise Exception(
       'Large pages are supported only on Linux, FreeBSD and MacOS Systems.')
-  if options.node_use_large_pages and flavor in ('linux', 'freebsd', 'mac'):
-    if options.shared or options.enable_static:
+  if args.node_use_large_pages and flavor in ('linux', 'freebsd', 'mac'):
+    if args.shared or args.enable_static:
       raise Exception(
         'Large pages are supported only while creating node executable.')
     if target_arch!="x64":
@@ -1055,49 +1058,49 @@ def configure_node(o):
       if KERNEL_VERSION < "2.6.38" and flavor == 'linux':
         raise Exception(
           'Large pages need Linux kernel version >= 2.6.38')
-  o['variables']['node_use_large_pages'] = b(options.node_use_large_pages)
-  o['variables']['node_use_large_pages_script_lld'] = b(options.node_use_large_pages_script_lld)
+  o['variables']['node_use_large_pages'] = b(args.node_use_large_pages)
+  o['variables']['node_use_large_pages_script_lld'] = b(args.node_use_large_pages_script_lld)
 
-  if options.no_ifaddrs:
+  if args.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
   # By default, enable ETW on Windows.
   if flavor == 'win':
-    o['variables']['node_use_etw'] = b(not options.without_etw)
-  elif options.with_etw:
+    o['variables']['node_use_etw'] = b(not args.without_etw)
+  elif args.with_etw:
     raise Exception('ETW is only supported on Windows.')
   else:
     o['variables']['node_use_etw'] = 'false'
 
-  o['variables']['node_with_ltcg'] = b(options.with_ltcg)
-  if flavor != 'win' and options.with_ltcg:
+  o['variables']['node_with_ltcg'] = b(args.with_ltcg)
+  if flavor != 'win' and args.with_ltcg:
     raise Exception('Link Time Code Generation is only supported on Windows.')
 
-  if options.tag:
-    o['variables']['node_tag'] = '-' + options.tag
+  if args.tag:
+    o['variables']['node_tag'] = '-' + args.tag
   else:
     o['variables']['node_tag'] = ''
 
-  o['variables']['node_release_urlbase'] = options.release_urlbase or ''
+  o['variables']['node_release_urlbase'] = args.release_urlbase or ''
 
-  if options.v8_options:
-    o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
+  if args.v8_args:
+    o['variables']['node_v8_args'] = args.v8_args.replace('"', '\\"')
 
-  if options.enable_static:
+  if args.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
-  o['variables']['node_debug_lib'] = b(options.node_debug_lib)
+  o['variables']['node_debug_lib'] = b(args.node_debug_lib)
 
-  if options.debug_nghttp2:
+  if args.debug_nghttp2:
     o['variables']['debug_nghttp2'] = 1
   else:
     o['variables']['debug_nghttp2'] = 'false'
 
-  o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
+  o['variables']['node_no_browser_globals'] = b(args.no_browser_globals)
   # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
   if o['variables']['want_separate_host_toolset'] == 0:
     o['variables']['node_code_cache'] = 'yes' # For testing
-  o['variables']['node_shared'] = b(options.shared)
+  o['variables']['node_shared'] = b(args.shared)
   node_module_version = getmoduleversion.get_version()
 
   if sys.platform == 'darwin':
@@ -1111,19 +1114,19 @@ def configure_node(o):
   o['variables']['node_module_version'] = int(node_module_version)
   o['variables']['shlib_suffix'] = shlib_suffix
 
-  if options.linked_module:
-    o['variables']['library_files'] = options.linked_module
+  if args.linked_module:
+    o['variables']['library_files'] = args.linked_module
 
-  o['variables']['asan'] = int(options.enable_asan or 0)
+  o['variables']['asan'] = int(args.enable_asan or 0)
 
-  if options.coverage:
+  if args.coverage:
     o['variables']['coverage'] = 'true'
   else:
     o['variables']['coverage'] = 'false'
 
-  if options.shared:
+  if args.shared:
     o['variables']['node_target_type'] = 'shared_library'
-  elif options.enable_static:
+  elif args.enable_static:
     o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
@@ -1134,31 +1137,31 @@ def configure_napi(output):
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
-  output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+  output['variables']['node_' + shared_lib] = b(getattr(args, shared_lib))
 
-  if getattr(options, shared_lib):
+  if getattr(args, shared_lib):
     (pkg_libs, pkg_cflags, pkg_libpath, pkg_modversion) = pkg_config(lib)
 
-    if options.__dict__[shared_lib + '_includes']:
-      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
+    if args.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [args.__dict__[shared_lib + '_includes']]
     elif pkg_cflags:
       stripped_flags = [flag.strip() for flag in pkg_cflags.split('-I')]
       output['include_dirs'] += [flag for flag in stripped_flags if flag]
 
     # libpath needs to be provided ahead libraries
-    if options.__dict__[shared_lib + '_libpath']:
+    if args.__dict__[shared_lib + '_libpath']:
       if flavor == 'win':
         if 'msvs_settings' not in output:
-          output['msvs_settings'] = { 'VCLinkerTool': { 'AdditionalOptions': [] } }
-        output['msvs_settings']['VCLinkerTool']['AdditionalOptions'] += [
-          '/LIBPATH:%s' % options.__dict__[shared_lib + '_libpath']]
+          output['msvs_settings'] = { 'VCLinkerTool': { 'Additionalargs': [] } }
+        output['msvs_settings']['VCLinkerTool']['Additionalargs'] += [
+          '/LIBPATH:%s' % args.__dict__[shared_lib + '_libpath']]
       else:
         output['libraries'] += [
-            '-L%s' % options.__dict__[shared_lib + '_libpath']]
+            '-L%s' % args.__dict__[shared_lib + '_libpath']]
     elif pkg_libpath:
       output['libraries'] += [pkg_libpath]
 
-    default_libs = getattr(options, shared_lib + '_libname')
+    default_libs = getattr(args, shared_lib + '_libname')
     default_libs = ['-l{0}'.format(l) for l in default_libs.split(',')]
 
     if default_libs:
@@ -1168,62 +1171,62 @@ def configure_library(lib, output):
 
 
 def configure_v8(o):
-  o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
+  o['variables']['v8_enable_gdbjit'] = 1 if args.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
-  o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
+  o['variables']['v8_optimized_debug'] = 0 if args.v8_non_optimized_debug else 1
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
-  o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
-  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
-  o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
-  o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
-  o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
-  o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
-  o['variables']['node_enable_d8'] = b(options.enable_d8)
-  if options.enable_d8:
+  o['variables']['v8_use_siphash'] = 0 if args.without_siphash else 1
+  o['variables']['v8_use_snapshot'] = 0 if args.without_snapshot else 1
+  o['variables']['v8_trace_maps'] = 1 if args.trace_maps else 0
+  o['variables']['node_use_v8_platform'] = b(not args.without_v8_platform)
+  o['variables']['node_use_bundled_v8'] = b(not args.without_bundled_v8)
+  o['variables']['force_dynamic_crt'] = 1 if args.shared else 0
+  o['variables']['node_enable_d8'] = b(args.enable_d8)
+  if args.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
-  if options.without_bundled_v8 and options.enable_d8:
+  if args.without_bundled_v8 and args.enable_d8:
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
-  if options.without_bundled_v8 and options.build_v8_with_gn:
+  if args.without_bundled_v8 and args.build_v8_with_gn:
     raise Exception(
         '--build-v8-with-gn is incompatible with --without-bundled-v8.')
-  if options.build_v8_with_gn:
+  if args.build_v8_with_gn:
     v8_path = os.path.join('deps', 'v8')
     print('Fetching dependencies to build V8 with GN')
-    options.build_v8_with_gn = FetchDeps(v8_path)
-  o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
+    args.build_v8_with_gn = FetchDeps(v8_path)
+  o['variables']['build_v8_with_gn'] = b(args.build_v8_with_gn)
 
 
 def configure_openssl(o):
   variables = o['variables']
-  variables['node_use_openssl'] = b(not options.without_ssl)
-  variables['node_shared_openssl'] = b(options.shared_openssl)
-  variables['openssl_is_fips'] = b(options.openssl_is_fips)
+  variables['node_use_openssl'] = b(not args.without_ssl)
+  variables['node_shared_openssl'] = b(args.shared_openssl)
+  variables['openssl_is_fips'] = b(args.openssl_is_fips)
   variables['openssl_fips'] = ''
 
-  if options.openssl_no_asm:
+  if args.openssl_no_asm:
     variables['openssl_no_asm'] = 1
 
-  if options.without_ssl:
+  if args.without_ssl:
     def without_ssl_error(option):
       error('--without-ssl is incompatible with %s' % option)
-    if options.shared_openssl:
+    if args.shared_openssl:
       without_ssl_error('--shared-openssl')
-    if options.openssl_no_asm:
+    if args.openssl_no_asm:
       without_ssl_error('--openssl-no-asm')
-    if options.openssl_fips:
+    if args.openssl_fips:
       without_ssl_error('--openssl-fips')
     return
 
-  if options.use_openssl_ca_store:
+  if args.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
-  if options.openssl_system_ca_path:
-    variables['openssl_system_ca_path'] = options.openssl_system_ca_path
-  variables['node_without_node_options'] = b(options.without_node_options)
-  if options.without_node_options:
-      o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
+  if args.openssl_system_ca_path:
+    variables['openssl_system_ca_path'] = args.openssl_system_ca_path
+  variables['node_without_node_args'] = b(args.without_node_args)
+  if args.without_node_args:
+      o['defines'] += ['NODE_WITHOUT_NODE_args']
 
-  if not options.shared_openssl and not options.openssl_no_asm:
+  if not args.shared_openssl and not args.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
 
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
@@ -1239,32 +1242,32 @@ def configure_openssl(o):
        --openssl-no-asm.
        Please refer to BUILDING.md''')
 
-  elif options.openssl_no_asm:
+  elif args.openssl_no_asm:
     warn('''--openssl-no-asm will result in binaries that do not take advantage
          of modern CPU cryptographic instructions and will therefore be slower.
          Please refer to BUILDING.md''')
 
-  if options.openssl_no_asm and options.shared_openssl:
+  if args.openssl_no_asm and args.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
-  if options.openssl_fips or options.openssl_fips == '':
+  if args.openssl_fips or args.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
 
   configure_library('openssl', o)
 
 
 def configure_static(o):
-  if options.fully_static or options.partly_static:
+  if args.fully_static or args.partly_static:
     if flavor == 'mac':
       warn("Generation of static executable will not work on OSX "
             "when using the default compilation environment")
       return
 
-    if options.fully_static:
+    if args.fully_static:
       o['libraries'] += ['-static']
-    elif options.partly_static:
+    elif args.partly_static:
       o['libraries'] += ['-static-libgcc', '-static-libstdc++']
-      if options.enable_asan:
+      if args.enable_asan:
         o['libraries'] += ['-static-libasan']
 
 
@@ -1300,7 +1303,7 @@ def configure_intl(o):
     with open(depFile) as f:
       icus = json.load(f)
     # download ICU, if needed
-    if not os.access(options.download_path, os.W_OK):
+    if not os.access(args.download_path, os.W_OK):
       error('''Cannot write to desired download path.
         Either create it or verify permissions.''')
     attemptdownload = nodedownload.candownload(auto_downloads, "icu")
@@ -1313,7 +1316,7 @@ def configure_intl(o):
           For the entry %s,
           Expected one of these keys: %s''' % (depFile, url, ' '.join(allAlgos)))
       local = url.split('/')[-1]
-      targetfile = os.path.join(options.download_path, local)
+      targetfile = os.path.join(args.download_path, local)
       if not os.path.isfile(targetfile):
         if attemptdownload:
           nodedownload.retrievefile(url, targetfile)
@@ -1343,16 +1346,16 @@ def configure_intl(o):
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
 
-  with_intl = options.with_intl
-  with_icu_source = options.with_icu_source
-  have_icu_path = bool(options.with_icu_path)
+  with_intl = args.with_intl
+  with_icu_source = args.with_icu_source
+  have_icu_path = bool(args.with_icu_path)
   if have_icu_path and with_intl != 'none':
     error('Cannot specify both --with-icu-path and --with-intl')
   elif have_icu_path:
     # Chromium .gyp mode: --with-icu-path
     o['variables']['v8_enable_i18n_support'] = 1
     # use the .gyp given
-    o['variables']['icu_gyp_path'] = options.with_icu_path
+    o['variables']['icu_gyp_path'] = args.with_icu_path
     return
   # --with-intl=<with_intl>
   # set the default
@@ -1363,7 +1366,7 @@ def configure_intl(o):
     # small ICU (English only)
     o['variables']['v8_enable_i18n_support'] = 1
     o['variables']['icu_small'] = b(True)
-    locs = set(options.with_icu_locales.split(','))
+    locs = set(args.with_icu_locales.split(','))
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
     # We will check a bit later if we can use the canned deps/icu-small
@@ -1421,7 +1424,7 @@ def configure_intl(o):
   # still harmlessly remove deps/icu.
 
   # are we using default locales?
-  using_default_locales = ( options.with_icu_locales == icu_default_locales )
+  using_default_locales = ( args.with_icu_locales == icu_default_locales )
 
   # make sure the canned ICU really exists
   canned_icu_available = os.path.isdir(canned_icu_dir)
@@ -1553,9 +1556,9 @@ def configure_intl(o):
   return  # end of configure_intl
 
 def configure_inspector(o):
-  disable_inspector = (options.without_inspector or
-                       options.with_intl in (None, 'none') or
-                       options.without_ssl)
+  disable_inspector = (args.without_inspector or
+                       args.with_intl in (None, 'none') or
+                       args.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
 
@@ -1606,8 +1609,8 @@ check_compiler(output)
 # determine the "flavor" (operating system) we're building for,
 # leveraging gyp's GetFlavor function
 flavor_params = {}
-if (options.dest_os):
-  flavor_params['flavor'] = options.dest_os
+if (args.dest_os):
+  flavor_params['flavor'] = args.dest_os
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
@@ -1630,7 +1633,7 @@ configure_inspector(output)
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
-variables['is_debug'] = B(options.debug)
+variables['is_debug'] = B(args.debug)
 
 # make_global_settings for special FIPS linking
 # should not be used to compile modules in node-gyp
@@ -1666,7 +1669,7 @@ os.chmod('config.status', 0o775)
 
 
 config = {
-  'BUILDTYPE': 'Debug' if options.debug else 'Release',
+  'BUILDTYPE': 'Debug' if args.debug else 'Release',
   'NODE_TARGET_TYPE': variables['node_target_type'],
 }
 
@@ -1674,10 +1677,10 @@ config = {
 if sys.executable != 'python' and ':\\' not in sys.executable:
   config['PYTHON'] = sys.executable
 
-if options.prefix:
-  config['PREFIX'] = options.prefix
+if args.prefix:
+  config['PREFIX'] = args.prefix
 
-if options.use_ninja:
+if args.use_ninja:
   config['BUILD_WITH'] = 'ninja'
 
 config_lines = ['='.join((k,v)) for k,v in config.items()]
@@ -1696,20 +1699,20 @@ write('config.mk', do_not_edit + config_str)
 
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 
-if options.use_ninja:
+if args.use_ninja:
   gyp_args += ['-f', 'ninja']
 elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:
   gyp_args += ['-f', 'make-' + flavor]
 
-if options.compile_commands_json:
+if args.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
 
 # pass the leftover positional arguments to GYP
 gyp_args += args
 
-if warn.warned and not options.verbose:
+if warn.warned and not args.verbose:
   warn('warnings were emitted in the configure phase')
 
 print_verbose("running: \n    " + " ".join(['python', 'tools/gyp_node.py'] + gyp_args))
