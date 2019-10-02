@@ -10,18 +10,56 @@ let count = 0;
 
 tmpdir.refresh();
 
-function makeNonEmptyDirectory() {
-  const dirname = `rmdir-recursive-${count}`;
-  fs.mkdirSync(path.join(dirname, 'foo', 'bar', 'baz'), { recursive: true });
+function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
+  fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
-  count++;
-  return dirname;
+
+  const options = { flag: 'wx' };
+
+  for (let f = files; f > 0; f--) {
+    fs.writeFileSync(path.join(dirname, `f-${depth}-${f}`), '', options);
+  }
+
+  if (createSymLinks) {
+    // Valid symlink
+    fs.symlinkSync(
+      `f-${depth}-1`,
+      path.join(dirname, `link-${depth}-good`),
+      'file'
+    );
+
+    // Invalid symlink
+    fs.symlinkSync(
+      'does-not-exist',
+      path.join(dirname, `link-${depth}-bad`),
+      'file'
+    );
+  }
+
+  // File with a name that looks like a glob
+  fs.writeFileSync(path.join(dirname, '[a-z0-9].txt'), '', options);
+
+  depth--;
+  if (depth <= 0) {
+    return;
+  }
+
+  for (let f = folders; f > 0; f--) {
+    fs.mkdirSync(
+      path.join(dirname, `folder-${depth}-${f}`),
+      { recursive: true }
+    );
+    makeNonEmptyDirectory(
+      depth,
+      files,
+      folders,
+      path.join(dirname, `d-${depth}-${f}`),
+      createSymLinks
+    );
+  }
 }
 
-// Test the asynchronous version.
-{
-  const dir = makeNonEmptyDirectory();
-
+function removeAsync(dir) {
   // Removal should fail without the recursive option.
   fs.rmdir(dir, common.mustCall((err) => {
     assert.strictEqual(err.syscall, 'rmdir');
@@ -48,9 +86,31 @@ function makeNonEmptyDirectory() {
   }));
 }
 
+// Test the asynchronous version
+{
+  // Create a 4-level folder hierarchy including symlinks
+  let dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir, true);
+  removeAsync(dir);
+
+  // Create a 2-level folder hierarchy without symlinks
+  count++;
+  dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(2, 10, 2, dir, false);
+  removeAsync(dir);
+
+  // Create a flat folder including symlinks
+  count++;
+  dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(1, 10, 2, dir, true);
+  removeAsync(dir);
+}
+
 // Test the synchronous version.
 {
-  const dir = makeNonEmptyDirectory();
+  count++;
+  const dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
   common.expectsError(() => {
@@ -72,7 +132,9 @@ function makeNonEmptyDirectory() {
 
 // Test the Promises based version.
 (async () => {
-  const dir = makeNonEmptyDirectory();
+  count++;
+  const dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
