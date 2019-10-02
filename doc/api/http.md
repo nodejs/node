@@ -71,7 +71,7 @@ the requests to that server, but each one will occur over a new connection.
 When a connection is closed by the client or the server, it is removed
 from the pool. Any unused sockets in the pool will be unrefed so as not
 to keep the Node.js process running when there are no outstanding requests.
-(see [`socket.unref()`]).
+(see [`socket.unref()`][]).
 
 It is good practice, to [`destroy()`][] an `Agent` instance when it is no
 longer in use, because unused sockets consume OS resources.

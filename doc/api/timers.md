@@ -136,7 +136,7 @@ added: v0.9.1
 -->
 
 * `callback` {Function} The function to call at the end of this turn of
-  [the Node.js Event Loop]
+  the Node.js [Event Loop][]
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Immediate} for use with [`clearImmediate()`][]
 

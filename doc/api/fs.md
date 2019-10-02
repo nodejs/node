@@ -3133,7 +3133,7 @@ Using `fs.stat()` to check for the existence of a file before calling
 Instead, user code should open/read/write the file directly and handle the
 error raised if the file is not available.
 
-To check if a file exists without manipulating it afterwards, [`fs.access()`]
+To check if a file exists without manipulating it afterwards, [`fs.access()`][]
 is recommended.
 
 For example, given the following folder structure:
@@ -3541,12 +3541,13 @@ The recursive option is only supported on macOS and Windows.
 This feature depends on the underlying operating system providing a way
 to be notified of filesystem changes.
 
-* On Linux systems, this uses [`inotify(7)`].
-* On BSD systems, this uses [`kqueue(2)`].
-* On macOS, this uses [`kqueue(2)`] for files and [`FSEvents`] for directories.
-* On SunOS systems (including Solaris and SmartOS), this uses [`event ports`].
-* On Windows systems, this feature depends on [`ReadDirectoryChangesW`].
-* On Aix systems, this feature depends on [`AHAFS`], which must be enabled.
+* On Linux systems, this uses [`inotify(7)`][].
+* On BSD systems, this uses [`kqueue(2)`][].
+* On macOS, this uses [`kqueue(2)`][] for files and [`FSEvents`][] for
+  directories.
+* On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
+* On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
+* On Aix systems, this feature depends on [`AHAFS`][], which must be enabled.
 
 If the underlying functionality is not available for some reason, then
 `fs.watch` will not be able to function. For example, watching files or

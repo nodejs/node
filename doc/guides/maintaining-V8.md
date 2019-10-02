@@ -162,9 +162,9 @@ process.
 
 ### Unfixed Upstream Bugs
 
-If the bug can be reproduced on the [Node.js `canary` branch], Chromium canary,
-or V8 tip-of-tree, and the test case is valid, then the bug needs to be fixed
-upstream first.
+If the bug can be reproduced on the [Node.js `canary` branch][], Chromium
+canary, or V8 tip-of-tree, and the test case is valid, then the bug needs to be
+fixed upstream first.
 
 * Start by opening a bug upstream using [this template][V8TemplateUpstreamBug].
 * Make sure to include a link to the corresponding Node.js issue
@@ -226,12 +226,12 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
     V8 team to get help with reimplementing the patch.
   * Open a cherry-pick PR on `nodejs/node` targeting the *vY.x-staging* branch
     and notify the `@nodejs/v8` team.
-  * Run the Node.js [V8 CI] in addition to the [Node.js CI].
+  * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
     run V8 tests.
 
-The [`git-node`] tool can be used to simplify this task. Run
+The [`git-node`][] tool can be used to simplify this task. Run
 `git node v8 backport <sha>` to cherry-pick a commit.
 
 An example for workflow how to cherry-pick consider the bug
@@ -275,8 +275,8 @@ PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 
 * Open a PR against the `v6.x-staging` branch in the Node.js repo. Launch the
-  normal and [V8 CI] using the Node.js CI system. We only needed to backport to
-  `v6.x` as the other LTS branches weren't affected by this bug.
+  normal and [V8 CI][] using the Node.js CI system. We only needed to backport
+  to `v6.x` as the other LTS branches weren't affected by this bug.
 
 ### Backports Identified by the V8 team
 
@@ -340,7 +340,7 @@ curl -L https://github.com/v8/v8/compare/${V8_OLD_VERSION}...${V8_NEW_VERSION}.p
 V8 also keeps tags of the form *5.4-lkgr* which point to the *Last Known Good
 Revision* from the 5.4 branch that can be useful in the update process above.
 
-The [`git-node`] tool can be used to simplify this task. Run `git node v8 minor`
+The [`git-node`][] tool can be used to simplify this task. Run `git node v8 minor`
 to apply a minor update.
 
 ### Major Updates
@@ -367,8 +367,8 @@ To audit for floating patches:
 git log --oneline deps/v8
 ```
 
-To replace the copy of V8 in Node.js, use the [`git-node`] tool. For example, if
-you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
+To replace the copy of V8 in Node.js, use the [`git-node`][] tool. For example,
+if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
 branch:
 
 ```shell
