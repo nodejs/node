@@ -26,6 +26,7 @@ static ping ping_func;
 void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
   const String::Utf8Value filename(args.GetIsolate(), args[0]);
   void* handle = dlopen(*filename, RTLD_LAZY);
+  if (handle == nullptr) fprintf(stderr, "%s\n", dlerror());
   assert(handle != nullptr);
   ping_func = reinterpret_cast<ping>(dlsym(handle, "dlopen_ping"));
   assert(ping_func != nullptr);
