@@ -40,7 +40,7 @@ from gyp_node import run_gyp
 sys.path.insert(0, os.path.join('deps', 'v8', 'tools', 'node'))
 from fetch_deps import FetchDeps
 
-# parse our args
+# parse our options
 parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
@@ -70,7 +70,7 @@ http2_group = parser.add_argument_group(
     "HTTP2",
     "Flags that allows you to control HTTP2 features in Node.js")
 
-# args should be in alphabetical order but keep --prefix at the top,
+# Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
 parser.add_argument('--prefix',
     action='store',
@@ -345,10 +345,10 @@ parser.add_argument('--enable-trace-maps',
     dest='trace_maps',
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
 
-parser.add_argument('--v8-args',
+parser.add_argument('--v8-options',
     action='store',
-    dest='v8_args',
-    help='v8 args to pass, see `node --v8-args` for examples.')
+    dest='v8_options',
+    help='v8 options to pass, see `node --v8-options` for examples.')
 
 parser.add_argument('--with-arm-float-abi',
     action='store',
@@ -522,10 +522,10 @@ parser.add_argument('--without-ssl',
     dest='without_ssl',
     help='build without SSL (disables crypto, https, inspector, etc.)')
 
-parser.add_argument('--without-node-args',
+parser.add_argument('--without-node-options',
     action='store_true',
-    dest='without_node_args',
-    help='build without NODE_args support')
+    dest='without_node_options',
+    help='build without NODE_OPTIONS support')
 
 parser.add_argument('--ninja',
     action='store_true',
@@ -995,12 +995,12 @@ def configure_node(o):
       if not gcc_version_ge(version_checked):
         version_checked_str = ".".join(map(str, version_checked))
         raise Exception(
-          'The args --enable-pgo-generate and --enable-pgo-use '
+          'The options --enable-pgo-generate and --enable-pgo-use '
           'are supported for gcc and gxx %s or newer only.' % (version_checked_str))
 
     if args.enable_pgo_generate and args.enable_pgo_use:
       raise Exception(
-        'Only one of the --enable-pgo-generate or --enable-pgo-use args '
+        'Only one of the --enable-pgo-generate or --enable-pgo-use options '
         'can be specified at a time. You would like to use '
         '--enable-pgo-generate first, profile node, and then recompile '
         'with --enable-pgo-use')
@@ -1083,8 +1083,8 @@ def configure_node(o):
 
   o['variables']['node_release_urlbase'] = args.release_urlbase or ''
 
-  if args.v8_args:
-    o['variables']['node_v8_args'] = args.v8_args.replace('"', '\\"')
+  if args.v8_options:
+    o['variables']['node_v8_options'] = args.v8_options.replace('"', '\\"')
 
   if args.enable_static:
     o['variables']['node_target_type'] = 'static_library'
@@ -1152,8 +1152,8 @@ def configure_library(lib, output):
     if args.__dict__[shared_lib + '_libpath']:
       if flavor == 'win':
         if 'msvs_settings' not in output:
-          output['msvs_settings'] = { 'VCLinkerTool': { 'Additionalargs': [] } }
-        output['msvs_settings']['VCLinkerTool']['Additionalargs'] += [
+          output['msvs_settings'] = { 'VCLinkerTool': { 'AdditionalOptions': [] } }
+        output['msvs_settings']['VCLinkerTool']['AdditionalOptions'] += [
           '/LIBPATH:%s' % args.__dict__[shared_lib + '_libpath']]
       else:
         output['libraries'] += [
@@ -1222,9 +1222,9 @@ def configure_openssl(o):
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if args.openssl_system_ca_path:
     variables['openssl_system_ca_path'] = args.openssl_system_ca_path
-  variables['node_without_node_args'] = b(args.without_node_args)
-  if args.without_node_args:
-      o['defines'] += ['NODE_WITHOUT_NODE_args']
+  variables['node_without_node_options'] = b(args.without_node_options)
+  if args.without_node_options:
+      o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
 
   if not args.shared_openssl and not args.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
