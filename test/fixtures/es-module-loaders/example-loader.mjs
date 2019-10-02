@@ -1,43 +1,47 @@
-import { URL } from 'url';
-import path from 'path';
-import process from 'process';
-import { builtinModules } from 'module';
+import { default as Module } from 'module';
+import { extname } from 'path';
+import { pathToFileURL } from 'url';
 
-const JS_EXTENSIONS = new Set(['.js', '.mjs']);
+/**
+ * @param {string} specifier
+ * @param {!(URL|string|undefined)} parentModuleURL
+//  * param {Function} defaultResolver
+ * @returns {Promise<{url: string, format: string}>}
+ */
+export async function resolve(
+  specifier,
+  parentModuleURL = undefined
+  // defaultResolver
+) {
+  const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
+  if (parentModuleURL === undefined) {
+    parentModuleURL = pathToFileURL(process.cwd()).href;
+  }
 
-export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
-  if (builtinModules.includes(specifier)) {
+  if (Module.builtinModules.includes(specifier)) {
     return {
       url: 'nodejs:' + specifier
     };
   }
-  if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
-    // For node_modules support:
-    // return defaultResolve(specifier, {parentURL}, defaultResolve);
-    throw new Error(
-      `imports must be URLs or begin with './', or '../'; '${specifier}' does not`);
-  }
-  const resolved = new URL(specifier, parentURL);
-  return {
-    url: resolved.href
-  };
-}
 
-export function getFormat(url, context, defaultGetFormat) {
-  if (url.startsWith('nodejs:') && builtinModules.includes(url.slice(7))) {
-    return {
-      format: 'builtin'
-    };
+  if (!(specifier.startsWith('file:') || /^\.{1,2}[/]/.test(specifier))) {
+    // For node_modules support:
+    // return defaultResolver(specifier, parentModuleURL);
+    throw new Error(
+      "Imports must either be URLs or begin with './' or '../'; " +
+      `'${specifier}' satisfied neither of these requirements.`
+    );
   }
-  const { pathname } = new URL(url);
-  const ext = path.extname(pathname);
+
+  const resolved = new URL(specifier, parentModuleURL);
+  const ext = extname(resolved.pathname);
+
   if (!JS_EXTENSIONS.has(ext)) {
     throw new Error(
       `Cannot load file with non-JavaScript file extension ${ext}.`);
   }
+
   return {
     format: 'module'
   };
