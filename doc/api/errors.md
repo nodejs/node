@@ -460,12 +460,12 @@ system error.
 * {number}
 
 The `error.errno` property is a negative number which corresponds
-to the error code defined in [`libuv Error handling`].
+to the error code defined in [`libuv Error handling`][].
 
 On Windows the error number provided by the system will be normalized by libuv.
 
 To get the string representation of the error code, use
-[`util.getSystemErrorName(error.errno)`].
+[`util.getSystemErrorName(error.errno)`][].
 
 ### error.info
 
@@ -1285,8 +1285,8 @@ semantics for determining whether a path can be used is platform-dependent.
 ### ERR_INVALID_HANDLE_TYPE
 
 An attempt was made to send an unsupported "handle" over an IPC communication
-channel to a child process. See [`subprocess.send()`] and [`process.send()`] for
-more information.
+channel to a child process. See [`subprocess.send()`][] and [`process.send()`][]
+for more information.
 
 <a id="ERR_INVALID_HTTP_TOKEN"></a>
 ### ERR_INVALID_HTTP_TOKEN
@@ -1438,7 +1438,7 @@ for more information.
 ### ERR_MANIFEST_ASSERT_INTEGRITY
 
 An attempt was made to load a resource, but the resource did not match the
-integrity defined by the policy manifest. See the documentation for [policy]
+integrity defined by the policy manifest. See the documentation for [policy][]
 manifests for more information.
 
 <a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
@@ -1446,7 +1446,7 @@ manifests for more information.
 
 An attempt was made to load a resource, but the resource was not listed as a
 dependency from the location that attempted to load it. See the documentation
-for [policy] manifests for more information.
+for [policy][] manifests for more information.
 
 <a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
 ### ERR_MANIFEST_INTEGRITY_MISMATCH
@@ -1454,20 +1454,20 @@ for [policy] manifests for more information.
 An attempt was made to load a policy manifest, but the manifest had multiple
 entries for a resource which did not match each other. Update the manifest
 entries to match in order to resolve this error. See the documentation for
-[policy] manifests for more information.
+[policy][] manifests for more information.
 
 <a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
 ### ERR_MANIFEST_INVALID_RESOURCE_FIELD
 
 A policy manifest resource had an invalid value for one of its fields. Update
 the manifest entry to match in order to resolve this error. See the
-documentation for [policy] manifests for more information.
+documentation for [policy][] manifests for more information.
 
 <a id="ERR_MANIFEST_PARSE_POLICY"></a>
 ### ERR_MANIFEST_PARSE_POLICY
 
 An attempt was made to load a policy manifest, but the manifest was unable to
-be parsed. See the documentation for [policy] manifests for more information.
+be parsed. See the documentation for [policy][] manifests for more information.
 
 <a id="ERR_MANIFEST_TDZ"></a>
 ### ERR_MANIFEST_TDZ
@@ -1479,7 +1479,7 @@ initialization has not yet taken place. This is likely a bug in Node.js.
 ### ERR_MANIFEST_UNKNOWN_ONERROR
 
 A policy manifest was loaded, but had an unknown value for its "onerror"
-behavior. See the documentation for [policy] manifests for more information.
+behavior. See the documentation for [policy][] manifests for more information.
 
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 ### ERR_MEMORY_ALLOCATION_FAILED

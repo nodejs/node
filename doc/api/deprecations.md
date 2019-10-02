@@ -2516,8 +2516,8 @@ changes:
 
 Type: Documentation-only
 
-Prefer [`response.socket`][] over [`response.connection`] and
-[`request.socket`][] over [`request.connection`].
+Prefer [`response.socket`][] over [`response.connection`][] and
+[`request.socket`][] over [`request.connection`][].
 
 <a id="DEP0134"></a>
 ### DEP0134: process._tickCallback

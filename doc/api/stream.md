@@ -89,7 +89,7 @@ total size of the internal write buffer is below the threshold set by
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
-A key goal of the `stream` API, particularly the [`stream.pipe()`] method,
+A key goal of the `stream` API, particularly the [`stream.pipe()`][] method,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
@@ -686,7 +686,7 @@ from the stream.
 
 Adding a [`'readable'`][] event handler automatically make the stream to
 stop flowing, and the data to be consumed via
-[`readable.read()`][stream-read]. If the [`'readable'`] event handler is
+[`readable.read()`][stream-read]. If the [`'readable'`][] event handler is
 removed, then the stream will start flowing again if there is a
 [`'data'`][] event handler.
 
@@ -1657,10 +1657,10 @@ on the type of stream being created, as detailed in the chart below:
 
 | Use-case | Class | Method(s) to implement |
 | -------- | ----- | ---------------------- |
-| Reading only | [`Readable`] | <code>[_read()][stream-_read]</code> |
-| Writing only | [`Writable`] | <code>[_write()][stream-_write]</code>, <code>[_writev()][stream-_writev]</code>, <code>[_final()][stream-_final]</code> |
-| Reading and writing | [`Duplex`] | <code>[_read()][stream-_read]</code>, <code>[_write()][stream-_write]</code>, <code>[_writev()][stream-_writev]</code>, <code>[_final()][stream-_final]</code> |
-| Operate on written data, then read the result | [`Transform`] | <code>[_transform()][stream-_transform]</code>, <code>[_flush()][stream-_flush]</code>, <code>[_final()][stream-_final]</code> |
+| Reading only | [`Readable`][] | [`_read()`][stream-_read] |
+| Writing only | [`Writable`][] | [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
+| Reading and writing | [`Duplex`][] | [`_read()`][stream-_read], [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
+| Operate on written data, then read the result | [`Transform`][] | [`_transform()`][stream-_transform], [`_flush()`][stream-_flush], [`_final()`][stream-_final] |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
@@ -1885,7 +1885,7 @@ or write buffered data before a stream ends.
 #### Errors While Writing
 
 Errors occurring during the processing of the [`writable._write()`][],
-[`writable._writev()`][] and [`writable._final()`] methods must be propagated
+[`writable._writev()`][] and [`writable._final()`][] methods must be propagated
 by invoking the callback and passing the error as the first argument.
 Throwing an `Error` from within these methods or manually emitting an `'error'`
 event results in undefined behavior.
