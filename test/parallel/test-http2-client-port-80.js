@@ -11,7 +11,7 @@ const net = require('net');
 
 const connect = net.connect;
 net.connect = common.mustCall((...args) => {
-  assert.strictEqual(args[0], '80');
+  assert.strictEqual(args[0].port, '80');
   return connect(...args);
 });
 
