@@ -2519,8 +2519,8 @@ Type: Documentation-only
 Prefer [`response.socket`][] over [`response.connection`] and
 [`request.socket`][] over [`request.connection`].
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: process._tickCallback
+<a id="DEP0134"></a>
+### DEP0134: process._tickCallback
 <!-- YAML
 changes:
   - version: REPLACEME
