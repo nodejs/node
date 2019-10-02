@@ -22,7 +22,7 @@ function onsend() {
 client.on('listening', function() {
   port = this.address().port;
 
-  setImmediate(function() {
+  process.nextTick(() => {
     async = true;
   });
 
