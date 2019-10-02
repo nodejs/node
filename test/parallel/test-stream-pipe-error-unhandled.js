@@ -8,7 +8,7 @@ process.on('uncaughtException', common.mustCall((err) => {
 }));
 
 const r = new Readable({
-  read () {
+  read() {
     this.push('asd');
   }
 });
