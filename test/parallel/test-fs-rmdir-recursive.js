@@ -10,17 +10,41 @@ let count = 0;
 
 tmpdir.refresh();
 
-function makeNonEmptyDirectory() {
-  const dirname = `rmdir-recursive-${count}`;
-  fs.mkdirSync(path.join(dirname, 'foo', 'bar', 'baz'), { recursive: true });
+function makeNonEmptyDirectory (depth, files, folders, dirname) {
+  fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
-  count++;
-  return dirname;
+
+  var o = { flag: 'wx' }
+  if (process.version.match(/^v0\.8/))
+    o = 'utf8'
+
+  for (var f = files; f > 0; f--) {
+    fs.writeFileSync(dirname + '/f-' + depth + '-' + f, '', o)
+  }
+
+  // valid symlink
+  fs.symlinkSync('f-' + depth + '-1', dirname + '/link-' + depth + '-good', 'file')
+
+  // invalid symlink
+  fs.symlinkSync('does-not-exist', dirname + '/link-' + depth + '-bad', 'file')
+
+  // file with a name that looks like a glob
+  fs.writeFileSync(dirname + '/[a-z0-9].txt', '', o)
+
+  depth--
+  if (depth <= 0)
+    return dirname;
+
+  for (f = folders; f > 0; f--) {
+    fs.mkdirSync(dirname + '/folder-' + depth + '-' + f, { recursive: true });
+    makeNonEmptyDirectory(depth, files, folders, dirname + '/d-' + depth + '-' + f)
+  }
 }
 
 // Test the asynchronous version.
 {
-  const dir = makeNonEmptyDirectory();
+  const dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir);
 
   // Removal should fail without the recursive option.
   fs.rmdir(dir, common.mustCall((err) => {
@@ -50,7 +74,9 @@ function makeNonEmptyDirectory() {
 
 // Test the synchronous version.
 {
-  const dir = makeNonEmptyDirectory();
+  count++;
+  const dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir);
 
   // Removal should fail without the recursive option set to true.
   common.expectsError(() => {
@@ -72,7 +98,9 @@ function makeNonEmptyDirectory() {
 
 // Test the Promises based version.
 (async () => {
-  const dir = makeNonEmptyDirectory();
+  count++;
+  const dir = `rmdir-recursive-${count}`;
+  makeNonEmptyDirectory(4, 10, 2, dir);
 
   // Removal should fail without the recursive option set to true.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
