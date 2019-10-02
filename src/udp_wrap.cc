@@ -429,11 +429,6 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   size_t count = args[2].As<Uint32>()->Value();
   const bool have_callback = sendto ? args[5]->IsTrue() : args[3]->IsTrue();
 
-  SendWrap* req_wrap;
-  {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
-    req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
-  }
   size_t msg_size = 0;
 
   MaybeStackBuffer<uv_buf_t, 16> bufs(count);
@@ -448,8 +443,6 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     msg_size += length;
   }
 
-  req_wrap->msg_size = msg_size;
-
   int err = 0;
   struct sockaddr_storage addr_storage;
   sockaddr* addr = nullptr;
@@ -462,17 +455,46 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     }
   }
 
+  uv_buf_t* bufs_ptr = *bufs;
+  if (err == 0 && !UNLIKELY(env->options()->test_udp_no_try_send)) {
+    err = uv_udp_try_send(&wrap->handle_, bufs_ptr, count, addr);
+    if (err == UV_ENOSYS || err == UV_EAGAIN) {
+      err = 0;
+    } else if (err >= 0) {
+      size_t sent = err;
+      while (count > 0 && bufs_ptr->len <= sent) {
+        sent -= bufs_ptr->len;
+        bufs_ptr++;
+        count--;
+      }
+      if (count > 0) {
+        CHECK_LT(sent, bufs_ptr->len);
+        bufs_ptr->base += sent;
+        bufs_ptr->len -= sent;
+      } else {
+        CHECK_EQ(static_cast<size_t>(err), msg_size);
+        // + 1 so that the JS side can distinguish 0-length async sends from
+        // 0-length sync sends.
+        args.GetReturnValue().Set(static_cast<uint32_t>(msg_size) + 1);
+        return;
+      }
+    }
+  }
+
   if (err == 0) {
+    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
+    SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
+    req_wrap->msg_size = msg_size;
+
     err = req_wrap->Dispatch(uv_udp_send,
                              &wrap->handle_,
-                             *bufs,
+                             bufs_ptr,
                              count,
                              addr,
                              OnSend);
+    if (err)
+      delete req_wrap;
   }
-
-  if (err)
-    delete req_wrap;
 
   args.GetReturnValue().Set(err);
 }
