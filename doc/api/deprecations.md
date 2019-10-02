@@ -2515,8 +2515,8 @@ changes:
 
 Type: Documentation-only
 
-Prefer [`response.socket`][] over [`response.connection`] and
-[`request.socket`][] over [`request.connection`].
+Prefer [`response.socket`][] over [`response.connection`][] and
+[`request.socket`][] over [`request.connection`][].
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation

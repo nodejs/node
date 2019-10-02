@@ -80,7 +80,7 @@ all `'exit'` listeners have finished running the Node.js process will terminate.
 
 The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
-[`process.exit()`] method.
+[`process.exit()`][] method.
 
 ```js
 process.on('exit', (code) => {
@@ -570,8 +570,8 @@ added: v0.1.27
 
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
-be [`process.execPath`]. See `process.argv0` if access to the original value of
-`argv[0]` is needed. The second element will be the path to the JavaScript
+be [`process.execPath`][]. See `process.argv0` if access to the original value
+of `argv[0]` is needed. The second element will be the path to the JavaScript
 file being executed. The remaining elements will be any additional command line
 arguments.
 
@@ -1122,7 +1122,7 @@ added: v0.1.13
 The `process.exit()` method instructs Node.js to terminate the process
 synchronously with an exit status of `code`. If `code` is omitted, exit uses
 either the 'success' code `0` or the value of `process.exitCode` if it has been
-set. Node.js will not terminate until all the [`'exit'`] event listeners are
+set. Node.js will not terminate until all the [`'exit'`][] event listeners are
 called.
 
 To exit with a 'failure' code:
@@ -1506,7 +1506,7 @@ changes:
 fully drained after the current operation on the JavaScript stack runs to
 completion and before the event loop is allowed to continue. It's possible to
 create an infinite loop if one were to recursively call `process.nextTick()`.
-See the [Event Loop] guide for more background.
+See the [Event Loop][] guide for more background.
 
 ```js
 console.log('start');

@@ -500,7 +500,7 @@ added: v9.4.0
 -->
 
 Calls [`ref()`][`net.Socket.prototype.ref()`] on this `Http2Session`
-instance's underlying [`net.Socket`].
+instance's underlying [`net.Socket`][].
 
 #### http2session.remoteSettings
 <!-- YAML
@@ -613,7 +613,7 @@ added: v9.4.0
 -->
 
 Calls [`unref()`][`net.Socket.prototype.unref()`] on this `Http2Session`
-instance's underlying [`net.Socket`].
+instance's underlying [`net.Socket`][].
 
 ### Class: ServerHttp2Session
 <!-- YAML
@@ -1757,7 +1757,7 @@ added: v8.4.0
 
 Stops the server from establishing new sessions. This does not prevent new
 request streams from being created due to the persistent nature of HTTP/2
-sessions. To gracefully shut down the server, call [`http2session.close()`] on
+sessions. To gracefully shut down the server, call [`http2session.close()`][] on
 all active sessions.
 
 If `callback` is provided, it is not invoked until all active sessions have been
@@ -1907,7 +1907,7 @@ added: v8.4.0
 
 Stops the server from establishing new sessions. This does not prevent new
 request streams from being created due to the persistent nature of HTTP/2
-sessions. To gracefully shut down the server, call [`http2session.close()`] on
+sessions. To gracefully shut down the server, call [`http2session.close()`][] on
 all active sessions.
 
 If `callback` is provided, it is not invoked until all active sessions have been
@@ -3410,7 +3410,7 @@ added: v8.4.0
   * `stream` {ServerHttp2Stream} The newly-created `ServerHttp2Stream` object
 
 Call [`http2stream.pushStream()`][] with the given headers, and wrap the
-given [`Http2Stream`] on a newly created `Http2ServerResponse` as the callback
+given [`Http2Stream`][] on a newly created `Http2ServerResponse` as the callback
 parameter if successful. When `Http2ServerRequest` is closed, the callback is
 called with an error `ERR_HTTP2_INVALID_STREAM`.
 

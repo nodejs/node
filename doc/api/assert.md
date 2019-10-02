@@ -34,9 +34,9 @@ All instances contain the built-in `Error` properties (`message` and `name`)
 and:
 
 * `actual` {any} Set to the `actual` argument for methods such as
-  [`assert.strictEqual()`].
+  [`assert.strictEqual()`][].
 * `expected` {any} Set to the `expected` value for methods such as
-  [`assert.strictEqual()`].
+  [`assert.strictEqual()`][].
 * `generatedMessage` {boolean} Indicates if the message was auto-generated
   (`true`) or not.
 * `code` {string} Value is always `ERR_ASSERTION` to show that the error is an
@@ -639,7 +639,7 @@ If `message` is falsy, the error message is set as the values of `actual` and
 `message` is provided as third argument it will be used as the error message and
 the other arguments will be stored as properties on the thrown object. If
 `stackStartFn` is provided, all stack frames above that function will be
-removed from stacktrace (see [`Error.captureStackTrace`]). If no arguments are
+removed from stacktrace (see [`Error.captureStackTrace`][]). If no arguments are
 given, the default message `Failed` will be used.
 
 ```js
