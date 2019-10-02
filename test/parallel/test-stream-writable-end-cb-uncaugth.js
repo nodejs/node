@@ -14,8 +14,8 @@ writable._write = (chunk, encoding, cb) => {
   cb();
 };
 writable._final = (cb) => {
-  cb(new Error('kaboom'))
-}
+  cb(new Error('kaboom'));
+};
 
 writable.write('asd');
 writable.end(common.mustCall((err) => {
