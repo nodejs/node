@@ -63,7 +63,7 @@ if (common.isWindows) {
       code: 'ERR_INVALID_ARG_VALUE',
       type: TypeError,
       message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'c:\\\\tmp\\\\\\u0000test\''
+               "null bytes. Received 'c:\\\\tmp\\\\\\x00test'"
     }
   );
 } else {
@@ -96,8 +96,8 @@ if (common.isWindows) {
     {
       code: 'ERR_INVALID_ARG_VALUE',
       type: TypeError,
-      message: 'The argument \'path\' must be a string or Uint8Array without ' +
-               'null bytes. Received \'/tmp/\\u0000test\''
+      message: "The argument 'path' must be a string or Uint8Array without " +
+               "null bytes. Received '/tmp/\\x00test'"
     }
   );
 }
