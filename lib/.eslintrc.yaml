@@ -4,6 +4,9 @@ env:
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
+  no-mixed-operators:
+    - error
+    - groups: [[ "&&", "||" ]]
   no-restricted-globals:
     - error
     - name: JSON
