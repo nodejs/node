@@ -26,14 +26,14 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   client.on('connect', () => {
-    const outOfRangeNum = 2 ** 31;
+    const outOfRangeNum = 2 ** 32;
     common.expectsError(
       () => client.setNextStreamID(outOfRangeNum),
       {
         type: RangeError,
         code: 'ERR_OUT_OF_RANGE',
         message: 'The value of "id" is out of range.' +
-           ' It must be > 0 and <= 2147483647. Received ' + outOfRangeNum
+           ' It must be > 0 and <= 4294967295. Received ' + outOfRangeNum
       }
     );
 
