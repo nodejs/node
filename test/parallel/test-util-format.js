@@ -408,3 +408,20 @@ assert.strictEqual(
   ),
   '[ 1, [Object] ]'
 );
+
+[
+  undefined,
+  null,
+  false,
+  5n,
+  5,
+  'test',
+  Symbol()
+].forEach((invalidOptions) => {
+  assert.throws(() => {
+    util.formatWithOptions(invalidOptions, { a: true });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /"inspectOptions".+object/
+  });
+});
