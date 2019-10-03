@@ -7,7 +7,9 @@
     />
   </a>
 </p>
+The API reference documentation provides detailed information about a function or object in Node.js. This documentation indicates what arguments a method accepts, the return value of that method, and what errors may be related to that method. It also indicates which methods are available for different versions of Node.js.
 
+This documentation describes the built-in modules provided by Node.js. It does not document modules provided by the community.
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
 more information on using Node.js, see the [Node.js Website][].
 
@@ -78,14 +80,14 @@ contains the latest Carbon (Node.js 8) release.
 #### Nightly Releases
 <https://nodejs.org/download/nightly/>
 
-Each directory name and filename contains a date (in UTC time) and the commit
+Each directory name and filename contains a date (in UTC time) and commits
 SHA at the HEAD of the release.
 
 #### API Documentation
 
 Documentation for the latest Current release is at <https://nodejs.org/api/>.
 Version-specific documentation is available in each release directory in the
-_docs_ subdirectory. Version-specific documentation is also at
+_docs_ subdirectory. Version-specific documentation is also at:-
 <https://nodejs.org/download/docs/>.
 
 ### Verifying Binaries
