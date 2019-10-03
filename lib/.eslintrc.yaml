@@ -31,7 +31,7 @@ rules:
     - selector: "CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']"
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
     - selector: "AssignmentExpression:matches([left.name='prepareStackTrace'], [left.property.name='prepareStackTrace'])"
-      message: "Please use 'internalOverriddenErrors' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
+      message: "Use 'overrideStackTrace' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
