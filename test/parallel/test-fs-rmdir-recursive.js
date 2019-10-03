@@ -14,7 +14,7 @@ function makeNonEmptyDirectory(depth, files, folders, dirname) {
   fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
 
-  let options = { flag: 'wx' };
+  const options = { flag: 'wx' };
 
   for (let f = files; f > 0; f--) {
     fs.writeFileSync(path.join(dirname, `f-${depth}-${f}`), '', options);
