@@ -2063,7 +2063,9 @@ when `_read()` is called again after it has stopped should it resume pushing
 additional data onto the queue.
 
 Once the `readable._read()` method has been called, it will not be called again
-until the [`readable.push()`][stream-push] method is called.
+until more data is pushed through the [`readable.push()`][stream-push] method.
+Empty data such as empty buffers and strings will not cause `readable._read()`
+to be called.
 
 The `size` argument is advisory. For implementations where a "read" is a
 single operation that returns data can use the `size` argument to determine how
