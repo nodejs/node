@@ -70,9 +70,9 @@ a security release.
   * In the docker-node repository run the
     [generate-stackbrew-library.sh]( https://github.com/nodejs/docker-node/blob/master/generate-stackbrew-library.sh)
     script and replace official-images/library/node with the output generated.
-```shell
-$ ./generate-stackbrew-library.sh > .../official-images/library/node
-```
+    ```console
+    $ ./generate-stackbrew-library.sh > .../official-images/library/node
+    ```
   * Open a PR with the changes to official-images/library/node making sure to
     @mention the official images.
     [maintainers](https://github.com/docker-library/official-images/blob/master/MAINTAINERS).
