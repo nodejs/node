@@ -15,9 +15,6 @@ function makeNonEmptyDirectory(depth, files, folders, dirname) {
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
 
   let options = { flag: 'wx' };
-  if (process.version.match(/^v0\.8/)) {
-    options = 'utf8';
-  }
 
   for (let f = files; f > 0; f--) {
     fs.writeFileSync(path.join(dirname, `f-${depth}-${f}`), '', options);
