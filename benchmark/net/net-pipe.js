@@ -49,7 +49,7 @@ function main({ dur, len, type }) {
 
       setTimeout(() => {
         // Multiply by 2 since we're sending it first one way
-        // then then back again.
+        // then back again.
         const bytes = writer.received * 2;
         const gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
