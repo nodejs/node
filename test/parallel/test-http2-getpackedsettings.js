@@ -7,6 +7,7 @@ const assert = require('assert');
 const http2 = require('http2');
 
 const check = Buffer.from([0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
+                           0x00, 0x03, 0xff, 0xff, 0xff, 0xff,
                            0x00, 0x05, 0x00, 0x00, 0x40, 0x00,
                            0x00, 0x04, 0x00, 0x00, 0xff, 0xff,
                            0x00, 0x06, 0x00, 0x00, 0xff, 0xff,
@@ -41,7 +42,7 @@ http2.getPackedSettings({ enablePush: false });
   ['maxFrameSize', 16383],
   ['maxFrameSize', 2 ** 24],
   ['maxConcurrentStreams', -1],
-  ['maxConcurrentStreams', 2 ** 31],
+  ['maxConcurrentStreams', 2 ** 32],
   ['maxHeaderListSize', -1],
   ['maxHeaderListSize', 2 ** 32]
 ].forEach((i) => {
@@ -166,18 +167,5 @@ http2.getPackedSettings({ enablePush: false });
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     type: RangeError,
     message: 'Invalid value for setting "maxFrameSize": 16777216'
-  });
-}
-
-// Check for maxConcurrentStreams failing the max number.
-{
-  const packed = Buffer.from([0x00, 0x03, 0xFF, 0xFF, 0xFF, 0xFF]);
-
-  common.expectsError(() => {
-    http2.getUnpackedSettings(packed, { validate: true });
-  }, {
-    code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-    type: RangeError,
-    message: 'Invalid value for setting "maxConcurrentStreams": 4294967295'
   });
 }

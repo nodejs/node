@@ -16,6 +16,7 @@ assert.strictEqual(typeof binding.Http2Session, 'function');
 const settings = http2.getDefaultSettings();
 assert.strictEqual(settings.headerTableSize, 4096);
 assert.strictEqual(settings.enablePush, true);
+assert.strictEqual(settings.maxConcurrentStreams, 4294967295);
 assert.strictEqual(settings.initialWindowSize, 65535);
 assert.strictEqual(settings.maxFrameSize, 16384);
 
@@ -227,6 +228,7 @@ const expectedNGConstants = {
 const defaultSettings = {
   DEFAULT_SETTINGS_HEADER_TABLE_SIZE: 4096,
   DEFAULT_SETTINGS_ENABLE_PUSH: 1,
+  DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS: 4294967295,
   DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE: 65535,
   DEFAULT_SETTINGS_MAX_FRAME_SIZE: 16384
 };

@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(() => {
     ['maxFrameSize', 1, RangeError],
     ['maxFrameSize', 2 ** 24, RangeError],
     ['maxConcurrentStreams', -1, RangeError],
-    ['maxConcurrentStreams', 2 ** 31, RangeError],
+    ['maxConcurrentStreams', 2 ** 32, RangeError],
     ['maxHeaderListSize', -1, RangeError],
     ['maxHeaderListSize', 2 ** 32, RangeError],
     ['enablePush', 'a', TypeError],
