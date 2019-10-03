@@ -10,34 +10,52 @@ let count = 0;
 
 tmpdir.refresh();
 
-function makeNonEmptyDirectory (depth, files, folders, dirname) {
+function makeNonEmptyDirectory(depth, files, folders, dirname) {
   fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
 
-  var o = { flag: 'wx' }
-  if (process.version.match(/^v0\.8/))
-    o = 'utf8'
-
-  for (var f = files; f > 0; f--) {
-    fs.writeFileSync(dirname + '/f-' + depth + '-' + f, '', o)
+  let options = { flag: 'wx' };
+  if (process.version.match(/^v0\.8/)) {
+    options = 'utf8';
   }
 
-  // valid symlink
-  fs.symlinkSync('f-' + depth + '-1', dirname + '/link-' + depth + '-good', 'file')
+  for (let f = files; f > 0; f--) {
+    fs.writeFileSync(path.join(dirname, `f-${depth}-${f}`), '', options);
+  }
 
-  // invalid symlink
-  fs.symlinkSync('does-not-exist', dirname + '/link-' + depth + '-bad', 'file')
+  // Valid symlink
+  fs.symlinkSync(
+    `f-${depth}-1`,
+    path.join(dirname, `link-${depth}-good`),
+    'file'
+  );
 
-  // file with a name that looks like a glob
-  fs.writeFileSync(dirname + '/[a-z0-9].txt', '', o)
+  // Invalid symlink
+  fs.symlinkSync(
+    'does-not-exist',
+    path.join(dirname, `link-${depth}-bad`),
+    'file'
+  );
 
-  depth--
-  if (depth <= 0)
-    return dirname;
+  // File with a name that looks like a glob
+  fs.writeFileSync(path.join(dirname, '[a-z0-9].txt'), '', options);
 
-  for (f = folders; f > 0; f--) {
-    fs.mkdirSync(dirname + '/folder-' + depth + '-' + f, { recursive: true });
-    makeNonEmptyDirectory(depth, files, folders, dirname + '/d-' + depth + '-' + f)
+  depth--;
+  if (depth <= 0) {
+    return;
+  }
+
+  for (let f = folders; f > 0; f--) {
+    fs.mkdirSync(
+      path.join(dirname, `folder-${depth}-${f}`),
+      { recursive: true }
+    );
+    makeNonEmptyDirectory(
+      depth,
+      files,
+      folders,
+      path.join(dirname, `d-${depth}-${f}`)
+    );
   }
 }
 
