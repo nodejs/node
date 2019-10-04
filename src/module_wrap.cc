@@ -98,6 +98,9 @@ ModuleWrap* ModuleWrap::GetFromID(Environment* env, uint32_t id) {
   return module_wrap_it->second;
 }
 
+// new ModuleWrap(source, url)
+// new ModuleWrap(source, url, context?, lineOffset, columnOffset)
+// new ModuleWrap(syntheticExecutionFunction, export_names, url)
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -107,12 +110,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
   CHECK_GE(argc, 2);
-
-  CHECK(args[0]->IsString());
-  Local<String> source_text = args[0].As<String>();
-
-  CHECK(args[1]->IsString());
-  Local<String> url = args[1].As<String>();
 
   Local<Context> context;
   Local<Integer> line_offset;
@@ -143,8 +140,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     column_offset = Integer::New(isolate, 0);
   }
 
-  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-  TryCatchScope try_catch(env);
+  Local<String> url;
   Local<Module> module;
 
   Local<PrimitiveArray> host_defined_options =
@@ -152,29 +148,60 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   host_defined_options->Set(isolate, HostDefinedOptions::kType,
                             Number::New(isolate, ScriptType::kModule));
 
-  // compile
-  {
-    ScriptOrigin origin(url,
-                        line_offset,                          // line offset
-                        column_offset,                        // column offset
-                        True(isolate),                        // is cross origin
-                        Local<Integer>(),                     // script id
-                        Local<Value>(),                       // source map URL
-                        False(isolate),                       // is opaque (?)
-                        False(isolate),                       // is WASM
-                        True(isolate),                        // is ES Module
-                        host_defined_options);
-    Context::Scope context_scope(context);
-    ScriptCompiler::Source source(source_text, origin);
-    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
-      if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-        CHECK(!try_catch.Message().IsEmpty());
-        CHECK(!try_catch.Exception().IsEmpty());
-        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
-                            ErrorHandlingMode::MODULE_ERROR);
-        try_catch.ReThrow();
+  // new ModuleWrap(syntheticExecutionFunction, export_names, url)
+  bool synthetic = args[0]->IsFunction();
+  if (synthetic) {
+    CHECK(args[1]->IsArray());
+    Local<Array> export_names_arr = args[1].As<Array>();
+
+    uint32_t len = export_names_arr->Length();
+    std::vector<Local<String>> export_names(len);
+    for (uint32_t i = 0; i < len; i++) {
+      Local<Value> export_name_val =
+          export_names_arr->Get(context, i).ToLocalChecked();
+      CHECK(export_name_val->IsString());
+      export_names[i] = export_name_val.As<String>();
+    }
+
+    CHECK(args[2]->IsString());
+    url = args[2].As<String>();
+
+    module = Module::CreateSyntheticModule(isolate, url, export_names,
+        SyntheticModuleEvaluationStepsCallback);
+  // Compile
+  } else {
+    CHECK(args[0]->IsString());
+    Local<String> source_text = args[0].As<String>();
+
+    CHECK(args[1]->IsString());
+    url = args[1].As<String>();
+
+    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+    TryCatchScope try_catch(env);
+
+    {
+      ScriptOrigin origin(url,
+                          line_offset,                      // line offset
+                          column_offset,                    // column offset
+                          True(isolate),                    // is cross origin
+                          Local<Integer>(),                 // script id
+                          Local<Value>(),                   // source map URL
+                          False(isolate),                   // is opaque (?)
+                          False(isolate),                   // is WASM
+                          True(isolate),                    // is ES Module
+                          host_defined_options);
+      Context::Scope context_scope(context);
+      ScriptCompiler::Source source(source_text, origin);
+      if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+        if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+          CHECK(!try_catch.Message().IsEmpty());
+          CHECK(!try_catch.Exception().IsEmpty());
+          AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                              ErrorHandlingMode::MODULE_ERROR);
+          try_catch.ReThrow();
+        }
+        return;
       }
-      return;
     }
   }
 
@@ -183,6 +210,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   ModuleWrap* obj = new ModuleWrap(env, that, module, url);
+
+  if (synthetic) {
+    obj->synthetic_ = true;
+    obj->synthetic_evaluation_steps_.Reset(
+        env->isolate(), args[0].As<Function>());
+  }
+
   obj->context_.Reset(isolate, context);
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
@@ -305,6 +339,10 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     result = module->Evaluate(context);
   } else {
     result = module->Evaluate(context);
+  }
+
+  if (result.IsEmpty()) {
+    CHECK(try_catch.HasCaught());
   }
 
   // Convert the termination exception into a regular exception.
@@ -1295,7 +1333,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Local<Value> result;
   if (import_callback->Call(
         context,
-        v8::Undefined(iso),
+        Undefined(iso),
         arraysize(import_args),
         import_args).ToLocal(&result)) {
     CHECK(result->IsPromise());
@@ -1355,6 +1393,52 @@ void ModuleWrap::SetInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback);
 }
 
+MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
+    Local<Context> context, Local<Module> module) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
+  ModuleWrap* obj = GetFromModule(env, module);
+
+  TryCatchScope try_catch(env);
+  Local<Function> synthetic_evaluation_steps =
+      obj->synthetic_evaluation_steps_.Get(isolate);
+  MaybeLocal<Value> ret = synthetic_evaluation_steps->Call(context,
+      obj->object(), 0, nullptr);
+  if (ret.IsEmpty()) {
+    CHECK(try_catch.HasCaught());
+  }
+  obj->synthetic_evaluation_steps_.Reset();
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    CHECK(!try_catch.Message().IsEmpty());
+    CHECK(!try_catch.Exception().IsEmpty());
+    try_catch.ReThrow();
+    return MaybeLocal<Value>();
+  }
+  return Undefined(isolate);
+}
+
+void ModuleWrap::SetSyntheticExport(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Object> that = args.This();
+
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, that);
+
+  CHECK(obj->synthetic_);
+
+  CHECK_EQ(args.Length(), 2);
+
+  CHECK(args[0]->IsString());
+  Local<String> export_name = args[0].As<String>();
+
+  Local<Value> export_value = args[1];
+
+  Local<Module> module = obj->module_.Get(isolate);
+  module->SetSyntheticModuleExport(export_name, export_value);
+}
+
 void ModuleWrap::Initialize(Local<Object> target,
                             Local<Value> unused,
                             Local<Context> context,
@@ -1369,6 +1453,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
+  env->SetProtoMethod(tpl, "setExport", SetSyntheticExport);
   env->SetProtoMethodNoSideEffect(tpl, "getNamespace", GetNamespace);
   env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
   env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
