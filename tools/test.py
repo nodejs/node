@@ -59,6 +59,7 @@ try:
 except ImportError:
   from urllib import unquote          # Python 2
 
+import xml.etree.ElementTree as xml
 
 logger = logging.getLogger('testrunner')
 skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
@@ -471,6 +472,56 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
   def ClearLine(self, last_line_length):
     print(("\r" + (" " * last_line_length) + "\r"), end='')
 
+class JUnitTestProgressIndicator(DotsProgressIndicator):
+  def __init__(self, cases, flaky_tests_mode):
+    super(JUnitTestProgressIndicator, self).__init__(cases, flaky_tests_mode)
+    self.root = xml.Element("testsuite")
+    self.root.attrib["name"] = "Node.js tests"
+    self.root.attrib["tests"] = str(len(cases))
+
+  def HasRun(self, output):
+    super(JUnitTestProgressIndicator, self).HasRun(output)
+    testcaseElement = xml.Element("testcase")
+
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
+    command = output.command[-1]
+    command = NormalizePath(command, prefix)
+    (suite, _, name) = command.partition("/")
+    testcaseElement.attrib["classname"] = suite
+    testcaseElement.attrib["name"] = name
+
+    duration = output.test.duration
+    total_seconds = (duration.microseconds +
+      (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
+    testcaseElement.attrib["time"] = str('%d.%d' %
+      (total_seconds, duration.microseconds / 1000))
+    if output.UnexpectedOutput():
+      failureElement = xml.Element("failure")
+      failureElement.text = output.output.stdout + output.output.stderr
+      if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
+        failureElement.tag = "skipped"
+        failureElement.attrib["message"] = "TODO : Fix flaky test"
+        failureElement.attrib["type"] = "flaky"
+      elif output.HasCrashed():
+        failureElement.attrib["type"] = "crashed"
+      elif output.HasTimedOut():
+        failureElement.attrib["type"] = "timedout"
+      else:
+        failureElement.attrib["type"] = "failure"
+      testcaseElement.append(failureElement)
+    else:
+      skip = skip_regex.search(output.output.stdout)
+      if skip:
+        skippedElement = xml.Element("skipped")
+        skippedElement.attrib["message"] = skip.group(1)
+        skippedElement.text = output.output.stdout + output.output.stderr
+        testcaseElement.append(skippedElement)
+    self.root.append(testcaseElement)
+
+  def Done(self):
+    super(JUnitTestProgressIndicator, self).Done()
+    logger.info(xml.tostring(self.root, "UTF-8"))
+
 
 PROGRESS_INDICATORS = {
   'verbose': VerboseProgressIndicator,
@@ -478,7 +529,8 @@ PROGRESS_INDICATORS = {
   'color': ColorProgressIndicator,
   'tap': TapProgressIndicator,
   'mono': MonochromeProgressIndicator,
-  'deopts': DeoptsCheckProgressIndicator
+  'deopts': DeoptsCheckProgressIndicator,
+  'junit': JUnitTestProgressIndicator
 }
 
 
@@ -1277,9 +1329,9 @@ def BuildOptions():
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
   result.add_option('--logfile', dest='logfile',
-      help='write test output to file. NOTE: this only applies the tap progress indicator')
+      help='write test output to file. NOTE: this only applies the junit and tap progress indicators')
   result.add_option("-p", "--progress",
-      help="The style of progress indicator (verbose, dots, color, mono, tap)",
+      help="The style of progress indicator (verbose, dots, color, mono, tap, junit)",
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
@@ -1510,8 +1562,9 @@ def Main():
     parser.print_help()
     return 1
 
-  ch = logging.StreamHandler(sys.stdout)
-  logger.addHandler(ch)
+  if options.progress != 'junit':
+    ch = logging.StreamHandler(sys.stdout)
+    logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
     fh = logging.FileHandler(options.logfile, mode='wb')
