@@ -4,6 +4,7 @@
 
 #include "src/ic/ic.h"
 
+#include "include/v8config.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api.h"
 #include "src/ast/ast.h"
@@ -651,6 +652,10 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   }
 }
 
+#if defined(__clang__) && defined(V8_OS_WIN)
+// Force function alignment to work around CPU bug: https://crbug.com/968683
+__attribute__((__aligned__(32)))
+#endif
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
   Handle<Object> code;
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
