@@ -140,13 +140,21 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
   (!try_catch.HasCaught() ? napi_ok \
                          : napi_set_last_error((env), napi_pending_exception))
 
-#define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message) \
-  do {                                                             \
-    if (!(condition)) {                                            \
-      napi_throw_range_error((env), (error), (message));           \
-      return napi_set_last_error((env), napi_generic_failure);     \
-    }                                                              \
+#define THROW_XERROR_IF_TRUE(errortype, env, condition, error, message)        \
+  do {                                                                         \
+    if (condition) {                                                           \
+      napi_throw_##errortype##_error((env), (error), (message));               \
+      return napi_set_last_error((env), napi_pending_exception);               \
+    }                                                                          \
   } while (0)
+
+#define THROW_RANGE_ERROR_IF_TRUE(env, condition, error, message)              \
+  THROW_XERROR_IF_TRUE(range, env, condition, error, message)
+#define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message)             \
+  THROW_XERROR_IF_TRUE(range, env, !(condition), error, message)
+
+#define THROW_TYPE_ERROR_IF_FALSE(env, condition, error, message)              \
+  THROW_XERROR_IF_TRUE(type, env, !(condition), error, message)
 
 namespace v8impl {
 

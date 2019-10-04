@@ -1489,10 +1489,8 @@ napi_status napi_create_bigint_words(napi_env env,
 
   v8::Local<v8::Context> context = env->context();
 
-  if (word_count > INT_MAX) {
-    napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
-    return napi_set_last_error(env, napi_pending_exception);
-  }
+  THROW_RANGE_ERROR_IF_TRUE(
+      env, word_count > INT_MAX, nullptr, "Maximum BigInt size exceeded");
 
   v8::MaybeLocal<v8::BigInt> b = v8::BigInt::NewFromWords(
       context, sign_bit, word_count, words);
@@ -2483,13 +2481,10 @@ napi_status napi_instanceof(napi_env env,
 
   CHECK_TO_OBJECT(env, context, ctor, constructor);
 
-  if (!ctor->IsFunction()) {
-    napi_throw_type_error(env,
-                          "ERR_NAPI_CONS_FUNCTION",
-                          "Constructor must be a function");
-
-    return napi_set_last_error(env, napi_function_expected);
-  }
+  THROW_TYPE_ERROR_IF_FALSE(env,
+                            ctor->IsFunction(),
+                            "ERR_NAPI_CONS_FUNCTION",
+                            "Constructor must be a function");
 
   napi_status status = napi_generic_failure;
 
@@ -2769,14 +2764,14 @@ napi_status napi_create_dataview(napi_env env,
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
   v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
-  if (byte_length + byte_offset > buffer->ByteLength()) {
-    napi_throw_range_error(
-        env,
-        "ERR_NAPI_INVALID_DATAVIEW_ARGS",
-        "byte_offset + byte_length should be less than or "
-        "equal to the size in bytes of the array passed in");
-    return napi_set_last_error(env, napi_pending_exception);
-  }
+
+  THROW_RANGE_ERROR_IF_TRUE(
+      env,
+      byte_length + byte_offset > buffer->ByteLength(),
+      "ERR_NAPI_INVALID_DATAVIEW_ARGS",
+      "byte_offset + byte_length should be less than or "
+      "equal to the size in bytes of the array passed in");
+
   v8::Local<v8::DataView> DataView = v8::DataView::New(buffer, byte_offset,
                                                        byte_length);
 
