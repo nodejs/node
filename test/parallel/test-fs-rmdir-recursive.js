@@ -102,10 +102,16 @@ function makeNonEmptyDirectory() {
     maxBusyTries: 5,
     recursive: true
   };
+  const nullOrUndefine = {
+    emfileWait: null,
+    maxBusyTries: undefined,
+    recursive: undefined
+  };
 
   assert.deepStrictEqual(validateRmdirOptions(), defaults);
   assert.deepStrictEqual(validateRmdirOptions({}), defaults);
   assert.deepStrictEqual(validateRmdirOptions(modified), modified);
+  assert.deepStrictEqual(validateRmdirOptions(nullOrUndefine), defaults);
   assert.deepStrictEqual(validateRmdirOptions({
     maxBusyTries: 99
   }), {
