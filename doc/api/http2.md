@@ -1439,13 +1439,16 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29876
+    description: The `fd` option may now be a `FileHandle`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18936
     description: Any readable file descriptor, not necessarily for a
                  regular file, is supported now.
 -->
 
-* `fd` {number} A readable file descriptor.
+* `fd` {number|FileHandle} A readable file descriptor.
 * `headers` {HTTP/2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
@@ -1491,8 +1494,8 @@ The `offset` and `length` options may be used to limit the response to a
 specific range subset. This can be used, for instance, to support HTTP Range
 requests.
 
-The file descriptor is not closed when the stream is closed, so it will need
-to be closed manually once it is no longer needed.
+The file descriptor or `FileHandle` is not closed when the stream is closed,
+so it will need to be closed manually once it is no longer needed.
 Using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.

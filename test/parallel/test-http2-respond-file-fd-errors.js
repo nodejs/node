@@ -42,7 +42,8 @@ server.on('stream', common.mustCall((stream) => {
       {
         type: TypeError,
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "fd" argument must be of type number. Received type ' +
+        message: 'The "fd" argument must be one of type number or FileHandle.' +
+                 ' Received type ' +
                  typeof types[type]
       }
     );
