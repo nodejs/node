@@ -233,17 +233,15 @@ created with the `emitClose` option.
 ##### Event: 'destroy'
 <!-- YAML
 added: REPLACEME
-changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/29791
 -->
 
 The `'destroy'` event is emitted when the stream is being destroyed. The
 listener callback is passed a single `Error` argument if the stream is
 being destroyed with an error.
 
-Unlike `'close'` and `'error'` is emitted synchronously making it possible
-to immediatly stop interacting with a stream that has been destroyed.
+Unlike `'close'` and `'error'`, the `'destroy'` event is emitted synchronously
+making it possible to immediatly stop interacting with a stream that has been
+destroyed.
 
 ##### Event: 'drain'
 <!-- YAML
