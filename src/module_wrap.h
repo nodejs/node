@@ -69,12 +69,19 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetInitializeImportMetaObjectCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::MaybeLocal<v8::Value> SyntheticModuleEvaluationStepsCallback(
+      v8::Local<v8::Context> context, v8::Local<v8::Module> module);
+  static void SetSyntheticExport(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static v8::MaybeLocal<v8::Module> ResolveCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
+  v8::Global<v8::Function> synthetic_evaluation_steps_;
+  bool synthetic_ = false;
   v8::Global<v8::Module> module_;
   v8::Global<v8::String> url_;
   bool linked_ = false;
