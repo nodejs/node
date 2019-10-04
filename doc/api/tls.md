@@ -1473,11 +1473,11 @@ changes:
     Should not be set together with `key`, because both options define a
     private key in different ways.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
-    of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
+    of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option, use one or the other.
     **Default:** [`tls.DEFAULT_MAX_VERSION`][].
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
-    of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
+    of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option, use one or the other. It is not
     recommended to use less than TLSv1.2, but it may be required for
     interoperability.
@@ -1675,7 +1675,7 @@ added: v11.4.0
 
 * {string} The default value of the `maxVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
-  protocol versions, `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
+  protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
   `--tls-max-v1.2` sets the default to `'TLSv1.2`'.  Using `--tls-max-v1.3` sets
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
