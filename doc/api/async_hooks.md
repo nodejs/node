@@ -323,7 +323,7 @@ elaborate to make calling context easier to see.
 let indent = 0;
 const bootstrapIds = new Set();
 async_hooks.createHook({
-  init(asyncId, type, triggerAsyncId, bootstrap) {
+  init(asyncId, type, triggerAsyncId, resource, bootstrap) {
     if (bootstrap) {
       bootstrapIds.add(asyncId);
       return;
