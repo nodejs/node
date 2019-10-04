@@ -107,7 +107,7 @@ specifics of all functions that can be passed to `callbacks` is in the
 const async_hooks = require('async_hooks');
 
 const asyncHook = async_hooks.createHook({
-  init(asyncId, type, triggerAsyncId, resource) { },
+  init(asyncId, type, triggerAsyncId, resource, bootstrap) { },
   destroy(asyncId) { }
 });
 ```
@@ -116,7 +116,7 @@ The callbacks will be inherited via the prototype chain:
 
 ```js
 class MyAsyncCallbacks {
-  init(asyncId, type, triggerAsyncId, resource) { }
+  init(asyncId, type, triggerAsyncId, resource, bootstrap) { }
   destroy(asyncId) {}
 }
 
@@ -203,7 +203,7 @@ Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destroyed.
 
-##### init(asyncId, type, triggerAsyncId, resource)
+##### init(asyncId, type, triggerAsyncId, resource, bootstrap)
 
 * `asyncId` {number} A unique ID for the async resource.
 * `type` {string} The type of the async resource.
@@ -211,6 +211,8 @@ instance is destroyed.
   execution context this async resource was created.
 * `resource` {Object} Reference to the resource representing the async
   operation, needs to be released during _destroy_.
+* `bootstrap` {boolean} Indicates whether this event was created during Node.js
+  bootstrap.
 
 Called when a class is constructed that has the _possibility_ to emit an
 asynchronous event. This _does not_ mean the instance must call
@@ -319,8 +321,13 @@ elaborate to make calling context easier to see.
 
 ```js
 let indent = 0;
+const bootstrapIds = new Set();
 async_hooks.createHook({
-  init(asyncId, type, triggerAsyncId) {
+  init(asyncId, type, triggerAsyncId, bootstrap) {
+    if (bootstrap) {
+      bootstrapIds.add(asyncId);
+      return;
+    }
     const eid = async_hooks.executionAsyncId();
     const indentStr = ' '.repeat(indent);
     fs.writeSync(
@@ -329,18 +336,21 @@ async_hooks.createHook({
       ` trigger: ${triggerAsyncId} execution: ${eid}\n`);
   },
   before(asyncId) {
+    if (bootstrapIds.has(asyncId)) return;
     const indentStr = ' '.repeat(indent);
     fs.writeFileSync('log.out',
                      `${indentStr}before:  ${asyncId}\n`, { flag: 'a' });
     indent += 2;
   },
   after(asyncId) {
+    if (bootstrapIds.has(asyncId)) return;
     indent -= 2;
     const indentStr = ' '.repeat(indent);
     fs.writeFileSync('log.out',
                      `${indentStr}after:  ${asyncId}\n`, { flag: 'a' });
   },
   destroy(asyncId) {
+    if (bootstrapIds.has(asyncId)) return;
     const indentStr = ' '.repeat(indent);
     fs.writeFileSync('log.out',
                      `${indentStr}destroy:  ${asyncId}\n`, { flag: 'a' });
