@@ -52,6 +52,7 @@ const customTypesMap = {
   'Cipher': 'crypto.html#crypto_class_cipher',
   'Decipher': 'crypto.html#crypto_class_decipher',
   'DiffieHellman': 'crypto.html#crypto_class_diffiehellman',
+  'DiffieHellmanGroup': 'crypto.html#crypto_class_diffiehellmangroup',
   'ECDH': 'crypto.html#crypto_class_ecdh',
   'Hash': 'crypto.html#crypto_class_hash',
   'Hmac': 'crypto.html#crypto_class_hmac',

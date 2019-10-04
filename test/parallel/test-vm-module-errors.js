@@ -23,7 +23,7 @@ async function checkArgType() {
   });
 
   for (const invalidOptions of [
-    0, 1, null, true, 'str', () => {}, { url: 0 }, Symbol.iterator,
+    0, 1, null, true, 'str', () => {}, { identifier: 0 }, Symbol.iterator,
     { context: null }, { context: 'hucairz' }, { context: {} }
   ]) {
     common.expectsError(() => {
@@ -52,7 +52,7 @@ async function checkModuleState() {
   await assert.rejects(async () => {
     const m = new SourceTextModule('');
     await m.link(common.mustNotCall());
-    assert.strictEqual(m.linkingStatus, 'linked');
+    assert.strictEqual(m.status, 'linked');
     await m.link(common.mustNotCall());
   }, {
     code: 'ERR_VM_MODULE_ALREADY_LINKED'
@@ -61,54 +61,18 @@ async function checkModuleState() {
   await assert.rejects(async () => {
     const m = new SourceTextModule('');
     m.link(common.mustNotCall());
-    assert.strictEqual(m.linkingStatus, 'linking');
+    assert.strictEqual(m.status, 'linking');
     await m.link(common.mustNotCall());
   }, {
     code: 'ERR_VM_MODULE_ALREADY_LINKED'
   });
-
-  common.expectsError(() => {
-    const m = new SourceTextModule('');
-    m.instantiate();
-  }, {
-    code: 'ERR_VM_MODULE_NOT_LINKED'
-  });
-
-  await assert.rejects(async () => {
-    const m = new SourceTextModule('import "foo";');
-    try {
-      await m.link(common.mustCall(() => ({})));
-    } catch {
-      assert.strictEqual(m.linkingStatus, 'errored');
-      m.instantiate();
-    }
-  }, {
-    code: 'ERR_VM_MODULE_NOT_LINKED'
-  });
-
-  {
-    const m = new SourceTextModule('import "foo";');
-    await m.link(common.mustCall(async (specifier, module) => {
-      assert.strictEqual(module, m);
-      assert.strictEqual(specifier, 'foo');
-      assert.strictEqual(m.linkingStatus, 'linking');
-      common.expectsError(() => {
-        m.instantiate();
-      }, {
-        code: 'ERR_VM_MODULE_NOT_LINKED'
-      });
-      return new SourceTextModule('');
-    }));
-    m.instantiate();
-    await m.evaluate();
-  }
 
   await assert.rejects(async () => {
     const m = new SourceTextModule('');
     await m.evaluate();
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of instantiated, evaluated, and errored'
+    message: 'Module status must be one of linked, evaluated, or errored'
   });
 
   await assert.rejects(async () => {
@@ -120,14 +84,6 @@ async function checkModuleState() {
              'Received type boolean'
   });
 
-  await assert.rejects(async () => {
-    const m = await createEmptyLinkedModule();
-    await m.evaluate();
-  }, {
-    code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of instantiated, evaluated, and errored'
-  });
-
   common.expectsError(() => {
     const m = new SourceTextModule('');
     m.error;
@@ -138,7 +94,6 @@ async function checkModuleState() {
 
   await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
-    m.instantiate();
     await m.evaluate();
     m.error;
   }, {
@@ -151,15 +106,7 @@ async function checkModuleState() {
     m.namespace;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be uninstantiated or instantiating'
-  });
-
-  await assert.rejects(async () => {
-    const m = await createEmptyLinkedModule();
-    m.namespace;
-  }, {
-    code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be uninstantiated or instantiating'
+    message: 'Module status must not be unlinked or linking'
   });
 }
 
@@ -170,7 +117,7 @@ async function checkLinking() {
     try {
       await m.link(common.mustCall(() => ({})));
     } catch (err) {
-      assert.strictEqual(m.linkingStatus, 'errored');
+      assert.strictEqual(m.status, 'errored');
       throw err;
     }
   }, {
@@ -185,7 +132,7 @@ async function checkLinking() {
     try {
       await bar.link(common.mustCall(() => foo));
     } catch (err) {
-      assert.strictEqual(bar.linkingStatus, 'errored');
+      assert.strictEqual(bar.status, 'errored');
       throw err;
     }
   }, {
@@ -199,7 +146,7 @@ async function checkLinking() {
     } catch {
       // ignored
     } finally {
-      assert.strictEqual(erroredModule.linkingStatus, 'errored');
+      assert.strictEqual(erroredModule.status, 'errored');
     }
 
     const rootModule = new SourceTextModule('import "errored";');
@@ -224,19 +171,17 @@ common.expectsError(() => {
 async function checkExecution() {
   await (async () => {
     const m = new SourceTextModule('import { nonexistent } from "module";');
-    await m.link(common.mustCall(() => new SourceTextModule('')));
 
     // There is no code for this exception since it is thrown by the JavaScript
     // engine.
-    assert.throws(() => {
-      m.instantiate();
+    await assert.rejects(() => {
+      return m.link(common.mustCall(() => new SourceTextModule('')));
     }, SyntaxError);
   })();
 
   await (async () => {
     const m = new SourceTextModule('throw new Error();');
     await m.link(common.mustNotCall());
-    m.instantiate();
     const evaluatePromise = m.evaluate();
     await evaluatePromise.catch(() => {});
     assert.strictEqual(m.status, 'errored');

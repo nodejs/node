@@ -1824,7 +1824,7 @@ added: v0.9.3
 -->
 
 * `name` {string}
-* Returns: {DiffieHellman}
+* Returns: {DiffieHellmanGroup}
 
 An alias for [`crypto.getDiffieHellman()`][]
 
@@ -2194,9 +2194,9 @@ added: v0.7.5
 -->
 
 * `groupName` {string}
-* Returns: {DiffieHellman}
+* Returns: {DiffieHellmanGroup}
 
-Creates a predefined `DiffieHellman` key exchange object. The
+Creates a predefined `DiffieHellmanGroup` key exchange object. The
 supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
 [RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
 `'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]). The

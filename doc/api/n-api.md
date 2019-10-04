@@ -37,8 +37,7 @@ properties:
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
-C++ wrapper module called
-[node-addon-api](https://github.com/nodejs/node-addon-api).
+C++ wrapper module called [node-addon-api][].
 This wrapper provides an inlineable C++ API. Binaries built
 with `node-addon-api` will depend on the symbols for the N-API C-based
 functions exported by Node.js. `node-addon-api` is a more
@@ -1557,8 +1556,7 @@ API.
 
 ## Working with JavaScript Values
 N-API exposes a set of APIs to create all types of JavaScript values.
-Some of these types are documented under
-[Section 6](https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values)
+Some of these types are documented under [Section 6][]
 of the [ECMAScript Language Specification][].
 
 Fundamentally, these APIs are used to do one of the following:
@@ -1594,9 +1592,7 @@ typedef enum {
 ```
 
 Describes the type of a `napi_value`. This generally corresponds to the types
-described in
-[Section 6.1](https://tc39.github.io/ecma262/#sec-ecmascript-language-types) of
-the ECMAScript Language Specification.
+described in [Section 6.1][] of the ECMAScript Language Specification.
 In addition to types in that section, `napi_valuetype` can also represent
 `Function`s and `Object`s with external data.
 
@@ -1809,9 +1805,15 @@ Returns `napi_ok` if the API succeeded.
 
 This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
-later by native code. The API allows the caller to pass in a finalize callback,
-in case the underlying native resource needs to be cleaned up when the external
-JavaScript value gets collected.
+later by native code using [`napi_get_value_external`].
+
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
 
 The created value is not an object, and therefore does not support additional
 properties. It is considered a distinct value type: calling `napi_typeof()` with
@@ -1850,6 +1852,14 @@ The underlying byte buffer of the `ArrayBuffer` is externally allocated and
 managed. The caller must ensure that the byte buffer remains valid until the
 finalize callback is called.
 
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
+
 JavaScript `ArrayBuffer`s are described in
 [Section 24.1][] of the ECMAScript Language Specification.
 
@@ -1884,6 +1894,14 @@ This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a `TypedArray` will suffice.
 
+The API adds a `napi_finalize` callback which will be called when the JavaScript
+object just created is ready for garbage collection. It is similar to
+`napi_wrap()` except that:
+
+* the native data cannot be retrieved later using `napi_unwrap()`,
+* nor can it be removed later using `napi_remove_wrap()`, and
+* the object created by the API can be used with `napi_wrap()`.
+
 For Node.js >=4 `Buffers` are `Uint8Array`s.
 
 #### napi_create_object
@@ -1904,8 +1922,7 @@ Returns `napi_ok` if the API succeeded.
 This API allocates a default JavaScript `Object`.
 It is the equivalent of doing `new Object()` in JavaScript.
 
-The JavaScript `Object` type is described in
-[Section 6.1.7](https://tc39.github.io/ecma262/#sec-object-type) of the
+The JavaScript `Object` type is described in [Section 6.1.7][] of the
 ECMAScript Language Specification.
 
 #### napi_create_symbol
@@ -1929,8 +1946,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `Symbol` object from a UTF8-encoded C string.
 
-The JavaScript `Symbol` type is described in
-[Section 19.4](https://tc39.github.io/ecma262/#sec-symbol-objects)
+The JavaScript `Symbol` type is described in [Section 19.4][]
 of the ECMAScript Language Specification.
 
 #### napi_create_typedarray
@@ -2071,11 +2087,8 @@ This API is used to convert from the C `int64_t` type to the JavaScript
 The JavaScript `Number` type is described in [Section 6.1.6][]
 of the ECMAScript Language Specification. Note the complete range of `int64_t`
 cannot be represented with full precision in JavaScript. Integer values
-outside the range of
-[`Number.MIN_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.min_safe_integer)
--(2^53 - 1) -
-[`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
-(2^53 - 1) will lose precision.
+outside the range of [`Number.MIN_SAFE_INTEGER`][] `-(2^53 - 1)` -
+[`Number.MAX_SAFE_INTEGER`][] `(2^53 - 1)` will lose precision.
 
 #### napi_create_double
 <!-- YAML
@@ -2274,9 +2287,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns the length of an array.
 
-`Array` length is described in
-[Section 22.1.4.1](https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length)
-of the ECMAScript Language Specification.
+`Array` length is described in [Section 22.1.4.1][] of the ECMAScript Language
+Specification.
 
 #### napi_get_arraybuffer_info
 <!-- YAML
@@ -2649,11 +2661,8 @@ is passed in it returns `napi_number_expected`.
 This API returns the C `int64` primitive equivalent of the given JavaScript
 `Number`.
 
-`Number` values outside the range of
-[`Number.MIN_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.min_safe_integer)
--(2^53 - 1) -
-[`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
-(2^53 - 1) will lose precision.
+`Number` values outside the range of [`Number.MIN_SAFE_INTEGER`][]
+`-(2^53 - 1)` - [`Number.MAX_SAFE_INTEGER`][] `(2^53 - 1)` will lose precision.
 
 Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
@@ -2841,8 +2850,7 @@ This API returns the Undefined object.
 ## Working with JavaScript Values - Abstract Operations
 
 N-API exposes a set of APIs to perform some abstract operations on JavaScript
-values. Some of these operations are documented under
-[Section 7](https://tc39.github.io/ecma262/#sec-abstract-operations)
+values. Some of these operations are documented under [Section 7][]
 of the [ECMAScript Language Specification][].
 
 These APIs support doing one of the following:
@@ -2871,8 +2879,7 @@ napi_status napi_coerce_to_bool(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToBoolean()` as defined in
-[Section 7.1.2](https://tc39.github.io/ecma262/#sec-toboolean)
-of the ECMAScript Language Specification.
+[Section 7.1.2][] of the ECMAScript Language Specification.
 This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_coerce_to_number
@@ -2894,8 +2901,7 @@ napi_status napi_coerce_to_number(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToNumber()` as defined in
-[Section 7.1.3](https://tc39.github.io/ecma262/#sec-tonumber)
-of the ECMAScript Language Specification.
+[Section 7.1.3][] of the ECMAScript Language Specification.
 This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_coerce_to_object
@@ -2917,8 +2923,7 @@ napi_status napi_coerce_to_object(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToObject()` as defined in
-[Section 7.1.13](https://tc39.github.io/ecma262/#sec-toobject)
-of the ECMAScript Language Specification.
+[Section 7.1.13][] of the ECMAScript Language Specification.
 This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_coerce_to_string
@@ -2940,8 +2945,7 @@ napi_status napi_coerce_to_string(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToString()` as defined in
-[Section 7.1.13](https://tc39.github.io/ecma262/#sec-tostring)
-of the ECMAScript Language Specification.
+[Section 7.1.13][] of the ECMAScript Language Specification.
 This API can be re-entrant if getters are defined on the passed-in `Object`.
 
 ### napi_typeof
@@ -2991,9 +2995,7 @@ is true.
 Returns `napi_ok` if the API succeeded.
 
 This API represents invoking the `instanceof` Operator on the object as
-defined in
-[Section 12.10.4](https://tc39.github.io/ecma262/#sec-instanceofoperator)
-of the ECMAScript Language Specification.
+defined in [Section 12.10.4][] of the ECMAScript Language Specification.
 
 ### napi_is_array
 <!-- YAML
@@ -3012,8 +3014,7 @@ napi_status napi_is_array(napi_env env, napi_value value, bool* result)
 Returns `napi_ok` if the API succeeded.
 
 This API represents invoking the `IsArray` operation on the object
-as defined in [Section 7.2.2](https://tc39.github.io/ecma262/#sec-isarray)
-of the ECMAScript Language Specification.
+as defined in [Section 7.2.2][] of the ECMAScript Language Specification.
 
 ### napi_is_arraybuffer
 <!-- YAML
@@ -3145,15 +3146,12 @@ napi_status napi_strict_equals(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents the invocation of the Strict Equality algorithm as
-defined in
-[Section 7.2.14](https://tc39.github.io/ecma262/#sec-strict-equality-comparison)
-of the ECMAScript Language Specification.
+defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 
 ## Working with JavaScript Properties
 
 N-API exposes a set of APIs to get and set properties on JavaScript
-objects. Some of these types are documented under
-[Section 7](https://tc39.github.io/ecma262/#sec-operations-on-objects) of the
+objects. Some of these types are documented under [Section 7][] of the
 [ECMAScript Language Specification][].
 
 Properties in JavaScript are represented as a tuple of a key and a value.
@@ -3366,7 +3364,7 @@ property to be a JavaScript function represented by `method`. If this is
 passed in, set `value`, `getter` and `setter` to `NULL` (since these members
 won't be used).
 * `attributes`: The attributes associated with the particular property.
-See [`napi_property_attributes`](#n_api_napi_property_attributes).
+See [`napi_property_attributes`][].
 * `data`: The callback data passed into `method`, `getter` and `setter` if
 this function is invoked.
 
@@ -3867,9 +3865,8 @@ be associated with the resulting JavaScript function (which is returned in the
 `result` parameter) and freed whenever the function is garbage-collected by
 passing both the JavaScript function and the data to [`napi_add_finalizer`][].
 
-JavaScript `Function`s are described in
-[Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
-of the ECMAScript Language Specification.
+JavaScript `Function`s are described in [Section 19.2][] of the ECMAScript
+Language Specification.
 
 ### napi_get_cb_info
 <!-- YAML
@@ -4228,7 +4225,8 @@ in `js_object` is ready for garbage collection. This API is similar to
 * the native data cannot be retrieved later using `napi_unwrap()`,
 * nor can it be removed later using `napi_remove_wrap()`, and
 * the API can be called multiple times with different data items in order to
-  attach each of them to the JavaScript object.
+  attach each of them to the JavaScript object, and
+* the object manipulated by the API can be used with `napi_wrap()`.
 
 *Caution*: The optional returned reference (if obtained) should be deleted via
 [`napi_delete_reference`][] ONLY in response to the finalize callback
@@ -5123,18 +5121,33 @@ This API may only be called from the main thread.
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
+[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
+[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
+[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
+[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
+[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
+[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
+[Section 7.1.2]: https://tc39.github.io/ecma262/#sec-toboolean
+[Section 7.1.3]: https://tc39.github.io/ecma262/#sec-tonumber
+[Section 7.1.13]: https://tc39.github.io/ecma262/#sec-toobject
+[Section 7.2.2]: https://tc39.github.io/ecma262/#sec-isarray
+[Section 7.2.14]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
+[Section 8.7]: https://tc39.es/ecma262/#sec-agents
+[Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
+[Section 12.10.4]: https://tc39.github.io/ecma262/#sec-instanceofoperator
+[Section 19.2]: https://tc39.github.io/ecma262/#sec-function-objects
+[Section 19.4]: https://tc39.github.io/ecma262/#sec-symbol-objects
 [Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
 [Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
+[Section 22.1.4.1]: https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length
 [Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
 [Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
-[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
-[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
-[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
-[Section 8.7]: https://tc39.es/ecma262/#sec-agents
-[Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+[`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
+[`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [Working with JavaScript Functions]: #n_api_working_with_javascript_functions
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
@@ -5164,6 +5177,7 @@ This API may only be called from the main thread.
 [`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
 [`napi_get_property`]: #n_api_napi_get_property
 [`napi_get_reference_value`]: #n_api_napi_get_reference_value
+[`napi_get_value_external`]: #n_api_napi_get_value_external
 [`napi_has_own_property`]: #n_api_napi_has_own_property
 [`napi_has_property`]: #n_api_napi_has_property
 [`napi_is_error`]: #n_api_napi_is_error
@@ -5172,6 +5186,7 @@ This API may only be called from the main thread.
 [`napi_open_callback_scope`]: #n_api_napi_open_callback_scope
 [`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
 [`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
+[`napi_property_attributes`]: #n_api_napi_property_attributes
 [`napi_property_descriptor`]: #n_api_napi_property_descriptor
 [`napi_queue_async_work`]: #n_api_napi_queue_async_work
 [`napi_reference_ref`]: #n_api_napi_reference_ref
@@ -5188,4 +5203,5 @@ This API may only be called from the main thread.
 [`uv_unref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
 [async_hooks `type`]: async_hooks.html#async_hooks_type
 [context-aware addons]: addons.html#addons_context_aware_addons
+[node-addon-api]: https://github.com/nodejs/node-addon-api
 [worker threads]: https://nodejs.org/api/worker_threads.html

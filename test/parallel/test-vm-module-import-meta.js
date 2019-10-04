@@ -14,7 +14,6 @@ async function testBasic() {
     })
   });
   await m.link(common.mustNotCall());
-  m.instantiate();
   const { result } = await m.evaluate();
   assert.strictEqual(typeof result, 'object');
   assert.strictEqual(Object.getPrototypeOf(result), null);

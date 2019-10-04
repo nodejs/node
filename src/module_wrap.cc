@@ -331,7 +331,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
+void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -488,7 +488,12 @@ enum DescriptorType {
 // Nothing for the "null" cache entries.
 inline Maybe<uv_file> OpenDescriptor(const std::string& path) {
   uv_fs_t fs_req;
+#ifdef _WIN32
+  std::string pth = "\\\\.\\" + path;
+  uv_file fd = uv_fs_open(nullptr, &fs_req, pth.c_str(), O_RDONLY, 0, nullptr);
+#else
   uv_file fd = uv_fs_open(nullptr, &fs_req, path.c_str(), O_RDONLY, 0, nullptr);
+#endif
   uv_fs_req_cleanup(&fs_req);
   if (fd < 0) return Nothing<uv_file>();
   return Just(fd);
@@ -1328,8 +1333,12 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
   Local<Function> callback =
       env->host_initialize_import_meta_object_callback();
   Local<Value> args[] = { wrap, meta };
-  callback->Call(context, Undefined(env->isolate()), arraysize(args), args)
-      .ToLocalChecked();
+  TryCatchScope try_catch(env);
+  USE(callback->Call(
+        context, Undefined(env->isolate()), arraysize(args), args));
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+  }
 }
 
 void ModuleWrap::SetInitializeImportMetaObjectCallback(
@@ -1360,7 +1369,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
-  env->SetProtoMethodNoSideEffect(tpl, "namespace", Namespace);
+  env->SetProtoMethodNoSideEffect(tpl, "getNamespace", GetNamespace);
   env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
   env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);
   env->SetProtoMethodNoSideEffect(tpl, "getStaticDependencySpecifiers",

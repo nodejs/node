@@ -154,9 +154,10 @@ objects:
 * [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
 
-As of v10.0.0, a deprecation warning is printed at runtime when
-`--pending-deprecation` is used or when the calling code is
-outside `node_modules` in order to better target developers, rather than users.
+Without `--pending-deprecation`, runtime warnings occur only for code not in
+`node_modules`. This means there will not be deprecation warnings for
+`Buffer()` usage in dependencies. With `--pending-deprecation`, a runtime
+warning results no matter where the `Buffer()` usage occurs.
 
 <a id="DEP0006"></a>
 ### DEP0006: child\_process options.customFds
@@ -2517,6 +2518,19 @@ Type: Documentation-only
 
 Prefer [`response.socket`][] over [`response.connection`][] and
 [`request.socket`][] over [`request.connection`][].
+
+<a id="DEP0134"></a>
+### DEP0134: process._tickCallback
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29781
+    description: Documentation-only deprecation.
+-->
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The `process._tickCallback` property was never documented as
+an officially supported API.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation

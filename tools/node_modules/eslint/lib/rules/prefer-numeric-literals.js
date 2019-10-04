@@ -96,6 +96,10 @@ module.exports = {
                         fix(fixer) {
                             const newPrefix = prefixMap[node.arguments[1].value];
 
+                            if (sourceCode.getCommentsInside(node).length) {
+                                return null;
+                            }
+
                             if (+(newPrefix + node.arguments[0].value) !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
 
                                 /*

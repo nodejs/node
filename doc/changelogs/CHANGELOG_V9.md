@@ -2081,59 +2081,59 @@ Fixes for the following CVEs are included in this release:
 ### Notable Changes
 
 * **Async hooks**
-  * Older experimental APIs have been removed. [[`d731369b1d`](https://github.com/nodejs/node/commit/d731369b1d)] [#14414](https://github.com/nodejs/node/pull/14414)
+  * Older experimental APIs have been removed. [[`d731369b1d`](https://github.com/nodejs/node/commit/d731369b1d)] - [#14414](https://github.com/nodejs/node/pull/14414)
 
 * **Errors**
-  * Improvements have been made to `buffer` module error messages. [[`9e0f771224`](https://github.com/nodejs/node/commit/9e0f771224)] [#14975](https://github.com/nodejs/node/pull/14975)
+  * Improvements have been made to `buffer` module error messages. [[`9e0f771224`](https://github.com/nodejs/node/commit/9e0f771224)] - [#14975](https://github.com/nodejs/node/pull/14975)
   * The assignment of static error codes to Node.js error continues:
-    * `buffer`: [[`e79a61cf80`](https://github.com/nodejs/node/commit/e79a61cf80)] [#16352](https://github.com/nodejs/node/pull/16352), [[`dbfe8c4ea2`](https://github.com/nodejs/node/commit/dbfe8c4ea2)] [#13976](https://github.com/nodejs/node/pull/13976)
-    * `child_process`: [[`fe730d34ce`](https://github.com/nodejs/node/commit/fe730d34ce)] [#14009](https://github.com/nodejs/node/pull/14009)
-    * `console`: [[`0ecdf29340`](https://github.com/nodejs/node/commit/0ecdf29340)] [#11340](https://github.com/nodejs/node/pull/11340)
-    * `crypto`: [[`ee76f3153b`](https://github.com/nodejs/node/commit/ee76f3153b)] [#16428](https://github.com/nodejs/node/pull/16428), [[`df8c6c3651`](https://github.com/nodejs/node/commit/df8c6c3651)] [#16453](https://github.com/nodejs/node/pull/16453), [[`0a03e350fb`](https://github.com/nodejs/node/commit/0a03e350fb)] [#16454](https://github.com/nodejs/node/pull/16454), [[`eeada6ca63`](https://github.com/nodejs/node/commit/eeada6ca63)] [#16448](https://github.com/nodejs/node/pull/16448), [[`a78327f48b`](https://github.com/nodejs/node/commit/a78327f48b)] [#16429](https://github.com/nodejs/node/pull/16429), [[`b8bc652869`](https://github.com/nodejs/node/commit/b8bc652869)] [#15757](https://github.com/nodejs/node/pull/15757), [[`7124b466d9`](https://github.com/nodejs/node/commit/7124b466d9)] [#15746](https://github.com/nodejs/node/pull/15746), [[`3ddc88b5c2`](https://github.com/nodejs/node/commit/3ddc88b5c2)] [#15756](https://github.com/nodejs/node/pull/15756)
-    * `dns`: [[`9cb390d899`](https://github.com/nodejs/node/commit/9cb390d899)] [#14212](https://github.com/nodejs/node/pull/14212)
-    * `events`: [[`e5ad5456a2`](https://github.com/nodejs/node/commit/e5ad5456a2)] [#15623](https://github.com/nodejs/node/pull/15623)
-    * `fs`: [[`219932a9f7`](https://github.com/nodejs/node/commit/219932a9f7)] [#15043](https://github.com/nodejs/node/pull/15043), [[`b61cab2234`](https://github.com/nodejs/node/commit/b61cab2234)] [#11317](https://github.com/nodejs/node/pull/11317)
-    * `http`: [[`11a2ca29ba`](https://github.com/nodejs/node/commit/11a2ca29ba)] [#14735](https://github.com/nodejs/node/pull/14735), [[`a9f798ebcc`](https://github.com/nodejs/node/commit/a9f798ebcc)] [#13301](https://github.com/nodejs/node/pull/13301), [[`bdfbce9241`](https://github.com/nodejs/node/commit/bdfbce9241)] [#14423](https://github.com/nodejs/node/pull/14423), [[`4843c2f415`](https://github.com/nodejs/node/commit/4843c2f415)] [#15603](https://github.com/nodejs/node/pull/15603)
-    * `inspector`: [[`4cf56ad6f2`](https://github.com/nodejs/node/commit/4cf56ad6f2)] [#15619](https://github.com/nodejs/node/pull/15619)
-    * `net`: [[`a03d8cee1f`](https://github.com/nodejs/node/commit/a03d8cee1f)] [#11356](https://github.com/nodejs/node/pull/11356), [[`7f55349079`](https://github.com/nodejs/node/commit/7f55349079)] [#14782](https://github.com/nodejs/node/pull/14782)
-    * `path`: [[`dcfbbacba8`](https://github.com/nodejs/node/commit/dcfbbacba8)] [#11319](https://github.com/nodejs/node/pull/11319)
-    * `process`: [[`a0f7284346`](https://github.com/nodejs/node/commit/a0f7284346)] [#13739](https://github.com/nodejs/node/pull/13739), [[`062071a9c3`](https://github.com/nodejs/node/commit/062071a9c3)] [#13285](https://github.com/nodejs/node/pull/13285), [[`3129b2c035`](https://github.com/nodejs/node/commit/3129b2c035)] [#13982](https://github.com/nodejs/node/pull/13982)
-    * `querystring`: [[`9788e96836`](https://github.com/nodejs/node/commit/9788e96836)] [#15565](https://github.com/nodejs/node/pull/15565)
-    * `readline`: [[`7f3f72c19b`](https://github.com/nodejs/node/commit/7f3f72c19b)] [#11390](https://github.com/nodejs/node/pull/11390)
-    * `repl`: [[`aff8d358fa`](https://github.com/nodejs/node/commit/aff8d358fa)] [#11347](https://github.com/nodejs/node/pull/11347), [[`28227963fa`](https://github.com/nodejs/node/commit/28227963fa)] [#13299](https://github.com/nodejs/node/pull/13299)
-    * `streams`: [[`d50a802feb`](https://github.com/nodejs/node/commit/d50a802feb)] [#13310](https://github.com/nodejs/node/pull/13310), [[`d2913384aa`](https://github.com/nodejs/node/commit/d2913384aa)] [#13291](https://github.com/nodejs/node/pull/13291), [[`6e86a6651c`](https://github.com/nodejs/node/commit/6e86a6651c)] [#16589](https://github.com/nodejs/node/pull/16589), [[`88fb359c57`](https://github.com/nodejs/node/commit/88fb359c57)] [#15042](https://github.com/nodejs/node/pull/15042), [[`db7d1339c3`](https://github.com/nodejs/node/commit/db7d1339c3)] [#15665](https://github.com/nodejs/node/pull/15665)
-    * `string_decoder`: [[`eb4940e2d2`](https://github.com/nodejs/node/commit/eb4940e2d2)] [#14682](https://github.com/nodejs/node/pull/14682)
-    * `timers`: [[`4d893e093a`](https://github.com/nodejs/node/commit/4d893e093a)] [#14659](https://github.com/nodejs/node/pull/14659)
-    * `tls`: [[`f67aa566a6`](https://github.com/nodejs/node/commit/f67aa566a6)] [#13476](https://github.com/nodejs/node/pull/13476), [[`3ccfeb483d`](https://github.com/nodejs/node/commit/3ccfeb483d)] [#13994](https://github.com/nodejs/node/pull/13994)
-    * `url`: [[`473f0eff29`](https://github.com/nodejs/node/commit/473f0eff29)] [#13963](https://github.com/nodejs/node/pull/13963)
-    * `util`: [[`de4a749788`](https://github.com/nodejs/node/commit/de4a749788)] [#11301](https://github.com/nodejs/node/pull/11301), [[`1609899142`](https://github.com/nodejs/node/commit/1609899142)] [#13293](https://github.com/nodejs/node/pull/13293)
-    * `v8`: [[`ef238fb485`](https://github.com/nodejs/node/commit/ef238fb485)] [#16535](https://github.com/nodejs/node/pull/16535)
-    * `zlib`: [[`896eaf6820`](https://github.com/nodejs/node/commit/896eaf6820)] [#16540](https://github.com/nodejs/node/pull/16540), [[`74891412f1`](https://github.com/nodejs/node/commit/74891412f1)] [#15618](https://github.com/nodejs/node/pull/15618)
+    * `buffer`: [[`e79a61cf80`](https://github.com/nodejs/node/commit/e79a61cf80)] - [#16352](https://github.com/nodejs/node/pull/16352), [[`dbfe8c4ea2`](https://github.com/nodejs/node/commit/dbfe8c4ea2)] - [#13976](https://github.com/nodejs/node/pull/13976)
+    * `child_process`: [[`fe730d34ce`](https://github.com/nodejs/node/commit/fe730d34ce)] - [#14009](https://github.com/nodejs/node/pull/14009)
+    * `console`: [[`0ecdf29340`](https://github.com/nodejs/node/commit/0ecdf29340)] - [#11340](https://github.com/nodejs/node/pull/11340)
+    * `crypto`: [[`ee76f3153b`](https://github.com/nodejs/node/commit/ee76f3153b)] - [#16428](https://github.com/nodejs/node/pull/16428), [[`df8c6c3651`](https://github.com/nodejs/node/commit/df8c6c3651)] - [#16453](https://github.com/nodejs/node/pull/16453), [[`0a03e350fb`](https://github.com/nodejs/node/commit/0a03e350fb)] - [#16454](https://github.com/nodejs/node/pull/16454), [[`eeada6ca63`](https://github.com/nodejs/node/commit/eeada6ca63)] - [#16448](https://github.com/nodejs/node/pull/16448), [[`a78327f48b`](https://github.com/nodejs/node/commit/a78327f48b)] - [#16429](https://github.com/nodejs/node/pull/16429), [[`b8bc652869`](https://github.com/nodejs/node/commit/b8bc652869)] - [#15757](https://github.com/nodejs/node/pull/15757), [[`7124b466d9`](https://github.com/nodejs/node/commit/7124b466d9)] - [#15746](https://github.com/nodejs/node/pull/15746), [[`3ddc88b5c2`](https://github.com/nodejs/node/commit/3ddc88b5c2)] - [#15756](https://github.com/nodejs/node/pull/15756)
+    * `dns`: [[`9cb390d899`](https://github.com/nodejs/node/commit/9cb390d899)] - [#14212](https://github.com/nodejs/node/pull/14212)
+    * `events`: [[`e5ad5456a2`](https://github.com/nodejs/node/commit/e5ad5456a2)] - [#15623](https://github.com/nodejs/node/pull/15623)
+    * `fs`: [[`219932a9f7`](https://github.com/nodejs/node/commit/219932a9f7)] - [#15043](https://github.com/nodejs/node/pull/15043), [[`b61cab2234`](https://github.com/nodejs/node/commit/b61cab2234)] - [#11317](https://github.com/nodejs/node/pull/11317)
+    * `http`: [[`11a2ca29ba`](https://github.com/nodejs/node/commit/11a2ca29ba)] - [#14735](https://github.com/nodejs/node/pull/14735), [[`a9f798ebcc`](https://github.com/nodejs/node/commit/a9f798ebcc)] - [#13301](https://github.com/nodejs/node/pull/13301), [[`bdfbce9241`](https://github.com/nodejs/node/commit/bdfbce9241)] - [#14423](https://github.com/nodejs/node/pull/14423), [[`4843c2f415`](https://github.com/nodejs/node/commit/4843c2f415)] - [#15603](https://github.com/nodejs/node/pull/15603)
+    * `inspector`: [[`4cf56ad6f2`](https://github.com/nodejs/node/commit/4cf56ad6f2)] - [#15619](https://github.com/nodejs/node/pull/15619)
+    * `net`: [[`a03d8cee1f`](https://github.com/nodejs/node/commit/a03d8cee1f)] - [#11356](https://github.com/nodejs/node/pull/11356), [[`7f55349079`](https://github.com/nodejs/node/commit/7f55349079)] - [#14782](https://github.com/nodejs/node/pull/14782)
+    * `path`: [[`dcfbbacba8`](https://github.com/nodejs/node/commit/dcfbbacba8)] - [#11319](https://github.com/nodejs/node/pull/11319)
+    * `process`: [[`a0f7284346`](https://github.com/nodejs/node/commit/a0f7284346)] - [#13739](https://github.com/nodejs/node/pull/13739), [[`062071a9c3`](https://github.com/nodejs/node/commit/062071a9c3)] - [#13285](https://github.com/nodejs/node/pull/13285), [[`3129b2c035`](https://github.com/nodejs/node/commit/3129b2c035)] - [#13982](https://github.com/nodejs/node/pull/13982)
+    * `querystring`: [[`9788e96836`](https://github.com/nodejs/node/commit/9788e96836)] - [#15565](https://github.com/nodejs/node/pull/15565)
+    * `readline`: [[`7f3f72c19b`](https://github.com/nodejs/node/commit/7f3f72c19b)] - [#11390](https://github.com/nodejs/node/pull/11390)
+    * `repl`: [[`aff8d358fa`](https://github.com/nodejs/node/commit/aff8d358fa)] - [#11347](https://github.com/nodejs/node/pull/11347), [[`28227963fa`](https://github.com/nodejs/node/commit/28227963fa)] - [#13299](https://github.com/nodejs/node/pull/13299)
+    * `streams`: [[`d50a802feb`](https://github.com/nodejs/node/commit/d50a802feb)] - [#13310](https://github.com/nodejs/node/pull/13310), [[`d2913384aa`](https://github.com/nodejs/node/commit/d2913384aa)] - [#13291](https://github.com/nodejs/node/pull/13291), [[`6e86a6651c`](https://github.com/nodejs/node/commit/6e86a6651c)] - [#16589](https://github.com/nodejs/node/pull/16589), [[`88fb359c57`](https://github.com/nodejs/node/commit/88fb359c57)] - [#15042](https://github.com/nodejs/node/pull/15042), [[`db7d1339c3`](https://github.com/nodejs/node/commit/db7d1339c3)] - [#15665](https://github.com/nodejs/node/pull/15665)
+    * `string_decoder`: [[`eb4940e2d2`](https://github.com/nodejs/node/commit/eb4940e2d2)] - [#14682](https://github.com/nodejs/node/pull/14682)
+    * `timers`: [[`4d893e093a`](https://github.com/nodejs/node/commit/4d893e093a)] - [#14659](https://github.com/nodejs/node/pull/14659)
+    * `tls`: [[`f67aa566a6`](https://github.com/nodejs/node/commit/f67aa566a6)] - [#13476](https://github.com/nodejs/node/pull/13476), [[`3ccfeb483d`](https://github.com/nodejs/node/commit/3ccfeb483d)] - [#13994](https://github.com/nodejs/node/pull/13994)
+    * `url`: [[`473f0eff29`](https://github.com/nodejs/node/commit/473f0eff29)] - [#13963](https://github.com/nodejs/node/pull/13963)
+    * `util`: [[`de4a749788`](https://github.com/nodejs/node/commit/de4a749788)] - [#11301](https://github.com/nodejs/node/pull/11301), [[`1609899142`](https://github.com/nodejs/node/commit/1609899142)] - [#13293](https://github.com/nodejs/node/pull/13293)
+    * `v8`: [[`ef238fb485`](https://github.com/nodejs/node/commit/ef238fb485)] - [#16535](https://github.com/nodejs/node/pull/16535)
+    * `zlib`: [[`896eaf6820`](https://github.com/nodejs/node/commit/896eaf6820)] - [#16540](https://github.com/nodejs/node/pull/16540), [[`74891412f1`](https://github.com/nodejs/node/commit/74891412f1)] - [#15618](https://github.com/nodejs/node/pull/15618)
 
 * **Child Processes**
-  * Errors are emitted on process nextTick. [[`f2b01cba7b`](https://github.com/nodejs/node/commit/f2b01cba7b)] [#4670](https://github.com/nodejs/node/pull/4670)
+  * Errors are emitted on process nextTick. [[`f2b01cba7b`](https://github.com/nodejs/node/commit/f2b01cba7b)] - [#4670](https://github.com/nodejs/node/pull/4670)
 
 * **Domains**
-  * The long-deprecated `.dispose()` method has been removed [[`602fd36d95`](https://github.com/nodejs/node/commit/602fd36d95)] [#15412](https://github.com/nodejs/node/pull/15412)
+  * The long-deprecated `.dispose()` method has been removed [[`602fd36d95`](https://github.com/nodejs/node/commit/602fd36d95)] - [#15412](https://github.com/nodejs/node/pull/15412)
 
 * **fs**
-  * The `fs.ReadStream` and `fs.WriteStream` classes now use `destroy()`. [[`e5c290bed9`](https://github.com/nodejs/node/commit/e5c290bed9)] [#15407](https://github.com/nodejs/node/pull/15407)
-  * `fs` module callbacks are now invoked with an undefined context. [[`2249234fee`](https://github.com/nodejs/node/commit/2249234fee)] [#14645](https://github.com/nodejs/node/pull/14645)
+  * The `fs.ReadStream` and `fs.WriteStream` classes now use `destroy()`. [[`e5c290bed9`](https://github.com/nodejs/node/commit/e5c290bed9)] - [#15407](https://github.com/nodejs/node/pull/15407)
+  * `fs` module callbacks are now invoked with an undefined context. [[`2249234fee`](https://github.com/nodejs/node/commit/2249234fee)] - [#14645](https://github.com/nodejs/node/pull/14645)
 
 * **HTTP/1**
-  * A 400 Bad Request response will now be sent when parsing fails. [[`f2f391e575`](https://github.com/nodejs/node/commit/f2f391e575)] [#15324](https://github.com/nodejs/node/pull/15324)
-  * Socket timeout will be set when the socket connects. [[`10be20a0e8`](https://github.com/nodejs/node/commit/10be20a0e8)] [#8895](https://github.com/nodejs/node/pull/8895)
-  * A bug causing the request `'error'` event to fire twice was fixed. [[`620ba41694`](https://github.com/nodejs/node/commit/620ba41694)] [#14659](https://github.com/nodejs/node/pull/14659)
-  * HTTP clients may now use generic `Duplex` streams in addition to `net.Socket`. [[`3e25e4d00f`](https://github.com/nodejs/node/commit/3e25e4d00f)] [#16267](https://github.com/nodejs/node/pull/16267)
+  * A 400 Bad Request response will now be sent when parsing fails. [[`f2f391e575`](https://github.com/nodejs/node/commit/f2f391e575)] - [#15324](https://github.com/nodejs/node/pull/15324)
+  * Socket timeout will be set when the socket connects. [[`10be20a0e8`](https://github.com/nodejs/node/commit/10be20a0e8)] - [#8895](https://github.com/nodejs/node/pull/8895)
+  * A bug causing the request `'error'` event to fire twice was fixed. [[`620ba41694`](https://github.com/nodejs/node/commit/620ba41694)] - [#14659](https://github.com/nodejs/node/pull/14659)
+  * HTTP clients may now use generic `Duplex` streams in addition to `net.Socket`. [[`3e25e4d00f`](https://github.com/nodejs/node/commit/3e25e4d00f)] - [#16267](https://github.com/nodejs/node/pull/16267)
 
 * **Intl**
-  * The deprecated `Intl.v8BreakIterator` has been removed. [[`668ad44922`](https://github.com/nodejs/node/commit/668ad44922)] [#15238](https://github.com/nodejs/node/pull/15238)
+  * The deprecated `Intl.v8BreakIterator` has been removed. [[`668ad44922`](https://github.com/nodejs/node/commit/668ad44922)] - [#15238](https://github.com/nodejs/node/pull/15238)
 
 * **OS**
-  * The `os.EOL` property is now read-only [[`f6caeb9526`](https://github.com/nodejs/node/commit/f6caeb9526)] [#14622](https://github.com/nodejs/node/pull/14622)
+  * The `os.EOL` property is now read-only [[`f6caeb9526`](https://github.com/nodejs/node/commit/f6caeb9526)] - [#14622](https://github.com/nodejs/node/pull/14622)
 
 * **Timers**
-  * `setTimeout()` will emit a warning if the timeout is larger that the maximum 32-bit unsigned integer. [[`ce3586da31`](https://github.com/nodejs/node/commit/ce3586da31)] [#15627](https://github.com/nodejs/node/pull/15627)
+  * `setTimeout()` will emit a warning if the timeout is larger that the maximum 32-bit unsigned integer. [[`ce3586da31`](https://github.com/nodejs/node/commit/ce3586da31)] - [#15627](https://github.com/nodejs/node/pull/15627)
 
 ### Commits
 

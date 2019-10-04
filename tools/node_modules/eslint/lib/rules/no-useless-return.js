@@ -82,6 +82,7 @@ module.exports = {
     create(context) {
         const segmentInfoMap = new WeakMap();
         const usedUnreachableSegments = new WeakSet();
+        const sourceCode = context.getSourceCode();
         let scopeInfo = null;
 
         /**
@@ -216,7 +217,7 @@ module.exports = {
                         loc: node.loc,
                         message: "Unnecessary return statement.",
                         fix(fixer) {
-                            if (isRemovable(node)) {
+                            if (isRemovable(node) && !sourceCode.getCommentsInside(node).length) {
 
                                 /*
                                  * Extend the replacement range to include the
@@ -224,7 +225,7 @@ module.exports = {
                                  * no-else-return.
                                  * https://github.com/eslint/eslint/issues/8026
                                  */
-                                return new FixTracker(fixer, context.getSourceCode())
+                                return new FixTracker(fixer, sourceCode)
                                     .retainEnclosingFunction(node)
                                     .remove(node);
                             }

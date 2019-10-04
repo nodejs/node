@@ -765,14 +765,6 @@ to enable or disable FIPS mode in the `crypto` module.
 An attempt was made to enable or disable FIPS mode, but FIPS mode was not
 available.
 
-<a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
-### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
-
-The UTF-16 encoding was used with [`hash.digest()`][]. While the
-`hash.digest()` method does allow an `encoding` argument to be passed in,
-causing the method to return a string rather than a `Buffer`, the UTF-16
-encoding (e.g. `ucs` or `utf16le`) is not supported.
-
 <a id="ERR_CRYPTO_HASH_FINALIZED"></a>
 ### ERR_CRYPTO_HASH_FINALIZED
 
@@ -1984,11 +1976,6 @@ than the parent module. Linked modules must share the same context.
 
 The linker function returned a module for which linking has failed.
 
-<a id="ERR_VM_MODULE_NOT_LINKED"></a>
-### ERR_VM_MODULE_NOT_LINKED
-
-The module must be successfully linked before instantiation.
-
 <a id="ERR_VM_MODULE_NOT_MODULE"></a>
 ### ERR_VM_MODULE_NOT_MODULE
 
@@ -2082,6 +2069,18 @@ removed: v11.12.0
 
 There was an attempt to use a `MessagePort` instance in a closed
 state, usually after `.close()` has been called.
+
+<a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
+### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
+<!-- YAML
+added: v9.0.0
+removed: REPLACEME
+-->
+
+The UTF-16 encoding was used with [`hash.digest()`][]. While the
+`hash.digest()` method does allow an `encoding` argument to be passed in,
+causing the method to return a string rather than a `Buffer`, the UTF-16
+encoding (e.g. `ucs` or `utf16le`) is not supported.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 ### ERR_HTTP2_FRAME_ERROR
@@ -2274,6 +2273,11 @@ removed: v10.0.0
 -->
 
 Used when a given value is out of the accepted range.
+
+<a id="ERR_VM_MODULE_NOT_LINKED"></a>
+### ERR_VM_MODULE_NOT_LINKED
+
+The module must be successfully linked before instantiation.
 
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED
