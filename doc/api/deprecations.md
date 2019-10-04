@@ -2606,7 +2606,7 @@ officially supported property.
 [`require.extensions`]: modules.html#modules_require_extensions
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
-[`request._ended`]: http.html#http_request__ended
+[`request._ended`]: http.html#http_request_ended
 [`response.readableEnded`]: stream.html#stream_readable_readableEnded
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
