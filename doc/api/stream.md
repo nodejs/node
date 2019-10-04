@@ -633,7 +633,8 @@ A `Writable` stream in object mode will always ignore the `encoding` argument.
 
 `stream.write()` will error with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if [`stream.end()`][stream-end] has been called.
-* `ERR_STREAM_DESTROYED` if [`stream.destroy()`][writable-destroy] has been called.
+* `ERR_STREAM_DESTROYED` if [`stream.destroy()`][writable-destroy] has been
+  called.
 * `ERR_STREAM_NULL_VALUES` if `chunk` is `null`.
 * `ERR_INVALID_ARG_TYPE` if `chunk` is not a `string` when not in `objectMode`.
 * Any error forwarded by `writable._write()`.
