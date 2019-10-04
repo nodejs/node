@@ -2530,10 +2530,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/29671
     description: Runtime deprecation.
 -->
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `process._tickCallback` property was never documented as
-an officially supported API.
+an officially supported API. Please use `process.runNextTicks`
+instead.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
