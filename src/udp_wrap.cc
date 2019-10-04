@@ -468,7 +468,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
         count--;
       }
       if (count > 0) {
-        CHECK_LE(sent, bufs_ptr->len);
+        CHECK_LT(sent, bufs_ptr->len);
         bufs_ptr->base += sent;
         bufs_ptr->len -= sent;
       } else {
