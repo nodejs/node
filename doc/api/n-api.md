@@ -5152,7 +5152,7 @@ This API may only be called from the main thread.
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
-[`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
+[`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource_bootstrap
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work

@@ -695,7 +695,7 @@ never be called.
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
-[`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
+[`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource_bootstrap
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
