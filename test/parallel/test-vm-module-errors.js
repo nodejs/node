@@ -64,7 +64,7 @@ async function checkModuleState() {
     assert.strictEqual(m.status, 'linking');
     await m.link(common.mustNotCall());
   }, {
-    code: 'ERR_VM_MODULE_ALREADY_LINKED'
+    code: 'ERR_VM_MODULE_STATUS'
   });
 
   await assert.rejects(async () => {
