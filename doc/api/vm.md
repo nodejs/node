@@ -91,11 +91,10 @@ changes:
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.SourceTextModule}
-    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-      `vm.SourceTextModule` is recommended in order to take advantage of error
-      tracking, and to avoid issues with namespaces that contain `then`
-      function exports.
+    * `module` {vm.Module}
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
 
 If `options` is a string, then it specifies the filename.
 
@@ -301,9 +300,9 @@ console.log(globalVar);
 // 1000
 ```
 
-## Class: `vm.SourceTextModule`
+## Class: `vm.Module`
 <!-- YAML
-added: v9.6.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -311,20 +310,20 @@ added: v9.6.0
 *This feature is only available with the `--experimental-vm-modules` command
 flag enabled.*
 
-The `vm.SourceTextModule` class provides a low-level interface for using
+The `vm.Module` class provides a low-level interface for using
 ECMAScript modules in VM contexts. It is the counterpart of the `vm.Script`
-class that closely mirrors [Source Text Module Record][]s as defined in the
-ECMAScript specification.
+class that closely mirrors [Module Record][]s as defined in the ECMAScript
+specification.
 
-Unlike `vm.Script` however, every `vm.SourceTextModule` object is bound to a
-context from its creation. Operations on `vm.SourceTextModule` objects are
-intrinsically asynchronous, in contrast with the synchronous nature of
-`vm.Script` objects. With the help of async functions, however, manipulating
-`vm.SourceTextModule` objects is fairly straightforward.
+Unlike `vm.Script` however, every `vm.Module` object is bound to a context from
+its creation. Operations on `vm.Module` objects are intrinsically asynchronous,
+in contrast with the synchronous nature of `vm.Script` objects. With the help
+of async functions, however, manipulating `vm.Module` objects is fairly
+straightforward.
 
-Using a `vm.SourceTextModule` object requires three distinct steps:
-creation/parsing, linking, and evaluation. These three steps are illustrated in
-the following example.
+Using a `vm.Module` object requires three distinct steps: creation/parsing,
+linking, and evaluation. These three steps are illustrated in the following
+example.
 
 This implementation lies at a lower level than the [ECMAScript Module
 loader][]. There is also currently no way to interact with the Loader, though
@@ -404,70 +403,6 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 })();
 ```
 
-### Constructor: `new vm.SourceTextModule(code[, options])`
-
-* `code` {string} JavaScript Module code to parse
-* `options`
-  * `identifier` {string} String used in stack traces.
-    **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
-    index.
-  * `context` {Object} The [contextified][] object as returned by the
-    `vm.createContext()` method, to compile and evaluate this `Module` in.
-  * `lineOffset` {integer} Specifies the line number offset that is displayed
-    in stack traces produced by this `Module`. **Default:** `0`.
-  * `columnOffset` {integer} Specifies the column number offset that is
-    displayed in stack traces produced by this `Module`. **Default:** `0`.
-  * `initializeImportMeta` {Function} Called during evaluation of this `Module`
-    to initialize the `import.meta`.
-    * `meta` {import.meta}
-    * `module` {vm.SourceTextModule}
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.SourceTextModule}
-    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-      `vm.SourceTextModule` is recommended in order to take advantage of error
-      tracking, and to avoid issues with namespaces that contain `then`
-      function exports.
-
-Creates a new ES `Module` object.
-
-Properties assigned to the `import.meta` object that are objects may
-allow the `Module` to access information outside the specified `context`, if the
-object is created in the top level context. Use `vm.runInContext()` to create
-objects in a specific context.
-
-```js
-const vm = require('vm');
-
-const contextifiedSandbox = vm.createContext({ secret: 42 });
-
-(async () => {
-  const module = new vm.SourceTextModule(
-    'Object.getPrototypeOf(import.meta.prop).secret = secret;',
-    {
-      initializeImportMeta(meta) {
-        // Note: this object is created in the top context. As such,
-        // Object.getPrototypeOf(import.meta.prop) points to the
-        // Object.prototype in the top context rather than that in
-        // the sandbox.
-        meta.prop = {};
-      }
-    });
-  // Since module has no dependencies, the linker function will never be called.
-  await module.link(() => {});
-  await module.evaluate();
-
-  // Now, Object.prototype.secret will be equal to 42.
-  //
-  // To fix this problem, replace
-  //     meta.prop = {};
-  // above with
-  //     meta.prop = vm.runInContext('{}', contextifiedSandbox);
-})();
-```
-
 ### `module.dependencySpecifiers`
 
 * {string[]}
@@ -475,8 +410,8 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 The specifiers of all dependencies of this module. The returned array is frozen
 to disallow any changes to it.
 
-Corresponds to the `[[RequestedModules]]` field of
-[Source Text Module Record][]s in the ECMAScript specification.
+Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
+the ECMAScript specification.
 
 ### `module.error`
 
@@ -489,7 +424,7 @@ accessing this property will result in a thrown exception.
 The value `undefined` cannot be used for cases where there is not a thrown
 exception due to possible ambiguity with `throw undefined;`.
 
-Corresponds to the `[[EvaluationError]]` field of [Source Text Module Record][]s
+Corresponds to the `[[EvaluationError]]` field of [Cyclic Module Record][]s
 in the ECMAScript specification.
 
 ### `module.evaluate([options])`
@@ -519,7 +454,7 @@ evaluated, in which case it will do one of the following two things:
 This method cannot be called while the module is being evaluated
 (`module.status` is `'evaluating'`) to prevent infinite recursion.
 
-Corresponds to the [Evaluate() concrete method][] field of [Source Text Module
+Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
 ### `module.link(linker)`
@@ -532,9 +467,8 @@ Record][]s in the ECMAScript specification.
     //              ^^^^^ the module specifier
     ```
 
-  * `referencingModule` {vm.SourceTextModule} The `Module` object `link()` is
-    called on.
-  * Returns: {vm.SourceTextModule|Promise}
+  * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
+  * Returns: {vm.Module|Promise}
 * Returns: {Promise}
 
 Link module dependencies. This method must be called before evaluation, and
@@ -568,7 +502,7 @@ that point all modules would have been fully linked already, the
 [HostResolveImportedModule][] implementation is fully synchronous per
 specification.
 
-Corresponds to the [Link() concrete method][] field of [Source Text Module
+Corresponds to the [Link() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
 ### `module.namespace`
@@ -603,7 +537,7 @@ The current status of the module. Will be one of:
 * `'errored'`: The module has been evaluated, but an exception was thrown.
 
 Other than `'errored'`, this status string corresponds to the specification's
-[Source Text Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
+[Cyclic Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
 `'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
 value that is not `undefined`.
 
@@ -613,7 +547,160 @@ value that is not `undefined`.
 
 The identifier of the current module, as set in the constructor.
 
-## `vm.compileFunction(code[, params[, options]])`
+## Class: `vm.SourceTextModule`
+<!-- YAML
+added: v9.6.0
+-->
+
+> Stability: 1 - Experimental
+
+*This feature is only available with the `--experimental-vm-modules` command
+flag enabled.*
+
+* Extends: {vm.Module}
+
+The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
+defined in the ECMAScript specification.
+
+### Constructor: `new vm.SourceTextModule(code[, options])`
+
+* `code` {string} JavaScript Module code to parse
+* `options`
+  * `identifier` {string} String used in stack traces.
+    **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
+    index.
+  * `context` {Object} The [contextified][] object as returned by the
+    `vm.createContext()` method, to compile and evaluate this `Module` in.
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
+    in stack traces produced by this `Module`. **Default:** `0`.
+  * `columnOffset` {integer} Specifies the column number offset that is
+    displayed in stack traces produced by this `Module`. **Default:** `0`.
+  * `initializeImportMeta` {Function} Called during evaluation of this `Module`
+    to initialize the `import.meta`.
+    * `meta` {import.meta}
+    * `module` {vm.SourceTextModule}
+  * `importModuleDynamically` {Function} Called during evaluation of this module
+    when `import()` is called. If this option is not specified, calls to
+    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+    * `specifier` {string} specifier passed to `import()`
+    * `module` {vm.Module}
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
+
+Creates a new `SourceTextModule` instance.
+
+Properties assigned to the `import.meta` object that are objects may
+allow the module to access information outside the specified `context`. Use
+`vm.runInContext()` to create objects in a specific context.
+
+```js
+const vm = require('vm');
+
+const contextifiedSandbox = vm.createContext({ secret: 42 });
+
+(async () => {
+  const module = new vm.SourceTextModule(
+    'Object.getPrototypeOf(import.meta.prop).secret = secret;',
+    {
+      initializeImportMeta(meta) {
+        // Note: this object is created in the top context. As such,
+        // Object.getPrototypeOf(import.meta.prop) points to the
+        // Object.prototype in the top context rather than that in
+        // the sandbox.
+        meta.prop = {};
+      }
+    });
+  // Since module has no dependencies, the linker function will never be called.
+  await module.link(() => {});
+  await module.evaluate();
+
+  // Now, Object.prototype.secret will be equal to 42.
+  //
+  // To fix this problem, replace
+  //     meta.prop = {};
+  // above with
+  //     meta.prop = vm.runInContext('{}', contextifiedSandbox);
+})();
+```
+
+## Class: `vm.SyntheticModule`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+*This feature is only available with the `--experimental-vm-modules` command
+flag enabled.*
+
+* Extends: {vm.Module}
+
+The `vm.SyntheticModule` class provides the [Synthetic Module Record][] as
+defined in the WebIDL specification. The purpose of synthetic modules is to
+provide a generic interface for exposing non-JavaScript sources to ECMAScript
+module graphs.
+
+```js
+const vm = require('vm');
+
+const source = '{ "a": 1 }';
+const module = new vm.SyntheticModule(['default'], function() {
+  const obj = JSON.parse(source);
+  this.setExport('default', obj);
+});
+
+// Use `module` in linking...
+```
+
+### Constructor: `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `exportNames` {string[]} Array of names that will be exported from the module.
+* `evaluateCallback` {Function} Called when the module is evaluated.
+* `options`
+  * `identifier` {string} String used in stack traces.
+   **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
+    index.
+  * `context` {Object} The [contextified][] object as returned by the
+    `vm.createContext()` method, to compile and evaluate this `Module` in.
+
+Creates a new `SyntheticModule` instance.
+
+Objects assigned to the exports of this instance may allow importers of
+the module to access information outside the specified `context`. Use
+`vm.runInContext()` to create objects in a specific context.
+
+### `syntheticModule.setExport(name, value)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} Name of the export to set.
+* `value` {any} The value to set the export to.
+
+This method is used after the module is linked to set the values of exports. If
+it is called before the module is linked, an [`ERR_VM_MODULE_STATUS`][] error
+will be thrown.
+
+```js
+const vm = require('vm');
+
+(async () => {
+  const m = new vm.SyntheticModule(['x'], () => {
+    m.setExport('x', 1);
+  });
+
+  await m.link(() => {});
+  await m.evaluate();
+
+  assert.strictEqual(m.namespace.x, 1);
+})();
+```
+
+## `vm.compileFunction(code\[, params\[, options\]\])`
 <!-- YAML
 added: v10.10.0
 -->
@@ -770,11 +857,10 @@ changes:
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.SourceTextModule}
-    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-      `vm.SourceTextModule` is recommended in order to take advantage of error
-      tracking, and to avoid issues with namespaces that contain `then`
-      function exports.
+    * `module` {vm.Module}
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
@@ -868,11 +954,10 @@ changes:
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.SourceTextModule}
-    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-      `vm.SourceTextModule` is recommended in order to take advantage of error
-      tracking, and to avoid issues with namespaces that contain `then`
-      function exports.
+    * `module` {vm.Module}
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
@@ -946,11 +1031,10 @@ changes:
     This option is part of the experimental API for the `--experimental-modules`
     flag, and should not be considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.SourceTextModule}
-    * Returns: {Module Namespace Object|vm.SourceTextModule} Returning a
-      `vm.SourceTextModule` is recommended in order to take advantage of error
-      tracking, and to avoid issues with namespaces that contain `then`
-      function exports.
+    * `module` {vm.Module}
+    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+      recommended in order to take advantage of error tracking, and to avoid
+      issues with namespaces that contain `then` function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
 `vm.runInThisContext()` compiles `code`, runs it within the context of the
@@ -1068,6 +1152,7 @@ This issue occurs because all contexts share the same microtask and nextTick
 queues.
 
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.html#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
+[`ERR_VM_MODULE_STATUS`]: errors.html#ERR_VM_MODULE_STATUS
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
@@ -1077,12 +1162,14 @@ queues.
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
+[Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
 [Link() concrete method]: https://tc39.es/ecma262/#sec-moduledeclarationlinking
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
+[Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
