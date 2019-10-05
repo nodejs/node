@@ -35,7 +35,7 @@ A description of the function.
 
 ## module.someNewFunction(x)
 <!-- YAML
-added: REPLACEME
+added: v0.10.0
 -->
 
 * `x` {string} The description of the string.
