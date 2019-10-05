@@ -7,6 +7,9 @@ const bootstrapCalls = {};
 const calls = {};
 
 const asyncHook = createHook({ init, before, after, destroy, promiseResolve });
+
+// Bootstrap hooks for modules pipeline will trigger sync with this enable
+// call.
 asyncHook.enable();
 
 function init(asyncId, type, asyncTriggerId, resource, bootstrap) {
