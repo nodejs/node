@@ -4,7 +4,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { SourceTextModule, createContext } = require('vm');
+const { SourceTextModule, SyntheticModule, createContext } = require('vm');
 const util = require('util');
 
 (async function test1() {
@@ -75,15 +75,29 @@ const util = require('util');
   context: { foo: 'bar' }
 }`
   );
+
+  assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
+
   assert.strictEqual(
     m[util.inspect.custom].call(Object.create(null)),
-    `SourceTextModule {
-  status: undefined,
-  identifier: undefined,
-  context: undefined
-}`,
+    'Module { status: undefined, identifier: undefined, context: undefined }',
   );
-  assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
+}
+
+{
+  const context = createContext({ foo: 'bar' });
+  const m = new SyntheticModule([], () => {}, { context });
+
+  assert.strictEqual(
+    util.inspect(m),
+    `SyntheticModule {
+  status: 'unlinked',
+  identifier: 'vm:module(0)',
+  context: { foo: 'bar' }
+}`
+  );
+
+  assert.strictEqual(util.inspect(m, { depth: -1 }), '[SyntheticModule]');
 }
 
 // Check dependencies getter returns same object every time
