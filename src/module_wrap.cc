@@ -97,88 +97,77 @@ ModuleWrap* ModuleWrap::GetFromID(Environment* env, uint32_t id) {
   return module_wrap_it->second;
 }
 
-// new ModuleWrap(source, url)
-// new ModuleWrap(source, url, context?, lineOffset, columnOffset)
-// new ModuleWrap(syntheticExecutionFunction, export_names, url)
+// new ModuleWrap(url, context, source, lineOffset, columnOffset)
+// new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  CHECK_GE(args.Length(), 3);
+
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  CHECK(args.IsConstructCall());
   Local<Object> that = args.This();
 
-  const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK(args[0]->IsString());
+  Local<String> url = args[0].As<String>();
 
   Local<Context> context;
+  if (args[1]->IsUndefined()) {
+    context = that->CreationContext();
+  } else {
+    CHECK(args[1]->IsObject());
+    ContextifyContext* sandbox =
+        ContextifyContext::ContextFromContextifiedSandbox(
+            env, args[1].As<Object>());
+    CHECK_NOT_NULL(sandbox);
+    context = sandbox->context();
+  }
+
   Local<Integer> line_offset;
   Local<Integer> column_offset;
 
-  if (argc == 5) {
-    // new ModuleWrap(source, url, context?, lineOffset, columnOffset)
-    if (args[2]->IsUndefined()) {
-      context = that->CreationContext();
-    } else {
-      CHECK(args[2]->IsObject());
-      ContextifyContext* sandbox =
-          ContextifyContext::ContextFromContextifiedSandbox(
-              env, args[2].As<Object>());
-      CHECK_NOT_NULL(sandbox);
-      context = sandbox->context();
-    }
-
+  bool synthetic = args[2]->IsArray();
+  if (synthetic) {
+    // new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
+    CHECK(args[3]->IsFunction());
+  } else {
+    // new ModuleWrap(url, context, source, lineOffset, columOffset)
+    CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
     line_offset = args[3].As<Integer>();
-
     CHECK(args[4]->IsNumber());
     column_offset = args[4].As<Integer>();
-  } else {
-    // new ModuleWrap(source, url)
-    context = that->CreationContext();
-    line_offset = Integer::New(isolate, 0);
-    column_offset = Integer::New(isolate, 0);
   }
-
-  Local<String> url;
-  Local<Module> module;
 
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
   host_defined_options->Set(isolate, HostDefinedOptions::kType,
                             Number::New(isolate, ScriptType::kModule));
 
-  // new ModuleWrap(syntheticExecutionFunction, export_names, url)
-  bool synthetic = args[0]->IsFunction();
-  if (synthetic) {
-    CHECK(args[1]->IsArray());
-    Local<Array> export_names_arr = args[1].As<Array>();
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+  TryCatchScope try_catch(env);
 
-    uint32_t len = export_names_arr->Length();
-    std::vector<Local<String>> export_names(len);
-    for (uint32_t i = 0; i < len; i++) {
-      Local<Value> export_name_val =
-          export_names_arr->Get(context, i).ToLocalChecked();
-      CHECK(export_name_val->IsString());
-      export_names[i] = export_name_val.As<String>();
-    }
+  Local<Module> module;
 
-    CHECK(args[2]->IsString());
-    url = args[2].As<String>();
+  {
+    Context::Scope context_scope(context);
+    if (synthetic) {
+      CHECK(args[2]->IsArray());
+      Local<Array> export_names_arr = args[2].As<Array>();
 
-    module = Module::CreateSyntheticModule(isolate, url, export_names,
+      uint32_t len = export_names_arr->Length();
+      std::vector<Local<String>> export_names(len);
+      for (uint32_t i = 0; i < len; i++) {
+        Local<Value> export_name_val =
+            export_names_arr->Get(context, i).ToLocalChecked();
+        CHECK(export_name_val->IsString());
+        export_names[i] = export_name_val.As<String>();
+      }
+
+      module = Module::CreateSyntheticModule(isolate, url, export_names,
         SyntheticModuleEvaluationStepsCallback);
-  // Compile
-  } else {
-    CHECK(args[0]->IsString());
-    Local<String> source_text = args[0].As<String>();
-
-    CHECK(args[1]->IsString());
-    url = args[1].As<String>();
-
-    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-    TryCatchScope try_catch(env);
-
-    {
+    } else {
+      Local<String> source_text = args[2].As<String>();
       ScriptOrigin origin(url,
                           line_offset,                      // line offset
                           column_offset,                    // column offset
@@ -189,7 +178,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                           False(isolate),                   // is WASM
                           True(isolate),                    // is ES Module
                           host_defined_options);
-      Context::Scope context_scope(context);
       ScriptCompiler::Source source(source_text, origin);
       if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
@@ -213,7 +201,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   if (synthetic) {
     obj->synthetic_ = true;
     obj->synthetic_evaluation_steps_.Reset(
-        env->isolate(), args[0].As<Function>());
+        env->isolate(), args[3].As<Function>());
   }
 
   obj->context_.Reset(isolate, context);
@@ -1414,7 +1402,7 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
     try_catch.ReThrow();
     return MaybeLocal<Value>();
   }
-  return Undefined(isolate);
+  return ret;
 }
 
 void ModuleWrap::SetSyntheticExport(
