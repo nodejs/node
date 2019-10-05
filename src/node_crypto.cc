@@ -4806,14 +4806,6 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
-  // TODO(tniessen): SHA3_squeeze does not work for zero-length outputs on all
-  // platforms and will cause a segmentation fault if called. This workaround
-  // causes hash.digest() to correctly return an empty buffer / string.
-  // See https://github.com/openssl/openssl/issues/9431.
-  if (!hash->has_md_ && hash->md_len_ == 0) {
-    hash->has_md_ = true;
-  }
-
   if (!hash->has_md_) {
     // Some hash algorithms such as SHA3 do not support calling
     // EVP_DigestFinal_ex more than once, however, Hash._flush
