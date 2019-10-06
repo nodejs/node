@@ -216,7 +216,11 @@ function nextdir() {
     'istanbul-throw.js',
     coverageDirectory
   );
-  assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
+  if (common.isWindows) {
+    assert.deepStrictEqual(sourceMap.lineLengths, [1087, 301, 185, 649, 0]);
+  } else {
+    assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
+  }
 }
 
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
