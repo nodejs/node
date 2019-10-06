@@ -292,3 +292,39 @@ const assert = require('assert');
   }));
   write.uncork();
 }
+
+{
+  // Call end(cb) after error & destroy
+
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(new Error('asd')); }
+  });
+  write.on('error', common.mustCall(() => {
+    write.destroy();
+    let ticked = false;
+    write.end(common.mustCall((err) => {
+      assert.strictEqual(ticked, true);
+      assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    }));
+    ticked = true;
+  }));
+  write.write('asd');
+}
+
+{
+  // Call end(cb) after finish & destroy
+
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+  write.on('finish', common.mustCall(() => {
+    write.destroy();
+    let ticked = false;
+    write.end(common.mustCall((err) => {
+      assert.strictEqual(ticked, false);
+      assert.strictEqual(err.code, 'ERR_STREAM_ALREADY_FINISHED');
+    }));
+    ticked = true;
+  }));
+  write.end();
+}
