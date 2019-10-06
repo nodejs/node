@@ -1171,8 +1171,9 @@ If found, Source Map data is appended to the top-level key `source-map-cache`
 on the JSON coverage object.
 
 `source-map-cache` is an object with keys representing the files source maps
-were extracted from, and the values include the raw source-map URL
-(in the key `url`) and the parsed Source Map V3 information (in the key `data`).
+were extracted from, and values which include the raw source-map URL
+(in the key `url`), the parsed Source Map V3 information (in the key `data`),
+and the line lengths of the source file (in the key `lineLengths`).
 
 ```json
 {
@@ -1198,7 +1199,13 @@ were extracted from, and the values include the raw source-map URL
         ],
         "mappings": "MAAMA,IACJC,YAAaC",
         "sourceRoot": "./"
-      }
+      },
+      "lineLengths": [
+        13,
+        62,
+        38,
+        27
+      ]
     }
   }
 }

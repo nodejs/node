@@ -193,6 +193,36 @@ function nextdir() {
   );
 }
 
+// Does not persist url parameter if source-map has been parsed.
+{
+  const coverageDirectory = nextdir();
+  spawnSync(process.execPath, [
+    require.resolve('../fixtures/source-map/inline-base64.js')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'inline-base64.js',
+    coverageDirectory
+  );
+  assert.strictEqual(sourceMap.url, null);
+}
+
+// Persists line lengths for in-memory representation of source file.
+{
+  const coverageDirectory = nextdir();
+  spawnSync(process.execPath, [
+    require.resolve('../fixtures/source-map/istanbul-throw.js')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'istanbul-throw.js',
+    coverageDirectory
+  );
+  if (common.isWindows) {
+    assert.deepStrictEqual(sourceMap.lineLengths, [1086, 31, 185, 649, 0]);
+  } else {
+    assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
+  }
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
