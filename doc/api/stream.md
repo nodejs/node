@@ -1645,12 +1645,23 @@ parent class constructor:
 const { Writable } = require('stream');
 
 class MyWritable extends Writable {
-  constructor(options) {
-    super(options);
+  constructor({ highWaterMark, ...options }) {
+    super({
+      highWaterMark,
+      autoDestroy: true,
+      emitClose: true
+    });
     // ...
   }
 }
 ```
+
+When extending streams, it is important to keep in mind what options the user
+can and should provide before forwarding these to the base constructor. For
+example, if the implementation makes assumptions in regard to e.g. the
+`autoDestroy` and `emitClose` options, it becomes important to not allow the
+user to override these. It is therefore recommended to be explicit about what
+options are forwarded instead of implicitly forwarding all options.
 
 The new stream class must then implement one or more specific methods, depending
 on the type of stream being created, as detailed in the chart below:
