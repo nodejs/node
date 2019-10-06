@@ -12,7 +12,7 @@ const ModuleMap = require('internal/modules/esm/module_map');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: /^The "url" argument must be of type string/
-  }, 15);
+  }, 12);
 
   const moduleMap = new ModuleMap();
 
@@ -21,7 +21,7 @@ const ModuleMap = require('internal/modules/esm/module_map');
   // but I think it's useless, and was not simple to mock...
   const job = undefined;
 
-  [{}, [], true, 1, () => {}].forEach((value) => {
+  [{}, [], true, 1].forEach((value) => {
     assert.throws(() => moduleMap.get(value), errorReg);
     assert.throws(() => moduleMap.has(value), errorReg);
     assert.throws(() => moduleMap.set(value, job), errorReg);
@@ -34,11 +34,11 @@ const ModuleMap = require('internal/modules/esm/module_map');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: /^The "job" argument must be of type ModuleJob/
-  }, 5);
+  }, 4);
 
   const moduleMap = new ModuleMap();
 
-  [{}, [], true, 1, () => {}].forEach((value) => {
+  [{}, [], true, 1].forEach((value) => {
     assert.throws(() => moduleMap.set('', value), errorReg);
   });
 }
