@@ -116,7 +116,10 @@ class WorkerThreadData {
     : w_(w) {
     CHECK_EQ(uv_loop_init(&loop_), 0);
 
-    Isolate* isolate = NewIsolate(w->array_buffer_allocator_.get(), &loop_);
+    Isolate* isolate = NewIsolate(
+        w->array_buffer_allocator_.get(),
+        &loop_,
+        w->platform_);
     CHECK_NOT_NULL(isolate);
 
     {
