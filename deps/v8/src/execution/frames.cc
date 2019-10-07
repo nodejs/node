@@ -1136,11 +1136,11 @@ void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code code = LookupCode();
   int offset = static_cast<int>(pc() - code.InstructionStart());
-  AbstractCode abstract_code = AbstractCode::cast(code);
+  Handle<AbstractCode> abstract_code(AbstractCode::cast(code), isolate());
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), abstract_code, offset, IsConstructor(),
-      *params);
+      isolate(), receiver(), function(), *abstract_code, offset,
+      IsConstructor(), *params);
   functions->push_back(summary);
 }
 
@@ -1813,10 +1813,11 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  AbstractCode abstract_code = AbstractCode::cast(GetBytecodeArray());
+  Handle<AbstractCode> abstract_code(AbstractCode::cast(GetBytecodeArray()),
+                                     isolate());
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
+      isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
       IsConstructor(), *params);
   functions->push_back(summary);
 }
