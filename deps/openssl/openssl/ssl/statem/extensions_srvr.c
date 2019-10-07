@@ -1298,6 +1298,24 @@ int tls_parse_ctos_post_handshake_auth(SSL *s, PACKET *pkt, unsigned int context
     return 1;
 }
 
+/* SAME AS tls_parse_stoc_quic_transport_params() */
+int tls_parse_ctos_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
+                                         X509 *x, size_t chainidx)
+{
+    OPENSSL_free(s->ext.peer_quic_transport_params);
+    s->ext.peer_quic_transport_params = NULL;
+    s->ext.peer_quic_transport_params_len = 0;
+
+    if (!PACKET_memdup(pkt,
+                       &s->ext.peer_quic_transport_params,
+                       &s->ext.peer_quic_transport_params_len)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
+                 SSL_F_TLS_PARSE_CTOS_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+    return 1;
+}
+
 /*
  * Add the server's renegotiation binding
  */
@@ -1961,3 +1979,26 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
 
     return EXT_RETURN_SENT;
 }
+
+#ifndef OPENSSL_NO_QUIC
+/* SAME AS tls_construct_ctos_quic_transport_params() */
+EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
+                                                    unsigned int context, X509 *x,
+                                                    size_t chainidx)
+{
+    if (s->ext.quic_transport_params == NULL
+        || s->ext.quic_transport_params_len == 0) {
+        return EXT_RETURN_NOT_SENT;
+    }
+
+    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
+        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
+                                   s->ext.quic_transport_params_len)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
+                 SSL_F_TLS_CONSTRUCT_STOC_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
+        return EXT_RETURN_FAIL;
+    }
+
+    return EXT_RETURN_SENT;
+}
+#endif

@@ -56,6 +56,8 @@ static int final_sig_algs(SSL *s, unsigned int context, int sent);
 static int final_early_data(SSL *s, unsigned int context, int sent);
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
 static int init_post_handshake_auth(SSL *s, unsigned int context);
+static int init_quic_transport_params(SSL *s, unsigned int context);
+static int final_quic_transport_params(SSL *s, unsigned int context, int sent);
 
 /* Structure to define a built-in extension */
 typedef struct extensions_definition_st {
@@ -372,6 +374,15 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_parse_certificate_authorities, tls_parse_certificate_authorities,
         tls_construct_certificate_authorities,
         tls_construct_certificate_authorities, NULL,
+    },
+    {
+        TLSEXT_TYPE_quic_transport_parameters,
+        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
+        | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
+        init_quic_transport_params,
+        tls_parse_ctos_quic_transport_params, tls_parse_stoc_quic_transport_params,
+        tls_construct_stoc_quic_transport_params, tls_construct_ctos_quic_transport_params,
+        final_quic_transport_params,
     },
     {
         /* Must be immediately before pre_shared_key */
@@ -1701,3 +1712,15 @@ static int init_post_handshake_auth(SSL *s, unsigned int context)
 
     return 1;
 }
+
+#ifndef OPENSSL_NO_QUIC
+static int init_quic_transport_params(SSL *s, unsigned int context)
+{
+    return 1;
+}
+
+static int final_quic_transport_params(SSL *s, unsigned int context, int sent)
+{
+    return 1;
+}
+#endif
