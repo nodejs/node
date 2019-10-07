@@ -24,12 +24,10 @@ expect('', packageWithoutTypeMain, 'package-without-type');
 expect('--input-type=module', packageTypeModuleMain,
        'ERR_INPUT_TYPE_NOT_ALLOWED', true);
 
-try {
+// Verify CommonJS load is attempted but fails on ES module syntax
+assert.throws(() => {
   require('../fixtures/es-modules/package-type-module/index.js');
-} catch (e) {
-  // Verify CommonJS load is attempted but fails on ES module syntax
-  assert(e instanceof SyntaxError);
-}
+}, SyntaxError);
 
 function expect(opt = '', inputFile, want, wantsError = false) {
   // TODO: Remove when --experimental-modules is unflagged
