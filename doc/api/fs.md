@@ -434,6 +434,14 @@ added: v0.5.8
 Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 `fs.FSWatcher` object is no longer usable.
 
+### watcher.start()
+<!-- YAML
+added: v0.5.8
+-->
+
+Start watching for changes on the given `fs.FSWatcher`.  If a watcher has
+already been started, this operation will be a noop.
+
 ## Class: fs.ReadStream
 <!-- YAML
 added: v0.1.93
