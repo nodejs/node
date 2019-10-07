@@ -25,7 +25,7 @@ fs.promises.open(fname, 'r').then(common.mustCall((fileHandle) => {
     });
   });
   server.on('close', common.mustCall(() => fileHandle.close()));
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
 
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
@@ -43,5 +43,5 @@ fs.promises.open(fname, 'r').then(common.mustCall((fileHandle) => {
       server.close();
     }));
     req.end();
-  });
+  }));
 }));
