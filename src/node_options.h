@@ -240,6 +240,7 @@ class PerProcessOptions : public Options {
 
 #ifdef NODE_REPORT
   std::vector<std::string> cmdline;
+  bool report_on_fatalerror = false;
 #endif  //  NODE_REPORT
 
   inline PerIsolateOptions* get_per_isolate_options();

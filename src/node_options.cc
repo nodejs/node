@@ -698,6 +698,15 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "print V8 command line options",
             &PerProcessOptions::print_v8_help);
 
+#ifdef NODE_REPORT
+
+AddOption("--report-on-fatalerror",
+            "generate diagnostic report on fatal (internal) errors",
+            &PerProcessOptions::report_on_fatalerror,
+            kAllowedInEnvironment);
+            
+#endif  // NODE_REPORT
+
 #ifdef NODE_HAVE_I18N_SUPPORT
   AddOption("--icu-data-dir",
             "set ICU data load path to dir (overrides NODE_ICU_DATA)"

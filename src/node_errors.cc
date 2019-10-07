@@ -456,7 +456,7 @@ void OnFatalError(const char* location, const char* message) {
 #ifdef NODE_REPORT
   Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(isolate);
-  if (env == nullptr || env->isolate_data()->options()->report_on_fatalerror) {
+  if (per_process::cli_options->report_on_fatalerror) {
     report::TriggerNodeReport(
         isolate, env, message, "FatalError", "", Local<String>());
   }
