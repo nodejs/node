@@ -36,7 +36,6 @@ server.listen(0, '127.0.0.1', common.mustCall(() => {
     client.close();
     req.close();
     server.close();
-    process.exit();
   }));
   req.end();
 }));
