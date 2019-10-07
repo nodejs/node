@@ -1440,7 +1440,7 @@ server.on('stream', (stream) => {
 added: v8.4.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/????
+    pr-url: https://github.com/nodejs/node/pull/29876
     description: The `fd` option may now be a `FileHandle`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18936
