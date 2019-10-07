@@ -287,7 +287,7 @@ enum http_known_headers {
   V(UNPROCESSABLE_ENTITY, 422)                                                \
   V(LOCKED, 423)                                                              \
   V(FAILED_DEPENDENCY, 424)                                                   \
-  V(UNORDERED_COLLECTION, 425)                                                \
+  V(TOO_EARLY, 425)                                                           \
   V(UPGRADE_REQUIRED, 426)                                                    \
   V(PRECONDITION_REQUIRED, 428)                                               \
   V(TOO_MANY_REQUESTS, 429)                                                   \
