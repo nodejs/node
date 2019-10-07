@@ -456,7 +456,7 @@ Workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
 accidental disconnection.
 
-### worker.send(message\[, sendHandle\]\[, callback\])
+### worker.send(message\[, sendHandle\[, options\]\]\[, callback\])
 <!-- YAML
 added: v0.7.0
 changes:
@@ -467,6 +467,12 @@ changes:
 
 * `message` {Object}
 * `sendHandle` {Handle}
+* `options` {Object} The `options` argument, if present, is an object used to
+  parameterize the sending of certain types of handles. `options` supports
+  the following properties:
+  * `keepOpen` {boolean} A value that can be used when passing instances of
+    `net.Socket`. When `true`, the socket is kept open in the sending process.
+    **Default:** `false`.
 * `callback` {Function}
 * Returns: {boolean}
 
