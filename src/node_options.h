@@ -190,7 +190,6 @@ class PerIsolateOptions : public Options {
 #ifdef NODE_REPORT
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
-  bool report_on_fatalerror = false;
   std::string report_signal;
   std::string report_filename;
   std::string report_directory;

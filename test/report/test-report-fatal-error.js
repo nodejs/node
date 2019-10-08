@@ -21,18 +21,27 @@ if (process.argv[2] === 'child') {
   const helper = require('../common/report.js');
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
-  const spawn = require('child_process').spawn;
-  const args = ['--experimental-report',
-                '--report-on-fatalerror',
-                '--max-old-space-size=20',
-                __filename,
-                'child'];
-  const child = spawn(process.execPath, args, { cwd: tmpdir.path });
-  child.on('exit', common.mustCall((code) => {
-    assert.notStrictEqual(code, 0, 'Process exited unexpectedly');
-    const reports = helper.findReports(child.pid, tmpdir.path);
-    assert.strictEqual(reports.length, 1);
-    const report = reports[0];
-    helper.validate(report);
-  }));
+  const spawnSync = require('child_process').spawnSync;
+  let args = ['--experimental-report',
+              '--report-on-fatalerror',
+              '--max-old-space-size=20',
+              __filename,
+              'child'];
+
+  let child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
+
+  assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');
+  let reports = helper.findReports(child.pid, tmpdir.path);
+  assert.strictEqual(reports.length, 1);
+  const report = reports[0];
+  helper.validate(report);
+
+  args = ['--max-old-space-size=20',
+          __filename,
+          'child'];
+
+  child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
+  assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');
+  reports = helper.findReports(child.pid, tmpdir.path);
+  assert.strictEqual(reports.length, 0);
 }

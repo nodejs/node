@@ -70,6 +70,15 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
       use_largepages != "silent") {
     errors->push_back("invalid value for --use-largepages");
   }
+
+// #ifdef NODE_REPORT
+//   if (report_on_fatalerror) {
+//     errors->push_back(
+//         "--report-on-fatalerror option is valid only when "
+//         "--experimental-report is set");
+//   }
+// #endif  // NODE_REPORT
+
   per_isolate->CheckOptions(errors);
 }
 
@@ -98,12 +107,6 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   if (!report_signal.empty()) {
     errors->push_back("--report-signal option is valid only when "
                       "--experimental-report is set");
-  }
-
-  if (report_on_fatalerror) {
-    errors->push_back(
-        "--report-on-fatalerror option is valid only when "
-        "--experimental-report is set");
   }
 
   if (report_on_signal) {
@@ -622,10 +625,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "generate diagnostic report upon receiving signals",
             &PerIsolateOptions::report_on_signal,
             kAllowedInEnvironment);
-  AddOption("--report-on-fatalerror",
-            "generate diagnostic report on fatal (internal) errors",
-            &PerIsolateOptions::report_on_fatalerror,
-            kAllowedInEnvironment);
   AddOption("--report-signal",
             "causes diagnostic report to be produced on provided signal,"
             " unsupported in Windows. (default: SIGUSR2)",
@@ -699,12 +698,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::print_v8_help);
 
 #ifdef NODE_REPORT
-
 AddOption("--report-on-fatalerror",
             "generate diagnostic report on fatal (internal) errors",
             &PerProcessOptions::report_on_fatalerror,
-            kAllowedInEnvironment);
-            
+            kAllowedInEnvironment);            
 #endif  // NODE_REPORT
 
 #ifdef NODE_HAVE_I18N_SUPPORT
