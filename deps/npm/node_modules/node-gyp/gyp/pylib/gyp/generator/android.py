@@ -550,7 +550,7 @@ class AndroidMkWriter(object):
     # to work properly. If the file has the wrong C++ extension, then we add
     # a rule to copy that to intermediates and use the new version.
     final_generated_sources = []
-    # If a source file gets copied, we still need to add the orginal source
+    # If a source file gets copied, we still need to add the original source
     # directory as header search path, for GCC searches headers in the
     # directory that contains the source file by default.
     origin_src_dirs = []

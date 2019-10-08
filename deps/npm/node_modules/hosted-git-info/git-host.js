@@ -9,8 +9,8 @@ var extend = Object.assign || function _extend (target, source) {
   // Don't do anything if source isn't an object
   if (source === null || typeof source !== 'object') return target
 
-  const keys = Object.keys(source)
-  let i = keys.length
+  var keys = Object.keys(source)
+  var i = keys.length
   while (i--) {
     target[keys[i]] = source[keys[i]]
   }

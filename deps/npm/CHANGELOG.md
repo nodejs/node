@@ -1,3 +1,68 @@
+## 6.12.0 (2019-10-08):
+
+Now `npm ci` runs prepare scripts for git dependencies, and respects the
+`--no-optional` argument.  Warnings for `engine` mismatches are printed
+again.  Various other fixes and cleanups.
+
+### BUG FIXES
+
+* [`890b245dc`](https://github.com/npm/cli/commit/890b245dc1f609590d8ab993fac7cf5a37ed46a5)
+  [#252](https://github.com/npm/cli/pull/252) ci: add dirPacker to options
+  ([@claudiahdz](https://github.com/claudiahdz))
+* [`f3299acd0`](https://github.com/npm/cli/commit/f3299acd0b4249500e940776aca77cc6c0977263)
+  [#257](https://github.com/npm/cli/pull/257)
+  [npm.community#4792](https://npm.community/t/engines-and-engines-strict-ignored/4792)
+  warn message on engine mismatch
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`bbc92fb8f`](https://github.com/npm/cli/commit/bbc92fb8f3478ff67071ebaff551f01c1ea42ced)
+  [#259](https://github.com/npm/cli/pull/259)
+  [npm.community#10288](https://npm.community/t/npm-token-err-figgypudding-options-cannot-be-modified-use-concat-instead/10288)
+  Fix figgyPudding error in `npm token`
+  ([@benblank](https://github.com/benblank))
+* [`70f54dcb5`](https://github.com/npm/cli/commit/70f54dcb5693b301c6b357922b7e8d16b57d8b00)
+  [#241](https://github.com/npm/cli/pull/241) doctor: Make OK more
+  consistent ([@gemal](https://github.com/gemal))
+
+### FEATURES
+
+* [`ed993a29c`](https://github.com/npm/cli/commit/ed993a29ccf923425317c433844d55dbea2f23ee)
+  [#249](https://github.com/npm/cli/pull/249) Add CI environment variables
+  to user-agent ([@isaacs](https://github.com/isaacs))
+* [`f6b0459a4`](https://github.com/npm/cli/commit/f6b0459a466a2c663dbd549cdc331e7732552dca)
+  [#248](https://github.com/npm/cli/pull/248) Add option to save
+  package-lock without formatting Adds a new config
+  `--format-package-lock`, which defaults to true.
+  ([@bl00mber](https://github.com/bl00mber))
+
+### DEPENDENCIES
+
+* [`0ca063c5d`](https://github.com/npm/cli/commit/0ca063c5dc961c4aa17373f4b33fb54c51c8c8d6)
+  `npm-lifecycle@3.1.4`:
+  - fix: filter functions and undefined out of makeEnv
+    ([@isaacs](https://github.com/isaacs))
+* [`5df6b0ea2`](https://github.com/npm/cli/commit/5df6b0ea2e3106ba65bba649cc8d7f02f4738236)
+  `libcipm@4.0.4`:
+  - fix: pack git directories properly
+    ([@claudiahdz](https://github.com/claudiahdz))
+  - respect no-optional argument
+    ([@cruzdanilo](https://github.com/cruzdanilo))
+* [`7e04f728c`](https://github.com/npm/cli/commit/7e04f728cc4cd4853a8fc99e2df0a12988897589)
+  `tar@4.4.12`
+* [`5c380e5a3`](https://github.com/npm/cli/commit/5c380e5a33d760bb66a4285b032ae5f50af27199)
+  `stringify-package@1.0.1` ([@isaacs](https://github.com/isaacs))
+* [`62f2ca692`](https://github.com/npm/cli/commit/62f2ca692ac0c0467ef4cf74f91777a5175258c4)
+  `node-gyp@5.0.5` ([@isaacs](https://github.com/isaacs))
+* [`0ff0ea47a`](https://github.com/npm/cli/commit/0ff0ea47a8840dd7d952bde7f7983a5016cda8ea)
+  `npm-install-checks@3.0.2` ([@isaacs](https://github.com/isaacs))
+* [`f46edae94`](https://github.com/npm/cli/commit/f46edae9450b707650a0efab09aa1e9295a18070)
+  `hosted-git-info@2.8.5` ([@isaacs](https://github.com/isaacs))
+
+### TESTING
+
+* [`44a2b036b`](https://github.com/npm/cli/commit/44a2b036b34324ec85943908264b2e36de5a9435)
+  [#262](https://github.com/npm/cli/pull/262) fix root-ownership race
+  conditions in meta-test ([@isaacs](https://github.com/isaacs))
+
 ## 6.11.3 (2019-09-03):
 
 Fix npm ci regressions and npm outdated depth.

@@ -665,7 +665,7 @@ function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
 
   log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-  return isInstallable(pkg, (err) => {
+  return isInstallable(tree, pkg, (err) => {
     let installable = !err
     addBundled(pkg, (bundleErr) => {
       var parent = earliestInstallable(tree, tree, pkg, log) || tree
