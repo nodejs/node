@@ -52,7 +52,7 @@ NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
-BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_INTL_FLAGS ?= --with-intl=full-icu
 BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
 # Default to quiet/pretty builds.
