@@ -1648,7 +1648,7 @@ class MyWritable extends Writable {
   constructor({ highWaterMark, ...options }) {
     super({
       highWaterMark,
-      autoDestroy: false,
+      autoDestroy: true,
       emitClose: true
     });
     // ...
