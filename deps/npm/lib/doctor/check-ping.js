@@ -8,7 +8,7 @@ function checkPing (cb) {
     if (err && err.code && err.code.match(/^E\d{3}$/)) {
       return cb(null, [err.code.substr(1)])
     } else {
-      cb(null, [200, 'OK'])
+      cb(null, [200, 'ok'])
     }
   })
 }

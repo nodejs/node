@@ -60,29 +60,31 @@ const find = require('which').sync('find')
 require('tap').teardown(() => {
   // work around windows folder locking
   process.chdir(returnCwd)
-  try {
-    if (isSudo) {
-      // running tests as sudo.  ensure we didn't leave any root-owned
-      // files in the cache by mistake.
-      const args = [ commonCache, '-uid', '0' ]
-      const found = spawnSync(find, args)
-      const output = found && found.stdout && found.stdout.toString()
-      if (output.length) {
-        const er = new Error('Root-owned files left in cache!')
-        er.testName = main
-        er.files = output.trim().split('\n')
-        throw er
+  process.on('exit', () => {
+    try {
+      if (isSudo) {
+        // running tests as sudo.  ensure we didn't leave any root-owned
+        // files in the cache by mistake.
+        const args = [ commonCache, '-uid', '0' ]
+        const found = spawnSync(find, args)
+        const output = found && found.stdout && found.stdout.toString()
+        if (output.length) {
+          const er = new Error('Root-owned files left in cache!')
+          er.testName = main
+          er.files = output.trim().split('\n')
+          throw er
+        }
+      }
+      if (!process.env.NO_TEST_CLEANUP) {
+        rimraf.sync(exports.pkg)
+        rimraf.sync(commonCache)
+      }
+    } catch (e) {
+      if (process.platform !== 'win32') {
+        throw e
       }
     }
-    if (!process.env.NO_TEST_CLEANUP) {
-      rimraf.sync(exports.pkg)
-      rimraf.sync(commonCache)
-    }
-  } catch (e) {
-    if (process.platform !== 'win32') {
-      throw e
-    }
-  }
+  })
 })
 
 var port = exports.port = 15443 + testId

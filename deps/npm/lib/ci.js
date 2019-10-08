@@ -4,6 +4,7 @@ const npm = require('./npm.js')
 const Installer = require('libcipm')
 const log = require('npmlog')
 const path = require('path')
+const pack = require('./pack.js')
 
 ci.usage = 'npm ci'
 
@@ -27,7 +28,8 @@ function ci (args, cb) {
     fmode: npm.modes.file,
     umask: npm.modes.umask,
     npmVersion: npm.version,
-    tmp: npm.tmp
+    tmp: npm.tmp,
+    dirPacker: pack.packGitDep
   }
 
   for (const key in npm.config.list[0]) {

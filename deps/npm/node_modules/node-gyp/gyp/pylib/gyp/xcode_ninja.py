@@ -85,7 +85,7 @@ def _TargetFromSpec(old_spec, params):
         "%s/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" % ninja_toplevel
 
   if 'configurations' in old_spec:
-    for config in old_spec['configurations'].iterkeys():
+    for config in old_spec['configurations']:
       old_xcode_settings = \
         old_spec['configurations'][config].get('xcode_settings', {})
       if 'IPHONEOS_DEPLOYMENT_TARGET' in old_xcode_settings:

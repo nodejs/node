@@ -296,6 +296,34 @@ test('VS2017 Community with C++ workload', function (t) {
   finder.findVisualStudio()
 })
 
+test('VS2017 Express', function (t) {
+  t.plan(2)
+
+  const finder = new TestVisualStudioFinder(semverV1, null, (err, info) => {
+    t.strictEqual(err, null)
+    t.deepEqual(info, {
+      msBuild: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\' +
+        'WDExpress\\MSBuild\\15.0\\Bin\\MSBuild.exe',
+      path:
+        'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\WDExpress',
+      sdk: '10.0.17763.0',
+      toolset: 'v141',
+      version: '15.9.28307.858',
+      versionMajor: 15,
+      versionMinor: 9,
+      versionYear: 2017
+    })
+  })
+
+  poison(finder, 'regSearchKeys')
+  finder.findVisualStudio2017OrNewer = (cb) => {
+    const file = path.join(__dirname, 'fixtures', 'VS_2017_Express.txt')
+    const data = fs.readFileSync(file)
+    finder.parseData(null, data, '', cb)
+  }
+  finder.findVisualStudio()
+})
+
 test('VS2019 Preview with C++ workload', function (t) {
   t.plan(2)
 
@@ -392,13 +420,15 @@ function allVsVersions (t, finder) {
     const data2 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures',
       'VS_2017_Community_workload.txt')))
     const data3 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures',
-      'VS_2019_Preview.txt')))
+      'VS_2017_Express.txt')))
     const data4 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures',
-      'VS_2019_BuildTools_minimal.txt')))
+      'VS_2019_Preview.txt')))
     const data5 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures',
+      'VS_2019_BuildTools_minimal.txt')))
+    const data6 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures',
       'VS_2019_Community_workload.txt')))
     const data = JSON.stringify(data0.concat(data1, data2, data3, data4,
-      data5))
+      data5, data6))
     finder.parseData(null, data, '', cb)
   }
   finder.regSearchKeys = (keys, value, addOpts, cb) => {

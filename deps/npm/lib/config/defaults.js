@@ -141,6 +141,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     editor: osenv.editor(),
     'engine-strict': false,
     force: false,
+    'format-package-lock': true,
 
     'fetch-retries': 2,
     'fetch-retry-factor': 10,
@@ -201,7 +202,8 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'user-agent': 'npm/{npm-version} ' +
                     'node/{node-version} ' +
                     '{platform} ' +
-                    '{arch}',
+                    '{arch} ' +
+                    '{ci}',
     'read-only': false,
     'rebuild-bundle': true,
     registry: 'https://registry.npmjs.org/',
@@ -282,6 +284,7 @@ exports.types = {
   editor: String,
   'engine-strict': Boolean,
   force: Boolean,
+  'format-package-lock': Boolean,
   'fetch-retries': Number,
   'fetch-retry-factor': Number,
   'fetch-retry-mintimeout': Number,

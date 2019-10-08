@@ -265,7 +265,7 @@ def MergeAttributes(node1, node2):
       if value1 != value2:
         node1.setAttribute(name, ';'.join([value1, value2]))
     else:
-      # The attribute does nto exist in the main node. We append this one.
+      # The attribute does not exist in the main node. We append this one.
       node1.setAttribute(name, value2)
 
     # If the attribute was a property sheet attributes, we remove it, since

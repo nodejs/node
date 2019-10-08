@@ -279,15 +279,22 @@ VisualStudioFinder.prototype = {
   // Helper - process toolset information
   getToolset: function getToolset (info, versionYear) {
     const pkg = 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    const express = 'Microsoft.VisualStudio.WDExpress'
+
     if (info.packages.indexOf(pkg) !== -1) {
       this.log.silly('- found VC.Tools.x86.x64')
-      if (versionYear === 2017) {
-        return 'v141'
-      }
-      if (versionYear === 2019) {
-        return 'v142'
-      }
+    } else if (info.packages.indexOf(express) !== -1) {
+      this.log.silly('- found Visual Studio Express (looking for toolset)')
+    } else {
+      return null
     }
+
+    if (versionYear === 2017) {
+      return 'v141'
+    } else if (versionYear === 2019) {
+      return 'v142'
+    }
+    this.log.silly('- invalid versionYear:', versionYear)
     return null
   },
 

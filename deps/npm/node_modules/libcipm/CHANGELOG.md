@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.4"></a>
+## [4.0.4](https://github.com/npm/libcipm/compare/v4.0.3...v4.0.4) (2019-09-24)
+
+
+### Bug Fixes
+
+* pack git directories properly ([576ab36](https://github.com/npm/libcipm/commit/576ab36)), closes [#4](https://github.com/npm/libcipm/issues/4)
+
+
+
 <a name="4.0.3"></a>
 ## [4.0.3](https://github.com/npm/libcipm/compare/v4.0.2...v4.0.3) (2019-08-12)
 

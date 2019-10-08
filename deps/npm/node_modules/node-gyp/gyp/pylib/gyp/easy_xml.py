@@ -120,7 +120,7 @@ def WriteXmlIfChanged(content, path, encoding='utf-8', pretty=False,
 
   default_encoding = locale.getdefaultlocale()[1]
   if default_encoding.upper() != encoding.upper():
-    xml_string = xml_string.decode(default_encoding).encode(encoding)
+    xml_string = xml_string.encode(encoding)
 
   # Get the old content
   try:
@@ -132,7 +132,7 @@ def WriteXmlIfChanged(content, path, encoding='utf-8', pretty=False,
 
   # It has changed, write it
   if existing != xml_string:
-    f = open(path, 'w')
+    f = open(path, 'wb')
     f.write(xml_string)
     f.close()
 

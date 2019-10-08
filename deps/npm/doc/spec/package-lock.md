@@ -75,6 +75,24 @@ this resource.
   URL.  If the tarball URL isn't on the same server as the registry URL then
   this is a complete URL.
 
+  eg, Given a `package-lock.json` file containing:
+
+  ```
+  "resolved": "https://registry.npmjs.org/example/-/example-1.0.0.tgz"
+  ```
+
+  and a registry source configuring a custom value:
+
+  ```
+  npm install --registry https://registry.example.com
+  ```
+
+  the package will be fetched from the custom-defined registry:
+
+  ```
+  https://registry.example.com/example/-/example-1.0.0.tgz
+  ```
+
 #### link *(new)*
 
 If this module was symlinked in development but had semver in the

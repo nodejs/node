@@ -387,6 +387,13 @@ Makes various commands more forceful.
 * skips cache when requesting from the registry.
 * prevents checks against clobbering non-npm files.
 
+### format-package-lock
+
+* Default: true
+* Type: Boolean
+
+Format `package-lock.json` or `npm-shrinkwrap.json` as a human readable file.
+
 ### fetch-retries
 
 * Default: 2

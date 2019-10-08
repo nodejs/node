@@ -458,11 +458,16 @@ function makeEnv (data, opts, prefix, env) {
       return
     }
     var value = opts.config[i]
-    if (value instanceof Stream || Array.isArray(value)) return
+    if (value instanceof Stream || Array.isArray(value) || typeof value === 'function') return
     if (i.match(/umask/)) value = umask.toString(value)
+
     if (!value) value = ''
     else if (typeof value === 'number') value = '' + value
     else if (typeof value !== 'string') value = JSON.stringify(value)
+
+    if (typeof value !== 'string') {
+      return
+    }
 
     value = value.indexOf('\n') !== -1
       ? JSON.stringify(value)
