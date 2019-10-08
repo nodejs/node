@@ -21,6 +21,12 @@ fs.readFile(loc, common.mustCall((err, data) => {
   fileData = data;
 
   const server = http2.createServer();
+  let client;
+
+  const countdown = new Countdown(3, () => {
+    server.close();
+    client.close();
+  });
 
   server.on('stream', common.mustCall((stream) => {
     let data = Buffer.alloc(0);
@@ -28,17 +34,16 @@ fs.readFile(loc, common.mustCall((err, data) => {
     stream.on('end', common.mustCall(() => {
       assert.deepStrictEqual(data, fileData);
     }));
+    // Waiting on close avoids spurious ECONNRESET seen in windows CI.
+    // Not sure if this is actually a bug; more details at
+    // https://github.com/nodejs/node/issues/20750#issuecomment-511015247
+    stream.on('close', () => countdown.dec());
     stream.respond();
     stream.end();
   }));
 
   server.listen(0, common.mustCall(() => {
-    const client = http2.connect(`http://localhost:${server.address().port}`);
-
-    const countdown = new Countdown(2, () => {
-      server.close();
-      client.close();
-    });
+    client = http2.connect(`http://localhost:${server.address().port}`);
 
     const req = client.request({ ':method': 'POST' });
     req.on('response', common.mustCall());
