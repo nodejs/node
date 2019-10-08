@@ -293,8 +293,6 @@ A class representing a directory stream.
 
 Created by [`fs.opendir()`][], [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
 
-Example using async interation:
-
 ```js
 const fs = require('fs');
 
@@ -356,13 +354,13 @@ Subsequent reads will result in errors.
 added: REPLACEME
 -->
 
-* Returns: {Promise} containing {fs.Dirent}
+* Returns: {Promise} containing {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 [`fs.Dirent`][].
 
-A `Promise` is returned that will be resolved with a [Dirent][] after the read
-is completed.
+After the read is completed, a `Promise` is returned that will be resolved with
+an [`fs.Dirent`][], or `null` if there are no more directory entries to read.
 
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
@@ -374,12 +372,13 @@ added: REPLACEME
 
 * `callback` {Function}
   * `err` {Error}
-  * `dirent` {fs.Dirent}
+  * `dirent` {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 [`fs.Dirent`][].
 
-The `callback` will be called with a [Dirent][] after the read is completed.
+After the read is completed, the `callback` will be called with an
+[`fs.Dirent`][], or `null` if there are no more directory entries to read.
 
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
@@ -389,10 +388,12 @@ provided by the operating system's underlying directory mechanisms._
 added: REPLACEME
 -->
 
-* Returns: {fs.Dirent}
+* Returns: {fs.Dirent|null}
 
 Synchronously read the next directory entry via readdir(3) as an
 [`fs.Dirent`][].
+
+If there are no more directory entries to read, `null` will be returned.
 
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
@@ -402,7 +403,15 @@ provided by the operating system's underlying directory mechanisms._
 added: REPLACEME
 -->
 
-* Returns: {AsyncIterator} to fully iterate over all entries in the directory.
+* Returns: {AsyncIterator} of {fs.Dirent}
+
+Asynchronously iterates over the directory via readdir(3) until all entries have
+been read.
+
+Entries returned by the async iterator are always an [`fs.Dirent`][].
+The `null` case from `dir.read()` is handled internally.
+
+See [`fs.Dir`][] for an example.
 
 _Directory entries returned by this iterator are in no particular order as
 provided by the operating system's underlying directory mechanisms._
@@ -4825,7 +4834,7 @@ and cleaning up the directory.
 The `encoding` option sets the encoding for the `path` while opening the
 directory and subsequent read operations.
 
-Example using async interation:
+Example using async iteration:
 
 ```js
 const fs = require('fs');
