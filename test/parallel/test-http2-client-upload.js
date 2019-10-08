@@ -34,7 +34,7 @@ fs.readFile(loc, common.mustCall((err, data) => {
     stream.on('end', common.mustCall(() => {
       assert.deepStrictEqual(data, fileData);
     }));
-    // Waiting on close avoids sprious ECONNRESET seen in windows CI.
+    // Waiting on close avoids spurious ECONNRESET seen in windows CI.
     // Not sure if this is actually a bug; more details at
     // https://github.com/nodejs/node/issues/20750#issuecomment-511015247
     stream.on('close', () => countdown.dec());
