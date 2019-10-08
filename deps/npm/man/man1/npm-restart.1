@@ -1,14 +1,14 @@
-.TH "NPM\-RESTART" "1" "September 2019" "" ""
+.TH "NPM\-RESTART" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-restart\fR \- Restart a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm restart [\-\- <args>]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This restarts a package\.
 .P
@@ -35,19 +35,19 @@ poststart
 postrestart
 
 .RE
-.SH NOTE
+.SS Note
 .P
 Note that the "restart" script is run \fBin addition to\fR the "stop"
 and "start" scripts, not instead of them\.
 .P
 This is the behavior as of \fBnpm\fP major version 2\.  A change in this
 behavior will be accompanied by an increase in major version number
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help run\-script
 .IP \(bu 2
-npm help 7 scripts
+npm help scripts
 .IP \(bu 2
 npm help test
 .IP \(bu 2
@@ -55,7 +55,6 @@ npm help start
 .IP \(bu 2
 npm help stop
 .IP \(bu 2
-npm apihelp restart
+npm help restart
 
 .RE
-

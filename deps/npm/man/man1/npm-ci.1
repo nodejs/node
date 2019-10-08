@@ -1,14 +1,14 @@
-.TH "NPM\-CI" "1" "September 2019" "" ""
+.TH "NPM\-CI" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-ci\fR \- Install a project with a clean slate
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm ci
 .fi
 .RE
-.SH EXAMPLE
+.SS Example
 .P
 Make sure you have a package\-lock and an up\-to\-date install:
 .P
@@ -43,9 +43,9 @@ cache:
   \- "$HOME/\.npm"
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
-This command is similar to npm help \fBnpm\-install\fP, except it's meant to be used in
+This command is similar to npm help \fBinstall\fP, except it's meant to be used in
 automated environments such as test platforms, continuous integration, and
 deployment \-\- or any situation where you want to make sure you're doing a clean
 install of your dependencies\. It can be significantly faster than a regular npm
@@ -67,11 +67,11 @@ If a \fBnode_modules\fP is already present, it will be automatically removed bef
 It will never write to \fBpackage\.json\fP or any of the package\-locks: installs are essentially frozen\.
 
 .RE
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help install
 .IP \(bu 2
-npm help 5 package\-locks
+npm help package\-locks
 
 .RE

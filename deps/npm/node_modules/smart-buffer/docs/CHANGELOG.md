@@ -1,4 +1,9 @@
 # Change Log
+## 4.1.0
+> Released 07/24/2019
+* Adds int64 support for node v12+
+* Drops support for node v4
+
 ## 4.0
 > Released 10/21/2017
 * Major breaking changes arriving in v4.

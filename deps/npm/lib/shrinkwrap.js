@@ -282,11 +282,15 @@ function checkPackageFile (dir, name) {
   return readFile(
     file, 'utf8'
   ).then((data) => {
+    const format = npm.config.get('format-package-lock') !== false
+    const indent = format ? detectIndent(data).indent : 0
+    const newline = format ? detectNewline(data) : 0
+
     return {
       path: file,
       raw: data,
-      indent: detectIndent(data).indent,
-      newline: detectNewline(data)
+      indent,
+      newline
     }
   }).catch({code: 'ENOENT'}, () => {})
 }

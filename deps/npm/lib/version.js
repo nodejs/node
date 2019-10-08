@@ -256,7 +256,7 @@ function checkGit (localData, cb) {
   statGitFolder(function (er) {
     var doGit = !er && npm.config.get('git-tag-version')
     if (!doGit) {
-      if (er) log.verbose('version', 'error checking for .git', er)
+      if (er && npm.config.get('git-tag-version')) log.verbose('version', 'error checking for .git', er)
       log.verbose('version', 'not tagging in git')
       return cb(null, false)
     }

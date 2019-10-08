@@ -1,0 +1,167 @@
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+[hidden] {
+  display: none;
+}
+
+html {
+  font-family: 'Poppins', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom Styles */
+
+p, li {
+	font-size: 15px;
+	line-height: 1.7;
+	font-weight: 300;
+}
+
+p {
+	padding: 10px 0;
+}
+
+ul {
+	padding: 10px 0;
+}
+
+strong {
+	font-weight: bold;
+	color: #cc33ff;
+}
+
+li {
+	list-style-type: disc;
+	list-style-position: inside;
+	padding: 8px 0;
+}
+
+.documentation h1 {
+	font-size: 42px;
+	font-weight: 600;
+	padding: 30px 0 10px;
+}
+
+.documentation h2 {
+	font-size: 22px;
+	font-weight: 300;
+}
+
+.documentation h3 {
+	color: #cc33ff;
+	font-size: 22px;
+	padding: 30px 0 5px;
+	font-weight: 500;
+}
+
+.documentation h4 {
+	font-weight: 600;
+	padding: 20px 0 5px;
+}
+
+.documentation p {
+	display: inline-block;	
+}
+
+/* overriding some prism background styles */
+:not(pre) > code[class*="language-"], pre[class*="language-"] {
+	border-radius: 4px;
+	background-color: #413844;
+	font-size: 13px;
+}
+
+/* in text code styling */
+:not(pre) > code[class*="language-text"] {
+	background-color: #cc8bd81a;
+	color: #413844;
+	padding: 2px 6px;
+	border-radius: 0;
+	font-size: 14px;
+	font-weight: bold;
+	border-radius: 1px;
+	display: inline-block;
+}
+
+a > code[class*="language-text"], .documentation a {
+	color: #fb3b49;
+	font-weight: 600;
+}
+
+p > code[class*="language-text"]  {
+	display: inline-block;
+}
+
+.documentation h1::before {
+	content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 27 26'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='18.13' x2='25.6' y1='13.48' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='.37' stop-color='%23fb8719'/%3E%3Cstop offset='.51' stop-color='%23fa8420'/%3E%3Cstop offset='.61' stop-color='%23f9802c'/%3E%3Cstop offset='.69' stop-color='%23f7793d'/%3E%3Cstop offset='.76' stop-color='%23f47053'/%3E%3Cstop offset='.82' stop-color='%23f1656e'/%3E%3Cstop offset='.87' stop-color='%23ed578f'/%3E%3Cstop offset='.92' stop-color='%23e948b5'/%3E%3Cstop offset='.97' stop-color='%23e437de'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='17.89' x2='25.84' y1='13.48' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='1' x2='18.69' y1='17.84' y2='17.84' xlink:href='%23a'/%3E%3ClinearGradient id='d' x1='.76' x2='18.93' y1='17.84' y2='17.84' xlink:href='%23b'/%3E%3ClinearGradient id='e' x1='1' x2='20.48' y1='7.33' y2='7.33' xlink:href='%23a'/%3E%3ClinearGradient id='f' x1='.76' x2='20.72' y1='7.33' y2='7.33' xlink:href='%23b'/%3E%3C/defs%3E%3Cpath fill='url(%23a)' stroke='url(%23b)' stroke-miterlimit='10' stroke-width='.48' d='M18.53 24.24a.28.28 0 01-.34-.41L25 14.06l-5-11a.28.28 0 11.5-.23L25.58 14a.28.28 0 010 .28l-6.91 9.9a.28.28 0 01-.14.06z'/%3E%3Cpath fill='url(%23c)' stroke='url(%23d)' stroke-miterlimit='10' stroke-width='.48' d='M18.53 24.24a.28.28 0 01-.14 0l-12-1.15a.28.28 0 01-.23-.09L1 11.81a.28.28 0 11.5-.23l5.07 11L18 23.68 13 13a.28.28 0 11.5-.23l5.12 11.12a.28.28 0 01-.09.35z'/%3E%3Cpath fill='url(%23e)' stroke='url(%23f)' stroke-miterlimit='10' stroke-width='.48' d='M13.4 13.12a.25.25 0 01-.14 0L1.25 12a.28.28 0 01-.2-.44L8 1.64a.28.28 0 01.25-.12l12 1.18a.28.28 0 01.2.44L13.51 13a.25.25 0 01-.11.12z'/%3E%3C/svg%3E");
+	position: relative;
+	display: inline-block;
+	padding-right: 8px;
+	top: 3px;
+	width: 28px;
+}
+
+.active-sidebar-link {
+	background-color: #ffebff;
+}
+
+.active-navbar-link {
+	border-bottom: 3px solid #cc33ff;
+}
+
+.header-link-class {
+	margin-left: -24px;
+}
+
+.disabled-body {
+	overflow: hidden;
+}

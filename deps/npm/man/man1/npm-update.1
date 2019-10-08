@@ -1,7 +1,7 @@
-.TH "NPM\-UPDATE" "1" "September 2019" "" ""
+.TH "NPM\-UPDATE" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-update\fR \- Update a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +10,7 @@ npm update [\-g] [<pkg>\.\.\.]
 aliases: up, upgrade
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command will update all the packages listed to the latest version
 (specified by the \fBtag\fP config), respecting semver\.
@@ -29,10 +29,10 @@ As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packa
 Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
 To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
 .P
-As of \fBnpm@5\.0\.0\fP, the \fBnpm update\fP will change \fBpackage\.json\fP to save the
-new version as the minimum required dependency\. To get the old behavior,
+As of \fBnpm@5\.0\.0\fP, the \fBnpm update\fP will change \fBpackage\.json\fP to save the 
+new version as the minimum required dependency\. To get the old behavior, 
 use \fBnpm update \-\-no\-save\fP\|\.
-.SH EXAMPLES
+.SS Example
 .P
 IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
 older versions of \fBnpm\fP, you must specify \fB\-\-depth 0\fP to get the behavior
@@ -124,7 +124,7 @@ package that is \fBoutdated\fP \-\- that is, has a version that is different fro
 .P
 NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help install
@@ -133,11 +133,10 @@ npm help outdated
 .IP \(bu 2
 npm help shrinkwrap
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help ls
 
 .RE
-

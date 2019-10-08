@@ -60,29 +60,31 @@ const find = require('which').sync('find')
 require('tap').teardown(() => {
   // work around windows folder locking
   process.chdir(returnCwd)
-  try {
-    if (isSudo) {
-      // running tests as sudo.  ensure we didn't leave any root-owned
-      // files in the cache by mistake.
-      const args = [ commonCache, '-uid', '0' ]
-      const found = spawnSync(find, args)
-      const output = found && found.stdout && found.stdout.toString()
-      if (output.length) {
-        const er = new Error('Root-owned files left in cache!')
-        er.testName = main
-        er.files = output.trim().split('\n')
-        throw er
+  process.on('exit', () => {
+    try {
+      if (isSudo) {
+        // running tests as sudo.  ensure we didn't leave any root-owned
+        // files in the cache by mistake.
+        const args = [ commonCache, '-uid', '0' ]
+        const found = spawnSync(find, args)
+        const output = found && found.stdout && found.stdout.toString()
+        if (output.length) {
+          const er = new Error('Root-owned files left in cache!')
+          er.testName = main
+          er.files = output.trim().split('\n')
+          throw er
+        }
+      }
+      if (!process.env.NO_TEST_CLEANUP) {
+        rimraf.sync(exports.pkg)
+        rimraf.sync(commonCache)
+      }
+    } catch (e) {
+      if (process.platform !== 'win32') {
+        throw e
       }
     }
-    if (!process.env.NO_TEST_CLEANUP) {
-      rimraf.sync(exports.pkg)
-      rimraf.sync(commonCache)
-    }
-  } catch (e) {
-    if (process.platform !== 'win32') {
-      throw e
-    }
-  }
+  })
 })
 
 var port = exports.port = 15443 + testId
@@ -191,7 +193,8 @@ exports.makeGitRepo = function (params, cb) {
     git.chainableExec(['config', 'user.name', user], opts),
     git.chainableExec(['config', 'user.email', email], opts),
     // don't time out tests waiting for a gpg passphrase or 2fa
-    git.chainableExec(['config', 'commit.gpgsign', 'false'], opts),
+    git.chainableExec(['config', 'commit.gpgSign', 'false'], opts),
+    git.chainableExec(['config', 'tag.gpgSign', 'false'], opts),
     git.chainableExec(['config', 'tag.forceSignAnnotated', 'false'], opts),
     git.chainableExec(['add'].concat(added), opts),
     git.chainableExec(['commit', '-m', message], opts)
@@ -214,17 +217,15 @@ exports.readBinLink = function (path) {
 
 exports.skipIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test not available on windows'
-  console.log('ok 1 # skip ' + why)
+  require('tap').plan(0, why)
   process.exit(0)
 }
 
 exports.pendIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test is pending further changes on windows'
-  console.log('not ok 1 # todo ' + why)
+  require('tap').fail(' ', { todo: why, diagnostic: false })
   process.exit(0)
 }
 

@@ -1,7 +1,7 @@
-.TH "NPM\-VERSION" "1" "September 2019" "" ""
+.TH "NPM\-VERSION" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -12,7 +12,7 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 \|'npm ls' to inspect current package/dependency versions
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Run this in a package directory to bump the version and write the new
 data back to \fBpackage\.json\fP, \fBpackage\-lock\.json\fP, and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
@@ -88,18 +88,18 @@ Take the following example:
 .P
 .RS 2
 .nf
-"scripts": {
-  "preversion": "npm test",
-  "version": "npm run build && git add \-A dist",
-  "postversion": "git push && git push \-\-tags && rm \-rf build/temp"
-}
+    "scripts": {
+      "preversion": "npm test",
+      "version": "npm run build && git add \-A dist",
+      "postversion": "git push && git push \-\-tags && rm \-rf build/temp"
+    }
 .fi
 .RE
 .P
 This runs all your tests, and proceeds only if they pass\. Then runs your \fBbuild\fP script, and
 adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
 and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
-.SH CONFIGURATION
+.SS Configuration
 .SS allow\-same\-version
 .RS 0
 .IP \(bu 2
@@ -109,7 +109,7 @@ Type: Boolean
 
 .RE
 .P
-Prevents throwing an error when \fBnpm version\fP is used to set the new version
+Prevents throwing an error when \fBnpm version\fP is used to set the new version 
 to the same value as the current version\.
 .SS git\-tag\-version
 .RS 0
@@ -143,20 +143,19 @@ Type: Boolean
 Pass the \fB\-s\fP flag to git to sign the tag\.
 .P
 Note that you must have a default GPG key set up in your git config for this to work properly\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help init
 .IP \(bu 2
 npm help run\-script
 .IP \(bu 2
-npm help 7 scripts
+npm help scripts
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\.json
 .IP \(bu 2
-npm help 7 semver
+npm help semver
 .IP \(bu 2
-npm help 7 config
+npm help config
 
 .RE
-

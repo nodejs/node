@@ -1,7 +1,7 @@
-.TH "NPM\-PUBLISH" "1" "September 2019" "" ""
+.TH "NPM\-PUBLISH" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,18 +11,16 @@ Publishes '\.' if no argument supplied
 Sets tag 'latest' if no \-\-tag specified
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Publishes a package to the registry so that it can be installed by name\. All
 files in the package directory are included if no local \fB\|\.gitignore\fP or
 \fB\|\.npmignore\fP file exists\. If both files exist and a file is ignored by
 \fB\|\.gitignore\fP but not by \fB\|\.npmignore\fP then it will be included\.  See
-npm help 7 \fBnpm\-developers\fP for full details on what's included in the published
-package, as well as details on how the package is built\.
+npm help \fBdevelopers\fP for full details on what's included in the published package, as well as details on how the package is built\.
 .P
 By default npm will publish to the public registry\. This can be overridden by
-specifying a different default registry or using a npm help 7 \fBnpm\-scope\fP in the name
-(see npm help 5 \fBpackage\.json\fP)\.
+specifying a different default registry or using a npm help \fBscope\fP in the name (see npm help \fBpackage\.json\fP)\.
 .RS 0
 .IP \(bu 2
 \fB<folder>\fP:
@@ -35,7 +33,7 @@ with a package\.json file inside\.
 \fB[\-\-tag <tag>]\fP
 Registers the published package with the given tag, such that \fBnpm install
 <name>@<tag>\fP will install this version\.  By default, \fBnpm publish\fP updates
-and \fBnpm install\fP installs the \fBlatest\fP tag\. See npm help \fBnpm\-dist\-tag\fP for
+and \fBnpm install\fP installs the \fBlatest\fP tag\. See \fBnpm\-dist\-tag\fP \fInpm\-dist\-tag\fR for
 details about tags\.
 .IP \(bu 2
 \fB[\-\-access <public|restricted>]\fP
@@ -60,20 +58,20 @@ the specified registry\.
 .P
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
-it is removed with npm help unpublish\.
+it is removed with npm help \fBunpublish\fP\|\.
 .P
 As of \fBnpm@5\fP, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication\. Subsequent
 installs will use the strongest supported algorithm to verify downloads\.
 .P
-Similar to \fB\-\-dry\-run\fP see npm help \fBnpm\-pack\fP, which figures out the files to be
+Similar to \fB\-\-dry\-run\fP see npm help \fBpack\fP, which figures out the files to be
 included and packs them into a tarball to be uploaded to the registry\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help 7 scope
+npm help scope
 .IP \(bu 2
 npm help adduser
 .IP \(bu 2
@@ -88,4 +86,3 @@ npm help pack
 npm help profile
 
 .RE
-

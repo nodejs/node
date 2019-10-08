@@ -92,7 +92,7 @@ t.test('npm doctor', function (t) {
   npm.commands.doctor({'node-url': node_url}, true, function (e, list) {
     t.ifError(e, 'npm loaded successfully')
     t.same(list.length, 9, 'list should have 9 prop')
-    t.same(list[0][1], 'OK', 'npm ping')
+    t.same(list[0][1], 'ok', 'npm ping')
     t.same(list[1][1], 'v' + npm.version, 'npm -v')
     t.same(list[2][1], process.version, 'node -v')
     t.same(list[3][1], common.registry + '/', 'npm config get registry')
@@ -113,7 +113,7 @@ t.test('npm doctor works without registry', function (t) {
   npm.commands.doctor({'node-url': node_url}, true, function (e, list) {
     t.ifError(e, 'npm loaded successfully')
     t.same(list.length, 9, 'list should have 9 prop')
-    t.same(list[0][1], 'OK', 'npm ping')
+    t.same(list[0][1], 'ok', 'npm ping')
     t.same(list[1][1], 'v' + npm.version, 'npm -v')
     t.same(list[2][1], process.version, 'node -v')
     t.same(list[3][1], '', 'no registry, but no crash')

@@ -1,19 +1,19 @@
-.TH "NPM\-EDIT" "1" "September 2019" "" ""
+.TH "NPM\-EDIT" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-edit\fR \- Edit an installed package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm edit <pkg>[/<subpkg>\.\.\.]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Selects a (sub)dependency in the current
 working directory and opens the package folder in the default editor
 (or whatever you've configured as the npm \fBeditor\fP config \-\- see
-npm help 7 \fBnpm\-config\fP\|\.)
+\fBnpm\-config\fP \fInpm\-config)\.\fR
 .P
 After it has been edited, the package is rebuilt so as to pick up any
 changes in compiled packages\.
@@ -21,7 +21,7 @@ changes in compiled packages\.
 For instance, you can do \fBnpm install connect\fP to install connect
 into your package, and then \fBnpm edit connect\fP to make a few
 changes to your locally installed copy\.
-.SH CONFIGURATION
+.SS Configuration
 .SS editor
 .RS 0
 .IP \(bu 2
@@ -33,10 +33,10 @@ Type: path
 .RE
 .P
 The command to run for \fBnpm edit\fP or \fBnpm config edit\fP\|\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help explore
 .IP \(bu 2
@@ -44,9 +44,6 @@ npm help install
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

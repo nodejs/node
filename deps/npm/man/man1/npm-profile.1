@@ -1,54 +1,6 @@
-.TH "NPM\-PROFILE" "1" "September 2019" "" ""
-.SH "NAME"
-\fBnpm-profile\fR \- Change settings on your registry profile
-.SH SYNOPSIS
 .P
-.RS 2
-.nf
-npm profile get [\-\-json|\-\-parseable] [<property>]
-npm profile set [\-\-json|\-\-parseable] <property> <value>
-npm profile set password
-npm profile enable\-2fa [auth\-and\-writes|auth\-only]
-npm profile disable\-2fa
-.fi
-.RE
-.SH DESCRIPTION
-.P
-Change your profile information on the registry\.  This not be available if
-you're using a non\-npmjs registry\.
-.RS 0
-.IP \(bu 2
-\fBnpm profile get [<property>]\fP:
-Display all of the properties of your profile, or one or more specific
-properties\.  It looks like:
-
-.RE
-.P
-.RS 2
-.nf
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| name            | example                   |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| email           | me@example\.com (verified) |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| two factor auth | auth\-and\-writes           |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| fullname        | Example User              |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| homepage        |                           |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| freenode        |                           |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| twitter         |                           |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| github          |                           |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| created         | 2015\-02\-26T01:38:35\.892Z  |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-| updated         | 2017\-10\-02T21:29:45\.922Z  |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
-.fi
-.RE
++
+```
 .RS 0
 .IP \(bu 2
 \fBnpm profile set <property> <value>\fP:
@@ -78,14 +30,14 @@ via \fBnpm access\fP and \fBnpm owner\fP\|\.
 Disables two\-factor authentication\.
 
 .RE
-.SH DETAILS
+.SS Details
 .P
 All of the \fBnpm profile\fP subcommands accept \fB\-\-json\fP and \fB\-\-parseable\fP and
 will tailor their output based on those\.  Some of these commands may not be
 available on non npmjs\.com registries\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 7 config
+npm help config
 
 .RE

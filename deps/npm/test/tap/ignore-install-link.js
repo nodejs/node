@@ -1,8 +1,5 @@
-if (process.platform === 'win32') {
-  require('tap').plan(0, 'symlinks are weird on windows, skip this test')
-  process.exit(0)
-}
 var common = require('../common-tap.js')
+common.skipIfWindows('symlinks are weird on windows')
 var test = require('tap').test
 var path = require('path')
 var fs = require('fs')

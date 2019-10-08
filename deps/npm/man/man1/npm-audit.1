@@ -1,7 +1,7 @@
-.TH "NPM\-AUDIT" "1" "September 2019" "" ""
+.TH "NPM\-AUDIT" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,7 +11,7 @@ npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run]
 common options: [\-\-production] [\-\-only=(dev|prod)]
 .fi
 .RE
-.SH EXAMPLES
+.SS Examples
 .P
 Scan your project for vulnerabilities and automatically install any compatible
 updates to vulnerable dependencies:
@@ -99,7 +99,7 @@ Fail an audit only if the results include a vulnerability with a level of modera
 $ npm audit \-\-audit\-level=moderate
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
@@ -119,7 +119,7 @@ is found\. It may be useful in CI environments to include the \fB\-\-audit\-leve
 to specify the minimum vulnerability level that will cause the command to fail\. This
 option does not filter the report output, it simply changes the command's failure
 threshold\.
-.SH CONTENT SUBMITTED
+.SS Content Submitted
 .RS 0
 .IP \(bu 2
 npm_version
@@ -133,7 +133,7 @@ node_env
 A scrubbed version of your package\-lock\.json or npm\-shrinkwrap\.json
 
 .RE
-.SS SCRUBBING
+.SS Scrubbing
 .P
 In order to ensure that potentially sensitive information is not included in
 the audit data bundle, some dependencies may have their names (and sometimes
@@ -155,19 +155,19 @@ All local directory and tarball dependencies have their names and specifiers scr
 The non\-reversible identifiers are a sha256 of a session\-specific UUID and the
 value being replaced, ensuring a consistent value within the payload that is
 different between runs\.
-.SH EXIT CODE
+.SS Exit Code
 .P
 The \fBnpm audit\fP command will exit with a 0 exit code if no vulnerabilities were found\.
 .P
 If vulnerabilities were found the exit code will depend on the \fBaudit\-level\fP
 configuration setting\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help install
 .IP \(bu 2
-npm help 5 package\-locks
+npm help package\-locks
 .IP \(bu 2
-npm help 7 config
+npm help config
 
 .RE

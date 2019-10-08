@@ -203,10 +203,15 @@ function removeObsoleteDep (child, log) {
 function packageRelativePath (tree) {
   if (!tree) return ''
   var requested = tree.package._requested || {}
-  var isLocal = requested.type === 'directory' || requested.type === 'file'
-  return isLocal ? requested.fetchSpec
-    : (tree.isLink || tree.isInLink) && !preserveSymlinks() ? tree.realpath
-      : tree.path
+  if (requested.type === 'directory') {
+    return requested.fetchSpec
+  } else if (requested.type === 'file') {
+    return path.dirname(requested.fetchSpec)
+  } else if ((tree.isLink || tree.isInLink) && !preserveSymlinks()) {
+    return tree.realpath
+  } else {
+    return tree.path
+  }
 }
 
 function matchingDep (tree, name) {
@@ -665,7 +670,7 @@ function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
 
   log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-  return isInstallable(pkg, (err) => {
+  return isInstallable(tree, pkg, (err) => {
     let installable = !err
     addBundled(pkg, (bundleErr) => {
       var parent = earliestInstallable(tree, tree, pkg, log) || tree

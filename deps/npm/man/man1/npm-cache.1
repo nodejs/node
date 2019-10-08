@@ -1,7 +1,7 @@
-.TH "NPM\-CACHE" "1" "September 2019" "" ""
+.TH "NPM\-CACHE" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-cache\fR \- Manipulates packages cache
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -16,7 +16,7 @@ aliases: npm cache clear, npm cache rm
 npm cache verify
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Used to add, list, or clean the npm cache folder\.
 .RS 0
@@ -34,7 +34,7 @@ Verify the contents of the cache folder, garbage collecting any unneeded data,
 and verifying the integrity of the cache index and all cached data\.
 
 .RE
-.SH DETAILS
+.SS Details
 .P
 npm stores cache data in an opaque directory within the configured \fBcache\fP,
 named \fB_cacache\fP\|\. This directory is a \fBcacache\fP\-based content\-addressable cache
@@ -55,7 +55,7 @@ directly\.
 .P
 npm will not remove data by itself: the cache will grow as new packages are
 installed\.
-.SH A NOTE ABOUT THE CACHE'S DESIGN
+.SS A note about the cache's design
 .P
 The npm cache is strictly a cache: it should not be relied upon as a persistent
 and reliable data store for package data\. npm makes no guarantee that a
@@ -65,22 +65,20 @@ if it does return data, that data will be exactly the data that was inserted\.
 .P
 To run an offline verification of existing cache contents, use \fBnpm cache
 verify\fP\|\.
-.SH CONFIGURATION
+.SS Configuration
 .SS cache
 .P
 Default: \fB~/\.npm\fP on Posix, or \fB%AppData%/npm\-cache\fP on Windows\.
 .P
 The root cache folder\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
 npm help install
 .IP \(bu 2
@@ -93,4 +91,3 @@ https://npm\.im/cacache
 https://npm\.im/pacote
 
 .RE
-
