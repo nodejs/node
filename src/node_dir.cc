@@ -59,8 +59,8 @@ DirHandle::DirHandle(Environment* env, Local<Object> obj, uv_dir_t* dir)
       dir_(dir) {
   MakeWeak();
 
-  dir_->nentries = 1;
-  dir_->dirents = &dirent_;
+  dir_->nentries = arraysize(dirents_);
+  dir_->dirents = dirents_;
 }
 
 DirHandle* DirHandle::New(Environment* env, uv_dir_t* dir) {
@@ -160,7 +160,37 @@ void DirHandle::Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void AfterDirReadSingle(uv_fs_t* req) {
+static MaybeLocal<Array> DirentListToArray(
+    Environment* env,
+    uv_dirent_t* ents,
+    int num,
+    enum encoding encoding,
+    Local<Value>* err_out) {
+  MaybeStackBuffer<Local<Value>, 96> entries(num * 3);
+
+  // Return an array of all read filenames.
+  int j = 0;
+  for (int i = 0; i < num; i++) {
+    Local<Value> filename;
+    Local<Value> error;
+    const size_t namelen = strlen(ents[i].name);
+    if (!StringBytes::Encode(env->isolate(),
+                             ents[i].name,
+                             namelen,
+                             encoding,
+                             &error).ToLocal(&filename)) {
+      *err_out = error;
+      return MaybeLocal<Array>();
+    }
+
+    entries[j++] = filename;
+    entries[j++] = Integer::New(env->isolate(), ents[i].type);
+  }
+
+  return Array::New(env->isolate(), entries.out(), j);
+}
+
+static void AfterDirRead(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
@@ -170,7 +200,6 @@ void AfterDirReadSingle(uv_fs_t* req) {
 
   Environment* env = req_wrap->env();
   Isolate* isolate = env->isolate();
-  Local<Value> error;
 
   if (req->result == 0) {
     // Done
@@ -182,26 +211,17 @@ void AfterDirReadSingle(uv_fs_t* req) {
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
   req->ptr = nullptr;
 
-  // Single entries are returned without an array wrapper
-  const uv_dirent_t& ent = dir->dirents[0];
-
-  MaybeLocal<Value> filename =
-    StringBytes::Encode(isolate,
-                        ent.name,
-                        req_wrap->encoding(),
-                        &error);
-  if (filename.IsEmpty())
+  Local<Value> error;
+  Local<Array> js_array;
+  if (!DirentListToArray(env,
+                         dir->dirents,
+                         req->result,
+                         req_wrap->encoding(),
+                         &error).ToLocal(&js_array)) {
     return req_wrap->Reject(error);
+  }
 
-
-  Local<Array> result = Array::New(isolate, 2);
-  result->Set(env->context(),
-              0,
-              filename.ToLocalChecked()).FromJust();
-  result->Set(env->context(),
-              1,
-              Integer::New(isolate, ent.type)).FromJust();
-  req_wrap->Resolve(result);
+  req_wrap->Resolve(js_array);
 }
 
 
@@ -217,10 +237,10 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
   DirHandle* dir;
   ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
 
-  FSReqBase* req_wrap_async = static_cast<FSReqBase*>(GetReqWrap(env, args[1]));
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {  // dir.read(encoding, req)
     AsyncCall(env, req_wrap_async, args, "readdir", encoding,
-              AfterDirReadSingle, uv_fs_readdir, dir->dir());
+              AfterDirRead, uv_fs_readdir, dir->dir());
   } else {  // dir.read(encoding, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
@@ -240,28 +260,20 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
     }
 
     CHECK_GE(req_wrap_sync.req.result, 0);
-    const uv_dirent_t& ent = dir->dir()->dirents[0];
 
     Local<Value> error;
-    MaybeLocal<Value> filename =
-      StringBytes::Encode(isolate,
-                          ent.name,
-                          encoding,
-                          &error);
-    if (filename.IsEmpty()) {
+    Local<Array> js_array;
+    if (!DirentListToArray(env,
+                           dir->dir()->dirents,
+                           req_wrap_sync.req.result,
+                           encoding,
+                           &error).ToLocal(&js_array)) {
       Local<Object> ctx = args[2].As<Object>();
-      ctx->Set(env->context(), env->error_string(), error).FromJust();
+      USE(ctx->Set(env->context(), env->error_string(), error));
       return;
     }
 
-    Local<Array> result = Array::New(isolate, 2);
-    result->Set(env->context(),
-                0,
-                filename.ToLocalChecked()).FromJust();
-    result->Set(env->context(),
-                1,
-                Integer::New(isolate, ent.type)).FromJust();
-    args.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(js_array);
   }
 }
 
