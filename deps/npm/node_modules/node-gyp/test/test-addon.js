@@ -15,18 +15,18 @@ function runHello (hostProcess) {
     hostProcess = process.execPath
   }
   var testCode = "console.log(require('hello_world').hello())"
-  return execFileSync(hostProcess, [ '-e', testCode ], { cwd: __dirname }).toString()
+  return execFileSync(hostProcess, ['-e', testCode], { cwd: __dirname }).toString()
 }
 
 function getEncoding () {
   var code = 'import locale;print(locale.getdefaultlocale()[1])'
-  return execFileSync('python', [ '-c', code ]).toString().trim()
+  return execFileSync('python', ['-c', code]).toString().trim()
 }
 
 function checkCharmapValid () {
   var data
   try {
-    data = execFileSync('python', [ 'fixtures/test-charmap.py' ],
+    data = execFileSync('python', ['fixtures/test-charmap.py'],
       { cwd: __dirname })
   } catch (err) {
     return false
@@ -39,7 +39,7 @@ test('build simple addon', function (t) {
   t.plan(3)
 
   // Set the loglevel otherwise the output disappears when run via 'npm test'
-  var cmd = [ nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose' ]
+  var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
   var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
     var logLines = stderr.toString().trim().split(/\r?\n/)
     var lastLine = logLines[logLines.length - 1]
@@ -59,9 +59,9 @@ test('build simple addon in path with non-ascii characters', function (t) {
   }
 
   var testDirNames = {
-    'cp936': '文件夹',
-    'cp1252': 'Latīna',
-    'cp932': 'フォルダ'
+    cp936: '文件夹',
+    cp1252: 'Latīna',
+    cp932: 'フォルダ'
   }
   // Select non-ascii characters by current encoding
   var testDirName = testDirNames[getEncoding()]
@@ -136,7 +136,7 @@ test('addon works with renamed host executable', function (t) {
   var notNodePath = path.join(os.tmpdir(), 'notnode' + path.extname(process.execPath))
   fs.copyFileSync(process.execPath, notNodePath)
 
-  var cmd = [ nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose' ]
+  var cmd = [nodeGyp, 'rebuild', '-C', addonPath, '--loglevel=verbose']
   var proc = execFile(process.execPath, cmd, function (err, stdout, stderr) {
     var logLines = stderr.toString().trim().split(/\r?\n/)
     var lastLine = logLines[logLines.length - 1]

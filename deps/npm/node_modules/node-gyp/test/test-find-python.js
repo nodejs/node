@@ -1,12 +1,11 @@
 'use strict'
 
+delete process.env.PYTHON
+
 const test = require('tap').test
 const findPython = require('../lib/find-python')
 const execFile = require('child_process').execFile
 const PythonFinder = findPython.test.PythonFinder
-
-delete process.env.PYTHON
-delete process.env.NODE_GYP_FORCE_PYTHON
 
 require('npmlog').level = 'warn'
 
@@ -17,8 +16,13 @@ test('find python', function (t) {
     t.strictEqual(err, null)
     var proc = execFile(found, ['-V'], function (err, stdout, stderr) {
       t.strictEqual(err, null)
-      t.strictEqual(stdout, '')
-      t.ok(/Python 2/.test(stderr))
+      if (/Python 2/.test(stderr)) {
+        t.strictEqual(stdout, '')
+        t.ok(/Python 2/.test(stderr))
+      } else {
+        t.ok(/Python 3/.test(stdout))
+        t.strictEqual(stderr, '')
+      }
     })
     proc.stdout.setEncoding('utf-8')
     proc.stderr.setEncoding('utf-8')
@@ -51,6 +55,7 @@ TestPythonFinder.prototype.log = {
   warn: () => {},
   error: () => {}
 }
+delete TestPythonFinder.prototype.env.NODE_GYP_FORCE_PYTHON
 
 test('find python - python', function (t) {
   t.plan(6)

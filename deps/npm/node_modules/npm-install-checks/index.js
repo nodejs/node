@@ -7,9 +7,10 @@ exports.checkEngine = checkEngine
 function checkEngine (target, npmVer, nodeVer, force, strict, cb) {
   var nodev = force ? null : nodeVer
   var eng = target.engines
+  var opt = { includePrerelease: true }
   if (!eng) return cb()
-  if (nodev && eng.node && !semver.satisfies(nodev, eng.node) ||
-      eng.npm && !semver.satisfies(npmVer, eng.npm)) {
+  if (nodev && eng.node && !semver.satisfies(nodev, eng.node, opt) ||
+      eng.npm && !semver.satisfies(npmVer, eng.npm, opt)) {
     var er = new Error(util.format('Unsupported engine for %s: wanted: %j (current: %j)',
       target._id, eng, {node: nodev, npm: npmVer}))
     er.code = 'ENOTSUP'

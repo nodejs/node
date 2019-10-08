@@ -60,6 +60,7 @@ const _flushFlag = Symbol('flushFlag')
 const _finishFlush = Symbol('finishFlush')
 const _handle = Symbol('handle')
 const _onError = Symbol('onError')
+const _sawError = Symbol('sawError')
 const _level = Symbol('level')
 const _strategy = Symbol('strategy')
 const _ended = Symbol('ended')
@@ -119,6 +120,7 @@ class Zlib extends MiniPass {
     this[_handle] = new realZlib[mode](opts)
 
     this[_onError] = (err) => {
+      this[_sawError] = true
       // there is no way to cleanly recover.
       // continuing only obscures problems.
       this.close()
@@ -152,6 +154,9 @@ class Zlib extends MiniPass {
   }
 
   params (level, strategy) {
+    if (this[_sawError])
+      return
+
     if (!this[_handle])
       throw new Error('cannot switch params when binding is closed')
 
@@ -190,8 +195,10 @@ class Zlib extends MiniPass {
   }
 
   reset () {
-    assert(this[_handle], 'zlib binding closed')
-    return this[_handle].reset()
+    if (!this[_sawError]) {
+      assert(this[_handle], 'zlib binding closed')
+      return this[_handle].reset()
+    }
   }
 
   flush (kind) {
@@ -228,6 +235,8 @@ class Zlib extends MiniPass {
     if (typeof chunk === 'string')
       chunk = Buffer.from(chunk, encoding)
 
+    if (this[_sawError])
+      return
     assert(this[_handle], 'zlib binding closed')
 
     // _processChunk tries to .close() the native handle after it's done, so we

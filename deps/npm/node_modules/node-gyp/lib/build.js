@@ -7,8 +7,6 @@ const log = require('npmlog')
 const which = require('which')
 const win = process.platform === 'win32'
 
-exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
-
 function build (gyp, argv, callback) {
   var platformMake = 'make'
   if (process.platform === 'aix') {
@@ -203,3 +201,4 @@ function build (gyp, argv, callback) {
 }
 
 module.exports = build
+module.exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'

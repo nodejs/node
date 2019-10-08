@@ -49,7 +49,7 @@ Object.keys(actions).forEach(function (actionName) {
     if (pkg.knownInstallable) {
       actionP = runAction(action, staging, pkg, log)
     } else {
-      actionP = isInstallable(pkg.package).then(() => {
+      actionP = isInstallable(null, pkg.package).then(() => {
         pkg.knownInstallable = true
         return runAction(action, staging, pkg, log)
       })

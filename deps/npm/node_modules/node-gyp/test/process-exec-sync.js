@@ -67,7 +67,7 @@ function processExecSync (file, args, options) {
     }
   }
 
-  [ 'stdout', 'stderr', 'status' ].forEach(function (file) {
+  ['stdout', 'stderr', 'status'].forEach(function (file) {
     child[file] = fs.readFileSync(tmpdir + '/' + file, options.encoding)
     setTimeout(unlinkFile, 500, tmpdir + '/' + file)
   })

@@ -18,8 +18,8 @@ const commands = [
   'remove'
 ]
 const aliases = {
-  'ls': 'list',
-  'rm': 'remove'
+  ls: 'list',
+  rm: 'remove'
 }
 
 // differentiate node-gyp's logs from npm's
@@ -72,7 +72,7 @@ proto.configDefs = {
   loglevel: String, // everywhere
   python: String, // 'configure'
   'dist-url': String, // 'install'
-  'tarball': String, // 'install'
+  tarball: String, // 'install'
   jobs: String, // 'build'
   thin: String // 'configure'
 }
@@ -167,7 +167,7 @@ proto.spawn = function spawn (command, args, opts) {
     opts = {}
   }
   if (!opts.silent && !opts.stdio) {
-    opts.stdio = [ 0, 1, 2 ]
+    opts.stdio = [0, 1, 2]
   }
   var cp = childProcess.spawn(command, args, opts)
   log.info('spawn', command)
