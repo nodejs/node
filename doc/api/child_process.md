@@ -1697,7 +1697,8 @@ unavailable.
 There is no universal way in Windows to do command-line escapes as every
 program are exposed natively to its full cmdline as a string, and each of them
 can have their own parsing rules, which includes optional glob expansion,
-officially provided as `_setargv`.
+officially provided as `_setargv`. There is no reliable way of escaping the
+MS CRT glob, and we do not try to do that in the underlying `uv` library.
 
 The most common parsing is defined in the C runtime library as
 `CommandLineToArgvW`. Microsoft describes the rules in
@@ -1705,6 +1706,38 @@ The most common parsing is defined in the C runtime library as
 used, `windowsVerbatimArguments` should be specified with manual argument
 quoting. Since `cmd` has a `/s` switch that allows for verbatim processing
 of the command string, we turn on the flag to take advantage of that feature.
+
+A very common, alternative command-line parsing method is the Cygwin/MSYS2
+[`build_argv`]. It uses always-on globbing based on the POSIX glob(3),
+with special provisions for dos-like paths. You may escape it as:
+
+```js
+function quoteCygwinArg(arg, mayBePath = true) {
+  // Cygwin escapes the backslashes on paths to handle the Windows verbatim
+  // passing-in of them.
+  // (There is a Cygwin bug in here about " never being escapable on these
+  // paths：https://cygwin.com/ml/cygwin/2019-10/msg00033.html)
+  const isPath = mayBePath ?
+    !!(/^\\\\[a-z][^\\]+\\|^[a-z]:/i.exec(arg)) :
+    /^[a-z]:/i.exec(arg);
+  if (!isPath) {
+    arg = arg.replace(/[\\]/g, '\\\\');
+    if (/^\\\\[a-z][^\\]+\\/i.exec(arg))
+      // If Cygwin sees this as an SMB network path...
+      // Chop off the first \\ (it seems to not eat up the a in \a)
+      arg = arg.substring(2);
+  }
+  return `"${arg.replace(/"/g, '""')}"`;
+}
+
+// For shell (set { shellEscape: false } for spawn):
+exec([command].concat(args.map(quoteCygwinArg)).join(' '));
+// For non-shell:
+spawn(command, args.map(quoteCygwinArg), { windowsVerbatimArguments: true });
+```
+
+MinGW uses the native Windows mechanism and can be used safely with the
+default escapes.
 
 ## Advanced Serialization
 <!-- YAML
@@ -1770,5 +1803,6 @@ or [`child_process.fork()`][].
 [Parsing C++ Command-Line Arguments]: https://docs.microsoft.com/en-us/cpp/cpp/parsing-cpp-command-line-arguments
 [Windows Command Line]: #child_process_windows_command_line
 [ongoing, cross-platform issue]: https://github.com/PowerShell/PowerShell/issues/1995
+[`build_argv`]: https://github.com/mirror/newlib-cygwin/blob/b39cd00/winsup/cygwin/dcrt0.cc#L292
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.md#v8_serialization_api
