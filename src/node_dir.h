@@ -25,7 +25,6 @@ class DirHandle : public AsyncWrap {
   static void Close(const v8::FunctionCallbackInfo<Value>& args);
 
   inline uv_dir_t* dir() { return dir_; }
-  AsyncWrap* GetAsyncWrap() { return this; }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("dir", sizeof(*dir_));
@@ -46,7 +45,8 @@ class DirHandle : public AsyncWrap {
   void GCClose();
 
   uv_dir_t* dir_;
-  uv_dirent_t dirent_;
+  // Up to 32 directory entries are read through a single libuv call.
+  uv_dirent_t dirents_[32];
   bool closing_ = false;
   bool closed_ = false;
 };
