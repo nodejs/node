@@ -1,7 +1,4 @@
 'use strict';
-
-// Flags: --expose-internals
-
 require('../common');
 const { MessageChannel } = require('worker_threads');
 const { WPTRunner } = require('../common/wpt');
