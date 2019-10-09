@@ -192,12 +192,25 @@ common.expectsError(
   assert.strictEqual(crypto.createHash('shake256').digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
+  assert.strictEqual(crypto.createHash('shake256', { outputLength: 0 })
+                           .copy()  // Default outputLength.
+                           .digest('hex'),
+                     '46b9dd2b0ba88d13233b3feb743eeb24' +
+                     '3fcd52ea62b81b82b50c27646ed5762f');
 
   // Short outputLengths.
   assert.strictEqual(crypto.createHash('shake128', { outputLength: 0 })
                            .digest('hex'),
                      '');
   assert.strictEqual(crypto.createHash('shake128', { outputLength: 5 })
+                           .copy({ outputLength: 0 })
+                           .digest('hex'),
+                     '');
+  assert.strictEqual(crypto.createHash('shake128', { outputLength: 5 })
+                           .digest('hex'),
+                     '7f9c2ba4e8');
+  assert.strictEqual(crypto.createHash('shake128', { outputLength: 0 })
+                           .copy({ outputLength: 5 })
                            .digest('hex'),
                      '7f9c2ba4e8');
   assert.strictEqual(crypto.createHash('shake128', { outputLength: 15 })
@@ -248,4 +261,20 @@ common.expectsError(
     common.expectsError(() => crypto.createHash('sha256', { outputLength }),
                         { code: 'ERR_OUT_OF_RANGE' });
   }
+}
+
+{
+  const h = crypto.createHash('sha512');
+  h.digest();
+  common.expectsError(() => h.copy(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
+  common.expectsError(() => h.digest(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
+}
+
+{
+  const a = crypto.createHash('sha512').update('abc');
+  const b = a.copy();
+  const c = b.copy().update('def');
+  const d = crypto.createHash('sha512').update('abcdef');
+  assert.strictEqual(a.digest('hex'), b.digest('hex'));
+  assert.strictEqual(c.digest('hex'), d.digest('hex'));
 }

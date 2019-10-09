@@ -4720,7 +4720,16 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  const node::Utf8Value hash_type(env->isolate(), args[0]);
+  const Hash* orig = nullptr;
+  const EVP_MD* md = nullptr;
+
+  if (args[0]->IsObject()) {
+    ASSIGN_OR_RETURN_UNWRAP(&orig, args[0].As<Object>());
+    md = EVP_MD_CTX_md(orig->mdctx_.get());
+  } else {
+    const node::Utf8Value hash_type(env->isolate(), args[0]);
+    md = EVP_get_digestbyname(*hash_type);
+  }
 
   Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
   if (!args[1]->IsUndefined()) {
@@ -4729,17 +4738,19 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   Hash* hash = new Hash(env, args.This());
-  if (!hash->HashInit(*hash_type, xof_md_len)) {
+  if (md == nullptr || !hash->HashInit(md, xof_md_len)) {
     return ThrowCryptoError(env, ERR_get_error(),
                             "Digest method not supported");
+  }
+
+  if (orig != nullptr &&
+      0 >= EVP_MD_CTX_copy(hash->mdctx_.get(), orig->mdctx_.get())) {
+    return ThrowCryptoError(env, ERR_get_error(), "Digest copy error");
   }
 }
 
 
-bool Hash::HashInit(const char* hash_type, Maybe<unsigned int> xof_md_len) {
-  const EVP_MD* md = EVP_get_digestbyname(hash_type);
-  if (md == nullptr)
-    return false;
+bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   mdctx_.reset(EVP_MD_CTX_new());
   if (!mdctx_ || EVP_DigestInit_ex(mdctx_.get(), md, nullptr) <= 0) {
     mdctx_.reset();
