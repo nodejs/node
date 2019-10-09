@@ -340,7 +340,7 @@ https://github.com/nodejs/node/commit/b46e77421581ea358e221a8a843d057c747f7e90
 * crypto: add newline to cert and key if not present (Fedor Indutny)
 * crypto: clear error in GetPeerCertificate (Fedor Indutny)
 * crypto: honor default ciphers in client mode (Jacob Hoffman-Andrews)
-* crypto: introduce .setEngine(engine, [flags]) (Fedor Indutny)
+* crypto: introduce .setEngine(engine, \[flags\]) (Fedor Indutny)
 * crypto: support custom pbkdf2 digest methods (Ben Noordhuis)
 * domain: fix off-by-one in Domain.exit() (Ryan Graham)
 * http: concatenate duplicate headers by default (Alex Kocharin)
@@ -614,7 +614,7 @@ https://github.com/nodejs/node/commit/bce38b3d74e64fcb7d04a2dd551151da6168cdc5
 * os: use %SystemRoot% or %windir% in os.tmpdir() (Suwon Chae)
 * util: fix util.inspect() line width calculation (Marcin Kostrzewa)
 * buffer: remove _charsWritten (Trevor Norris)
-* fs: uv_[fl]stat now reports subsecond resolution (Timothy J Fontaine)
+* fs: uv_\[fl\]stat now reports subsecond resolution (Timothy J Fontaine)
 * fs: Throw if error raised and missing callback (bnoordhuis)
 * tls: expose SSL_CTX_set_timeout via tls.createServer (Manav Rathi)
 * tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
@@ -1184,7 +1184,7 @@ https://github.com/nodejs/node/commit/0544a586ca6b6b900a42e164033dbf350765700a
 * npm: Upgrade to v1.1.48
 * Add 'make binary' to build binary tarballs for all Unixes (Nathan Rajlich)
 * zlib: Emit 'close' on destroy(). (Dominic Tarr)
-* child_process: Fix stdout=null when stdio=['pipe'] (Tyler Neylon)
+* child_process: Fix stdout=null when stdio=\['pipe'\] (Tyler Neylon)
 * installer: prevent ETXTBSY errors (Ben Noordhuis)
 * installer: honor --without-npm, default install path (Ben Noordhuis)
 * net: make pause work with connecting sockets (Bert Belder)
@@ -3327,7 +3327,7 @@ https://github.com/nodejs/node/commit/a2d809fe902f6c4102dba8f2e3e9551aad137c0f
 * Bugfix: posix.statSync() was crashing
 * Statically define string symbols for performance improvement
 
-* Bugfix: ARGV[0] weirdness
+* Bugfix: ARGV\[0\] weirdness
 * Added superCtor to ctor.super_ instead superCtor.prototype.
   (Johan Dahlberg)
 

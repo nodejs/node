@@ -295,7 +295,7 @@ added: v0.1.26
 
 Alias for `emitter.on(eventName, listener)`.
 
-### emitter.emit(eventName[, ...args])
+### emitter.emit(eventName\[, ...args\])
 <!-- YAML
 added: v0.1.26
 -->
@@ -536,7 +536,7 @@ server.prependOnceListener('connection', (stream) => {
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.removeAllListeners([eventName])
+### emitter.removeAllListeners(\[eventName\])
 <!-- YAML
 added: v0.1.26
 -->

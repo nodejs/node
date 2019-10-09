@@ -89,7 +89,7 @@ using the `delete` keyword on any properties of `URL` objects (e.g. `delete
 myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will still
 return `true`.
 
-#### Constructor: new URL(input[, base])
+#### Constructor: new URL(input\[, base\])
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
@@ -706,7 +706,7 @@ is the `name`, the second item of the `Array` is the `value`.
 
 Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 
-#### urlSearchParams.forEach(fn[, thisArg])
+#### urlSearchParams.forEach(fn\[, thisArg\])
 
 * `fn` {Function} Invoked for each name-value pair in the query
 * `thisArg` {Object} To be used as `this` value for when `fn` is called
@@ -915,7 +915,7 @@ new URL('file:///hello world').pathname; // Incorrect: /hello%20world
 fileURLToPath('file:///hello world');    // Correct:   /hello world (POSIX)
 ```
 
-### url.format(URL[, options])
+### url.format(URL\[, options\])
 <!-- YAML
 added: v7.6.0
 -->
@@ -1181,7 +1181,7 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
-### url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
+### url.parse(urlString\[, parseQueryString\[, slashesDenoteHost\]\])
 <!-- YAML
 added: v0.1.25
 changes:

@@ -68,7 +68,7 @@ console.log(challenge.toString('utf8'));
 // Prints: the challenge as a UTF8 string
 ```
 
-### Certificate.exportPublicKey(spkac[, encoding])
+### Certificate.exportPublicKey(spkac\[, encoding\])
 <!-- YAML
 added: v9.0.0
 -->
@@ -265,7 +265,7 @@ console.log(encrypted);
 // Prints: e5f79c5915c02171eec6b212d5520d44480993d7d622a7c4c2da32f6efda0ffa
 ```
 
-### cipher.final([outputEncoding])
+### cipher.final(\[outputEncoding\])
 <!-- YAML
 added: v0.1.94
 -->
@@ -279,7 +279,7 @@ Once the `cipher.final()` method has been called, the `Cipher` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
 once will result in an error being thrown.
 
-### cipher.setAAD(buffer[, options])
+### cipher.setAAD(buffer\[, options\])
 <!-- YAML
 added: v1.0.0
 -->
@@ -312,7 +312,7 @@ added: v1.0.0
 The `cipher.getAuthTag()` method should only be called after encryption has
 been completed using the [`cipher.final()`][] method.
 
-### cipher.setAutoPadding([autoPadding])
+### cipher.setAutoPadding(\[autoPadding\])
 <!-- YAML
 added: v0.7.1
 -->
@@ -332,7 +332,7 @@ using `0x0` instead of PKCS padding.
 The `cipher.setAutoPadding()` method must be called before
 [`cipher.final()`][].
 
-### cipher.update(data[, inputEncoding][, outputEncoding])
+### cipher.update(data\[, inputEncoding\]\[, outputEncoding\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -459,7 +459,7 @@ console.log(decrypted);
 // Prints: some clear text data
 ```
 
-### decipher.final([outputEncoding])
+### decipher.final(\[outputEncoding\])
 <!-- YAML
 added: v0.1.94
 -->
@@ -473,7 +473,7 @@ Once the `decipher.final()` method has been called, the `Decipher` object can
 no longer be used to decrypt data. Attempts to call `decipher.final()` more
 than once will result in an error being thrown.
 
-### decipher.setAAD(buffer[, options])
+### decipher.setAAD(buffer\[, options\])
 <!-- YAML
 added: v1.0.0
 changes:
@@ -523,7 +523,7 @@ is invalid according to [NIST SP 800-38D][] or does not match the value of the
 The `decipher.setAuthTag()` method must be called before
 [`decipher.final()`][] and can only be called once.
 
-### decipher.setAutoPadding([autoPadding])
+### decipher.setAutoPadding(\[autoPadding\])
 <!-- YAML
 added: v0.7.1
 -->
@@ -541,7 +541,7 @@ multiple of the ciphers block size.
 The `decipher.setAutoPadding()` method must be called before
 [`decipher.final()`][].
 
-### decipher.update(data[, inputEncoding][, outputEncoding])
+### decipher.update(data\[, inputEncoding\]\[, outputEncoding\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -601,7 +601,7 @@ const bobSecret = bob.computeSecret(aliceKey);
 assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ```
 
-### diffieHellman.computeSecret(otherPublicKey[, inputEncoding][, outputEncoding])
+### diffieHellman.computeSecret(otherPublicKey\[, inputEncoding\]\[, outputEncoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -622,7 +622,7 @@ provided, `otherPublicKey` is expected to be a [`Buffer`][],
 If `outputEncoding` is given a string is returned; otherwise, a
 [`Buffer`][] is returned.
 
-### diffieHellman.generateKeys([encoding])
+### diffieHellman.generateKeys(\[encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -636,7 +636,7 @@ transferred to the other party.
 If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
-### diffieHellman.getGenerator([encoding])
+### diffieHellman.getGenerator(\[encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -648,7 +648,7 @@ Returns the Diffie-Hellman generator in the specified `encoding`.
 If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
-### diffieHellman.getPrime([encoding])
+### diffieHellman.getPrime(\[encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -660,7 +660,7 @@ Returns the Diffie-Hellman prime in the specified `encoding`.
 If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
-### diffieHellman.getPrivateKey([encoding])
+### diffieHellman.getPrivateKey(\[encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -672,7 +672,7 @@ Returns the Diffie-Hellman private key in the specified `encoding`.
 If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
-### diffieHellman.getPublicKey([encoding])
+### diffieHellman.getPublicKey(\[encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -684,7 +684,7 @@ Returns the Diffie-Hellman public key in the specified `encoding`.
 If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
-### diffieHellman.setPrivateKey(privateKey[, encoding])
+### diffieHellman.setPrivateKey(privateKey\[, encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -697,7 +697,7 @@ Sets the Diffie-Hellman private key. If the `encoding` argument is provided,
 to be a string. If no `encoding` is provided, `privateKey` is expected
 to be a [`Buffer`][], `TypedArray`, or `DataView`.
 
-### diffieHellman.setPublicKey(publicKey[, encoding])
+### diffieHellman.setPublicKey(publicKey\[, encoding\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -784,7 +784,7 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 // OK
 ```
 
-### Class Method: ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])
+### Class Method: ECDH.convertKey(key, curve\[, inputEncoding\[, outputEncoding\[, format\]\]\])
 <!-- YAML
 added: v10.0.0
 -->
@@ -832,7 +832,7 @@ const uncompressedKey = ECDH.convertKey(compressedKey,
 console.log(uncompressedKey === ecdh.getPublicKey('hex'));
 ```
 
-### ecdh.computeSecret(otherPublicKey[, inputEncoding][, outputEncoding])
+### ecdh.computeSecret(otherPublicKey\[, inputEncoding\]\[, outputEncoding\])
 <!-- YAML
 added: v0.11.14
 changes:
@@ -867,7 +867,7 @@ lies outside of the elliptic curve. Since `otherPublicKey` is
 usually supplied from a remote user over an insecure network,
 its recommended for developers to handle this exception accordingly.
 
-### ecdh.generateKeys([encoding[, format]])
+### ecdh.generateKeys(\[encoding\[, format\]\])
 <!-- YAML
 added: v0.11.14
 -->
@@ -887,7 +887,7 @@ The `format` argument specifies point encoding and can be `'compressed'` or
 If `encoding` is provided a string is returned; otherwise a [`Buffer`][]
 is returned.
 
-### ecdh.getPrivateKey([encoding])
+### ecdh.getPrivateKey(\[encoding\])
 <!-- YAML
 added: v0.11.14
 -->
@@ -898,7 +898,7 @@ added: v0.11.14
 If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
-### ecdh.getPublicKey([encoding][, format])
+### ecdh.getPublicKey(\[encoding\]\[, format\])
 <!-- YAML
 added: v0.11.14
 -->
@@ -915,7 +915,7 @@ The `format` argument specifies point encoding and can be `'compressed'` or
 If `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
-### ecdh.setPrivateKey(privateKey[, encoding])
+### ecdh.setPrivateKey(privateKey\[, encoding\])
 <!-- YAML
 added: v0.11.14
 -->
@@ -932,7 +932,7 @@ If `privateKey` is not valid for the curve specified when the `ECDH` object was
 created, an error is thrown. Upon setting the private key, the associated
 public point (key) is also generated and set in the `ECDH` object.
 
-### ecdh.setPublicKey(publicKey[, encoding])
+### ecdh.setPublicKey(publicKey\[, encoding\])
 <!-- YAML
 added: v0.11.14
 deprecated: v5.2.0
@@ -1041,7 +1041,7 @@ console.log(hash.digest('hex'));
 //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 ```
 
-### hash.digest([encoding])
+### hash.digest(\[encoding\])
 <!-- YAML
 added: v0.1.92
 -->
@@ -1057,7 +1057,7 @@ a [`Buffer`][] is returned.
 The `Hash` object can not be used again after `hash.digest()` method has been
 called. Multiple calls will cause an error to be thrown.
 
-### hash.update(data[, inputEncoding])
+### hash.update(data\[, inputEncoding\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1139,7 +1139,7 @@ console.log(hmac.digest('hex'));
 //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
 ```
 
-### hmac.digest([encoding])
+### hmac.digest(\[encoding\])
 <!-- YAML
 added: v0.1.94
 -->
@@ -1154,7 +1154,7 @@ provided a string is returned; otherwise a [`Buffer`][] is returned;
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 
-### hmac.update(data[, inputEncoding])
+### hmac.update(data\[, inputEncoding\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -1229,7 +1229,7 @@ types are:
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
 
-### keyObject.export([options])
+### keyObject.export(\[options\])
 <!-- YAML
 added: v11.6.0
 -->
@@ -1354,7 +1354,7 @@ console.log(verify.verify(publicKey, signature));
 // Prints: true
 ```
 
-### sign.sign(privateKey[, outputEncoding])
+### sign.sign(privateKey\[, outputEncoding\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1402,7 +1402,7 @@ is returned.
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
 
-### sign.update(data[, inputEncoding])
+### sign.update(data\[, inputEncoding\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1442,7 +1442,7 @@ The [`crypto.createVerify()`][] method is used to create `Verify` instances.
 
 See [`Sign`][] for examples.
 
-### verify.update(data[, inputEncoding])
+### verify.update(data\[, inputEncoding\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1462,7 +1462,7 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 
 This can be called many times with new data as it is streamed.
 
-### verify.verify(object, signature[, signatureEncoding])
+### verify.verify(object, signature\[, signatureEncoding\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1562,7 +1562,7 @@ is currently in use. Setting to true requires a FIPS build of Node.js.
 This property is deprecated. Please use `crypto.setFips()` and
 `crypto.getFips()` instead.
 
-### crypto.createCipher(algorithm, password[, options])
+### crypto.createCipher(algorithm, password\[, options\])
 <!-- YAML
 added: v0.1.94
 deprecated: v10.0.0
@@ -1618,7 +1618,7 @@ they are used in order to avoid the risk of IV reuse that causes
 vulnerabilities. For the case when IV is reused in GCM, see [Nonce-Disrespecting
 Adversaries][] for details.
 
-### crypto.createCipheriv(algorithm, key, iv[, options])
+### crypto.createCipheriv(algorithm, key, iv\[, options\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -1675,7 +1675,7 @@ something has to be unpredictable and unique, but does not have to be secret;
 it is important to remember that an attacker must not be able to predict ahead
 of time what a given IV will be.
 
-### crypto.createDecipher(algorithm, password[, options])
+### crypto.createDecipher(algorithm, password\[, options\])
 <!-- YAML
 added: v0.1.94
 deprecated: v10.0.0
@@ -1712,7 +1712,7 @@ In line with OpenSSL's recommendation to use a more modern algorithm instead of
 their own using [`crypto.scrypt()`][] and to use [`crypto.createDecipheriv()`][]
 to create the `Decipher` object.
 
-### crypto.createDecipheriv(algorithm, key, iv[, options])
+### crypto.createDecipheriv(algorithm, key, iv\[, options\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -1769,7 +1769,7 @@ something has to be unpredictable and unique, but does not have to be secret;
 it is important to remember that an attacker must not be able to predict ahead
 of time what a given IV will be.
 
-### crypto.createDiffieHellman(prime[, primeEncoding][, generator][, generatorEncoding])
+### crypto.createDiffieHellman(prime\[, primeEncoding\]\[, generator\]\[, generatorEncoding\])
 <!-- YAML
 added: v0.11.12
 changes:
@@ -1804,7 +1804,7 @@ a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 If `generatorEncoding` is specified, `generator` is expected to be a string;
 otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
-### crypto.createDiffieHellman(primeLength[, generator])
+### crypto.createDiffieHellman(primeLength\[, generator\])
 <!-- YAML
 added: v0.5.0
 -->
@@ -1842,7 +1842,7 @@ predefined curve specified by the `curveName` string. Use
 OpenSSL releases, `openssl ecparam -list_curves` will also display the name
 and description of each available elliptic curve.
 
-### crypto.createHash(algorithm[, options])
+### crypto.createHash(algorithm\[, options\])
 <!-- YAML
 added: v0.1.92
 changes:
@@ -1888,7 +1888,7 @@ input.on('readable', () => {
 });
 ```
 
-### crypto.createHmac(algorithm, key[, options])
+### crypto.createHmac(algorithm, key\[, options\])
 <!-- YAML
 added: v0.1.94
 changes:
@@ -2002,7 +2002,7 @@ added: v11.6.0
 Creates and returns a new key object containing a secret key for symmetric
 encryption or `Hmac`.
 
-### crypto.createSign(algorithm[, options])
+### crypto.createSign(algorithm\[, options\])
 <!-- YAML
 added: v0.1.92
 -->
@@ -2021,7 +2021,7 @@ the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
 
-### crypto.createVerify(algorithm[, options])
+### crypto.createVerify(algorithm\[, options\])
 <!-- YAML
 added: v0.1.92
 -->
@@ -2505,7 +2505,7 @@ object, the `padding` property can be passed. Otherwise, this function uses
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
 
-### crypto.randomBytes(size[, callback])
+### crypto.randomBytes(size\[, callback\])
 <!-- YAML
 added: v0.5.8
 changes:
@@ -2564,7 +2564,7 @@ threadpool request. To minimize threadpool task length variation, partition
 large `randomBytes` requests when doing so as part of fulfilling a client
 request.
 
-### crypto.randomFillSync(buffer[, offset][, size])
+### crypto.randomFillSync(buffer\[, offset\]\[, size\])
 <!-- YAML
 added:
   - v7.10.0
@@ -2610,7 +2610,7 @@ console.log(Buffer.from(crypto.randomFillSync(c).buffer,
                         c.byteOffset, c.byteLength).toString('hex'));
 ```
 
-### crypto.randomFill(buffer[, offset][, size], callback)
+### crypto.randomFill(buffer\[, offset\]\[, size\], callback)
 <!-- YAML
 added:
   - v7.10.0
@@ -2685,7 +2685,7 @@ threadpool request. To minimize threadpool task length variation, partition
 large `randomFill` requests when doing so as part of fulfilling a client
 request.
 
-### crypto.scrypt(password, salt, keylen[, options], callback)
+### crypto.scrypt(password, salt, keylen\[, options\], callback)
 <!-- YAML
 added: v10.5.0
 changes:
@@ -2743,7 +2743,7 @@ crypto.scrypt('secret', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
 });
 ```
 
-### crypto.scryptSync(password, salt, keylen[, options])
+### crypto.scryptSync(password, salt, keylen\[, options\])
 <!-- YAML
 added: v10.5.0
 changes:
@@ -2794,7 +2794,7 @@ const key2 = crypto.scryptSync('secret', 'salt', 64, { N: 1024 });
 console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 ```
 
-### crypto.setEngine(engine[, flags])
+### crypto.setEngine(engine\[, flags\])
 <!-- YAML
 added: v0.11.11
 -->

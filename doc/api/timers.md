@@ -130,7 +130,7 @@ a certain period of time. When a timer's function is called varies depending on
 which method was used to create the timer and what other work the Node.js
 event loop is doing.
 
-### setImmediate(callback[, ...args])
+### setImmediate(callback\[, ...args\])
 <!-- YAML
 added: v0.9.1
 -->
@@ -172,7 +172,7 @@ async function timerExample() {
 timerExample();
 ```
 
-### setInterval(callback, delay[, ...args])
+### setInterval(callback, delay\[, ...args\])
 <!-- YAML
 added: v0.0.1
 -->
@@ -190,7 +190,7 @@ set to `1`. Non-integer delays are truncated to an integer.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-### setTimeout(callback, delay[, ...args])
+### setTimeout(callback, delay\[, ...args\])
 <!-- YAML
 added: v0.0.1
 -->

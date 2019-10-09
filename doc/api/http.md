@@ -107,7 +107,7 @@ http.get({
 });
 ```
 
-### new Agent([options])
+### new Agent(\[options\])
 <!-- YAML
 added: v0.3.4
 -->
@@ -149,7 +149,7 @@ options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
 
-### agent.createConnection(options[, callback])
+### agent.createConnection(options\[, callback\])
 <!-- YAML
 added: v0.11.4
 -->
@@ -573,7 +573,7 @@ added: v0.3.0
 
 See [`request.socket`][].
 
-### request.end([data[, encoding]][, callback])
+### request.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -698,7 +698,7 @@ or
 request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 ```
 
-### request.setNoDelay([noDelay])
+### request.setNoDelay(\[noDelay\])
 <!-- YAML
 added: v0.5.9
 -->
@@ -708,7 +708,7 @@ added: v0.5.9
 Once a socket is assigned to this request and is connected
 [`socket.setNoDelay()`][] will be called.
 
-### request.setSocketKeepAlive([enable][, initialDelay])
+### request.setSocketKeepAlive(\[enable\]\[, initialDelay\])
 <!-- YAML
 added: v0.5.9
 -->
@@ -719,7 +719,7 @@ added: v0.5.9
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
 
-### request.setTimeout(timeout[, callback])
+### request.setTimeout(timeout\[, callback\])
 <!-- YAML
 added: v0.5.9
 changes:
@@ -784,7 +784,7 @@ added: v12.7.0
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
 
-### request.write(chunk[, encoding][, callback])
+### request.write(chunk\[, encoding\]\[, callback\])
 <!-- YAML
 added: v0.1.29
 -->
@@ -991,7 +991,7 @@ After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
 
-### server.close([callback])
+### server.close(\[callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1041,7 +1041,7 @@ added: v0.7.0
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
-### server.setTimeout([msecs][, callback])
+### server.setTimeout(\[msecs\]\[, callback\])
 <!-- YAML
 added: v0.9.12
 -->
@@ -1167,7 +1167,7 @@ added: v0.3.0
 
 See [`response.socket`][].
 
-### response.end([data[, encoding]][, callback])
+### response.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -1375,7 +1375,7 @@ header will not yield the expected result. If progressive population of headers
 is desired with potential future retrieval and modification, use
 [`response.setHeader()`][] instead of [`response.writeHead()`][].
 
-### response.setTimeout(msecs[, callback])
+### response.setTimeout(msecs\[, callback\])
 <!-- YAML
 added: v0.9.12
 -->
@@ -1473,7 +1473,7 @@ added: v12.7.0
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
 
-### response.write(chunk[, encoding][, callback])
+### response.write(chunk\[, encoding\]\[, callback\])
 <!-- YAML
 added: v0.1.29
 -->
@@ -1519,7 +1519,7 @@ Sends a HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on
 `Server`.
 
-### response.writeHead(statusCode[, statusMessage][, headers])
+### response.writeHead(statusCode\[, statusMessage\]\[, headers\])
 <!-- YAML
 added: v0.1.30
 changes:
@@ -1664,7 +1664,7 @@ const req = http.request({
 });
 ```
 
-### message.destroy([error])
+### message.destroy(\[error\])
 <!-- YAML
 added: v0.3.0
 -->
@@ -1770,7 +1770,7 @@ added: v0.11.6
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
 
-### message.setTimeout(msecs[, callback])
+### message.setTimeout(msecs\[, callback\])
 <!-- YAML
 added: v0.5.9
 -->
@@ -1913,7 +1913,7 @@ A collection of all the standard HTTP response status codes, and the
 short description of each. For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createServer([options][, requestListener])
+## http.createServer(\[options\]\[, requestListener\])
 <!-- YAML
 added: v0.1.13
 changes:
@@ -1938,8 +1938,8 @@ Returns a new instance of [`http.Server`][].
 The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
-## http.get(options[, callback])
-## http.get(url[, options][, callback])
+## http.get(options\[, callback\])
+## http.get(url\[, options\]\[, callback\])
 <!-- YAML
 added: v0.3.6
 changes:
@@ -2026,8 +2026,8 @@ added: v11.6.0
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
 Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 
-## http.request(options[, callback])
-## http.request(url[, options][, callback])
+## http.request(options\[, callback\])
+## http.request(url\[, options\]\[, callback\])
 <!-- YAML
 added: v0.3.6
 changes:

@@ -102,7 +102,7 @@ process.stdout.on('resize', () => {
 });
 ```
 
-### writeStream.clearLine(dir[, callback])
+### writeStream.clearLine(dir\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -123,7 +123,7 @@ changes:
 `writeStream.clearLine()` clears the current line of this `WriteStream` in a
 direction identified by `dir`.
 
-### writeStream.clearScreenDown([callback])
+### writeStream.clearScreenDown(\[callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -148,7 +148,7 @@ added: v0.7.7
 A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
-### writeStream.cursorTo(x[, y][, callback])
+### writeStream.cursorTo(x\[, y\]\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -167,7 +167,7 @@ changes:
 `writeStream.cursorTo()` moves this `WriteStream`'s cursor to the specified
 position.
 
-### writeStream.getColorDepth([env])
+### writeStream.getColorDepth(\[env\])
 <!-- YAML
 added: v9.9.0
 -->
@@ -214,7 +214,7 @@ corresponding to this `WriteStream`. The array is of the type
 `[numColumns, numRows]` where `numColumns` and `numRows` represent the number
 of columns and rows in the corresponding [TTY](tty.html).
 
-### writeStream.hasColors([count][, env])
+### writeStream.hasColors(\[count\]\[, env\])
 <!-- YAML
 added: v11.13.0
 -->
@@ -250,7 +250,7 @@ added: v0.5.8
 
 A `boolean` that is always `true`.
 
-### writeStream.moveCursor(dx, dy[, callback])
+### writeStream.moveCursor(dx, dy\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:

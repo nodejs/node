@@ -530,7 +530,7 @@ Returns the bound address, the address family name, and port of the
 server as reported by the operating system. See [`net.Server.address()`][] for
 more information.
 
-### server.close([callback])
+### server.close(\[callback\])
 <!-- YAML
 added: v0.3.2
 -->
@@ -614,7 +614,7 @@ Methods that return TLS connection metadata (e.g.
 [`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
 connection is open.
 
-### new tls.TLSSocket(socket[, options])
+### new tls.TLSSocket(socket\[, options\])
 <!-- YAML
 added: v0.11.4
 changes:
@@ -875,7 +875,7 @@ provided by SSL/TLS is not desired or is not enough.
 Corresponds to the `SSL_get_finished` routine in OpenSSL and may be used
 to implement the `tls-unique` channel binding from [RFC 5929][].
 
-### tlsSocket.getPeerCertificate([detailed])
+### tlsSocket.getPeerCertificate(\[detailed\])
 <!-- YAML
 added: v0.11.4
 -->
@@ -1192,7 +1192,7 @@ the checks done with additional verification.
 This function is only called if the certificate passed all other checks, such as
 being issued by trusted CA (`options.ca`).
 
-## tls.connect(options[, callback])
+## tls.connect(options\[, callback\])
 <!-- YAML
 added: v0.11.3
 changes:
@@ -1322,7 +1322,7 @@ socket.on('end', () => {
 });
 ```
 
-## tls.connect(path[, options][, callback])
+## tls.connect(path\[, options\]\[, callback\])
 <!-- YAML
 added: v0.11.3
 -->
@@ -1337,7 +1337,7 @@ as an argument instead of an option.
 
 A path option, if specified, will take precedence over the path argument.
 
-## tls.connect(port[, host][, options][, callback])
+## tls.connect(port\[, host\]\[, options\]\[, callback\])
 <!-- YAML
 added: v0.11.3
 -->
@@ -1354,7 +1354,7 @@ as arguments instead of options.
 A port or host option, if specified, will take precedence over any port or host
 argument.
 
-## tls.createSecureContext([options])
+## tls.createSecureContext(\[options\])
 <!-- YAML
 added: v0.11.13
 changes:
@@ -1526,7 +1526,7 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 If the `ca` option is not given, then Node.js will default to using
 [Mozilla's publicly trusted list of CAs][].
 
-## tls.createServer([options][, secureConnectionListener])
+## tls.createServer(\[options\]\[, secureConnectionListener\])
 <!-- YAML
 added: v0.3.2
 changes:
@@ -1742,7 +1742,7 @@ As with checking for the server
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
-### tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
+### tls.createSecurePair(\[context\]\[, isServer\]\[, requestCert\]\[, rejectUnauthorized\]\[, options\])
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3

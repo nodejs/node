@@ -23,7 +23,7 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
-### new Agent([options])
+### new Agent(\[options\])
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -54,7 +54,7 @@ added: v0.3.4
 
 See [`http.Server`][] for more information.
 
-### server.close([callback])
+### server.close(\[callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -84,7 +84,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 See [`http.Server#maxHeadersCount`][].
 
-### server.setTimeout([msecs][, callback])
+### server.setTimeout(\[msecs\]\[, callback\])
 <!-- YAML
 added: v0.11.2
 -->
@@ -113,7 +113,7 @@ added: v8.0.0
 
 See [`http.Server#keepAliveTimeout`][].
 
-## https.createServer([options][, requestListener])
+## https.createServer(\[options\]\[, requestListener\])
 <!-- YAML
 added: v0.3.4
 -->
@@ -156,8 +156,8 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-## https.get(options[, callback])
-## https.get(url[, options][, callback])
+## https.get(options\[, callback\])
+## https.get(url\[, options\]\[, callback\])
 <!-- YAML
 added: v0.3.6
 changes:
@@ -204,8 +204,8 @@ added: v0.5.9
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options[, callback])
-## https.request(url[, options][, callback])
+## https.request(options\[, callback\])
+## https.request(url\[, options\]\[, callback\])
 <!-- YAML
 added: v0.3.6
 changes:

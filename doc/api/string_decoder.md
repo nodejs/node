@@ -44,7 +44,7 @@ console.log(decoder.end(Buffer.from([0xAC])));
 
 ## Class: StringDecoder
 
-### new StringDecoder([encoding])
+### new StringDecoder(\[encoding\])
 <!-- YAML
 added: v0.1.99
 -->
@@ -54,7 +54,7 @@ added: v0.1.99
 
 Creates a new `StringDecoder` instance.
 
-### stringDecoder.end([buffer])
+### stringDecoder.end(\[buffer\])
 <!-- YAML
 added: v0.9.3
 -->

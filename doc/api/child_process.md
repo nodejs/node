@@ -129,7 +129,7 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 });
 ```
 
-### child_process.exec(command[, options][, callback])
+### child_process.exec(command\[, options\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -233,7 +233,7 @@ async function lsExample() {
 lsExample();
 ```
 
-### child_process.execFile(file[, args][, options][, callback])
+### child_process.execFile(file\[, args\]\[, options\]\[, callback\])
 <!-- YAML
 added: v0.1.91
 changes:
@@ -317,7 +317,7 @@ getVersion();
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-### child_process.fork(modulePath[, args][, options])
+### child_process.fork(modulePath\[, args\]\[, options\])
 <!-- YAML
 added: v0.5.0
 changes:
@@ -382,7 +382,7 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
-### child_process.spawn(command[, args][, options])
+### child_process.spawn(command\[, args\]\[, options\])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -686,7 +686,7 @@ Blocking calls like these are mostly useful for simplifying general-purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
-### child_process.execFileSync(file[, args][, options])
+### child_process.execFileSync(file\[, args\]\[, options\])
 <!-- YAML
 added: v0.11.12
 changes:
@@ -753,7 +753,7 @@ If the process times out or has a non-zero exit code, this method will throw an
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-### child_process.execSync(command[, options])
+### child_process.execSync(command\[, options\])
 <!-- YAML
 added: v0.11.12
 changes:
@@ -813,7 +813,7 @@ The [`Error`][] object will contain the entire result from
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
 
-### child_process.spawnSync(command[, args][, options])
+### child_process.spawnSync(command\[, args\]\[, options\])
 <!-- YAML
 added: v0.11.12
 changes:
@@ -1038,7 +1038,7 @@ When the child process is a Node.js instance (e.g. spawned using
 [`child_process.fork()`][]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
-### subprocess.kill([signal])
+### subprocess.kill(\[signal\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1148,7 +1148,7 @@ subprocess.unref();
 subprocess.ref();
 ```
 
-### subprocess.send(message[, sendHandle[, options]][, callback])
+### subprocess.send(message\[, sendHandle\[, options\]\]\[, callback\])
 <!-- YAML
 added: v0.5.9
 changes:

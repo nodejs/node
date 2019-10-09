@@ -128,7 +128,7 @@ section if a custom port is used.
 ]
 ```
 
-## dns.lookup(hostname[, options], callback)
+## dns.lookup(hostname\[, options\], callback)
 <!-- YAML
 added: v0.1.90
 changes:
@@ -250,7 +250,7 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 `Promise` for an `Object` with `hostname` and `service` properties.
 
-## dns.resolve(hostname[, rrtype], callback)
+## dns.resolve(hostname\[, rrtype\], callback)
 <!-- YAML
 added: v0.1.27
 -->
@@ -283,7 +283,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
 [DNS error codes](#dns_error_codes).
 
-## dns.resolve4(hostname[, options], callback)
+## dns.resolve4(hostname\[, options\], callback)
 <!-- YAML
 added: v0.1.16
 changes:
@@ -308,7 +308,7 @@ Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-## dns.resolve6(hostname[, options], callback)
+## dns.resolve6(hostname\[, options\], callback)
 <!-- YAML
 added: v0.1.16
 changes:
@@ -679,7 +679,7 @@ section if a custom port is used.
 ]
 ```
 
-### dnsPromises.lookup(hostname[, options])
+### dnsPromises.lookup(hostname\[, options\])
 <!-- YAML
 added: v10.6.0
 -->
@@ -770,7 +770,7 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 });
 ```
 
-### dnsPromises.resolve(hostname[, rrtype])
+### dnsPromises.resolve(hostname\[, rrtype\])
 <!-- YAML
 added: v10.6.0
 -->
@@ -800,7 +800,7 @@ based on `rrtype`:
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
 
-### dnsPromises.resolve4(hostname[, options])
+### dnsPromises.resolve4(hostname\[, options\])
 <!-- YAML
 added: v10.6.0
 -->
@@ -816,7 +816,7 @@ Uses the DNS protocol to resolve IPv4 addresses (`A` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of IPv4
 addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-### dnsPromises.resolve6(hostname[, options])
+### dnsPromises.resolve6(hostname\[, options\])
 <!-- YAML
 added: v10.6.0
 -->

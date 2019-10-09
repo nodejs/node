@@ -290,7 +290,7 @@ This method can be called when no further communication will happen over this
 The [`'close'` event][] will be emitted on both `MessagePort` instances that
 are part of the channel.
 
-### port.postMessage(value[, transferList])
+### port.postMessage(value\[, transferList\])
 <!-- YAML
 added: v10.5.0
 -->
@@ -487,7 +487,7 @@ if (isMainThread) {
 }
 ```
 
-### new Worker(filename[, options])
+### new Worker(filename\[, options\])
 
 * `filename` {string} The path to the Worker’s main script. Must be
   either an absolute path or a relative path (i.e. relative to the
@@ -561,7 +561,7 @@ added: v10.5.0
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
-### worker.postMessage(value[, transferList])
+### worker.postMessage(value\[, transferList\])
 <!-- YAML
 added: v10.5.0
 -->

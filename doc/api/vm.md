@@ -51,7 +51,7 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
-### Constructor: new vm.Script(code[, options])
+### Constructor: new vm.Script(code\[, options\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -130,7 +130,7 @@ script.runInThisContext();
 const cacheWithX = script.createCachedData();
 ```
 
-### script.runInContext(contextifiedSandbox[, options])
+### script.runInContext(contextifiedSandbox\[, options\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -188,7 +188,7 @@ Using the `timeout` or `breakOnSigint` options will result in new event loops
 and corresponding threads being started, which have a non-zero performance
 overhead.
 
-### script.runInNewContext([sandbox[, options]])
+### script.runInNewContext(\[sandbox\[, options\]\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -255,7 +255,7 @@ console.log(util.inspect(sandboxes));
 // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 ```
 
-### script.runInThisContext([options])
+### script.runInThisContext(\[options\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -404,7 +404,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 })();
 ```
 
-### Constructor: new vm.SourceTextModule(code[, options])
+### Constructor: new vm.SourceTextModule(code\[, options\])
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -492,7 +492,7 @@ exception due to possible ambiguity with `throw undefined;`.
 Corresponds to the `[[EvaluationError]]` field of [Source Text Module Record][]s
 in the ECMAScript specification.
 
-### module.evaluate([options])
+### module.evaluate(\[options\])
 
 * `options` {Object}
   * `timeout` {integer} Specifies the number of milliseconds to evaluate
@@ -613,7 +613,7 @@ value that is not `undefined`.
 
 The identifier of the current module, as set in the constructor.
 
-## vm.compileFunction(code[, params[, options]])
+## vm.compileFunction(code\[, params\[, options\]\])
 <!-- YAML
 added: v10.10.0
 -->
@@ -644,7 +644,7 @@ Compiles the given code into the provided context/sandbox (if no context is
 supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
-## vm.createContext([sandbox[, options]])
+## vm.createContext(\[sandbox\[, options\]\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -722,7 +722,7 @@ added: v0.11.7
 Returns `true` if the given `sandbox` object has been [contextified][] using
 [`vm.createContext()`][].
 
-## vm.runInContext(code, contextifiedSandbox[, options])
+## vm.runInContext(code, contextifiedSandbox\[, options\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -802,7 +802,7 @@ console.log(util.inspect(sandbox));
 // { globalVar: 1024 }
 ```
 
-## vm.runInNewContext(code[, sandbox[, options]])
+## vm.runInNewContext(code\[, sandbox\[, options\]\])
 <!-- YAML
 added: v0.3.1
 changes:
@@ -900,7 +900,7 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 3, name: 'kitty' }
 ```
 
-## vm.runInThisContext(code[, options])
+## vm.runInThisContext(code\[, options\])
 <!-- YAML
 added: v0.3.1
 changes:

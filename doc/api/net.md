@@ -64,7 +64,7 @@ added: v0.1.90
 
 This class is used to create a TCP or [IPC][] server.
 
-### new net.Server([options][, connectionListener])
+### new net.Server(\[options\]\[, connectionListener\])
 
 * `options` {Object} See
   [`net.createServer([options][, connectionListener])`][`net.createServer()`].
@@ -142,7 +142,7 @@ server.listen(() => {
 
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
-### server.close([callback])
+### server.close(\[callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -234,7 +234,7 @@ server.on('error', (e) => {
 });
 ```
 
-#### server.listen(handle[, backlog][, callback])
+#### server.listen(handle\[, backlog\]\[, callback\])
 <!-- YAML
 added: v0.5.10
 -->
@@ -253,7 +253,7 @@ valid file descriptor.
 
 Listening on a file descriptor is not supported on Windows.
 
-#### server.listen(options[, callback])
+#### server.listen(options\[, callback\])
 <!-- YAML
 added: v0.11.14
 changes:
@@ -306,7 +306,7 @@ Starting an IPC server as root may cause the server path to be inaccessible for
 unprivileged users. Using `readableAll` and `writableAll` will make the server
 accessible for all users.
 
-#### server.listen(path[, backlog][, callback])
+#### server.listen(path\[, backlog\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -319,7 +319,7 @@ added: v0.1.90
 
 Start an [IPC][] server listening for connections on the given `path`.
 
-#### server.listen([port[, host[, backlog]]][, callback])
+#### server.listen(\[port\[, host\[, backlog\]\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -406,7 +406,7 @@ is received. For example, it is passed to the listeners of a
 [`'connection'`][] event emitted on a [`net.Server`][], so the user can use
 it to interact with the client.
 
-### new net.Socket([options])
+### new net.Socket(\[options\])
 <!-- YAML
 added: v0.3.4
 -->
@@ -603,7 +603,7 @@ the error passed to the [`'error'`][] listener.
 The last parameter `connectListener`, if supplied, will be added as a listener
 for the [`'connect'`][] event **once**.
 
-#### socket.connect(options[, connectListener])
+#### socket.connect(options\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -679,7 +679,7 @@ net.connect({
 });
 ```
 
-#### socket.connect(path[, connectListener])
+#### socket.connect(path\[, connectListener\])
 
 * `path` {string} Path the client should connect to. See
   [Identifying paths for IPC connections][].
@@ -693,7 +693,7 @@ Alias to
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 called with `{ path: path }` as `options`.
 
-#### socket.connect(port[, host][, connectListener])
+#### socket.connect(port\[, host\]\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -725,7 +725,7 @@ that the
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 callback is a listener for the `'connect'` event.
 
-### socket.destroy([exception])
+### socket.destroy(\[exception\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -744,7 +744,7 @@ listeners for that event will receive `exception` as an argument.
 * {boolean} Indicates if the connection is destroyed or not. Once a
   connection is destroyed no further data can be transferred using it.
 
-### socket.end([data[, encoding]][, callback])
+### socket.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -845,7 +845,7 @@ The numeric representation of the remote port. For example, `80` or `21`.
 
 Resumes reading after a call to [`socket.pause()`][].
 
-### socket.setEncoding([encoding])
+### socket.setEncoding(\[encoding\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -856,7 +856,7 @@ added: v0.1.90
 Set the encoding for the socket as a [Readable Stream][]. See
 [`readable.setEncoding()`][] for more information.
 
-### socket.setKeepAlive([enable][, initialDelay])
+### socket.setKeepAlive(\[enable\]\[, initialDelay\])
 <!-- YAML
 added: v0.1.92
 -->
@@ -873,7 +873,7 @@ data packet received and the first keepalive probe. Setting `0` for
 `initialDelay` will leave the value unchanged from the default
 (or previous) setting.
 
-### socket.setNoDelay([noDelay])
+### socket.setNoDelay(\[noDelay\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -885,7 +885,7 @@ Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting `true` for
 `noDelay` will immediately fire off data each time `socket.write()` is called.
 
-### socket.setTimeout(timeout[, callback])
+### socket.setTimeout(timeout\[, callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -925,7 +925,7 @@ Calling `unref()` on a socket will allow the program to exit if this is the only
 active socket in the event system. If the socket is already `unref`ed calling
 `unref()` again will have no effect.
 
-### socket.write(data[, encoding][, callback])
+### socket.write(data\[, encoding\]\[, callback\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -961,7 +961,7 @@ Possible signatures:
 * [`net.connect(port[, host][, connectListener])`][`net.connect(port, host)`]
   for TCP connections.
 
-### net.connect(options[, connectListener])
+### net.connect(options\[, connectListener\])
 <!-- YAML
 added: v0.7.0
 -->
@@ -973,7 +973,7 @@ added: v0.7.0
 Alias to
 [`net.createConnection(options[, connectListener])`][`net.createConnection(options)`].
 
-### net.connect(path[, connectListener])
+### net.connect(path\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -985,7 +985,7 @@ added: v0.1.90
 Alias to
 [`net.createConnection(path[, connectListener])`][`net.createConnection(path)`].
 
-### net.connect(port[, host][, connectListener])
+### net.connect(port\[, host\]\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1018,7 +1018,7 @@ Possible signatures:
 
 The [`net.connect()`][] function is an alias to this function.
 
-### net.createConnection(options[, connectListener])
+### net.createConnection(options\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1068,7 +1068,7 @@ changed to:
 const client = net.createConnection({ path: '/tmp/echo.sock' });
 ```
 
-### net.createConnection(path[, connectListener])
+### net.createConnection(path\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1089,7 +1089,7 @@ immediately initiates connection with
 [`socket.connect(path[, connectListener])`][`socket.connect(path)`],
 then returns the `net.Socket` that starts the connection.
 
-### net.createConnection(port[, host][, connectListener])
+### net.createConnection(port\[, host\]\[, connectListener\])
 <!-- YAML
 added: v0.1.90
 -->
@@ -1112,7 +1112,7 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`],
 then returns the `net.Socket` that starts the connection.
 
-## net.createServer([options][, connectionListener])
+## net.createServer(\[options\]\[, connectionListener\])
 <!-- YAML
 added: v0.5.0
 -->
