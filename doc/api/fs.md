@@ -291,7 +291,8 @@ added: v12.12.0
 
 A class representing a directory stream.
 
-Created by [`fs.opendir()`][], [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
+Created by [`fs.opendir()`][], [`fs.opendirSync()`][], or
+[`fsPromises.opendir()`][].
 
 ```js
 const fs = require('fs');
@@ -304,16 +305,6 @@ async function print(path) {
 }
 print('./').catch(console.error);
 ```
-
-### dir.path
-<!-- YAML
-added: v12.12.0
--->
-
-* {string}
-
-The read-only path of this directory as was provided to [`fs.opendir()`][],
-[`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
 
 ### dir.close()
 <!-- YAML
@@ -348,6 +339,16 @@ added: v12.12.0
 
 Synchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
+
+### dir.path
+<!-- YAML
+added: v12.12.0
+-->
+
+* {string}
+
+The read-only path of this directory as was provided to [`fs.opendir()`][],
+[`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
 
 ### dir.read()
 <!-- YAML
@@ -429,7 +430,8 @@ included in the iteration results.
 added: v10.10.0
 -->
 
-A representation of a directory entry, as returned by reading from an [`fs.Dir`][].
+A representation of a directory entry, as returned by reading from an
+[`fs.Dir`][].
 
 Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
@@ -2620,33 +2622,6 @@ a colon, Node.js will open a file system stream, as described by
 Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
 
-## fs.openSync(path\[, flags, mode\])
-<!-- YAML
-added: v0.1.21
-changes:
-  - version: v11.1.0
-    pr-url: https://github.com/nodejs/node/pull/23767
-    description: The `flags` argument is now optional and defaults to `'r'`.
-  - version: v9.9.0
-    pr-url: https://github.com/nodejs/node/pull/18801
-    description: The `as` and `as+` modes are supported now.
-  - version: v7.6.0
-    pr-url: https://github.com/nodejs/node/pull/10739
-    description: The `path` parameter can be a WHATWG `URL` object using `file:`
-                 protocol. Support is currently still *experimental*.
--->
-
-* `path` {string|Buffer|URL}
-* `flags` {string|number} **Default:** `'r'`.
-   See [support of file system `flags`][].
-* `mode` {integer} **Default:** `0o666`
-* Returns: {number}
-
-Returns an integer representing the file descriptor.
-
-For detailed information, see the documentation of the asynchronous version of
-this API: [`fs.open()`][].
-
 ## fs.opendir(path\[, options\], callback)
 <!-- YAML
 added: v12.12.0
@@ -2684,6 +2659,33 @@ and cleaning up the directory.
 
 The `encoding` option sets the encoding for the `path` while opening the
 directory and subsequent read operations.
+
+## fs.openSync(path\[, flags, mode\])
+<!-- YAML
+added: v0.1.21
+changes:
+  - version: v11.1.0
+    pr-url: https://github.com/nodejs/node/pull/23767
+    description: The `flags` argument is now optional and defaults to `'r'`.
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/18801
+    description: The `as` and `as+` modes are supported now.
+  - version: v7.6.0
+    pr-url: https://github.com/nodejs/node/pull/10739
+    description: The `path` parameter can be a WHATWG `URL` object using `file:`
+                 protocol. Support is currently still *experimental*.
+-->
+
+* `path` {string|Buffer|URL}
+* `flags` {string|number} **Default:** `'r'`.
+   See [support of file system `flags`][].
+* `mode` {integer} **Default:** `0o666`
+* Returns: {number}
+
+Returns an integer representing the file descriptor.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.open()`][].
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 <!-- YAML
@@ -4824,7 +4826,7 @@ by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
-## fsPromises.opendir(path\[, options\])
+### fsPromises.opendir(path\[, options\])
 <!-- YAML
 added: v12.12.0
 -->
@@ -5459,6 +5461,7 @@ the file contents.
 [`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.html#buffer_buffer
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
+[`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`ReadStream`]: #fs_class_fs_readstream
 [`URL`]: url.html#url_the_whatwg_url_api
@@ -5505,7 +5508,6 @@ the file contents.
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_options_callback
 [`util.promisify()`]: util.html#util_util_promisify_original
-[bigints]: https://tc39.github.io/proposal-bigint
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
 [FS Constants]: #fs_fs_constants_1
@@ -5515,7 +5517,7 @@ the file contents.
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
+[bigints]: https://tc39.github.io/proposal-bigint
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
-[`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
