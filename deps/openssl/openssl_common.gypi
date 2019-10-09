@@ -64,7 +64,7 @@
         'TERMIOS',
       ],
       'conditions': [
-        [ 'llvm_version==0', {
+        [ 'llvm_version=="0.0"', {
           'cflags': ['-Wno-old-style-declaration',],
         }],
       ],

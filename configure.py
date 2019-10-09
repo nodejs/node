@@ -701,7 +701,7 @@ def get_version_helper(cc, regexp):
   if match:
     return match.group(2)
   else:
-    return '0'
+    return '0.0'
 
 def get_nasm_version(asm):
   try:
@@ -712,7 +712,7 @@ def get_nasm_version(asm):
     warn('''No acceptable ASM compiler found!
          Please make sure you have installed NASM from https://www.nasm.us
          and refer BUILDING.md.''')
-    return '0'
+    return '0.0'
 
   match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
                    to_utf8(proc.communicate()[0]))
@@ -720,7 +720,7 @@ def get_nasm_version(asm):
   if match:
     return match.group(1)
   else:
-    return '0'
+    return '0.0'
 
 def get_llvm_version(cc):
   return get_version_helper(
@@ -753,7 +753,7 @@ def get_gas_version(cc):
     return match.group(1)
   else:
     warn('Could not recognize `gas`: ' + gas_ret)
-    return '0'
+    return '0.0'
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
@@ -764,7 +764,7 @@ def check_compiler(o):
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
-      if nasm_version == 0:
+      if nasm_version == '0.0':
         o['variables']['openssl_no_asm'] = 1
     return
 
@@ -783,7 +783,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
+  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
