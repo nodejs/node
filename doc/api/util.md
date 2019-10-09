@@ -119,7 +119,7 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
 
-## util.deprecate(fn, msg[, code])
+## util.deprecate(fn, msg\[, code\])
 <!-- YAML
 added: v0.8.0
 changes:
@@ -181,7 +181,7 @@ The `--throw-deprecation` command line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
-## util.format(format[, ...args])
+## util.format(format\[, ...args\])
 <!-- YAML
 added: v0.5.3
 changes:
@@ -287,7 +287,7 @@ util.format('%% %s');
 Some input values can have a significant performance overhead that can block the
 event loop. Use this function with care and never in a hot code path.
 
-## util.formatWithOptions(inspectOptions, format[, ...args])
+## util.formatWithOptions(inspectOptions, format\[, ...args\])
 <!-- YAML
 added: v10.0.0
 -->
@@ -393,8 +393,8 @@ stream.on('data', (data) => {
 stream.write('With ES6');
 ```
 
-## util.inspect(object[, options])
-## util.inspect(object[, showHidden[, depth[, colors]]])
+## util.inspect(object\[, options\])
+## util.inspect(object\[, showHidden\[, depth\[, colors\]\]\])
 <!-- YAML
 added: v0.3.0
 changes:
@@ -991,7 +991,7 @@ Different Node.js build configurations support different sets of encodings.
 The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
 is not supported.
 
-### new TextDecoder([encoding[, options]])
+### new TextDecoder(\[encoding\[, options\]\])
 <!-- YAML
 added: v8.3.0
 changes:
@@ -1016,7 +1016,7 @@ supported encodings or an alias.
 
 The `TextDecoder` class is also available on the global object.
 
-### textDecoder.decode([input[, options]])
+### textDecoder.decode(\[input\[, options\]\])
 
 * `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
   `TypedArray` instance containing the encoded data.
@@ -1071,7 +1071,7 @@ const uint8array = encoder.encode('this is some data');
 
 The `TextEncoder` class is also available on the global object.
 
-### textEncoder.encode([input])
+### textEncoder.encode(\[input\])
 
 * `input` {string} The text to encode. **Default:** an empty string.
 * Returns: {Uint8Array}

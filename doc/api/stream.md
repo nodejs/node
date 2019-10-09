@@ -366,7 +366,7 @@ buffered writes in a more optimized manner.
 
 See also: [`writable.uncork()`][].
 
-##### writable.destroy([error])
+##### writable.destroy(\[error\])
 <!-- YAML
 added: v8.0.0
 -->
@@ -394,7 +394,7 @@ added: v8.0.0
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
-##### writable.end([chunk[, encoding]][, callback])
+##### writable.end(\[chunk\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.9.4
 changes:
@@ -544,7 +544,7 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
-##### writable.write(chunk[, encoding][, callback])
+##### writable.write(chunk\[, encoding\]\[, callback\])
 <!-- YAML
 added: v0.9.4
 changes:
@@ -927,7 +927,7 @@ added: v0.9.4
 The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
 called and `readableFlowing` is not `true`.
 
-##### readable.destroy([error])
+##### readable.destroy(\[error\])
 <!-- YAML
 added: v8.0.0
 -->
@@ -1000,7 +1000,7 @@ readable.on('data', (chunk) => {
 The `readable.pause()` method has no effect if there is a `'readable'`
 event listener.
 
-##### readable.pipe(destination[, options])
+##### readable.pipe(destination\[, options\])
 <!-- YAML
 added: v0.9.4
 -->
@@ -1062,7 +1062,7 @@ to prevent memory leaks.
 The [`process.stderr`][] and [`process.stdout`][] `Writable` streams are never
 closed until the Node.js process exits, regardless of the specified options.
 
-##### readable.read([size])
+##### readable.read(\[size\])
 <!-- YAML
 added: v0.9.4
 -->
@@ -1241,7 +1241,7 @@ readable.on('data', (chunk) => {
 });
 ```
 
-##### readable.unpipe([destination])
+##### readable.unpipe(\[destination\])
 <!-- YAML
 added: v0.9.4
 -->
@@ -1272,7 +1272,7 @@ setTimeout(() => {
 }, 1000);
 ```
 
-##### readable.unshift(chunk[, encoding])
+##### readable.unshift(chunk\[, encoding\])
 <!-- YAML
 added: v0.9.11
 changes:
@@ -1451,7 +1451,7 @@ Examples of `Transform` streams include:
 * [zlib streams][zlib]
 * [crypto streams][crypto]
 
-##### transform.destroy([error])
+##### transform.destroy(\[error\])
 <!-- YAML
 added: v8.0.0
 -->
@@ -1465,7 +1465,7 @@ Implementors should not override this method, but instead implement
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.
 
-### stream.finished(stream[, options], callback)
+### stream.finished(stream\[, options\], callback)
 <!-- YAML
 added: v10.0.0
 -->
@@ -1599,7 +1599,7 @@ run().catch(console.error);
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
 
-### stream.Readable.from(iterable, [options])
+### stream.Readable.from(iterable, \[options\])
 <!-- YAML
 added: v12.3.0
 -->
@@ -1706,7 +1706,7 @@ Custom `Writable` streams *must* call the `new stream.Writable([options])`
 constructor and implement the `writable._write()` and/or `writable._writev()`
 method.
 
-#### Constructor: new stream.Writable([options])
+#### Constructor: new stream.Writable(\[options\])
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1986,7 +1986,7 @@ The `stream.Readable` class is extended to implement a [`Readable`][] stream.
 Custom `Readable` streams *must* call the `new stream.Readable([options])`
 constructor and implement the `readable._read()` method.
 
-#### new stream.Readable([options])
+#### new stream.Readable(\[options\])
 <!-- YAML
 changes:
   - version: v11.2.0
@@ -2100,7 +2100,7 @@ added: v8.0.0
 The `_destroy()` method is called by [`readable.destroy()`][readable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
 
-#### readable.push(chunk[, encoding])
+#### readable.push(chunk\[, encoding\])
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -2412,7 +2412,7 @@ Care must be taken when using `Transform` streams in that data written to the
 stream can cause the `Writable` side of the stream to become paused if the
 output on the `Readable` side is not consumed.
 
-#### new stream.Transform([options])
+#### new stream.Transform(\[options\])
 
 * `options` {Object} Passed to both `Writable` and `Readable`
   constructors. Also has the following fields:

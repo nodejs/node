@@ -43,7 +43,7 @@ generally not expected to be used directly. It is exported primarily to allow
 application code to provide a replacement percent-encoding implementation if
 necessary by assigning `querystring.escape` to an alternative function.
 
-## querystring.parse(str[, sep[, eq[, options]]])
+## querystring.parse(str\[, sep\[, eq\[, options\]\]\])
 <!-- YAML
 added: v0.1.25
 changes:
@@ -99,7 +99,7 @@ querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
                   { decodeURIComponent: gbkDecodeURIComponent });
 ```
 
-## querystring.stringify(obj[, sep[, eq[, options]]])
+## querystring.stringify(obj\[, sep\[, eq\[, options\]\]\])
 <!-- YAML
 added: v0.1.25
 -->

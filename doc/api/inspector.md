@@ -27,7 +27,7 @@ require('inspector').console.log('a message');
 The inspector console does not have API parity with Node.js
 console.
 
-## inspector.open([port[, host[, wait]]])
+## inspector.open(\[port\[, host\[, wait\]\]\])
 
 * `port` {number} Port to listen on for inspector connections. Optional.
   **Default:** what was specified on the CLI.
@@ -141,7 +141,7 @@ with an error. [`session.connect()`][] will need to be called to be able to send
 messages again. Reconnected session will lose all inspector state, such as
 enabled agents or configured breakpoints.
 
-### session.post(method[, params][, callback])
+### session.post(method\[, params\]\[, callback\])
 <!-- YAML
 added: v8.0.0
 -->

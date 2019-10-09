@@ -695,7 +695,7 @@ Module {
      '/node_modules' ] }
 ```
 
-#### require.resolve(request[, options])
+#### require.resolve(request\[, options\])
 <!-- YAML
 added: v0.3.0
 changes:

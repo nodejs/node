@@ -192,7 +192,7 @@ added: v0.3.3
 The `os.freemem()` method returns the amount of free system memory in bytes as
 an integer.
 
-## os.getPriority([pid])
+## os.getPriority(\[pid\])
 <!-- YAML
 added: v10.10.0
 -->
@@ -361,7 +361,7 @@ On POSIX systems, the operating system release is determined by calling
 [uname(3)][]. On Windows, `GetVersionExW()` is used. Please see
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
-## os.setPriority([pid, ]priority)
+## os.setPriority(\[pid, \]priority)
 <!-- YAML
 added: v10.10.0
 -->
@@ -438,7 +438,7 @@ changes:
 
 The `os.uptime()` method returns the system uptime in number of seconds.
 
-## os.userInfo([options])
+## os.userInfo(\[options\])
 <!-- YAML
 added: v6.0.0
 -->

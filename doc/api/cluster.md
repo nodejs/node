@@ -415,7 +415,7 @@ if (cluster.isMaster) {
 }
 ```
 
-### worker.kill([signal='SIGTERM'])
+### worker.kill(\[signal='SIGTERM'\])
 <!-- YAML
 added: v0.9.12
 -->
@@ -456,7 +456,7 @@ Workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
 accidental disconnection.
 
-### worker.send(message[, sendHandle][, callback])
+### worker.send(message\[, sendHandle\]\[, callback\])
 <!-- YAML
 added: v0.7.0
 changes:
@@ -664,7 +664,7 @@ The `settings` object is the `cluster.settings` object at the time
 
 If accuracy is important, use `cluster.settings`.
 
-## cluster.disconnect([callback])
+## cluster.disconnect(\[callback\])
 <!-- YAML
 added: v0.7.7
 -->
@@ -682,7 +682,7 @@ finished.
 
 This can only be called from the master process.
 
-## cluster.fork([env])
+## cluster.fork(\[env\])
 <!-- YAML
 added: v0.6.0
 -->
@@ -777,7 +777,7 @@ the settings, including the default values.
 
 This object is not intended to be changed or set manually.
 
-## cluster.setupMaster([settings])
+## cluster.setupMaster(\[settings\])
 <!-- YAML
 added: v0.7.1
 changes:

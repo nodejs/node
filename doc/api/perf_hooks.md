@@ -30,7 +30,7 @@ doSomeLongRunningProcess(() => {
 added: v8.5.0
 -->
 
-### performance.clearMarks([name])
+### performance.clearMarks(\[name\])
 <!-- YAML
 added: v8.5.0
 -->
@@ -40,7 +40,7 @@ added: v8.5.0
 If `name` is not provided, removes all `PerformanceMark` objects from the
 Performance Timeline. If `name` is provided, removes only the named mark.
 
-### performance.mark([name])
+### performance.mark(\[name\])
 <!-- YAML
 added: v8.5.0
 -->
@@ -384,7 +384,7 @@ added: v8.5.0
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime`.
 
-### performanceObserverEntryList.getEntriesByName(name[, type])
+### performanceObserverEntryList.getEntriesByName(name\[, type\])
 <!-- YAML
 added: v8.5.0
 -->
@@ -410,7 +410,7 @@ Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
 
-## perf_hooks.monitorEventLoopDelay([options])
+## perf_hooks.monitorEventLoopDelay(\[options\])
 <!-- YAML
 added: v11.10.0
 -->

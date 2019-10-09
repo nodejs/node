@@ -329,7 +329,7 @@ socket, `h2c` if the `Http2Session` is not connected to a `TLSSocket`, or
 will return the value of the connected `TLSSocket`'s own `alpnProtocol`
 property.
 
-#### http2session.close([callback])
+#### http2session.close(\[callback\])
 <!-- YAML
 added: v9.4.0
 -->
@@ -365,7 +365,7 @@ Will be `true` if this `Http2Session` instance is still connecting, will be set
 to `false` before emitting `connect` event and/or calling the `http2.connect`
 callback.
 
-#### http2session.destroy([error][, code])
+#### http2session.destroy(\[error\]\[, code\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -408,7 +408,7 @@ connected, `true` if the `Http2Session` is connected with a `TLSSocket`,
 and `false` if the `Http2Session` is connected to any other kind of socket
 or stream.
 
-#### http2session.goaway([code[, lastStreamID[, opaqueData]]])
+#### http2session.goaway(\[code\[, lastStreamID\[, opaqueData\]\]\])
 <!-- YAML
 added: v9.4.0
 -->
@@ -456,7 +456,7 @@ a sent `SETTINGS` frame. Will be `true` after calling the
 `http2session.settings()` method. Will be `false` once all sent `SETTINGS`
 frames have been acknowledged.
 
-#### http2session.ping([payload, ]callback)
+#### http2session.ping(\[payload, \]callback)
 <!-- YAML
 added: v8.9.3
 -->
@@ -572,7 +572,7 @@ Provides miscellaneous information about the current state of the
 
 An object describing the current status of this `Http2Session`.
 
-#### http2session.settings([settings][, callback])
+#### http2session.settings(\[settings\]\[, callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -795,7 +795,7 @@ client.on('origin', (origins) => {
 
 The `'origin'` event is only emitted when using a secure TLS connection.
 
-#### clienthttp2session.request(headers[, options])
+#### clienthttp2session.request(headers\[, options\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1032,7 +1032,7 @@ added: v11.2.0
 This property shows the number of characters currently buffered to be written.
 See [`net.Socket.bufferSize`][] for details.
 
-#### http2stream.close(code[, callback])
+#### http2stream.close(code\[, callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1347,7 +1347,7 @@ client's most recent `SETTINGS` frame. Will be `true` if the remote peer
 accepts push streams, `false` otherwise. Settings are the same for every
 `Http2Stream` in the same `Http2Session`.
 
-#### http2stream.pushStream(headers[, options], callback)
+#### http2stream.pushStream(headers\[, options\], callback)
 <!-- YAML
 added: v8.4.0
 -->
@@ -1392,7 +1392,7 @@ a `weight` value to `http2stream.priority` with the `silent` option set to
 Calling `http2stream.pushStream()` from within a pushed stream is not permitted
 and will throw an error.
 
-#### http2stream.respond([headers[, options]])
+#### http2stream.respond(\[headers\[, options\]\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1435,7 +1435,7 @@ server.on('stream', (stream) => {
 });
 ```
 
-#### http2stream.respondWithFD(fd[, headers[, options]])
+#### http2stream.respondWithFD(fd\[, headers\[, options\]\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1533,7 +1533,7 @@ server.on('stream', (stream) => {
 });
 ```
 
-#### http2stream.respondWithFile(path[, headers[, options]])
+#### http2stream.respondWithFile(path\[, headers\[, options\]\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1751,7 +1751,7 @@ The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 **Default:** 0 (no timeout)
 
-#### server.close([callback])
+#### server.close(\[callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1767,7 +1767,7 @@ If `callback` is provided, it is not invoked until all active sessions have been
 closed, although the server has already stopped allowing new sessions. See
 [`net.Server.close()`][] for more details.
 
-#### server.setTimeout([msecs][, callback])
+#### server.setTimeout(\[msecs\]\[, callback\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1901,7 +1901,7 @@ negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
 the connection is terminated. See the [Compatibility API][].
 
-#### server.close([callback])
+#### server.close(\[callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1917,7 +1917,7 @@ If `callback` is provided, it is not invoked until all active sessions have been
 closed, although the server has already stopped allowing new sessions. See
 [`tls.Server.close()`][] for more details.
 
-#### server.setTimeout([msecs][, callback])
+#### server.setTimeout(\[msecs\]\[, callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -1935,7 +1935,7 @@ The given callback is registered as a listener on the `'timeout'` event.
 In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
 
-### http2.createServer(options[, onRequestHandler])
+### http2.createServer(options\[, onRequestHandler\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2049,7 +2049,7 @@ server.on('stream', (stream, headers) => {
 server.listen(80);
 ```
 
-### http2.createSecureServer(options[, onRequestHandler])
+### http2.createSecureServer(options\[, onRequestHandler\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2150,7 +2150,7 @@ server.on('stream', (stream, headers) => {
 server.listen(80);
 ```
 
-### http2.connect(authority[, options][, listener])
+### http2.connect(authority\[, options\]\[, listener\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2275,7 +2275,7 @@ Returns an object containing the default settings for an `Http2Session`
 instance. This method returns a new object instance every time it is called
 so instances returned may be safely modified for use.
 
-### http2.getPackedSettings([settings])
+### http2.getPackedSettings(\[settings\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -2712,7 +2712,7 @@ deprecated: REPLACEME
 
 See [`request.socket`][].
 
-#### request.destroy([error])
+#### request.destroy(\[error\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -3013,7 +3013,7 @@ deprecated: REPLACEME
 
 See [`response.socket`][].
 
-#### response.end([data[, encoding]][, callback])
+#### response.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v8.4.0
 changes:
@@ -3195,7 +3195,7 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
-#### response.setTimeout(msecs[, callback])
+#### response.setTimeout(msecs\[, callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -3294,7 +3294,7 @@ Is `true` after [`response.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`writable.writableFinished`][] instead.
 
-#### response.write(chunk[, encoding][, callback])
+#### response.write(chunk\[, encoding\]\[, callback\])
 <!-- YAML
 added: v8.4.0
 -->
@@ -3341,7 +3341,7 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
-#### response.writeHead(statusCode[, statusMessage][, headers])
+#### response.writeHead(statusCode\[, statusMessage\]\[, headers\])
 <!-- YAML
 added: v8.4.0
 changes:
