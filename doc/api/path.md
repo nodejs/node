@@ -60,7 +60,7 @@ example, `path.resolve('c:\\')` can potentially return a different result than
 `path.resolve('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
-## path.basename(path[, ext])
+## path.basename(path\[, ext\])
 <!-- YAML
 added: v0.1.25
 changes:
@@ -282,7 +282,7 @@ path.isAbsolute('.');           // false
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.join([...paths])
+## path.join(\[...paths\])
 <!-- YAML
 added: v0.1.16
 -->
@@ -463,7 +463,7 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 
 A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 
-## path.resolve([...paths])
+## path.resolve(\[...paths\])
 <!-- YAML
 added: v0.3.4
 -->

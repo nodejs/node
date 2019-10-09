@@ -446,7 +446,7 @@ Hello, Node.js User!
 Goodbye!
 ```
 
-### replServer.displayPrompt([preserveCursor])
+### replServer.displayPrompt(\[preserveCursor\])
 <!-- YAML
 added: v0.1.91
 -->
@@ -476,7 +476,7 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.parseREPLKeyword(keyword[, rest])
+### replServer.parseREPLKeyword(keyword\[, rest\])
 <!-- YAML
 added: v0.8.9
 deprecated: v9.0.0
@@ -507,7 +507,7 @@ by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
 
-## repl.start([options])
+## repl.start(\[options\])
 <!-- YAML
 added: v0.1.91
 changes:

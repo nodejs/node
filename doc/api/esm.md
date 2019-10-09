@@ -910,14 +910,14 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. If _exports_ is an Object, then
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
->       1. Let _target_ be the value of _exports[packagePath]_.
+>       1. Let _target_ be the value of _exports\[packagePath\]_.
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
 >          _""_).
 >    1. Let _directoryKeys_ be the list of keys of _exports_ ending in
 >       _"/"_, sorted by length descending.
 >    1. For each key _directory_ in _directoryKeys_, do
 >       1. If _packagePath_ starts with _directory_, then
->          1. Let _target_ be the value of _exports[directory]_.
+>          1. Let _target_ be the value of _exports\[directory\]_.
 >          1. Let _subpath_ be the substring of _target_ starting at the index
 >             of the length of _directory_.
 >          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,

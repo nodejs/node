@@ -91,7 +91,7 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
   * `port` {number} The sender port.
   * `size` {number} The message size.
 
-### socket.addMembership(multicastAddress[, multicastInterface])
+### socket.addMembership(multicastAddress\[, multicastInterface\])
 <!-- YAML
 added: v0.6.9
 -->
@@ -134,7 +134,7 @@ Returns an object containing the address information for a socket.
 For UDP sockets, this object will contain `address`, `family` and `port`
 properties.
 
-### socket.bind([port][, address][, callback])
+### socket.bind(\[port\]\[, address\]\[, callback\])
 <!-- YAML
 added: v0.1.99
 changes:
@@ -190,7 +190,7 @@ server.bind(41234);
 // Prints: server listening 0.0.0.0:41234
 ```
 
-### socket.bind(options[, callback])
+### socket.bind(options\[, callback\])
 <!-- YAML
 added: v0.11.14
 -->
@@ -243,7 +243,7 @@ socket.bind({
 });
 ```
 
-### socket.close([callback])
+### socket.close(\[callback\])
 <!-- YAML
 added: v0.1.99
 -->
@@ -253,7 +253,7 @@ added: v0.1.99
 Close the underlying socket and stop listening for data on it. If a callback is
 provided, it is added as a listener for the [`'close'`][] event.
 
-### socket.connect(port[, address][, callback])
+### socket.connect(port\[, address\]\[, callback\])
 <!-- YAML
 added: v12.0.0
 -->
@@ -281,7 +281,7 @@ A synchronous function that disassociates a connected `dgram.Socket` from
 its remote address. Trying to call `disconnect()` on an already disconnected
 socket will result in an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception.
 
-### socket.dropMembership(multicastAddress[, multicastInterface])
+### socket.dropMembership(multicastAddress\[, multicastInterface\])
 <!-- YAML
 added: v0.6.9
 -->
@@ -340,7 +340,7 @@ Returns an object containing the `address`, `family`, and `port` of the remote
 endpoint. It throws an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception if the
 socket is not connected.
 
-### socket.send(msg[, offset, length][, port][, address][, callback])
+### socket.send(msg\[, offset, length\]\[, port\]\[, address\]\[, callback\])
 <!-- YAML
 added: v0.1.99
 changes:
@@ -648,7 +648,7 @@ chained.
 
 ## `dgram` module functions
 
-### dgram.createSocket(options[, callback])
+### dgram.createSocket(options\[, callback\])
 <!-- YAML
 added: v0.11.13
 changes:
@@ -687,7 +687,7 @@ method will bind the socket to the "all interfaces" address on a random port
 and port can be retrieved using [`socket.address().address`][] and
 [`socket.address().port`][].
 
-### dgram.createSocket(type[, callback])
+### dgram.createSocket(type\[, callback\])
 <!-- YAML
 added: v0.1.99
 -->

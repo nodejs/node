@@ -212,7 +212,7 @@ later if necessary.
 Calling `rl.pause()` does not immediately pause other events (including
 `'line'`) from being emitted by the `readline.Interface` instance.
 
-### rl.prompt([preserveCursor])
+### rl.prompt(\[preserveCursor\])
 <!-- YAML
 added: v0.1.98
 -->
@@ -279,7 +279,7 @@ added: v0.1.98
 The `rl.setPrompt()` method sets the prompt that will be written to `output`
 whenever `rl.prompt()` is called.
 
-### rl.write(data[, key])
+### rl.write(data\[, key\])
 <!-- YAML
 added: v0.1.98
 -->
@@ -349,7 +349,7 @@ async function processLineByLine() {
 }
 ```
 
-## readline.clearLine(stream, dir[, callback])
+## readline.clearLine(stream, dir\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -371,7 +371,7 @@ changes:
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
 
-## readline.clearScreenDown(stream[, callback])
+## readline.clearScreenDown(stream\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -490,7 +490,7 @@ function completer(linePartial, callback) {
 }
 ```
 
-## readline.cursorTo(stream, x[, y][, callback])
+## readline.cursorTo(stream, x\[, y\]\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:
@@ -510,7 +510,7 @@ changes:
 The `readline.cursorTo()` method moves cursor to the specified position in a
 given [TTY][] `stream`.
 
-## readline.emitKeypressEvents(stream[, interface])
+## readline.emitKeypressEvents(stream\[, interface\])
 <!-- YAML
 added: v0.7.7
 -->
@@ -536,7 +536,7 @@ if (process.stdin.isTTY)
   process.stdin.setRawMode(true);
 ```
 
-## readline.moveCursor(stream, dx, dy[, callback])
+## readline.moveCursor(stream, dx, dy\[, callback\])
 <!-- YAML
 added: v0.7.7
 changes:

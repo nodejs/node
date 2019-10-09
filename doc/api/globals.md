@@ -150,7 +150,7 @@ DataHandler.prototype.load = async function load(key) {
 
 This variable may appear to be global but is not. See [`require()`][].
 
-## setImmediate(callback[, ...args])
+## setImmediate(callback\[, ...args\])
 <!-- YAML
 added: v0.9.1
 -->
@@ -159,7 +159,7 @@ added: v0.9.1
 
 [`setImmediate`][] is described in the [timers][] section.
 
-## setInterval(callback, delay[, ...args])
+## setInterval(callback, delay\[, ...args\])
 <!-- YAML
 added: v0.0.1
 -->
@@ -168,7 +168,7 @@ added: v0.0.1
 
 [`setInterval`][] is described in the [timers][] section.
 
-## setTimeout(callback, delay[, ...args])
+## setTimeout(callback, delay\[, ...args\])
 <!-- YAML
 added: v0.0.1
 -->

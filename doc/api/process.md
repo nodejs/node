@@ -715,7 +715,7 @@ and [Cluster][] documentation), the `process.connected` property will return
 Once `process.connected` is `false`, it is no longer possible to send messages
 over the IPC channel using `process.send()`.
 
-## process.cpuUsage([previousValue])
+## process.cpuUsage(\[previousValue\])
 <!-- YAML
 added: v6.1.0
 -->
@@ -790,7 +790,7 @@ The effect of calling `process.disconnect()` is the same as calling
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
 
-## process.dlopen(module, filename[, flags])
+## process.dlopen(module, filename\[, flags\])
 <!-- YAML
 added: v0.1.16
 changes:
@@ -832,7 +832,7 @@ process.dlopen(module, require.resolve('binding'),
 module.exports.foo();
 ```
 
-## process.emitWarning(warning[, options])
+## process.emitWarning(warning\[, options\])
 <!-- YAML
 added: v8.0.0
 -->
@@ -878,7 +878,7 @@ process.on('warning', (warning) => {
 
 If `warning` is passed as an `Error` object, the `options` argument is ignored.
 
-## process.emitWarning(warning[, type[, code]][, ctor])
+## process.emitWarning(warning\[, type\[, code\]\]\[, ctor\])
 <!-- YAML
 added: v6.0.0
 -->
@@ -1112,7 +1112,7 @@ that started the Node.js process.
 '/usr/local/bin/node'
 ```
 
-## process.exit([code])
+## process.exit(\[code\])
 <!-- YAML
 added: v0.1.13
 -->
@@ -1292,7 +1292,7 @@ added: v9.3.0
 Indicates whether a callback has been set using
 [`process.setUncaughtExceptionCaptureCallback()`][].
 
-## process.hrtime([time])
+## process.hrtime(\[time\])
 <!-- YAML
 added: v0.7.6
 -->
@@ -1385,7 +1385,7 @@ This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 This feature is not available in [`Worker`][] threads.
 
-## process.kill(pid[, signal])
+## process.kill(pid\[, signal\])
 <!-- YAML
 added: v0.0.6
 -->
@@ -1490,7 +1490,7 @@ _code segment_.
 When using [`Worker`][] threads, `rss` will be a value that is valid for the
 entire process, while the other fields will only refer to the current thread.
 
-## process.nextTick(callback[, ...args])
+## process.nextTick(callback\[, ...args\])
 <!-- YAML
 added: v0.1.26
 changes:
@@ -1749,7 +1749,7 @@ value is the empty string.
 console.log(`Report filename is ${process.report.filename}`);
 ```
 
-### process.report.getReport([err])
+### process.report.getReport(\[err\])
 <!-- YAML
 added: v11.8.0
 -->
@@ -1837,7 +1837,7 @@ The signal used to trigger the creation of a diagnostic report. Defaults to
 console.log(`Report signal: ${process.report.signal}`);
 ```
 
-### process.report.writeReport([filename][, err])
+### process.report.writeReport(\[filename\]\[, err\])
 <!-- YAML
 added: v11.8.0
 -->
@@ -1935,7 +1935,7 @@ console.log(process.resourceUsage());
 */
 ```
 
-## process.send(message[, sendHandle[, options]][, callback])
+## process.send(message\[, sendHandle\[, options\]\]\[, callback\])
 <!-- YAML
 added: v0.5.9
 -->
@@ -2283,7 +2283,7 @@ documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
-## process.umask([mask])
+## process.umask(\[mask\])
 <!-- YAML
 added: v0.1.19
 -->

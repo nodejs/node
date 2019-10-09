@@ -398,7 +398,7 @@ d.on('error', (er) => {
 The opposite of [`domain.add(emitter)`][]. Removes domain handling from the
 specified emitter.
 
-### domain.run(fn[, ...args])
+### domain.run(fn\[, ...args\])
 
 * `fn` {Function}
 * `...args` {any}

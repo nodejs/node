@@ -615,7 +615,7 @@ asyncResource.asyncId();
 asyncResource.triggerAsyncId();
 ```
 
-#### new AsyncResource(type[, options])
+#### new AsyncResource(type\[, options\])
 
 * `type` {string} The type of async event.
 * `options` {Object}
@@ -649,7 +649,7 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### asyncResource.runInAsyncScope(fn[, thisArg, ...args])
+#### asyncResource.runInAsyncScope(fn\[, thisArg, ...args\])
 <!-- YAML
 added: v9.6.0
 -->

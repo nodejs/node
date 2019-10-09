@@ -201,7 +201,7 @@ are dependent on [V8's stack trace API][]. Stack traces extend only to either
 (a) the beginning of *synchronous code execution*, or (b) the number of frames
 given by the property `Error.stackTraceLimit`, whichever is smaller.
 
-### Error.captureStackTrace(targetObject[, constructorOpt])
+### Error.captureStackTrace(targetObject\[, constructorOpt\])
 
 * `targetObject` {Object}
 * `constructorOpt` {Function}
