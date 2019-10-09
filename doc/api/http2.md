@@ -1543,7 +1543,7 @@ changes:
                  regular file, is supported now.
 -->
 
-* `path` {string|Buffer}
+* `path` {string|Buffer|URL}
 * `headers` {HTTP/2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
