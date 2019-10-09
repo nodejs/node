@@ -366,6 +366,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     }
     return -1;
   }
+  memcpy(start, nmem, size);
 #elif defined(__FreeBSD__)
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -400,8 +401,6 @@ MoveTextRegionToLargePages(const text_region& r) {
     return -1;
   }
   memcpy(start, tmem, size);
-#else
-  memcpy(start, nmem, size);
 #endif
 
   ret = mprotect(start, size, PROT_READ | PROT_EXEC);
