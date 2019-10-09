@@ -671,7 +671,7 @@ class TargetCalculator(object):
     assert self.is_build_impacted()
     # Compile targets are found by searching up from changed targets.
     # Reset the visited status for _GetBuildTargets.
-    for target in self._name_to_target.itervalues():
+    for target in self._name_to_target.values():
       target.visited = False
 
     supplied_targets = _LookupTargets(self._supplied_target_names_no_all(),
