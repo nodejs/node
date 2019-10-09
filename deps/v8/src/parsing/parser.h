@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "src/ast/ast-source-ranges.h"
+#include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
@@ -273,7 +274,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                     ZonePtrList<const AstRawString>** own_labels,
-                    VariableProxy* expr);
+                    const AstRawString* label);
   bool ContainsLabel(ZonePtrList<const AstRawString>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);

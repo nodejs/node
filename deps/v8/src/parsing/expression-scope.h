@@ -538,6 +538,10 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     return end;
   }
 
+  ScopedList<std::pair<VariableProxy*, int>>* variable_list() {
+    return &variable_list_;
+  }
+
  protected:
   bool is_verified() const {
 #ifdef DEBUG
@@ -548,10 +552,6 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
   }
 
   void ValidatePattern() { Validate(kPatternIndex); }
-
-  ScopedList<std::pair<VariableProxy*, int>>* variable_list() {
-    return &variable_list_;
-  }
 
  private:
   friend class AccumulationScope<Types>;
