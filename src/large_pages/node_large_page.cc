@@ -83,11 +83,11 @@ static void PrintSystemError(int error) {
   return;
 }
 
-inline int64_t hugepage_align_up(int64_t addr) {
+inline uintptr_t hugepage_align_up(uintptr_t addr) {
   return (((addr) + (hps) - 1) & ~((hps) - 1));
 }
 
-inline int64_t hugepage_align_down(int64_t addr) {
+inline uintptr_t hugepage_align_down(uintptr_t addr) {
   return ((addr) & ~((hps) - 1));
 }
 
@@ -103,7 +103,7 @@ static struct text_region FindNodeTextRegion() {
   std::string permission;
   std::string dev;
   char dash;
-  int64_t  start, end, offset, inode;
+  uintptr_t start, end, offset, inode;
   struct text_region nregion;
 
   nregion.found_text_region = false;
@@ -138,18 +138,20 @@ static struct text_region FindNodeTextRegion() {
       std::string pathname;
       iss >> pathname;
       if (pathname == exename && permission == "r-xp") {
-        start = reinterpret_cast<uint64_t>(&__nodetext);
-        char* from = reinterpret_cast<char*>(hugepage_align_up(start));
-        char* to = reinterpret_cast<char*>(hugepage_align_down(end));
+        uintptr_t ntext = reinterpret_cast<uintptr_t>(&__nodetext);
+        if (ntext >= start && ntext < end) {
+          char* from = reinterpret_cast<char*>(hugepage_align_up(ntext));
+          char* to = reinterpret_cast<char*>(hugepage_align_down(end));
 
-        if (from < to) {
-          size_t size = to - from;
-          nregion.found_text_region = true;
-          nregion.from = from;
-          nregion.to = to;
-          nregion.total_hugepages = size / hps;
+          if (from < to) {
+            size_t size = to - from;
+            nregion.found_text_region = true;
+            nregion.from = from;
+            nregion.to = to;
+            nregion.total_hugepages = size / hps;
+          }
+          break;
         }
-        break;
       }
     }
   }
