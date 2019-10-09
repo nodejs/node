@@ -351,13 +351,11 @@ added: REPLACEME
 Synchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
 
-### dir.read([options])
+### dir.read()
 <!-- YAML
 added: REPLACEME
 -->
 
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
 * Returns: {Promise} containing {fs.Dirent}
 
 Asynchronously read the next directory entry via readdir(3) as an
@@ -369,13 +367,11 @@ is completed.
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
 
-### dir.read([options, ]callback)
+### dir.read(callback)
 <!-- YAML
 added: REPLACEME
 -->
 
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
 * `callback` {Function}
   * `err` {Error}
   * `dirent` {fs.Dirent}
@@ -385,24 +381,18 @@ Asynchronously read the next directory entry via readdir(3) as an
 
 The `callback` will be called with a [Dirent][] after the read is completed.
 
-The `encoding` option sets the encoding of the `name` in the `dirent`.
-
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
 
-### dir.readSync([options])
+### dir.readSync()
 <!-- YAML
 added: REPLACEME
 -->
 
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
 * Returns: {fs.Dirent}
 
 Synchronously read the next directory entry via readdir(3) as an
 [`fs.Dirent`][].
-
-The `encoding` option sets the encoding of the `name` in the `dirent`.
 
 _Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms._
@@ -2658,8 +2648,7 @@ Creates an [`fs.Dir`][], which contains all further functions for reading from
 and cleaning up the directory.
 
 The `encoding` option sets the encoding for the `path` while opening the
-directory and subsequent read operations (unless otherwise overriden during
-reads from the directory).
+directory and subsequent read operations.
 
 ## fs.opendirSync(path[, options])
 <!-- YAML
@@ -2677,8 +2666,7 @@ Creates an [`fs.Dir`][], which contains all further functions for reading from
 and cleaning up the directory.
 
 The `encoding` option sets the encoding for the `path` while opening the
-directory and subsequent read operations (unless otherwise overriden during
-reads from the directory).
+directory and subsequent read operations.
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 <!-- YAML
@@ -4835,8 +4823,7 @@ Creates an [`fs.Dir`][], which contains all further functions for reading from
 and cleaning up the directory.
 
 The `encoding` option sets the encoding for the `path` while opening the
-directory and subsequent read operations (unless otherwise overriden during
-reads from the directory).
+directory and subsequent read operations.
 
 Example using async interation:
 
