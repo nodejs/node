@@ -1041,6 +1041,26 @@ console.log(hash.digest('hex'));
 //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 ```
 
+### hash.copy(\[options\])
+<!-- YAML
+added:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29910
+-->
+
+* `options` {Object} [`stream.transform` options][]
+* Returns: {Hash}
+
+Creates a new `Hash` object that contains a deep copy of the internal state
+of the current `Hash` object.
+
+The optional `options` argument controls stream behavior. For XOF hash
+functions such as `'shake256'`, the `outputLength` option can be used to
+specify the desired output length in bytes.
+
+An error is thrown when an attempt is made to copy the `Hash` object after
+its [`hash.digest()`][] method has been called.
+
 ### hash.digest(\[encoding\])
 <!-- YAML
 added: v0.1.92
