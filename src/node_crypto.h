@@ -591,7 +591,7 @@ class Hash : public BaseObject {
   SET_MEMORY_INFO_NAME(Hash)
   SET_SELF_SIZE(Hash)
 
-  bool HashInit(const char* hash_type, v8::Maybe<unsigned int> xof_md_len);
+  bool HashInit(const EVP_MD* md, v8::Maybe<unsigned int> xof_md_len);
   bool HashUpdate(const char* data, int len);
 
  protected:
