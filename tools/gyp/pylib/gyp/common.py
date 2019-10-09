@@ -394,6 +394,9 @@ def WriteOnDiff(filename):
         os.unlink(self.tmp_path)
         raise
 
+    def write(self, s):
+      self.tmp_file.write(s.encode('utf-8'))
+
   return Writer()
 
 

@@ -942,8 +942,12 @@ def ExpandVariables(input, phase, variables, build_file):
       else:
         replacement = variables[contents]
 
+    if isinstance(replacement, bytes) and not isinstance(replacement, str):
+      replacement = replacement.decode("utf-8")  # done on Python 3 only
     if type(replacement) is list:
       for item in replacement:
+        if isinstance(item, bytes) and not isinstance(item, str):
+          item = item.decode("utf-8")  # done on Python 3 only
         if not contents[-1] == '/' and type(item) not in (str, int):
           raise GypError('Variable ' + contents +
                          ' must expand to a string or list of strings; ' +
