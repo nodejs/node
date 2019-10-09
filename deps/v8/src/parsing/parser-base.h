@@ -5062,20 +5062,37 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   }
 
   bool starts_with_identifier = peek_any_identifier();
-  ExpressionT expr = ParseExpression();
-  if (peek() == Token::COLON && starts_with_identifier &&
-      impl()->IsIdentifier(expr)) {
-    // The whole expression was a single identifier, and not, e.g.,
-    // something starting with an identifier or a parenthesized identifier.
-    impl()->DeclareLabel(&labels, &own_labels,
-                         impl()->AsIdentifierExpression(expr));
-    Consume(Token::COLON);
-    // ES#sec-labelled-function-declarations Labelled Function Declarations
-    if (peek() == Token::FUNCTION && is_sloppy(language_mode()) &&
-        allow_function == kAllowLabelledFunctionStatement) {
-      return ParseFunctionDeclaration();
+
+  ExpressionT expr;
+  {
+    // Effectively inlines ParseExpression, so potential labels can be extracted
+    // from expression_scope.
+    ExpressionParsingScope expression_scope(impl());
+    AcceptINScope scope(this, true);
+    expr = ParseExpressionCoverGrammar();
+    expression_scope.ValidateExpression();
+
+    if (peek() == Token::COLON && starts_with_identifier &&
+        impl()->IsIdentifier(expr)) {
+      // The whole expression was a single identifier, and not, e.g.,
+      // something starting with an identifier or a parenthesized identifier.
+      DCHECK_EQ(expression_scope.variable_list()->length(), 1);
+      VariableProxy* label = expression_scope.variable_list()->at(0).first;
+      impl()->DeclareLabel(&labels, &own_labels, label->raw_name());
+
+      // Remove the "ghost" variable that turned out to be a label from the top
+      // scope. This way, we don't try to resolve it during the scope
+      // processing.
+      this->scope()->DeleteUnresolved(label);
+
+      Consume(Token::COLON);
+      // ES#sec-labelled-function-declarations Labelled Function Declarations
+      if (peek() == Token::FUNCTION && is_sloppy(language_mode()) &&
+          allow_function == kAllowLabelledFunctionStatement) {
+        return ParseFunctionDeclaration();
+      }
+      return ParseStatement(labels, own_labels, allow_function);
     }
-    return ParseStatement(labels, own_labels, allow_function);
   }
 
   // If we have an extension, we allow a native function declaration.

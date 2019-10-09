@@ -1489,15 +1489,11 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
 
 void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
                           ZonePtrList<const AstRawString>** own_labels,
-                          VariableProxy* var) {
-  DCHECK(IsIdentifier(var));
-  const AstRawString* label = var->raw_name();
-
-  // TODO(1240780): We don't check for redeclaration of labels
-  // during preparsing since keeping track of the set of active
-  // labels requires nontrivial changes to the way scopes are
-  // structured.  However, these are probably changes we want to
-  // make later anyway so we should go back and fix this then.
+                          const AstRawString* label) {
+  // TODO(1240780): We don't check for redeclaration of labels during preparsing
+  // since keeping track of the set of active labels requires nontrivial changes
+  // to the way scopes are structured.  However, these are probably changes we
+  // want to make later anyway so we should go back and fix this then.
   if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
     ReportMessage(MessageTemplate::kLabelRedeclaration, label);
     return;
@@ -1515,11 +1511,6 @@ void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
   }
   (*labels)->Add(label, zone());
   (*own_labels)->Add(label, zone());
-
-  // Remove the "ghost" variable that turned out to be a label
-  // from the top scope. This way, we don't try to resolve it
-  // during the scope processing.
-  scope()->DeleteUnresolved(var);
 }
 
 bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,

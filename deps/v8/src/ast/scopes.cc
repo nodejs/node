@@ -1396,6 +1396,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
 
     for (VariableProxy* proxy = scope->unresolved_list_.first();
          proxy != nullptr; proxy = proxy->next_unresolved()) {
+      if (proxy->is_removed_from_unresolved()) continue;
       DCHECK(!proxy->is_resolved());
       Variable* var =
           Lookup<kParsedScope>(proxy, scope, max_outer_scope->outer_scope());
