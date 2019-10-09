@@ -7,6 +7,7 @@
 import hashlib
 import os
 import random
+from operator import attrgetter
 
 import gyp.common
 
@@ -86,7 +87,7 @@ class MSVSFolder(MSVSSolutionEntry):
     self.guid = guid
 
     # Copy passed lists (or set to empty lists)
-    self.entries = sorted(list(entries or []))
+    self.entries = sorted(entries or [], key=attrgetter('path'))
     self.items = list(items or [])
 
     self.entry_type_guid = ENTRY_TYPE_GUIDS['folder']
@@ -230,7 +231,7 @@ class MSVSSolution(object):
       if isinstance(e, MSVSFolder):
         entries_to_check += e.entries
 
-    all_entries = sorted(all_entries)
+    all_entries = sorted(all_entries, key=attrgetter('path'))
 
     # Open file and print header
     f = writer(self.path)
