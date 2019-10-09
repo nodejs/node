@@ -58,7 +58,7 @@ for (const testCase of cases) {
   watcher.on('close', common.mustCall(() => {
     watcher.close(); // Closing a closed watcher should be a noop
     // Starting a closed watcher should be a noop
-    watcher.start();
+    watcher._start();
   }));
   watcher.on('change', common.mustCall(function(eventType, argFilename) {
     if (interval) {
@@ -72,15 +72,15 @@ for (const testCase of cases) {
     assert.strictEqual(argFilename, testCase.fileName);
 
     // Starting a started watcher should be a noop
-    watcher.start();
-    watcher.start(pathToWatch);
+    watcher._start();
+    watcher._start(pathToWatch);
 
     watcher.close();
 
     // We document that watchers cannot be used anymore when it's closed,
     // here we turn the methods into noops instead of throwing
     watcher.close(); // Closing a closed watcher should be a noop
-    watcher.start();  // Starting a closed watcher should be a noop
+    watcher._start();  // Starting a closed watcher should be a noop
   }));
 
   // Long content so it's actually flushed. toUpperCase so there's real change.
