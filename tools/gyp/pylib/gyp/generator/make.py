@@ -800,7 +800,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           gyp.xcode_emulation.MacPrefixHeader(
               self.xcode_settings, lambda p: Sourceify(self.Absolutify(p)),
               self.Pchify))
-      sources = filter(Compilable, all_sources)
+      sources = list(filter(Compilable, all_sources))
       if sources:
         self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT1)
         extensions = set([os.path.splitext(s)[1] for s in sources])
@@ -953,7 +953,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       outputs = [gyp.xcode_emulation.ExpandEnvVars(o, env) for o in outputs]
       inputs = [gyp.xcode_emulation.ExpandEnvVars(i, env) for i in inputs]
 
-      self.WriteDoCmd(outputs, map(Sourceify, map(self.Absolutify, inputs)),
+      self.WriteDoCmd(outputs, [Sourceify(self.Absolutify(i)) for i in inputs],
                       part_of_all=part_of_all, command=name)
 
       # Stuff the outputs in a variable so we can refer to them later.
@@ -1002,8 +1002,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           extra_sources += outputs
         if int(rule.get('process_outputs_as_mac_bundle_resources', False)):
           extra_mac_bundle_resources += outputs
-        inputs = map(Sourceify, map(self.Absolutify, [rule_source] +
-                                    rule.get('inputs', [])))
+        inputs = [Sourceify(self.Absolutify(i)) for i
+                  in [rule_source] + rule.get('inputs', [])]
         actions = ['$(call do_cmd,%s_%d)' % (name, count)]
 
         if name == 'resources_grit':
@@ -1126,7 +1126,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         path = gyp.xcode_emulation.ExpandEnvVars(path, env)
         self.WriteDoCmd([output], [path], 'copy', part_of_all)
         outputs.append(output)
-    self.WriteLn('%s = %s' % (variable, ' '.join(map(QuoteSpaces, outputs))))
+    self.WriteLn('%s = %s' % (variable, ' '.join(QuoteSpaces(o) for o in outputs)))
     extra_outputs.append('$(%s)' % variable)
     self.WriteLn()
 
@@ -1137,7 +1137,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     for output, res in gyp.xcode_emulation.GetMacBundleResources(
         generator_default_variables['PRODUCT_DIR'], self.xcode_settings,
-        map(Sourceify, map(self.Absolutify, resources))):
+        [Sourceify(self.Absolutify(r)) for r in resources]):
       _, ext = os.path.splitext(output)
       if ext != '.xcassets':
         # Make does not supports '.xcassets' emulation.
@@ -1217,11 +1217,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteList(cflags_objcc, 'CFLAGS_OBJCC_%s' % configname)
       includes = config.get('include_dirs')
       if includes:
-        includes = map(Sourceify, map(self.Absolutify, includes))
+        includes = [Sourceify(self.Absolutify(i)) for i in includes]
       self.WriteList(includes, 'INCS_%s' % configname, prefix='-I')
 
-    compilable = filter(Compilable, sources)
-    objs = map(self.Objectify, map(self.Absolutify, map(Target, compilable)))
+    compilable = list(filter(Compilable, sources))
+    objs = [self.Objectify(self.Absolutify(Target(c))) for c in compilable]
     self.WriteList(objs, 'OBJS')
 
     for obj in objs:
@@ -1293,7 +1293,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     # If there are any object files in our input file list, link them into our
     # output.
-    extra_link_deps += filter(Linkable, sources)
+    extra_link_deps += list(filter(Linkable, sources))
 
     self.WriteLn()
 
@@ -1543,7 +1543,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       # Bundle dependencies. Note that the code below adds actions to this
       # target, so if you move these two lines, move the lines below as well.
-      self.WriteList(map(QuoteSpaces, bundle_deps), 'BUNDLE_DEPS')
+      self.WriteList([QuoteSpaces(dep) for dep in bundle_deps], 'BUNDLE_DEPS')
       self.WriteLn('%s: $(BUNDLE_DEPS)' % QuoteSpaces(self.output))
 
       # After the framework is built, package it. Needs to happen before
@@ -1577,7 +1577,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     if self.type == 'executable':
       self.WriteLn('%s: LD_INPUTS := %s' % (
           QuoteSpaces(self.output_binary),
-          ' '.join(map(QuoteSpaces, link_deps))))
+          ' '.join(QuoteSpaces(dep) for dep in link_deps)))
       if self.toolset == 'host' and self.flavor == 'android':
         self.WriteDoCmd([self.output_binary], link_deps, 'link_host',
                         part_of_all, postbuilds=postbuilds)
@@ -1599,7 +1599,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     elif self.type == 'shared_library':
       self.WriteLn('%s: LD_INPUTS := %s' % (
             QuoteSpaces(self.output_binary),
-            ' '.join(map(QuoteSpaces, link_deps))))
+            ' '.join(QuoteSpaces(dep) for dep in link_deps)))
       self.WriteDoCmd([self.output_binary], link_deps, 'solink', part_of_all,
                       postbuilds=postbuilds)
     elif self.type == 'loadable_module':
@@ -1815,7 +1815,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           default_cpp_ext = ext
     self.WriteLn('LOCAL_CPP_EXTENSION := ' + default_cpp_ext)
 
-    self.WriteList(map(self.Absolutify, filter(Compilable, all_sources)),
+    self.WriteList(list(map(self.Absolutify, filter(Compilable, all_sources))),
                    'LOCAL_SRC_FILES')
 
     # Filter out those which do not match prefix and suffix and produce
@@ -1956,7 +1956,7 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name,
       "%(makefile_name)s: %(deps)s\n"
       "\t$(call do_cmd,regen_makefile)\n\n" % {
           'makefile_name': makefile_name,
-          'deps': ' '.join(map(Sourceify, build_files)),
+          'deps': ' '.join(Sourceify(bf) for bf in build_files),
           'cmd': gyp.common.EncodePOSIXShellList(
                      [gyp_binary, '-fmake'] +
                      gyp.RegenerateFlags(options) +
