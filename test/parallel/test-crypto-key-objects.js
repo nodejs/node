@@ -200,6 +200,14 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     library: 'BIO routines',
     function: 'BIO_new_mem_buf',
   });
+
+  // This should not abort either: https://github.com/nodejs/node/issues/29904
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
+  }, {
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "spki" is invalid for option "type"'
+  });
 }
 
 [
