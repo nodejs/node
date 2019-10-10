@@ -49,7 +49,6 @@ server.listen(0, '127.0.0.1', () => {
   const req = http.request(options, function(res) {
     res.on('end', () => {
       server.close();
-      process.exit();
     });
     res.resume();
   });
