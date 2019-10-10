@@ -39,7 +39,7 @@ advance. These CVEs are managed in a repository within the Node.js
 private organization called
 [cve-management](https://github.com/nodejs-private/cve-management).
 For each year there will be a markdown file titled "cve-management-XXXX"
-where where XXXX is the year (for example 'cve-management-2017.md').
+where XXXX is the year (for example 'cve-management-2017.md').
 
 This file will have the following sections:
 
