@@ -58,17 +58,27 @@ const dirclosedError = {
 // Check the opendir async version
 fs.opendir(testDir, common.mustCall(function(err, dir) {
   assert.ifError(err);
-  dir.read(common.mustCall(function(err, dirent) {
+  let sync = true;
+  dir.read(common.mustCall((err, dirent) => {
+    assert(!sync);
     assert.ifError(err);
 
     // Order is operating / file system dependent
     assert(files.includes(dirent.name), `'files' should include ${dirent}`);
     assertDirent(dirent);
 
-    dir.close(common.mustCall(function(err) {
+    let syncInner = true;
+    dir.read(common.mustCall((err, dirent) => {
+      assert(!syncInner);
       assert.ifError(err);
+
+      dir.close(common.mustCall(function(err) {
+        assert.ifError(err);
+      }));
     }));
+    syncInner = false;
   }));
+  sync = false;
 }));
 
 // opendir() on file should throw ENOTDIR
