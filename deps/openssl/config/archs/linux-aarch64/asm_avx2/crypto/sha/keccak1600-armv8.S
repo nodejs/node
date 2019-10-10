@@ -844,7 +844,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v1.16b,v1.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -857,7 +857,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v3.16b,v3.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -870,7 +870,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v5.16b,v5.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -883,7 +883,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v7.16b,v7.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -896,7 +896,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v9.16b,v9.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -909,7 +909,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v11.16b,v11.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -922,7 +922,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v13.16b,v13.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -935,7 +935,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v15.16b,v15.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -948,7 +948,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v17.16b,v17.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -961,7 +961,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v19.16b,v19.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -974,7 +974,7 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v21.16b,v21.16b,v31.16b
 	beq	.Lprocess_block_ce
@@ -987,13 +987,13 @@ SHA3_absorb_cext:
 	blo	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v23.16b,v23.16b,v31.16b
 	beq	.Lprocess_block_ce
 	ldr	d31,[x1],#8		// *inp++
 #ifdef	__AARCH64EB__
-	rev	v31.16b,v31.16b
+	rev64	v31.16b,v31.16b
 #endif
 	eor	v24.16b,v24.16b,v31.16b
 

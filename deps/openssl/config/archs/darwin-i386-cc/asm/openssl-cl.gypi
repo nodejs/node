@@ -15,7 +15,6 @@
       'RC4_ASM',
       'MD5_ASM',
       'RMD160_ASM',
-      'AES_ASM',
       'VPAES_ASM',
       'WHIRLPOOL_ASM',
       'GHASH_ASM',
