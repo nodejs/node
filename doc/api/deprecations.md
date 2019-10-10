@@ -2509,7 +2509,7 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 ### DEP0133: http connection
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29015
     description: Documentation-only deprecation.
 -->
@@ -2523,7 +2523,7 @@ Prefer [`response.socket`][] over [`response.connection`][] and
 ### DEP0134: process._tickCallback
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29781
     description: Documentation-only deprecation.
 -->

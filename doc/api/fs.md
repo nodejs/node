@@ -286,7 +286,7 @@ performance implications for some applications. See the
 
 ## Class fs.Dir
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 A class representing a directory stream.
@@ -307,7 +307,7 @@ print('./').catch(console.error);
 
 ### dir.path
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * {string}
@@ -317,7 +317,7 @@ The read-only path of this directory as was provided to [`fs.opendir()`][],
 
 ### dir.close()
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * Returns: {Promise}
@@ -330,7 +330,7 @@ closed.
 
 ### dir.close(callback)
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * `callback` {Function}
@@ -343,7 +343,7 @@ The `callback` will be called after the resource handle has been closed.
 
 ### dir.closeSync()
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 Synchronously close the directory's underlying resource handle.
@@ -351,7 +351,7 @@ Subsequent reads will result in errors.
 
 ### dir.read()
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * Returns: {Promise} containing {fs.Dirent|null}
@@ -367,7 +367,7 @@ provided by the operating system's underlying directory mechanisms._
 
 ### dir.read(callback)
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * `callback` {Function}
@@ -385,7 +385,7 @@ provided by the operating system's underlying directory mechanisms._
 
 ### dir.readSync()
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * Returns: {fs.Dirent|null}
@@ -400,7 +400,7 @@ provided by the operating system's underlying directory mechanisms._
 
 ### dir\[Symbol.asyncIterator\]()
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * Returns: {AsyncIterator} of {fs.Dirent}
@@ -2641,7 +2641,7 @@ this API: [`fs.open()`][].
 
 ## fs.opendir(path\[, options\], callback)
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -2661,7 +2661,7 @@ directory and subsequent read operations.
 
 ## fs.opendirSync(path\[, options\])
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -4818,7 +4818,7 @@ a colon, Node.js will open a file system stream, as described by
 
 ## fsPromises.opendir(path\[, options\])
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 * `path` {string|Buffer|URL}

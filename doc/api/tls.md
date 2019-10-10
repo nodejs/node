@@ -1358,7 +1358,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/28973
     description: Added `privateKeyIdentifier` and `privateKeyEngine` options
                  to get private key from an OpenSSL engine.

@@ -1439,7 +1439,7 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29876
     description: The `fd` option may now be a `FileHandle`.
   - version: v10.0.0
@@ -2359,7 +2359,7 @@ server.on('stream', (stream, headers) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29833
     description: The `maxConcurrentStreams` setting is stricter.
   - version: v8.9.3

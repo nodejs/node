@@ -137,7 +137,7 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 
 ### `--enable-source-maps`
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 > Stability: 1 - Experimental
@@ -423,7 +423,7 @@ Silence all process warnings (including deprecations).
 
 ### `--force-context-aware`
 <!-- YAML
-added: REPLACEME
+added: v12.12.0
 -->
 
 Disable loading native addons that are not [context-aware][].
