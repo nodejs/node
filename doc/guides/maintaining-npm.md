@@ -4,7 +4,7 @@ New pull requests should be opened when a "next" version of npm has
 been released. Once the "next" version has been promoted to "latest"
 the PR should be updated as necessary.
 
-Two weeks after the "latest" release has been promoted it can land on master
+One week after the "latest" release has been promoted, it can land on master
 assuming no major regressions are found. There are no additional constraints
 for Semver-Major releases.
 
