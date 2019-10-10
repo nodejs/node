@@ -147,7 +147,7 @@ SSL servers.
 =head1 OPTIONS
 
 In addition to the options below the B<s_client> utility also supports the
-common and client only options documented in the
+common and client only options documented
 in the "Supported Command Line Commands" section of the L<SSL_CONF_cmd(3)>
 manual page.
 

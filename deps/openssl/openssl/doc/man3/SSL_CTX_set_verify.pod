@@ -102,7 +102,7 @@ B<Server mode:> if the client did not return a certificate, the TLS/SSL
 handshake is immediately terminated with a "handshake failure" alert.
 This flag must be used together with SSL_VERIFY_PEER.
 
-B<Client mode:> ignored
+B<Client mode:> ignored (see BUGS)
 
 =item SSL_VERIFY_CLIENT_ONCE
 
@@ -112,7 +112,7 @@ renegotiation or post-authentication if a certificate was requested
 during the initial handshake. This flag must be used together with
 SSL_VERIFY_PEER.
 
-B<Client mode:> ignored
+B<Client mode:> ignored (see BUGS)
 
 =item SSL_VERIFY_POST_HANDSHAKE
 
@@ -123,7 +123,7 @@ to be configured for post-handshake peer verification before the
 handshake occurs. This flag must be used together with
 SSL_VERIFY_PEER. TLSv1.3 only; no effect on pre-TLSv1.3 connections.
 
-B<Client mode:> ignored
+B<Client mode:> ignored (see BUGS)
 
 =back
 
@@ -203,8 +203,8 @@ message is sent to the client.
 =head1 BUGS
 
 In client mode, it is not checked whether the SSL_VERIFY_PEER flag
-is set, but whether any flags are set. This can lead to
-unexpected behaviour if SSL_VERIFY_PEER and other flags are not used as
+is set, but whether any flags other than SSL_VERIFY_NONE are set. This can
+lead to unexpected behaviour if SSL_VERIFY_PEER and other flags are not used as
 required.
 
 =head1 RETURN VALUES
@@ -348,7 +348,7 @@ and SSL_set_post_handshake_auth() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -53,7 +53,7 @@ Ed25519 and Ed448 can be tested within L<speed(1)> application since version 1.1
 Valid algorithm names are B<ed25519>, B<ed448> and B<eddsa>. If B<eddsa> is
 specified, then both Ed25519 and Ed448 are benchmarked.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This example generates an B<ED25519> private key and writes it to standard
 output in PEM format:
@@ -77,7 +77,7 @@ L<EVP_DigestVerifyInit(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -158,13 +158,13 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
  *     of a nonnegative integer (b_k in {0, 1}), rewrite it in digits 0, 1, -1
  *     by using bit-wise subtraction as follows:
  *
- *        b_k b_(k-1)  ...  b_2  b_1  b_0
- *      -     b_k      ...  b_3  b_2  b_1  b_0
- *       -------------------------------------
- *        s_k b_(k-1)  ...  s_3  s_2  s_1  s_0
+ *        b_k     b_(k-1)  ...  b_2  b_1  b_0
+ *      -         b_k      ...  b_3  b_2  b_1  b_0
+ *       -----------------------------------------
+ *        s_(k+1) s_k      ...  s_3  s_2  s_1  s_0
  *
  *     A left-shift followed by subtraction of the original value yields a new
- *     representation of the same value, using signed bits s_i = b_(i+1) - b_i.
+ *     representation of the same value, using signed bits s_i = b_(i-1) - b_i.
  *     This representation from Booth's paper has since appeared in the
  *     literature under a variety of different names including "reversed binary
  *     form", "alternating greedy expansion", "mutual opposite form", and
@@ -188,7 +188,7 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
  * (1961), pp. 67-91), in a radix-2^5 setting.  That is, we always combine five
  * signed bits into a signed digit:
  *
- *       s_(4j + 4) s_(4j + 3) s_(4j + 2) s_(4j + 1) s_(4j)
+ *       s_(5j + 4) s_(5j + 3) s_(5j + 2) s_(5j + 1) s_(5j)
  *
  * The sign-alternating property implies that the resulting digit values are
  * integers from -16 to 16.
@@ -196,14 +196,14 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
  * Of course, we don't actually need to compute the signed digits s_i as an
  * intermediate step (that's just a nice way to see how this scheme relates
  * to the wNAF): a direct computation obtains the recoded digit from the
- * six bits b_(4j + 4) ... b_(4j - 1).
+ * six bits b_(5j + 4) ... b_(5j - 1).
  *
- * This function takes those five bits as an integer (0 .. 63), writing the
+ * This function takes those six bits as an integer (0 .. 63), writing the
  * recoded digit to *sign (0 for positive, 1 for negative) and *digit (absolute
- * value, in the range 0 .. 8).  Note that this integer essentially provides the
- * input bits "shifted to the left" by one position: for example, the input to
- * compute the least significant recoded digit, given that there's no bit b_-1,
- * has to be b_4 b_3 b_2 b_1 b_0 0.
+ * value, in the range 0 .. 16).  Note that this integer essentially provides
+ * the input bits "shifted to the left" by one position: for example, the input
+ * to compute the least significant recoded digit, given that there's no bit
+ * b_-1, has to be b_4 b_3 b_2 b_1 b_0 0.
  *
  */
 void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,

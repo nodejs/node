@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1788,7 +1788,11 @@ int X509_cmp_time(const ASN1_TIME *ctm, time_t *cmp_time)
     static const size_t generalizedtime_length = sizeof("YYYYMMDDHHMMSSZ") - 1;
     ASN1_TIME *asn1_cmp_time = NULL;
     int i, day, sec, ret = 0;
-
+#ifdef CHARSET_EBCDIC
+    const char upper_z = 0x5A;
+#else
+    const char upper_z = 'Z';
+#endif
     /*
      * Note that ASN.1 allows much more slack in the time format than RFC5280.
      * In RFC5280, the representation is fixed:
@@ -1819,10 +1823,10 @@ int X509_cmp_time(const ASN1_TIME *ctm, time_t *cmp_time)
      * Digit and date ranges will be verified in the conversion methods.
      */
     for (i = 0; i < ctm->length - 1; i++) {
-        if (!ossl_isdigit(ctm->data[i]))
+        if (!ascii_isdigit(ctm->data[i]))
             return 0;
     }
-    if (ctm->data[ctm->length - 1] != 'Z')
+    if (ctm->data[ctm->length - 1] != upper_z)
         return 0;
 
     /*

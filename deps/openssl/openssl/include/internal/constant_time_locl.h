@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -213,18 +213,72 @@ static ossl_inline unsigned char constant_time_eq_int_8(int a, int b)
     return constant_time_eq_8((unsigned)(a), (unsigned)(b));
 }
 
+/*
+ * Returns the value unmodified, but avoids optimizations.
+ * The barriers prevent the compiler from narrowing down the
+ * possible value range of the mask and ~mask in the select
+ * statements, which avoids the recognition of the select
+ * and turning it into a conditional load or branch.
+ */
+static ossl_inline unsigned int value_barrier(unsigned int a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    unsigned int r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile unsigned int r = a;
+#endif
+    return r;
+}
+
+/* Convenience method for uint32_t. */
+static ossl_inline uint32_t value_barrier_32(uint32_t a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    uint32_t r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile uint32_t r = a;
+#endif
+    return r;
+}
+
+/* Convenience method for uint64_t. */
+static ossl_inline uint64_t value_barrier_64(uint64_t a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    uint64_t r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile uint64_t r = a;
+#endif
+    return r;
+}
+
+/* Convenience method for size_t. */
+static ossl_inline size_t value_barrier_s(size_t a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    size_t r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile size_t r = a;
+#endif
+    return r;
+}
+
 static ossl_inline unsigned int constant_time_select(unsigned int mask,
                                                      unsigned int a,
                                                      unsigned int b)
 {
-    return (mask & a) | (~mask & b);
+    return (value_barrier(mask) & a) | (value_barrier(~mask) & b);
 }
 
 static ossl_inline size_t constant_time_select_s(size_t mask,
                                                  size_t a,
                                                  size_t b)
 {
-    return (mask & a) | (~mask & b);
+    return (value_barrier_s(mask) & a) | (value_barrier_s(~mask) & b);
 }
 
 static ossl_inline unsigned char constant_time_select_8(unsigned char mask,
@@ -249,13 +303,13 @@ static ossl_inline int constant_time_select_int_s(size_t mask, int a, int b)
 static ossl_inline uint32_t constant_time_select_32(uint32_t mask, uint32_t a,
                                                     uint32_t b)
 {
-    return (mask & a) | (~mask & b);
+    return (value_barrier_32(mask) & a) | (value_barrier_32(~mask) & b);
 }
 
 static ossl_inline uint64_t constant_time_select_64(uint64_t mask, uint64_t a,
                                                     uint64_t b)
 {
-    return (mask & a) | (~mask & b);
+    return (value_barrier_64(mask) & a) | (value_barrier_64(~mask) & b);
 }
 
 /*

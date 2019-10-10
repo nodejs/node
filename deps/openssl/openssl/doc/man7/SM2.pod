@@ -41,7 +41,7 @@ done by calling:
 And normally there is no need to pass a B<pctx> parameter to EVP_DigestSignInit()
 or EVP_DigestVerifyInit() in such a scenario.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This example demonstrates the calling sequence for using an B<EVP_PKEY> to verify
 a message with the SM2 signature algorithm and the SM3 hash algorithm:
@@ -69,7 +69,7 @@ L<EVP_MD_CTX_set_pkey_ctx(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

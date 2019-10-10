@@ -32,7 +32,7 @@ being passed to EVP_DigestVerifyInit() (which means the EVP_PKEY_CTX is created
 inside EVP_DigestVerifyInit() and it will be freed automatically when the
 EVP_MD_CTX is freed).
 
-No B<EVP_PKEY_CTX> will be created by EVP_DigsetSignInit() if the passed B<ctx>
+No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit() if the passed B<ctx>
 has already been assigned one via L<EVP_MD_CTX_set_ctx(3)>. See also L<SM2(7)>.
 
 EVP_DigestVerifyUpdate() hashes B<cnt> bytes of data at B<d> into the
@@ -76,8 +76,9 @@ and public key algorithms. This meant that "clone" digests such as EVP_dss1()
 needed to be used to sign using SHA1 and DSA. This is no longer necessary and
 the use of clone digest is now discouraged.
 
-For some key types and parameters the random number generator must be seeded
-or the operation will fail.
+For some key types and parameters the random number generator must be seeded.
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
 
 The call to EVP_DigestVerifyFinal() internally finalizes a copy of the digest
 context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal() can
@@ -93,7 +94,8 @@ L<EVP_DigestSignInit(3)>,
 L<EVP_DigestInit(3)>,
 L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
 L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
-L<SHA1(3)>, L<dgst(1)>
+L<SHA1(3)>, L<dgst(1)>,
+L<RAND(7)>
 
 =head1 HISTORY
 

@@ -125,6 +125,15 @@ static int generate_key(DH *dh)
             l = dh->length ? dh->length : BN_num_bits(dh->p) - 1;
             if (!BN_priv_rand(priv_key, l, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
                 goto err;
+            /*
+             * We handle just one known case where g is a quadratic non-residue:
+             * for g = 2: p % 8 == 3
+             */
+            if (BN_is_word(dh->g, DH_GENERATOR_2) && !BN_is_bit_set(dh->p, 2)) {
+                /* clear bit 0, since it won't be a secret anyway */
+                if (!BN_clear_bit(priv_key, 0))
+                    goto err;
+            }
         }
     }
 
@@ -136,11 +145,11 @@ static int generate_key(DH *dh)
         BN_with_flags(prk, priv_key, BN_FLG_CONSTTIME);
 
         if (!dh->meth->bn_mod_exp(dh, pub_key, dh->g, prk, dh->p, ctx, mont)) {
-            BN_free(prk);
+            BN_clear_free(prk);
             goto err;
         }
         /* We MUST free prk before any further use of priv_key */
-        BN_free(prk);
+        BN_clear_free(prk);
     }
 
     dh->pub_key = pub_key;

@@ -211,11 +211,6 @@ the actual call parameter, see B<BIO_callback_ctrl>.
 
 =back
 
-=head1 EXAMPLE
-
-The BIO_debug_callback() function is a good example, its source is
-in crypto/bio/bio_cb.c
-
 =head1 RETURN VALUES
 
 BIO_get_callback_ex() and BIO_get_callback() return the callback function
@@ -228,9 +223,14 @@ via a call to BIO_set_callback_arg().
 BIO_debug_callback() returns 1 or B<ret> if it's called after specific BIO
 operations.
 
+=head1 EXAMPLES
+
+The BIO_debug_callback() function is a good example, its source is
+in crypto/bio/bio_cb.c
+
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

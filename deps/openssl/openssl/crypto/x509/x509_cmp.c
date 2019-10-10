@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -450,9 +450,17 @@ STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain)
     STACK_OF(X509) *ret;
     int i;
     ret = sk_X509_dup(chain);
+    if (ret == NULL)
+        return NULL;
     for (i = 0; i < sk_X509_num(ret); i++) {
         X509 *x = sk_X509_value(ret, i);
-        X509_up_ref(x);
+        if (!X509_up_ref(x))
+            goto err;
     }
     return ret;
+ err:
+    while (i-- > 0)
+        X509_free (sk_X509_value(ret, i));
+    sk_X509_free(ret);
+    return NULL;
 }
