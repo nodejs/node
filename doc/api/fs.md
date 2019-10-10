@@ -362,8 +362,10 @@ Asynchronously read the next directory entry via readdir(3) as an
 After the read is completed, a `Promise` is returned that will be resolved with
 an [`fs.Dirent`][], or `null` if there are no more directory entries to read.
 
-_Directory entries returned by this function are in no particular order as
-provided by the operating system's underlying directory mechanisms._
+Directory entries returned by this function are in no particular order as
+provided by the operating system's underlying directory mechanisms.
+Entries added or removed while iterating over the directory may or may not be
+included in the iteration results.
 
 ### dir.read(callback)
 <!-- YAML
@@ -380,8 +382,10 @@ Asynchronously read the next directory entry via readdir(3) as an
 After the read is completed, the `callback` will be called with an
 [`fs.Dirent`][], or `null` if there are no more directory entries to read.
 
-_Directory entries returned by this function are in no particular order as
-provided by the operating system's underlying directory mechanisms._
+Directory entries returned by this function are in no particular order as
+provided by the operating system's underlying directory mechanisms.
+Entries added or removed while iterating over the directory may or may not be
+included in the iteration results.
 
 ### dir.readSync()
 <!-- YAML
@@ -395,8 +399,10 @@ Synchronously read the next directory entry via readdir(3) as an
 
 If there are no more directory entries to read, `null` will be returned.
 
-_Directory entries returned by this function are in no particular order as
-provided by the operating system's underlying directory mechanisms._
+Directory entries returned by this function are in no particular order as
+provided by the operating system's underlying directory mechanisms.
+Entries added or removed while iterating over the directory may or may not be
+included in the iteration results.
 
 ### dir\[Symbol.asyncIterator\]()
 <!-- YAML
@@ -413,8 +419,10 @@ The `null` case from `dir.read()` is handled internally.
 
 See [`fs.Dir`][] for an example.
 
-_Directory entries returned by this iterator are in no particular order as
-provided by the operating system's underlying directory mechanisms._
+Directory entries returned by this iterator are in no particular order as
+provided by the operating system's underlying directory mechanisms.
+Entries added or removed while iterating over the directory may or may not be
+included in the iteration results.
 
 ## Class: fs.Dirent
 <!-- YAML
