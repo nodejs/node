@@ -7,7 +7,7 @@ const path = require('path');
 const bench = common.createBenchmark(main, {
   n: [100],
   dir: [ 'lib', 'test/parallel'],
-  mode: [ 'async', 'sync' ]
+  mode: [ 'async', 'sync', 'callback' ]
 });
 
 async function main({ n, dir, mode }) {
@@ -21,7 +21,23 @@ async function main({ n, dir, mode }) {
       // eslint-disable-next-line no-unused-vars
       for await (const entry of await fs.promises.opendir(fullPath))
         counter++;
-    } else {
+    } else if (mode === 'callback') {
+      const dir = await fs.promises.opendir(fullPath);
+      await new Promise((resolve, reject) => {
+        function read() {
+          dir.read((err, entry) => {
+            if (err)
+              reject(err);
+            if (entry === null)
+              resolve(dir.close());
+            else
+              read();
+          });
+        }
+
+        read();
+      });
+    } {
       const dir = fs.opendirSync(fullPath);
       while (dir.readSync() !== null)
         counter++;
