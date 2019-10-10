@@ -200,6 +200,27 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     library: 'BIO routines',
     function: 'BIO_new_mem_buf',
   });
+
+  // This should not abort either: https://github.com/nodejs/node/issues/29904
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
+  }, {
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "spki" is invalid for option "type"'
+  });
+
+  // Unlike SPKI, PKCS#1 is a valid encoding for private keys (and public keys),
+  // so it should be accepted by createPrivateKey, but OpenSSL won't parse it.
+  assert.throws(() => {
+    const key = createPublicKey(publicPem).export({
+      format: 'der',
+      type: 'pkcs1'
+    });
+    createPrivateKey({ key, format: 'der', type: 'pkcs1' });
+  }, {
+    message: /asn1 encoding/,
+    library: 'asn1 encoding routines'
+  });
 }
 
 [
