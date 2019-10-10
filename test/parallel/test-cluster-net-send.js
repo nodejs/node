@@ -72,7 +72,6 @@ if (process.argv[2] !== 'child') {
   });
 
   process.on('disconnect', function() {
-    process.exit();
     server.close();
   });
 }

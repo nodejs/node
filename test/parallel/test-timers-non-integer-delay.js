@@ -45,7 +45,6 @@ let N = 50;
 const interval = setInterval(common.mustCall(() => {
   if (--N === 0) {
     clearInterval(interval);
-    process.exit(0);
   }
 }, N), TIMEOUT_DELAY);
 

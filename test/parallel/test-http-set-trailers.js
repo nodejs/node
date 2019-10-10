@@ -61,7 +61,6 @@ server.on('listening', function() {
     outstanding_reqs--;
     if (outstanding_reqs === 0) {
       server.close();
-      process.exit();
     }
   });
 });
@@ -91,7 +90,6 @@ server.on('listening', function() {
       );
       if (outstanding_reqs === 0) {
         server.close();
-        process.exit();
       }
     }
   });
@@ -110,7 +108,6 @@ server.on('listening', function() {
       outstanding_reqs--;
       if (outstanding_reqs === 0) {
         server.close();
-        process.exit();
       }
     });
     res.resume();
