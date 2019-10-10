@@ -1805,7 +1805,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
-later by native code using [`napi_get_value_external`].
+later by native code using [`napi_get_value_external`][].
 
 The API adds a `napi_finalize` callback which will be called when the JavaScript
 object just created is ready for garbage collection. It is similar to
