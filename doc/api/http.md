@@ -353,7 +353,7 @@ A client and server pair demonstrating how to listen for the `'connect'` event:
 ```js
 const http = require('http');
 const net = require('net');
-const url = require('url');
+const { URL } = require('url');
 
 // Create an HTTP tunneling proxy
 const proxy = http.createServer((req, res) => {
@@ -362,8 +362,8 @@ const proxy = http.createServer((req, res) => {
 });
 proxy.on('connect', (req, cltSocket, head) => {
   // Connect to an origin server
-  const srvUrl = url.parse(`http://${req.url}`);
-  const srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
+  const { port, hostname } = new URL(`http://${req.url}`);
+  const srvSocket = net.connect(port || 80, hostname, () => {
     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
                     '\r\n');
