@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -107,6 +107,9 @@ static int sha3_final(EVP_MD_CTX *evp_ctx, unsigned char *md)
     KECCAK1600_CTX *ctx = evp_ctx->md_data;
     size_t bsz = ctx->block_size;
     size_t num = ctx->num;
+
+    if (ctx->md_size == 0)
+        return 1;
 
     /*
      * Pad the data with 10*1. Note that |num| can be |bsz - 1|

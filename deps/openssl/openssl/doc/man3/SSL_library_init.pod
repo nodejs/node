@@ -25,7 +25,7 @@ implemented as a macro.
 SSL_library_init() must be called before any other action takes place.
 SSL_library_init() is not reentrant.
 
-=head1 WARNING
+=head1 WARNINGS
 
 SSL_library_init() adds ciphers and digests used directly and indirectly by
 SSL/TLS.
@@ -47,7 +47,7 @@ deprecated in OpenSSL 1.1.0 by OPENSSL_init_ssl().
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

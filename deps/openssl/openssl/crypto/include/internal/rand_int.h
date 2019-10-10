@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,6 @@ typedef struct rand_pool_st RAND_POOL;
 void rand_cleanup_int(void);
 void rand_drbg_cleanup_int(void);
 void drbg_delete_thread_state(void);
-void rand_fork(void);
 
 /* Hardware-based seeding functions. */
 size_t rand_acquire_entropy_from_tsc(RAND_POOL *pool);
@@ -52,7 +51,8 @@ void rand_drbg_cleanup_additional_data(RAND_POOL *pool, unsigned char *out);
 /*
  * RAND_POOL functions
  */
-RAND_POOL *rand_pool_new(int entropy_requested, size_t min_len, size_t max_len);
+RAND_POOL *rand_pool_new(int entropy_requested, int secure,
+                         size_t min_len, size_t max_len);
 RAND_POOL *rand_pool_attach(const unsigned char *buffer, size_t len,
                             size_t entropy);
 void rand_pool_free(RAND_POOL *pool);

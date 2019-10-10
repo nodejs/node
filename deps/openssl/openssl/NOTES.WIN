@@ -109,6 +109,21 @@
    This naturally implies that you've installed corresponding add-on
    packages.
 
+ Independently of the method chosen to build for mingw, the installation
+ paths are similar to those used when building with VC-* targets, except
+ that in case the fallbacks mentioned there aren't possible (typically
+ when cross compiling on Linux), the paths will be the following:
+
+ For mingw:
+
+     PREFIX:      C:/Program Files (x86)/OpenSSL
+     OPENSSLDIR   C:/Program Files (x86)/Common Files/SSL
+
+ For mingw64:
+
+     PREFIX:      C:/Program Files/OpenSSL
+     OPENSSLDIR   C:/Program Files/Common Files/SSL
+
  Linking your application
  ========================
 

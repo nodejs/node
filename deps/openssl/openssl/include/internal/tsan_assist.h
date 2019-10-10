@@ -18,7 +18,7 @@
  * if (var == NOT_YET_INITIALIZED)
  *     var = function_returning_same_value();
  *
- * This does work provided that loads and stores are single-instuction
+ * This does work provided that loads and stores are single-instruction
  * operations (and integer ones are on *all* supported platforms), but
  * it upsets Thread Sanitizer. Suggested solution is
  *

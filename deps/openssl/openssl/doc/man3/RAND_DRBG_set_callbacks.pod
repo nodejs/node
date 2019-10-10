@@ -114,7 +114,7 @@ In other words, prediction resistance is currently not supported yet by the DRBG
 The derivation function is disabled during initialization by calling the
 RAND_DRBG_set() function with the RAND_DRBG_FLAG_CTR_NO_DF flag.
 For more information on the derivation function and when it can be omitted,
-see [NIST SP 800-90A Rev. 1]. Roughly speeking it can be omitted if the random
+see [NIST SP 800-90A Rev. 1]. Roughly speaking it can be omitted if the random
 source has "full entropy", i.e., contains 8 bits of entropy per byte.
 
 Even if a nonce is required, the B<get_nonce>() and B<cleanup_nonce>()

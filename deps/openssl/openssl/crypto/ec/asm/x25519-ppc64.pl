@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -451,7 +451,7 @@ x25519_fe64_tobytes:
 	and	$t0,$t0,$t1
 	sldi	$a3,$a3,1
 	add	$t0,$t0,$t1		# compare to modulus in the same go
-	srdi	$a3,$a3,1		# most signifcant bit cleared
+	srdi	$a3,$a3,1		# most significant bit cleared
 
 	addc	$a0,$a0,$t0
 	addze	$a1,$a1
@@ -462,7 +462,7 @@ x25519_fe64_tobytes:
 	sradi	$t0,$a3,63		# most significant bit -> mask
 	sldi	$a3,$a3,1
 	andc	$t0,$t1,$t0
-	srdi	$a3,$a3,1		# most signifcant bit cleared
+	srdi	$a3,$a3,1		# most significant bit cleared
 
 	subi	$rp,$rp,1
 	subfc	$a0,$t0,$a0

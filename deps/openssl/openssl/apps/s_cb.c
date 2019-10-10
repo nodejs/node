@@ -1525,7 +1525,8 @@ void print_ca_names(BIO *bio, SSL *s)
     int i;
 
     if (sk == NULL || sk_X509_NAME_num(sk) == 0) {
-        BIO_printf(bio, "---\nNo %s certificate CA names sent\n", cs);
+        if (!SSL_is_server(s))
+            BIO_printf(bio, "---\nNo %s certificate CA names sent\n", cs);
         return;
     }
 

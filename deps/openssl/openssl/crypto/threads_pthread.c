@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,11 @@
 #include "internal/cryptlib.h"
 
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG) && !defined(OPENSSL_SYS_WINDOWS)
+
+# if defined(OPENSSL_SYS_UNIX)
+#  include <sys/types.h>
+#  include <unistd.h>
+#endif
 
 # ifdef PTHREAD_RWLOCK_INITIALIZER
 #  define USE_RWLOCK
@@ -192,5 +197,10 @@ int openssl_init_fork_handlers(void)
         return 1;
 # endif
     return 0;
+}
+
+int openssl_get_fork_id(void)
+{
+    return getpid();
 }
 #endif

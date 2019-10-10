@@ -321,6 +321,11 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
             RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, ERR_R_MALLOC_FAILURE);
             goto err;
         }
+        if (rsa->d == NULL) {
+            RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, RSA_R_MISSING_PRIVATE_KEY);
+            BN_free(d);
+            goto err;
+        }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
@@ -436,6 +441,11 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         BIGNUM *d = BN_new();
         if (d == NULL) {
             RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+        if (rsa->d == NULL) {
+            RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, RSA_R_MISSING_PRIVATE_KEY);
+            BN_free(d);
             goto err;
         }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);

@@ -101,8 +101,8 @@ the operation was successful.
 
 =item B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: unable to get issuer certificate>
 
-the issuer certificate could not be found: this occurs if the issuer certificate
-of an untrusted certificate cannot be found.
+the issuer certificate of a locally looked up certificate could not be found.
+This normally means the list of trusted certificates is not complete.
 
 =item B<X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate CRL>
 
@@ -180,8 +180,8 @@ the root could not be found locally.
 
 =item B<X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate>
 
-the issuer certificate of a locally looked up certificate could not be found.
-This normally means the list of trusted certificates is not complete.
+the issuer certificate could not be found: this occurs if the issuer certificate
+of an untrusted certificate cannot be found.
 
 =item B<X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate>
 
@@ -328,7 +328,7 @@ L<X509_free(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

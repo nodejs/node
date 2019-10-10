@@ -133,7 +133,7 @@ locations for B<bio1> and B<bio2>. Check the error stack for more information.
 
 [XXXXX: More return values need to be added here]
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 The BIO pair can be used to have full control over the network access of an
 application. The application can call select() on the socket as required
@@ -176,7 +176,7 @@ and must be transferred to the network. Use BIO_ctrl_get_read_request() to
 find out, how many bytes must be written into the buffer before the
 SSL_operation() can successfully be continued.
 
-=head1 WARNING
+=head1 WARNINGS
 
 As the data is buffered, SSL_operation() may return with an ERROR_SSL_WANT_READ
 condition, but there is still data in the write buffer. An application must
@@ -191,7 +191,7 @@ L<BIO_should_retry(3)>, L<BIO_read_ex(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

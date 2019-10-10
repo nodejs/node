@@ -51,7 +51,9 @@ Deprecated:
 =head1 DESCRIPTION
 
 BN_generate_prime_ex() generates a pseudo-random prime number of
-at least bit length B<bits>.
+at least bit length B<bits>. The returned number is probably prime
+with a negligible error.
+
 If B<ret> is not B<NULL>, it will be used to store the number.
 
 If B<cb> is not B<NULL>, it is used as follows:
@@ -89,8 +91,9 @@ generator.
 If B<safe> is true, it will be a safe prime (i.e. a prime p so
 that (p-1)/2 is also prime).
 
-The PRNG must be seeded prior to calling BN_generate_prime_ex().
-The prime number generation has a negligible error probability.
+The random generator must be seeded prior to calling BN_generate_prime_ex().
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
 
 BN_is_prime_ex() and BN_is_prime_fasttest_ex() test if the number B<p> is
 prime.  The following tests are performed until one of them shows that
@@ -193,7 +196,8 @@ Instead applications should create a BN_GENCB structure using BN_GENCB_new:
 =head1 SEE ALSO
 
 L<DH_generate_parameters(3)>, L<DSA_generate_parameters(3)>,
-L<RSA_generate_key(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>
+L<RSA_generate_key(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>,
+L<RAND(7)>
 
 =head1 HISTORY
 
@@ -202,7 +206,7 @@ and BN_GENCB_get_arg() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

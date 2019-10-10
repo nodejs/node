@@ -661,6 +661,8 @@ uint32_t X509_get_key_usage(X509 *x);
 uint32_t X509_get_extended_key_usage(X509 *x);
 const ASN1_OCTET_STRING *X509_get0_subject_key_id(X509 *x);
 const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *x);
+const GENERAL_NAMES *X509_get0_authority_issuer(X509 *x);
+const ASN1_INTEGER *X509_get0_authority_serial(X509 *x);
 
 int X509_PURPOSE_get_count(void);
 X509_PURPOSE *X509_PURPOSE_get0(int idx);

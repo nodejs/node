@@ -3,10 +3,10 @@
 =head1 NAME
 
 ECDSA_SIG_get0, ECDSA_SIG_get0_r, ECDSA_SIG_get0_s, ECDSA_SIG_set0,
-ECDSA_SIG_new, ECDSA_SIG_free, i2d_ECDSA_SIG, d2i_ECDSA_SIG, ECDSA_size,
-ECDSA_sign, ECDSA_do_sign, ECDSA_verify, ECDSA_do_verify, ECDSA_sign_setup,
-ECDSA_sign_ex, ECDSA_do_sign_ex - low level elliptic curve digital signature
-algorithm (ECDSA) functions
+ECDSA_SIG_new, ECDSA_SIG_free, ECDSA_size, ECDSA_sign, ECDSA_do_sign,
+ECDSA_verify, ECDSA_do_verify, ECDSA_sign_setup, ECDSA_sign_ex,
+ECDSA_do_sign_ex - low level elliptic curve digital signature algorithm (ECDSA)
+functions
 
 =head1 SYNOPSIS
 
@@ -18,8 +18,6 @@ algorithm (ECDSA) functions
  const BIGNUM *ECDSA_SIG_get0_r(const ECDSA_SIG *sig);
  const BIGNUM *ECDSA_SIG_get0_s(const ECDSA_SIG *sig);
  int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
- int i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **pp);
- ECDSA_SIG *d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp, long len);
  int ECDSA_size(const EC_KEY *eckey);
 
  int ECDSA_sign(int type, const unsigned char *dgst, int dgstlen,
@@ -68,15 +66,8 @@ function transfers the memory management of the values to the ECDSA_SIG object,
 and therefore the values that have been passed in should not be freed directly
 after this function has been called.
 
-i2d_ECDSA_SIG() creates the DER encoding of the ECDSA signature B<sig> and
-writes the encoded signature to B<*pp> (note: if B<pp> is NULL i2d_ECDSA_SIG()
-returns the expected length in bytes of the DER encoded signature).
-i2d_ECDSA_SIG() returns the length of the DER encoded signature (or 0 on
-error).
-
-d2i_ECDSA_SIG() decodes a DER encoded ECDSA signature and returns the decoded
-signature in a newly allocated B<ECDSA_SIG> structure. B<*sig> points to the
-buffer containing the DER encoded signature of size B<len>.
+See L<i2d_ECDSA_SIG(3)> and L<d2i_ECDSA_SIG(3)> for information about encoding
+and decoding ECDSA signatures to/from DER.
 
 ECDSA_size() returns the maximum length of a DER encoded ECDSA signature
 created with the private EC key B<eckey>.
@@ -202,7 +193,9 @@ ANSI X9.62, US Federal Information Processing Standard FIPS 186-2
 
 L<EC_KEY_new(3)>,
 L<EVP_DigestSignInit(3)>,
-L<EVP_DigestVerifyInit(3)>
+L<EVP_DigestVerifyInit(3)>,
+L<i2d_ECDSA_SIG(3)>,
+L<d2i_ECDSA_SIG(3)>
 
 =head1 COPYRIGHT
 

@@ -14,6 +14,26 @@
      our $dsoext = $target{dso_extension} || ".so";
      our $makedepprog = $disabled{makedepend} ? undef : $config{makedepprog};
 
+     # $mingw_installroot and $mingw_commonroot is relevant for mingw only.
+     my $build_scheme = $target{build_scheme};
+     my $install_flavour = $build_scheme->[$#$build_scheme]; # last element
+     my $mingw_installenv = $install_flavour eq "WOW" ? "ProgramFiles(x86)"
+                                                      : "ProgramW6432";
+     my $mingw_commonenv = $install_flavour eq "WOW" ? "CommonProgramFiles(x86)"
+                                                     : "CommonProgramW6432";
+     our $mingw_installroot =
+         defined($ENV{$mingw_installenv}) ? $mingw_installenv : 'ProgramFiles';
+     our $mingw_commonroot =
+         defined($ENV{$mingw_commonenv}) ? $mingw_commonenv : 'CommonProgramFiles';
+     my $mingw_installdflt =
+         $install_flavour eq "WOW" ? "C:/Program Files (x86)"
+                                   : "C:/Program Files";
+     my $mingw_commondflt = "$mingw_installdflt/Common Files";
+
+     # expand variables early
+     $mingw_installroot = $ENV{$mingw_installroot} // $mingw_installdflt;
+     $mingw_commonroot = $ENV{$mingw_commonroot} // $mingw_commondflt;
+
      sub windowsdll { $config{target} =~ /^(?:Cygwin|mingw)/ }
 
      # Shared AIX support is special. We put libcrypto[64].so.ver into
@@ -132,6 +152,7 @@ APPS_OPENSSL={- use File::Spec::Functions;
 # Normally it is left empty.
 DESTDIR=
 
+{- output_off() if $config{target} =~ /^mingw/; "" -}
 # Do not edit these manually. Use Configure with --prefix or --openssldir
 # to change this!  Short explanation in the top comment in Configure
 INSTALLTOP={- # $prefix is used in the OPENSSLDIR perl snippet
@@ -175,6 +196,83 @@ ENGINESDIR=$(libdir)/engines-{- $sover_dirname -}
 # Convenience variable for those who want to set the rpath in shared
 # libraries and applications
 LIBRPATH=$(libdir)
+{- output_on() if $config{target} =~ /^mingw/;
+   output_off() if $config{target} !~ /^mingw/;
+   "" -}
+# Do not edit these manually. Use Configure with --prefix or --openssldir
+# to change this!  Short explanation in the top comment in Configure
+INSTALLTOP_dev={- # $prefix is used in the OPENSSLDIR perl snippet
+                  #
+                  use File::Spec::Win32;
+                  my $prefix_default = "$mingw_installroot/OpenSSL";
+                  our $prefix =
+                      File::Spec::Win32->canonpath($config{prefix}
+                                                  || $prefix_default);
+                  our ($prefix_dev, $prefix_dir, $prefix_file) =
+                      File::Spec::Win32->splitpath($prefix, 1);
+                  $prefix =~ s|\\|/|g;
+                  $prefix_dir =~ s|\\|/|g;
+                  $prefix_dev -}
+INSTALLTOP_dir={- my $x = File::Spec::Win32->canonpath($prefix_dir);
+                  $x =~ s|\\|/|g;
+                  $x -}
+OPENSSLDIR_dev={- #
+                  # The logic here is that if no --openssldir was given,
+                  # OPENSSLDIR will get the value "$mingw_commonroot/SSL".
+                  # If --openssldir was given and the value is an absolute
+                  # path, OPENSSLDIR will get its value without change.
+                  # If the value from --openssldir is a relative path,
+                  # OPENSSLDIR will get $prefix with the --openssldir
+                  # value appended as a subdirectory.
+                  #
+                  use File::Spec::Win32;
+                  our $openssldir =
+                      $config{openssldir} ?
+                          (File::Spec::Win32->file_name_is_absolute($config{openssldir}) ?
+                               File::Spec::Win32->canonpath($config{openssldir})
+                               : File::Spec::Win32->catdir($prefix, $config{openssldir}))
+                          : File::Spec::Win32->canonpath("$mingw_commonroot/SSL");
+                  our ($openssldir_dev, $openssldir_dir, $openssldir_file) =
+                      File::Spec::Win32->splitpath($openssldir, 1);
+                  $openssldir =~ s|\\|/|g;
+                  $openssldir_dir =~ s|\\|/|g;
+                  $openssldir_dev -}
+OPENSSLDIR_dir={- my $x = File::Spec::Win32->canonpath($openssldir_dir);
+                  $x =~ s|\\|/|g;
+                  $x -}
+LIBDIR={- our $libdir = $config{libdir} || "lib";
+          File::Spec::Win32->file_name_is_absolute($libdir) ? "" : $libdir -}
+ENGINESDIR_dev={- use File::Spec::Win32;
+                  our $enginesdir =
+                      File::Spec::Win32->catdir($prefix,$libdir,
+                                                "engines-$sover_dirname");
+                  our ($enginesdir_dev, $enginesdir_dir, $enginesdir_file) =
+                      File::Spec::Win32->splitpath($enginesdir, 1);
+                  $enginesdir =~ s|\\|/|g;
+                  $enginesdir_dir =~ s|\\|/|g;
+                  $enginesdir_dev -}
+ENGINESDIR_dir={- my $x = File::Spec::Win32->canonpath($enginesdir_dir);
+                  $x =~ s|\\|/|g;
+                  $x -}
+# In a Windows environment, $(DESTDIR) is harder to contatenate with other
+# directory variables, because both may contain devices.  What we do here is
+# to adapt INSTALLTOP, OPENSSLDIR and ENGINESDIR depending on if $(DESTDIR)
+# has a value or not, to ensure that concatenation will always work further
+# down.
+ifneq "$(DESTDIR)" ""
+INSTALLTOP=$(INSTALLTOP_dir)
+OPENSSLDIR=$(OPENSSLDIR_dir)
+ENGINESDIR=$(ENGINESDIR_dir)
+else
+INSTALLTOP=$(INSTALLTOP_dev)$(INSTALLTOP_dir)
+OPENSSLDIR=$(OPENSSLDIR_dev)$(OPENSSLDIR_dir)
+ENGINESDIR=$(ENGINESDIR_dev)$(ENGINESDIR_dir)
+endif
+
+# $(libdir) is chosen to be compatible with the GNU coding standards
+libdir={- File::Spec::Win32->file_name_is_absolute($libdir)
+          ? $libdir : '$(INSTALLTOP)/$(LIBDIR)' -}
+{- output_on() if $config{target} !~ /^mingw/; "" -}
 
 MANDIR=$(INSTALLTOP)/share/man
 DOCDIR=$(INSTALLTOP)/share/doc/$(BASENAME)
@@ -418,13 +516,13 @@ libclean:
 clean: libclean
 	$(RM) $(PROGRAMS) $(TESTPROGS) $(ENGINES) $(SCRIPTS)
 	$(RM) $(GENERATED_MANDATORY) $(GENERATED)
-	-$(RM) `find . -name .git -prune -o -name '*{- $depext -}' -print`
-	-$(RM) `find . -name .git -prune -o -name '*{- $objext -}' -print`
+	-$(RM) `find . -name '*{- $depext -}' \! -name '.*' -print`
+	-$(RM) `find . -name '*{- $objext -}' \! -name '.*' -print`
 	$(RM) core
 	$(RM) tags TAGS doc-nits
 	$(RM) -r test/test-runs
 	$(RM) openssl.pc libcrypto.pc libssl.pc
-	-$(RM) `find . -name .git -prune -o -type l -print`
+	-$(RM) `find . -type l \! -name '.*' -print`
 	$(RM) $(TARFILE)
 
 distclean: clean
@@ -449,7 +547,7 @@ uninstall_sw: uninstall_runtime uninstall_engines uninstall_dev
 install_docs: install_man_docs install_html_docs
 
 uninstall_docs: uninstall_man_docs uninstall_html_docs
-	$(RM) -r -v $(DESTDIR)$(DOCDIR)
+	$(RM) -r $(DESTDIR)$(DOCDIR)
 
 install_ssldirs:
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(OPENSSLDIR)/certs

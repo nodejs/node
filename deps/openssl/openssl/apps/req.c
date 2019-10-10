@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -881,9 +881,19 @@ int req_main(int argc, char **argv)
 
     if (text) {
         if (x509)
-            X509_print_ex(out, x509ss, get_nameopt(), reqflag);
+            ret = X509_print_ex(out, x509ss, get_nameopt(), reqflag);
         else
-            X509_REQ_print_ex(out, req, get_nameopt(), reqflag);
+            ret = X509_REQ_print_ex(out, req, get_nameopt(), reqflag);
+
+        if (ret == 0) {
+            if (x509)
+              BIO_printf(bio_err, "Error printing certificate\n");
+            else
+              BIO_printf(bio_err, "Error printing certificate request\n");
+
+            ERR_print_errors(bio_err);
+            goto end;
+        }
     }
 
     if (subject) {

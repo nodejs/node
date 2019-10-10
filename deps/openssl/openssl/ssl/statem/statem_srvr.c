@@ -502,12 +502,6 @@ static WRITE_TRAN ossl_statem_server13_write_transition(SSL *s)
         return WRITE_TRAN_CONTINUE;
 
     case TLS_ST_SR_KEY_UPDATE:
-        if (s->key_update != SSL_KEY_UPDATE_NONE) {
-            st->hand_state = TLS_ST_SW_KEY_UPDATE;
-            return WRITE_TRAN_CONTINUE;
-        }
-        /* Fall through */
-
     case TLS_ST_SW_KEY_UPDATE:
         st->hand_state = TLS_ST_OK;
         return WRITE_TRAN_CONTINUE;
@@ -1927,14 +1921,14 @@ static int tls_early_post_process_client_hello(SSL *s)
                 && master_key_length > 0) {
             s->session->master_key_length = master_key_length;
             s->hit = 1;
-            s->session->ciphers = ciphers;
+            s->peer_ciphers = ciphers;
             s->session->verify_result = X509_V_OK;
 
             ciphers = NULL;
 
             /* check if some cipher was preferred by call back */
             if (pref_cipher == NULL)
-                pref_cipher = ssl3_choose_cipher(s, s->session->ciphers,
+                pref_cipher = ssl3_choose_cipher(s, s->peer_ciphers,
                                                  SSL_get_ciphers(s));
             if (pref_cipher == NULL) {
                 SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
@@ -1945,9 +1939,9 @@ static int tls_early_post_process_client_hello(SSL *s)
 
             s->session->cipher = pref_cipher;
             sk_SSL_CIPHER_free(s->cipher_list);
-            s->cipher_list = sk_SSL_CIPHER_dup(s->session->ciphers);
+            s->cipher_list = sk_SSL_CIPHER_dup(s->peer_ciphers);
             sk_SSL_CIPHER_free(s->cipher_list_by_id);
-            s->cipher_list_by_id = sk_SSL_CIPHER_dup(s->session->ciphers);
+            s->cipher_list_by_id = sk_SSL_CIPHER_dup(s->peer_ciphers);
         }
     }
 
@@ -2047,12 +2041,12 @@ static int tls_early_post_process_client_hello(SSL *s)
 #endif
 
     /*
-     * Given s->session->ciphers and SSL_get_ciphers, we must pick a cipher
+     * Given s->peer_ciphers and SSL_get_ciphers, we must pick a cipher
      */
 
     if (!s->hit || SSL_IS_TLS13(s)) {
-        sk_SSL_CIPHER_free(s->session->ciphers);
-        s->session->ciphers = ciphers;
+        sk_SSL_CIPHER_free(s->peer_ciphers);
+        s->peer_ciphers = ciphers;
         if (ciphers == NULL) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO,
@@ -2068,6 +2062,10 @@ static int tls_early_post_process_client_hello(SSL *s)
 #else
         s->session->compress_meth = (comp == NULL) ? 0 : comp->id;
 #endif
+        if (!tls1_set_server_sigalgs(s)) {
+            /* SSLfatal() already called */
+            goto err;
+        }
     }
 
     sk_SSL_CIPHER_free(ciphers);
@@ -2235,31 +2233,25 @@ WORK_STATE tls_post_process_client_hello(SSL *s, WORK_STATE wst)
     if (wst == WORK_MORE_B) {
         if (!s->hit || SSL_IS_TLS13(s)) {
             /* Let cert callback update server certificates if required */
-            if (!s->hit) {
-                if (s->cert->cert_cb != NULL) {
-                    int rv = s->cert->cert_cb(s, s->cert->cert_cb_arg);
-                    if (rv == 0) {
-                        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                                 SSL_F_TLS_POST_PROCESS_CLIENT_HELLO,
-                                 SSL_R_CERT_CB_ERROR);
-                        goto err;
-                    }
-                    if (rv < 0) {
-                        s->rwstate = SSL_X509_LOOKUP;
-                        return WORK_MORE_B;
-                    }
-                    s->rwstate = SSL_NOTHING;
-                }
-                if (!tls1_set_server_sigalgs(s)) {
-                    /* SSLfatal already called */
+            if (!s->hit && s->cert->cert_cb != NULL) {
+                int rv = s->cert->cert_cb(s, s->cert->cert_cb_arg);
+                if (rv == 0) {
+                    SSLfatal(s, SSL_AD_INTERNAL_ERROR,
+                             SSL_F_TLS_POST_PROCESS_CLIENT_HELLO,
+                             SSL_R_CERT_CB_ERROR);
                     goto err;
                 }
+                if (rv < 0) {
+                    s->rwstate = SSL_X509_LOOKUP;
+                    return WORK_MORE_B;
+                }
+                s->rwstate = SSL_NOTHING;
             }
 
             /* In TLSv1.3 we selected the ciphersuite before resumption */
             if (!SSL_IS_TLS13(s)) {
                 cipher =
-                    ssl3_choose_cipher(s, s->session->ciphers, SSL_get_ciphers(s));
+                    ssl3_choose_cipher(s, s->peer_ciphers, SSL_get_ciphers(s));
 
                 if (cipher == NULL) {
                     SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,

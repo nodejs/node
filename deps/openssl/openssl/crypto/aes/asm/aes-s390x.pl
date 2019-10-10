@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -38,14 +38,14 @@
 # Implement AES_set_[en|de]crypt_key. Key schedule setup is avoided
 # for 128-bit keys, if hardware support is detected.
 
-# Januray 2009.
+# January 2009.
 #
 # Add support for hardware AES192/256 and reschedule instructions to
 # minimize/avoid Address Generation Interlock hazard and to favour
 # dual-issue z10 pipeline. This gave ~25% improvement on z10 and
 # almost 50% on z9. The gain is smaller on z10, because being dual-
 # issue z10 makes it impossible to eliminate the interlock condition:
-# critial path is not long enough. Yet it spends ~24 cycles per byte
+# critical path is not long enough. Yet it spends ~24 cycles per byte
 # processed with 128-bit key.
 #
 # Unlike previous version hardware support detection takes place only

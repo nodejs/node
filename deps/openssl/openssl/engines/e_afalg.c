@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,9 +62,6 @@ void engine_load_afalg_int(void)
 # define ALG_IV_LEN(len) (sizeof(struct af_alg_iv) + (len))
 # define ALG_OP_TYPE     unsigned int
 # define ALG_OP_LEN      (sizeof(ALG_OP_TYPE))
-
-#define ALG_MAX_SALG_NAME       64
-#define ALG_MAX_SALG_TYPE       14
 
 # ifdef OPENSSL_NO_DYNAMIC_ENGINE
 void engine_load_afalg_int(void);
@@ -371,10 +368,8 @@ static int afalg_create_sk(afalg_ctx *actx, const char *ciphertype,
 
     memset(&sa, 0, sizeof(sa));
     sa.salg_family = AF_ALG;
-    strncpy((char *) sa.salg_type, ciphertype, ALG_MAX_SALG_TYPE);
-    sa.salg_type[ALG_MAX_SALG_TYPE-1] = '\0';
-    strncpy((char *) sa.salg_name, ciphername, ALG_MAX_SALG_NAME);
-    sa.salg_name[ALG_MAX_SALG_NAME-1] = '\0';
+    OPENSSL_strlcpy((char *) sa.salg_type, ciphertype, sizeof(sa.salg_type));
+    OPENSSL_strlcpy((char *) sa.salg_name, ciphername, sizeof(sa.salg_name));
 
     actx->bfd = socket(AF_ALG, SOCK_SEQPACKET, 0);
     if (actx->bfd == -1) {
@@ -502,7 +497,7 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     int ciphertype;
     int ret;
     afalg_ctx *actx;
-    char ciphername[ALG_MAX_SALG_NAME];
+    const char *ciphername;
 
     if (ctx == NULL || key == NULL) {
         ALG_WARN("%s(%d): Null Parameter\n", __FILE__, __LINE__);
@@ -525,14 +520,13 @@ static int afalg_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     case NID_aes_128_cbc:
     case NID_aes_192_cbc:
     case NID_aes_256_cbc:
-        strncpy(ciphername, "cbc(aes)", ALG_MAX_SALG_NAME);
+        ciphername = "cbc(aes)";
         break;
     default:
         ALG_WARN("%s(%d): Unsupported Cipher type %d\n", __FILE__, __LINE__,
                  ciphertype);
         return 0;
     }
-    ciphername[ALG_MAX_SALG_NAME-1]='\0';
 
     if (ALG_AES_IV_LEN != EVP_CIPHER_CTX_iv_length(ctx)) {
         ALG_WARN("%s(%d): Unsupported IV length :%d\n", __FILE__, __LINE__,

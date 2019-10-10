@@ -250,7 +250,7 @@ static int rsa_builtin_keygen(RSA *rsa, int bits, int primes, BIGNUM *e_value,
              *
              * This strategy has the following goals:
              *
-             * 1. 1024-bit factors are effcient when using 3072 and 4096-bit key
+             * 1. 1024-bit factors are efficient when using 3072 and 4096-bit key
              * 2. stay the same logic with normal 2-prime key
              */
             bitse -= bitsr[i];

@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -273,6 +273,9 @@ static EVP_PKEY *b2i_dss(const unsigned char **in,
     } else {
         if (!read_lebn(&p, 20, &priv_key))
             goto memerr;
+
+        /* Set constant time flag before public key calculation */
+        BN_set_flags(priv_key, BN_FLG_CONSTTIME);
 
         /* Calculate public key */
         pub_key = BN_new();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -85,7 +85,7 @@ OSSL_STORE_INFO *OSSL_STORE_load(OSSL_STORE_CTX *ctx);
 int OSSL_STORE_eof(OSSL_STORE_CTX *ctx);
 
 /*
- * Check if an error occured
+ * Check if an error occurred
  * Returns 1 if it did, 0 otherwise.
  */
 int OSSL_STORE_error(OSSL_STORE_CTX *ctx);
@@ -117,7 +117,7 @@ int OSSL_STORE_close(OSSL_STORE_CTX *ctx);
  * Functions to generate OSSL_STORE_INFOs, one function for each type we
  * support having in them, as well as a generic constructor.
  *
- * In all cases, ownership of the object is transfered to the OSSL_STORE_INFO
+ * In all cases, ownership of the object is transferred to the OSSL_STORE_INFO
  * and will therefore be freed when the OSSL_STORE_INFO is freed.
  */
 OSSL_STORE_INFO *OSSL_STORE_INFO_new_NAME(char *name);

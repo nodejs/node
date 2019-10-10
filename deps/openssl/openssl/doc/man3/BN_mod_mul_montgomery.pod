@@ -64,7 +64,7 @@ BN_MONT_CTX_free() has no return value.
 For the other functions, 1 is returned for success, 0 on error.
 The error codes can be obtained by L<ERR_get_error(3)>.
 
-=head1 WARNING
+=head1 WARNINGS
 
 The inputs must be reduced modulo B<m>, otherwise the result will be
 outside the expected range.
@@ -80,7 +80,7 @@ BN_MONT_CTX_init() was removed in OpenSSL 1.1.0
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -125,7 +125,7 @@ int storeutl_main(int argc, char *argv[])
                 }
                 /*
                  * If expected wasn't set at this point, it means the map
-                 * isn't syncronised with the possible options leading here.
+                 * isn't synchronised with the possible options leading here.
                  */
                 OPENSSL_assert(expected != 0);
             }

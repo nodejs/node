@@ -255,7 +255,7 @@ Here is some skeleton code you can fill in:
 
                       /*
                        * process_rights() is supposed to be a procedure
-                       * that takes a string and it's length, interprets
+                       * that takes a string and its length, interprets
                        * it and sets the bits in the YOUR_RIGHTS pointed
                        * at by the third argument.
                        */

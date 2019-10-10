@@ -98,6 +98,9 @@
     $ nmake test
     $ nmake install
 
+ Note that in order to perform the install step above you need to have
+ appropriate permissions to write to the installation directory.
+
  If any of these steps fails, see section Installation in Detail below.
 
  This will build and install OpenSSL in the default location, which is:
@@ -106,6 +109,12 @@
   OpenVMS: SYS$COMMON:[OPENSSL-'version'...], where 'version' is the
            OpenSSL version number with underscores instead of periods.
   Windows: C:\Program Files\OpenSSL or C:\Program Files (x86)\OpenSSL
+
+ The installation directory should be appropriately protected to ensure
+ unprivileged users cannot make changes to OpenSSL binaries or files, or install
+ engines. If you already have a pre-installed version of OpenSSL as part of
+ your Operating System it is recommended that you do not overwrite the system
+ version and instead install to somewhere else.
 
  If you want to install it anywhere else, run config like this:
 
@@ -135,7 +144,10 @@
                    Don't build with support for deprecated APIs below the
                    specified version number. For example "--api=1.1.0" will
                    remove support for all APIS that were deprecated in OpenSSL
-                   version 1.1.0 or below.
+                   version 1.1.0 or below. This is a rather specialized option
+                   for developers. If you just intend to remove all deprecated
+                   APIs entirely (up to the current version), it is easier
+                   to add the 'no-deprecated' option instead (see below).
 
   --cross-compile-prefix=PREFIX
                    The PREFIX to include in front of commands for your
@@ -229,7 +241,7 @@
                                source exists.
                    getrandom:  Use the L<getrandom(2)> or equivalent system
                                call.
-                   devrandom:  Use the the first device from the DEVRANDOM list
+                   devrandom:  Use the first device from the DEVRANDOM list
                                which can be opened to read random bytes. The
                                DEVRANDOM preprocessor constant expands to
                                "/dev/urandom","/dev/random","/dev/srandom" on
@@ -908,8 +920,11 @@
        $ mms install                                    ! OpenVMS
        $ nmake install                                  # Windows
 
-     This will install all the software components in this directory
-     tree under PREFIX (the directory given with --prefix or its
+     Note that in order to perform the install step above you need to have
+     appropriate permissions to write to the installation directory.
+
+     The above commands will install all the software components in this
+     directory tree under PREFIX (the directory given with --prefix or its
      default):
 
        Unix:
@@ -964,6 +979,12 @@
          private        Initially empty, this is the default location
                         for private key files.
          misc           Various scripts.
+
+     The installation directory should be appropriately protected to ensure
+     unprivileged users cannot make changes to OpenSSL binaries or files, or
+     install engines. If you already have a pre-installed version of OpenSSL as
+     part of your Operating System it is recommended that you do not overwrite
+     the system version and instead install to somewhere else.
 
      Package builders who want to configure the library for standard
      locations, but have the package installed somewhere else so that

@@ -36,8 +36,10 @@ B<dsa> is the signer's public key.
 
 The B<type> parameter is ignored.
 
-The PRNG must be seeded before DSA_sign() (or DSA_sign_setup())
+The random generator must be seeded when DSA_sign() (or DSA_sign_setup())
 is called.
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
 
 =head1 RETURN VALUES
 
@@ -54,11 +56,12 @@ Standard, DSS), ANSI X9.30
 =head1 SEE ALSO
 
 L<DSA_new(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>,
-L<DSA_do_sign(3)>
+L<DSA_do_sign(3)>,
+L<RAND(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

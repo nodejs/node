@@ -1301,7 +1301,7 @@ ecp_nistz256_ord_mul_montx:
 
 	################################# reduction
 	mulx	8*0+128(%r14), $t0, $t1
-	adcx	$t0, $acc3		# guranteed to be zero
+	adcx	$t0, $acc3		# guaranteed to be zero
 	adox	$t1, $acc4
 
 	mulx	8*1+128(%r14), $t0, $t1

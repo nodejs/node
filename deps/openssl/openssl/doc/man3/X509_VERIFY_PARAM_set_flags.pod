@@ -346,7 +346,7 @@ If CRLs checking is enable CRLs are expected to be available in the
 corresponding B<X509_STORE> structure. No attempt is made to download
 CRLs from the CRL distribution points extension.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 Enable CRL checking when performing certificate verification during SSL
 connections associated with an B<SSL_CTX> structure B<ctx>:
@@ -376,7 +376,7 @@ The X509_VERIFY_PARAM_get_hostflags() function was added in OpenSSL 1.1.0i.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

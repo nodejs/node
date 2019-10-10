@@ -532,7 +532,7 @@ static int ecd_item_sign25519(EVP_MD_CTX *ctx, const ASN1_ITEM *it, void *asn,
     X509_ALGOR_set0(alg1, OBJ_nid2obj(NID_ED25519), V_ASN1_UNDEF, NULL);
     if (alg2)
         X509_ALGOR_set0(alg2, OBJ_nid2obj(NID_ED25519), V_ASN1_UNDEF, NULL);
-    /* Algorithm idetifiers set: carry on as normal */
+    /* Algorithm identifiers set: carry on as normal */
     return 3;
 }
 

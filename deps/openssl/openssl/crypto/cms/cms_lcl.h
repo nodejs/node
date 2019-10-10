@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -125,6 +125,8 @@ struct CMS_EncryptedContentInfo_st {
     size_t keylen;
     /* Set to 1 if we are debugging decrypt and don't fake keys for MMA */
     int debug;
+    /* Set to 1 if we have no cert and need extra safety measures for MMA */
+    int havenocert;
 };
 
 struct CMS_RecipientInfo_st {
@@ -317,8 +319,6 @@ struct CMS_OtherKeyAttribute_st {
 
 /* ESS structures */
 
-# ifdef HEADER_X509V3_H
-
 struct CMS_ReceiptRequest_st {
     ASN1_OCTET_STRING *signedContentIdentifier;
     CMS_ReceiptsFrom *receiptsFrom;
@@ -332,7 +332,6 @@ struct CMS_ReceiptsFrom_st {
         STACK_OF(GENERAL_NAMES) *receiptList;
     } d;
 };
-# endif
 
 struct CMS_Receipt_st {
     int32_t version;
@@ -416,6 +415,8 @@ int cms_RecipientInfo_kari_encrypt(CMS_ContentInfo *cms,
 /* PWRI routines */
 int cms_RecipientInfo_pwri_crypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri,
                                  int en_de);
+/* SignerInfo routines */
+int CMS_si_check_attributes(const CMS_SignerInfo *si);
 
 DECLARE_ASN1_ITEM(CMS_CertificateChoices)
 DECLARE_ASN1_ITEM(CMS_DigestedData)

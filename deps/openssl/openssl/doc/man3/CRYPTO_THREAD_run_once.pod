@@ -97,7 +97,7 @@ one of the first included headers. Therefore it is defined as an
 application developer's responsibility to include windows.h prior to
 crypto.h where use of CRYPTO_THREAD_* types and functions is required.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This example safely initializes and uses a lock.
 
@@ -161,7 +161,7 @@ L<crypto(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

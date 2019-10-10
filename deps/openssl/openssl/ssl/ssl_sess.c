@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -121,12 +121,7 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
     dest->psk_identity_hint = NULL;
     dest->psk_identity = NULL;
 #endif
-    dest->ciphers = NULL;
     dest->ext.hostname = NULL;
-#ifndef OPENSSL_NO_EC
-    dest->ext.ecpointformats = NULL;
-    dest->ext.supportedgroups = NULL;
-#endif
     dest->ext.tick = NULL;
     dest->ext.alpn_selected = NULL;
 #ifndef OPENSSL_NO_SRP
@@ -176,12 +171,6 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
     }
 #endif
 
-    if (src->ciphers != NULL) {
-        dest->ciphers = sk_SSL_CIPHER_dup(src->ciphers);
-        if (dest->ciphers == NULL)
-            goto err;
-    }
-
     if (!CRYPTO_dup_ex_data(CRYPTO_EX_INDEX_SSL_SESSION,
                             &dest->ex_data, &src->ex_data)) {
         goto err;
@@ -193,23 +182,6 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
             goto err;
         }
     }
-#ifndef OPENSSL_NO_EC
-    if (src->ext.ecpointformats) {
-        dest->ext.ecpointformats =
-            OPENSSL_memdup(src->ext.ecpointformats,
-                           src->ext.ecpointformats_len);
-        if (dest->ext.ecpointformats == NULL)
-            goto err;
-    }
-    if (src->ext.supportedgroups) {
-        dest->ext.supportedgroups =
-            OPENSSL_memdup(src->ext.supportedgroups,
-                           src->ext.supportedgroups_len
-                                * sizeof(*src->ext.supportedgroups));
-        if (dest->ext.supportedgroups == NULL)
-            goto err;
-    }
-#endif
 
     if (ticket != 0 && src->ext.tick != NULL) {
         dest->ext.tick =
@@ -790,17 +762,8 @@ void SSL_SESSION_free(SSL_SESSION *ss)
     OPENSSL_cleanse(ss->session_id, sizeof(ss->session_id));
     X509_free(ss->peer);
     sk_X509_pop_free(ss->peer_chain, X509_free);
-    sk_SSL_CIPHER_free(ss->ciphers);
     OPENSSL_free(ss->ext.hostname);
     OPENSSL_free(ss->ext.tick);
-#ifndef OPENSSL_NO_EC
-    OPENSSL_free(ss->ext.ecpointformats);
-    ss->ext.ecpointformats = NULL;
-    ss->ext.ecpointformats_len = 0;
-    OPENSSL_free(ss->ext.supportedgroups);
-    ss->ext.supportedgroups = NULL;
-    ss->ext.supportedgroups_len = 0;
-#endif                          /* OPENSSL_NO_EC */
 #ifndef OPENSSL_NO_PSK
     OPENSSL_free(ss->psk_identity_hint);
     OPENSSL_free(ss->psk_identity);

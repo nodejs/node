@@ -21,12 +21,13 @@ setup("test_cms");
 plan skip_all => "CMS is not supported by this OpenSSL build"
     if disabled("cms");
 
+my $datadir = srctop_dir("test", "recipes", "80-test_cms_data");
 my $smdir    = srctop_dir("test", "smime-certs");
 my $smcont   = srctop_file("test", "smcont.txt");
 my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
     = disabled qw/des dh dsa ec ec2m rc2 zlib/;
 
-plan tests => 4;
+plan tests => 6;
 
 my @smime_pkcs7_tests = (
 
@@ -400,6 +401,26 @@ my @smime_cms_param_tests = (
     ]
     );
 
+my @contenttype_cms_test = (
+    [ "signed content test - check that content type is added to additional signerinfo, RSA keys",
+      [ "-sign", "-binary", "-nodetach", "-stream", "-in", $smcont, "-outform", "DER",
+        "-signer", catfile($smdir, "smrsa1.pem"), "-md", "SHA256",
+        "-out", "test.cms" ],
+      [ "-resign", "-binary", "-nodetach", "-in", "test.cms", "-inform", "DER", "-outform", "DER",
+        "-signer", catfile($smdir, "smrsa2.pem"), "-md", "SHA256",
+        "-out", "test2.cms" ],
+      [ "-verify", "-in", "test2.cms", "-inform", "DER",
+        "-CAfile", catfile($smdir, "smroot.pem"), "-out", "smtst.txt" ]
+    ],
+);
+
+my @incorrect_attribute_cms_test = (
+    "bad_signtime_attr.cms",
+    "no_ct_attr.cms",
+    "no_md_attr.cms",
+    "ct_multiple_attr.cms"
+);
+
 subtest "CMS => PKCS#7 compatibility tests\n" => sub {
     plan tests => scalar @smime_pkcs7_tests;
 
@@ -490,6 +511,52 @@ subtest "CMS <=> CMS consistency tests, modified key parameters\n" => sub {
 	       $$_[0]);
 	  }
       }
+    }
+};
+
+# Returns the number of matches of a Content Type Attribute in a binary file.
+sub contentType_matches {
+  # Read in a binary file
+  my ($in) = @_;
+  open (HEX_IN, "$in") or die("open failed for $in : $!");
+  binmode(HEX_IN);
+  local $/;
+  my $str = <HEX_IN>;
+
+  # Find ASN1 data for a Content Type Attribute (with a OID of PKCS7 data)
+  my @c = $str =~ /\x30\x18\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x09\x03\x31\x0B\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x07\x01/gs;
+
+  close(HEX_IN);
+  return scalar(@c);
+}
+
+subtest "CMS Check the content type attribute is added for additional signers\n" => sub {
+    plan tests =>
+        (scalar @contenttype_cms_test);
+
+    foreach (@contenttype_cms_test) {
+      SKIP: {
+          my $skip_reason = check_availability($$_[0]);
+          skip $skip_reason, 1 if $skip_reason;
+
+          ok(run(app(["openssl", "cms", @{$$_[1]}]))
+             && run(app(["openssl", "cms", @{$$_[2]}]))
+             && contentType_matches("test2.cms") == 2
+             && run(app(["openssl", "cms", @{$$_[3]}])),
+             $$_[0]);
+        }
+    }
+};
+
+subtest "CMS Check that bad attributes fail when verifying signers\n" => sub {
+    plan tests =>
+        (scalar @incorrect_attribute_cms_test);
+
+    foreach my $name (@incorrect_attribute_cms_test) {
+        ok(!run(app(["openssl", "cms", "-verify", "-in",
+                     catfile($datadir, $name), "-inform", "DER", "-CAfile",
+                     catfile($smdir, "smroot.pem"), "-out", "smtst.txt" ])),
+            $name);
     }
 };
 

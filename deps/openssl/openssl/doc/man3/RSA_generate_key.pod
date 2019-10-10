@@ -15,7 +15,7 @@ RSA_generate_multi_prime_key - generate RSA key pair
 Deprecated:
 
  #if OPENSSL_API_COMPAT < 0x00908000L
- RSA *RSA_generate_key(int num, unsigned long e,
+ RSA *RSA_generate_key(int bits, unsigned long e,
                        void (*callback)(int, int, void *), void *cb_arg);
  #endif
 
@@ -27,8 +27,10 @@ be seeded prior to calling RSA_generate_key_ex().
 
 RSA_generate_multi_prime_key() generates a multi-prime RSA key pair and stores
 it in the B<RSA> structure provided in B<rsa>. The number of primes is given by
-the B<primes> parameter. The pseudo-random number generator must be seeded prior
-to calling RSA_generate_multi_prime_key().
+the B<primes> parameter. The random number generator must be seeded when
+calling RSA_generate_multi_prime_key().
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
 
 The modulus size will be of length B<bits>, the number of primes to form the
 modulus will be B<primes>, and the public exponent will be B<e>. Key sizes
@@ -47,7 +49,7 @@ progress of the key generation. If B<cb> is not B<NULL>, it
 will be called as follows using the BN_GENCB_call() function
 described on the L<BN_generate_prime(3)> page.
 
-RSA_generate_prime() is similar to RSA_generate_prime_ex() but
+RSA_generate_key() is similar to RSA_generate_key_ex() but
 expects an old-style callback function; see
 L<BN_generate_prime(3)> for information on the old-style callback.
 
@@ -88,7 +90,8 @@ B<BN_GENCB_call(cb, 2, x)> is used with two different meanings.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)>, L<RAND_bytes(3)>, L<BN_generate_prime(3)>
+L<ERR_get_error(3)>, L<RAND_bytes(3)>, L<BN_generate_prime(3)>,
+L<RAND(7)>
 
 =head1 HISTORY
 
@@ -97,7 +100,7 @@ RSA_generate_key_ex() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

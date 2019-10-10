@@ -41,9 +41,10 @@ If the BIO_CLOSE flag is set when a memory BIO is freed then the underlying
 BUF_MEM structure is also freed.
 
 Calling BIO_reset() on a read write memory BIO clears any data in it if the
-flag BIO_FLAGS_NONCLEAR_RST is not set. On a read only BIO or if the flag
-BIO_FLAGS_NONCLEAR_RST is set it restores the BIO to its original state and
-the data can be read again.
+flag BIO_FLAGS_NONCLEAR_RST is not set, otherwise it just restores the read
+pointer to the state it was just after the last write was performed and the
+data can be read again. On a read only BIO it similarly restores the BIO to
+its original state and the read only data can be read again.
 
 BIO_eof() is true if no data is in the BIO.
 
@@ -79,11 +80,11 @@ first, so the supplied area of memory must be unchanged until the BIO is freed.
 Writes to memory BIOs will always succeed if memory is available: that is
 their size can grow indefinitely.
 
-Every read from a read write memory BIO will remove the data just read with
-an internal copy operation, if a BIO contains a lot of data and it is
-read in small chunks the operation can be very slow. The use of a read only
-memory BIO avoids this problem. If the BIO must be read write then adding
-a buffering BIO to the chain will speed up the process.
+Every write after partial read (not all data in the memory buffer was read)
+to a read write memory BIO will have to move the unread data with an internal
+copy operation, if a BIO contains a lot of data and it is read in small
+chunks intertwined with writes the operation can be very slow. Adding
+a buffering BIO to the chain can speed up the process.
 
 Calling BIO_set_mem_buf() on a BIO created with BIO_new_secmem() will
 give undefined results, including perhaps a program crash.
@@ -104,11 +105,32 @@ BIO is set to BIO_NOCLOSE, before freeing the BUF_MEM the data pointer
 in it must be set to NULL as the data pointer does not point to an
 allocated memory.
 
+Calling BIO_reset() on a read write memory BIO with BIO_FLAGS_NONCLEAR_RST
+flag set can have unexpected outcome when the reads and writes to the
+BIO are intertwined. As documented above the BIO will be reset to the
+state after the last completed write operation. The effects of reads
+preceding that write operation cannot be undone.
+
+Calling BIO_get_mem_ptr() prior to a BIO_reset() call with
+BIO_FLAGS_NONCLEAR_RST set has the same effect as a write operation.
+
 =head1 BUGS
 
 There should be an option to set the maximum size of a memory BIO.
 
-=head1 EXAMPLE
+=head1 RETURN VALUES
+
+BIO_s_mem() and BIO_s_secmem() return a valid memory B<BIO_METHOD> structure.
+
+BIO_set_mem_eof_return(), BIO_set_mem_buf() and BIO_get_mem_ptr()
+return 1 on success or a value which is less than or equal to 0 if an error occurred.
+
+BIO_get_mem_data() returns the total number of bytes available on success,
+0 if b is NULL, or a negative value in case of other errors.
+
+BIO_new_mem_buf() returns a valid B<BIO> structure on success or NULL on error.
+
+=head1 EXAMPLES
 
 Create a memory BIO and write some data to it:
 
@@ -129,14 +151,6 @@ Extract the BUF_MEM structure from a memory BIO and then free up the BIO:
  BIO_set_close(mem, BIO_NOCLOSE); /* So BIO_free() leaves BUF_MEM alone */
  BIO_free(mem);
 
-=head1 RETURN VALUES
-
-BIO_s_mem() and BIO_s_secmem() return a valid memory B<BIO_METHOD> structure.
-
-BIO_set_mem_eof_return(), BIO_get_mem_data(), BIO_set_mem_buf() and BIO_get_mem_ptr()
-return 1 on success or a value which is less than or equal to 0 if an error occurred.
-
-BIO_new_mem_buf() returns a valid B<BIO> structure on success or NULL on error.
 
 =head1 COPYRIGHT
 
