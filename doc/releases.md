@@ -660,7 +660,7 @@ To ensure communication goes out with the timing of the blog post, please allow
 will be shared with the community in the email to coordinate these
 announcements.
 
-Ping the IRC ops and the other [Partner Communities] liaisons.
+Ping the IRC ops and the other [Partner Communities][] liaisons.
 
 ### 19. Celebrate
 
