@@ -128,6 +128,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   wrap->state_ = kClosed;
 
   wrap->OnClose();
+  wrap->handle_wrap_queue_.Remove();
 
   if (!wrap->persistent().IsEmpty() &&
       wrap->object()->Has(env->context(), env->handle_onclose_symbol())
