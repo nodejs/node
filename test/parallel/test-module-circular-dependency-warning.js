@@ -26,3 +26,8 @@ assert.strictEqual(Object.getPrototypeOf(requiredWithModuleExportsOverridden),
 const classExport =
   require(fixtures.path('cycles', 'warning-moduleexports-class-a.js'));
 assert.strictEqual(Object.getPrototypeOf(classExport).name, 'Parent');
+
+// If module.exports.__esModule is set, no warning should be emitted.
+const esmTranspiledExport =
+  require(fixtures.path('cycles', 'warning-esm-transpiled-a.js'));
+assert.strictEqual(esmTranspiledExport.__esModule, true);
