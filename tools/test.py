@@ -61,6 +61,7 @@ except ImportError:
 
 import xml.etree.ElementTree as xml
 
+junitout = logging.getLogger('junitout')
 logger = logging.getLogger('testrunner')
 skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
@@ -472,7 +473,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
   def ClearLine(self, last_line_length):
     print(("\r" + (" " * last_line_length) + "\r"), end='')
 
-class JUnitTestProgressIndicator(DotsProgressIndicator):
+class JUnitTestProgressIndicator(TapProgressIndicator):
   def __init__(self, cases, flaky_tests_mode):
     super(JUnitTestProgressIndicator, self).__init__(cases, flaky_tests_mode)
     self.root = xml.Element("testsuite")
@@ -520,7 +521,7 @@ class JUnitTestProgressIndicator(DotsProgressIndicator):
 
   def Done(self):
     super(JUnitTestProgressIndicator, self).Done()
-    logger.info(xml.tostring(self.root, "UTF-8"))
+    junitout.info(xml.tostring(self.root, "UTF-8"))
 
 
 PROGRESS_INDICATORS = {
@@ -1329,9 +1330,11 @@ def BuildOptions():
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
   result.add_option('--logfile', dest='logfile',
-      help='write test output to file. NOTE: this only applies the junit and tap progress indicators')
+      help='write test output to file. NOTE: this only applies the tap progress indicator')
+  result.add_option('--junitout',
+      help='write test output to file in JUnit XML format')
   result.add_option("-p", "--progress",
-      help="The style of progress indicator (verbose, dots, color, mono, tap, junit)",
+      help="The style of progress indicator (verbose, dots, color, mono, tap)",
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
@@ -1562,13 +1565,16 @@ def Main():
     parser.print_help()
     return 1
 
-  if options.progress != 'junit':
-    ch = logging.StreamHandler(sys.stdout)
-    logger.addHandler(ch)
+  ch = logging.StreamHandler(sys.stdout)
+  logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
     fh = logging.FileHandler(options.logfile, mode='wb')
     logger.addHandler(fh)
+  if options.junitout:
+    fh = logging.FileHandler(options.junitout, mode='wb')
+    junitout.addHandler(fh)
+    junitout.setLevel(logging.INFO)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   test_root = join(workspace, 'test')
