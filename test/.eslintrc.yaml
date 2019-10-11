@@ -34,3 +34,4 @@ globals:
   BigInt64Array: false
   BigUint64Array: false
   SharedArrayBuffer: false
+  globalThis: false

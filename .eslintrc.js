@@ -324,5 +324,6 @@ module.exports = {
     TextEncoder: 'readable',
     TextDecoder: 'readable',
     queueMicrotask: 'readable',
+    globalThis: 'readable',
   },
 };

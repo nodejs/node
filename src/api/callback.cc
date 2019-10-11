@@ -100,6 +100,9 @@ void InternalCallbackScope::Close() {
   TickInfo* tick_info = env_->tick_info();
 
   if (!env_->can_call_into_js()) return;
+
+  OnScopeLeave weakref_cleanup([&]() { env_->RunWeakRefCleanup(); });
+
   if (!tick_info->has_tick_scheduled()) {
     MicrotasksScope::PerformCheckpoint(env_->isolate());
   }
