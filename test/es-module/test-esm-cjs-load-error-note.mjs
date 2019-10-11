@@ -44,6 +44,19 @@ pExport2.on('close', mustCall((code) => {
   assert.ok(pExport2Stderr.includes(expectedNote),
             `${expectedNote} not found in ${pExport2Stderr}`);
 }));
+// The flag --experimental-modules is not used here
+// the note must not be included in the output
+const pExport3 = spawn(process.execPath, [Export1]);
+let pExport3Stderr = '';
+pExport3.stderr.setEncoding('utf8');
+pExport3.stderr.on('data', (data) => {
+  pExport3Stderr += data;
+});
+pExport3.on('close', mustCall((code) => {
+  assert.strictEqual(code, expectedCode);
+  assert.ok(!pExport3Stderr.includes(expectedNote),
+            `${expectedNote} must not be included in ${pExport3Stderr}`);
+}));
 
 const pImport1 = spawn(process.execPath, ['--experimental-modules', Import1]);
 let pImport1Stderr = '';
@@ -107,4 +120,17 @@ pImport5.on('close', mustCall((code) => {
   assert.strictEqual(code, 0);
   assert.ok(!pImport5Stderr.includes(expectedNote),
             `${expectedNote} must not be included in ${pImport5Stderr}`);
+}));
+
+// Must exit with zero and not show note
+const pImport6 = spawn(process.execPath, [Import1]);
+let pImport6Stderr = '';
+pImport6.stderr.setEncoding('utf8');
+pImport6.stderr.on('data', (data) => {
+  pImport6Stderr += data;
+});
+pImport6.on('close', mustCall((code) => {
+  assert.strictEqual(code, expectedCode);
+  assert.ok(!pImport6Stderr.includes(expectedNote),
+            `${expectedNote} must not be included in ${pImport6Stderr}`);
 }));
