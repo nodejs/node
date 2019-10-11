@@ -12,6 +12,7 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::FinalizationGroup;
 using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
@@ -74,6 +75,15 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
     try_catch.ReThrow();
   }
   return result;
+}
+
+static void HostCleanupFinalizationGroupCallback(
+    Local<Context> context, Local<FinalizationGroup> group) {
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    return;
+  }
+  env->RegisterFinalizationGroupForCleanup(group);
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -203,6 +213,8 @@ void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
       isolate->SetAllowWasmCodeGenerationCallback(
           AllowWasmCodeGenerationCallback);
       isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
+      isolate->SetHostCleanupFinalizationGroupCallback(
+          HostCleanupFinalizationGroupCallback);
       v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
       break;
     default:
