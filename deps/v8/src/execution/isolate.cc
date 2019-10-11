@@ -1680,8 +1680,13 @@ Object Isolate::UnwindAndFindHandler() {
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
         int handler_offset = table.LookupReturn(return_offset);
         DCHECK_NE(-1, handler_offset);
+        // Compute the stack pointer from the frame pointer. This ensures that
+        // argument slots on the stack are dropped as returning would.
+        Address return_sp = frame->fp() +
+                            StandardFrameConstants::kFixedFrameSizeAboveFp -
+                            code.stack_slots() * kSystemPointerSize;
         return FoundHandler(Context(), instruction_start, handler_offset,
-                            code.constant_pool(), frame->sp(), frame->fp());
+                            code.constant_pool(), return_sp, frame->fp());
       }
 
       case StackFrame::WASM_COMPILED: {
