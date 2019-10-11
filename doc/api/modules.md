@@ -159,6 +159,7 @@ require(X) from module at path Y
 3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
+   c. THROW "not found"
 4. LOAD_NODE_MODULES(X, dirname(Y))
 5. THROW "not found"
 
