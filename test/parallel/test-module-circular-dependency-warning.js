@@ -8,6 +8,8 @@ common.expectWarning({
   Warning: [
     ["Accessing non-existent property 'missingPropB' " +
      'of module exports inside circular dependency'],
+    ["Accessing non-existent property 'Symbol(someSymbol)' " +
+     'of module exports inside circular dependency'],
     ["Accessing non-existent property 'missingPropModuleExportsB' " +
      'of module exports inside circular dependency']
   ]
