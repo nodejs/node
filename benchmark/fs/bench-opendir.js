@@ -26,18 +26,20 @@ async function main({ n, dir, mode }) {
       await new Promise((resolve, reject) => {
         function read() {
           dir.read((err, entry) => {
-            if (err)
+            if (err) {
               reject(err);
-            if (entry === null)
+            } else if (entry === null) {
               resolve(dir.close());
-            else
+            } else {
+              counter++;
               read();
+            }
           });
         }
 
         read();
       });
-    } {
+    } else {
       const dir = fs.opendirSync(fullPath);
       while (dir.readSync() !== null)
         counter++;
