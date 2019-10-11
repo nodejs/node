@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-json-modules
+// Flags: --experimental-json-modules
 import '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
 import { strictEqual, ok } from 'assert';
@@ -10,7 +10,6 @@ strictEqual(secret.ofLife, 42);
 
 // Test warning message
 const child = spawn(process.execPath, [
-  '--experimental-modules',
   '--experimental-json-modules',
   path('/es-modules/json-modules.mjs')
 ]);

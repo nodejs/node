@@ -4,11 +4,7 @@ const assert = require('assert');
 const cp = require('child_process');
 const fixtures = require('../common/fixtures');
 
-const args = [
-  '--interactive',
-  '--experimental-repl-await',
-  '--experimental-modules'
-];
+const args = ['--interactive', '--experimental-repl-await'];
 
 const opts = { cwd: fixtures.path('es-modules') };
 const child = cp.spawn(process.execPath, args, opts);

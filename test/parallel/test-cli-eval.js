@@ -234,7 +234,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
 
 // Assert that "42\n" is written to stdout on module eval.
-const execOptions = '--experimental-modules --input-type module';
+const execOptions = '--input-type module';
 child.exec(
   `${nodejs} ${execOptions} --eval "console.log(42)"`,
   common.mustCall((err, stdout) => {

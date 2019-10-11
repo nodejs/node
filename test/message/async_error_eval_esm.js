@@ -26,7 +26,6 @@ main();
 // --eval ESM
 {
   const child = spawnSync(process.execPath, [
-    '--experimental-modules',
     '--input-type',
     'module',
     '-e',

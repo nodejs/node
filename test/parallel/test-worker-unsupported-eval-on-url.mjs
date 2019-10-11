@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import '../common/index.mjs';
 import assert from 'assert';
 import { Worker } from 'worker_threads';

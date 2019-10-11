@@ -1,11 +1,9 @@
-// Flags: --experimental-modules
 import '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
 import { strictEqual, ok } from 'assert';
 import { spawn } from 'child_process';
 
 const child = spawn(process.execPath, [
-  '--experimental-modules',
   '--experimental-import-meta-resolve',
   path('/es-modules/import-resolve-exports.mjs')
 ]);

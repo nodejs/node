@@ -1,5 +1,3 @@
-// Flags: --experimental-modules
-
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
 

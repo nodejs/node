@@ -66,7 +66,6 @@ function nextdir() {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
     '--no-warnings',
-    '--experimental-modules',
     require.resolve('../fixtures/source-map/esm-basic.mjs')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.stderr.toString(), '');
@@ -217,7 +216,6 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    '--experimental-modules',
     require.resolve('../fixtures/source-map/babel-esm.mjs')
   ]);
   assert.ok(

@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-specifier-resolution=node
+// Flags: --experimental-specifier-resolution=node
 import { mustNotCall } from '../common/index.mjs';
 import assert from 'assert';
 import path from 'path';
@@ -49,11 +49,9 @@ main().catch(mustNotCall);
     '../../fixtures/es-module-specifiers',
     item,
   );
-  spawn(process.execPath, [
-    '--experimental-modules',
-    '--es-module-specifier-resolution=node',
-    modulePath
-  ], { stdio: 'inherit' }).on('exit', (code) => {
+  spawn(process.execPath,
+        ['--es-module-specifier-resolution=node', modulePath],
+        { stdio: 'inherit' }).on('exit', (code) => {
     assert.strictEqual(code, 0);
   });
 });

@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --es-module-specifier-resolution=node
+// Flags: --es-module-specifier-resolution=node
 import '../common/index.mjs';
 import assert from 'assert';
 

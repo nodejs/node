@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-loader ./test/fixtures/es-module-loaders/loader-with-custom-condition.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/loader-with-custom-condition.mjs
 import '../common/index.mjs';
 import assert from 'assert';
 
