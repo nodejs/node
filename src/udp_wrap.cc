@@ -415,7 +415,7 @@ void UDPWrap::SetSourceMembership(const FunctionCallbackInfo<Value>& args,
   node::Utf8Value iface(args.GetIsolate(), args[2]);
 
   const char* iface_cstr = *iface;
-  if (args[1]->IsUndefined() || args[1]->IsNull()) {
+  if (args[2]->IsUndefined() || args[2]->IsNull()) {
       iface_cstr = nullptr;
   }
 
