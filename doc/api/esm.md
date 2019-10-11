@@ -27,12 +27,9 @@ specifier resolution, and default behavior.
 
 <!-- type=misc -->
 
-The `--experimental-modules` flag can be used to enable support for
-ECMAScript modules (ES modules).
-
-Once enabled, Node.js will treat the following as ES modules when passed to
-`node` as the initial input, or when referenced by `import` statements within
-ES module code:
+Experimental support for ECMAScript modules is enabled by default.
+Node.js will treat the following as ES modules when passed to `node` as the
+initial input, or when referenced by `import` statements within ES module code:
 
 * Files ending in `.mjs`.
 
@@ -78,7 +75,7 @@ until the root of the volume is reached.
 
 ```sh
 # In same folder as above package.json
-node --experimental-modules my-app.js # Runs as ES module
+node my-app.js # Runs as ES module
 ```
 
 If the nearest parent `package.json` lacks a `"type"` field, or contains
@@ -113,9 +110,8 @@ project’s `node_modules` folder contains its own `package.json` file, so each
 project’s dependencies have their own package scopes. A `package.json` lacking a
 `"type"` field is treated as if it contained `"type": "commonjs"`.
 
-The package scope applies not only to initial entry points (`node
---experimental-modules my-app.js`) but also to files referenced by `import`
-statements and `import()` expressions.
+The package scope applies not only to initial entry points (`node my-app.js`)
+but also to files referenced by `import` statements and `import()` expressions.
 
 ```js
 // my-app.js, in an ES module package scope because there is a package.json
@@ -168,11 +164,9 @@ piped to `node` via `STDIN`, will be treated as ES modules when the
 `--input-type=module` flag is set.
 
 ```sh
-node --experimental-modules --input-type=module --eval \
-  "import { sep } from 'path'; console.log(sep);"
+node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
 
-echo "import { sep } from 'path'; console.log(sep);" | \
-  node --experimental-modules --input-type=module
+echo "import { sep } from 'path'; console.log(sep);" | node --input-type=module
 ```
 
 For completeness there is also `--input-type=commonjs`, for explicitly running
@@ -1004,8 +998,8 @@ The `--experimental-json-modules` flag is needed for the module
 to work.
 
 ```bash
-node --experimental-modules index.mjs # fails
-node --experimental-modules --experimental-json-modules index.mjs # works
+node index.mjs # fails
+node --experimental-json-modules index.mjs # works
 ```
 
 ## Experimental Wasm Modules
@@ -1027,7 +1021,7 @@ console.log(M);
 executed under:
 
 ```bash
-node --experimental-modules --experimental-wasm-modules index.mjs
+node --experimental-wasm-modules index.mjs
 ```
 
 would provide the exports interface for the instantiation of `module.wasm`.
@@ -1173,7 +1167,7 @@ export async function getSource(url, context, defaultGetSource) {
 #### <code>transformSource</code> hook
 
 ```console
-NODE_OPTIONS='--experimental-modules --experimental-loader ./custom-loader.mjs' node x.js
+NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node x.js
 ```
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
@@ -1733,11 +1727,11 @@ automatic extension resolution and importing from directories that include an
 index file use the `node` mode.
 
 ```bash
-$ node --experimental-modules index.mjs
+$ node index.mjs
 success!
-$ node --experimental-modules index #Failure!
+$ node index # Failure!
 Error: Cannot find module
-$ node --experimental-modules --experimental-specifier-resolution=node index
+$ node --experimental-specifier-resolution=node index
 success!
 ```
 

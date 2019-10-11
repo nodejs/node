@@ -192,7 +192,7 @@ Specify the `module` of a custom [experimental ECMAScript Module loader][].
 added: v8.5.0
 -->
 
-Enable experimental ES module support and caching modules.
+Enable latest experimental modules features (deprecated).
 
 ### `--experimental-policy`
 <!-- YAML
@@ -376,9 +376,8 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 added: v12.0.0
 -->
 
-Used with `--experimental-modules`, this configures Node.js to interpret string
-input as CommonJS or as an ES module. String input is input via `--eval`,
-`--print`, or `STDIN`.
+This configures Node.js to interpret string input as CommonJS or as an ES
+module. String input is input via `--eval`, `--print`, or `STDIN`.
 
 Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 

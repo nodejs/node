@@ -7,7 +7,7 @@ const assert = require('assert');
 const entry = require.resolve('./test-esm-json.mjs');
 
 // Verify non-js extensions fail for ESM
-const child = spawn(process.execPath, ['--experimental-modules', entry]);
+const child = spawn(process.execPath, [entry]);
 
 let stderr = '';
 child.stderr.setEncoding('utf8');

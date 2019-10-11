@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 import { Worker, isMainThread, parentPort } from 'worker_threads';

@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-loader ./test/fixtures/es-module-loaders/loader-side-effect.mjs --require ./test/fixtures/es-module-loaders/loader-side-effect-require-preload.js
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/loader-side-effect.mjs --require ./test/fixtures/es-module-loaders/loader-side-effect-require-preload.js
 import { allowGlobals, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 import { fileURLToPath } from 'url';

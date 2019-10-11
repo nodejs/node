@@ -16,7 +16,7 @@ const assert = require('assert');
   '/es-modules/package-type-module/imports-unknownext.mjs',
 ].forEach((fixturePath) => {
   const entry = fixtures.path(fixturePath);
-  const child = spawn(process.execPath, ['--experimental-modules', entry]);
+  const child = spawn(process.execPath, [entry]);
   let stdout = '';
   let stderr = '';
   child.stderr.setEncoding('utf8');

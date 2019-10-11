@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import { createRequire } from '../common/index.mjs';
 import assert from 'assert';
 //

@@ -4,7 +4,6 @@ const assert = require('assert');
 const { spawn } = require('child_process');
 
 const child = spawn(process.execPath, [
-  '--experimental-modules',
   '--interactive'
 ]);
 child.stdin.end(`

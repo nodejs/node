@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
 import { expectsError, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 

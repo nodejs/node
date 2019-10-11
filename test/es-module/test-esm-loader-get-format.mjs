@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-loader ./test/fixtures/es-module-loaders/loader-get-format.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/loader-get-format.mjs
 import { mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'assert';
 

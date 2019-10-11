@@ -4,7 +4,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fixture = fixtures.path('/es-modules/import-invalid-ext.mjs');
-const child = spawnSync(process.execPath, ['--experimental-modules', fixture]);
+const child = spawnSync(process.execPath, [fixture]);
 const errMsg = 'TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension';
 
 assert.strictEqual(child.status, 1);
