@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-resolve-self --experimental-conditional-exports
+// Flags: --experimental-resolve-self --experimental-conditional-exports
 
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';

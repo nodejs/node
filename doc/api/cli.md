@@ -161,8 +161,8 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 added: v12.0.0
 -->
 
-To be used in conjunction with `--experimental-modules`. Sets the resolution
-algorithm for resolving specifiers. Valid options are `explicit` and `node`.
+Sets the resolution algorithm for resolving ES modulespecifiers. Valid options
+are `explicit` and `node`.
 
 The default is `explicit`, which requires providing the full path to a
 module. The `node` mode will enable support for optional file extensions and
@@ -185,13 +185,6 @@ added: v12.9.0
 -->
 
 Enable experimental JSON support for the ES Module loader.
-
-### `--experimental-modules`
-<!-- YAML
-added: v8.5.0
--->
-
-Enable experimental ES module support and caching modules.
 
 ### `--experimental-policy`
 <!-- YAML
@@ -342,9 +335,8 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 added: v12.0.0
 -->
 
-Used with `--experimental-modules`, this configures Node.js to interpret string
-input as CommonJS or as an ES module. String input is input via `--eval`,
-`--print`, or `STDIN`.
+This configures Node.js to interpret string input as CommonJS or as an ES
+module. String input is input via `--eval`, `--print`, or `STDIN`.
 
 Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 
@@ -409,7 +401,7 @@ endpoint on `http://host:port/json/list`.
 added: v9.0.0
 -->
 
-Specify the `module` of a custom [experimental ECMAScript Module][] loader.
+Specify the `module` of a custom [experimental ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
 ### `--max-http-header-size=size`
@@ -1033,7 +1025,6 @@ Node.js options that are allowed are:
 * `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
-* `--experimental-modules`
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-report`
@@ -1330,7 +1321,7 @@ greater than `4` (its current default value). For more information, see the
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module]: esm.html#esm_resolve_hook
+[experimental ECMAScript Module loader]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [context-aware]: addons.html#addons_context_aware_addons

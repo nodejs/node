@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --es-module-specifier-resolution=node
+// Flags: --es-module-specifier-resolution=node
 import { mustNotCall } from '../common/index.mjs';
 import assert from 'assert';
 

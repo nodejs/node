@@ -1,5 +1,3 @@
-// Flags: --experimental-modules
-
 import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 import fixtures from '../common/fixtures.js';
@@ -20,7 +18,7 @@ const expectedNote = 'To load an ES module, ' +
 
 const expectedCode = 1;
 
-const pExport1 = spawn(process.execPath, ['--experimental-modules', Export1]);
+const pExport1 = spawn(process.execPath, [Export1]);
 let pExport1Stderr = '';
 pExport1.stderr.setEncoding('utf8');
 pExport1.stderr.on('data', (data) => {
@@ -33,7 +31,7 @@ pExport1.on('close', mustCall((code) => {
 }));
 
 
-const pExport2 = spawn(process.execPath, ['--experimental-modules', Export2]);
+const pExport2 = spawn(process.execPath, [Export2]);
 let pExport2Stderr = '';
 pExport2.stderr.setEncoding('utf8');
 pExport2.stderr.on('data', (data) => {
@@ -44,21 +42,8 @@ pExport2.on('close', mustCall((code) => {
   assert.ok(pExport2Stderr.includes(expectedNote),
             `${expectedNote} not found in ${pExport2Stderr}`);
 }));
-// The flag --experimental-modules is not used here
-// the note must not be included in the output
-const pExport3 = spawn(process.execPath, [Export1]);
-let pExport3Stderr = '';
-pExport3.stderr.setEncoding('utf8');
-pExport3.stderr.on('data', (data) => {
-  pExport3Stderr += data;
-});
-pExport3.on('close', mustCall((code) => {
-  assert.strictEqual(code, expectedCode);
-  assert.ok(!pExport3Stderr.includes(expectedNote),
-            `${expectedNote} must not be included in ${pExport3Stderr}`);
-}));
 
-const pImport1 = spawn(process.execPath, ['--experimental-modules', Import1]);
+const pImport1 = spawn(process.execPath, [Import1]);
 let pImport1Stderr = '';
 pImport1.stderr.setEncoding('utf8');
 pImport1.stderr.on('data', (data) => {
@@ -71,7 +56,7 @@ pImport1.on('close', mustCall((code) => {
 }));
 
 // Note this test shouldn't include the note
-const pImport2 = spawn(process.execPath, ['--experimental-modules', Import2]);
+const pImport2 = spawn(process.execPath, [Import2]);
 let pImport2Stderr = '';
 pImport2.stderr.setEncoding('utf8');
 pImport2.stderr.on('data', (data) => {
@@ -84,7 +69,7 @@ pImport2.on('close', mustCall((code) => {
             `${expectedNote} must not be included in ${pImport2Stderr}`);
 }));
 
-const pImport3 = spawn(process.execPath, ['--experimental-modules', Import3]);
+const pImport3 = spawn(process.execPath, [Import3]);
 let pImport3Stderr = '';
 pImport3.stderr.setEncoding('utf8');
 pImport3.stderr.on('data', (data) => {
@@ -97,7 +82,7 @@ pImport3.on('close', mustCall((code) => {
 }));
 
 
-const pImport4 = spawn(process.execPath, ['--experimental-modules', Import4]);
+const pImport4 = spawn(process.execPath, [Import4]);
 let pImport4Stderr = '';
 pImport4.stderr.setEncoding('utf8');
 pImport4.stderr.on('data', (data) => {
@@ -110,7 +95,7 @@ pImport4.on('close', mustCall((code) => {
 }));
 
 // Must exit with zero and show note
-const pImport5 = spawn(process.execPath, ['--experimental-modules', Import5]);
+const pImport5 = spawn(process.execPath, [Import5]);
 let pImport5Stderr = '';
 pImport5.stderr.setEncoding('utf8');
 pImport5.stderr.on('data', (data) => {
@@ -120,17 +105,4 @@ pImport5.on('close', mustCall((code) => {
   assert.strictEqual(code, 0);
   assert.ok(!pImport5Stderr.includes(expectedNote),
             `${expectedNote} must not be included in ${pImport5Stderr}`);
-}));
-
-// Must exit with zero and not show note
-const pImport6 = spawn(process.execPath, [Import1]);
-let pImport6Stderr = '';
-pImport6.stderr.setEncoding('utf8');
-pImport6.stderr.on('data', (data) => {
-  pImport6Stderr += data;
-});
-pImport6.on('close', mustCall((code) => {
-  assert.strictEqual(code, expectedCode);
-  assert.ok(!pImport6Stderr.includes(expectedNote),
-            `${expectedNote} must not be included in ${pImport6Stderr}`);
 }));
