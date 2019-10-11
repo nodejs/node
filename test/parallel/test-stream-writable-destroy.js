@@ -328,3 +328,19 @@ const assert = require('assert');
   }));
   write.end();
 }
+
+{
+  // Call end(cb) after error & destroy and don't trigger
+  // unhandled exception.
+
+  const write = new Writable({
+    write(chunk, enc, cb) { process.nextTick(cb); }
+  });
+  write.once('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.end('asd', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.destroy(new Error('asd'));
+}
