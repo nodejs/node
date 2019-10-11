@@ -10,10 +10,7 @@ const entry = fixtures.path('/es-modules/package-type-module/noext-esm');
 // Run a module that does not have extension.
 // This is to ensure that "type": "module" applies to extensionless files.
 
-const child = spawn(process.execPath, [
-  '--experimental-modules',
-  entry
-]);
+const child = spawn(process.execPath, [entry]);
 
 let stdout = '';
 child.stdout.setEncoding('utf8');

@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-loader ./test/fixtures/es-module-loaders/missing-dynamic-instantiate-hook.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/missing-dynamic-instantiate-hook.mjs
 import { expectsError } from '../common/index.mjs';
 
 import('test').catch(expectsError({

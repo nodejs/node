@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-internals --experimental-modules
+// Flags: --expose-internals
 
 // This test ensures that the type checking of ModuleMap throws
 // errors appropriately

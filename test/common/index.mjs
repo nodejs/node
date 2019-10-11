@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 /* eslint-disable node-core/require-common-first, node-core/required-modules */
 
 import { createRequire } from 'module';

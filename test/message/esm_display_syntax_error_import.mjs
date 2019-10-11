@@ -1,4 +1,3 @@
-// Flags:  --experimental-modules
 /* eslint-disable no-unused-vars */
 import '../common/index.mjs';
 import {
