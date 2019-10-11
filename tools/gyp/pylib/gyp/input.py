@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import traceback
+from distutils.version import StrictVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
@@ -1088,7 +1089,8 @@ def EvalSingleCondition(
     else:
       ast_code = compile(cond_expr_expanded, '<string>', 'eval')
       cached_conditions_asts[cond_expr_expanded] = ast_code
-    if eval(ast_code, {'__builtins__': None}, variables):
+    env = {'__builtins__': None, 'v': StrictVersion}
+    if eval(ast_code, env, variables):
       return true_dict
     return false_dict
   except SyntaxError as e:
