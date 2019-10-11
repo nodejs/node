@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-wasm-modules
+// Flags: --experimental-wasm-modules
 import '../common/index.mjs';
 import { add, addImported } from '../fixtures/es-modules/simple.wasm';
 import { state } from '../fixtures/es-modules/wasm-dep.mjs';

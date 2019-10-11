@@ -23,10 +23,10 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(code, 0);
+  assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
 
-  assert.strictEqual(stderr, `(node:${child.pid}) Warning: ` +
+  assert.ok(stderr.startsWith(`(node:${child.pid}) Warning: ` +
     'require() of ES modules is not supported.\nrequire() of ' +
     `${required} from ${requiring} ` +
     'is an ES module file as it is a .js file whose nearest parent ' +
@@ -34,5 +34,7 @@ child.on('close', common.mustCall((code, signal) => {
     'files in that package scope as ES modules.\nInstead rename ' +
     `${basename} to end in .cjs, change the requiring code to use ` +
     'import(), or remove "type": "module" from ' +
-    `${pjson}.\n`);
+    `${pjson}.\n`));
+  assert.ok(stderr.indexOf(
+    'Error [ERR_REQUIRE_ESM]: Must use import to load ES Module') !== -1);
 }));
