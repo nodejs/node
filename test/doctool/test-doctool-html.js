@@ -11,6 +11,7 @@ try {
 const assert = require('assert');
 const { readFile } = require('fs');
 const fixtures = require('../common/fixtures');
+const { replaceLinks } = require('../../tools/doc/markdown.js');
 const html = require('../../tools/doc/html.js');
 const path = require('path');
 
@@ -24,6 +25,7 @@ const htmlStringify = require('rehype-stringify');
 
 async function toHTML({ input, filename, nodeVersion }) {
   const content = unified()
+    .use(replaceLinks)
     .use(markdown)
     .use(html.firstHeader)
     .use(html.preprocessText)
@@ -95,6 +97,21 @@ const testData = [
   {
     file: fixtures.path('altdocs.md'),
     html: '<li><a href="https://nodejs.org/docs/latest-v8.x/api/foo.html">8.x',
+  },
+  {
+    file: fixtures.path('document_with_links.md'),
+    html: '<h1>Usage and Example<span><a class="mark"' +
+    'href="#foo_usage_and_example" id="foo_usage_and_example">#</a>' +
+    '</span></h1><h2>Usage<span><a class="mark" href="#foo_usage"' +
+    'id="foo_usage">#</a></span></h2><p><code>node [options] index.js' +
+    '</code></p><p>Please see the<a href="cli.html#cli-options">' +
+    'Command Line Options</a>document for more information.</p><h2>' +
+    'Example<span><a class="mark" href="#foo_example" id="foo_example">' +
+    '#</a></span></h2><p>An example of a<a href="example.html">' +
+    'webserver</a>written with Node.js which responds with<code>' +
+    '\'Hello, World!\'</code>:</p><h2>See also<span><a class="mark"' +
+    'href="#foo_see_also" id="foo_see_also">#</a></span></h2><p>Check' +
+    'out also<a href="https://nodejs.org/">this guide</a></p>'
   },
 ];
 

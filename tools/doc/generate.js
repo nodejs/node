@@ -29,6 +29,7 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
+const { replaceLinks } = require('./markdown');
 const html = require('./html');
 const json = require('./json');
 
@@ -70,6 +71,7 @@ async function main() {
   const input = await fs.readFile(filename, 'utf8');
 
   const content = await unified()
+    .use(replaceLinks)
     .use(markdown)
     .use(html.preprocessText)
     .use(json.jsonAPI, { filename })
