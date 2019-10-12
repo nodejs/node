@@ -3766,6 +3766,8 @@ The `fs.watch` API is not 100% consistent across platforms, and is
 unavailable in some situations.
 
 The recursive option is only supported on macOS and Windows.
+An `ERR_OPTION_INCOMPATIBLE_WITH_PLATFORM` exception will be thrown,
+ if the option is used in an incompatible platform.
 
 #### Availability
 

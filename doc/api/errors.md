@@ -2412,6 +2412,11 @@ The `--entry-type=...` flag is not compatible with the Node.js REPL.
 Used when an [ES Module][] loader hook specifies `format: 'dynamic'` but does
 not provide a `dynamicInstantiate` hook.
 
+<a id="ERR_OPTION_INCOMPATIBLE_WITH_PLATFORM"></a>
+#### ERR_OPTION_INCOMPATIBLE_WITH_PLATFORM
+
+Used when a function is called,
+with an incompatible option to the current platform which is running Node.js.
 <a id="ERR_STREAM_HAS_STRINGDECODER"></a>
 #### `ERR_STREAM_HAS_STRINGDECODER`
 
