@@ -49,7 +49,7 @@ try {
     assert(watcherClosed, 'watcher Object was not closed');
   });
 } catch (err) {
-  if ((common.isOSX || common.isWindows))
+  if (common.isOSX || common.isWindows)
     throw err;
   else if (err.code !== 'ERR_OPTION_INCOMPATIBLE_WITH_PLATFORM')
     throw err;
