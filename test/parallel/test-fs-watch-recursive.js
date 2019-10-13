@@ -51,6 +51,6 @@ try {
 } catch (err) {
   if (common.isOSX || common.isWindows)
     throw err;
-  else if (err.code !== 'ERR_OPTION_INCOMPATIBLE_WITH_PLATFORM')
+  else if (err.code !== 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM')
     throw err;
 }
