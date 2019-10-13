@@ -24,6 +24,7 @@ const assert = require('assert');
 
   const expected = new Error('kaboom');
 
+  read.on('data', common.mustNotCall());
   read.on('end', common.mustNotCall('no end event'));
   read.on('close', common.mustCall());
   read.on('error', common.mustCall((err) => {
@@ -46,6 +47,7 @@ const assert = require('assert');
 
   const expected = new Error('kaboom');
 
+  read.on('data', common.mustNotCall());
   read.on('end', common.mustNotCall('no end event'));
   read.on('close', common.mustCall());
   read.on('error', common.mustCall((err) => {
@@ -71,6 +73,7 @@ const assert = require('assert');
 
   // Error is swallowed by the custom _destroy
   read.on('error', common.mustNotCall('no error event'));
+  read.on('data', common.mustNotCall());
   read.on('close', common.mustCall());
 
   read.destroy(expected);
@@ -108,12 +111,16 @@ const assert = require('assert');
   const fail = common.mustNotCall('no end event');
 
   read.on('end', fail);
+  read.on('data', common.mustNotCall());
   read.on('close', common.mustCall());
 
   read.destroy();
+  assert.strictEqual(read.push(null), false);
+  assert.strictEqual(read._readableState.ended, false);
 
   read.removeListener('end', fail);
-  read.on('end', common.mustCall());
+  read.on('end', common.mustNotCall());
+  read.on('data', common.mustNotCall());
   assert.strictEqual(read.destroyed, true);
 }
 
@@ -130,6 +137,7 @@ const assert = require('assert');
   });
 
   read.on('end', common.mustNotCall('no end event'));
+  read.on('data', common.mustNotCall());
   read.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
   }));
@@ -149,6 +157,7 @@ const assert = require('assert');
 
   // The internal destroy() mechanism should not be triggered
   read.on('end', common.mustNotCall());
+  read.on('data', common.mustNotCall());
   read.destroy();
 }
 

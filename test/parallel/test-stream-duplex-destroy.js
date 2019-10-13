@@ -121,10 +121,13 @@ const assert = require('assert');
   duplex.on('end', fail);
 
   duplex.destroy();
+  assert.strictEqual(duplex.push(null), false);
+  assert.strictEqual(duplex._readableState.ended, false);
 
   duplex.removeListener('end', fail);
   duplex.removeListener('finish', fail);
-  duplex.on('end', common.mustCall());
+  duplex.on('data', common.mustNotCall());
+  duplex.on('end', common.mustNotCall());
   duplex.on('finish', common.mustCall());
   assert.strictEqual(duplex.destroyed, true);
 }
