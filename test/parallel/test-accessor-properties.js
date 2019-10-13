@@ -27,7 +27,7 @@ const UDP = internalBinding('udp_wrap').UDP;
     // Should throw instead of raise assertions
     assert.throws(() => {
       TTY.prototype[property];
-    }, TypeError, `TypeError on: TTY.prototype.${property}`);
+    }, TypeError, `Missing expected TypeError for TTY.prototype.${property}`);
 
     // Should not throw for Object.getOwnPropertyDescriptor
     assert.strictEqual(
