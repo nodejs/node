@@ -700,6 +700,10 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
   if "NODE_PATH" in env_copy:
     del env_copy["NODE_PATH"]
 
+  # Remove NODE_REPL_EXTERNAL_MODULE
+  if "NODE_REPL_EXTERNAL_MODULE" in env_copy:
+    del env_copy["NODE_REPL_EXTERNAL_MODULE"]
+
   # Extend environment
   for key, value in env.items():
     env_copy[key] = value
