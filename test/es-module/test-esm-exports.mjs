@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-resolve-self
+// Flags: --experimental-modules --experimental-resolve-self --experimental-conditional-exports
 
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
@@ -23,7 +23,16 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/fallbackfile', { default: 'asdf' }],
     // Dot main
     ['pkgexports', { default: 'asdf' }],
+    // Conditional split for require
+    ['pkgexports/condition', isRequire ? { default: 'encoded path' } :
+      { default: 'asdf' }],
+    // String exports sugar
+    ['pkgexports-sugar', { default: 'main' }],
+    // Conditional object exports sugar
+    ['pkgexports-sugar2', isRequire ? { default: 'not-exported' } :
+      { default: 'main' }]
   ]);
+
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
 
@@ -39,6 +48,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // The file exists but isn't exported. The exports is a number which counts
     // as a non-null value without any properties, just like `{}`.
     ['pkgexports-number/hidden.js', './hidden.js'],
+    // Sugar cases still encapsulate
+    ['pkgexports-sugar/not-exported.js', './not-exported.js'],
+    ['pkgexports-sugar2/not-exported.js', './not-exported.js']
   ]);
 
   const invalidExports = new Map([
@@ -79,7 +91,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       assertStartsWith(err.message, (isRequire ? 'Package exports' :
         'Cannot resolve'));
       assertIncludes(err.message, isRequire ?
-        `do not define a valid '${subpath}' subpath` :
+        `do not define a valid '${subpath}' target` :
         `matched for '${subpath}'`);
     }));
   }
@@ -93,10 +105,21 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       'Cannot find module');
   }));
 
-  // THe use of %2F escapes in paths fails loading
+  // The use of %2F escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
     strictEqual(err.code, isRequire ? 'ERR_INVALID_FILE_URL_PATH' :
       'ERR_MODULE_NOT_FOUND');
+  }));
+
+  // Sugar conditional exports main mixed failure case
+  loadFixture('pkgexports-sugar-fail').catch(mustCall((err) => {
+    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+    assertStartsWith(err.message, (isRequire ? 'Invalid package' :
+      'Cannot resolve'));
+    assertIncludes(err.message, '"exports" cannot contain some keys starting ' +
+    'with \'.\' and some not. The exports object must either be an object of ' +
+    'package subpath keys or an object of main entry condition name keys ' +
+    'only.');
   }));
 });
 
@@ -124,6 +147,6 @@ function assertStartsWith(actual, expected) {
 }
 
 function assertIncludes(actual, expected) {
-  ok(actual.toString().indexOf(expected),
+  ok(actual.toString().indexOf(expected) !== -1,
      `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
 }

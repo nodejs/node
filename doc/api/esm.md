@@ -260,6 +260,9 @@ that would only be supported in ES module-supporting versions of Node.js (and
 other runtimes). New packages could be published containing only ES module
 sources, and would be compatible only with ES module-supporting runtimes.
 
+To define separate package entry points for use by `require` and by `import`,
+see [Conditional Exports][].
+
 ### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
@@ -313,38 +316,11 @@ If a package has no exports, setting `"exports": false` can be used instead of
 `"exports": {}` to indicate the package does not intend for submodules to be
 exposed.
 
-Exports can also be used to map the main entry point of a package:
-
-<!-- eslint-skip -->
-```js
-// ./node_modules/es-module-package/package.json
-{
-  "exports": {
-    ".": "./main.js"
-  }
-}
-```
-
-where the "." indicates loading the package without any subpath. Exports will
-always override any existing `"main"` value for both CommonJS and
-ES module packages.
-
-For packages with only a main entry point, an `"exports"` value of just
-a string is also supported:
-
-<!-- eslint-skip -->
-```js
-// ./node_modules/es-module-package/package.json
-{
-  "exports": "./main.js"
-}
-```
-
 Any invalid exports entries will be ignored. This includes exports not
 starting with `"./"` or a missing trailing `"/"` for directory exports.
 
 Array fallback support is provided for exports, similarly to import maps
-in order to be forward-compatible with fallback workflows in future:
+in order to be forwards-compatible with possible fallback workflows in future:
 
 <!-- eslint-skip -->
 ```js
@@ -357,6 +333,137 @@ in order to be forward-compatible with fallback workflows in future:
 
 Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
+
+Defining a `"."` export will define the main entry point for the package,
+and will always take precedence over the `"main"` field in the `package.json`.
+
+This allows defining a different entry point for Node.js versions that support
+ECMAScript modules and versions that don't, for example:
+
+<!-- eslint-skip -->
+```js
+{
+  "main": "./main-legacy.cjs",
+  "exports": {
+    ".": "./main-modern.cjs"
+  }
+}
+```
+
+#### Conditional Exports
+
+Conditional exports provide a way to map to different paths depending on
+certain conditions. They are supported for both CommonJS and ES module imports.
+
+For example, a package that wants to provide different ES module exports for
+Node.js and the browser can be written:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    "./feature": {
+      "browser": "./feature-browser.js",
+      "default": "./feature-default.js"
+    }
+  }
+}
+```
+
+When resolving the `"."` export, if no matching target is found, the `"main"`
+will be used as the final fallback.
+
+The conditions supported in Node.js are matched in the following order:
+
+1. `"require"` - matched when the package is loaded via `require()`.
+  _This is currently only supported behind the
+  `--experimental-conditional-exports` flag._
+2. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file. _This is currently only supported behind the
+  `--experimental-conditional-exports` flag._
+3. `"default"` - the generic fallback that will always match if no other
+   more specific condition is matched first. Can be a CommonJS or ES module
+   file.
+
+Using the `"require"` condition it is possible to define a package that will
+have a different exported value for CommonJS and ES modules, which can be a
+hazard in that it can result in having two separate instances of the same
+package in use in an application, which can cause a number of bugs.
+
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
+etc. could be defined in other runtimes or tools.
+
+#### Exports Sugar
+
+If the `"."` export is the only export, the `"exports"` field provides sugar
+for this case being the direct `"exports"` field value.
+
+If the `"."` export has a fallback array or string value, then the `"exports"`
+field can be set to this value directly.
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    ".": "./main.js"
+  }
+}
+```
+
+can be written:
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": "./main.js"
+}
+```
+
+When using conditional exports, the rule is that all keys in the object mapping
+must not start with a `"."` otherwise they would be indistinguishable from
+exports subpaths.
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    ".": {
+      "require": "./main.cjs",
+      "default": "./main.js"
+    }
+  }
+}
+```
+
+can be written:
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    "require": "./main.cjs",
+    "default": "./main.js"
+  }
+}
+```
+
+If writing any exports value that mixes up these two forms, an error will be
+thrown:
+
+<!-- eslint-skip -->
+```js
+{
+  // Throws on resolution!
+  "exports": {
+    "./feature": "./lib/feature.js",
+    "require": "./main.cjs",
+    "default": "./main.js"
+  }
+}
+```
 
 ## <code>import</code> Specifiers
 
@@ -806,6 +913,9 @@ of these top-level routines unless stated otherwise.
 
 _isMain_ is **true** when resolving the Node.js application entry point.
 
+_defaultEnv_ is the conditional environment name priority array,
+`["node", "default"]`.
+
 <details>
 <summary>Resolver algorithm specification</summary>
 
@@ -905,14 +1015,16 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.exports_ is not **null** or **undefined**, then
->    1. If _pjson.exports_ is a String or Array, then
+>    1. If _exports_ is an Object with both a key starting with _"."_ and a key
+>       not starting with _"."_, throw a "Invalid Package Configuration" error.
+>    1. If _pjson.exports_ is a String or Array, or an Object containing no
+>       keys starting with _"."_, then
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _pjson.exports_, "")_.
->    1. If _pjson.exports is an Object, then
->       1. If _pjson.exports_ contains a _"."_ property, then
->          1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
->          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->             _mainExport_, "")_.
+>          _pjson.exports_, _""_).
+>    1. If _pjson.exports_ is an Object containing a _"."_ property, then
+>       1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
+>       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
+>          _mainExport_, _""_).
 > 1. If _pjson.main_ is a String, then
 >    1. Let _resolvedMain_ be the URL resolution of _packageURL_, "/", and
 >       _pjson.main_.
@@ -926,13 +1038,14 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. Return _legacyMainURL_.
 
 **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_, _exports_)
-
-> 1. If _exports_ is an Object, then
+> 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
+>    starting with _"."_, throw an "Invalid Package Configuration" error.
+> 1. If _exports_ is an Object and all keys of _exports_ start with _"."_, then
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports\[packagePath\]_.
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
->          _""_).
+>          _""_, _defaultEnv_).
 >    1. Let _directoryKeys_ be the list of keys of _exports_ ending in
 >       _"/"_, sorted by length descending.
 >    1. For each key _directory_ in _directoryKeys_, do
@@ -941,10 +1054,10 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >          1. Let _subpath_ be the substring of _target_ starting at the index
 >             of the length of _directory_.
 >          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
->             _subpath_).
+>             _subpath_, _defaultEnv_).
 > 1. Throw a _Module Not Found_ error.
 
-**PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_)
+**PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _env_)
 
 > 1. If _target_ is a String, then
 >    1. If _target_ does not start with _"./"_, throw a _Module Not Found_
@@ -960,12 +1073,20 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >          _subpath_ and _resolvedTarget_.
 >       1. If _resolved_ is contained in _resolvedTarget_, then
 >          1. Return _resolved_.
+> 1. Otherwise, if _target_ is a non-null Object, then
+>    1. If _target_ has an object key matching one of the names in _env_, then
+>       1. Let _targetValue_ be the corresponding value of the first object key
+>          of _target_ in _env_.
+>       1. Let _resolved_ be the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**
+>          (_packageURL_, _targetValue_, _subpath_, _env_).
+>       1. Assert: _resolved_ is a String.
+>       1. Return _resolved_.
 > 1. Otherwise, if _target_ is an Array, then
 >    1. For each item _targetValue_ in _target_, do
->       1. If _targetValue_ is not a String, continue the loop.
+>       1. If _targetValue_ is an Array, continue the loop.
 >       1. Let _resolved_ be the result of
 >          **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _targetValue_,
->          _subpath_), continuing the loop on abrupt completion.
+>          _subpath_, _env_), continuing the loop on abrupt completion.
 >       1. Assert: _resolved_ is a String.
 >       1. Return _resolved_.
 > 1. Throw a _Module Not Found_ error.
@@ -1033,6 +1154,7 @@ success!
 ```
 
 [CommonJS]: modules.html
+[Conditional Exports]: #esm_conditional_exports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
@@ -1045,7 +1167,7 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
-[dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [package exports]: #esm_package_exports
+[dynamic instantiate hook]: #esm_dynamic_instantiate_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
