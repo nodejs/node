@@ -835,10 +835,16 @@ void ThrowExportsInvalid(Environment* env,
                          const std::string& target,
                          const URL& pjson_url,
                          const URL& base) {
-  const std::string msg = "Cannot resolve package exports target '" + target +
-      "' matched for '" + subpath + "' in " + pjson_url.ToFilePath() +
-      ", imported from " + base.ToFilePath();
-  node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+  if (subpath.length()) {
+    const std::string msg = "Cannot resolve package exports target '" + target +
+        "' matched for '" + subpath + "' in " + pjson_url.ToFilePath() +
+        ", imported from " + base.ToFilePath();
+    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+  } else {
+    const std::string msg = "Cannot resolve package main '" + target + "' in" +
+        pjson_url.ToFilePath() + ", imported from " + base.ToFilePath();
+    node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
+  }
 }
 
 void ThrowExportsInvalid(Environment* env,
@@ -857,13 +863,13 @@ void ThrowExportsInvalid(Environment* env,
   }
 }
 
-Maybe<URL> ResolveExportsTarget(Environment* env,
-                                const std::string& target,
-                                const std::string& subpath,
-                                const std::string& match,
-                                const URL& pjson_url,
-                                const URL& base,
-                                bool throw_invalid = true) {
+Maybe<URL> ResolveExportsTargetString(Environment* env,
+                                      const std::string& target,
+                                      const std::string& subpath,
+                                      const std::string& match,
+                                      const URL& pjson_url,
+                                      const URL& base,
+                                      bool throw_invalid = true) {
   if (target.substr(0, 2) != "./") {
     if (throw_invalid) {
       ThrowExportsInvalid(env, match, target, pjson_url, base);
@@ -901,68 +907,124 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
   return Just(subpath_resolved);
 }
 
+Maybe<URL> ResolveExportsTarget(Environment* env,
+                                const URL& pjson_url,
+                                Local<Value> target,
+                                const std::string& subpath,
+                                const std::string& pkg_subpath,
+                                const URL& base,
+                                bool throw_invalid = true) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  if (target->IsString()) {
+    Utf8Value target_utf8(isolate, target.As<v8::String>());
+    std::string target_str(*target_utf8, target_utf8.length());
+    Maybe<URL> resolved = ResolveExportsTargetString(env, target_str, subpath,
+        pkg_subpath, pjson_url, base, throw_invalid);
+    if (resolved.IsNothing()) {
+      return Nothing<URL>();
+    }
+    return FinalizeResolution(env, resolved.FromJust(), base);
+  } else if (target->IsArray()) {
+      Local<Array> target_arr = target.As<Array>();
+      const uint32_t length = target_arr->Length();
+      if (length == 0) {
+        if (throw_invalid) {
+          ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
+        }
+        return Nothing<URL>();
+      }
+      for (uint32_t i = 0; i < length; i++) {
+        auto target_item = target_arr->Get(context, i).ToLocalChecked();
+        if (!target_item->IsArray()) {
+          Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+              target_item, subpath, pkg_subpath, base, false);
+          if (resolved.IsNothing()) continue;
+          return FinalizeResolution(env, resolved.FromJust(), base);
+        }
+      }
+      if (throw_invalid) {
+        auto invalid = target_arr->Get(context, length - 1).ToLocalChecked();
+        Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url, invalid,
+            subpath, pkg_subpath, base, true);
+        CHECK(resolved.IsNothing());
+      }
+      return Nothing<URL>();
+  } else if (target->IsObject()) {
+    Local<Object> target_obj = target.As<Object>();
+    bool matched = false;
+    Local<Value> conditionalTarget;
+    if (target_obj->HasOwnProperty(context, env->node_string()).FromJust()) {
+      matched = true;
+      conditionalTarget =
+          target_obj->Get(context, env->node_string()).ToLocalChecked();
+      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+            conditionalTarget, subpath, pkg_subpath, base, false);
+      if (!resolved.IsNothing()) {
+        return resolved;
+      }
+    }
+    if (target_obj->HasOwnProperty(context, env->default_string()).FromJust()) {
+      matched = true;
+      conditionalTarget =
+          target_obj->Get(context, env->default_string()).ToLocalChecked();
+      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+            conditionalTarget, subpath, pkg_subpath, base, false);
+      if (!resolved.IsNothing()) {
+        return resolved;
+      }
+    }
+    if (matched && throw_invalid) {
+      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+            conditionalTarget, subpath, pkg_subpath, base, true);
+      CHECK(resolved.IsNothing());
+      return Nothing<URL>();
+    }
+  }
+  if (throw_invalid) {
+    ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
+  }
+  return Nothing<URL>();
+}
+
+bool FirstKeyStartsWithDot(Environment* env, Local<Value> exports) {
+  CHECK(exports->IsObject());
+  Local<Context> context = env->context();
+  Local<Object> exports_obj = exports.As<Object>();
+  Local<Array> keys =
+      exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
+  if (keys->Length() > 0) {
+    Local<String> key = keys->Get(context, 0).ToLocalChecked().As<String>();
+    Utf8Value key_utf8(env->isolate(), key);
+    std::string key_str(*key_utf8, key_utf8.length());
+    return key_str.front() == '.';
+  }
+  return false;
+}
+
 Maybe<URL> PackageMainResolve(Environment* env,
                               const URL& pjson_url,
                               const PackageConfig& pcfg,
                               const URL& base) {
   if (pcfg.exists == Exists::Yes) {
     Isolate* isolate = env->isolate();
-    Local<Context> context = env->context();
+
     if (!pcfg.exports.IsEmpty()) {
       Local<Value> exports = pcfg.exports.Get(isolate);
-      if (exports->IsString() || exports->IsObject() || exports->IsArray()) {
-        Local<Value> target;
-        if (!exports->IsObject()) {
-          target = exports;
+      if (exports->IsString() || exports->IsObject()) {
+        if (!exports->IsObject() || !FirstKeyStartsWithDot(env, exports)) {
+          return ResolveExportsTarget(env, pjson_url, exports, "", "", base,
+                                      true);
         } else {
           Local<Object> exports_obj = exports.As<Object>();
-          Local<String> dot_string = String::NewFromUtf8(env->isolate(), ".",
-              v8::NewStringType::kNormal).ToLocalChecked();
-          target =
-              exports_obj->Get(env->context(), dot_string).ToLocalChecked();
-        }
-        if (target->IsString()) {
-          Utf8Value target_utf8(isolate, target.As<v8::String>());
-          std::string target(*target_utf8, target_utf8.length());
-          Maybe<URL> resolved = ResolveExportsTarget(env, target, "", ".",
-              pjson_url, base);
-          if (resolved.IsNothing()) {
-            ThrowExportsInvalid(env, ".", target, pjson_url, base);
-            return Nothing<URL>();
+          if (exports_obj->HasOwnProperty(env->context(), env->dot_string())
+              .FromJust()) {
+            Local<Value> target =
+                exports_obj->Get(env->context(), env->dot_string())
+                .ToLocalChecked();
+            return ResolveExportsTarget(env, pjson_url, target, "", "", base,
+                                        true);
           }
-          return FinalizeResolution(env, resolved.FromJust(), base);
-        } else if (target->IsArray()) {
-          Local<Array> target_arr = target.As<Array>();
-          const uint32_t length = target_arr->Length();
-          if (length == 0) {
-            ThrowExportsInvalid(env, ".", target, pjson_url, base);
-            return Nothing<URL>();
-          }
-          for (uint32_t i = 0; i < length; i++) {
-            auto target_item = target_arr->Get(context, i).ToLocalChecked();
-            if (target_item->IsString()) {
-              Utf8Value target_utf8(isolate, target_item.As<v8::String>());
-              std::string target_str(*target_utf8, target_utf8.length());
-              Maybe<URL> resolved = ResolveExportsTarget(env, target_str, "",
-                  ".", pjson_url, base, false);
-              if (resolved.IsNothing()) continue;
-              return FinalizeResolution(env, resolved.FromJust(), base);
-            }
-          }
-          auto invalid = target_arr->Get(context, length - 1).ToLocalChecked();
-          if (!invalid->IsString()) {
-            ThrowExportsInvalid(env, ".", invalid, pjson_url, base);
-            return Nothing<URL>();
-          }
-          Utf8Value invalid_utf8(isolate, invalid.As<v8::String>());
-          std::string invalid_str(*invalid_utf8, invalid_utf8.length());
-          Maybe<URL> resolved = ResolveExportsTarget(env, invalid_str, "",
-                                                    ".", pjson_url, base);
-          CHECK(resolved.IsNothing());
-          return Nothing<URL>();
-        } else {
-          ThrowExportsInvalid(env, ".", target, pjson_url, base);
-          return Nothing<URL>();
         }
       }
     }
@@ -1002,7 +1064,7 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Value> exports = pcfg.exports.Get(isolate);
-  if (!exports->IsObject()) {
+  if (!exports->IsObject() || !FirstKeyStartsWithDot(env, exports)) {
     ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
     return Nothing<URL>();
   }
@@ -1012,49 +1074,12 @@ Maybe<URL> PackageExportsResolve(Environment* env,
 
   if (exports_obj->HasOwnProperty(context, subpath).FromJust()) {
     Local<Value> target = exports_obj->Get(context, subpath).ToLocalChecked();
-    if (target->IsString()) {
-      Utf8Value target_utf8(isolate, target.As<v8::String>());
-      std::string target_str(*target_utf8, target_utf8.length());
-      Maybe<URL> resolved = ResolveExportsTarget(env, target_str, "",
-          pkg_subpath, pjson_url, base);
-      if (resolved.IsNothing()) {
-        ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
-        return Nothing<URL>();
-      }
-      return FinalizeResolution(env, resolved.FromJust(), base);
-    } else if (target->IsArray()) {
-      Local<Array> target_arr = target.As<Array>();
-      const uint32_t length = target_arr->Length();
-      if (length == 0) {
-        ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
-        return Nothing<URL>();
-      }
-      for (uint32_t i = 0; i < length; i++) {
-        auto target_item = target_arr->Get(context, i).ToLocalChecked();
-        if (target_item->IsString()) {
-          Utf8Value target_utf8(isolate, target_item.As<v8::String>());
-          std::string target(*target_utf8, target_utf8.length());
-          Maybe<URL> resolved = ResolveExportsTarget(env, target, "",
-              pkg_subpath, pjson_url, base, false);
-          if (resolved.IsNothing()) continue;
-          return FinalizeResolution(env, resolved.FromJust(), base);
-        }
-      }
-      auto invalid = target_arr->Get(context, length - 1).ToLocalChecked();
-      if (!invalid->IsString()) {
-        ThrowExportsInvalid(env, pkg_subpath, invalid, pjson_url, base);
-        return Nothing<URL>();
-      }
-      Utf8Value invalid_utf8(isolate, invalid.As<v8::String>());
-      std::string invalid_str(*invalid_utf8, invalid_utf8.length());
-      Maybe<URL> resolved = ResolveExportsTarget(env, invalid_str, "",
-                                                 pkg_subpath, pjson_url, base);
-      CHECK(resolved.IsNothing());
-      return Nothing<URL>();
-    } else {
-      ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
+    Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url, target, "",
+                                               pkg_subpath, base);
+    if (resolved.IsNothing()) {
       return Nothing<URL>();
     }
+    return FinalizeResolution(env, resolved.FromJust(), base);
   }
 
   Local<String> best_match;
@@ -1076,49 +1101,13 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   if (best_match_str.length() > 0) {
     auto target = exports_obj->Get(context, best_match).ToLocalChecked();
     std::string subpath = pkg_subpath.substr(best_match_str.length());
-    if (target->IsString()) {
-      Utf8Value target_utf8(isolate, target.As<v8::String>());
-      std::string target(*target_utf8, target_utf8.length());
-      Maybe<URL> resolved = ResolveExportsTarget(env, target, subpath,
-          pkg_subpath, pjson_url, base);
-      if (resolved.IsNothing()) {
-        ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
-        return Nothing<URL>();
-      }
-      return FinalizeResolution(env, URL(subpath, resolved.FromJust()), base);
-    } else if (target->IsArray()) {
-      Local<Array> target_arr = target.As<Array>();
-      const uint32_t length = target_arr->Length();
-      if (length == 0) {
-        ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
-        return Nothing<URL>();
-      }
-      for (uint32_t i = 0; i < length; i++) {
-        auto target_item = target_arr->Get(context, i).ToLocalChecked();
-        if (target_item->IsString()) {
-          Utf8Value target_utf8(isolate, target_item.As<v8::String>());
-          std::string target_str(*target_utf8, target_utf8.length());
-          Maybe<URL> resolved = ResolveExportsTarget(env, target_str, subpath,
-              pkg_subpath, pjson_url, base, false);
-          if (resolved.IsNothing()) continue;
-          return FinalizeResolution(env, resolved.FromJust(), base);
-        }
-      }
-      auto invalid = target_arr->Get(context, length - 1).ToLocalChecked();
-      if (!invalid->IsString()) {
-        ThrowExportsInvalid(env, pkg_subpath, invalid, pjson_url, base);
-        return Nothing<URL>();
-      }
-      Utf8Value invalid_utf8(isolate, invalid.As<v8::String>());
-      std::string invalid_str(*invalid_utf8, invalid_utf8.length());
-      Maybe<URL> resolved = ResolveExportsTarget(env, invalid_str, subpath,
-                                                 pkg_subpath, pjson_url, base);
-      CHECK(resolved.IsNothing());
-      return Nothing<URL>();
-    } else {
-      ThrowExportsInvalid(env, pkg_subpath, target, pjson_url, base);
+
+    Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url, target, subpath,
+                                               pkg_subpath, base);
+    if (resolved.IsNothing()) {
       return Nothing<URL>();
     }
+    return FinalizeResolution(env, resolved.FromJust(), base);
   }
 
   ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);

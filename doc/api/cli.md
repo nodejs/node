@@ -205,6 +205,14 @@ added: v11.8.0
 
 Enable experimental diagnostic report feature.
 
+### `--experimental-require-target
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support for a `"require"` conditional package export target.
+See [Conditional Exports][] for more information.
+
 ### `--experimental-resolve-self`
 <!-- YAML
 added: v13.1.0
@@ -1027,6 +1035,7 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-report`
+* `--experimental-require-target`
 * `--experimental-resolve-self`
 * `--experimental-vm-modules`
 * `--experimental-wasm-modules`
@@ -1324,3 +1333,4 @@ greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [context-aware]: addons.html#addons_context_aware_addons
+[Conditional Exports]: esm.html#esm_conditional_exports
