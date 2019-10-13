@@ -331,6 +331,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
+  AddOption("--experimental-conditional-exports",
+            "experimental support for conditional exports targets",
+            &EnvironmentOptions::experimental_conditional_exports,
+            kAllowedInEnvironment);
   AddOption("--experimental-resolve-self",
             "experimental support for require/import of the current package",
             &EnvironmentOptions::experimental_resolve_self,
