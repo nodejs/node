@@ -161,6 +161,15 @@ the ability to import a directory that has an index file.
 
 Please see [customizing esm specifier resolution][] for example usage.
 
+### `--experimental-conditional-exports
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support for the `"require"` and `"node"` conditional
+package export resolutions.
+See [Conditional Exports][] for more information.
+
 ### `--experimental-json-modules`
 <!-- YAML
 added: v12.9.0
@@ -1055,6 +1064,7 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--es-module-specifier-resolution`
+* `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
@@ -1359,3 +1369,4 @@ greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [context-aware]: addons.html#addons_context_aware_addons
+[Conditional Exports]: esm.html#esm_conditional_exports
