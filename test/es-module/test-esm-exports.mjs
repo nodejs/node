@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-resolve-self
+// Flags: --experimental-modules --experimental-resolve-self --experimental-require-target
 
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
@@ -23,7 +23,14 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/fallbackfile', { default: 'asdf' }],
     // Dot main
     ['pkgexports', { default: 'asdf' }],
+    // Conditional split for require
+    ['pkgexports/condition', isRequire ? { default: 'encoded path' } :
+      { default: 'asdf' }],
+    // Conditional sugar for exports
+    ['pkgexports-direct', isRequire ? { default: 'encoded path' } :
+      { default: 'asdf' }]
   ]);
+
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
 
