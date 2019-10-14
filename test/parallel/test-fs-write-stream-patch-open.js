@@ -25,7 +25,7 @@ if (process.argv[2] !== 'child') {
 
 common.expectWarning(
   'DeprecationWarning',
-  'WriteStream.prototype.open() is deprecated', 'DEP0XXX');
+  'WriteStream.prototype.open() is deprecated', 'DEP0135');
 const s = fs.createWriteStream(`${tmpdir.path}/out`);
 s.open();
 
