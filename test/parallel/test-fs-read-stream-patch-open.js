@@ -4,7 +4,7 @@ const fs = require('fs');
 
 common.expectWarning(
   'DeprecationWarning',
-  'ReadStream.prototype.open() is deprecated', 'DEP0XXX');
+  'ReadStream.prototype.open() is deprecated', 'DEP0135');
 const s = fs.createReadStream('asd')
   // We don't care about errors in this test.
   .on('error', () => {});
