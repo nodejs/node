@@ -1,5 +1,5 @@
 // Flags: --experimental-modules --es-module-specifier-resolution=node
-import { mustNotCall } from '../common';
+import { mustNotCall } from '../common/index.mjs';
 import assert from 'assert';
 
 // commonJS index.js
@@ -14,8 +14,8 @@ assert.strictEqual(commonjs, 'commonjs');
 assert.strictEqual(module, 'module');
 assert.strictEqual(success, 'success');
 assert.strictEqual(explicit, 'esm');
-assert.strictEqual(implicit, 'esm');
-assert.strictEqual(implicitModule, 'esm');
+assert.strictEqual(implicit, 'cjs');
+assert.strictEqual(implicitModule, 'cjs');
 
 async function main() {
   try {
