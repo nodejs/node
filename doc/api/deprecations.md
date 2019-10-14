@@ -2532,8 +2532,8 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `process._tickCallback` property was never documented as
 an officially supported API.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `WriteStream.open()` and `ReadStream.open()` are internal
+<a id="DEP0135"></a>
+### DEP0135: `WriteStream.open()` and `ReadStream.open()` are internal
 <!-- YAML
 changes:
   - version: REPLACEME
