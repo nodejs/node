@@ -5,10 +5,14 @@
 
 <table>
 <tr>
+<th>LTS 'Erbium'</th>
 <th>Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
+<a href="#12.13.0">12.13.0</a><br/>
+</td>
+<td valign="top">
 <a href="#12.12.0">12.12.0</a><br/>
 <a href="#12.11.1">12.11.1</a><br/>
 <a href="#12.11.0">12.11.0</a><br/>
@@ -43,6 +47,39 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.13.0"></a>
+## 2019-10-21, Version 12.13.0 'Erbium' (LTS), @targos
+
+This release marks the transition of Node.js 12.x into Long Term Support (LTS)
+with the codename 'Erbium'. The 12.x release line now moves into "Active LTS"
+and will remain so until October 2020. After that time, it will move into
+"Maintenance" until end of life in April 2022.
+
+### Notable changes
+
+npm was updated to 6.12.0. It now includes a version of `node-gyp` that
+supports Python 3 for building native modules.
+
+### Commits
+
+* [[`b59209b118`](https://github.com/nodejs/node/commit/b59209b118)] - **deps**: update npm to 6.12.0 (isaacs) [#29885](https://github.com/nodejs/node/pull/29885)
+* [[`1dde617491`](https://github.com/nodejs/node/commit/1dde617491)] - **doc**: fix --enable-source-maps flag in v12.12.0 changelog (Unlocked) [#29960](https://github.com/nodejs/node/pull/29960)
+* [[`e5e2dfabdc`](https://github.com/nodejs/node/commit/e5e2dfabdc)] - **doc**: nest code fence under unordered list (Nick Schonning) [#29915](https://github.com/nodejs/node/pull/29915)
+* [[`5b0c993d4c`](https://github.com/nodejs/node/commit/5b0c993d4c)] - **doc**: remove double word "where" (Nick Schonning) [#29915](https://github.com/nodejs/node/pull/29915)
+* [[`ad318c6cec`](https://github.com/nodejs/node/commit/ad318c6cec)] - **doc**: add brackets to implicit markdown links (Nick Schonning) [#29911](https://github.com/nodejs/node/pull/29911)
+* [[`3155ab4134`](https://github.com/nodejs/node/commit/3155ab4134)] - **doc**: use the WHATWG URL API in http code examples (Thomas Watson) [#29917](https://github.com/nodejs/node/pull/29917)
+* [[`b916ea3010`](https://github.com/nodejs/node/commit/b916ea3010)] - **doc**: escape brackets not used as markdown reference links (Nick Schonning) [#29809](https://github.com/nodejs/node/pull/29809)
+* [[`f3bf8be11c`](https://github.com/nodejs/node/commit/f3bf8be11c)] - **doc**: correct typos in security release process (Nick Schonning) [#29822](https://github.com/nodejs/node/pull/29822)
+* [[`25fa2066a2`](https://github.com/nodejs/node/commit/25fa2066a2)] - **doc**: indent code fence under list item (Nick Schonning) [#29822](https://github.com/nodejs/node/pull/29822)
+* [[`f3842892dd`](https://github.com/nodejs/node/commit/f3842892dd)] - **doc**: return type is number (exoego) [#29828](https://github.com/nodejs/node/pull/29828)
+* [[`cbd12518d4`](https://github.com/nodejs/node/commit/cbd12518d4)] - **doc**: add note about forwarding stream options (Robert Nagy) [#29857](https://github.com/nodejs/node/pull/29857)
+* [[`7683aa0bfb`](https://github.com/nodejs/node/commit/7683aa0bfb)] - **doc**: set module version 72 to node 12 (Gerhard Stoebich) [#29877](https://github.com/nodejs/node/pull/29877)
+* [[`f58fe5099a`](https://github.com/nodejs/node/commit/f58fe5099a)] - **doc**: fix tls version values (Tobias Nießen) [#29839](https://github.com/nodejs/node/pull/29839)
+* [[`8ebc94562c`](https://github.com/nodejs/node/commit/8ebc94562c)] - **fs**: do not emit 'finish' before 'open' on write empty file (Robert Nagy) [#29930](https://github.com/nodejs/node/pull/29930)
+* [[`50f066087e`](https://github.com/nodejs/node/commit/50f066087e)] - **test**: do not force the process to exit (Luigi Pinca) [#29923](https://github.com/nodejs/node/pull/29923)
+* [[`44c581ef0b`](https://github.com/nodejs/node/commit/44c581ef0b)] - **test**: add more recursive fs.rmdir() tests (Maria Paktiti) [#29815](https://github.com/nodejs/node/pull/29815)
+* [[`fc5334513c`](https://github.com/nodejs/node/commit/fc5334513c)] - **test**: remove unnecessary --expose-internals flags (Anna Henningsen) [#29886](https://github.com/nodejs/node/pull/29886)
 
 <a id="12.12.0"></a>
 ## 2019-10-11, Version 12.12.0 (Current), @BridgeAR
