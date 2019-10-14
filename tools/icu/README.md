@@ -128,9 +128,9 @@ ICU in the future. As of this writing, however, the tools are separate
 entities within Node.js, although theyare being scrutinized by interested
 members of the ICU-TC. The “upstream” ICU bugs are given below.
 
-   * [#10919](http://bugs.icu-project.org/trac/ticket/10919)
-     (experimental branch - may copy any source patches here)
-   * [#10922](http://bugs.icu-project.org/trac/ticket/10922)
-     (data packaging improvements)
-   * [#10923](http://bugs.icu-project.org/trac/ticket/10923)
-     (rewrite data building in python)
+* [#10919](http://bugs.icu-project.org/trac/ticket/10919)
+  (experimental branch - may copy any source patches here)
+* [#10922](http://bugs.icu-project.org/trac/ticket/10922)
+  (data packaging improvements)
+* [#10923](http://bugs.icu-project.org/trac/ticket/10923)
+  (rewrite data building in python)

@@ -74,7 +74,7 @@ The common.js module is used by benchmarks for consistency across repeated
 tasks. It has a number of helpful functions and properties to help with
 writing benchmarks.
 
-### createBenchmark(fn, configs[, options])
+### createBenchmark(fn, configs\[, options\])
 
 See [the guide on writing benchmarks](../doc/guides/writing-and-running-benchmarks.md#basics-of-a-benchmark).
 
