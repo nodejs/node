@@ -48,11 +48,11 @@ using v8::Undefined;
 using v8::Value;
 
 static const char* const EXTENSIONS[] = {
-  ".mjs",
-  ".cjs",
   ".js",
   ".json",
-  ".node"
+  ".node",
+  ".mjs",
+  ".cjs"
 };
 
 ModuleWrap::ModuleWrap(Environment* env,
