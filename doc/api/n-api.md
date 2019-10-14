@@ -4631,8 +4631,6 @@ that points to its own memory allocated by a native module). Registering
 externally allocated memory will trigger global garbage collections more
 often than it would otherwise.
 
-<!-- it's very convenient to have all the anchors indexed -->
-<!--lint disable no-unused-definitions remark-lint-->
 ## Promises
 
 N-API provides facilities for creating `Promise` objects as described in
@@ -4820,8 +4818,6 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[out] loop`: The current libuv loop instance.
 
-<!-- it's very convenient to have all the anchors indexed -->
-<!--lint disable no-unused-definitions remark-lint-->
 ## Asynchronous Thread-safe Function Calls
 
 JavaScript functions can normally only be called from a native addon's main
@@ -5148,10 +5144,7 @@ This API may only be called from the main thread.
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
-[Working with JavaScript Functions]: #n_api_working_with_javascript_functions
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
-[Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
-[Working with JavaScript Values]: #n_api_working_with_javascript_values
 [`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_init`]: #n_api_napi_async_init
@@ -5167,8 +5160,6 @@ This API may only be called from the main thread.
 [`napi_create_type_error`]: #n_api_napi_create_type_error
 [`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
-[`napi_delete_element`]: #n_api_napi_delete_element
-[`napi_delete_property`]: #n_api_napi_delete_property
 [`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle
 [`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
@@ -5178,7 +5169,6 @@ This API may only be called from the main thread.
 [`napi_get_property`]: #n_api_napi_get_property
 [`napi_get_reference_value`]: #n_api_napi_get_reference_value
 [`napi_get_value_external`]: #n_api_napi_get_value_external
-[`napi_has_own_property`]: #n_api_napi_has_own_property
 [`napi_has_property`]: #n_api_napi_has_property
 [`napi_is_error`]: #n_api_napi_is_error
 [`napi_is_exception_pending`]: #n_api_napi_is_exception_pending
