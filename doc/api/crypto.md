@@ -3048,7 +3048,7 @@ The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### OpenSSL Options
-<!--lint disable maximum-line-length-->
+
 <table>
   <tr>
     <th>Constant</th>
@@ -3204,7 +3204,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 </table>
 
 ### OpenSSL Engine Constants
-<!--lint enable maximum-line-length remark-lint-->
 
 <table>
   <tr>
