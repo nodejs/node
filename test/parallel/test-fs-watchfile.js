@@ -82,8 +82,6 @@ const watcher =
 // not trigger a 'stop' event.
 watcher.on('stop', common.mustCall(function onStop() {}));
 
-watcher.start();  // Starting a started watcher should be a noop
-
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
 if (common.isLinux || common.isOSX || common.isWindows) {
