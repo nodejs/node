@@ -206,8 +206,8 @@ Use explicit comparisons to `nullptr` when testing pointers, i.e.
 
 ### Ownership and Smart Pointers
 
-* [R.20]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
-* [R.21]: Prefer `unique_ptr` over `shared_ptr` unless you need to share
+* [R.20][]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
+* [R.21][]: Prefer `unique_ptr` over `shared_ptr` unless you need to share
   ownership
 
 Use `std::unique_ptr` to make ownership transfer explicit. For example:
@@ -286,8 +286,8 @@ data[0] = 12345;
 
 Further reading:
 
-* [ES.48]: Avoid casts
-* [ES.49]: If you must use a cast, use a named cast
+* [ES.48][]: Avoid casts
+* [ES.49][]: If you must use a cast, use a named cast
 
 ### Using `auto`
 
