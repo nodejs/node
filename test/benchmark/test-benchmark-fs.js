@@ -7,16 +7,17 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 runBenchmark('fs', [
-  'n=1',
-  'size=1',
-  'dur=0.1',
-  'len=1024',
   'concurrent=1',
-  'pathType=relative',
-  'statType=fstat',
-  'statSyncType=fstatSync',
+  'dir=.github',
+  'dur=0.1',
   'encodingType=buf',
   'filesize=1024',
-  'dir=.github',
-  'withFileTypes=false'
+  'len=1024',
+  'mode=callback',
+  'n=1',
+  'pathType=relative',
+  'size=1',
+  'statSyncType=fstatSync',
+  'statType=fstat',
+  'withFileTypes=false',
 ], { NODE_TMPDIR: tmpdir.path, NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
