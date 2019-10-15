@@ -18,13 +18,15 @@ const fs = require('fs');
   assert.throws(() => fs.closeSync(input), errObj);
 });
 
-// Test error when cb is not a function
-const fd = fs.openSync(__filename, 'r');
+{
+  // Test error when cb is not a function
+  const fd = fs.openSync(__filename, 'r');
 
-['', false, null, {}, []].forEach((input) => {
-  const errObj = {
-    code: 'ERR_INVALID_CALLBACK',
-    name: 'TypeError'
-  };
-  assert.throws(() => fs.close(fd, input), errObj);
-});
+  ['', false, null, {}, []].forEach((input) => {
+    const errObj = {
+      code: 'ERR_INVALID_CALLBACK',
+      name: 'TypeError'
+    };
+    assert.throws(() => fs.close(fd, input), errObj);
+  });
+}
