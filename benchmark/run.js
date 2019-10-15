@@ -8,10 +8,13 @@ const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
   <category> directory can be specified.
 
-  --filter pattern          string to filter benchmark scripts
+  --filter   pattern        includes only benchmark scripts matching <pattern>
+                            (can be repeated)
+  --exclude  pattern        excludes scripts matching <pattern> (can be
+                            repeated)
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
-`, { arrayArgs: ['set'] });
+`, { arrayArgs: ['set', 'filter', 'exclude'] });
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
