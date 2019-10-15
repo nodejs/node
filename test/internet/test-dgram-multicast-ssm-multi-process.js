@@ -105,8 +105,7 @@ function launchChildProcess() {
           console.error('[PARENT] %d received %d matching messages.',
                         worker.pid, count);
 
-          assert.strictEqual(count, messages.length,
-                             'A worker received an invalid multicast message');
+          assert.strictEqual(count, messages.length);
         });
 
         clearTimeout(timer);
@@ -165,7 +164,7 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch (e) {}
+      try { sendSocket.close(); } catch {}
       return;
     }
 
