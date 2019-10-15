@@ -22,11 +22,14 @@ const fs = require('fs');
   // Test error when cb is not a function
   const fd = fs.openSync(__filename, 'r');
 
+  const errObj = {
+    code: 'ERR_INVALID_CALLBACK',
+    name: 'TypeError'
+  };
+
   ['', false, null, {}, []].forEach((input) => {
-    const errObj = {
-      code: 'ERR_INVALID_CALLBACK',
-      name: 'TypeError'
-    };
     assert.throws(() => fs.close(fd, input), errObj);
   });
+
+  fs.closeSync(fd);
 }
