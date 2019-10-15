@@ -18,10 +18,13 @@ const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
   --new      ./new-node-binary  new node binary (required)
   --old      ./old-node-binary  old node binary (required)
   --runs     30                 number of samples
-  --filter   pattern            string to filter benchmark scripts
+  --filter   pattern            includes only benchmark scripts matching
+                                <pattern> (can be repeated)
+  --exclude  pattern            excludes scripts matching <pattern> (can be
+                                repeated)
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
-`, { arrayArgs: ['set'], boolArgs: ['no-progress'] });
+`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['no-progress'] });
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
