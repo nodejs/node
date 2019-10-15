@@ -22,7 +22,7 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
-function toHTML({ input, filename, nodeVersion }, cb) {
+async function toHTML({ input, filename, nodeVersion }) {
   const content = unified()
     .use(markdown)
     .use(html.firstHeader)
@@ -34,10 +34,7 @@ function toHTML({ input, filename, nodeVersion }, cb) {
     .use(htmlStringify)
     .processSync(input);
 
-  html.toHTML(
-    { input, content, filename, nodeVersion },
-    cb
-  );
+  return html.toHTML({ input, content, filename, nodeVersion });
 }
 
 // Test data is a list of objects with two properties.
@@ -107,23 +104,16 @@ testData.forEach(({ file, html }) => {
   // Normalize expected data by stripping whitespace.
   const expected = html.replace(spaces, '');
 
-  readFile(file, 'utf8', common.mustCall((err, input) => {
+  readFile(file, 'utf8', common.mustCall(async (err, input) => {
     assert.ifError(err);
-    toHTML(
-      {
-        input: input,
-        filename: 'foo',
-        nodeVersion: process.version,
-      },
-      common.mustCall((err, output) => {
-        assert.ifError(err);
+    const output = await toHTML({ input: input,
+                                  filename: 'foo',
+                                  nodeVersion: process.version });
 
-        const actual = output.replace(spaces, '');
-        // Assert that the input stripped of all whitespace contains the
-        // expected markup.
-        assert(actual.includes(expected),
-               `ACTUAL: ${actual}\nEXPECTED: ${expected}`);
-      })
-    );
+    const actual = output.replace(spaces, '');
+    // Assert that the input stripped of all whitespace contains the
+    // expected markup.
+    assert(actual.includes(expected),
+           `ACTUAL: ${actual}\nEXPECTED: ${expected}`);
   }));
 });
