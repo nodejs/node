@@ -67,7 +67,7 @@ if (!filename) {
 }
 
 
-fs.readFile(filename, 'utf8', (er, input) => {
+fs.readFile(filename, 'utf8', async (er, input) => {
   if (er) throw er;
 
   const content = unified()
@@ -84,15 +84,10 @@ fs.readFile(filename, 'utf8', (er, input) => {
 
   const basename = path.basename(filename, '.md');
 
-  html.toHTML(
-    { input, content, filename, nodeVersion },
-    (err, html) => {
-      const target = path.join(outputDir, `${basename}.html`);
-      if (err) throw err;
-      fs.writeFileSync(target, html);
-    }
-  );
+  const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
+  const htmlTarget = path.join(outputDir, `${basename}.html`);
+  fs.writeFileSync(htmlTarget, myHtml);
 
-  const target = path.join(outputDir, `${basename}.json`);
-  fs.writeFileSync(target, JSON.stringify(content.json, null, 2));
+  const jsonTarget = path.join(outputDir, `${basename}.json`);
+  fs.writeFileSync(jsonTarget, JSON.stringify(content.json, null, 2));
 });
