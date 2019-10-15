@@ -51,8 +51,7 @@ static const char* const EXTENSIONS[] = {
   ".js",
   ".json",
   ".node",
-  ".mjs",
-  ".cjs"
+  ".mjs"
 };
 
 ModuleWrap::ModuleWrap(Environment* env,
