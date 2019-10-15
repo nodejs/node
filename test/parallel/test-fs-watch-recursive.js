@@ -18,7 +18,15 @@ const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
-try {
+if (!common.isOSX && !common.isWindows) {
+  common.expectsError(() => fs.watch(testDir, { recursive: true }),
+                      { code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM' });
+} else {
+
+  testWhenRecursiveIsImplemented();
+}
+
+function testWhenRecursiveIsImplemented() {
   const watcher = fs.watch(testDir, { recursive: true });
 
   let watcherClosed = false;
@@ -48,9 +56,4 @@ try {
   process.on('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
-} catch (err) {
-  if (common.isOSX || common.isWindows)
-    throw err;
-  else if (err.code !== 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM')
-    throw err;
 }
