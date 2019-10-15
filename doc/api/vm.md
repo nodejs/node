@@ -562,7 +562,7 @@ flag enabled.*
 The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
 
-### Constructor: new vm.SourceTextModule(code[, options])
+### Constructor: new vm.SourceTextModule(code\[, options\])
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -653,7 +653,7 @@ const module = new vm.SyntheticModule(['default'], function() {
 // Use `module` in linking...
 ```
 
-### Constructor: new vm.SyntheticModule(exportNames, evaluateCallback[, options])
+### Constructor: new vm.SyntheticModule(exportNames, evaluateCallback\[, options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1168,6 +1168,7 @@ queues.
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
 [Link() concrete method]: https://tc39.es/ecma262/#sec-moduledeclarationlinking
+[Module Record]: https://www.ecma-international.org/ecma-262/#sec-abstract-module-records
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
