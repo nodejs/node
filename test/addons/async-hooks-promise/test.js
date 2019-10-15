@@ -11,7 +11,6 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
 }
 
 // Baseline to make sure the internal field isn't being set.
-// Because of bootstrap tracking this will be enabled.
 assert.strictEqual(
   binding.getPromiseField(Promise.resolve(1)).isChainedPromise,
   undefined);
@@ -19,7 +18,6 @@ assert.strictEqual(
 const hook0 = async_hooks.createHook({}).enable();
 
 // Check that no PromiseWrap is created when there are no hook callbacks.
-// Because of bootstrap tracking this will be enabled.
 assert.strictEqual(
   binding.getPromiseField(Promise.resolve(1)).isChainedPromise,
   undefined);
