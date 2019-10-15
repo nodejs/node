@@ -34,7 +34,7 @@ function CLI(usage, settings) {
     if (arg === '--') {
       // Only items can follow --
       mode = 'item';
-    } else if (['both', 'option'].includes(mode) && arg[0] === '-') {
+    } else if ('both' === mode && arg[0] === '-') {
       // Optional arguments declaration
 
       if (arg[1] === '-') {
@@ -82,17 +82,39 @@ CLI.prototype.abort = function(msg) {
 
 CLI.prototype.benchmarks = function() {
   const paths = [];
-  const filter = this.optional.filter || false;
 
   for (const category of this.items) {
     if (benchmarks[category] === undefined)
       continue;
     for (const scripts of benchmarks[category]) {
-      if (filter && scripts.lastIndexOf(filter) === -1) continue;
+      if (this.shouldSkip(scripts)) continue;
 
       paths.push(path.join(category, scripts));
     }
   }
 
   return paths;
+};
+
+CLI.prototype.shouldSkip = function(scripts) {
+  let skip = false;
+  const filters = this.optional.filter || [];
+  const excludes = this.optional.exclude || [];
+
+  if (filters.length > 0) {
+    skip = true;
+    for (const filter of filters) {
+      if (scripts.lastIndexOf(filter) !== -1) {
+        skip = false;
+      }
+    }
+  }
+
+  for (const exclude of excludes) {
+    if (scripts.lastIndexOf(exclude) !== -1) {
+      skip = true;
+    }
+  }
+
+  return skip;
 };

@@ -8,6 +8,7 @@
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
   * [Running all benchmarks](#running-all-benchmarks)
+  * [Filtering benchmarks](#filtering-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
   * [Comparing parameters](#comparing-parameters)
   * [Running Benchmarks on the CI](#running-benchmarks-on-the-ci)
@@ -147,6 +148,87 @@ It is possible to execute more groups by adding extra process arguments.
 
 ```console
 $ node benchmark/run.js assert async_hooks
+```
+
+#### Filtering benchmarks
+
+`benchmark/run.js` and `benchmark/compare.js` have `--filter pattern` and
+`--exclude pattern` options, which can be used to run a subset of benchmarks or
+to exclude specific benchmarks from the execution, respectively.
+
+```console
+$ node benchmark/run.js --filter "deepequal-b" assert
+
+assert/deepequal-buffer.js
+assert/deepequal-buffer.js method="deepEqual" strict=0 len=100 n=20000: 773,200.4995493788
+assert/deepequal-buffer.js method="notDeepEqual" strict=0 len=100 n=20000: 964,411.712953848
+
+$ node benchmark/run.js --exclude "deepequal-b" assert
+
+assert/deepequal-map.js
+assert/deepequal-map.js method="deepEqual_primitiveOnly" strict=0 len=500 n=500: 20,445.06368453332
+assert/deepequal-map.js method="deepEqual_objectOnly" strict=0 len=500 n=500: 1,393.3481642240833
+...
+
+assert/deepequal-object.js
+assert/deepequal-object.js method="deepEqual" strict=0 size=100 n=5000: 1,053.1950937538475
+assert/deepequal-object.js method="notDeepEqual" strict=0 size=100 n=5000: 9,734.193251965213
+...
+```
+
+`--filter` and `--exclude` can be repeated to provide multiple patterns.
+
+```console
+$ node benchmark/run.js --filter "deepequal-b" --filter "deepequal-m" assert
+
+assert/deepequal-buffer.js
+assert/deepequal-buffer.js method="deepEqual" strict=0 len=100 n=20000: 773,200.4995493788
+assert/deepequal-buffer.js method="notDeepEqual" strict=0 len=100 n=20000: 964,411.712953848
+
+assert/deepequal-map.js
+assert/deepequal-map.js method="deepEqual_primitiveOnly" strict=0 len=500 n=500: 20,445.06368453332
+assert/deepequal-map.js method="deepEqual_objectOnly" strict=0 len=500 n=500: 1,393.3481642240833
+
+$ node benchmark/run.js --exclude "deepequal-b" --exclude "deepequal-m" assert
+
+assert/deepequal-object.js
+assert/deepequal-object.js method="deepEqual" strict=0 size=100 n=5000: 1,053.1950937538475
+assert/deepequal-object.js method="notDeepEqual" strict=0 size=100 n=5000: 9,734.193251965213
+...
+
+assert/deepequal-prims-and-objs-big-array-set.js
+assert/deepequal-prims-and-objs-big-array-set.js method="deepEqual_Array" strict=0 len=20000 n=25 primitive="string": 865.2977195251661
+assert/deepequal-prims-and-objs-big-array-set.js method="notDeepEqual_Array" strict=0 len=20000 n=25 primitive="string": 827.8297281403861
+assert/deepequal-prims-and-objs-big-array-set.js method="deepEqual_Set" strict=0 len=20000 n=25 primitive="string": 28,826.618268696366
+...
+```
+
+If `--filter` and `--exclude` are used together, `--filter` is applied first,
+and `--exclude` is applied on the result of `--filter`:
+
+```console
+$ node benchmark/run.js --filter "bench-" process
+
+process/bench-env.js
+process/bench-env.js operation="get" n=1000000: 2,356,946.0770617095
+process/bench-env.js operation="set" n=1000000: 1,295,176.3266261867
+process/bench-env.js operation="enumerate" n=1000000: 24,592.32231990992
+process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
+process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
+
+process/bench-hrtime.js
+process/bench-hrtime.js type="raw" n=1000000: 13,178,002.113936031
+process/bench-hrtime.js type="diff" n=1000000: 11,585,435.712423025
+process/bench-hrtime.js type="bigint" n=1000000: 13,342,884.703919787
+
+$ node benchmark/run.js --filter "bench-" --exclude "hrtime" process
+
+process/bench-env.js
+process/bench-env.js operation="get" n=1000000: 2,356,946.0770617095
+process/bench-env.js operation="set" n=1000000: 1,295,176.3266261867
+process/bench-env.js operation="enumerate" n=1000000: 24,592.32231990992
+process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
+process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
 ```
 
 ### Comparing Node.js versions
