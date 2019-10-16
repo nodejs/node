@@ -414,9 +414,10 @@ void UDPWrap::SetSourceMembership(const FunctionCallbackInfo<Value>& args,
   node::Utf8Value group_address(args.GetIsolate(), args[1]);
   node::Utf8Value iface(args.GetIsolate(), args[2]);
 
+  if (*iface == nullptr) return;
   const char* iface_cstr = *iface;
   if (args[2]->IsUndefined() || args[2]->IsNull()) {
-      iface_cstr = nullptr;
+    iface_cstr = nullptr;
   }
 
   int err = uv_udp_set_source_membership(&wrap->handle_,
