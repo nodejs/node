@@ -2,7 +2,7 @@
 
 ## Usage
 
-`node [options] index.js`
+`node \[options\] index.js`
 
 Please see the [Command Line Options][] document for more information.
 
