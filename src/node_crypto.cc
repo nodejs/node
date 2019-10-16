@@ -6975,30 +6975,19 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitCryptoOnce() {
-  SSL_load_error_strings();
-  OPENSSL_no_config();
+#ifndef OPENSSL_IS_BORINGSSL
+  OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
 
   // --openssl-config=...
   if (!per_process::cli_options->openssl_config.empty()) {
-    OPENSSL_load_builtin_modules();
-#ifndef OPENSSL_NO_ENGINE
-    ENGINE_load_builtin_engines();
-#endif
-    ERR_clear_error();
-    CONF_modules_load_file(per_process::cli_options->openssl_config.c_str(),
-                           nullptr,
-                           CONF_MFLAGS_DEFAULT_SECTION);
-    int err = ERR_get_error();
-    if (0 != err) {
-      fprintf(stderr,
-              "openssl config failed: %s\n",
-              ERR_error_string(err, nullptr));
-      CHECK_NE(err, 0);
-    }
+    const char* conf = per_process::cli_options->openssl_config.c_str();
+    OPENSSL_INIT_set_config_filename(settings, conf);
   }
 
-  SSL_library_init();
-  OpenSSL_add_all_algorithms();
+  OPENSSL_init_ssl(0, settings);
+  OPENSSL_INIT_free(settings);
+  settings = nullptr;
+#endif
 
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */

@@ -833,13 +833,6 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
                             &default_env_options->redirect_warnings);
   }
 
-#if HAVE_OPENSSL
-  std::string* openssl_config = &per_process::cli_options->openssl_config;
-  if (openssl_config->empty()) {
-    credentials::SafeGetenv("OPENSSL_CONF", openssl_config);
-  }
-#endif
-
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
 
