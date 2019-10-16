@@ -2548,6 +2548,20 @@ APIs that do not make sense to use in userland. File streams should always be
 opened through their corresponding factory methods [`fs.createWriteStream()`][]
 and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `FSWatcher.start()`are internal
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Runtime deprecation
+-->
+
+Type: Runtime
+
+The `FSWatcher.prototype.start()` function is an undocumented internal API that
+does not make ense to use in userland.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
