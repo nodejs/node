@@ -1,7 +1,9 @@
 'use strict';
 
 const common = require('../common');
-common.skipIfInspectorEnabled();
+if (process.features.inspector) {
+  common.skip('V8 inspector is enabled');
+}
 
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
