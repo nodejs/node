@@ -10,7 +10,7 @@ language: cpp
 env:
   global:
     # - PYTHON_VERSION="2.7.15"
-    - PYTHON_VERSION="3.8.0"
+    - PYTHON_VERSION="3.7.1"
     - PYTHON=python3
     #- EXPERIMENTAL_NODE_GYP_PYTHON3="yes"
 jobs:
