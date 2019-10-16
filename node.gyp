@@ -160,6 +160,7 @@
       'lib/internal/priority_queue.js',
       'lib/internal/process/esm_loader.js',
       'lib/internal/process/execution.js',
+      'lib/internal/process/main_args.js',
       'lib/internal/process/main_thread_only.js',
       'lib/internal/process/per_thread.js',
       'lib/internal/process/policy.js',

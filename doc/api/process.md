@@ -568,12 +568,12 @@ added: v0.1.27
 
 * {string[]}
 
-The `process.argv` property returns an array containing the command line
-arguments passed when the Node.js process was launched. The first element will
-be [`process.execPath`][]. See `process.argv0` if access to the original value
-of `argv[0]` is needed. The second element will be the path to the JavaScript
-file being executed. The remaining elements will be any additional command line
-arguments.
+The `process.argv` property returns an array in which the first element will be
+[`process.execPath`][]. See `process.argv0` if access to the original value of
+`argv[0]` is needed. The second element will be the path to the JavaScript file
+being executed. The remaining elements will be any additional command line
+arguments passed when the Node.js process was launched, same as
+[`process.mainArgs`][].
 
 For example, assuming the following script for `process-args.js`:
 
@@ -1424,6 +1424,38 @@ process.kill(process.pid, 'SIGHUP');
 
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
+
+## process.mainArgs
+<!-- YAML
+added: REPLACEME
+-->
+
+The `process.mainArgs` property returns an array containing the command line
+arguments passed when the Node.js process was launched.
+
+For example, assuming the following script for `process-args.js`:
+
+```js
+// print process.mainArgs
+process.mainArgs.forEach((val, index) => {
+  console.log(`${index}: ${val}`);
+});
+```
+
+Launching the Node.js process as:
+
+```console
+$ node process-args.js one two=three four
+```
+
+Would generate the output:
+
+```text
+0: one
+1: two=three
+2: four
+```
+* {string[]}
 
 ## process.mainModule
 <!-- YAML
@@ -2446,6 +2478,7 @@ cases:
 [`process.hrtime()`]: #process_process_hrtime_time
 [`process.hrtime.bigint()`]: #process_process_hrtime_bigint
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.mainArgs`]: #process_process_mainargs
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
