@@ -92,7 +92,6 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule internal/streams/state');
   expectedModules.add('NativeModule internal/worker');
   expectedModules.add('NativeModule internal/worker/io');
-  expectedModules.add('NativeModule module');
   expectedModules.add('NativeModule stream');
   expectedModules.add('NativeModule worker_threads');
 }
