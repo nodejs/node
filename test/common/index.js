@@ -651,12 +651,6 @@ function skipIfInspectorDisabled() {
   }
 }
 
-function skipIfInspectorEnabled() {
-  if (process.features.inspector) {
-    skip('V8 inspector is enabled');
-  }
-}
-
 function skipIfReportDisabled() {
   if (!process.config.variables.node_report) {
     skip('Diagnostic reporting is disabled');
@@ -789,7 +783,6 @@ module.exports = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
-  skipIfInspectorEnabled,
   skipIfReportDisabled,
   skipIfWorker,
 
