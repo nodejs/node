@@ -1288,8 +1288,10 @@ changes:
 * `encoding` {string} Encoding of string chunks. Must be a valid
   `Buffer` encoding, such as `'utf8'` or `'ascii'`.
 
-Passing `chunk` as `null` signals the end of the stream (EOF), after which no
-more data can be written.
+Passing `chunk` as `null` signals the end of the stream (EOF) and behaves the
+same as `readable.push(null)`, after which no more data can be written. The EOF
+signal is put at the end of the buffer and any buffered data will still be
+flushed.
 
 The `readable.unshift()` method pushes a chunk of data back into the internal
 buffer. This is useful in certain situations where a stream is being consumed by
