@@ -123,7 +123,7 @@ if (cluster.isMaster) {
 }
 ```
 
-### socket.addSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])
+### socket.addSourceSpecificMembership(sourceAddress, groupAddress\[, multicastInterface\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -312,7 +312,7 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.dropSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])
+### socket.dropSourceSpecificMembership(sourceAddress, groupAddress\[, multicastInterface\])
 <!-- YAML
 added: REPLACEME
 -->
