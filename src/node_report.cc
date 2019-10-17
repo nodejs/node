@@ -111,7 +111,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     }
     // Check for errors on the file open
     if (!outfile.is_open()) {
-      std::cerr << std::endl
+      std::cerr << '\n'
                 << "Failed to open Node.js report file: " << filename;
 
       if (env != nullptr && options->report_directory.length() > 0)
@@ -121,7 +121,7 @@ std::string TriggerNodeReport(Isolate* isolate,
       return "";
     }
     outstream = &outfile;
-    std::cerr << std::endl << "Writing Node.js report to file: " << filename;
+    std::cerr << '\n' << "Writing Node.js report to file: " << filename;
   }
 
   WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
@@ -132,7 +132,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     outfile.close();
   }
 
-  std::cerr << std::endl << "Node.js report completed" << std::endl;
+  std::cerr << '\n' << "Node.js report completed" << std::endl;
   return filename;
 }
 
