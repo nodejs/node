@@ -506,6 +506,15 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     size_t* word_count,
                                                     uint64_t* words);
 
+// Object
+NAPI_EXTERN napi_status
+napi_get_all_property_names(napi_env env,
+                            napi_value object,
+                            napi_key_collection_mode key_mode,
+                            napi_key_filter key_filter,
+                            napi_key_conversion key_conversion,
+                            napi_value* result);
+
 // Instance data
 NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,
                                                void* data,
