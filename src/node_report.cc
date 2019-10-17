@@ -18,7 +18,6 @@
 #include <ctime>
 #include <cwctype>
 #include <fstream>
-#include <iomanip>
 
 constexpr int NODE_REPORT_VERSION = 1;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
