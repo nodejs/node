@@ -735,6 +735,16 @@ NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,
 
 NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
                                                void** data);
+
+// Object
+NAPI_EXTERN napi_status
+napi_get_all_property_names(napi_env env,
+                            napi_value object,
+                            napi_key_collection_mode key_mode,
+                            napi_key_filter key_filter,
+                            napi_key_conversion key_conversion,
+                            napi_value* result);
+
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

@@ -5,6 +5,7 @@ const assert = require('assert');
 // Testing api calls for objects
 const test_object = require(`./build/${common.buildType}/test_object`);
 
+const fooSymbol = Symbol('foo');
 
 const object = {
   hello: 'world',
@@ -16,6 +17,8 @@ const object = {
   }
 };
 
+object[fooSymbol] = 3;
+
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
 assert.deepStrictEqual(test_object.Get(object, 'array'),
                        [ 1, 94, 'str', 12.321, { test: 'obj in arr' } ]);
@@ -25,6 +28,7 @@ assert.deepStrictEqual(test_object.Get(object, 'newObject'),
 assert(test_object.Has(object, 'hello'));
 assert(test_object.Has(object, 'array'));
 assert(test_object.Has(object, 'newObject'));
+assert.deepStrictEqual(test_object.GetSymbolNames(object), [fooSymbol]);
 
 const newObject = test_object.New();
 assert(test_object.Has(newObject, 'test_number'));

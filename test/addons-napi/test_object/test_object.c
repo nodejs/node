@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include "../common.h"
 #include <string.h>
@@ -193,6 +194,33 @@ static napi_value Inflate(napi_env env, napi_callback_info info) {
   return obj;
 }
 
+static napi_value GetSymbolNames(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NAPI_ASSERT(env,
+              value_type0 == napi_object,
+              "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_value output;
+  NAPI_CALL(env,
+            napi_get_all_property_names(
+                env,
+                args[0],
+                napi_key_include_prototypes,
+                napi_key_skip_strings,
+                napi_key_numbers_to_strings,
+                &output));
+
+  return output;
+}
+
 static napi_value Wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value arg;
@@ -220,6 +248,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Get", Get),
     DECLARE_NAPI_PROPERTY("Set", Set),
+    DECLARE_NAPI_PROPERTY("GetSymbolNames", GetSymbolNames),
     DECLARE_NAPI_PROPERTY("Has", Has),
     DECLARE_NAPI_PROPERTY("HasOwn", HasOwn),
     DECLARE_NAPI_PROPERTY("Delete", Delete),
