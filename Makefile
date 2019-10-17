@@ -592,11 +592,10 @@ test-hash-seed: all
 	$(NODE) test/pummel/test-hash-seed.js
 
 .PHONY: test-doc
-test-doc: doc-only ## Builds, lints, and verifies the docs.
+test-doc: doc-only lint ## Builds, lints, and verifies the docs.
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping test-doc (no crypto)"; \
 	else \
-		$(MAKE) lint; \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
 
