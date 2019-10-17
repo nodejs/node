@@ -697,6 +697,58 @@ functions) that can be passed as parameters when `js_callback` is invoked. This
 pointer is managed entirely by the threads and this callback. Thus this callback
 should free the data.
 
+#### napi_key_collection_mode
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+todo
+
+```C
+typedef enum {
+  napi_key_include_prototypes,
+  napi_key_include_own_properties
+} napi_key_collection_mode;
+```
+
+#### napi_key_filter
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+todo
+
+```C
+typedef enum {
+  napi_key_all_properties = 0,
+  napi_key_writable = 1,
+  napi_key_enumerable = 1 << 1,
+  napi_key_configurable = 1 << 2,
+  napi_key_skip_strings = 1 << 3,
+  napi_key_skip_symbols = 1 << 4
+} napi_key_filter;
+```
+
+#### napi_key_conversion
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+todo
+
+```C
+typedef enum {
+  napi_key_keep_numbers,
+  napi_key_numbers_to_strings
+} napi_key_conversion;
+```
+
 ## Error Handling
 N-API uses both return values and JavaScript exceptions for error handling.
 The following sections explain the approach for each case.
@@ -3501,6 +3553,39 @@ Returns `napi_ok` if the API succeeded.
 This API returns the names of the enumerable properties of `object` as an array
 of strings. The properties of `object` whose key is a symbol will not be
 included.
+
+#### napi_get_all_property_names
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+todo
+
+```C
+napi_get_all_property_names(napi_env env,
+                            napi_value object,
+                            napi_key_collection_mode key_mode,
+                            napi_key_filter key_filter,
+                            napi_key_conversion key_conversion,
+                            napi_value* result);
+```
+
+* `[in] env`: The environment that the N-API call is invoked under.
+* `[in] object`: The object from which to retrieve the properties.
+* `[in] key_mode`: Whether to retrieve prototype properties as well.
+* `[in] key_filter`: Which properties to retrieve
+(enumerable/readable/writable).
+* `[in] key_conversion`: Whether to convert numbered property keys to strings.
+* `[out] result`: A `napi_value` representing an array of JavaScript values
+that represent the property names of the object. [`napi_get_array_length`][] and
+[`napi_get_element`][] can be used to iterate over `result`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API returns an array containing the names of the available properties
+of this object.
 
 #### napi_set_property
 <!-- YAML
