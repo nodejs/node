@@ -212,8 +212,10 @@ assert.strictEqual(newObject.test_string, 'test string');
     inherited: 1
   });
 
+  const fooSymbol = Symbol('foo');
+
   object.normal = 2;
-  object[Symbol('foo')] = 3;
+  object[fooSymbol] = 3;
   Object.defineProperty(object, 'unenumerable', {
     value: 4,
     enumerable: false,
@@ -224,6 +226,9 @@ assert.strictEqual(newObject.test_string, 'test string');
 
   assert.deepStrictEqual(test_object.GetPropertyNames(object),
                          ['5', 'normal', 'inherited']);
+
+  assert.deepStrictEqual(test_object.GetSymbolNames(object),
+                         [fooSymbol]);
 }
 
 // Verify that passing NULL to napi_set_property() results in the correct
