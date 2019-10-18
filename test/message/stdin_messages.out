@@ -67,9 +67,11 @@ ReferenceError: y is not defined
 let ______________________________________________; throw 10
                                                     ^
 10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 [stdin]:1
 let ______________________________________________; throw 10
                                                     ^
 10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 done

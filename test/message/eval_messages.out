@@ -55,9 +55,11 @@ ReferenceError: y is not defined
 var ______________________________________________; throw 10
                                                     ^
 10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^
 10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 done

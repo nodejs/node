@@ -380,6 +380,19 @@ static void ReportFatalException(Environment* env,
             "%s\n%s: %s\n", *arrow_string, *name_string, *message_string);
       }
     }
+
+    if (!env->options()->trace_uncaught) {
+      PrintErrorString("(Use `node --trace-uncaught ...` to show "
+                       "where the exception was thrown)\n");
+    }
+  }
+
+  if (env->options()->trace_uncaught) {
+    Local<StackTrace> trace = message->GetStackTrace();
+    if (!trace.IsEmpty()) {
+      PrintErrorString("Thrown at:\n");
+      PrintStackTrace(env->isolate(), trace);
+    }
   }
 
   fflush(stderr);
