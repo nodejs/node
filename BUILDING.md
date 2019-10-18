@@ -498,9 +498,9 @@ $ backtrace
 
 * [Python 2.7](https://www.python.org/downloads/)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2017](https://www.visualstudio.com/downloads/) or the
-  "Visual C++ build tools" workload from the
-  [Build Tools](https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017),
+  [Visual Studio 2017 or 2019](https://visualstudio.microsoft.com/downloads/) or
+  the "Visual C++ build tools" workload from the
+  [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019),
   with the default optional components.
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
@@ -513,7 +513,8 @@ $ backtrace
 Optional requirements to build the MSI installer package:
 
 * The [WiX Toolset v3.11](https://wixtoolset.org/releases/) and the
-  [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
+  [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension)
+  or the [Wix Toolset Visual Studio 2019 Extension](https://marketplace.visualstudio.com/items?itemName=WixToolset.WixToolsetVisualStudio2019Extension).
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
