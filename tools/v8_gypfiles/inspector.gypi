@@ -86,8 +86,6 @@
       '<(V8_ROOT)/src/inspector/v8-heap-profiler-agent-impl.h',
       '<(V8_ROOT)/src/inspector/v8-inspector-impl.cc',
       '<(V8_ROOT)/src/inspector/v8-inspector-impl.h',
-      '<(V8_ROOT)/src/inspector/v8-inspector-protocol-encoding.cc',
-      '<(V8_ROOT)/src/inspector/v8-inspector-protocol-encoding.h',
       '<(V8_ROOT)/src/inspector/v8-inspector-session-impl.cc',
       '<(V8_ROOT)/src/inspector/v8-inspector-session-impl.h',
       '<(V8_ROOT)/src/inspector/v8-profiler-agent-impl.cc',
@@ -109,13 +107,20 @@
       # Flat merge `third_party/inspector_protocol:inspector_string_conversions`
       '<(inspector_path)/v8-string-conversions.cc',
       '<(inspector_path)/v8-string-conversions.h',
-      # Flat merge `third_party/inspector_protocol:encoding`
-      '<(inspector_protocol_path)/encoding/encoding.cc',
-      '<(inspector_protocol_path)/encoding/encoding.h',
-      # Flat merge `third_party/inspector_protocol:bindings`
-      '<(inspector_protocol_path)/bindings/bindings.cc',
-      '<(inspector_protocol_path)/bindings/bindings.h',
-
+      # Flat merge `third_party/inspector_protocal:crdtp_platform`
+      '<(inspector_protocol_path)/crdtp/json_platform.h',
+      '<(inspector_protocol_path)/crdtp/json_platform_v8.cc',
+      # Flat merge `third_party/inspector_protocol:crdtp`
+      '<(inspector_protocol_path)/crdtp/cbor.cc',
+      '<(inspector_protocol_path)/crdtp/cbor.h',
+      '<(inspector_protocol_path)/crdtp/export.h',
+      '<(inspector_protocol_path)/crdtp/glue.h',
+      '<(inspector_protocol_path)/crdtp/json.cc',
+      '<(inspector_protocol_path)/crdtp/json.h',
+      '<(inspector_protocol_path)/crdtp/parser_handler.h',
+      '<(inspector_protocol_path)/crdtp/span.h',
+      '<(inspector_protocol_path)/crdtp/status.cc',
+      '<(inspector_protocol_path)/crdtp/status.h',
     ],
     'v8_inspector_js_protocol': '<(V8_ROOT)/include/js_protocol.pdl',
   },

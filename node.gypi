@@ -70,7 +70,7 @@
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
-        'tools/v8_gypfiles/v8.gyp:v8_maybe_snapshot',
+        'tools/v8_gypfiles/v8.gyp:v8_snapshot',
         'tools/v8_gypfiles/v8.gyp:v8_libplatform',
       ],
     }],

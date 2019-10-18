@@ -109,9 +109,6 @@
     # Enable fast mksnapshot runs.
     'v8_enable_fast_mksnapshot%': 0,
 
-    # Enable embedded builtins.
-    'v8_enable_embedded_builtins%': 1,
-
     # Enable the registration of unwinding info for Windows/x64 and ARM64.
     'v8_win64_unwinding_info%': 1,
 
@@ -129,7 +126,7 @@
 
     # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
     'v8_enable_pointer_compression%': 0,
-    'v8_enable_31bit_smis_on_64bit_arch%': 0,
+    'v8_enable_31bit_smis_on_64bit_arch%': 1,
 
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
@@ -301,9 +298,6 @@
       ['v8_check_microtasks_scopes_consistency==1', {
         'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
       }],
-      ['v8_enable_embedded_builtins==1', {
-        'defines': ['V8_EMBEDDED_BUILTINS',],
-      }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
       }],
@@ -327,6 +321,7 @@
       }],
     ],  # conditions
     'defines': [
+      'V8_EMBEDDED_BUILTINS',
       'V8_GYP_BUILD',
       'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=<(v8_typed_array_max_size_in_heap)',
     ],  # defines
