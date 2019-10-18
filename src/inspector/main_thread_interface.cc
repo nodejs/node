@@ -87,15 +87,17 @@ class CallRequest : public Request {
 
 class DispatchMessagesTask : public v8::Task {
  public:
-  explicit DispatchMessagesTask(MainThreadInterface* thread)
+  explicit DispatchMessagesTask(std::weak_ptr<MainThreadInterface> thread)
                                 : thread_(thread) {}
 
   void Run() override {
-    thread_->DispatchMessages();
+    std::shared_ptr<MainThreadInterface> thread = thread_.lock();
+    if (thread)
+      thread->DispatchMessages();
   }
 
  private:
-  MainThreadInterface* thread_;
+  std::weak_ptr<MainThreadInterface> thread_;
 };
 
 template <typename T>
@@ -231,11 +233,18 @@ void MainThreadInterface::Post(std::unique_ptr<Request> request) {
   if (needs_notify) {
     if (isolate_ != nullptr && platform_ != nullptr) {
       std::shared_ptr<v8::TaskRunner> taskrunner =
-        platform_->GetForegroundTaskRunner(isolate_);
-      taskrunner->PostTask(std::make_unique<DispatchMessagesTask>(this));
-      isolate_->RequestInterrupt([](v8::Isolate* isolate, void* thread) {
-        static_cast<MainThreadInterface*>(thread)->DispatchMessages();
-      }, this);
+          platform_->GetForegroundTaskRunner(isolate_);
+      std::weak_ptr<MainThreadInterface>* interface_ptr =
+          new std::weak_ptr<MainThreadInterface>(shared_from_this());
+      taskrunner->PostTask(
+          std::make_unique<DispatchMessagesTask>(*interface_ptr));
+      isolate_->RequestInterrupt([](v8::Isolate* isolate, void* opaque) {
+        std::unique_ptr<std::weak_ptr<MainThreadInterface>> interface_ptr {
+          static_cast<std::weak_ptr<MainThreadInterface>*>(opaque) };
+        std::shared_ptr<MainThreadInterface> interface = interface_ptr->lock();
+        if (interface)
+          interface->DispatchMessages();
+      }, static_cast<void*>(interface_ptr));
     }
   }
   incoming_message_cond_.Broadcast(scoped_lock);
