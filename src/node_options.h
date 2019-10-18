@@ -140,6 +140,7 @@ class EnvironmentOptions : public Options {
   bool trace_deprecation = false;
   bool trace_sync_io = false;
   bool trace_tls = false;
+  bool trace_uncaught = false;
   bool trace_warnings = false;
   std::string unhandled_rejections;
   std::string userland_loader;
