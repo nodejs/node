@@ -65,7 +65,7 @@ class Worker : public AsyncWrap {
   bool start_profiler_idle_notifier_;
   uv_thread_t tid_;
 
-#if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
+#if HAVE_INSPECTOR
   std::unique_ptr<inspector::ParentInspectorHandle> inspector_parent_handle_;
 #endif
 
