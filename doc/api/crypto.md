@@ -1043,9 +1043,7 @@ console.log(hash.digest('hex'));
 
 ### hash.copy(\[options\])
 <!-- YAML
-added:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/29910
+added: REPLACEME
 -->
 
 * `options` {Object} [`stream.transform` options][]
