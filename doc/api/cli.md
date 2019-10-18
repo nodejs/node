@@ -747,6 +747,18 @@ added: v12.2.0
 Prints TLS packet trace information to `stderr`. This can be used to debug TLS
 connection problems.
 
+### `--trace-uncaught`
+<!-- YAML
+added: REPLACEME
+-->
+
+Print stack traces for uncaught exceptions; usually, the stack trace associated
+with the creation of an `Error` is printed, whereas this makes Node.js also
+print the stack trace associated with throwing the value (which does not need
+to be an `Error` instance).
+
+Enabling this option may affect garbage collection behavior negatively.
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0
@@ -1044,6 +1056,7 @@ Node.js options that are allowed are:
 * `--trace-events-enabled`
 * `--trace-sync-io`
 * `--trace-tls`
+* `--trace-uncaught`
 * `--trace-warnings`
 * `--track-heap-objects`
 * `--unhandled-rejections`
