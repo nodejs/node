@@ -204,7 +204,7 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
 
   // TODO(joyeecheung): when we snapshot the bootstrapped context,
   // the inspector and diagnostics setup should after after deserialization.
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+#if HAVE_INSPECTOR
   *exit_code = env->InitializeInspector(nullptr);
 #endif
   if (*exit_code != 0) {
