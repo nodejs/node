@@ -869,7 +869,7 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+#if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
   int InitializeInspector(inspector::ParentInspectorHandle* parent_handle);

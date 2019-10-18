@@ -220,7 +220,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
   return scope.EscapeMaybe(result);
 }
 
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+#if HAVE_INSPECTOR
 int Environment::InitializeInspector(
     inspector::ParentInspectorHandle* parent_handle) {
   std::string inspector_path;
