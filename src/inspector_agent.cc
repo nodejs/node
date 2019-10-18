@@ -665,10 +665,10 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
-    if (interface_ == nullptr) {
-      interface_.reset(new MainThreadInterface(
+    if (!interface_) {
+      interface_ = std::make_shared<MainThreadInterface>(
           env_->inspector_agent(), env_->event_loop(), env_->isolate(),
-          env_->isolate_data()->platform()));
+          env_->isolate_data()->platform());
     }
     return interface_->GetHandle();
   }
@@ -739,7 +739,7 @@ class NodeInspectorClient : public V8InspectorClient {
   bool waiting_for_frontend_ = false;
   bool waiting_for_sessions_disconnect_ = false;
   // Allows accessing Inspector from non-main threads
-  std::unique_ptr<MainThreadInterface> interface_;
+  std::shared_ptr<MainThreadInterface> interface_;
   std::shared_ptr<WorkerManager> worker_manager_;
 };
 
