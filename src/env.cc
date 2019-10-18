@@ -381,9 +381,6 @@ Environment::Environment(IsolateData* isolate_data,
     async_hooks_.no_force_checks();
   }
 
-  if (options_->trace_uncaught)
-    isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
-
   // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();

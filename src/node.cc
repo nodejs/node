@@ -265,6 +265,8 @@ int Environment::InitializeInspector(
 void Environment::InitializeDiagnostics() {
   isolate_->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       Environment::BuildEmbedderGraph, this);
+  if (options_->trace_uncaught)
+    isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(this);
