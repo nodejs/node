@@ -494,6 +494,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "prints TLS packet trace information to stderr",
             &EnvironmentOptions::trace_tls,
             kAllowedInEnvironment);
+  AddOption("--trace-uncaught",
+            "show stack traces for the `throw` behind uncaught exceptions",
+            &EnvironmentOptions::trace_uncaught,
+            kAllowedInEnvironment);
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
