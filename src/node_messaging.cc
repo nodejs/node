@@ -13,6 +13,7 @@ using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::CompiledWasmModule;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -58,7 +59,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       Environment* env,
       const std::vector<MessagePort*>& message_ports,
       const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
-      const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules)
+      const std::vector<CompiledWasmModule>& wasm_modules)
       : message_ports_(message_ports),
         shared_array_buffers_(shared_array_buffers),
         wasm_modules_(wasm_modules) {}
@@ -82,7 +83,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
   MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     CHECK_LE(transfer_id, wasm_modules_.size());
-    return WasmModuleObject::FromTransferrableModule(
+    return WasmModuleObject::FromCompiledModule(
         isolate, wasm_modules_[transfer_id]);
   }
 
@@ -91,7 +92,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  private:
   const std::vector<MessagePort*>& message_ports_;
   const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
-  const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules_;
+  const std::vector<CompiledWasmModule>& wasm_modules_;
 };
 
 }  // anonymous namespace
@@ -162,7 +163,7 @@ void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
   message_ports_.emplace_back(std::move(data));
 }
 
-uint32_t Message::AddWASMModule(WasmModuleObject::TransferrableModule&& mod) {
+uint32_t Message::AddWASMModule(CompiledWasmModule&& mod) {
   wasm_modules_.emplace_back(std::move(mod));
   return wasm_modules_.size() - 1;
 }
@@ -238,7 +239,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 
   Maybe<uint32_t> GetWasmModuleTransferId(
       Isolate* isolate, Local<WasmModuleObject> module) override {
-    return Just(msg_->AddWASMModule(module->GetTransferrableModule()));
+    return Just(msg_->AddWASMModule(module->GetCompiledModule()));
   }
 
   void Finish() {
