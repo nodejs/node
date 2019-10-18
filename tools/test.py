@@ -45,6 +45,7 @@ import multiprocessing
 import errno
 import copy
 
+from io import open
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 try:
@@ -728,8 +729,8 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
   )
   os.close(fd_out)
   os.close(fd_err)
-  output = open(outname).read()
-  errors = open(errname).read()
+  output = open(outname, encoding='utf8').read()
+  errors = open(errname, encoding='utf8').read()
   CheckedUnlink(outname)
   CheckedUnlink(errname)
 
