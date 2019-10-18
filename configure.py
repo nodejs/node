@@ -775,7 +775,8 @@ def check_compiler(o):
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
   elif clang_version < (8, 0, 0) if is_clang else gcc_version < (6, 3, 0):
-    warn('C++ compiler too old, need g++ 6.3.0 or clang++ 8.0.0 (CXX=%s)' % CXX)
+    warn('C++ compiler too old, need g++ 6.3.0 or clang++ 8.0.0 (CXX=%s, %s)' %
+      (CXX, ".".join(map(str, clang_version if is_clang else gcc_version))))
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
   if not ok:
@@ -784,7 +785,8 @@ def check_compiler(o):
     # clang 3.2 is a little white lie because any clang version will probably
     # do for the C bits.  However, we might as well encourage people to upgrade
     # to a version that is not completely ancient.
-    warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
+    warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s, %s)' %
+      (CC, ".".join(map(str, gcc_version))))
 
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
 
