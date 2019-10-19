@@ -155,7 +155,6 @@ int NodeMainInstance::Run() {
   RunAtExit(env.get());
 
   per_process::v8_platform.DrainVMTasks(isolate_);
-  per_process::v8_platform.CancelVMTasks(isolate_);
 
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
