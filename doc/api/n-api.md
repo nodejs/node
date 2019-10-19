@@ -120,16 +120,16 @@ library makes ABI stability guarantees similar to N-API.
 
 ## Building
 
-Unlike addons coded in JavaScript, developing and deploying Node native
+Unlike modules written in JavaScript, developing and deploying Node native
 addons using N-API requires an additional set of tools. Besides the basic
-tools required to develop for Node, the native addon developer requires a
+tools required to develop for Node.js, the native addon developer requires a
 toolchain that can compile C and C++ code into a binary. In addition,
 depending upon how the native addon is deployed, the *user* of the native
 addon will also need to have a C/C++ toolchain installed.
 
-For Linux developers, the necessary C/C++ toolchain is typically already
-installed. For systems lacking the necessary toolchain, the
-[LLVM](https://llvm.org) compiler infrastructure is a good choice.
+For Linux developers, the necessary C/C++ toolchain packages are readily
+available. For many developers, the [LLVM](https://llvm.org) compiler
+infrastructure is a good choice.
 
 For Mac developers, [Xcode](https://developer.apple.com/xcode/) offers all
 the required compiler tools. However, it is not necessary to install the
@@ -164,9 +164,8 @@ Google's [GYP](https://gyp.gsrc.io) tool and comes bundled with npm. GYP,
 and therefore node-gyp, requires that Python be installed.
 
 Historically, node-gyp has been the tool of choice for building native
-addons. However, Google has stopped development on GYP and some developers
-are concerned about the dependency of some GYP versions on Python 2.7 which
-has a sunset date of 2020.
+addons. It has widespread adoption and documentation. However, some
+developers have run into limitations in node-gyp.
 
 #### CMake.js
 
