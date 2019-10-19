@@ -25,11 +25,7 @@
 
 #include <string.h>
 
-#ifdef __APPLE__
-# define NUM_ITERATIONS 10
-#else
-# define NUM_ITERATIONS 50
-#endif
+#define NUM_ITERATIONS 50
 
 static const char* titles[] = {
   "8L2NY0Kdj0XyNFZnmUZigIOfcWjyNr0SkMmUhKw99VLUsZFrvCQQC3XIRfNR8pjyMjXObllled",

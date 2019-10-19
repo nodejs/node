@@ -5,7 +5,7 @@
 | GNU/Linux | Tier 1 | Linux >= 2.6.32 with glibc >= 2.12 | |
 | macOS | Tier 1 | macOS >= 10.7 | |
 | Windows | Tier 1 | >= Windows 7 | MSVC 2008 and later are supported |
-| FreeBSD | Tier 1 | >= 9 (see note) | |
+| FreeBSD | Tier 1 | >= 10 | |
 | AIX | Tier 2 | >= 6 | Maintainers: @libuv/aix |
 | z/OS | Tier 2 | >= V2R2 | Maintainers: @libuv/zos |
 | Linux with musl | Tier 2 | musl >= 1.0 | |
@@ -15,11 +15,6 @@
 | MinGW | Tier 3 | MinGW32 and MinGW-w64 | |
 | SunOS | Tier 3 | Solaris 121 and later | |
 | Other | Tier 3 | N/A | |
-
-#### Note on FreeBSD 9
-
-While FreeBSD is supported as Tier 1, FreeBSD 9 will get Tier 2 support until
-it reaches end of life, in December 2016.
 
 ## Support types
 

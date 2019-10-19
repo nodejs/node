@@ -86,7 +86,7 @@ static void sv_send_cb(uv_udp_send_t* req, int status) {
 static int do_send(uv_udp_send_t* send_req) {
   uv_buf_t buf;
   struct sockaddr_in6 addr;
-
+  
   buf = uv_buf_init("PING", 4);
 
   ASSERT(0 == uv_ip6_addr(MULTICAST_ADDR, TEST_PORT, &addr));
@@ -195,7 +195,7 @@ TEST_IMPL(udp_multicast_join6) {
 
   r = uv_udp_recv_start(&server, alloc_cb, cl_recv_cb);
   ASSERT(r == 0);
-
+  
   r = do_send(&req);
   ASSERT(r == 0);
 

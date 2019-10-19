@@ -295,7 +295,8 @@ API
 
     .. note::
         On success this function allocates memory that must be freed using
-        `uv_fs_req_cleanup()`.
+        `uv_fs_req_cleanup()`. `uv_fs_req_cleanup()` must be called before
+        closing the directory with `uv_fs_closedir()`.
 
 .. c:function:: int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb)
 .. c:function:: int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent)
@@ -358,10 +359,13 @@ API
       is to overwrite the destination if it exists.
     - `UV_FS_COPYFILE_FICLONE`: If present, `uv_fs_copyfile()` will attempt to
       create a copy-on-write reflink. If the underlying platform does not
-      support copy-on-write, then a fallback copy mechanism is used.
+      support copy-on-write, or an error occurs while attempting to use
+      copy-on-write, a fallback copy mechanism based on
+      :c:func:`uv_fs_sendfile()` is used.
     - `UV_FS_COPYFILE_FICLONE_FORCE`: If present, `uv_fs_copyfile()` will
       attempt to create a copy-on-write reflink. If the underlying platform does
-      not support copy-on-write, then an error is returned.
+      not support copy-on-write, or an error occurs while attempting to use
+      copy-on-write, then an error is returned.
 
     .. warning::
         If the destination path is created, but an error occurs while copying
@@ -373,6 +377,10 @@ API
 
     .. versionchanged:: 1.20.0 `UV_FS_COPYFILE_FICLONE` and
         `UV_FS_COPYFILE_FICLONE_FORCE` are supported.
+
+    .. versionchanged:: 1.33.0 If an error occurs while using
+        `UV_FS_COPYFILE_FICLONE_FORCE`, that error is returned. Previously,
+        all errors were mapped to `UV_ENOTSUP`.
 
 .. c:function:: int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb)
 

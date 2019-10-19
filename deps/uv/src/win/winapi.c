@@ -36,6 +36,9 @@ sNtQueryDirectoryFile pNtQueryDirectoryFile;
 sNtQuerySystemInformation pNtQuerySystemInformation;
 sNtQueryInformationProcess pNtQueryInformationProcess;
 
+/* Advapi32 function pointers */
+sRtlGenRandom pRtlGenRandom;
+
 /* Kernel32 function pointers */
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 
@@ -51,6 +54,7 @@ void uv_winapi_init(void) {
   HMODULE powrprof_module;
   HMODULE user32_module;
   HMODULE kernel32_module;
+  HMODULE advapi32_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -135,4 +139,11 @@ void uv_winapi_init(void) {
       GetProcAddress(user32_module, "SetWinEventHook");
   }
 
+  advapi32_module = GetModuleHandleA("advapi32.dll");
+  if (advapi32_module == NULL) {
+    uv_fatal_error(GetLastError(), "GetModuleHandleA");
+  }
+
+  pRtlGenRandom =
+      (sRtlGenRandom) GetProcAddress(advapi32_module, "SystemFunction036");
 }

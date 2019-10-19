@@ -395,6 +395,7 @@ TEST_DECLARE   (threadpool_queue_work_einval)
 TEST_DECLARE   (threadpool_multiple_event_loops)
 TEST_DECLARE   (threadpool_cancel_getaddrinfo)
 TEST_DECLARE   (threadpool_cancel_getnameinfo)
+TEST_DECLARE   (threadpool_cancel_random)
 TEST_DECLARE   (threadpool_cancel_work)
 TEST_DECLARE   (threadpool_cancel_fs)
 TEST_DECLARE   (threadpool_cancel_single)
@@ -463,6 +464,9 @@ HELPER_DECLARE (udp4_echo_server)
 HELPER_DECLARE (pipe_echo_server)
 
 TEST_DECLARE   (queue_foreach_delete)
+
+TEST_DECLARE   (random_async)
+TEST_DECLARE   (random_sync)
 
 TEST_DECLARE   (handle_type_name)
 TEST_DECLARE   (req_type_name)
@@ -1000,6 +1004,7 @@ TASK_LIST_START
   TEST_ENTRY_CUSTOM (threadpool_multiple_event_loops, 0, 0, 60000)
   TEST_ENTRY  (threadpool_cancel_getaddrinfo)
   TEST_ENTRY  (threadpool_cancel_getnameinfo)
+  TEST_ENTRY  (threadpool_cancel_random)
   TEST_ENTRY  (threadpool_cancel_work)
   TEST_ENTRY  (threadpool_cancel_fs)
   TEST_ENTRY  (threadpool_cancel_single)
@@ -1017,6 +1022,9 @@ TASK_LIST_START
   TEST_ENTRY  (ip6_addr_link_local)
 
   TEST_ENTRY  (queue_foreach_delete)
+
+  TEST_ENTRY  (random_async)
+  TEST_ENTRY  (random_sync)
 
   TEST_ENTRY  (handle_type_name)
   TEST_ENTRY  (req_type_name)
