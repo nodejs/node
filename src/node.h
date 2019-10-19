@@ -254,7 +254,11 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   // flushing.
   virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
   virtual void DrainTasks(v8::Isolate* isolate) = 0;
-  virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
+
+  // TODO(addaleax): Remove this, it is unnecessary.
+  // This would currently be called before `UnregisterIsolate()` but will be
+  // folded into it in the future.
+  virtual void CancelPendingDelayedTasks(v8::Isolate* isolate);
 
   // This needs to be called between the calls to `Isolate::Allocate()` and
   // `Isolate::Initialize()`, so that initialization can already start
@@ -264,7 +268,8 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   virtual void RegisterIsolate(v8::Isolate* isolate,
                                struct uv_loop_s* loop) = 0;
   // This needs to be called right before calling `Isolate::Dispose()`.
-  // This function may only be called once per `Isolate`.
+  // This function may only be called once per `Isolate`, and discard any
+  // pending delayed tasks scheduled for that isolate.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
   // The platform should call the passed function once all state associated
   // with the given isolate has been cleaned up. This can, but does not have to,
