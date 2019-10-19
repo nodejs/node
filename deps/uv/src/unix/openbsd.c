@@ -186,7 +186,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   int numcpus = 1;
   int which[] = {CTL_HW,HW_MODEL,0};
   size_t size;
-  int i;
+  int i, j;
   uv_cpu_info_t* cpu_info;
 
   size = sizeof(model);

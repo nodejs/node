@@ -1,3 +1,83 @@
+2019.10.20, Version 1.33.1 (Stable), 07ad32138f4d2285ba2226b5e20462b27b091a59
+
+Changes since version 1.33.0:
+
+* linux: fix arm64 SYS__sysctl build breakage (Ben Noordhuis)
+
+
+2019.10.17, Version 1.33.0 (Stable), e56e42e9310e4437e1886dbd6771792c14c0a5f3
+
+Changes since version 1.32.0:
+
+* Revert "linux: drop code path for epoll_pwait-less kernels" (Yang Yu)
+
+* build: fix build error with __ANDROID_API__ < 21 (Yang Yu)
+
+* win: fix reading hidden env vars (Anna Henningsen)
+
+* unix,win: add uv_random() (Ben Noordhuis)
+
+* win: simplify mkdtemp (Saúl Ibarra Corretgé)
+
+* docs: fix literal-includes in User Guide (Nhan Khong)
+
+* win, tty: fix problem of receiving unexpected SIGWINCH (erw7)
+
+* unix: fix {Net,Open}BSD build (David Carlier)
+
+* win,mingw: Fix undefined MCAST_* constants (Crunkle)
+
+* build: Add link for test/fixtures/lorem_ipsum.txt (Andrew Paprocki)
+
+* fs: use statvfs in uv__fs_statfs() for Haiku (Calvin Hill)
+
+* fsevents: stop using fsevents to watch files (Jameson Nash)
+
+* fsevents: regression in watching / (Jameson Nash)
+
+* build,cmake: don't try to detect a C++ compiler (Isabella Muerte)
+
+* build: fix build warning on cygwin (MaYuming)
+
+* unix: set sin_len and sin6_len (Ouyang Yadong)
+
+* test: fix order of operations in test (cjihrig)
+
+* doc: improve uv_fs_readdir() cleanup docs (cjihrig)
+
+* build: remove duplicated test in build files (ZYSzys)
+
+* android: enable getentropy on Android >= 28 (David Carlier)
+
+* android: fix build (David Carlier)
+
+* darwin: speed up uv_set_process_title() (Ben Noordhuis)
+
+* darwin: assume pthread_setname_np() is available (Ben Noordhuis)
+
+* unix,udp: ensure addr is non-null (Jameson Nash)
+
+* win,tty: add uv_tty_{get,set}_vterm_state (erw7)
+
+* win: fix uv_statfs_t leak in uv_fs_statfs() (Ryan Liptak)
+
+* build: install files on windows via cmake (Carl Lei)
+
+* darwin,test: include AvailabilityMacros.h (Saúl Ibarra Corretgé)
+
+* darwin,test: update loop time after sleeping (Saúl Ibarra Corretgé)
+
+* doc: remove old FreeBSD 9 related note (Saúl Ibarra Corretgé)
+
+* doc: improve uv_{send,recv}_buffer_size() docs (Ryan Liptak)
+
+* build: move -Wno-long-long check to configure time (Ben Noordhuis)
+
+* unix: update uv_fs_copyfile() fallback logic (Stefan Bender)
+
+* win: cast setsockopt struct to const char* (Shelley Vohr)
+
+
 2019.09.10, Version 1.32.0 (Stable), 697bea87b3a0b0e9b4e5ff86b39d1dedb70ee46d
 
 Changes since version 1.31.0:

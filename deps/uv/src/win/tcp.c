@@ -556,7 +556,7 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
   if (handle->flags & UV_HANDLE_SHUTTING)
     return UV_EINVAL;
 
-  if (0 != setsockopt(handle->socket, SOL_SOCKET, SO_LINGER, &l, sizeof(l)))
+  if (0 != setsockopt(handle->socket, SOL_SOCKET, SO_LINGER, (const char*)&l, sizeof(l)))
     return uv_translate_sys_error(WSAGetLastError());
 
   uv_close((uv_handle_t*) handle, close_cb);

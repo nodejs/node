@@ -78,7 +78,7 @@
     defined(__NetBSD__)
 # include <sys/param.h>
 # include <sys/mount.h>
-#elif defined(__sun) || defined(__MVS__)
+#elif defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
 # include <sys/statvfs.h>
 #else
 # include <sys/statfs.h>
@@ -216,7 +216,11 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
   ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
   ts[1].tv_sec  = req->mtime;
   ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+  return utimensat(req->file, NULL, ts, 0);
+#else
   return futimens(req->file, ts);
+#endif
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
@@ -528,7 +532,7 @@ static int uv__fs_closedir(uv_fs_t* req) {
 
 static int uv__fs_statfs(uv_fs_t* req) {
   uv_statfs_t* stat_fs;
-#if defined(__sun) || defined(__MVS__)
+#if defined(__sun) || defined(__MVS__) || defined(__NetBSD__) || defined(__HAIKU__)
   struct statvfs buf;
 
   if (0 != statvfs(req->path, &buf))
@@ -545,7 +549,7 @@ static int uv__fs_statfs(uv_fs_t* req) {
     return -1;
   }
 
-#if defined(__sun) || defined(__MVS__)
+#if defined(__sun) || defined(__MVS__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__HAIKU__)
   stat_fs->f_type = 0;  /* f_type is not supported. */
 #else
   stat_fs->f_type = buf.f_type;
@@ -1051,18 +1055,14 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
 #ifdef FICLONE
   if (req->flags & UV_FS_COPYFILE_FICLONE ||
       req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
-    if (ioctl(dstfd, FICLONE, srcfd) == -1) {
-      /* If an error occurred that the sendfile fallback also won't handle, or
-         this is a force clone then exit. Otherwise, fall through to try using
-         sendfile(). */
-      if (errno != ENOTTY && errno != EOPNOTSUPP && errno != EXDEV) {
-        err = UV__ERR(errno);
-        goto out;
-      } else if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
-        err = UV_ENOTSUP;
-        goto out;
-      }
-    } else {
+    if (ioctl(dstfd, FICLONE, srcfd) == 0) {
+      /* ioctl() with FICLONE succeeded. */
+      goto out;
+    }
+    /* If an error occurred and force was set, return the error to the caller;
+     * fall back to sendfile() when force was not set. */
+    if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+      err = UV__ERR(errno);
       goto out;
     }
   }

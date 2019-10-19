@@ -62,12 +62,12 @@ static void empty_readdir_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_READDIR);
   ASSERT(req->result == 0);
   dir = req->ptr;
+  uv_fs_req_cleanup(req);
   r = uv_fs_closedir(uv_default_loop(),
                      &closedir_req,
                      dir,
                      empty_closedir_cb);
   ASSERT(r == 0);
-  uv_fs_req_cleanup(req);
 }
 
 static void empty_opendir_cb(uv_fs_t* req) {
