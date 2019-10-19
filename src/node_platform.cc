@@ -285,20 +285,31 @@ void PerIsolatePlatformData::Shutdown() {
   // effectively deleting the tasks instead of running them.
   foreground_delayed_tasks_.PopAll();
   foreground_tasks_.PopAll();
+  scheduled_delayed_tasks_.clear();
 
-  CancelPendingDelayedTasks();
-
-  ShutdownCbList* copy = new ShutdownCbList(std::move(shutdown_callbacks_));
-  flush_tasks_->data = copy;
+  // Both destroying the scheduled_delayed_tasks_ lists and closing
+  // flush_tasks_ handle add tasks to the event loop. We keep a count of all
+  // non-closed handles, and when that reaches zero, we inform any shutdown
+  // callbacks that the platform is done as far as this Isolate is concerned.
+  self_reference_ = shared_from_this();
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
            [](uv_handle_t* handle) {
-    std::unique_ptr<ShutdownCbList> callbacks(
-        static_cast<ShutdownCbList*>(handle->data));
-    for (const auto& callback : *callbacks)
-      callback.cb(callback.data);
-    delete reinterpret_cast<uv_async_t*>(handle);
+    std::unique_ptr<uv_async_t> flush_tasks {
+        reinterpret_cast<uv_async_t*>(handle) };
+    PerIsolatePlatformData* platform_data =
+        static_cast<PerIsolatePlatformData*>(flush_tasks->data);
+    platform_data->DecreaseHandleCount();
+    platform_data->self_reference_.reset();
   });
   flush_tasks_ = nullptr;
+}
+
+void PerIsolatePlatformData::DecreaseHandleCount() {
+  CHECK_GE(uv_handle_count_, 1);
+  if (--uv_handle_count_ == 0) {
+    for (const auto& callback : shutdown_callbacks_)
+      callback.cb(callback.data);
+  }
 }
 
 NodePlatform::NodePlatform(int thread_pool_size,
@@ -382,10 +393,6 @@ void PerIsolatePlatformData::RunForegroundTask(uv_timer_t* handle) {
   delayed->platform_data->DeleteFromScheduledTasks(delayed);
 }
 
-void PerIsolatePlatformData::CancelPendingDelayedTasks() {
-  scheduled_delayed_tasks_.clear();
-}
-
 void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForIsolate(isolate);
 
@@ -409,12 +416,15 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
     // the delay is non-zero. This should not be a problem in practice.
     uv_timer_start(&delayed->timer, RunForegroundTask, delay_millis, 0);
     uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
+    uv_handle_count_++;
 
     scheduled_delayed_tasks_.emplace_back(delayed.release(),
                                           [](DelayedTask* delayed) {
       uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
                [](uv_handle_t* handle) {
-        delete static_cast<DelayedTask*>(handle->data);
+        std::unique_ptr<DelayedTask> task {
+            static_cast<DelayedTask*>(handle->data) };
+        task->platform_data->DecreaseHandleCount();
       });
     });
   }
@@ -452,10 +462,6 @@ NodePlatform::ForIsolate(Isolate* isolate) {
 
 bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
   return ForIsolate(isolate)->FlushForegroundTasksInternal();
-}
-
-void NodePlatform::CancelPendingDelayedTasks(Isolate* isolate) {
-  ForIsolate(isolate)->CancelPendingDelayedTasks();
 }
 
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) { return false; }
@@ -547,5 +553,7 @@ std::queue<std::unique_ptr<T>> TaskQueue<T>::PopAll() {
   result.swap(task_queue_);
   return result;
 }
+
+void MultiIsolatePlatform::CancelPendingDelayedTasks(Isolate* isolate) {}
 
 }  // namespace node

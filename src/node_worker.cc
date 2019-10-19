@@ -148,8 +148,6 @@ class WorkerThreadData {
       w_->isolate_ = nullptr;
     }
 
-    w_->platform_->CancelPendingDelayedTasks(isolate);
-
     bool platform_finished = false;
 
     isolate_data_.reset();

@@ -113,10 +113,6 @@ struct V8Platform {
     platform_->DrainTasks(isolate);
   }
 
-  inline void CancelVMTasks(v8::Isolate* isolate) {
-    platform_->CancelPendingDelayedTasks(isolate);
-  }
-
   inline void StartTracingAgent() {
     // Attach a new NodeTraceWriter only if this function hasn't been called
     // before.
@@ -150,7 +146,6 @@ struct V8Platform {
   inline void Initialize(int thread_pool_size) {}
   inline void Dispose() {}
   inline void DrainVMTasks(v8::Isolate* isolate) {}
-  inline void CancelVMTasks(v8::Isolate* isolate) {}
   inline void StartTracingAgent() {
     if (!per_process::cli_options->trace_event_categories.empty()) {
       fprintf(stderr,
