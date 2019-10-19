@@ -6,16 +6,15 @@ module.exports = {
   replaceLinks
 };
 
-function replaceLinks() {
+function replaceLinks({ filename, linksMapper }) {
   return (tree) => {
-    const linksIdenfitiers = tree.children
-      .filter((child) => child.type === 'definition')
-      .map((child) => child.identifier);
+    const fileHtmlUrls = linksMapper[filename];
 
-    visit(tree, 'linkReference', (node) => {
-      const htmlLinkIdentifier = `${node.identifier} \`.html\``;
-      if (linksIdenfitiers.includes(htmlLinkIdentifier)) {
-        node.identifier = htmlLinkIdentifier;
+    visit(tree, 'definition', (node) => {
+      const htmlUrl = fileHtmlUrls && fileHtmlUrls[node.identifier];
+
+      if (htmlUrl && typeof htmlUrl === 'string') {
+        node.url = htmlUrl;
       }
     });
   };

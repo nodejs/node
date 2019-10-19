@@ -18,6 +18,3 @@ Check out also [this guide][]
 [Command Line Options]: cli.md#options
 [this guide]: https://nodejs.org/
 [web server]: example.md
-
-[Command Line Options `.html`]: cli.html#cli-options
-[web server `.html`]: example.html

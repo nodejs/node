@@ -23,9 +23,22 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
+// Test links mapper is an object of the following structure:
+// {
+//   [filename]: {
+//     [link definition identifier]: [url to the linked resource]
+//   }
+// }
+const testLinksMapper = {
+  'foo': {
+    'command line options': 'cli.html#cli-options',
+    'web server': 'example.html'
+  }
+};
+
 async function toHTML({ input, filename, nodeVersion }) {
   const content = unified()
-    .use(replaceLinks)
+    .use(replaceLinks, { filename, linksMapper: testLinksMapper })
     .use(markdown)
     .use(html.firstHeader)
     .use(html.preprocessText)
@@ -103,7 +116,7 @@ const testData = [
     html: '<h1>Usage and Example<span><a class="mark"' +
     'href="#foo_usage_and_example" id="foo_usage_and_example">#</a>' +
     '</span></h1><h2>Usage<span><a class="mark" href="#foo_usage"' +
-    'id="foo_usage">#</a></span></h2><p><code>node [options] index.js' +
+    'id="foo_usage">#</a></span></h2><p><code>node \\[options\\] index.js' +
     '</code></p><p>Please see the<a href="cli.html#cli-options">' +
     'Command Line Options</a>document for more information.</p><h2>' +
     'Example<span><a class="mark" href="#foo_example" id="foo_example">' +
