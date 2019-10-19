@@ -149,13 +149,9 @@ static char uv_tty_default_fg_bright = 0;
 static char uv_tty_default_bg_bright = 0;
 static char uv_tty_default_inverse = 0;
 
-typedef enum {
-  UV_SUPPORTED,
-  UV_UNCHECKED,
-  UV_UNSUPPORTED
-} uv_vtermstate_t;
 /* Determine whether or not ANSI support is enabled. */
-static uv_vtermstate_t uv__vterm_state = UV_UNCHECKED;
+static BOOL uv__need_check_vterm_state = TRUE;
+static uv_tty_vtermstate_t uv__vterm_state = UV_TTY_UNSUPPORTED;
 static void uv__determine_vterm_state(HANDLE handle);
 
 void uv_console_init(void) {
@@ -169,10 +165,15 @@ void uv_console_init(void) {
                                        0,
                                        0);
   if (uv__tty_console_handle != INVALID_HANDLE_VALUE) {
+    CONSOLE_SCREEN_BUFFER_INFO sb_info;
     QueueUserWorkItem(uv__tty_console_resize_message_loop_thread,
                       NULL,
                       WT_EXECUTELONGFUNCTION);
     uv_mutex_init(&uv__tty_console_resize_mutex);
+    if (GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info)) {
+      uv__tty_console_width = sb_info.dwSize.X;
+      uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
+    }
   }
 }
 
@@ -218,7 +219,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int unused) {
      * between all uv_tty_t handles. */
     uv_sem_wait(&uv_tty_output_lock);
 
-    if (uv__vterm_state == UV_UNCHECKED)
+    if (uv__need_check_vterm_state)
       uv__determine_vterm_state(handle);
 
     /* Remember the original console text attributes. */
@@ -1670,7 +1671,7 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
     uv_buf_t buf = bufs[i];
     unsigned int j;
 
-    if (uv__vterm_state == UV_SUPPORTED && buf.len > 0) {
+    if (uv__vterm_state == UV_TTY_SUPPORTED && buf.len > 0) {
       utf16_buf_used = MultiByteToWideChar(CP_UTF8,
                                            0,
                                            buf.base,
@@ -2275,31 +2276,23 @@ int uv_tty_reset_mode(void) {
 static void uv__determine_vterm_state(HANDLE handle) {
   DWORD dwMode = 0;
 
+  uv__need_check_vterm_state = FALSE;
   if (!GetConsoleMode(handle, &dwMode)) {
-    uv__vterm_state = UV_UNSUPPORTED;
     return;
   }
 
   dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
   if (!SetConsoleMode(handle, dwMode)) {
-    uv__vterm_state = UV_UNSUPPORTED;
     return;
   }
 
-  uv__vterm_state = UV_SUPPORTED;
+  uv__vterm_state = UV_TTY_SUPPORTED;
 }
 
 static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
-  CONSOLE_SCREEN_BUFFER_INFO sb_info;
   NTSTATUS status;
   ULONG_PTR conhost_pid;
   MSG msg;
-
-  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
-    return 0;
-
-  uv__tty_console_width = sb_info.dwSize.X;
-  uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
   if (pSetWinEventHook == NULL || pNtQueryInformationProcess == NULL)
     return 0;
@@ -2375,6 +2368,7 @@ static void uv__tty_console_signal_resize(void) {
   height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
   uv_mutex_lock(&uv__tty_console_resize_mutex);
+  assert(uv__tty_console_width != -1 && uv__tty_console_height != -1);
   if (width != uv__tty_console_width || height != uv__tty_console_height) {
     uv__tty_console_width = width;
     uv__tty_console_height = height;
@@ -2383,4 +2377,18 @@ static void uv__tty_console_signal_resize(void) {
   } else {
     uv_mutex_unlock(&uv__tty_console_resize_mutex);
   }
+}
+
+void uv_tty_set_vterm_state(uv_tty_vtermstate_t state) {
+  uv_sem_wait(&uv_tty_output_lock);
+  uv__need_check_vterm_state = FALSE;
+  uv__vterm_state = state;
+  uv_sem_post(&uv_tty_output_lock);
+}
+
+int uv_tty_get_vterm_state(uv_tty_vtermstate_t* state) {
+  uv_sem_wait(&uv_tty_output_lock);
+  *state = uv__vterm_state;
+  uv_sem_post(&uv_tty_output_lock);
+  return 0;
 }

@@ -1,6 +1,15 @@
 # TODO: determine CMAKE_SYSTEM_NAME on OS/390.  Currently assumes "OS/390".
-cmake_minimum_required(VERSION 2.8.12)
-project(libuv)
+cmake_minimum_required(VERSION 3.4)
+project(libuv LANGUAGES C)
+
+include(CMakePackageConfigHelpers)
+include(CMakeDependentOption)
+include(GNUInstallDirs)
+include(CTest)
+
+cmake_dependent_option(LIBUV_BUILD_TESTS
+  "Build the unit tests when BUILD_TESTING is enabled and we are the root project" ON
+  "BUILD_TESTING;CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 if(MSVC)
   list(APPEND uv_cflags /W4)
@@ -14,6 +23,7 @@ set(uv_sources
     src/fs-poll.c
     src/idna.c
     src/inet.c
+    src/random.c
     src/strscpy.c
     src/threadpool.c
     src/timer.c
@@ -72,7 +82,6 @@ set(uv_test_sources
     test/test-idna.c
     test/test-ip4-addr.c
     test/test-ip6-addr.c
-    test/test-ip6-addr.c
     test/test-ipc-heavy-traffic-deadlock-bug.c
     test/test-ipc-send-recv.c
     test/test-ipc.c
@@ -108,6 +117,7 @@ set(uv_test_sources
     test/test-process-title-threadsafe.c
     test/test-process-title.c
     test/test-queue-foreach-delete.c
+    test/test-random.c
     test/test-ref.c
     test/test-run-nowait.c
     test/test-run-once.c
@@ -236,6 +246,7 @@ else()
        src/unix/pipe.c
        src/unix/poll.c
        src/unix/process.c
+       src/unix/random-devurandom.c
        src/unix/signal.c
        src/unix/stream.c
        src/unix/tcp.c
@@ -284,6 +295,14 @@ if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
   list(APPEND uv_sources src/unix/bsd-ifaddrs.c src/unix/kqueue.c)
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  list(APPEND uv_sources src/unix/random-getrandom.c)
+endif()
+
+if(APPLE OR CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+  list(APPEND uv_sources src/unix/random-getentropy.c)
+endif()
+
 if(APPLE)
   list(APPEND uv_defines _DARWIN_UNLIMITED_SELECT=1 _DARWIN_USE_64_BIT_INODE=1)
   list(APPEND uv_sources
@@ -300,6 +319,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
        src/unix/linux-inotify.c
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
+       src/unix/random-getrandom.c
+       src/unix/random-sysctl.c
        src/unix/sysinfo-loadavg.c)
 endif()
 
@@ -356,11 +377,7 @@ target_compile_options(uv_a PRIVATE ${uv_cflags})
 target_include_directories(uv_a PUBLIC include PRIVATE src)
 target_link_libraries(uv_a ${uv_libraries})
 
-option(libuv_buildtests "Build the unit tests when BUILD_TESTING is enabled." ON)
-
-include(CTest)
-if(BUILD_TESTING AND libuv_buildtests)
-  enable_testing()
+if(LIBUV_BUILD_TESTS)
   add_executable(uv_run_tests ${uv_test_sources})
   target_compile_definitions(uv_run_tests
                              PRIVATE ${uv_defines} USING_UV_SHARED=1)
@@ -380,7 +397,6 @@ endif()
 
 if(UNIX)
   # Now for some gibbering horrors from beyond the stars...
-  include(GNUInstallDirs)
   foreach(x ${uv_libraries})
     set(LIBS "${LIBS} -l${x}")
   endforeach(x)
@@ -401,4 +417,12 @@ if(UNIX)
           DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
   install(TARGETS uv LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
   install(TARGETS uv_a ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(WIN32)
+  install(DIRECTORY include/ DESTINATION include)
+  install(FILES LICENSE DESTINATION .)
+  install(TARGETS uv uv_a
+          RUNTIME DESTINATION lib/$<CONFIG>
+          ARCHIVE DESTINATION lib/$<CONFIG>)
 endif()

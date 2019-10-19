@@ -190,8 +190,11 @@ just for some handle types.
     Gets or sets the size of the send buffer that the operating
     system uses for the socket.
 
-    If `*value` == 0, it will return the current send buffer size,
-    otherwise it will use `*value` to set the new send buffer size.
+    If `*value` == 0, then it will set `*value` to the current send buffer size.
+    If `*value` > 0 then it will use `*value` to set the new send buffer size.
+
+    On success, zero is returned. On error, a negative result is
+    returned.
 
     This function works for TCP, pipe and UDP handles on Unix and for TCP and
     UDP handles on Windows.
@@ -204,8 +207,11 @@ just for some handle types.
     Gets or sets the size of the receive buffer that the operating
     system uses for the socket.
 
-    If `*value` == 0, it will return the current receive buffer size,
-    otherwise it will use `*value` to set the new receive buffer size.
+    If `*value` == 0, then it will set `*value` to the current receive buffer size.
+    If `*value` > 0 then it will use `*value` to set the new receive buffer size.
+
+    On success, zero is returned. On error, a negative result is
+    returned.
 
     This function works for TCP, pipe and UDP handles on Unix and for TCP and
     UDP handles on Windows.

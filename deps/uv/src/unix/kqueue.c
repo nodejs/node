@@ -454,9 +454,25 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* path,
                       unsigned int flags) {
   int fd;
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
+  struct stat statbuf;
+#endif
 
   if (uv__is_active(handle))
     return UV_EINVAL;
+
+  handle->cb = cb;
+  handle->path = uv__strdup(path);
+  if (handle->path == NULL)
+    return UV_ENOMEM;
+
+  /* TODO open asynchronously - but how do we report back errors? */
+  fd = open(handle->path, O_RDONLY);
+  if (fd == -1) {
+    uv__free(handle->path);
+    handle->path = NULL;
+    return UV__ERR(errno);
+  }
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   /* Nullify field to perform checks later */
@@ -465,14 +481,17 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   handle->realpath_len = 0;
   handle->cf_flags = flags;
 
+  if (fstat(fd, &statbuf))
+    goto fallback;
+  /* FSEvents works only with directories */
+  if (!(statbuf.st_mode & S_IFDIR))
+    goto fallback;
+
   if (!uv__has_forked_with_cfrunloop) {
     int r;
-    /* The fallback fd is not used */
+    /* The fallback fd is no longer needed */
+    uv__close_nocheckstdio(fd);
     handle->event_watcher.fd = -1;
-    handle->path = uv__strdup(path);
-    if (handle->path == NULL)
-      return UV_ENOMEM;
-    handle->cb = cb;
     r = uv__fsevents_init(handle);
     if (r == 0) {
       uv__handle_start(handle);
@@ -482,20 +501,9 @@ int uv_fs_event_start(uv_fs_event_t* handle,
     }
     return r;
   }
+fallback:
 #endif /* #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070 */
 
-  /* TODO open asynchronously - but how do we report back errors? */
-  fd = open(path, O_RDONLY);
-  if (fd == -1)
-    return UV__ERR(errno);
-
-  handle->path = uv__strdup(path);
-  if (handle->path == NULL) {
-    uv__close_nocheckstdio(fd);
-    return UV_ENOMEM;
-  }
-
-  handle->cb = cb;
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
   uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
@@ -514,7 +522,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__handle_stop(handle);
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-  if (!uv__has_forked_with_cfrunloop)
+  if (!uv__has_forked_with_cfrunloop && handle->cf_cb != NULL)
     r = uv__fsevents_close(handle);
 #endif
 

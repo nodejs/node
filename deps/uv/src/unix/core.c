@@ -66,7 +66,8 @@ extern char** environ;
 #if defined(__DragonFly__)      || \
     defined(__FreeBSD__)        || \
     defined(__FreeBSD_kernel__) || \
-    defined(__NetBSD__)
+    defined(__NetBSD__)         || \
+    defined(__OpenBSD__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/wait.h>
@@ -76,7 +77,8 @@ extern char** environ;
 # if defined(__NetBSD__)
 #  define uv__accept4(a, b, c, d) paccept((a), (b), (c), NULL, (d))
 # endif
-# if (defined(__FreeBSD__) && __FreeBSD__ >= 10) || defined(__NetBSD__)
+# if (defined(__FreeBSD__) && __FreeBSD__ >= 10) || \
+      defined(__NetBSD__) || defined(__OpenBSD__)
 #  define UV__SOCK_NONBLOCK SOCK_NONBLOCK
 #  define UV__SOCK_CLOEXEC  SOCK_CLOEXEC
 # endif
