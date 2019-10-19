@@ -69,7 +69,9 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
   uv_interface_address_t* address;
+#if !(defined(__CYGWIN__) || defined(__MSYS__))
   int i;
+#endif
 
   *count = 0;
   *addresses = NULL;

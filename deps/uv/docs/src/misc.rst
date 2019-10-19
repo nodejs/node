@@ -46,6 +46,12 @@ Data types
         Replacement function for :man:`free(3)`.
         See :c:func:`uv_replace_allocator`.
 
+.. c:type::  void (*uv_random_cb)(uv_random_t* req, int status, void* buf, size_t buflen)
+
+    Callback passed to :c:func:`uv_random`. `status` is non-zero in case of
+    error. The `buf` pointer is the same pointer that was passed to
+    :c:func:`uv_random`.
+
 .. c:type:: uv_file
 
     Cross platform representation of a file handle.
@@ -191,6 +197,9 @@ Data types
         char* value;
     } uv_env_item_t;
 
+.. c:type:: uv_random_t
+
+    Random data request type.
 
 API
 ---
@@ -648,3 +657,39 @@ API
     argument to `gettimeofday()` is not supported, as it is considered obsolete.
 
     .. versionadded:: 1.28.0
+
+.. c:function:: int uv_random(uv_loop_t* loop, uv_random_t* req, void* buf, size_t buflen, unsigned int flags, uv_random_cb cb)
+
+    Fill `buf` with exactly `buflen` cryptographically strong random bytes
+    acquired from the system CSPRNG. `flags` is reserved for future extension
+    and must currently be 0.
+
+    Short reads are not possible. When less than `buflen` random bytes are
+    available, a non-zero error value is returned or passed to the callback.
+
+    The synchronous version may block indefinitely when not enough entropy
+    is available. The asynchronous version may not ever finish when the system
+    is low on entropy.
+
+    Sources of entropy:
+
+    - Windows: `RtlGenRandom <https://docs.microsoft.com/en-us/windows/desktop/api/ntsecapi/nf-ntsecapi-rtlgenrandom>_`.
+    - Linux, Android: :man:`getrandom(2)` if available, or :man:`urandom(4)`
+      after reading from `/dev/random` once, or the `KERN_RANDOM`
+      :man:`sysctl(2)`.
+    - FreeBSD: `getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_`,
+      or `/dev/urandom` after reading from `/dev/random` once.
+    - macOS, OpenBSD: `getentropy(2) <https://man.openbsd.org/getentropy.2>_`
+      if available, or `/dev/urandom` after reading from `/dev/random` once.
+    - AIX: `/dev/random`.
+    - IBM i: `/dev/urandom`.
+    - Other UNIX: `/dev/urandom` after reading from `/dev/random` once.
+
+    :returns: 0 on success, or an error code < 0 on failure. The contents of
+    `buf` is undefined after an error.
+
+    .. note::
+        When using the synchronous version, both `loop` and `req` parameters
+        are not used and can be set to `NULL`.
+
+    .. versionadded:: 1.33.0

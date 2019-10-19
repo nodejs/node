@@ -365,3 +365,10 @@ int uv_tty_reset_mode(void) {
 
   return err;
 }
+
+void uv_tty_set_vterm_state(uv_tty_vtermstate_t state) {
+}
+
+int uv_tty_get_vterm_state(uv_tty_vtermstate_t* state) {
+  return UV_ENOTSUP;
+}

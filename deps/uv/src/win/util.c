@@ -1417,7 +1417,9 @@ int uv_os_environ(uv_env_item_t** envitems, int* count) {
     if (uv__convert_utf16_to_utf8(penv, -1, &buf) != 0)
       goto fail;
 
-    ptr = strchr(buf, '=');
+    /* Using buf + 1 here because we know that `buf` has length at least 1,
+     * and some special environment variables on Windows start with a = sign. */
+    ptr = strchr(buf + 1, '=');
     if (ptr == NULL) {
       uv__free(buf);
       goto do_continue;
@@ -1856,5 +1858,18 @@ int uv_gettimeofday(uv_timeval64_t* tv) {
   ularge.HighPart = file_time.dwHighDateTime;
   tv->tv_sec = (int64_t) ((ularge.QuadPart - epoch) / 10000000L);
   tv->tv_usec = (int32_t) (((ularge.QuadPart - epoch) % 10000000L) / 10);
+  return 0;
+}
+
+int uv__random_rtlgenrandom(void* buf, size_t buflen) {
+  if (pRtlGenRandom == NULL)
+    return UV_ENOSYS;
+
+  if (buflen == 0)
+    return 0;
+
+  if (pRtlGenRandom(buf, buflen) == FALSE)
+    return UV_EIO;
+
   return 0;
 }

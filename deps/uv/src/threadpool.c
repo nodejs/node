@@ -372,6 +372,10 @@ int uv_cancel(uv_req_t* req) {
     loop = ((uv_getnameinfo_t*) req)->loop;
     wreq = &((uv_getnameinfo_t*) req)->work_req;
     break;
+  case UV_RANDOM:
+    loop = ((uv_random_t*) req)->loop;
+    wreq = &((uv_random_t*) req)->work_req;
+    break;
   case UV_WORK:
     loop =  ((uv_work_t*) req)->loop;
     wreq = &((uv_work_t*) req)->work_req;

@@ -263,10 +263,12 @@ static void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
       if (len < handle->realpath_len)
         continue;
 
+      /* Make sure that realpath actually named a directory,
+       * (unless watching root, which alone keeps a trailing slash on the realpath)
+       * or that we matched the whole string */
       if (handle->realpath_len != len &&
+          handle->realpath_len > 1 &&
           path[handle->realpath_len] != '/')
-        /* Make sure that realpath actually named a directory,
-         * or that we matched the whole string */
         continue;
 
       if (memcmp(path, handle->realpath, handle->realpath_len) != 0)

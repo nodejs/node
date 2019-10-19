@@ -37,6 +37,11 @@ struct cancel_info {
   uv_timer_t timer_handle;
 };
 
+struct random_info {
+  uv_random_t random_req;
+  char buf[1];
+};
+
 static unsigned fs_cb_called;
 static unsigned done_cb_called;
 static unsigned done2_cb_called;
@@ -143,6 +148,19 @@ static void nop_done_cb(uv_work_t* req, int status) {
 }
 
 
+static void nop_random_cb(uv_random_t* req, int status, void* buf, size_t len) {
+  struct random_info* ri;
+
+  ri = container_of(req, struct random_info, random_req);
+
+  ASSERT(status == UV_ECANCELED);
+  ASSERT(buf == (void*) ri->buf);
+  ASSERT(len == sizeof(ri->buf));
+
+  done_cb_called++;
+}
+
+
 TEST_IMPL(threadpool_cancel_getaddrinfo) {
   uv_getaddrinfo_t reqs[4];
   struct cancel_info ci;
@@ -206,6 +224,29 @@ TEST_IMPL(threadpool_cancel_getnameinfo) {
   ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(threadpool_cancel_random) {
+  struct random_info req;
+  uv_loop_t* loop;
+
+  saturate_threadpool();
+  loop = uv_default_loop();
+  ASSERT(0 == uv_random(loop,
+                        &req.random_req,
+                        &req.buf,
+                        sizeof(req.buf),
+                        0,
+                        nop_random_cb));
+  ASSERT(0 == uv_cancel((uv_req_t*) &req));
+  ASSERT(0 == done_cb_called);
+  unblock_threadpool();
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT(1 == done_cb_called);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
