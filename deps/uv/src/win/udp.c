@@ -856,7 +856,7 @@ int uv_udp_set_source_membership(uv_udp_t* handle,
                                           src_addr6,
                                           membership);
   }
-
+  
   err = uv_ip4_addr(source_addr, 0, src_addr4);
   if (err)
     return err;

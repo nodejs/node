@@ -74,7 +74,7 @@ static void sv_send_cb(uv_udp_send_t* req, int status) {
 static int do_send(uv_udp_send_t* send_req) {
   uv_buf_t buf;
   struct sockaddr_in addr;
-
+  
   buf = uv_buf_init("PING", 4);
 
   ASSERT(0 == uv_ip4_addr(MULTICAST_ADDR, TEST_PORT, &addr));

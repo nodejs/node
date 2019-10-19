@@ -148,5 +148,6 @@ int uv__statx(int dirfd,
               int flags,
               unsigned int mask,
               struct uv__statx* statxbuf);
+ssize_t uv__getrandom(void* buf, size_t buflen, unsigned flags);
 
 #endif /* UV_LINUX_SYSCALL_H_ */

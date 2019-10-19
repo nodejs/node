@@ -211,6 +211,9 @@ int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr) {
   memset(addr, 0, sizeof(*addr));
   addr->sin_family = AF_INET;
   addr->sin_port = htons(port);
+#ifdef SIN6_LEN
+  addr->sin_len = sizeof(*addr);
+#endif
   return uv_inet_pton(AF_INET, ip, &(addr->sin_addr.s_addr));
 }
 
