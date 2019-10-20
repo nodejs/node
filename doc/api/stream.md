@@ -1084,7 +1084,7 @@ buffer will be returned.
 If the `size` argument is not specified, all of the data contained in the
 internal buffer will be returned.
 
-The `size` argument must be less than or equal to `Number.MAX_SAFE_INTEGER`.
+The `size` argument must be less than or equal to 2^31.
 
 The `readable.read()` method should only be called on `Readable` streams
 operating in paused mode. In flowing mode, `readable.read()` is called
