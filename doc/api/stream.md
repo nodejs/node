@@ -1080,6 +1080,8 @@ buffer will be returned.
 If the `size` argument is not specified, all of the data contained in the
 internal buffer will be returned.
 
+The `size` argument must be less than or equal to 1 GB.
+
 The `readable.read()` method should only be called on `Readable` streams
 operating in paused mode. In flowing mode, `readable.read()` is called
 automatically until the internal buffer is fully drained.
