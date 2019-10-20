@@ -1,0 +1,272 @@
+# Configuration for ci.nodejs.org
+#
+# `linux-x64-container-suite` list tests that are to be run in: 
+#   https://ci.nodejs.org/job/rv-test-commit-linux-docker
+# using container images found at:
+#   https://github.com/rvagg/node-ci-containers
+#
+# Each test in this list needs to be defined under the `tests` list and needs:
+#  - a `label` that will be used to report to GitHub in the pull request status
+#    checks.
+#  - an `image` that corresponds to one of the images found in
+#    https://github.com/rvagg/node-ci-containers such that it can be pulled
+#    from Docker Hub as `rvagg/node-ci-containers:$image`.
+#  - an `execute` block that contains Bash that performs the build & test steps
+#    required for this build type.
+#
+# Images are assumed to contain the required packages and data needed to
+# perform the build & test steps, while the execution of those steps are
+# defined here.
+#
+# Execution is limited to the `iojs` user in each container, beginning in the
+# /home/iojs/workspace directory which maps to the current Jenkins workspace on
+# the host.
+
+linux_x64_container_suite:
+  - ubuntu1804
+  - ubuntu1910
+  - ubuntu1604-gcc6
+  - debian9
+  - centos7-devtoolset7
+  - centos8
+  - centos8-python2
+  - fedora30
+  - alpine310
+  - zlib
+  - openssl111
+  - withoutintl
+  - withoutssl
+  - shared
+  - debug
+  - ninja
+  - workers
+
+tests:
+  ubuntu1804:
+    label: Ubuntu 18.04 (Bionic) Container
+    image: ubuntu1804
+    execute: |
+      make run-ci -j $JOBS V=
+
+  # Should be removed when 20.04 is added, or mid-2020, whichever comes first
+  ubuntu1910:
+    label: Ubuntu 19.10 (Eoan) Container
+    image: ubuntu1910
+    execute: |
+      make run-ci -j $JOBS V=
+
+  ubuntu1604-gcc6:
+    label: Ubuntu 16.04 (Bionic) with GCC 6 Container
+    image: ubuntu1604-gcc6
+    execute: |
+      make run-ci -j $JOBS V=
+
+  debian9:
+    label: Debian 9 (Stretch) Container
+    image: debian9
+    execute: |
+      make run-ci -j $JOBS V=
+
+  centos7-devtoolset7:
+    label: CentOS 7 with Devtoolset-7 Container
+    image: centos7-devtoolset7
+    execute: |
+      make run-ci -j $JOBS V=
+
+  centos8:
+    label: CentOS 8 Container
+    image: centos8
+    execute: |
+      export PYTHON=python3
+      make run-ci -j $JOBS V=
+
+  # Other containers have Python 2, this provides a comparison to the bare
+  # CentOS 8 run that strictly just contains `python3`.
+  # Should be removed when we are more confident with Python 2+3 support.
+  centos8-python2:
+    label: CentOS 8 Container with Python 2
+    image: centos8-python2
+    execute: |
+      export PYTHON=python2
+      make run-ci -j $JOBS V=
+
+  # Should be removed mid-2020 when support ceases
+  fedora30:
+    label: Fedora 30 Container
+    image: fedora30
+    execute: |
+      make run-ci -j $JOBS V=
+
+  # Should be removed mid-2021 or earlier
+  alpine310:
+    label: Alpine 3.10 Container
+    image: alpine310
+    execute: |
+      make run-ci -j $JOBS V=
+
+  zlib:
+    label: Linux --shared-zlib
+    image: ubuntu1804-zlib
+    execute: |
+      export CONFIG_FLAGS="$CONFIG_FLAGS --shared-zlib --shared-zlib-includes=${ZLIB12DIR}/include/ --shared-zlib-libpath=${ZLIB12DIR}/lib/"
+      make run-ci -j $JOBS V=
+
+      ZLIB_VERSION="$(out/Release/node -pe process.versions | grep zlib)"
+      echo "zlib Version: $ZLIB_VERSION"
+      if [ X"$(echo $ZLIB_VERSION | grep 1\.2\.11)" = X"" ]; then
+        FAIL_MSG="Not built with zlib 1.2.11, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+
+  openssl111:
+    label: Linux --shared-openssl with OpenSSL 1.1.1
+    image: ubuntu1804-openssl111
+    execute: |
+      export LD_LIBRARY_PATH=${OPENSSL111DIR}/lib/
+      export PATH=${OPENSSL111DIR}/bin/:$PATH
+      export CONFIG_FLAGS="$CONFIG_FLAGS --shared-openssl --shared-openssl-includes=${OPENSSL111DIR}/include/ --shared-openssl-libpath=${OPENSSL111DIR}/lib/"
+      make run-ci -j $JOBS V=
+
+      OPENSSL_VERSION="$(out/Release/node -pe 'process.versions.openssl')"
+      echo "OpenSSL Version: $OPENSSL_VERSION"
+      if [ X"$(echo $OPENSSL_VERSION | grep 1\.1\.1)" = X"" ]; then
+        FAIL_MSG="Not built with OpenSSL 1.1.1, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+      OPENSSL_LIB="$(out/Release/node -pe 'process.config.target_defaults.libraries[0]')"
+      echo "OpenSSL link: $OPENSSL_LIB"
+      if [ X"$(echo $OPENSSL_LIB | grep 1\.1\.1)" = X"" ]; then
+        FAIL_MSG="Not linked against OpenSSL 1.1.1, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+
+  withoutintl:
+    label: Linux --without-intl
+    image: ubuntu1804
+    execute: |
+      export CONFIG_FLAGS="$CONFIG_FLAGS --without-intl"
+      make run-ci -j $JOBS V=
+
+      INTL_OBJECT="$(out/Release/node -pe 'typeof Intl')"
+      echo "Intl object type: $INTL_OBJECT"
+      if [ X"$INTL_OBJECT" != X"undefined" ]; then
+        FAIL_MSG="Has an Intl object, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+      PROCESS_VERSIONS_INTL="$(out/Release/node -pe process.versions.icu)"
+      echo "process.versions.icu: $PROCESS_VERSIONS_INTL"
+      if [ X"$PROCESS_VERSIONS_INTL" != X"undefined" ]; then
+        FAIL_MSG="process.versions.icu not undefined, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+
+  withoutssl:
+    label: Linux --without-ssl
+    image: ubuntu1804
+    execute: |
+      export CONFIG_FLAGS="$CONFIG_FLAGS --without-ssl"
+      make run-ci -j $JOBS V=
+
+      HAS_OPENSSL="$(out/Release/node -p 'Boolean(process.versions.openssl)')"
+      echo "Has OpenSSL: $HAS_OPENSSL"
+      if [ X"$HAS_OPENSSL" != X"false" ]; then
+        FAIL_MSG="Has an OpenSSL, exiting"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+      out/Release/node -p 'require("crypto")' || REQUIRE_CRYPTO="no crypto"
+      if [ "$REQUIRE_CRYPTO" != "no crypto" ]; then
+        FAIL_MSG='require("crypto") did not fail, exiting'
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        exit -1
+      fi
+
+      python tools/test.py -j $JOBS -p tap --logfile test.tap --flaky-tests=$FLAKY_TESTS async-hooks default known_issues
+
+  shared:
+    label: Linux --shared
+    image: ubuntu1804
+    execute: |
+      export CONFIG_FLAGS="$CONFIG_FLAGS --shared"
+      make run-ci -j $JOBS V=
+
+  debug:
+    label: Linux Debug
+    image: ubuntu1804
+    execute: |
+      export CONFIG_FLAGS="$CONFIG_FLAGS --debug"
+
+      # see https://github.com/nodejs/node/issues/17016
+      sed -i 's/\[\$system==linux\]/[$system==linux]\ntest-error-reporting : PASS, FLAKY/g' test/parallel/parallel.status
+      # see https://github.com/nodejs/node/issues/17017
+      sed -i 's/\[\$system==linux\]/[$system==linux]\ntest-inspector-async-stack-traces-promise-then : PASS, FLAKY/g' test/sequential/sequential.status
+      # see https://github.com/nodejs/node/issues/17018
+      sed -i 's/\[\$system==linux\]/[$system==linux]\ntest-inspector-contexts : PASS, FLAKY/g' test/sequential/sequential.status
+
+      make build-ci -j $JOBS V=
+
+      if ! [ -x out/Debug/node ]; then
+        FAIL_MSG="No Debug executable"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        echo "  ---"
+        echo "  duration_ms: 0"
+        echo "  ..."
+        exit 0
+      fi
+
+      BUILD_TYPE="$(out/Debug/node -pe process.config.target_defaults.default_configuration)"
+      echo "Build type: $BUILD_TYPE"
+      if [ X"$BUILD_TYPE" != X"Debug" ]; then
+        FAIL_MSG="Not built as Debug"
+        echo $FAIL_MSG
+        echo "1..1" > test.tap
+        echo "not ok 1 $FAIL_MSG" >> test.tap
+        echo "  ---"
+        echo "  duration_ms: 0"
+        echo "  ..."
+        exit 0
+      fi
+
+      python tools/test.py -j $JOBS -p tap --logfile test.tap \
+        --mode=debug --flaky-tests=$FLAKY_TESTS \
+        async-hooks default known_issues
+
+  ninja:
+    label: Linux Ninja
+    image: ubuntu1804
+    execute: |
+      export CC=/usr/lib/ccache/cc
+      export CXX=/usr/lib/ccache/c++
+      python ./configure --verbose --ninja
+      ninja -C out/Release -j $JOBS
+      python tools/test.py -j $JOBS -p tap --logfile test.tap \
+        --flaky-tests=$FLAKY_TESTS async-hooks default known_issues
+
+  workers:
+    label: Linux Worker Test Suite
+    image: ubuntu1804
+    execute: |
+      make build-ci -j $JOBS V=
+      python tools/test.py -j $JOBS -p tap --logfile test.tap \
+        --flaky-tests=$FLAKY_TESTS --worker default
