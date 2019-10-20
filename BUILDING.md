@@ -161,7 +161,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 6.3                                                     |
 | Windows          | Visual Studio >= 2017 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 10 (Apple LLVM >= 10)                                 |
+| macOS            | Xcode >= 8 (Apple LLVM >= 8)                                   |
 
 ### Official binary platforms and toolchains
 
@@ -170,7 +170,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package        | Platform and Toolchain                                                   |
 | --------------------- | ------------------------------------------------------------------------ |
 | aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                       |
-| darwin-x64 (and .pkg) | macOS 10.11, Xcode Command Line Tools 10 with -mmacosx-version-min=10.10 |
+| darwin-x64 (and .pkg) | macOS 10.11, Xcode Command Line Tools 8 with -mmacosx-version-min=10.10  |
 | linux-arm64           | CentOS 7 with devtoolset-6 / GCC 6                                       |
 | linux-armv7l          | Cross-compiled on Ubuntu 16.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)   |
 | linux-ppc64le         | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
@@ -259,7 +259,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 10 for macOS
+* Xcode Command Line Tools >= 8 for macOS
 * Python (see note above)
   * Python 2.7
   * Python 3.5, 3.6, and 3.7 are experimental.
