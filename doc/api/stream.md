@@ -1667,11 +1667,12 @@ of a stream that are intended for use by consumers (as described in the
 [API for Stream Consumers][] section). Doing so may lead to adverse side effects
 in application code consuming the stream.
 
-It is highly discouraged to override any public method. As well as emitting
-`'error'` events manually through `.emit(err)` instead of using API provided
-callbacks or `.destroy(err)`. Doing so can break current and future stream
-invariants leading to behaviour and/or compatibility issues with other streams,
-stream utilities and user expectations.
+It is highly discouraged to override any public method. As well as emitting any
+internal events such as `'error'`, `'data'`, `'end'`, `'finish'` and `'close'`
+manually through `.emit(err)` instead of using API provided callbacks or
+`.destroy(err)`. Doing so can break current and future stream invariants
+leading to behaviour and/or compatibility issues with other streams, stream
+utilities and user expectations.
 
 ### Simplified Construction
 <!-- YAML
