@@ -3761,6 +3761,8 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
                                   GetSymmetricKeySize);
   env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyType",
                                   GetAsymmetricKeyType);
+  env->SetProtoMethodNoSideEffect(t, "getAsymmetricParams",
+                                  GetAsymmetricParams);
   env->SetProtoMethod(t, "export", Export);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
@@ -3910,6 +3912,73 @@ void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
+}
+
+static inline void SetParam(Environment* env, Local<Object> params,
+                            const char* key, Local<Value> value) {
+  bool ok = params->DefineOwnProperty(
+      env->context(),
+      String::NewFromUtf8(env->isolate(), key, NewStringType::kNormal)
+          .ToLocalChecked(),
+      value,
+      PropertyAttribute::ReadOnly).ToChecked();
+  CHECK(ok);
+}
+
+Local<Value> KeyObject::GetAsymmetricParams() const {
+  CHECK_NE(this->key_type_, kKeyTypeSecret);
+
+  Local<Object> params = Object::New(env()->isolate());
+  EVP_PKEY* pkey = this->asymmetric_key_.get();
+  RSA* rsa;
+  DSA* dsa;
+  EC_KEY* ec;
+  const EC_GROUP* ec_group;
+  int ec_curve_id;
+  const char* ec_curve_name;
+
+  switch (EVP_PKEY_id(pkey)) {
+  case EVP_PKEY_RSA_PSS:
+    // TODO(tniessen): Also retrieve additional PSS params as soon as OpenSSL
+    // provides a way to do that.
+  case EVP_PKEY_RSA:
+    // TODO(tniessen): This should really be EVP_PKEY_get0_RSA, but OpenSSL does
+    // not support that for RSA-PSS.
+    rsa = reinterpret_cast<RSA*>(EVP_PKEY_get0(pkey));
+    SetParam(env(), params, "modulusLength",
+             Integer::New(env()->isolate(), RSA_bits(rsa)));
+    // TODO(tniessen): Add publicExponent.
+    break;
+    return env()->crypto_rsa_pss_string();
+  case EVP_PKEY_DSA:
+    dsa = EVP_PKEY_get0_DSA(pkey);
+    SetParam(env(), params, "modulusLength",
+             Integer::New(env()->isolate(), DSA_bits(dsa)));
+    SetParam(env(), params, "divisorLength",
+             Integer::New(env()->isolate(), BN_num_bits(DSA_get0_q(dsa))));
+    break;
+  case EVP_PKEY_EC:
+    ec = EVP_PKEY_get0_EC_KEY(pkey);
+    ec_group = EC_KEY_get0_group(ec);
+    ec_curve_id = EC_GROUP_get_curve_name(ec_group);
+    if (ec_curve_id != 0) {
+      ec_curve_name = OBJ_nid2sn(ec_curve_id);
+      if (ec_curve_name != nullptr) {
+        SetParam(env(), params, "namedCurve",
+                 String::NewFromUtf8(env()->isolate(), ec_curve_name,
+                                     NewStringType::kNormal).ToLocalChecked());
+      }
+    }
+    break;
+  }
+  return params;
+}
+
+void KeyObject::GetAsymmetricParams(const FunctionCallbackInfo<Value>& args) {
+  KeyObject* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+
+  args.GetReturnValue().Set(key->GetAsymmetricParams());
 }
 
 void KeyObject::GetSymmetricKeySize(const FunctionCallbackInfo<Value>& args) {

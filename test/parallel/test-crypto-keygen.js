@@ -122,10 +122,12 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.strictEqual(typeof publicKey, 'object');
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.params.modulusLength, 512);
 
   assert.strictEqual(typeof privateKey, 'object');
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(privateKey.params.modulusLength, 512);
 }
 
 {
@@ -465,6 +467,22 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
   }));
+
+  generateKeyPair('ec', {
+    namedCurve: 'secp521r1'
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'ec');
+    assert.strictEqual(publicKey.params.namedCurve, 'secp521r1');
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'ec');
+    assert.strictEqual(privateKey.params.namedCurve, 'secp521r1');
+
+    testSignVerify(publicKey, privateKey);
+  }));
 }
 
 {
@@ -643,6 +661,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(typeof publicKey, 'object');
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+    assert.strictEqual(publicKey.params.modulusLength, 1024);
 
     // The private key should still be a string.
     assert.strictEqual(typeof privateKey, 'string');
@@ -667,6 +686,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.strictEqual(typeof privateKey, 'object');
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+    assert.strictEqual(privateKey.params.modulusLength, 1024);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);

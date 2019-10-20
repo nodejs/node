@@ -120,17 +120,20 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
+  assert.strictEqual(publicKey.params.modulusLength, 2048);
 
   const privateKey = createPrivateKey(privatePem);
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
+  assert.strictEqual(privateKey.params.modulusLength, 2048);
 
   // It should be possible to derive a public key from a private key.
   const derivedPublicKey = createPublicKey(privateKey);
   assert.strictEqual(derivedPublicKey.type, 'public');
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
+  assert.strictEqual(derivedPublicKey.params.modulusLength, 2048);
 
   // Test exporting with an invalid options object, this should throw.
   for (const opt of [undefined, null, 'foo', 0, NaN]) {
@@ -293,6 +296,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
+  assert.strictEqual(publicKey.params.modulusLength, 1088);
+  assert.strictEqual(publicKey.params.divisorLength, 160);
 
   const privateKey = createPrivateKey({
     key: privateDsa,
@@ -302,7 +307,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
-
+  assert.strictEqual(privateKey.params.modulusLength, 1088);
+  assert.strictEqual(privateKey.params.divisorLength, 160);
 }
 
 {
@@ -318,9 +324,11 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
+    assert.strictEqual(publicKey.params.modulusLength, 2048);
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+    assert.strictEqual(privateKey.params.modulusLength, 2048);
 
     for (const key of [privatePem, privateKey]) {
       // Any algorithm should work.

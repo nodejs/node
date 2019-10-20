@@ -1309,6 +1309,26 @@ encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
 
+### keyObject.params
+<!-- YAML
+added: README
+-->
+
+* {object}
+
+This property exists only on asymmetric keys. Depending on the type of the key,
+this object contains information about the key. None of the information obtained
+through this property can be used to uniquely identify a key or to compromise
+the security of the key.
+
+For `'rsa'` and `'rsa-pss'` keys, this object has the property `modulusLength`.
+
+For `'dsa'` keys, this object has the properties `modulusLength` and
+`divisorLength`.
+
+For `'ec'` keys with a known curve, this object has the string property
+`namedCurve`.
+
 ### keyObject.symmetricKeySize
 <!-- YAML
 added: v11.6.0
