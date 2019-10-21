@@ -3926,10 +3926,10 @@ static inline void SetParam(Environment* env, Local<Object> params,
 }
 
 Local<Value> KeyObject::GetAsymmetricParams() const {
-  CHECK_NE(this->key_type_, kKeyTypeSecret);
+  CHECK_NE(key_type_, kKeyTypeSecret);
 
   Local<Object> params = Object::New(env()->isolate());
-  EVP_PKEY* pkey = this->asymmetric_key_.get();
+  EVP_PKEY* pkey = asymmetric_key_.get();
   RSA* rsa;
   DSA* dsa;
   EC_KEY* ec;
@@ -3949,7 +3949,6 @@ Local<Value> KeyObject::GetAsymmetricParams() const {
              Integer::New(env()->isolate(), RSA_bits(rsa)));
     // TODO(tniessen): Add publicExponent.
     break;
-    return env()->crypto_rsa_pss_string();
   case EVP_PKEY_DSA:
     dsa = EVP_PKEY_get0_DSA(pkey);
     SetParam(env(), params, "modulusLength",
@@ -3961,7 +3960,7 @@ Local<Value> KeyObject::GetAsymmetricParams() const {
     ec = EVP_PKEY_get0_EC_KEY(pkey);
     ec_group = EC_KEY_get0_group(ec);
     ec_curve_id = EC_GROUP_get_curve_name(ec_group);
-    if (ec_curve_id != 0) {
+    if (ec_curve_id != NID_undef) {
       ec_curve_name = OBJ_nid2sn(ec_curve_id);
       if (ec_curve_name != nullptr) {
         SetParam(env(), params, "namedCurve",
