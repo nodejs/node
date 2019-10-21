@@ -1650,10 +1650,10 @@ compatible.
 
 ### Shell Escaping
 
-`shellEscape` is an option introduced in Node 1X.Y.Z. It is intended to improve
-the safety of shell command-line by unifying the behavior of `args[]` with
-regard to metacharacters with the `shell: false` case. All metacharacters and
-shell-specific scripting should be placed in `command` instead. To preserve
+`shellEscape` is an option introduced in Node.js 1X.Y.Z. It is intended to
+improve the safety of shell command-line by unifying the behavior of `args[]`
+with regard to metacharacters with the `shell: false` case. All metacharacters
+and shell-specific scripting should be placed in `command` instead. To preserve
 backward compatibility, it is designed as an opt-in feature.
 
 If all of `shell`, `args`, and `shellEscape` are specified, the shell should
@@ -1684,6 +1684,9 @@ translates the `argv` for external programs to a Windows-style command-line
 string. Until it is fixed, the built-in PowerShell escape provided by Node.js
 is guaranteed to work for built-in commands only.
 
+:*WARNING*: Use caution while using this API. The shell-escaping is not a
+security feature and you should never pass user input into child_process APIs.
+
 ## Default Windows Shell
 
 Although Microsoft specifies `%COMSPEC%` must contain the path to
@@ -1708,7 +1711,7 @@ quoting. Since `cmd` has a `/s` switch that allows for verbatim processing
 of the command string, we turn on the flag to take advantage of that feature.
 
 A very common, alternative command-line parsing method is the Cygwin/MSYS2
-[`build_argv`]. It uses always-on globbing based on the POSIX glob(3),
+[`build_argv`][]. It uses always-on globbing based on the POSIX glob(3),
 with special provisions for dos-like paths. You may escape it as:
 
 ```js
