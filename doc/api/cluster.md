@@ -456,7 +456,7 @@ Workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
 accidental disconnection.
 
-### worker.send(message\[, sendHandle\]\[, callback\])
+### worker.send(message\[, sendHandle\[, options\]\]\[, callback\])
 <!-- YAML
 added: v0.7.0
 changes:
