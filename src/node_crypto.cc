@@ -2735,7 +2735,7 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
       case NID_ED448:
         sig_with_md = "Ed448+";
         break;
-
+#ifndef OPENSSL_NO_GOST
       case NID_id_GostR3410_2001:
         sig_with_md = "gost2001+";
         break;
@@ -2747,7 +2747,7 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
       case NID_id_GostR3410_2012_512:
         sig_with_md = "gost2012_512+";
         break;
-
+#endif  // !OPENSSL_NO_GOST
       default:
         const char* sn = OBJ_nid2sn(sign_nid);
 
