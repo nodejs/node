@@ -241,9 +241,9 @@ void MainThreadInterface::Post(std::unique_ptr<Request> request) {
       isolate_->RequestInterrupt([](v8::Isolate* isolate, void* opaque) {
         std::unique_ptr<std::weak_ptr<MainThreadInterface>> interface_ptr {
           static_cast<std::weak_ptr<MainThreadInterface>*>(opaque) };
-        std::shared_ptr<MainThreadInterface> interface = interface_ptr->lock();
-        if (interface)
-          interface->DispatchMessages();
+        std::shared_ptr<MainThreadInterface> iface = interface_ptr->lock();
+        if (iface)
+          iface->DispatchMessages();
       }, static_cast<void*>(interface_ptr));
     }
   }
