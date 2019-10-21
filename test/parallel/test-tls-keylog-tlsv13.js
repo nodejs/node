@@ -21,9 +21,13 @@ const server = tls.createServer({
     rejectUnauthorized: false,
   });
 
-  const verifyBuffer = (line) => assert(Buffer.isBuffer(line));
-  server.on('keylog', common.mustCall(verifyBuffer, 5));
-  client.on('keylog', common.mustCall(verifyBuffer, 5));
+  server.on('keylog', common.mustCall((line, tlsSocket) => {
+    assert(Buffer.isBuffer(line));
+    assert.strictEqual(tlsSocket.encrypted, true);
+  }, 5));
+  client.on('keylog', common.mustCall((line) => {
+    assert(Buffer.isBuffer(line));
+  }, 5));
 
   client.once('secureConnect', () => {
     server.close();
