@@ -97,7 +97,6 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
 }
 
 class InterpreterHandle {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
   Isolate* isolate_;
   const WasmModule* module_;
   WasmInterpreter interpreter_;
@@ -461,6 +460,9 @@ class InterpreterHandle {
     }
     return local_scope_object;
   }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
 
 }  // namespace
