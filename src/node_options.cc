@@ -567,6 +567,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
 
+  AddOption("--tls-keylog",
+            "log TLS decryption keys to named file for traffic analysis",
+            &EnvironmentOptions::tls_keylog, kAllowedInEnvironment);
+
   AddOption("--tls-min-v1.0",
             "set default TLS minimum to TLSv1.0 (default: TLSv1.2)",
             &EnvironmentOptions::tls_min_v1_0,

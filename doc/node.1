@@ -309,6 +309,11 @@ Specify process.title on startup.
 Specify an alternative default TLS cipher list.
 Requires Node.js to be built with crypto support. (Default)
 .
+.It Fl -tls-keylog Ns = Ns Ar file
+Log TLS key material to a file. The key material is in NSS SSLKEYLOGFILE
+format and can be used by software (such as Wireshark) to decrypt the TLS
+traffic.
+.
 .It Fl -tls-max-v1.2
 Set default  maxVersion to 'TLSv1.2'. Use to disable support for TLSv1.3.
 .
