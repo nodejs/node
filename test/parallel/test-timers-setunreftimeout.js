@@ -22,13 +22,13 @@ const { setUnrefTimeout } = require('internal/timers');
   const maxArgsNum = 4;
   for (let i = 0; i < maxArgsNum; i++) {
     const inputArgs = [];
-    // set the input argument params
+    // Set the input argument params
     for (let j = 0; j <= i; j++) {
       inputArgs.push(j);
     }
 
     const timer = setUnrefTimeout(common.mustCall((...args) => {
-      // check the number of arguments passed to this callback.
+      // Check the number of arguments passed to this callback.
       strictEqual(args.length, i + 1,
                   `arguments.length should be ${i + 1}.` +
                   `actual ${args.length}`
