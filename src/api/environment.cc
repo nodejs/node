@@ -361,6 +361,9 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   return handle_scope.Escape(exports);
 }
 
+// Any initialization logic should be performed in
+// InitializeContext, because embedders don't necessarily
+// call NewContext and so they will experience breakages.
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
@@ -369,8 +372,6 @@ Local<Context> NewContext(Isolate* isolate,
   if (!InitializeContext(context)) {
     return Local<Context>();
   }
-
-  InitializeContextRuntime(context);
 
   return context;
 }
@@ -405,7 +406,7 @@ void InitializeContextRuntime(Local<Context> context) {
   }
 }
 
-bool InitializeContext(Local<Context> context) {
+bool InitializeContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -456,6 +457,15 @@ bool InitializeContext(Local<Context> context) {
     }
   }
 
+  return true;
+}
+
+bool InitializeContext(Local<Context> context) {
+  if (!InitializeContextForSnapshot(context)) {
+    return false;
+  }
+
+  InitializeContextRuntime(context);
   return true;
 }
 
