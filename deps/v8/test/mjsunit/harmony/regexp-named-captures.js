@@ -419,6 +419,15 @@ function toSlowMode(re) {
   assertEquals("cd", "abcd".replace(re, "$<$1>"));
 }
 
+// Named captures are ordered by capture index on the groups object.
+// https://crbug.com/v8/9822
+
+{
+  const r = /(?<BKey>.+)\s(?<AKey>.+)/;
+  const s = 'example string';
+  assertArrayEquals(["BKey", "AKey"], Object.keys(r.exec(s).groups));
+}
+
 // Tests for 'groups' semantics on the regexp result object.
 // https://crbug.com/v8/7192
 
