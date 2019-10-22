@@ -5,7 +5,6 @@
 
 #include "env.h"
 #include "node_mutex.h"
-#include "sharedarraybuffer_metadata.h"
 #include <list>
 
 namespace node {
@@ -52,7 +51,7 @@ class Message : public MemoryRetainer {
 
   // Internal method of Message that is called when a new SharedArrayBuffer
   // object is encountered in the incoming value's structure.
-  void AddSharedArrayBuffer(const SharedArrayBufferMetadataReference& ref);
+  void AddSharedArrayBuffer(std::shared_ptr<v8::BackingStore> backing_store);
   // Internal method of Message that is called once serialization finishes
   // and that transfers ownership of `data` to this message.
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
@@ -74,8 +73,8 @@ class Message : public MemoryRetainer {
 
  private:
   MallocedBuffer<char> main_message_buf_;
-  std::vector<MallocedBuffer<char>> array_buffer_contents_;
-  std::vector<SharedArrayBufferMetadataReference> shared_array_buffers_;
+  std::vector<std::shared_ptr<v8::BackingStore>> array_buffers_;
+  std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
   std::vector<std::unique_ptr<MessagePortData>> message_ports_;
   std::vector<v8::WasmModuleObject::TransferrableModule> wasm_modules_;
 

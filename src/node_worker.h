@@ -48,7 +48,6 @@ class Worker : public AsyncWrap {
   SET_SELF_SIZE(Worker)
 
   bool is_stopped() const;
-  std::shared_ptr<ArrayBufferAllocator> array_buffer_allocator();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CloneParentEnvVars(
@@ -72,7 +71,6 @@ class Worker : public AsyncWrap {
   std::vector<std::string> argv_;
 
   MultiIsolatePlatform* platform_;
-  std::shared_ptr<ArrayBufferAllocator> array_buffer_allocator_;
   v8::Isolate* isolate_ = nullptr;
   bool start_profiler_idle_notifier_;
   uv_thread_t tid_;
