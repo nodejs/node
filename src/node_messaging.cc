@@ -12,7 +12,7 @@
 using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
+using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -123,10 +123,9 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
-    Local<SharedArrayBuffer> sab;
-    if (!shared_array_buffers_[i]->GetSharedArrayBuffer(env, context)
-            .ToLocal(&sab))
-      return MaybeLocal<Value>();
+    Local<SharedArrayBuffer> sab =
+        SharedArrayBuffer::New(env->isolate(),
+                               std::move(shared_array_buffers_[i]));
     shared_array_buffers.push_back(sab);
   }
   shared_array_buffers_.clear();
@@ -141,30 +140,12 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   delegate.deserializer = &deserializer;
 
   // Attach all transferred ArrayBuffers to their new Isolate.
-  for (uint32_t i = 0; i < array_buffer_contents_.size(); ++i) {
-    if (!env->isolate_data()->uses_node_allocator()) {
-      // We don't use Node's allocator on the receiving side, so we have
-      // to create the ArrayBuffer from a copy of the memory.
-      AllocatedBuffer buf =
-          env->AllocateManaged(array_buffer_contents_[i].size);
-      memcpy(buf.data(),
-             array_buffer_contents_[i].data,
-             array_buffer_contents_[i].size);
-      deserializer.TransferArrayBuffer(i, buf.ToArrayBuffer());
-      continue;
-    }
-
-    env->isolate_data()->node_allocator()->RegisterPointer(
-        array_buffer_contents_[i].data, array_buffer_contents_[i].size);
-
+  for (uint32_t i = 0; i < array_buffers_.size(); ++i) {
     Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(),
-                         array_buffer_contents_[i].release(),
-                         array_buffer_contents_[i].size,
-                         ArrayBufferCreationMode::kInternalized);
+        ArrayBuffer::New(env->isolate(), std::move(array_buffers_[i]));
     deserializer.TransferArrayBuffer(i, ab);
   }
-  array_buffer_contents_.clear();
+  array_buffers_.clear();
 
   if (deserializer.ReadHeader(context).IsNothing())
     return MaybeLocal<Value>();
@@ -173,8 +154,8 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
 }
 
 void Message::AddSharedArrayBuffer(
-    const SharedArrayBufferMetadataReference& reference) {
-  shared_array_buffers_.push_back(reference);
+    std::shared_ptr<BackingStore> backing_store) {
+  shared_array_buffers_.emplace_back(std::move(backing_store));
 }
 
 void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
@@ -249,16 +230,9 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       }
     }
 
-    auto reference = SharedArrayBufferMetadata::ForSharedArrayBuffer(
-        env_,
-        context_,
-        shared_array_buffer);
-    if (!reference) {
-      return Nothing<uint32_t>();
-    }
     seen_shared_array_buffers_.emplace_back(
       Global<SharedArrayBuffer> { isolate, shared_array_buffer });
-    msg_->AddSharedArrayBuffer(reference);
+    msg_->AddSharedArrayBuffer(shared_array_buffer->GetBackingStore());
     return Just(i);
   }
 
@@ -386,18 +360,12 @@ Maybe<bool> Message::Serialize(Environment* env,
   }
 
   for (Local<ArrayBuffer> ab : array_buffers) {
-    // If serialization succeeded, we want to take ownership of
-    // (a.k.a. externalize) the underlying memory region and render
-    // it inaccessible in this Isolate.
-    ArrayBuffer::Contents contents = ab->Externalize();
+    // If serialization succeeded, we render it inaccessible in this Isolate.
+    std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
+    ab->Externalize(backing_store);
     ab->Detach();
 
-    CHECK(env->isolate_data()->uses_node_allocator());
-    env->isolate_data()->node_allocator()->UnregisterPointer(
-        contents.Data(), contents.ByteLength());
-
-    array_buffer_contents_.emplace_back(MallocedBuffer<char>{
-        static_cast<char*>(contents.Data()), contents.ByteLength()});
+    array_buffers_.emplace_back(std::move(backing_store));
   }
 
   delegate.Finish();
@@ -411,9 +379,8 @@ Maybe<bool> Message::Serialize(Environment* env,
 }
 
 void Message::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
-  tracker->TrackFieldWithSize("shared_array_buffers",
-      shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
+  tracker->TrackField("array_buffers_", array_buffers_);
+  tracker->TrackField("shared_array_buffers", shared_array_buffers_);
   tracker->TrackField("message_ports", message_ports_);
 }
 

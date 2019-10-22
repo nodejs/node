@@ -279,6 +279,20 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator,
   return NewIsolate(&params, event_loop, platform);
 }
 
+Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform) {
+  Isolate::CreateParams params;
+  if (allocator) {
+    params.array_buffer_allocator = allocator.get();
+  }
+  Isolate* isolate = NewIsolate(&params, event_loop, platform);
+  if (isolate != nullptr && allocator) {
+    isolate->SetArrayBufferAllocatorShared(std::move(allocator));
+  }
+  return isolate;
+}
+
 IsolateData* CreateIsolateData(Isolate* isolate,
                                uv_loop_t* loop,
                                MultiIsolatePlatform* platform,
