@@ -12,7 +12,7 @@ const { setUnrefTimeout } = require('internal/timers');
     {
       code: 'ERR_INVALID_CALLBACK',
       type: TypeError,
-      message: 'Callback must be a function'
+      message: 'Callback must be a function. Received undefined'
     }
   );
 }
