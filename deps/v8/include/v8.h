@@ -1440,11 +1440,19 @@ class V8_EXPORT Module {
   /**
    * Set this module's exported value for the name export_name to the specified
    * export_value. This method must be called only on Modules created via
-   * CreateSyntheticModule. export_name must be one of the export_names that
-   * were passed in that CreateSyntheticModule call.
+   * CreateSyntheticModule.  An error will be thrown if export_name is not one
+   * of the export_names that were passed in that CreateSyntheticModule call.
+   * Returns Just(true) on success, Nothing<bool>() if an error was thrown.
    */
-  void SetSyntheticModuleExport(Local<String> export_name,
-                                Local<Value> export_value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
+      Isolate* isolate, Local<String> export_name, Local<Value> export_value);
+  V8_DEPRECATE_SOON(
+      "Use the preceding SetSyntheticModuleExport with an Isolate parameter, "
+      "instead of the one that follows.  The former will throw a runtime "
+      "error if called for an export that doesn't exist (as per spec); "
+      "the latter will crash with a failed CHECK().",
+      void SetSyntheticModuleExport(Local<String> export_name,
+                                    Local<Value> export_value));
 };
 
 /**
