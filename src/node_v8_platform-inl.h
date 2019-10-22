@@ -99,6 +99,7 @@ struct V8Platform {
   }
 
   inline void Dispose() {
+    v8::V8::ShutdownPlatform();
     StopTracingAgent();
     platform_->Shutdown();
     delete platform_;
