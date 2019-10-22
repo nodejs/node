@@ -33,7 +33,7 @@ namespace proxy {
 
       // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError
       // exception.
-      if (!Is<JSReceiver>(handlerProto)) {
+      if (!Is<JSReceiver>(handlerProto) && handlerProto != Null) {
         goto ThrowProxyGetPrototypeOfInvalid;
       }
 
