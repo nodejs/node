@@ -20,6 +20,7 @@ using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
@@ -353,6 +354,8 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
       EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, data,
       PropertyHandlerFlags::kHasNoSideEffect));
-  return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
+  MaybeLocal<Object> env_proxy = env_proxy_template->NewInstance(context);
+  CHECK(env_proxy.ToLocalChecked()->SetPrototype(context, Null(isolate)).FromJust());
+  return scope.EscapeMaybe(env_proxy);
 }
 }  // namespace node
