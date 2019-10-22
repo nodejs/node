@@ -144,8 +144,9 @@ added: v12.12.0
 
 Enable experimental Source Map V3 support for stack traces.
 
-Note, that `--enable-source-maps` does not work in conjunction with the
-`Error.prepareStackTrace` hook.
+
+Currently, overriding `Error.prepareStackTrace` is ignored when the
+`--enable-source-maps` flag is set.
 
 ### `--es-module-specifier-resolution=mode`
 <!-- YAML
