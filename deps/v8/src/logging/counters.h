@@ -780,6 +780,7 @@ class RuntimeCallTimer final {
   V(Message_GetStartColumn)                                \
   V(Module_Evaluate)                                       \
   V(Module_InstantiateModule)                              \
+  V(Module_SetSyntheticModuleExport)                       \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \
