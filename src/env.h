@@ -156,7 +156,6 @@ constexpr size_t kFsStatsBufferLength =
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
   V(napi_wrapper, "node:napi:wrapper")                                        \
-  V(sab_lifetimepartner_symbol, "node:sharedArrayBufferLifetimePartner")      \
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
@@ -1253,10 +1252,6 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
-  // Only available if a MultiIsolatePlatform is in use.
-  void AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
-      std::shared_ptr<v8::ArrayBuffer::Allocator>);
-
  private:
   template <typename Fn>
   inline void CreateImmediate(Fn&& cb,
@@ -1435,10 +1430,6 @@ class Environment : public MemoryRetainer {
   // A custom async abstraction (a pair of async handle and a state variable)
   // Used by embedders to shutdown running Node instance.
   AsyncRequest thread_stopper_;
-
-  typedef std::unordered_set<std::shared_ptr<v8::ArrayBuffer::Allocator>>
-      ArrayBufferAllocatorList;
-  ArrayBufferAllocatorList* keep_alive_allocators_ = nullptr;
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);

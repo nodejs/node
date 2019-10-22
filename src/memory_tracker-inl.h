@@ -109,6 +109,16 @@ void MemoryTracker::TrackField(const char* edge_name,
   TrackField(edge_name, value.get(), node_name);
 }
 
+template <typename T>
+void MemoryTracker::TrackField(const char* edge_name,
+                               const std::shared_ptr<T>& value,
+                               const char* node_name) {
+  if (value.get() == nullptr) {
+    return;
+  }
+  TrackField(edge_name, value.get(), node_name);
+}
+
 template <typename T, typename Iterator>
 void MemoryTracker::TrackField(const char* edge_name,
                                const T& value,
@@ -204,6 +214,12 @@ void MemoryTracker::TrackField(const char* edge_name,
                                const MallocedBuffer<T>& value,
                                const char* node_name) {
   TrackFieldWithSize(edge_name, value.size, "MallocedBuffer");
+}
+
+void MemoryTracker::TrackField(const char* edge_name,
+                               const v8::BackingStore* value,
+                               const char* node_name) {
+  TrackFieldWithSize(edge_name, value->ByteLength(), "BackingStore");
 }
 
 void MemoryTracker::TrackField(const char* name,

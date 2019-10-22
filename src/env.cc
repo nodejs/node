@@ -1038,21 +1038,6 @@ char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
   return new_data;
 }
 
-void Environment::AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
-    std::shared_ptr<v8::ArrayBuffer::Allocator> allocator) {
-  if (keep_alive_allocators_ == nullptr) {
-    MultiIsolatePlatform* platform = isolate_data()->platform();
-    CHECK_NOT_NULL(platform);
-
-    keep_alive_allocators_ = new ArrayBufferAllocatorList();
-    platform->AddIsolateFinishedCallback(isolate(), [](void* data) {
-      delete static_cast<ArrayBufferAllocatorList*>(data);
-    }, static_cast<void*>(keep_alive_allocators_));
-  }
-
-  keep_alive_allocators_->insert(allocator);
-}
-
 bool Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 

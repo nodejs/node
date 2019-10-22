@@ -138,6 +138,10 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const std::unique_ptr<T>& value,
                          const char* node_name = nullptr);
+  template <typename T>
+  inline void TrackField(const char* edge_name,
+                         const std::shared_ptr<T>& value,
+                         const char* node_name = nullptr);
 
   // For containers, the elements will be graphed as grandchildren nodes
   // if the container is not empty.
@@ -196,6 +200,9 @@ class MemoryTracker {
   template <typename T>
   inline void TrackField(const char* edge_name,
                          const MallocedBuffer<T>& value,
+                         const char* node_name = nullptr);
+  inline void TrackField(const char* edge_name,
+                         const v8::BackingStore* value,
                          const char* node_name = nullptr);
   // We do not implement CleanupHookCallback as MemoryRetainer
   // but instead specialize the method here to avoid the cost of
