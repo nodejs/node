@@ -29,9 +29,21 @@ class SyntheticModule : public Module {
   DECL_ACCESSORS(export_names, FixedArray)
   DECL_ACCESSORS(evaluation_steps, Foreign)
 
-  static void SetExport(Isolate* isolate, Handle<SyntheticModule> module,
-                        Handle<String> export_name,
-                        Handle<Object> export_value);
+  // Set module's exported value for the specified export_name to the specified
+  // export_value.  An error will be thrown if export_name is not one
+  // of the export_names that were supplied during module construction.
+  // Returns Just(true) on success, Nothing<bool>() if an error was thrown.
+  static Maybe<bool> SetExport(Isolate* isolate, Handle<SyntheticModule> module,
+                               Handle<String> export_name,
+                               Handle<Object> export_value);
+  // The following redundant method should be deleted when the deprecated
+  // version of v8::SetSyntheticModuleExport is removed.  It differs from
+  // SetExport in that it crashes rather than throwing an error if the caller
+  // attempts to set an export_name that was not present during construction of
+  // the module.
+  static void SetExportStrict(Isolate* isolate, Handle<SyntheticModule> module,
+                              Handle<String> export_name,
+                              Handle<Object> export_value);
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(Module::kHeaderSize,
