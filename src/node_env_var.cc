@@ -354,8 +354,15 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
       EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, data,
       PropertyHandlerFlags::kHasNoSideEffect));
-  MaybeLocal<Object> env_proxy = env_proxy_template->NewInstance(context);
-  CHECK(env_proxy.ToLocalChecked()->SetPrototype(context, Null(isolate)).FromJust());
-  return scope.EscapeMaybe(env_proxy);
+
+  MaybeLocal<Object> env_proxy_ml = env_proxy_template->NewInstance(context);
+  Local<Object> env_proxy;
+  if (!env_proxy_ml.ToLocal(&env_proxy)) {
+    return MaybeLocal<Object>();
+  }
+
+  CHECK(env_proxy->SetPrototype(context, Null(isolate)).FromJust());
+
+  return scope.Escape(env_proxy);
 }
 }  // namespace node
