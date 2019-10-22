@@ -36,8 +36,6 @@ const assert = require('assert');
     });
   }
 
-  // https://bugs.chromium.org/p/v8/issues/detail?id=9828
-  /*
   {
     const s = new SyntheticModule([], () => {});
     await s.link(() => {});
@@ -47,7 +45,6 @@ const assert = require('assert');
       name: 'ReferenceError',
     });
   }
-  */
 
   {
     const s = new SyntheticModule([], () => {});
