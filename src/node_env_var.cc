@@ -361,7 +361,9 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
     return MaybeLocal<Object>();
   }
 
-  CHECK(env_proxy->SetPrototype(context, Null(isolate)).FromJust());
+  if (env_proxy->SetPrototype(context, Null(isolate)).IsNothing()) {
+    return MaybeLocal<Object>();
+  }
 
   return scope.Escape(env_proxy);
 }
