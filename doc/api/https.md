@@ -94,7 +94,7 @@ See [`server.close()`][`http.close()`] from the HTTP module for details.
 added: v11.3.0
 -->
 
-* {number} **Default:** `40000`
+* {number} **Default:** `60000`
 
 See [`http.Server#headersTimeout`][].
 
