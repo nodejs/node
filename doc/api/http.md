@@ -1064,7 +1064,7 @@ Stops the server from accepting new connections. See [`net.Server.close()`][].
 added: v11.3.0
 -->
 
-* {number} **Default:** `40000`
+* {number} **Default:** `60000`
 
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
