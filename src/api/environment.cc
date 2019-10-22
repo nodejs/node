@@ -419,7 +419,10 @@ bool InitializeContext(Local<Context> context) {
 
     Local<String> primordials_string =
         FIXED_ONE_BYTE_STRING(isolate, "primordials");
-    Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
+    // TODO(joyeecheung): remove this once we only need to support V8
+    // that ships globalThis.
+    Local<String> global_this_string =
+        FIXED_ONE_BYTE_STRING(isolate, "globalThis");
     Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
 
     // Create primordials first and make it available to per-context scripts.
@@ -436,7 +439,7 @@ bool InitializeContext(Local<Context> context) {
 
     for (const char** module = context_files; *module != nullptr; module++) {
       std::vector<Local<String>> parameters = {
-          global_string, exports_string, primordials_string};
+          global_this_string, exports_string, primordials_string};
       Local<Value> arguments[] = {context->Global(), exports, primordials};
       MaybeLocal<Function> maybe_fn =
           native_module::NativeModuleEnv::LookupAndCompile(

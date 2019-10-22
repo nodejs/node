@@ -169,7 +169,10 @@ MaybeLocal<Function> NativeModuleLoader::CompileAsModule(
       FIXED_ONE_BYTE_STRING(isolate, "module"),
       FIXED_ONE_BYTE_STRING(isolate, "process"),
       FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-      FIXED_ONE_BYTE_STRING(isolate, "primordials")};
+      FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+      // TODO(joyeecheung): remove this once we only need to support V8
+      // that ships globalThis.
+      FIXED_ONE_BYTE_STRING(isolate, "globalThis")};
   return LookupAndCompile(context, id, &parameters, result);
 }
 

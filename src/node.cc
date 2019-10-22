@@ -279,7 +279,10 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       process_string(),
       FIXED_ONE_BYTE_STRING(isolate_, "getLinkedBinding"),
       FIXED_ONE_BYTE_STRING(isolate_, "getInternalBinding"),
-      primordials_string()};
+      primordials_string(),
+      // TODO(joyeecheung): remove this once we only need to support V8
+      // that ships globalThis.
+      FIXED_ONE_BYTE_STRING(isolate_, "globalThis")};
   std::vector<Local<Value>> loaders_args = {
       process_object(),
       NewFunctionTemplate(binding::GetLinkedBinding)
@@ -288,7 +291,8 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       NewFunctionTemplate(binding::GetInternalBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
-      primordials()};
+      primordials(),
+      context()->Global()};
 
   // Bootstrap internal loaders
   Local<Value> loader_exports;
@@ -315,27 +319,26 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
-  Local<Object> global = context()->Global();
-  // TODO(joyeecheung): this can be done in JS land now.
-  global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
-      .Check();
-
   // process, require, internalBinding, isMainThread,
-  // ownsProcessState, primordials
+  // ownsProcessState, primordials, globalThis
   std::vector<Local<String>> node_params = {
       process_string(),
       require_string(),
       internal_binding_string(),
       FIXED_ONE_BYTE_STRING(isolate_, "isMainThread"),
       FIXED_ONE_BYTE_STRING(isolate_, "ownsProcessState"),
-      primordials_string()};
+      primordials_string(),
+      // TODO(joyeecheung): remove this once we only need to support V8
+      // that ships globalThis.
+      FIXED_ONE_BYTE_STRING(isolate_, "globalThis")};
   std::vector<Local<Value>> node_args = {
       process_object(),
       native_module_require(),
       internal_binding_loader(),
       Boolean::New(isolate_, is_main_thread()),
       Boolean::New(isolate_, owns_process_state()),
-      primordials()};
+      primordials(),
+      context()->Global()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
       this, "internal/bootstrap/node", &node_params, &node_args);
