@@ -1,46 +1,9 @@
 /* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { debuglog } = require('util');
 const { isMainThread } = require('worker_threads');
-
-const debug = debuglog('test/tmpdir');
-
-function rimrafSync(pathname, { spawn = true } = {}) {
-  const st = (() => {
-    try {
-      return fs.lstatSync(pathname);
-    } catch (e) {
-      if (fs.existsSync(pathname))
-        throw new Error(`Something wonky happened rimrafing ${pathname}`);
-      debug(e);
-    }
-  })();
-
-  // If (!st) then nothing to do.
-  if (!st) {
-    return;
-  }
-
-  // On Windows first try to delegate rmdir to a shell.
-  if (spawn && process.platform === 'win32' && st.isDirectory()) {
-    try {
-      // Try `rmdir` first.
-      execSync(`rmdir /q /s ${pathname}`, { timeout: 1000 });
-    } catch (e) {
-      // Attempt failed. Log and carry on.
-      debug(e);
-    }
-  }
-
-  fs.rmdirSync(pathname, { recursive: true, maxRetries: 5 });
-
-  if (fs.existsSync(pathname))
-    throw new Error(`Unable to rimraf ${pathname}`);
-}
 
 const testRoot = process.env.NODE_TEST_DIR ?
   fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
@@ -52,8 +15,14 @@ const tmpdirName = '.tmp.' +
 const tmpPath = path.join(testRoot, tmpdirName);
 
 let firstRefresh = true;
-function refresh(opts = {}) {
-  rimrafSync(this.path, opts);
+function refresh() {
+  try {
+    fs.rmdirSync(this.path, { recursive: true });
+  } catch (e) {
+    if (e.code !== 'ENOENT') {
+      throw e;
+    }
+  }
   fs.mkdirSync(this.path);
 
   if (firstRefresh) {
@@ -70,7 +39,7 @@ function onexit() {
     process.chdir(testRoot);
 
   try {
-    rimrafSync(tmpPath, { spawn: false });
+    fs.rmdirSync(tmpPath, { recursive: true });
   } catch (e) {
     console.error('Can\'t clean tmpdir:', tmpPath);
 
