@@ -1500,7 +1500,7 @@ void ModuleWrap::SetSyntheticExport(
   Local<Value> export_value = args[1];
 
   Local<Module> module = obj->module_.Get(isolate);
-  module->SetSyntheticModuleExport(export_name, export_value);
+  USE(module->SetSyntheticModuleExport(isolate, export_name, export_value));
 }
 
 void ModuleWrap::Initialize(Local<Object> target,
