@@ -477,7 +477,7 @@ class RegExpCapture final : public RegExpTree {
   int max_match() override { return body_->max_match(); }
   RegExpTree* body() { return body_; }
   void set_body(RegExpTree* body) { body_ = body; }
-  int index() { return index_; }
+  int index() const { return index_; }
   const ZoneVector<uc16>* name() const { return name_; }
   void set_name(const ZoneVector<uc16>* name) { name_ = name; }
   static int StartRegister(int index) { return index * 2; }
