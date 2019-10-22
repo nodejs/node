@@ -91,9 +91,7 @@ class DispatchMessagesTask : public v8::Task {
                                 : thread_(thread) {}
 
   void Run() override {
-    std::shared_ptr<MainThreadInterface> thread = thread_.lock();
-    if (thread)
-      thread->DispatchMessages();
+    if (auto thread = thread_.lock()) thread->DispatchMessages();
   }
 
  private:
@@ -241,9 +239,7 @@ void MainThreadInterface::Post(std::unique_ptr<Request> request) {
       isolate_->RequestInterrupt([](v8::Isolate* isolate, void* opaque) {
         std::unique_ptr<std::weak_ptr<MainThreadInterface>> interface_ptr {
           static_cast<std::weak_ptr<MainThreadInterface>*>(opaque) };
-        std::shared_ptr<MainThreadInterface> iface = interface_ptr->lock();
-        if (iface)
-          iface->DispatchMessages();
+        if (auto iface = interface_ptr->lock()) iface->DispatchMessages();
       }, static_cast<void*>(interface_ptr));
     }
   }
