@@ -7,10 +7,10 @@
 # pyenv will alert which shims are available and then will fail the build.
 _=[ 'exec' '/bin/sh' '-c' '''
 test ${TRAVIS} && exec python "$0" "$@"  # workaround for pyenv on Travis CI
-which python2.7 >/dev/null && exec python2.7 "$0" "$@"
 which python3.7 >/dev/null && exec python3.7 "$0" "$@"
 which python3.6 >/dev/null && exec python3.6 "$0" "$@"
 which python3.5 >/dev/null && exec python3.5 "$0" "$@"
+which python2.7 >/dev/null && exec python2.7 "$0" "$@"
 exec python "$0" "$@"
 ''' "$0" "$@"
 ]
