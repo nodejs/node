@@ -60,6 +60,7 @@ if (common.hasCrypto) {
 
 // V8 options
 expect('--abort_on-uncaught_exception', 'B\n');
+expect('--disallow-code-generation-from-strings', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
 expect('--stack-trace-limit=100',
        /(\s*at f \(\[eval\]:1:\d*\)\r?\n){100}/,

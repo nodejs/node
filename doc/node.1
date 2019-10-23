@@ -100,6 +100,11 @@ The default is
 File name of the V8 CPU profile generated with
 .Fl -cpu-prof
 .
+.It Fl -disallow-code-generation-from-strings
+Make built-in language features like `eval` and `new Function` that generate
+code from strings throw an exception instead. This does not affect the Node.js
+`vm` module.
+.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
