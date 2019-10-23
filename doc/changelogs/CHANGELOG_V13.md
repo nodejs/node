@@ -29,6 +29,52 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
+<a id="13.0.1"></a>
+## 2019-10-23, Version 13.0.1 (Current), @targos
+
+### Notable Changes
+
+* **deps**:
+  * Fixed a bug in npm 6.12.0 where warnings are emitted on Node.js 13.x (Jordan Harband) [#30079](https://github.com/nodejs/node/pull/30079).
+* **esm**:
+  * Changed file extension resolution order of `--es-module-specifier-resolution=node`
+    to match that of the CommonJS loader (Myles Borins) [#29974](https://github.com/nodejs/node/pull/29974).
+
+### Commits
+
+* [[`19a983c615`](https://github.com/nodejs/node/commit/19a983c615)] - **build**: make linter failures fail `test-doc` target (Richard Lau) [#30012](https://github.com/nodejs/node/pull/30012)
+* [[`13f3d6c680`](https://github.com/nodejs/node/commit/13f3d6c680)] - **build**: log the found compiler version if too old (Richard Lau) [#30028](https://github.com/nodejs/node/pull/30028)
+* [[`a25d2fcf8b`](https://github.com/nodejs/node/commit/a25d2fcf8b)] - **build**: make configure --without-snapshot a no-op (Michaël Zasso) [#30021](https://github.com/nodejs/node/pull/30021)
+* [[`e04d0584a5`](https://github.com/nodejs/node/commit/e04d0584a5)] - **build**: default Windows build to Visual Studio 2019 (Michaël Zasso) [#30022](https://github.com/nodejs/node/pull/30022)
+* [[`ccf58835c7`](https://github.com/nodejs/node/commit/ccf58835c7)] - **build**: use python3 to build and test on Travis (Christian Clauss) [#29451](https://github.com/nodejs/node/pull/29451)
+* [[`b92afcd90c`](https://github.com/nodejs/node/commit/b92afcd90c)] - **build**: fix version checks in configure.py (Michaël Zasso) [#29965](https://github.com/nodejs/node/pull/29965)
+* [[`2dc4da0d8b`](https://github.com/nodejs/node/commit/2dc4da0d8b)] - **build**: build benchmark addons like test addons (Richard Lau) [#29995](https://github.com/nodejs/node/pull/29995)
+* [[`2f36976594`](https://github.com/nodejs/node/commit/2f36976594)] - **deps**: npm: patch support for 13.x (Jordan Harband) [#30079](https://github.com/nodejs/node/pull/30079)
+* [[`9d332ab4ce`](https://github.com/nodejs/node/commit/9d332ab4ce)] - **deps**: upgrade to libuv 1.33.1 (Colin Ihrig) [#29996](https://github.com/nodejs/node/pull/29996)
+* [[`89b9115c4d`](https://github.com/nodejs/node/commit/89b9115c4d)] - **doc**: --enable-source-maps and prepareStackTrace are incompatible (Benjamin Coe) [#30046](https://github.com/nodejs/node/pull/30046)
+* [[`35bffcdd9d`](https://github.com/nodejs/node/commit/35bffcdd9d)] - **doc**: join parts of disrupt section in cli.md (vsemozhetbyt) [#30038](https://github.com/nodejs/node/pull/30038)
+* [[`0299767508`](https://github.com/nodejs/node/commit/0299767508)] - **doc**: update collaborator email address (Minwoo Jung) [#30007](https://github.com/nodejs/node/pull/30007)
+* [[`ff4f2999e6`](https://github.com/nodejs/node/commit/ff4f2999e6)] - **doc**: fix tls version typo (akitsu-sanae) [#29984](https://github.com/nodejs/node/pull/29984)
+* [[`62b4ca6e32`](https://github.com/nodejs/node/commit/62b4ca6e32)] - **doc**: clarify readable.unshift null/EOF (Robert Nagy) [#29950](https://github.com/nodejs/node/pull/29950)
+* [[`dc83ff9056`](https://github.com/nodejs/node/commit/dc83ff9056)] - **doc**: remove unused Markdown reference links (Nick Schonning) [#29961](https://github.com/nodejs/node/pull/29961)
+* [[`d80ece68ac`](https://github.com/nodejs/node/commit/d80ece68ac)] - **doc**: re-enable passing remark-lint rule (Nick Schonning) [#29961](https://github.com/nodejs/node/pull/29961)
+* [[`828e171107`](https://github.com/nodejs/node/commit/828e171107)] - **doc**: add server header into the discarded list of http message.headers (Huachao Mao) [#29962](https://github.com/nodejs/node/pull/29962)
+* [[`9729c5da8a`](https://github.com/nodejs/node/commit/9729c5da8a)] - **esm**: modify resolution order for specifier flag (Myles Borins) [#29974](https://github.com/nodejs/node/pull/29974)
+* [[`cfd45ebf94`](https://github.com/nodejs/node/commit/cfd45ebf94)] - **module**: refactor modules bootstrap (Bradley Farias) [#29937](https://github.com/nodejs/node/pull/29937)
+* [[`d561321e4a`](https://github.com/nodejs/node/commit/d561321e4a)] - **src**: remove unnecessary std::endl usage (Daniel Bevenius) [#30003](https://github.com/nodejs/node/pull/30003)
+* [[`ed80c233cd`](https://github.com/nodejs/node/commit/ed80c233cd)] - **src**: make implementing CancelPendingDelayedTasks for platform optional (Anna Henningsen) [#30034](https://github.com/nodejs/node/pull/30034)
+* [[`8fcc039de9`](https://github.com/nodejs/node/commit/8fcc039de9)] - **src**: expose ListNode\<T\>::prev\_ on postmortem metadata (legendecas) [#30027](https://github.com/nodejs/node/pull/30027)
+* [[`0c88dc1932`](https://github.com/nodejs/node/commit/0c88dc1932)] - **src**: fewer uses of NODE\_USE\_V8\_PLATFORM (Shelley Vohr) [#30029](https://github.com/nodejs/node/pull/30029)
+* [[`972144073b`](https://github.com/nodejs/node/commit/972144073b)] - **src**: remove unused iomanip include (Daniel Bevenius) [#30004](https://github.com/nodejs/node/pull/30004)
+* [[`b019ccd59d`](https://github.com/nodejs/node/commit/b019ccd59d)] - **src**: initialize openssl only once (Sam Roberts) [#29999](https://github.com/nodejs/node/pull/29999)
+* [[`3eae670470`](https://github.com/nodejs/node/commit/3eae670470)] - **src**: refine maps parsing for large pages (Gabriel Schulhof) [#29973](https://github.com/nodejs/node/pull/29973)
+* [[`f3712dfe83`](https://github.com/nodejs/node/commit/f3712dfe83)] - **stream**: simplify uint8ArrayToBuffer helper (Luigi Pinca) [#30041](https://github.com/nodejs/node/pull/30041)
+* [[`46aa4810ad`](https://github.com/nodejs/node/commit/46aa4810ad)] - **stream**: remove dead code (Luigi Pinca) [#30041](https://github.com/nodejs/node/pull/30041)
+* [[`f155dfeecb`](https://github.com/nodejs/node/commit/f155dfeecb)] - **test**: expand Worker test for non-shared ArrayBuffer (Anna Henningsen) [#30044](https://github.com/nodejs/node/pull/30044)
+* [[`e110d81b17`](https://github.com/nodejs/node/commit/e110d81b17)] - **test**: fix test runner for Python 3 on Windows (Michaël Zasso) [#30023](https://github.com/nodejs/node/pull/30023)
+* [[`c096f251e4`](https://github.com/nodejs/node/commit/c096f251e4)] - **test**: remove common.skipIfInspectorEnabled() (Rich Trott) [#29993](https://github.com/nodejs/node/pull/29993)
+* [[`b1b8663a23`](https://github.com/nodejs/node/commit/b1b8663a23)] - **test**: add cb error test for fs.close() (Matteo Rossi) [#29970](https://github.com/nodejs/node/pull/29970)
+
 <a id="13.0.0"></a>
 ## 2019-10-22, Version 13.0.0 (Current), @BethGriggs
 
