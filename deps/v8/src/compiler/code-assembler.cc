@@ -1439,6 +1439,13 @@ Node* CodeAssembler::CallCFunction(
   return raw_assembler()->CallCFunction(function, return_type, args);
 }
 
+Node* CodeAssembler::CallCFunctionWithoutFunctionDescriptor(
+    Node* function, MachineType return_type,
+    std::initializer_list<CodeAssembler::CFunctionArg> args) {
+  return raw_assembler()->CallCFunctionWithoutFunctionDescriptor(
+      function, return_type, args);
+}
+
 Node* CodeAssembler::CallCFunctionWithCallerSavedRegisters(
     Node* function, MachineType return_type, SaveFPRegsMode mode,
     std::initializer_list<CodeAssembler::CFunctionArg> args) {

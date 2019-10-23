@@ -113,8 +113,6 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
       internal_failure_label_() {
   DCHECK_EQ(0, registers_to_save % 2);
 
-  // Because RegExp code respects C ABI, so needs a FD
-  __ function_descriptor();
 
   __ b(&entry_label_);  // We'll write the entry code later.
   // If the code gets too big or corrupted, an internal exception will be
