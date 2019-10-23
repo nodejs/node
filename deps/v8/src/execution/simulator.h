@@ -121,13 +121,6 @@ class GeneratedCode {
     return Simulator::current(isolate_)->template Call<Return>(
         reinterpret_cast<Address>(fn_ptr_), args...);
   }
-
-  DISABLE_CFI_ICALL Return CallIrregexp(Args... args) {
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    FATAL("Generated code execution not possible during cross-compilation.");
-#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    return Call(args...);
-  }
 #else
 
   DISABLE_CFI_ICALL Return Call(Args... args) {
@@ -148,14 +141,6 @@ class GeneratedCode {
 #else
     return fn_ptr_(args...);
 #endif  // V8_OS_AIX
-  }
-
-  DISABLE_CFI_ICALL Return CallIrregexp(Args... args) {
-    // When running without a simulator we call the entry directly.
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    FATAL("Generated code execution not possible during cross-compilation.");
-#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    return fn_ptr_(args...);
   }
 #endif  // USE_SIMULATOR
 

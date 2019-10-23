@@ -2810,10 +2810,17 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode = kArchNop;
   switch (call_descriptor->kind()) {
-    case CallDescriptor::kCallAddress:
-      opcode = kArchCallCFunction | MiscField::encode(static_cast<int>(
-                                        call_descriptor->ParameterCount()));
+    case CallDescriptor::kCallAddress: {
+      int misc_field = static_cast<int>(call_descriptor->ParameterCount());
+#if defined(_AIX)
+      // Highest misc_field bit is used on AIX to indicate if a CFunction call
+      // has function descriptor or not.
+      misc_field |= call_descriptor->HasFunctionDescriptor()
+                    << kHasFunctionDescriptorBitShift;
+#endif
+      opcode = kArchCallCFunction | MiscField::encode(misc_field);
       break;
+    }
     case CallDescriptor::kCallCodeObject:
       opcode = kArchCallCodeObject | MiscField::encode(flags);
       break;

@@ -209,6 +209,12 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Move(scratch, reference);
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // AIX uses a function descriptor. When calling C code be
+    // aware of this descriptor and pick up values from it.
+    LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(scratch, kPointerSize));
+    LoadP(scratch, MemOperand(scratch, 0));
+  }
   Jump(scratch);
 }
 
@@ -1930,28 +1936,35 @@ void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
 
 void TurboAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
-                                   int num_double_arguments) {
+                                   int num_double_arguments,
+                                   bool has_function_descriptor) {
   Move(ip, function);
-  CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments);
+  CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments,
+                      has_function_descriptor);
 }
 
 void TurboAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+                                   int num_double_arguments,
+                                   bool has_function_descriptor) {
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                      has_function_descriptor);
 }
 
 void TurboAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+                                   int num_arguments,
+                                   bool has_function_descriptor) {
+  CallCFunction(function, num_arguments, 0, has_function_descriptor);
 }
 
-void TurboAssembler::CallCFunction(Register function, int num_arguments) {
-  CallCFunction(function, num_arguments, 0);
+void TurboAssembler::CallCFunction(Register function, int num_arguments,
+                                   bool has_function_descriptor) {
+  CallCFunction(function, num_arguments, 0, has_function_descriptor);
 }
 
 void TurboAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
-                                         int num_double_arguments) {
+                                         int num_double_arguments,
+                                         bool has_function_descriptor) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
@@ -1976,7 +1989,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // allow preemption, so the return address in the link register
   // stays correct.
   Register dest = function;
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+  if (ABI_USES_FUNCTION_DESCRIPTORS && has_function_descriptor) {
     // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
     // aware of this descriptor and pick up values from it
     LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));

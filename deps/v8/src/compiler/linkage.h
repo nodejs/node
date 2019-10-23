@@ -352,9 +352,18 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   SaveFPRegsMode get_save_fp_mode() const { return save_fp_mode_; }
 
+  void set_has_function_descriptor(bool has_function_descriptor) {
+    has_function_descriptor_ = has_function_descriptor;
+  }
+
+  bool HasFunctionDescriptor() const { return has_function_descriptor_; }
+
  private:
   friend class Linkage;
   SaveFPRegsMode save_fp_mode_ = kSaveFPRegs;
+  // AIX has a function descriptor which we will set to true by default
+  // for all CFunction Calls.
+  bool has_function_descriptor_ = kHasFunctionDescriptor;
 
   const Kind kind_;
   const MachineType target_type_;
