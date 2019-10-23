@@ -285,13 +285,6 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
                                           void* data) = 0;
 };
 
-// Set up some Node.js-specific defaults for `params`, in particular
-// the ArrayBuffer::Allocator if it is provided, memory limits, and
-// possibly a code event handler.
-NODE_EXTERN void SetIsolateCreateParams(v8::Isolate::CreateParams* params,
-                                        ArrayBufferAllocator* allocator
-                                            = nullptr);
-
 enum IsolateSettingsFlags {
   MESSAGE_LISTENER_WITH_ERROR_LEVEL = 1 << 0,
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1
