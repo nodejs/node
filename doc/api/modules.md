@@ -83,9 +83,9 @@ by checking `require.main.filename`.
 <!-- type=misc -->
 
 The semantics of Node.js's `require()` function were designed to be general
-enough to support a number of reasonable directory structures. Package manager
-programs such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to
-build native packages from Node.js modules without modification.
+enough to support reasonable directory structures. Package manager programs
+such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to build
+native packages from Node.js modules without modification.
 
 Below we give a suggested directory structure that could work:
 
