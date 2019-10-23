@@ -840,8 +840,6 @@ class Assembler : public AssemblerBase {
   void mtfprwa(DoubleRegister dst, Register src);
 #endif
 
-  void function_descriptor();
-
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
             CRegister cr = cr7);

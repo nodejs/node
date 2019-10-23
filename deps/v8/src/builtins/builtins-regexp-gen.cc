@@ -605,13 +605,18 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
 
-    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction(
-        code_entry, retval_type, std::make_pair(arg0_type, arg0),
-        std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
-        std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
-        std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
-        std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8),
-        std::make_pair(arg9_type, arg9)));
+    // AIX uses function descriptors on CFunction calls. code_entry in this case
+    // may also point to a Regex interpreter entry trampoline which does not
+    // have a function descriptor. This method is ineffective on other platforms
+    // and is equivalent to CallCFunction.
+    TNode<Int32T> result =
+        UncheckedCast<Int32T>(CallCFunctionWithoutFunctionDescriptor(
+            code_entry, retval_type, std::make_pair(arg0_type, arg0),
+            std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
+            std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
+            std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
+            std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8),
+            std::make_pair(arg9_type, arg9)));
 
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave
