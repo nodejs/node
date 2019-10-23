@@ -291,7 +291,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS in ("linux", "mac") and llvm_version != "0.0"', {
+      ['OS == "linux" and llvm_version != "0.0"', {
         'libraries': ['-latomic'],
       }],
     ],
