@@ -20,5 +20,5 @@ if (!releaseReg.test(process.version)) {
 
   const stderr = npmExec.stderr.toString();
   assert.strictEqual(stderr.length, 0, 'npm is not ready for this release ' +
-                     'and is going to print warnings to users: \n' + stderr);
+                     'and is going to print warnings to users:\n' + stderr);
 }
