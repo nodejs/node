@@ -589,6 +589,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             V8Option{},
             kAllowedInEnvironment);
   AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--disallow-code-generation-from-strings",
+            "disallow eval and friends",
+            V8Option{},
+            kAllowedInEnvironment);
 
 #ifdef NODE_REPORT
   AddOption("--report-uncaught-exception",
