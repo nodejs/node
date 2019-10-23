@@ -4,8 +4,8 @@
 
 > Stability: 2 - Stable
 
-The `os` module provides operating system-related utility methods. It can be
-accessed using:
+The `os` module provides operating system-related utility methods and
+properties. It can be accessed using:
 
 ```js
 const os = require('os');
@@ -18,7 +18,7 @@ added: v0.7.8
 
 * {string}
 
-A string constant defining the operating system-specific end-of-line marker:
+The operating system-specific end-of-line marker.
 
 * `\n` on POSIX
 * `\r\n` on Windows
@@ -30,13 +30,11 @@ added: v0.5.0
 
 * Returns: {string}
 
-The `os.arch()` method returns a string identifying the operating system CPU
-architecture for which the Node.js binary was compiled.
-
-The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
+Returns the operating system CPU architecture for which the Node.js binary was
+compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 `'mipsel'`, `'ppc'`, `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, and `'x64'`.
 
-Equivalent to [`process.arch`][].
+The return value is equivalent to [`process.arch`][].
 
 ## os.constants
 <!-- YAML
@@ -45,9 +43,9 @@ added: v6.3.0
 
 * {Object}
 
-Returns an object containing commonly used operating system specific constants
-for error codes, process signals, and so on. The specific constants currently
-defined are described in [OS Constants](#os_os_constants_1).
+Contains commonly used operating system-specific constants for error codes,
+process signals, and so on. The specific constants defined are described in
+[OS Constants](#os_os_constants_1).
 
 ## os.cpus()
 <!-- YAML
@@ -56,8 +54,7 @@ added: v0.3.3
 
 * Returns: {Object[]}
 
-The `os.cpus()` method returns an array of objects containing information about
-each logical CPU core.
+Returns an array of objects containing information about each logical CPU core.
 
 The properties included on each object include:
 
@@ -116,56 +113,12 @@ The properties included on each object include:
       idle: 1070905480,
       irq: 20
     }
-  },
-  {
-    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
-    speed: 2926,
-    times: {
-      user: 511580,
-      nice: 20,
-      sys: 40900,
-      idle: 1070842510,
-      irq: 0
-    }
-  },
-  {
-    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
-    speed: 2926,
-    times: {
-      user: 291660,
-      nice: 0,
-      sys: 34360,
-      idle: 1070888000,
-      irq: 10
-    }
-  },
-  {
-    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
-    speed: 2926,
-    times: {
-      user: 308260,
-      nice: 0,
-      sys: 55410,
-      idle: 1071129970,
-      irq: 880
-    }
-  },
-  {
-    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
-    speed: 2926,
-    times: {
-      user: 266450,
-      nice: 1480,
-      sys: 34920,
-      idle: 1072572010,
-      irq: 30
-    }
   }
 ]
 ```
 
-Because `nice` values are Unix-specific, on Windows the `nice` values of all
-processors are always 0.
+`nice` values are POSIX-only. On Windows, the `nice` values of all processors
+are always 0.
 
 ## os.endianness()
 <!-- YAML
@@ -174,13 +127,10 @@ added: v0.9.4
 
 * Returns: {string}
 
-The `os.endianness()` method returns a string identifying the endianness of the
-CPU *for which the Node.js binary was compiled*.
+Returns a string identifying the endianness of the CPU for which the Node.js
+binary was compiled.
 
-Possible values are:
-
-* `'BE'` for big endian
-* `'LE'` for little endian.
+Possible values are `'BE'` for big endian and `'LE'` for little endian.
 
 ## os.freemem()
 <!-- YAML
@@ -189,8 +139,7 @@ added: v0.3.3
 
 * Returns: {integer}
 
-The `os.freemem()` method returns the amount of free system memory in bytes as
-an integer.
+Returns the amount of free system memory in bytes as an integer.
 
 ## os.getPriority(\[pid\])
 <!-- YAML
@@ -201,9 +150,8 @@ added: v10.10.0
   **Default** `0`.
 * Returns: {integer}
 
-The `os.getPriority()` method returns the scheduling priority for the process
-specified by `pid`. If `pid` is not provided, or is `0`, the priority of the
-current process is returned.
+Returns the scheduling priority for the process specified by `pid`. If `pid` is
+not provided or is `0`, the priority of the current process is returned.
 
 ## os.homedir()
 <!-- YAML
@@ -212,16 +160,13 @@ added: v2.3.0
 
 * Returns: {string}
 
-The `os.homedir()` method returns the home directory of the current user as a
-string.
+Returns the string path of the current user's home directory.
 
-**POSIX**:
-Will use the `$HOME` environment variable if defined. Otherwise, it will use
-the [effective UID][EUID] to look up the user's home directory.
+On POSIX, it uses the `$HOME` environment variable if defined. Otherwise it
+uses the [effective UID][EUID] to look up the user's home directory.
 
-**Windows**:
-Will use the `USERPROFILE` environment variable if defined. Otherwise it
-will be the path to the profile directory of the current user.
+On Windows, it uses the `USERPROFILE` environment variable if defined.
+Otherwise it uses the path to the profile directory of the current user.
 
 ## os.hostname()
 <!-- YAML
@@ -230,8 +175,7 @@ added: v0.3.3
 
 * Returns: {string}
 
-The `os.hostname()` method returns the hostname of the operating system as a
-string.
+Returns the hostname of the operating system as a string.
 
 ## os.loadavg()
 <!-- YAML
@@ -240,15 +184,13 @@ added: v0.3.3
 
 * Returns: {number[]}
 
-The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
-load averages.
+Returns an array containing the 1, 5, and 15 minute load averages.
 
-The load average is a measure of system activity, calculated by the operating
-system and expressed as a fractional number. As a rule of thumb, the load
-average should ideally be less than the number of logical CPUs in the system.
+The load average is a measure of system activity calculated by the operating
+system and expressed as a fractional number.
 
-The load average is a Unix-specific concept with no real equivalent on
-Windows platforms. On Windows, the return value is always `[0, 0, 0]`.
+The load average is a Unix-specific concept. On Windows, the return value is
+always `[0, 0, 0]`.
 
 ## os.networkInterfaces()
 <!-- YAML
@@ -257,8 +199,8 @@ added: v0.6.0
 
 * Returns: {Object}
 
-The `os.networkInterfaces()` method returns an object containing only network
-interfaces that have been assigned a network address.
+Returns an object containing network interfaces that have been assigned a
+network address.
 
 Each key on the returned object identifies a network interface. The associated
 value is an array of objects that each describe an assigned network address.
@@ -328,24 +270,14 @@ added: v0.5.0
 
 * Returns: {string}
 
-The `os.platform()` method returns a string identifying the operating system
-platform as set during compile time of Node.js.
+Returns a string identifying the operating system platform. The value is set
+at compile time. Possible values are `'aix'`, `'darwin'`, `'freebsd'`,
+`'linux'`, `'openbsd'`, `'sunos'`, and `'win32'`.
 
-Currently possible values are:
+The return value is equivalent to [`process.platform`][].
 
-* `'aix'`
-* `'darwin'`
-* `'freebsd'`
-* `'linux'`
-* `'openbsd'`
-* `'sunos'`
-* `'win32'`
-
-Equivalent to [`process.platform`][].
-
-The value `'android'` may also be returned if the Node.js is built on the
-Android operating system. However, Android support in Node.js is considered
-[to be experimental][Android building] at this time.
+The value `'android'` may also be returned if Node.js is built on the Android
+operating system. [Android support is experimental][Android building].
 
 ## os.release()
 <!-- YAML
@@ -354,11 +286,10 @@ added: v0.3.3
 
 * Returns: {string}
 
-The `os.release()` method returns a string identifying the operating system
-release.
+Returns the operating system as a string.
 
 On POSIX systems, the operating system release is determined by calling
-[uname(3)][]. On Windows, `GetVersionExW()` is used. Please see
+[uname(3)][]. On Windows, `GetVersionExW()` is used. See
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.setPriority(\[pid, \]priority)
@@ -370,19 +301,19 @@ added: v10.10.0
   **Default** `0`.
 * `priority` {integer} The scheduling priority to assign to the process.
 
-The `os.setPriority()` method attempts to set the scheduling priority for the
-process specified by `pid`. If `pid` is not provided, or is `0`, the priority
-of the current process is used.
+Attempts to set the scheduling priority for the process specified by `pid`. If
+`pid` is not provided or is `0`, the process ID of the current process is used.
 
 The `priority` input must be an integer between `-20` (high priority) and `19`
 (low priority). Due to differences between Unix priority levels and Windows
 priority classes, `priority` is mapped to one of six priority constants in
 `os.constants.priority`. When retrieving a process priority level, this range
 mapping may cause the return value to be slightly different on Windows. To avoid
-confusion, it is recommended to set `priority` to one of the priority constants.
+confusion, set `priority` to one of the priority constants.
 
-On Windows setting priority to `PRIORITY_HIGHEST` requires elevated user,
-otherwise the set priority will be silently reduced to `PRIORITY_HIGH`.
+On Windows, setting priority to `PRIORITY_HIGHEST` requires elevated user
+privileges. Otherwise the set priority will be silently reduced to
+`PRIORITY_HIGH`.
 
 ## os.tmpdir()
 <!-- YAML
@@ -396,8 +327,8 @@ changes:
 
 * Returns: {string}
 
-The `os.tmpdir()` method returns a string specifying the operating system's
-default directory for temporary files.
+Returns the operating system's default directory for temporary files as a
+string.
 
 ## os.totalmem()
 <!-- YAML
@@ -406,8 +337,7 @@ added: v0.3.3
 
 * Returns: {integer}
 
-The `os.totalmem()` method returns the total amount of system memory in bytes
-as an integer.
+Returns the total amount of system memory in bytes as an integer.
 
 ## os.type()
 <!-- YAML
@@ -416,13 +346,11 @@ added: v0.3.3
 
 * Returns: {string}
 
-The `os.type()` method returns a string identifying the operating system name
-as returned by [uname(3)][]. For example, `'Linux'` on Linux, `'Darwin'` on
-macOS, and `'Windows_NT'` on Windows.
+Returns the operating system name as returned by [uname(3)][]. For example, it
+returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
 
-Please see https://en.wikipedia.org/wiki/Uname#Examples for additional
-information about the output of running [uname(3)][] on various operating
-systems.
+See https://en.wikipedia.org/wiki/Uname#Examples for additional information
+about the output of running [uname(3)][] on various operating systems.
 
 ## os.uptime()
 <!-- YAML
@@ -436,7 +364,7 @@ changes:
 
 * Returns: {integer}
 
-The `os.uptime()` method returns the system uptime in number of seconds.
+Returns the system uptime in number of seconds.
 
 ## os.userInfo(\[options\])
 <!-- YAML
@@ -449,13 +377,13 @@ added: v6.0.0
     values will be `Buffer` instances. **Default:** `'utf8'`.
 * Returns: {Object}
 
-The `os.userInfo()` method returns information about the currently effective
-user — on POSIX platforms, this is typically a subset of the password file. The
-returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
-On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
+Returns information about the currently effective user. On POSIX platforms,
+this is typically a subset of the password file. The returned object includes
+the `username`, `uid`, `gid`, `shell`, and `homedir`. On Windows, the `uid` and
+`gid` fields are `-1`, and `shell` is `null`.
 
 The value of `homedir` returned by `os.userInfo()` is provided by the operating
-system. This differs from the result of `os.homedir()`, which queries several
+system. This differs from the result of `os.homedir()`, which queries
 environment variables for the home directory before falling back to the
 operating system response.
 
@@ -475,7 +403,7 @@ changes:
     description: Added support for `SIGINFO`.
 -->
 
-The following signal constants are exported by `os.constants.signals`:
+The following signal constants are exported by `os.constants.signals`.
 
 <table>
   <tr>
@@ -640,7 +568,7 @@ The following signal constants are exported by `os.constants.signals`:
 
 ### Error Constants
 
-The following error constants are exported by `os.constants.errno`:
+The following error constants are exported by `os.constants.errno`.
 
 #### POSIX Error Constants
 
@@ -672,7 +600,7 @@ The following error constants are exported by `os.constants.errno`:
   </tr>
   <tr>
     <td><code>EAGAIN</code></td>
-    <td>Indicates that there is currently no data available and to try the
+    <td>Indicates that there is no data available and to try the
     operation again later.</td>
   </tr>
   <tr>
@@ -903,8 +831,8 @@ The following error constants are exported by `os.constants.errno`:
   </tr>
   <tr>
     <td><code>EOPNOTSUPP</code></td>
-    <td>Indicates that an operation is not supported on the socket. Note that
-    while <code>ENOTSUP</code> and <code>EOPNOTSUPP</code> have the same value
+    <td>Indicates that an operation is not supported on the socket. Although
+    <code>ENOTSUP</code> and <code>EOPNOTSUPP</code> have the same value
     on Linux, according to POSIX.1 these error values should be distinct.)</td>
   </tr>
   <tr>
@@ -976,7 +904,7 @@ The following error constants are exported by `os.constants.errno`:
 
 #### Windows Specific Error Constants
 
-The following error codes are specific to the Windows operating system:
+The following error codes are specific to the Windows operating system.
 
 <table>
   <tr>
@@ -1262,7 +1190,7 @@ added: v10.10.0
 -->
 
 The following process scheduling constants are exported by
-`os.constants.priority`:
+`os.constants.priority`.
 
 <table>
   <tr>
