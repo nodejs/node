@@ -622,8 +622,7 @@ packet is allowed to travel through, specifically for multicast traffic. Each
 router or gateway that forwards a packet decrements the TTL. If the TTL is
 decremented to 0 by a router, it will not be forwarded.
 
-The argument passed to `socket.setMulticastTTL()` is a number of hops
-between 0 and 255. The default on most systems is `1` but can vary.
+The `ttl` argument may be between 0 and 255. The default on most systems is `1`.
 
 ### socket.setRecvBufferSize(size)
 <!-- YAML
@@ -658,8 +657,8 @@ travel through. Each router or gateway that forwards a packet decrements the
 TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
 Changing TTL values is typically done for network probes or when multicasting.
 
-The argument to `socket.setTTL()` is a number of hops between 1 and 255.
-The default on most systems is 64 but can vary.
+The `ttl` argument may be between between 1 and 255. The default on most systems
+is 64.
 
 ### socket.unref()
 <!-- YAML

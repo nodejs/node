@@ -34,16 +34,14 @@ involving knowledge of several components and APIs:
   off-loading work via libuv to non-blocking system operations, worker threads
   or a custom use of libuv's threads.
 
-* Internal Node.js libraries. Node.js itself exports a number of C++ APIs
-  that Addons can use &mdash; the most important of which is the
-  `node::ObjectWrap` class.
+* Internal Node.js libraries. Node.js itself exports C++ APIs that Addons can
+  use, the most important of which is the `node::ObjectWrap` class.
 
-* Node.js includes a number of other statically linked libraries including
-  OpenSSL. These other libraries are located in the `deps/` directory in the
-  Node.js source tree. Only the libuv, OpenSSL, V8 and zlib symbols are
-  purposefully re-exported by Node.js and may be used to various extents by
-  Addons.
-  See [Linking to Node.js' own dependencies][] for additional information.
+* Node.js includes other statically linked libraries including OpenSSL. These
+  other libraries are located in the `deps/` directory in the Node.js source
+  tree. Only the libuv, OpenSSL, V8 and zlib symbols are purposefully
+  re-exported by Node.js and may be used to various extents by Addons. See
+  [Linking to Node.js' own dependencies][] for additional information.
 
 All of the following examples are available for [download][] and may
 be used as the starting-point for an Addon.
@@ -331,12 +329,12 @@ try {
 
 ### Linking to Node.js' own dependencies
 
-Node.js uses a number of statically linked libraries such as V8, libuv and
-OpenSSL. All Addons are required to link to V8 and may link to any of the
-other dependencies as well. Typically, this is as simple as including
-the appropriate `#include <...>` statements (e.g. `#include <v8.h>`) and
-`node-gyp` will locate the appropriate headers automatically. However, there
-are a few caveats to be aware of:
+Node.js uses statically linked libraries such as V8, libuv and OpenSSL. All
+Addons are required to link to V8 and may link to any of the other dependencies
+as well. Typically, this is as simple as including the appropriate
+`#include <...>` statements (e.g. `#include <v8.h>`) and `node-gyp` will locate
+the appropriate headers automatically. However, there are a few caveats to be
+aware of:
 
 * When `node-gyp` runs, it will detect the specific release version of Node.js
 and download either the full source tarball or just the headers. If the full
