@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-internal.h"
+#include "include/v8.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -63,6 +64,11 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
                                                       SharedFlag shared,
                                                       bool free_on_destruct);
 
+  static std::unique_ptr<BackingStore> WrapAllocation(
+      void* allocation_base, size_t allocation_length,
+      v8::BackingStoreDeleterCallback deleter, void* deleter_data,
+      SharedFlag shared);
+
   // Create an empty backing store.
   static std::unique_ptr<BackingStore> EmptyBackingStore(SharedFlag shared);
 
@@ -116,7 +122,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t byte_capacity,
                SharedFlag shared, bool is_wasm_memory, bool free_on_destruct,
-               bool has_guard_regions)
+               bool has_guard_regions, bool custom_deleter)
       : buffer_start_(buffer_start),
         byte_length_(byte_length),
         byte_capacity_(byte_capacity),
@@ -124,19 +130,15 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
         is_wasm_memory_(is_wasm_memory),
         free_on_destruct_(free_on_destruct),
         has_guard_regions_(has_guard_regions),
-        globally_registered_(false) {
+        globally_registered_(false),
+        custom_deleter_(custom_deleter) {
     type_specific_data_.v8_api_array_buffer_allocator = nullptr;
+    deleter_data_ = nullptr;
   }
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_{0};
   size_t byte_capacity_ = 0;
-  bool is_shared_ : 1;
-  bool is_wasm_memory_ : 1;
-  bool free_on_destruct_ : 1;
-  bool has_guard_regions_ : 1;
-  bool globally_registered_ : 1;
-
   union {
     // If this backing store was allocated through the ArrayBufferAllocator API,
     // this is a direct pointer to the API object for freeing the backing
@@ -148,7 +150,20 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     // For shared Wasm memories, this is a list of all the attached memory
     // objects, which is needed to grow shared backing stores.
     SharedWasmMemoryData* shared_wasm_memory_data;
+
+    // Custom deleter for the backing stores that wrap memory blocks that are
+    // allocated with a custom allocator.
+    v8::BackingStoreDeleterCallback deleter;
   } type_specific_data_;
+
+  void* deleter_data_;
+
+  bool is_shared_ : 1;
+  bool is_wasm_memory_ : 1;
+  bool free_on_destruct_ : 1;
+  bool has_guard_regions_ : 1;
+  bool globally_registered_ : 1;
+  bool custom_deleter_ : 1;
 
   // Accessors for type-specific data.
   void* get_v8_api_array_buffer_allocator();

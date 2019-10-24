@@ -7452,6 +7452,32 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
   return Utils::ToLocal(obj);
 }
 
+std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
+    Isolate* isolate, size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, ArrayBuffer, NewBackingStore);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::Allocate(i_isolate, byte_length,
+                                i::SharedFlag::kNotShared,
+                                i::InitializedFlag::kZeroInitialized);
+  if (!backing_store) {
+    i::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::NewBackingStore");
+  }
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
+}
+
+std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
+    void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+    void* deleter_data) {
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
+                                      i::SharedFlag::kNotShared);
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
+}
+
 Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   i::Handle<i::JSArrayBuffer> buffer;
@@ -7751,6 +7777,32 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   i::Handle<i::JSArrayBuffer> buffer = SetupSharedArrayBuffer(
       isolate, contents.Data(), contents.ByteLength(), mode);
   return Utils::ToLocalShared(buffer);
+}
+
+std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
+    Isolate* isolate, size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, SharedArrayBuffer, NewBackingStore);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+                                i::InitializedFlag::kZeroInitialized);
+  if (!backing_store) {
+    i::FatalProcessOutOfMemory(i_isolate,
+                               "v8::SharedArrayBuffer::NewBackingStore");
+  }
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
+}
+
+std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
+    void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+    void* deleter_data) {
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
+                                      i::SharedFlag::kShared);
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
 }
 
 Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
