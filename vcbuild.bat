@@ -688,9 +688,6 @@ goto exit
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
-if %VCBUILD_PYTHON_VERSION%==3 (
-  echo Python 3 is not yet fully supported, to avoid issues Python 2 should be installed.
-)
 del .used_configure_flags
 goto exit
 
