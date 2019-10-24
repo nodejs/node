@@ -214,7 +214,7 @@ test(function fastTimeout(cb) {
   }));
 });
 
-test(function serverTimeout() {
+test(function serverTimeout(cb) {
   const server = http.createServer();
   server.listen(common.mustCall(() => {
     const timeoutValue = 50;
