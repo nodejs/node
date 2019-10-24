@@ -94,7 +94,7 @@ async function main() {
 
 main()
   .then((tasks) => {
-    // Filter tasks rejected
+    // Filter rejected tasks
     const errors = tasks.filter(({ status }) => status === 'rejected')
       .map(({ reason }) => reason);
 
@@ -108,7 +108,7 @@ main()
       return process.exit(1);
     }
 
-    // Else with code 1
+    // Else with code 0
     process.exit(0);
   })
   .catch((error) => {
