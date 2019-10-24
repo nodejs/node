@@ -4828,6 +4828,10 @@ enum class ArrayBufferCreationMode { kInternalized, kExternalized };
  * V8. Clients should always use standard C++ memory ownership types (i.e.
  * std::unique_ptr and std::shared_ptr) to manage lifetimes of backing stores
  * properly, since V8 internal objects may alias backing stores.
+ *
+ * This object does not keep the underlying |ArrayBuffer::Allocator| alive by
+ * default. Use Isolate::CreateParams::array_buffer_allocator_shared when
+ * creating the Isolate to make it hold a reference to the allocator itself.
  */
 class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
  public:
@@ -7837,6 +7841,7 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
+          array_buffer_allocator_shared(),
           external_references(nullptr),
           allow_atomics_wait(true),
           only_terminate_in_safe_scope(false) {}
@@ -7876,8 +7881,14 @@ class V8_EXPORT Isolate {
     /**
      * The ArrayBuffer::Allocator to use for allocating and freeing the backing
      * store of ArrayBuffers.
+     *
+     * If the shared_ptr version is used, the Isolate instance and every
+     * |BackingStore| allocated using this allocator hold a std::shared_ptr
+     * to the allocator, in order to facilitate lifetime
+     * management for the allocator instance.
      */
     ArrayBuffer::Allocator* array_buffer_allocator;
+    std::shared_ptr<ArrayBuffer::Allocator> array_buffer_allocator_shared;
 
     /**
      * Specifies an optional nullptr-terminated array of raw addresses in the

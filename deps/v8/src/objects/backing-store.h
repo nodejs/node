@@ -128,24 +128,36 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
         byte_capacity_(byte_capacity),
         is_shared_(shared == SharedFlag::kShared),
         is_wasm_memory_(is_wasm_memory),
+        holds_shared_ptr_to_allocator_(false),
         free_on_destruct_(free_on_destruct),
         has_guard_regions_(has_guard_regions),
         globally_registered_(false),
-        custom_deleter_(custom_deleter) {
-    type_specific_data_.v8_api_array_buffer_allocator = nullptr;
-    deleter_data_ = nullptr;
-  }
+        custom_deleter_(custom_deleter) {}
+  void SetAllocatorFromIsolate(Isolate* isolate);
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_{0};
   size_t byte_capacity_ = 0;
-  union {
+
+  struct DeleterInfo {
+    v8::BackingStoreDeleterCallback callback;
+    void* data;
+  };
+
+  union TypeSpecificData {
+    TypeSpecificData() : v8_api_array_buffer_allocator(nullptr) {}
+    ~TypeSpecificData() {}
+
     // If this backing store was allocated through the ArrayBufferAllocator API,
     // this is a direct pointer to the API object for freeing the backing
     // store.
-    // Note: we use {void*} here because we cannot forward-declare an inner
-    // class from the API.
-    void* v8_api_array_buffer_allocator;
+    v8::ArrayBuffer::Allocator* v8_api_array_buffer_allocator;
+
+    // Holds a shared_ptr to the ArrayBuffer::Allocator instance, if requested
+    // so by the embedder through setting
+    // Isolate::CreateParams::array_buffer_allocator_shared.
+    std::shared_ptr<v8::ArrayBuffer::Allocator>
+        v8_api_array_buffer_allocator_shared;
 
     // For shared Wasm memories, this is a list of all the attached memory
     // objects, which is needed to grow shared backing stores.
@@ -153,20 +165,19 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
     // Custom deleter for the backing stores that wrap memory blocks that are
     // allocated with a custom allocator.
-    v8::BackingStoreDeleterCallback deleter;
+    DeleterInfo deleter;
   } type_specific_data_;
-
-  void* deleter_data_;
 
   bool is_shared_ : 1;
   bool is_wasm_memory_ : 1;
+  bool holds_shared_ptr_to_allocator_ : 1;
   bool free_on_destruct_ : 1;
   bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;
   bool custom_deleter_ : 1;
 
   // Accessors for type-specific data.
-  void* get_v8_api_array_buffer_allocator();
+  v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
   SharedWasmMemoryData* get_shared_wasm_memory_data();
 
   void Clear();  // Internally clears fields after deallocation.

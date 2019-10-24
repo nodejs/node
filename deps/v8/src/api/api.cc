@@ -8149,8 +8149,15 @@ Isolate* Isolate::Allocate() {
 void Isolate::Initialize(Isolate* isolate,
                          const v8::Isolate::CreateParams& params) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  CHECK_NOT_NULL(params.array_buffer_allocator);
-  i_isolate->set_array_buffer_allocator(params.array_buffer_allocator);
+  if (auto allocator = params.array_buffer_allocator_shared) {
+    CHECK(params.array_buffer_allocator == nullptr ||
+          params.array_buffer_allocator == allocator.get());
+    i_isolate->set_array_buffer_allocator(allocator.get());
+    i_isolate->set_array_buffer_allocator_shared(std::move(allocator));
+  } else {
+    CHECK_NOT_NULL(params.array_buffer_allocator);
+    i_isolate->set_array_buffer_allocator(params.array_buffer_allocator);
+  }
   if (params.snapshot_blob != nullptr) {
     i_isolate->set_snapshot_blob(params.snapshot_blob);
   } else {
