@@ -1672,8 +1672,8 @@ Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
 added to ciphertext messages unencrypted. It may sound contradictory that
 something has to be unpredictable and unique, but does not have to be secret;
-it is important to remember that an attacker must not be able to predict ahead
-of time what a given IV will be.
+remember that an attacker must not be able to predict ahead of time what a
+given IV will be.
 
 ### crypto.createDecipher(algorithm, password\[, options\])
 <!-- YAML
@@ -1766,8 +1766,8 @@ Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
 added to ciphertext messages unencrypted. It may sound contradictory that
 something has to be unpredictable and unique, but does not have to be secret;
-it is important to remember that an attacker must not be able to predict ahead
-of time what a given IV will be.
+remember that an attacker must not be able to predict ahead of time what a given
+IV will be.
 
 ### crypto.createDiffieHellman(prime\[, primeEncoding\]\[, generator\]\[, generatorEncoding\])
 <!-- YAML

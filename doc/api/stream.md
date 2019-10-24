@@ -100,7 +100,7 @@ maintaining an appropriate and efficient flow of data. For example,
 [`net.Socket`][] instances are [`Duplex`][] streams whose `Readable` side allows
 consumption of data received *from* the socket and whose `Writable` side allows
 writing data *to* the socket. Because data may be written to the socket at a
-faster or slower rate than data is received, it is important for each side to
+faster or slower rate than data is received, each side should
 operate (and buffer) independently of the other.
 
 ## API for Stream Consumers
@@ -1654,11 +1654,11 @@ class MyWritable extends Writable {
 }
 ```
 
-When extending streams, it is important to keep in mind what options the user
+When extending streams, keep in mind what options the user
 can and should provide before forwarding these to the base constructor. For
-example, if the implementation makes assumptions in regard to e.g. the
-`autoDestroy` and `emitClose` options, it becomes important to not allow the
-user to override these. It is therefore recommended to be explicit about what
+example, if the implementation makes assumptions in regard to the
+`autoDestroy` and `emitClose` options, do not allow the
+user to override these. Be explicit about what
 options are forwarded instead of implicitly forwarding all options.
 
 The new stream class must then implement one or more specific methods, depending
@@ -2604,8 +2604,8 @@ readable.on('data', (chunk) => {
 
 #### Piping to Writable Streams from Async Iterators
 
-In the scenario of writing to a writable stream from an async iterator,
-it is important to ensure the correct handling of backpressure and errors.
+In the scenario of writing to a writable stream from an async iterator, ensure
+the correct handling of backpressure and errors.
 
 ```js
 const { once } = require('events');

@@ -892,9 +892,8 @@ const parseTests = {
     href: 'https:///*'
   },
 
-  // The following two URLs are the same, but they differ for
-  // a capital A: it is important that we verify that the protocol
-  // is checked in a case-insensitive manner.
+  // The following two URLs are the same, but they differ for a capital A.
+  // Verify that the protocol is checked in a case-insensitive manner.
   'javascript:alert(1);a=\x27@white-listed.com\x27': {
     protocol: 'javascript:',
     slashes: null,
