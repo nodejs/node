@@ -43,7 +43,7 @@ myEmitter.emit('event');
 ## Passing arguments and `this` to listeners
 
 The `eventEmitter.emit()` method allows an arbitrary set of arguments to be
-passed to the listener functions. It is important to keep in mind that when
+passed to the listener functions. Keep in mind that when
 an ordinary listener function is called, the standard `this` keyword
 is intentionally set to reference the `EventEmitter` instance to which the
 listener is attached.
@@ -77,8 +77,8 @@ myEmitter.emit('event', 'a', 'b');
 ## Asynchronous vs. Synchronous
 
 The `EventEmitter` calls all listeners synchronously in the order in which
-they were registered. This is important to ensure the proper sequencing of
-events and to avoid race conditions or logic errors. When appropriate,
+they were registered. This ensures the proper sequencing of
+events and helps avoid race conditions and logic errors. When appropriate,
 listener functions can switch to an asynchronous mode of operation using
 the `setImmediate()` or `process.nextTick()` methods:
 

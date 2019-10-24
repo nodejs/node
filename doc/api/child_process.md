@@ -361,7 +361,7 @@ returned [`ChildProcess`][] will have an additional communication channel
 built-in that allows messages to be passed back and forth between the parent and
 child. See [`subprocess.send()`][] for details.
 
-It is important to keep in mind that spawned Node.js child processes are
+Keep in mind that spawned Node.js child processes are
 independent of the parent with exception of the IPC communication channel
 that is established between the two. Each process has its own memory, with
 their own V8 instances. Because of the additional resource allocations
@@ -955,7 +955,7 @@ The `'error'` event is emitted whenever:
 3. Sending a message to the child process failed.
 
 The `'exit'` event may or may not fire after an error has occurred. When
-listening to both the `'exit'` and `'error'` events, it is important to guard
+listening to both the `'exit'` and `'error'` events, guard
 against accidentally invoking handler functions multiple times.
 
 See also [`subprocess.kill()`][] and [`subprocess.send()`][].
