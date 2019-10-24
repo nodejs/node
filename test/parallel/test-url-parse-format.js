@@ -892,6 +892,37 @@ const parseTests = {
     href: 'https:///*'
   },
 
+  // Adding test for unix socket url parsing
+  'http://unix:/my.socket:/main': {
+    protocol: 'http:',
+    slashes: true,
+    auth: null,
+    host: 'unix:/my.socket:',
+    port: '/my.socket:',
+    hostname: 'unix',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/main',
+    path: '/main',
+    href: 'http://unix:/my.socket:/main'
+  },
+
+  'http://unix/my.socket:/main': {
+    protocol: 'http:',
+    slashes: true,
+    auth: null,
+    host: 'unix',
+    port: null,
+    hostname: 'unix',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/my.socket:/main',
+    path: '/my.socket:/main',
+    href: 'http://unix/my.socket:/main'
+  },
+
   // The following two URLs are the same, but they differ for
   // a capital A: it is important that we verify that the protocol
   // is checked in a case-insensitive manner.
