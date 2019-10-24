@@ -21,7 +21,7 @@
 
 'use strict';
 
-const fs = require('fs');
+const { promises: fs } = require('fs');
 const path = require('path');
 const unified = require('unified');
 const markdown = require('remark-parse');
@@ -41,36 +41,35 @@ let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
 
-args.forEach((arg) => {
-  if (!arg.startsWith('--')) {
-    filename = arg;
-  } else if (arg.startsWith('--node-version=')) {
-    nodeVersion = arg.replace(/^--node-version=/, '');
-  } else if (arg.startsWith('--output-directory=')) {
-    outputDir = arg.replace(/^--output-directory=/, '');
-  } else if (arg.startsWith('--apilinks=')) {
-    const linkFile = arg.replace(/^--apilinks=/, '');
-    const data = fs.readFileSync(linkFile, 'utf8');
-    if (!data.trim()) {
-      throw new Error(`${linkFile} is empty`);
+async function main() {
+  for (const arg of args) {
+    if (!arg.startsWith('--')) {
+      filename = arg;
+    } else if (arg.startsWith('--node-version=')) {
+      nodeVersion = arg.replace(/^--node-version=/, '');
+    } else if (arg.startsWith('--output-directory=')) {
+      outputDir = arg.replace(/^--output-directory=/, '');
+    } else if (arg.startsWith('--apilinks=')) {
+      const linkFile = arg.replace(/^--apilinks=/, '');
+      const data = await fs.readFile(linkFile, 'utf8');
+      if (!data.trim()) {
+        throw new Error(`${linkFile} is empty`);
+      }
+      apilinks = JSON.parse(data);
     }
-    apilinks = JSON.parse(data);
   }
-});
 
-nodeVersion = nodeVersion || process.version;
+  nodeVersion = nodeVersion || process.version;
 
-if (!filename) {
-  throw new Error('No input file specified');
-} else if (!outputDir) {
-  throw new Error('No output directory specified');
-}
+  if (!filename) {
+    throw new Error('No input file specified');
+  } else if (!outputDir) {
+    throw new Error('No output directory specified');
+  }
 
+  const input = await fs.readFile(filename, 'utf8');
 
-fs.readFile(filename, 'utf8', async (er, input) => {
-  if (er) throw er;
-
-  const content = unified()
+  const content = await unified()
     .use(markdown)
     .use(html.preprocessText)
     .use(json.jsonAPI, { filename })
@@ -80,14 +79,40 @@ fs.readFile(filename, 'utf8', async (er, input) => {
     .use(remark2rehype, { allowDangerousHTML: true })
     .use(raw)
     .use(htmlStringify)
-    .processSync(input);
-
-  const basename = path.basename(filename, '.md');
+    .process(input);
 
   const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
+  const basename = path.basename(filename, '.md');
   const htmlTarget = path.join(outputDir, `${basename}.html`);
-  fs.writeFileSync(htmlTarget, myHtml);
-
   const jsonTarget = path.join(outputDir, `${basename}.json`);
-  fs.writeFileSync(jsonTarget, JSON.stringify(content.json, null, 2));
-});
+
+  return Promise.allSettled([
+    fs.writeFile(htmlTarget, myHtml),
+    fs.writeFile(jsonTarget, JSON.stringify(content.json, null, 2)),
+  ]);
+}
+
+main()
+  .then((tasks) => {
+    // Filter rejected tasks
+    const errors = tasks.filter(({ status }) => status === 'rejected')
+      .map(({ reason }) => reason);
+
+    // Log errors
+    for (const error of errors) {
+      console.error(error);
+    }
+
+    // Exit process with code 1 if some errors
+    if (errors.length > 0) {
+      return process.exit(1);
+    }
+
+    // Else with code 0
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(error);
+
+    process.exit(1);
+  });
