@@ -84,9 +84,9 @@ const fileTask = async () => {
     const basename = path.basename(filename, ".md");
     const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
     const htmlTarget = path.join(outputDir, `${basename}.html`);
-    const data = fs.writeFile(htmlTarget, myHtml);
+    const data = await fs.writeFile(htmlTarget, myHtml);
     const jsonTarget = path.join(outputDir, `${basename}.json`);
-    const data_ = fs.writeFile(
+    const data_ = await fs.writeFile(
       jsonTarget,
       JSON.stringify(content.json, null, 2)
     );
