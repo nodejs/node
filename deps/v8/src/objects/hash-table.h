@@ -9,6 +9,7 @@
 #include "src/base/export-template.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-utils.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
