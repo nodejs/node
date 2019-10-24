@@ -83,8 +83,8 @@ all sessions). Methods implementing this technique are called "ephemeral".
 Currently two methods are commonly used to achieve Perfect Forward Secrecy (note
 the character "E" appended to the traditional abbreviations):
 
-* [DHE][] - An ephemeral version of the Diffie Hellman key-agreement protocol.
-* [ECDHE][] - An ephemeral version of the Elliptic Curve Diffie Hellman
+* [DHE][]: An ephemeral version of the Diffie Hellman key-agreement protocol.
+* [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie Hellman
   key-agreement protocol.
 
 Ephemeral methods may have some performance drawbacks, because key generation
@@ -114,8 +114,8 @@ TLSv1.3, because all TLSv1.3 cipher suites use ECDHE.
 ALPN (Application-Layer Protocol Negotiation Extension) and
 SNI (Server Name Indication) are TLS handshake extensions:
 
-* ALPN - Allows the use of one TLS server for multiple protocols (HTTP, HTTP/2)
-* SNI - Allows the use of one TLS server for multiple hostnames with different
+* ALPN: Allows the use of one TLS server for multiple protocols (HTTP, HTTP/2)
+* SNI: Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
 
 ### Client-initiated renegotiation attack mitigation

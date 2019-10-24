@@ -360,9 +360,9 @@ changes:
 
 * `stream` {stream.Writable}
 * `dir` {number}
-  * `-1` - to the left from cursor
-  * `1` - to the right from cursor
-  * `0` - the entire line
+  * `-1`: to the left from cursor
+  * `1`: to the right from cursor
+  * `0`: the entire line
 * `callback` {Function} Invoked once the operation completes.
 * Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
   the `'drain'` event to be emitted before continuing to write additional data;

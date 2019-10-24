@@ -982,15 +982,15 @@ representation.
 
 The times in the stat object have the following semantics:
 
-* `atime` "Access Time" - Time when file data last accessed. Changed
+* `atime` "Access Time": Time when file data last accessed. Changed
   by the mknod(2), utimes(2), and read(2) system calls.
-* `mtime` "Modified Time" - Time when file data last modified.
+* `mtime` "Modified Time": Time when file data last modified.
   Changed by the mknod(2), utimes(2), and write(2) system calls.
-* `ctime` "Change Time" - Time when file status was last changed
+* `ctime` "Change Time": Time when file status was last changed
   (inode data modification). Changed by the chmod(2), chown(2),
   link(2), mknod(2), rename(2), unlink(2), utimes(2),
   read(2), and write(2) system calls.
-* `birthtime` "Birth Time" - Time of file creation. Set once when the
+* `birthtime` "Birth Time": Time of file creation. Set once when the
   file is created. On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
   `1970-01-01T00:00Z` (ie, Unix epoch timestamp `0`). This value may be greater
@@ -1571,12 +1571,12 @@ of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
-* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+* `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
 exists.
-* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+* `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
 copy-on-write reflink. If the platform does not support copy-on-write, then a
 fallback copy mechanism is used.
-* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+* `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
 create a copy-on-write reflink. If the platform does not support copy-on-write,
 then the operation will fail.
 
@@ -1619,12 +1619,12 @@ of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
-* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+* `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
 exists.
-* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+* `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
 copy-on-write reflink. If the platform does not support copy-on-write, then a
 fallback copy mechanism is used.
-* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+* `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
 create a copy-on-write reflink. If the platform does not support copy-on-write,
 then the operation will fail.
 
@@ -3834,7 +3834,7 @@ event (its disappearance).
 This happens when:
 
 * the file is deleted, followed by a restore
-* the file is renamed twice - the second time back to its original name
+* the file is renamed and then renamed a second time back to its original name
 
 ## fs.write(fd, buffer\[, offset\[, length\[, position\]\]\], callback)
 <!-- YAML
@@ -4659,12 +4659,12 @@ of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
-* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+* `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
 exists.
-* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+* `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
 copy-on-write reflink. If the platform does not support copy-on-write, then a
 fallback copy mechanism is used.
-* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+* `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
 create a copy-on-write reflink. If the platform does not support copy-on-write,
 then the operation will fail.
 
@@ -5371,31 +5371,31 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 ## File System Flags
 
 The following flags are available wherever the `flag` option takes a
-string:
+string.
 
-* `'a'` - Open file for appending.
+* `'a'`: Open file for appending.
   The file is created if it does not exist.
 
-* `'ax'` - Like `'a'` but fails if the path exists.
+* `'ax'`: Like `'a'` but fails if the path exists.
 
-* `'a+'` - Open file for reading and appending.
+* `'a+'`: Open file for reading and appending.
   The file is created if it does not exist.
 
-* `'ax+'` - Like `'a+'` but fails if the path exists.
+* `'ax+'`: Like `'a+'` but fails if the path exists.
 
-* `'as'` - Open file for appending in synchronous mode.
+* `'as'`: Open file for appending in synchronous mode.
   The file is created if it does not exist.
 
-* `'as+'` - Open file for reading and appending in synchronous mode.
+* `'as+'`: Open file for reading and appending in synchronous mode.
   The file is created if it does not exist.
 
-* `'r'` - Open file for reading.
+* `'r'`: Open file for reading.
   An exception occurs if the file does not exist.
 
-* `'r+'` - Open file for reading and writing.
+* `'r+'`: Open file for reading and writing.
   An exception occurs if the file does not exist.
 
-* `'rs+'` - Open file for reading and writing in synchronous mode. Instructs
+* `'rs+'`: Open file for reading and writing in synchronous mode. Instructs
   the operating system to bypass the local file system cache.
 
   This is primarily useful for opening files on NFS mounts as it allows
@@ -5406,15 +5406,15 @@ string:
   blocking call. If synchronous operation is desired, something like
   `fs.openSync()` should be used.
 
-* `'w'` - Open file for writing.
+* `'w'`: Open file for writing.
   The file is created (if it does not exist) or truncated (if it exists).
 
-* `'wx'` - Like `'w'` but fails if the path exists.
+* `'wx'`: Like `'w'` but fails if the path exists.
 
-* `'w+'` - Open file for reading and writing.
+* `'w+'`: Open file for reading and writing.
 The file is created (if it does not exist) or truncated (if it exists).
 
-* `'wx+'` - Like `'w+'` but fails if the path exists.
+* `'wx+'`: Like `'w+'` but fails if the path exists.
 
 `flag` can also be a number as documented by open(2); commonly used constants
 are available from `fs.constants`. On Windows, flags are translated to
@@ -5434,7 +5434,7 @@ Modifying a file rather than replacing it may require a flags mode of `'r+'`
 rather than the default mode `'w'`.
 
 The behavior of some flags are platform-specific. As such, opening a directory
-on macOS and Linux with the `'a+'` flag - see example below - will return an
+on macOS and Linux with the `'a+'` flag, as in the example below, will return an
 error. In contrast, on Windows and FreeBSD, a file descriptor or a `FileHandle`
 will be returned.
 

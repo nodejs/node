@@ -1746,9 +1746,8 @@ Returns `napi_ok` if the API succeeded.
 This API returns an N-API value corresponding to a JavaScript `Array` type.
 The `Array`'s length property is set to the passed-in length parameter.
 However, the underlying buffer is not guaranteed to be pre-allocated by the VM
-when the array is created - that behavior is left to the underlying VM
-implementation.
-If the buffer must be a contiguous block of memory that can be
+when the array is created. That behavior is left to the underlying VM
+implementation. If the buffer must be a contiguous block of memory that can be
 directly read and/or written via C, consider using
 [`napi_create_external_arraybuffer`][].
 
@@ -2469,18 +2468,18 @@ napi_status napi_get_typedarray_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] typedarray`: `napi_value` representing the `TypedArray` whose
-properties to query.
+  properties to query.
 * `[out] type`: Scalar datatype of the elements within the `TypedArray`.
 * `[out] length`: The number of elements in the `TypedArray`.
 * `[out] data`: The data buffer underlying the `TypedArray` adjusted by
-the `byte_offset` value so that it points to the first element in the
-`TypedArray`.
+  the `byte_offset` value so that it points to the first element in the
+  `TypedArray`.
 * `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
 * `[out] byte_offset`: The byte offset within the underlying native array
-at which the first element of the arrays is located. The value for the data
-parameter has already been adjusted so that data points to the first element
-in the array. Therefore, the first byte of the native array would be at
-data - `byte_offset`.
+  at which the first element of the arrays is located. The value for the data
+  parameter has already been adjusted so that data points to the first element
+  in the array. Therefore, the first byte of the native array would be at
+  `data - byte_offset`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2931,7 +2930,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns the Undefined object.
 
-## Working with JavaScript Values - Abstract Operations
+## Working with JavaScript Values and Abstract Operations
 
 N-API exposes a set of APIs to perform some abstract operations on JavaScript
 values. Some of these operations are documented under [Section 7][]
@@ -3418,17 +3417,15 @@ attributes listed in [Section 6.1.7.1][]
 of the [ECMAScript Language Specification][].
 They can be one or more of the following bitflags:
 
-* `napi_default` - Used to indicate that no explicit attributes are set on the
-given property. By default, a property is read only, not enumerable and not
-configurable.
-* `napi_writable` - Used to indicate that a given property is writable.
-* `napi_enumerable` - Used to indicate that a given property is enumerable.
-* `napi_configurable` - Used to indicate that a given property is configurable,
-as defined in [Section 6.1.7.1][] of the [ECMAScript Language Specification][].
-* `napi_static` - Used to indicate that the property will be defined as
-a static property on a class as opposed to an instance property, which is the
-default. This is used only by [`napi_define_class`][]. It is ignored by
-`napi_define_properties`.
+* `napi_default`: No explicit attributes are set on the property. By default, a
+  property is read only, not enumerable and not configurable.
+* `napi_writable`: The property is writable.
+* `napi_enumerable`: The property is enumerable.
+* `napi_configurable`: The property is configurable as defined in
+  [Section 6.1.7.1][] of the [ECMAScript Language Specification][].
+* `napi_static`: The property will be defined as a static property on a class as
+  opposed to an instance property, which is the default. This is used only by
+  [`napi_define_class`][]. It is ignored by `napi_define_properties`.
 
 #### napi_property_descriptor
 
@@ -4882,7 +4879,7 @@ napi_status napi_is_promise(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] promise`: The promise to examine
 * `[out] is_promise`: Flag indicating whether `promise` is a native promise
-object - that is, a promise object created by the underlying engine.
+  object (that is, a promise object created by the underlying engine).
 
 ## Script execution
 
