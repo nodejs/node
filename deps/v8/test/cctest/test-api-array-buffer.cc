@@ -608,3 +608,95 @@ TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
   }
   CHECK(backing_store_custom_called);
 }
+
+class DummyAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  DummyAllocator() : allocator_(NewDefaultAllocator()) {}
+
+  ~DummyAllocator() override { CHECK_EQ(allocation_count(), 0); }
+
+  void* Allocate(size_t length) override {
+    allocation_count_++;
+    return allocator_->Allocate(length);
+  }
+  void* AllocateUninitialized(size_t length) override {
+    allocation_count_++;
+    return allocator_->AllocateUninitialized(length);
+  }
+  void Free(void* data, size_t length) override {
+    allocation_count_--;
+    allocator_->Free(data, length);
+  }
+
+  uint64_t allocation_count() const { return allocation_count_; }
+
+ private:
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
+  uint64_t allocation_count_ = 0;
+};
+
+TEST(BackingStore_HoldAllocatorAlive_UntilIsolateShutdown) {
+  std::shared_ptr<DummyAllocator> allocator =
+      std::make_shared<DummyAllocator>();
+  std::weak_ptr<DummyAllocator> allocator_weak(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator_shared = allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+
+  allocator.reset();
+  create_params.array_buffer_allocator_shared.reset();
+  CHECK(!allocator_weak.expired());
+  CHECK_EQ(allocator_weak.lock()->allocation_count(), 0);
+
+  {
+    // Create an ArrayBuffer and do not garbage collect it. This should make
+    // the allocator be released automatically once the Isolate is disposed.
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(Context::New(isolate));
+    v8::ArrayBuffer::New(isolate, 8);
+
+    // This should be inside the HandleScope, so that we can be sure that
+    // the allocation is not garbage collected yet.
+    CHECK(!allocator_weak.expired());
+    CHECK_EQ(allocator_weak.lock()->allocation_count(), 1);
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+  CHECK(allocator_weak.expired());
+}
+
+TEST(BackingStore_HoldAllocatorAlive_AfterIsolateShutdown) {
+  std::shared_ptr<DummyAllocator> allocator =
+      std::make_shared<DummyAllocator>();
+  std::weak_ptr<DummyAllocator> allocator_weak(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator_shared = allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+
+  allocator.reset();
+  create_params.array_buffer_allocator_shared.reset();
+  CHECK(!allocator_weak.expired());
+  CHECK_EQ(allocator_weak.lock()->allocation_count(), 0);
+
+  std::shared_ptr<v8::BackingStore> backing_store;
+  {
+    // Create an ArrayBuffer and do not garbage collect it. This should make
+    // the allocator be released automatically once the Isolate is disposed.
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(Context::New(isolate));
+    v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 8);
+    backing_store = ab->GetBackingStore();
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+  CHECK(!allocator_weak.expired());
+  CHECK_EQ(allocator_weak.lock()->allocation_count(), 1);
+  backing_store.reset();
+  CHECK(allocator_weak.expired());
+}

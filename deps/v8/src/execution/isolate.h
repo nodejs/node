@@ -1347,6 +1347,15 @@ class Isolate final : private HiddenFactory {
     return array_buffer_allocator_;
   }
 
+  void set_array_buffer_allocator_shared(
+      std::shared_ptr<v8::ArrayBuffer::Allocator> allocator) {
+    array_buffer_allocator_shared_ = std::move(allocator);
+  }
+  std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared()
+      const {
+    return array_buffer_allocator_shared_;
+  }
+
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
   CancelableTaskManager* cancelable_task_manager() {
@@ -1758,6 +1767,7 @@ class Isolate final : private HiddenFactory {
   uint32_t embedded_blob_size_ = 0;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
+  std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
 
   FutexWaitListNode futex_wait_list_node_;
 

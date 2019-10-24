@@ -114,6 +114,11 @@ void BackingStore::Clear() {
   buffer_start_ = nullptr;
   byte_length_ = 0;
   has_guard_regions_ = false;
+  if (holds_shared_ptr_to_allocator_) {
+    type_specific_data_.v8_api_array_buffer_allocator_shared
+        .std::shared_ptr<v8::ArrayBuffer::Allocator>::~shared_ptr();
+    holds_shared_ptr_to_allocator_ = false;
+  }
   type_specific_data_.v8_api_array_buffer_allocator = nullptr;
 }
 
@@ -154,14 +159,14 @@ BackingStore::~BackingStore() {
     DCHECK(free_on_destruct_);
     TRACE_BS("BS:custome deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
              this, buffer_start_, byte_length(), byte_capacity_);
-    type_specific_data_.deleter(buffer_start_, byte_length_, deleter_data_);
+    type_specific_data_.deleter.callback(buffer_start_, byte_length_,
+                                         type_specific_data_.deleter.data);
     Clear();
     return;
   }
   if (free_on_destruct_) {
     // JSArrayBuffer backing store. Deallocate through the embedder's allocator.
-    auto allocator = reinterpret_cast<v8::ArrayBuffer::Allocator*>(
-        get_v8_api_array_buffer_allocator());
+    auto allocator = get_v8_api_array_buffer_allocator();
     TRACE_BS("BS:free   bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
              buffer_start_, byte_length(), byte_capacity_);
     allocator->Free(buffer_start_, byte_length_);
@@ -224,8 +229,20 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
 
   TRACE_BS("BS:alloc  bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), byte_length);
-  result->type_specific_data_.v8_api_array_buffer_allocator = allocator;
+  result->SetAllocatorFromIsolate(isolate);
   return std::unique_ptr<BackingStore>(result);
+}
+
+void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
+  if (auto allocator_shared = isolate->array_buffer_allocator_shared()) {
+    holds_shared_ptr_to_allocator_ = true;
+    new (&type_specific_data_.v8_api_array_buffer_allocator_shared)
+        std::shared_ptr<v8::ArrayBuffer::Allocator>(
+            std::move(allocator_shared));
+  } else {
+    type_specific_data_.v8_api_array_buffer_allocator =
+        isolate->array_buffer_allocator();
+  }
 }
 
 // Allocate a backing store for a Wasm memory. Always use the page allocator
@@ -470,8 +487,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  free_on_destruct,   // free_on_destruct
                                  false,              // has_guard_regions
                                  false);             // custom_deleter
-  result->type_specific_data_.v8_api_array_buffer_allocator =
-      isolate->array_buffer_allocator();
+  result->SetAllocatorFromIsolate(isolate);
   TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), result->byte_length());
   return std::unique_ptr<BackingStore>(result);
@@ -489,8 +505,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  true,               // free_on_destruct
                                  false,              // has_guard_regions
                                  true);              // custom_deleter
-  result->type_specific_data_.deleter = deleter;
-  result->deleter_data_ = deleter_data;
+  result->type_specific_data_.deleter = {deleter, deleter_data};
   TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), result->byte_length());
   return std::unique_ptr<BackingStore>(result);
@@ -510,10 +525,12 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
   return std::unique_ptr<BackingStore>(result);
 }
 
-void* BackingStore::get_v8_api_array_buffer_allocator() {
+v8::ArrayBuffer::Allocator* BackingStore::get_v8_api_array_buffer_allocator() {
   CHECK(!is_wasm_memory_);
   auto array_buffer_allocator =
-      type_specific_data_.v8_api_array_buffer_allocator;
+      holds_shared_ptr_to_allocator_
+          ? type_specific_data_.v8_api_array_buffer_allocator_shared.get()
+          : type_specific_data_.v8_api_array_buffer_allocator;
   CHECK_NOT_NULL(array_buffer_allocator);
   return array_buffer_allocator;
 }
