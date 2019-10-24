@@ -286,7 +286,7 @@ throw when an attempt is made to import them:
 
 ```js
 import submodule from 'es-module-package/private-module.js';
-// Throws - Module not found
+// Throws ERR_MODULE_NOT_FOUND
 ```
 
 > Note: this is not a strong encapsulation as any private modules can still be

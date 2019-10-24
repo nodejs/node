@@ -33,13 +33,13 @@ second section explains how to create new types of streams.
 
 There are four fundamental stream types within Node.js:
 
-* [`Writable`][] - streams to which data can be written (for example,
+* [`Writable`][]: streams to which data can be written (for example,
   [`fs.createWriteStream()`][]).
-* [`Readable`][] - streams from which data can be read (for example,
+* [`Readable`][]: streams from which data can be read (for example,
   [`fs.createReadStream()`][]).
-* [`Duplex`][] - streams that are both `Readable` and `Writable` (for example,
+* [`Duplex`][]: streams that are both `Readable` and `Writable` (for example,
   [`net.Socket`][]).
-* [`Transform`][] - `Duplex` streams that can modify or transform the data as it
+* [`Transform`][]: `Duplex` streams that can modify or transform the data as it
   is written and read (for example, [`zlib.createDeflate()`][]).
 
 Additionally, this module includes the utility functions
@@ -2508,7 +2508,7 @@ user programs.
   [`stream.write()`][stream-write].
 * `encoding` {string} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
-  value - `'buffer'`, ignore it in this case.
+  value `'buffer'`. Ignore it in that case.
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called after the supplied `chunk` has been
   processed.

@@ -26,13 +26,13 @@ sockets on other operating systems.
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
-filesystem pathname. It gets truncated to `sizeof(sockaddr_un.sun_path) - 1`,
-which varies on different operating system between 91 and 107 bytes.
-The typical values are 107 on Linux and 103 on macOS. The path is
-subject to the same naming conventions and permissions checks as would be done
-on file creation. If the Unix domain socket (that is visible as a file system
-path) is created and used in conjunction with one of Node.js' API abstractions
-such as [`net.createServer()`][], it will be unlinked as part of
+filesystem pathname. It gets truncated to a length of
+`sizeof(sockaddr_un.sun_path) - 1`, which varies 91 and 107 bytes depending on
+the operating system. The typical values are 107 on Linux and 103 on macOS. The
+path is subject to the same naming conventions and permissions checks as would
+be done on file creation. If the Unix domain socket (that is visible as a file
+system path) is created and used in conjunction with one of Node.js' API
+abstractions such as [`net.createServer()`][], it will be unlinked as part of
 [`server.close()`][]. On the other hand, if it is created and used outside of
 these abstractions, the user will need to manually remove it. The same applies
 when the path was created by a Node.js API but the program crashes abruptly.
@@ -550,7 +550,7 @@ added: v0.3.8
 
 `net.Socket` has the property that `socket.write()` always works. This is to
 help users get up and running quickly. The computer cannot always keep up
-with the amount of data that is written to a socket - the network connection
+with the amount of data that is written to a socket. The network connection
 simply might be too slow. Node.js will internally queue up the data written to a
 socket and send it out over the wire when it is possible. (Internally it is
 polling on the socket's file descriptor for being writable).
@@ -648,13 +648,13 @@ For [IPC][] connections, available `options` are:
 
 For both types, available `options` include:
 
-* `onread` {Object} - If specified, incoming data is stored in a single `buffer`
+* `onread` {Object} If specified, incoming data is stored in a single `buffer`
   and passed to the supplied `callback` when data arrives on the socket.
   Note: this will cause the streaming functionality to not provide any data,
   however events like `'error'`, `'end'`, and `'close'` will still be emitted
   as normal and methods like `pause()` and `resume()` will also behave as
   expected.
-  * `buffer` {Buffer|Uint8Array|Function} - Either a reusable chunk of memory to
+  * `buffer` {Buffer|Uint8Array|Function} Either a reusable chunk of memory to
     use for storing incoming data or a function that returns such.
   * `callback` {Function} This function is called for every chunk of incoming
     data. Two arguments are passed to it: the number of bytes written to
@@ -943,7 +943,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 [`'drain'`][] will be emitted when the buffer is again free.
 
 The optional `callback` parameter will be executed when the data is finally
-written out - this may not be immediately.
+written out, which may not be immediately.
 
 See `Writable` stream [`write()`][stream_writable_write] method for more
 information.

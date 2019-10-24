@@ -29,18 +29,18 @@ customizable evaluation functions.
 
 The following special commands are supported by all REPL instances:
 
-* `.break` - When in the process of inputting a multi-line expression, entering
+* `.break`: When in the process of inputting a multi-line expression, entering
   the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
   further input or processing of that expression.
-* `.clear` - Resets the REPL `context` to an empty object and clears any
+* `.clear`: Resets the REPL `context` to an empty object and clears any
   multi-line expression currently being input.
-* `.exit` - Close the I/O stream, causing the REPL to exit.
-* `.help` - Show this list of special commands.
-* `.save` - Save the current REPL session to a file:
+* `.exit`: Close the I/O stream, causing the REPL to exit.
+* `.help`: Show this list of special commands.
+* `.save`: Save the current REPL session to a file:
   `> .save ./file/to/save.js`
-* `.load` - Load a file into the current REPL session.
+* `.load`: Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
+* `.editor`: Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
 
 ```console
 > .editor
@@ -58,11 +58,11 @@ welcome('Node.js User');
 
 The following key combinations in the REPL have these special effects:
 
-* `<ctrl>-C` - When pressed once, has the same effect as the `.break` command.
+* `<ctrl>-C`: When pressed once, has the same effect as the `.break` command.
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
-* `<ctrl>-D` - Has the same effect as the `.exit` command.
-* `<tab>` - When pressed on a blank line, displays global and local (scope)
+* `<ctrl>-D`: Has the same effect as the `.exit` command.
+* `<tab>`: When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
@@ -557,12 +557,12 @@ changes:
   * `replMode` {symbol} A flag that specifies whether the default evaluator
     executes all JavaScript commands in strict mode or default (sloppy) mode.
     Acceptable values are:
-    * `repl.REPL_MODE_SLOPPY` - evaluates expressions in sloppy mode.
-    * `repl.REPL_MODE_STRICT` - evaluates expressions in strict mode. This is
+    * `repl.REPL_MODE_SLOPPY` to evaluate expressions in sloppy mode.
+    * `repl.REPL_MODE_STRICT` to evaluate expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
-  * `breakEvalOnSigint` - Stop evaluating the current piece of code when
-    `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
-    with a custom `eval` function. **Default:** `false`.
+  * `breakEvalOnSigint` {boolean} Stop evaluating the current piece of code when
+    `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
+    together with a custom `eval` function. **Default:** `false`.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
@@ -601,16 +601,16 @@ undefined
 Various behaviors of the Node.js REPL can be customized using the following
 environment variables:
 
-* `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
+* `NODE_REPL_HISTORY`: When a valid path is given, persistent REPL history
   will be saved to the specified file rather than `.node_repl_history` in the
   user's home directory. Setting this value to `''` (an empty string) will
   disable persistent REPL history. Whitespace will be trimmed from the value.
   On Windows platforms environment variables with empty values are invalid so
   set this variable to one or more spaces to disable persistent REPL history.
-* `NODE_REPL_HISTORY_SIZE` - Controls how many lines of history will be
+* `NODE_REPL_HISTORY_SIZE`: Controls how many lines of history will be
   persisted if history is available. Must be a positive number.
   **Default:** `1000`.
-* `NODE_REPL_MODE` - May be either `'sloppy'` or `'strict'`. **Default:**
+* `NODE_REPL_MODE`: May be either `'sloppy'` or `'strict'`. **Default:**
   `'sloppy'`, which will allow non-strict mode code to be run.
 
 ### Persistent History

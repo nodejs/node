@@ -152,7 +152,7 @@ added: v8.0.0
 
 Posts a message to the inspector back-end. `callback` will be notified when
 a response is received. `callback` is a function that accepts two optional
-arguments - error and message-specific result.
+arguments: error and message-specific result.
 
 ```js
 session.post('Runtime.evaluate', { expression: '2 + 2' },
