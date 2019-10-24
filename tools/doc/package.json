@@ -4,7 +4,7 @@
   "description": "Internal tool for generating Node.js API docs",
   "version": "0.0.0",
   "engines": {
-    "node": ">=6"
+    "node": ">=12.10.0"
   },
   "dependencies": {
     "rehype-raw": "^2.0.0",
