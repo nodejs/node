@@ -543,3 +543,68 @@ THREADED_TEST(Regress1006600) {
     CHECK_NULL(ab.As<v8::Object>()->GetAlignedPointerFromInternalField(i));
   }
 }
+
+THREADED_TEST(ArrayBuffer_NewBackingStore) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::shared_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 100);
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
+  CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+}
+
+THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::shared_ptr<v8::BackingStore> backing_store =
+      v8::SharedArrayBuffer::NewBackingStore(isolate, 100);
+  Local<v8::SharedArrayBuffer> ab =
+      v8::SharedArrayBuffer::New(isolate, backing_store);
+  CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+}
+
+static void* backing_store_custom_data = nullptr;
+static size_t backing_store_custom_length = 0;
+static bool backing_store_custom_called = false;
+const intptr_t backing_store_custom_deleter_data = 1234567;
+
+static void BackingStoreCustomDeleter(void* data, size_t length,
+                                      void* deleter_data) {
+  CHECK(!backing_store_custom_called);
+  CHECK_EQ(backing_store_custom_data, data);
+  CHECK_EQ(backing_store_custom_length, length);
+  CHECK_EQ(backing_store_custom_deleter_data,
+           reinterpret_cast<intptr_t>(deleter_data));
+  free(data);
+  backing_store_custom_called = true;
+}
+
+TEST(ArrayBuffer_NewBackingStore_CustomDeleter) {
+  {
+    // Create and destroy a backing store.
+    backing_store_custom_called = false;
+    backing_store_custom_data = malloc(100);
+    backing_store_custom_length = 100;
+    v8::ArrayBuffer::NewBackingStore(
+        backing_store_custom_data, backing_store_custom_length,
+        BackingStoreCustomDeleter,
+        reinterpret_cast<void*>(backing_store_custom_deleter_data));
+  }
+  CHECK(backing_store_custom_called);
+}
+
+TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
+  {
+    // Create and destroy a backing store.
+    backing_store_custom_called = false;
+    backing_store_custom_data = malloc(100);
+    backing_store_custom_length = 100;
+    v8::SharedArrayBuffer::NewBackingStore(
+        backing_store_custom_data, backing_store_custom_length,
+        BackingStoreCustomDeleter,
+        reinterpret_cast<void*>(backing_store_custom_deleter_data));
+  }
+  CHECK(backing_store_custom_called);
+}
