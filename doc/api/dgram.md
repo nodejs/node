@@ -466,7 +466,7 @@ client.send([buf1, buf2], 41234, (err) => {
 ```
 
 Sending multiple buffers might be faster or slower depending on the
-application and operating system. It is important to run benchmarks to
+application and operating system. Run benchmarks to
 determine the optimal strategy on a case-by-case basis. Generally speaking,
 however, sending multiple buffers is faster.
 

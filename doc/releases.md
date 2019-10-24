@@ -540,7 +540,7 @@ formatting passes the lint rules on `master`.
 
 ### 13. Promote and Sign the Release Builds
 
-**It is important that the same individual who signed the release tag be the one
+**The same individual who signed the release tag must be the one
 to promote the builds as the SHASUMS256.txt file needs to be signed with the
 same GPG key!**
 
