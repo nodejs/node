@@ -120,7 +120,7 @@ library makes ABI stability guarantees similar to N-API.
 
 ## Building
 
-Unlike modules written in JavaScript, developing and deploying Node native
+Unlike modules written in JavaScript, developing and deploying Node.js native
 addons using N-API requires an additional set of tools. Besides the basic
 tools required to develop for Node.js, the native addon developer requires a
 toolchain that can compile C and C++ code into a binary. In addition,
@@ -149,13 +149,13 @@ npm install --global --production windows-build-tools
 ```
 
 The sections below describe the additional tools available for developing
-and deploying Node native addons.
+and deploying Node.js native addons.
 
 ### Build tools
 
-> Both the tools listed here require that *users* of the native
-> addon have a C/C++ toolchain installed in order to successfully install
-> the native addon.
+Both the tools listed here require that *users* of the native
+addon have a C/C++ toolchain installed in order to successfully install
+the native addon.
 
 #### node-gyp
 
@@ -177,7 +177,7 @@ developers affected by limitations in node-gyp.
 
 ### Uploading precompiled binaries
 
-The two tools listed here permit native addon developers and maintainers to
+The three tools listed here permit native addon developers and maintainers to
 create and upload binaries to public or private servers. These tools are
 typically integrated with CI/CD build systems like
 [Travis CI](https://travis-ci.org) and [AppVeyor](https://www.appveyor.com)
@@ -197,8 +197,16 @@ uploading binaries to Amazon S3.
 [prebuild](https://github.com/prebuild/prebuild) is a tool that supports
 builds using either node-gyp or CMake.js. Unlike node-pre-gyp which
 supports a variety of servers, prebuild uploads binaries only to
-[GitHub releases](https://github.com/prebuild/prebuild). prebuild is a
-good choice for GitHub projects using CMake.js.
+[GitHub releases][]. prebuild is a good choice for GitHub projects using
+CMake.js.
+
+#### prebuildify
+
+[prebuildify](https://github.com/prebuild/prebuildify) is tool based on
+node-gyp. The advantage of prebuildify is that the built binaries are
+bundled with the native module when it's uploaded to npm. The binaries are
+downloaded from npm and are immediately available to the module user when
+the native module is installed.
 
 ## Usage
 
@@ -5304,3 +5312,4 @@ This API may only be called from the main thread.
 [context-aware addons]: addons.html#addons_context_aware_addons
 [node-addon-api]: https://github.com/nodejs/node-addon-api
 [worker threads]: https://nodejs.org/api/worker_threads.html
+[GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
