@@ -4850,6 +4850,14 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
 };
 
 /**
+ * This callback is used only if the memory block for this backing store cannot
+ * be allocated with an ArrayBuffer::Allocator. In such cases the destructor
+ * of this backing store object invokes the callback to free the memory block.
+ */
+using BackingStoreDeleterCallback = void (*)(void* data, size_t length,
+                                             void* deleter_data);
+
+/**
  * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
  */
 class V8_EXPORT ArrayBuffer : public Object {
@@ -4998,6 +5006,29 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   static Local<ArrayBuffer> New(Isolate* isolate,
                                 std::shared_ptr<BackingStore> backing_store);
+
+  /**
+   * Returns a new standalone BackingStore that is allocated using the array
+   * buffer allocator of the isolate. The result can be later passed to
+   * ArrayBuffer::New.
+   *
+   * If the allocator returns nullptr, then the function may cause GCs in the
+   * given isolate and re-try the allocation. If GCs do not help, then the
+   * function will crash with an out-of-memory error.
+   */
+  static std::unique_ptr<BackingStore> NewBackingStore(Isolate* isolate,
+                                                       size_t byte_length);
+  /**
+   * Returns a new standalone BackingStore that takes over the ownership of
+   * the given buffer. The destructor of the BackingStore invokes the given
+   * deleter callback.
+   *
+   * The result can be later passed to ArrayBuffer::New. The raw pointer
+   * to the buffer must not be passed again to any V8 API function.
+   */
+  static std::unique_ptr<BackingStore> NewBackingStore(
+      void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+      void* deleter_data);
 
   /**
    * Returns true if ArrayBuffer is externalized, that is, does not
@@ -5448,6 +5479,29 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    */
   static Local<SharedArrayBuffer> New(
       Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+
+  /**
+   * Returns a new standalone BackingStore that is allocated using the array
+   * buffer allocator of the isolate. The result can be later passed to
+   * SharedArrayBuffer::New.
+   *
+   * If the allocator returns nullptr, then the function may cause GCs in the
+   * given isolate and re-try the allocation. If GCs do not help, then the
+   * function will crash with an out-of-memory error.
+   */
+  static std::unique_ptr<BackingStore> NewBackingStore(Isolate* isolate,
+                                                       size_t byte_length);
+  /**
+   * Returns a new standalone BackingStore that takes over the ownership of
+   * the given buffer. The destructor of the BackingStore invokes the given
+   * deleter callback.
+   *
+   * The result can be later passed to SharedArrayBuffer::New. The raw pointer
+   * to the buffer must not be passed again to any V8 functions.
+   */
+  static std::unique_ptr<BackingStore> NewBackingStore(
+      void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+      void* deleter_data);
 
   /**
    * Create a new SharedArrayBuffer over an existing memory block. Propagate

@@ -733,6 +733,7 @@ class RuntimeCallTimer final {
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Detach)                                    \
   V(ArrayBuffer_New)                                       \
+  V(ArrayBuffer_NewBackingStore)                           \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \
   V(BigInt64Array_New)                                     \
@@ -850,6 +851,7 @@ class RuntimeCallTimer final {
   V(Set_Has)                                               \
   V(Set_New)                                               \
   V(SharedArrayBuffer_New)                                 \
+  V(SharedArrayBuffer_NewBackingStore)                     \
   V(String_Concat)                                         \
   V(String_NewExternalOneByte)                             \
   V(String_NewExternalTwoByte)                             \
