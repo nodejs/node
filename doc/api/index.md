@@ -14,7 +14,7 @@
 * [Async Hooks](async_hooks.html)
 * [Buffer](buffer.html)
 * [C++ Addons](addons.html)
-* [C/C++ Addons - N-API](n-api.html)
+* [C/C++ Addons with N-API](n-api.html)
 * [Child Processes](child_process.html)
 * [Cluster](cluster.html)
 * [Command Line Options](cli.html)

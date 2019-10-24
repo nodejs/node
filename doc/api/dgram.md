@@ -673,8 +673,8 @@ changes:
   * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to address `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
-  * `recvBufferSize` {number} - Sets the `SO_RCVBUF` socket value.
-  * `sendBufferSize` {number} - Sets the `SO_SNDBUF` socket value.
+  * `recvBufferSize` {number} Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
@@ -692,8 +692,8 @@ and port can be retrieved using [`socket.address().address`][] and
 added: v0.1.99
 -->
 
-* `type` {string} - Either `'udp4'` or `'udp6'`.
-* `callback` {Function} - Attached as a listener to `'message'` events.
+* `type` {string} Either `'udp4'` or `'udp6'`.
+* `callback` {Function} Attached as a listener to `'message'` events.
 * Returns: {dgram.Socket}
 
 Creates a `dgram.Socket` object of the specified `type`.

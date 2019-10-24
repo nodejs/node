@@ -225,27 +225,27 @@ as a `printf`-like format string which can contain zero or more format
 specifiers. Each specifier is replaced with the converted value from the
 corresponding argument. Supported specifiers are:
 
-* `%s` - `String` will be used to convert all values except `BigInt`, `Object`
+* `%s`: `String` will be used to convert all values except `BigInt`, `Object`
   and `-0`. `BigInt` values will be represented with an `n` and Objects that
   have no user defined `toString` function are inspected using `util.inspect()`
   with options `{ depth: 0, colors: false, compact: 3 }`.
-* `%d` - `Number` will be used to convert all values except `BigInt` and
+* `%d`: `Number` will be used to convert all values except `BigInt` and
   `Symbol`.
-* `%i` - `parseInt(value, 10)` is used for all values except `BigInt` and
+* `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
   `Symbol`.
-* `%f` - `parseFloat(value)` is used for all values expect `Symbol`.
-* `%j` - JSON. Replaced with the string `'[Circular]'` if the argument contains
+* `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
+* `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
   circular references.
-* `%o` - `Object`. A string representation of an object with generic JavaScript
+* `%o`: `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` with options
   `{ showHidden: true, showProxy: true }`. This will show the full object
   including non-enumerable properties and proxies.
-* `%O` - `Object`. A string representation of an object with generic JavaScript
+* `%O`: `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
-* `%c` - `CSS`. This specifier is currently ignored, and will skip any CSS
+* `%c`: `CSS`. This specifier is currently ignored, and will skip any CSS
   passed in.
-* `%%` - single percent sign (`'%'`). This does not consume an argument.
+* `%%`: single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
 
 If a specifier does not have a corresponding argument, it is not replaced:
@@ -662,18 +662,18 @@ via the `util.inspect.styles` and `util.inspect.colors` properties.
 
 The default styles and associated colors are:
 
-* `bigint` - `yellow`
-* `boolean` - `yellow`
-* `date` - `magenta`
-* `module` - `underline`
-* `name` - (no styling)
-* `null` - `bold`
-* `number` - `yellow`
-* `regexp` - `red`
-* `special` - `cyan` (e.g., `Proxies`)
-* `string` - `green`
-* `symbol` - `green`
-* `undefined` - `grey`
+* `bigint`: `yellow`
+* `boolean`: `yellow`
+* `date`: `magenta`
+* `module`: `underline`
+* `name`: (no styling)
+* `null`: `bold`
+* `number`: `yellow`
+* `regexp`: `red`
+* `special`: `cyan` (e.g., `Proxies`)
+* `string`: `green`
+* `symbol`: `green`
+* `undefined`: `grey`
 
 The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,

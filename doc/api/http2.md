@@ -1975,18 +1975,18 @@ changes:
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
-  * `paddingStrategy` {number} Identifies the strategy used for determining the
-    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+  * `paddingStrategy` {number} The strategy used for determining the amount of
+    padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+    * `http2.constants.PADDING_STRATEGY_NONE`: Specifies that no padding is
       to be applied.
-    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+    * `http2.constants.PADDING_STRATEGY_MAX`: Specifies that the maximum
       amount of padding, as determined by the internal implementation, is to
       be applied.
-    * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
+    * `http2.constants.PADDING_STRATEGY_CALLBACK`: Specifies that the user
       provided `options.selectPadding()` callback is to be used to determine
       the amount of padding.
-    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+    * `http2.constants.PADDING_STRATEGY_ALIGNED`: Will *attempt* to apply
       enough padding to ensure that the total frame length, including the
       9-byte header, is a multiple of 8. For each frame, however, there is a
       maximum allowed number of padding bytes that is determined by current
@@ -2090,18 +2090,18 @@ changes:
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
-  * `paddingStrategy` {number} Identifies the strategy used for determining the
-    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+  * `paddingStrategy` {number} Strategy used for determining the amount of
+    padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+    * `http2.constants.PADDING_STRATEGY_NONE`: Specifies that no padding is
       to be applied.
-    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+    * `http2.constants.PADDING_STRATEGY_MAX`: Specifies that the maximum
       amount of padding, as determined by the internal implementation, is to
       be applied.
-    * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
+    * `http2.constants.PADDING_STRATEGY_CALLBACK`: Specifies that the user
       provided `options.selectPadding()` callback is to be used to determine
       the amount of padding.
-    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+    * `http2.constants.PADDING_STRATEGY_ALIGNED`: Will *attempt* to apply
       enough padding to ensure that the total frame length, including the
       9-byte header, is a multiple of 8. For each frame, however, there is a
       maximum allowed number of padding bytes that is determined by current
@@ -2191,18 +2191,18 @@ changes:
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
-  * `paddingStrategy` {number} Identifies the strategy used for determining the
-    amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
+  * `paddingStrategy` {number} Strategy used for determining the amount of
+    padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
-    * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
+    * `http2.constants.PADDING_STRATEGY_NONE`: Specifies that no padding is
       to be applied.
-    * `http2.constants.PADDING_STRATEGY_MAX` - Specifies that the maximum
+    * `http2.constants.PADDING_STRATEGY_MAX`: Specifies that the maximum
       amount of padding, as determined by the internal implementation, is to
       be applied.
-    * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
+    * `http2.constants.PADDING_STRATEGY_CALLBACK`: Specifies that the user
       provided `options.selectPadding()` callback is to be used to determine
       the amount of padding.
-    * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
+    * `http2.constants.PADDING_STRATEGY_ALIGNED`: Will *attempt* to apply
       enough padding to ensure that the total frame length, including the
       9-byte header, is a multiple of 8. For each frame, however, there is a
       maximum allowed number of padding bytes that is determined by current

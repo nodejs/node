@@ -39,7 +39,7 @@ For example, `--pending-deprecation` is equivalent to `--pending_deprecation`.
 added: v8.0.0
 -->
 
-Alias for stdin, analogous to the use of - in other command line utilities,
+Alias for stdin. Analogous to the use of `-` in other command line utilities,
 meaning that the script will be read from stdin, and the rest of the options
 are passed to that script.
 

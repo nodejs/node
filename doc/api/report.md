@@ -446,11 +446,11 @@ the name of a file into which the report is written.
 process.report.writeReport('./foo.json');
 ```
 
-This function takes an optional additional argument `err` - an `Error` object
-that will be used as the context for the JavaScript stack printed in the report.
-When using report to handle errors in a callback or an exception handler, this
-allows the report to include the location of the original error as well
-as where it was handled.
+This function takes an optional additional argument `err` which is an `Error`
+object that will be used as the context for the JavaScript stack printed in the
+report. When using report to handle errors in a callback or an exception
+handler, this allows the report to include the location of the original error as
+well as where it was handled.
 
 ```js
 try {
@@ -484,8 +484,9 @@ console.log(typeof report === 'object'); // true
 console.log(JSON.stringify(report, null, 2));
 ```
 
-This function takes an optional additional argument `err` - an `Error` object
-that will be used as the context for the JavaScript stack printed in the report.
+This function takes an optional additional argument `err`, which is an `Error`
+object that will be used as the context for the JavaScript stack printed in the
+report.
 
 ```js
 const report = process.report.getReport(new Error('custom error'));
