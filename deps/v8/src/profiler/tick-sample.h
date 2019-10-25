@@ -14,6 +14,14 @@ namespace internal {
 
 class Isolate;
 
+struct SampleInfoWithContext {
+  size_t frames_count;            // Number of frames collected.
+  StateTag vm_state;              // Current VM state.
+  void* external_callback_entry;  // External callback address if VM is
+                                  // executing an external callback.
+  void* top_context;              // Incumbent native context address.
+};
+
 // TickSample captures the information collected for each sample.
 struct V8_EXPORT TickSample {
   // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
@@ -69,6 +77,12 @@ struct V8_EXPORT TickSample {
                              RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
                              v8::SampleInfo* sample_info,
+                             bool use_simulator_reg_state = true,
+                             void** contexts = nullptr);
+  static bool GetStackSample(Isolate* isolate, v8::RegisterState* state,
+                             RecordCEntryFrame record_c_entry_frame,
+                             void** frames, size_t frames_limit,
+                             SampleInfoWithContext* sample_info,
                              bool use_simulator_reg_state = true,
                              void** contexts = nullptr);
 

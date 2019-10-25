@@ -458,8 +458,7 @@ class ProfilerHelper {
       v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,
       unsigned min_js_samples = 0, unsigned min_external_samples = 0,
       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
-      unsigned max_samples = v8::CpuProfilingOptions::kNoSampleLimit,
-      v8::Local<v8::Context> context = v8::Local<v8::Context>());
+      unsigned max_samples = v8::CpuProfilingOptions::kNoSampleLimit);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -472,12 +471,11 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    ProfilingMode mode, unsigned max_samples,
-                                    v8::Local<v8::Context> context) {
+                                    ProfilingMode mode, unsigned max_samples) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, {mode, max_samples, 0, context});
+  profiler_->StartProfiling(profile_name, {mode, max_samples});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -3472,6 +3470,7 @@ TEST(Bug9151StaleCodeEntries) {
   CHECK(callback);
 }
 
+/* Disabled for Node 12
 // Tests that functions from other contexts aren't recorded when filtering for
 // another context.
 TEST(ContextIsolation) {
@@ -3605,6 +3604,7 @@ TEST(ContextFilterMovedNativeContext) {
     CHECK(callback_node);
   }
 }
+*/
 
 enum class EntryCountMode { kAll, kOnlyInlined };
 

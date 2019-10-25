@@ -67,8 +67,8 @@ namespace internal {
                                                          \
   V(MAP_TYPE)                                            \
   V(CODE_TYPE)                                           \
-  V(FOREIGN_TYPE)                                        \
   V(BYTE_ARRAY_TYPE)                                     \
+  V(FOREIGN_TYPE)                                        \
   V(BYTECODE_ARRAY_TYPE)                                 \
   V(FREE_SPACE_TYPE)                                     \
                                                          \

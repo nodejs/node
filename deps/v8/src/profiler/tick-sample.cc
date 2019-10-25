@@ -188,7 +188,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    bool use_simulator_reg_state,
                                    base::TimeDelta sampling_interval) {
   this->update_stats = update_stats;
-  SampleInfo info;
+  SampleInfoWithContext info;
   RegisterState regs = reg_state;
   if (!GetStackSample(v8_isolate, &regs, record_c_entry_frame, stack,
                       kMaxFramesCount, &info, use_simulator_reg_state,
@@ -229,7 +229,26 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
-                                v8::SampleInfo* sample_info,
+                                v8::SampleInfo* sample_info_out,
+                                bool use_simulator_reg_state, void** contexts) {
+  SampleInfoWithContext sample_info_local;
+
+  bool ret = GetStackSample(
+      v8_isolate, regs, record_c_entry_frame, frames, frames_limit,
+      &sample_info_local, use_simulator_reg_state, contexts);
+
+  sample_info_out->frames_count = sample_info_local.frames_count;
+  sample_info_out->vm_state = sample_info_local.vm_state;
+  sample_info_out->external_callback_entry =
+    sample_info_local.external_callback_entry;
+
+  return ret;
+}
+
+bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
+                                RecordCEntryFrame record_c_entry_frame,
+                                void** frames, size_t frames_limit,
+                                SampleInfoWithContext* sample_info,
                                 bool use_simulator_reg_state, void** contexts) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   sample_info->frames_count = 0;

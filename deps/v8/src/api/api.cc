@@ -8183,14 +8183,13 @@ Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
 
 Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
     Isolate* isolate)
-    : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
-      microtask_queue_(isolate_->default_microtask_queue()) {
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
   isolate_->thread_local_top()->IncrementCallDepth(this);
-  microtask_queue_->IncrementMicrotasksSuppressions();
+  isolate_->default_microtask_queue()->IncrementMicrotasksSuppressions();
 }
 
 Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
-  microtask_queue_->DecrementMicrotasksSuppressions();
+  isolate_->default_microtask_queue()->DecrementMicrotasksSuppressions();
   isolate_->thread_local_top()->DecrementCallDepth(this);
 }
 
@@ -9975,25 +9974,12 @@ CpuProfiler* CpuProfiler::New(Isolate* isolate, CpuProfilingNamingMode mode) {
   return New(isolate, mode, kLazyLogging);
 }
 
-CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
-                                         unsigned max_samples,
-                                         int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context)
-    : mode_(mode),
-      max_samples_(max_samples),
-      sampling_interval_us_(sampling_interval_us) {
-  if (!filter_context.IsEmpty()) {
-    Local<Context> local_filter_context = filter_context.ToLocalChecked();
-    filter_context_.Reset(local_filter_context->GetIsolate(),
-                          local_filter_context);
-  }
+bool CpuProfilingOptions::has_filter_context() const {
+  return false;
 }
 
 void* CpuProfilingOptions::raw_filter_context() const {
-  return reinterpret_cast<void*>(
-      i::Context::cast(*Utils::OpenPersistent(filter_context_))
-          .native_context()
-          .address());
+  return nullptr;
 }
 
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
@@ -10265,10 +10251,6 @@ SnapshotObjectId HeapProfiler::GetObjectId(Local<Value> value) {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
 }
 
-SnapshotObjectId HeapProfiler::GetObjectId(NativeObject value) {
-  return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(value);
-}
-
 Local<Value> HeapProfiler::FindObjectById(SnapshotObjectId id) {
   i::Handle<i::Object> obj =
       reinterpret_cast<i::HeapProfiler*>(this)->FindHeapObjectById(id);
@@ -10396,17 +10378,6 @@ void EmbedderHeapTracer::TracePrologue(TraceFlags flags) {
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
   TracePrologue();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-}
-
-void EmbedderHeapTracer::TraceEpilogue(TraceSummary* trace_summary) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  TraceEpilogue();
 #if __clang__
 #pragma clang diagnostic pop
 #endif

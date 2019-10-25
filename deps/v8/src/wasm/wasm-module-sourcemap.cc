@@ -28,7 +28,9 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
   bool has_valid_version =
       src_map_obj
           ->Get(context,
-                v8::String::NewFromUtf8(v8_isolate, "version").ToLocalChecked())
+                v8::String::NewFromUtf8(v8_isolate, "version",
+                                        v8::NewStringType::kInternalized)
+                    .ToLocalChecked())
           .ToLocal(&version_value) &&
       version_value->IsUint32();
   uint32_t version = 0;
@@ -39,7 +41,9 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
   bool has_valid_sources =
       src_map_obj
           ->Get(context,
-                v8::String::NewFromUtf8(v8_isolate, "sources").ToLocalChecked())
+                v8::String::NewFromUtf8(v8_isolate, "version",
+                                        v8::NewStringType::kInternalized)
+                    .ToLocalChecked())
           .ToLocal(&sources_value) &&
       sources_value->IsArray();
   if (!has_valid_sources) return;
@@ -49,7 +53,9 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
   v8::Local<v8::Value> sources_len_value;
   if (!sources_arr
            ->Get(context,
-                 v8::String::NewFromUtf8(v8_isolate, "length").ToLocalChecked())
+                 v8::String::NewFromUtf8(v8_isolate, "version",
+                                         v8::NewStringType::kInternalized)
+                     .ToLocalChecked())
            .ToLocal(&sources_len_value))
     return;
   uint32_t sources_len = 0;
@@ -73,7 +79,9 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
       src_map_obj
           ->Get(
               context,
-              v8::String::NewFromUtf8(v8_isolate, "mappings").ToLocalChecked())
+              v8::String::NewFromUtf8(v8_isolate, "version",
+                                      v8::NewStringType::kInternalized)
+                  .ToLocalChecked())
           .ToLocal(&mappings_value) &&
       mappings_value->IsString();
   if (!has_valid_mappings) return;
