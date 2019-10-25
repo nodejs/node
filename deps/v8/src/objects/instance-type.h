@@ -133,8 +133,8 @@ enum InstanceType : uint16_t {
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
-  FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
+  FOREIGN_TYPE,
   BYTECODE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
   FIXED_DOUBLE_ARRAY_TYPE,

@@ -2094,7 +2094,6 @@ struct SampleInfo {
   StateTag vm_state;              // Current VM state.
   void* external_callback_entry;  // External callback address if VM is
                                   // executing an external callback.
-  void* top_context;              // Incumbent native context address.
 };
 
 struct MemoryRange {
@@ -7561,9 +7560,8 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  V8_DEPRECATE_SOON("Use version with parameter.",
-                    virtual void TraceEpilogue()) {}
-  virtual void TraceEpilogue(TraceSummary* trace_summary);
+  virtual void TraceEpilogue() {}
+  virtual void TraceEpilogue(TraceSummary* trace_summary) { TraceEpilogue(); }
 
   /**
    * Called upon entering the final marking pause. No more incremental marking
@@ -7835,7 +7833,6 @@ class V8_EXPORT Isolate {
   class V8_EXPORT SuppressMicrotaskExecutionScope {
    public:
     explicit SuppressMicrotaskExecutionScope(Isolate* isolate);
-    explicit SuppressMicrotaskExecutionScope(MicrotaskQueue* microtask_queue);
     ~SuppressMicrotaskExecutionScope();
 
     // Prevent copying of Scope objects.
@@ -7846,8 +7843,13 @@ class V8_EXPORT Isolate {
 
    private:
     internal::Isolate* const isolate_;
-    internal::MicrotaskQueue* const microtask_queue_;
     internal::Address previous_stack_height_;
+    static_assert(sizeof(internal::Address) ==
+                      sizeof(internal::MicrotaskQueue*) &&
+                  alignof(internal::Address) ==
+                      alignof(internal::MicrotaskQueue*),
+                  "The previous_stack_height_ field can replace the "
+                  "microtask_queue_ field ABI-wise");
 
     friend class internal::ThreadLocalTop;
   };

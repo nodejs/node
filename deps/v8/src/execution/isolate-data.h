@@ -111,27 +111,21 @@ class IsolateData final {
   Address* builtins() { return builtins_; }
 
  private:
-  // Static layout definition.
-  //
-  // Note: The location of fields within IsolateData is significant. The
-  // closer they are to the value of kRootRegister (i.e.: isolate_root()), the
-  // cheaper it is to access them. See also: https://crbug.com/993264.
-  // The recommend guideline is to put frequently-accessed fields close to the
-  // beginning of IsolateData.
+// Static layout definition.
 #define FIELDS(V)                                                             \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize) \
   V(kExternalMemoryOffset, kInt64Size)                                        \
   V(kExternalMemoryLlimitOffset, kInt64Size)                                  \
   V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                       \
-  V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
-  V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
-  V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
   V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kSystemPointerSize)        \
   V(kVirtualCallTargetRegisterOffset, kSystemPointerSize)                     \
+  V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
+  V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
+  V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kStackIsIterableOffset, kUInt8Size)                                       \
   /* This padding aligns IsolateData size by 8 bytes. */                      \
   V(kPaddingOffset,                                                           \
@@ -159,17 +153,6 @@ class IsolateData final {
   // Caches the amount of external memory registered at the last MC.
   int64_t external_memory_at_last_mark_compact_ = 0;
 
-  // Stores the state of the caller for TurboAssembler::CallCFunction so that
-  // the sampling CPU profiler can iterate the stack during such calls. These
-  // are stored on IsolateData so that they can be stored to with only one move
-  // instruction in compiled code.
-  Address fast_c_call_caller_fp_ = kNullAddress;
-  Address fast_c_call_caller_pc_ = kNullAddress;
-
-  // Fields related to the system and JS stack. In particular, this contains the
-  // stack limit used by stack checks in generated code.
-  StackGuard stack_guard_;
-
   RootsTable roots_;
 
   ExternalReferenceTable external_reference_table_;
@@ -188,6 +171,17 @@ class IsolateData final {
   // TODO(v8:6666): Remove once wasm supports pc-relative jumps to builtins on
   // ia32 (otherwise the arguments adaptor call runs out of registers).
   void* virtual_call_target_register_ = nullptr;
+
+  // Stores the state of the caller for TurboAssembler::CallCFunction so that
+  // the sampling CPU profiler can iterate the stack during such calls. These
+  // are stored on IsolateData so that they can be stored to with only one move
+  // instruction in compiled code.
+  Address fast_c_call_caller_fp_ = kNullAddress;
+  Address fast_c_call_caller_pc_ = kNullAddress;
+
+  // Fields related to the system and JS stack. In particular, this contains the
+  // stack limit used by stack checks in generated code.
+  StackGuard stack_guard_;
 
   // Whether the SafeStackFrameIterator can successfully iterate the current
   // stack. Only valid values are 0 or 1.
