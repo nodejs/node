@@ -160,8 +160,8 @@ require(X) from module at path Y
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
-5. LOAD_NODE_MODULES(X, dirname(Y))
-4. LOAD_SELF_REFERENCE(X, dirname(Y))
+4. LOAD_NODE_MODULES(X, dirname(Y))
+5. LOAD_SELF_REFERENCE(X, dirname(Y))
 6. THROW "not found"
 
 LOAD_AS_FILE(X)
@@ -223,8 +223,8 @@ LOAD_NODE_MODULES(X, START)
 1. let DIRS = NODE_MODULES_PATHS(START)
 2. for each DIR in DIRS:
    a. let FILE_PATH = RESOLVE_BARE_SPECIFIER(DIR, X)
-   a. LOAD_AS_FILE(FILE_PATH)
-   b. LOAD_AS_DIRECTORY(FILE_PATH)
+   b. LOAD_AS_FILE(FILE_PATH)
+   c. LOAD_AS_DIRECTORY(FILE_PATH)
 
 RESOLVE_BARE_SPECIFIER(DIR, X)
 1. Try to interpret X as a combination of name and subpath where the name
