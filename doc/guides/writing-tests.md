@@ -163,7 +163,7 @@ const http = require('http');
 
 let request = 0;
 let response = 0;
-process.on('exit', function() {
+process.on('exit', () => {
   assert.equal(request, 1, 'http server "request" callback was not called');
   assert.equal(response, 1, 'http request "response" callback was not called');
 });
@@ -171,10 +171,10 @@ process.on('exit', function() {
 const server = http.createServer((req, res) => {
   request++;
   res.end();
-}).listen(0, function() {
+}).listen(0, () => {
   const options = {
     agent: null,
-    port: this.address().port
+    port: server.address().port
   };
   http.get(options, (res) => {
     response++;
@@ -193,10 +193,10 @@ const http = require('http');
 
 const server = http.createServer(common.mustCall((req, res) => {
   res.end();
-})).listen(0, function() {
+})).listen(0, () => {
   const options = {
     agent: null,
-    port: this.address().port
+    port: server.address().port
   };
   http.get(options, common.mustCall((res) => {
     res.resume();
@@ -216,7 +216,7 @@ shutting down an HTTP server after a specific number of requests).
 ```javascript
 const Countdown = require('../common/countdown');
 
-const countdown = new Countdown(2, function() {
+const countdown = new Countdown(2, () => {
   console.log('.');
 });
 
