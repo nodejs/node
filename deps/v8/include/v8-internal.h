@@ -152,7 +152,6 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
 
-  // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
       kNumIsolateDataSlots * kApiSystemPointerSize;
@@ -160,14 +159,8 @@ class Internals {
       kExternalMemoryOffset + kApiInt64Size;
   static const int kExternalMemoryAtLastMarkCompactOffset =
       kExternalMemoryLimitOffset + kApiInt64Size;
-  static const int kIsolateFastCCallCallerFpOffset =
-      kExternalMemoryAtLastMarkCompactOffset + kApiInt64Size;
-  static const int kIsolateFastCCallCallerPcOffset =
-      kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
-  static const int kIsolateStackGuardOffset =
-      kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
-      kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
+      kExternalMemoryAtLastMarkCompactOffset + kApiInt64Size;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -186,7 +179,7 @@ class Internals {
 
   static const int kFirstNonstringType = 0x40;
   static const int kOddballType = 0x43;
-  static const int kForeignType = 0x46;
+  static const int kForeignType = 0x47;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;

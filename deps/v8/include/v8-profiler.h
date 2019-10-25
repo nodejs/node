@@ -18,8 +18,8 @@ namespace v8 {
 class HeapGraphNode;
 struct HeapStatsUpdate;
 
-using NativeObject = void*;
-using SnapshotObjectId = uint32_t;
+typedef uint32_t SnapshotObjectId;
+
 
 struct CpuProfileDeoptFrame {
   int script_id;
@@ -272,10 +272,12 @@ class V8_EXPORT CpuProfilingOptions {
    *                             zero, the sampling interval will be equal to
    *                             the profiler's sampling interval.
    */
-  CpuProfilingOptions(
-      CpuProfilingMode mode = kLeafNodeLineNumbers,
-      unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
-      MaybeLocal<Context> filter_context = MaybeLocal<Context>());
+  CpuProfilingOptions(CpuProfilingMode mode = kLeafNodeLineNumbers,
+                      unsigned max_samples = kNoSampleLimit,
+                      int sampling_interval_us = 0)
+      : mode_(mode),
+        max_samples_(max_samples),
+        sampling_interval_us_(sampling_interval_us) {}
 
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
@@ -284,13 +286,12 @@ class V8_EXPORT CpuProfilingOptions {
  private:
   friend class internal::CpuProfile;
 
-  bool has_filter_context() const { return !filter_context_.IsEmpty(); }
+  bool has_filter_context() const;
   void* raw_filter_context() const;
 
   CpuProfilingMode mode_;
   unsigned max_samples_;
   int sampling_interval_us_;
-  CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
 };
 
 /**
@@ -752,12 +753,6 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual const char* NamePrefix() { return nullptr; }
 
-    /**
-     * Returns the NativeObject that can be used for querying the
-     * |HeapSnapshot|.
-     */
-    virtual NativeObject GetNativeObject() { return nullptr; }
-
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };
@@ -819,12 +814,6 @@ class V8_EXPORT HeapProfiler {
    * it has been seen by the heap profiler, kUnknownObjectId otherwise.
    */
   SnapshotObjectId GetObjectId(Local<Value> value);
-
-  /**
-   * Returns SnapshotObjectId for a native object referenced by |value| if it
-   * has been seen by the heap profiler, kUnknownObjectId otherwise.
-   */
-  SnapshotObjectId GetObjectId(NativeObject value);
 
   /**
    * Returns heap object with given SnapshotObjectId if the object is alive,

@@ -746,6 +746,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #endif
 #endif
 
+  // v12.x backwards compat flags removed in V8 7.9.
+  AddOption("--fast_calls_with_arguments_mismatches", "", NoOp{});
+  AddOption("--harmony_numeric_separator", "", NoOp{});
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 }
 
