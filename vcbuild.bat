@@ -240,6 +240,10 @@ if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 :vs-set-2019
 if defined target_env if "%target_env%" NEQ "vs2019" goto vs-set-2017
 echo Looking for Visual Studio 2019
+@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
+@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
+@rem detect the version searched for
+set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2017
 if defined msi (
