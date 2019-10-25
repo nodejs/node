@@ -31,7 +31,7 @@ module.exports = {
 
         /**
          * Reports a node as invalid.
-         * @param {ASTNode} node - The node to be reported.
+         * @param {ASTNode} node The node to be reported.
          * @returns {void}
          */
         function report(node) {

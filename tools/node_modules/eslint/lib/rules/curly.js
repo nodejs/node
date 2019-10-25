@@ -119,8 +119,7 @@ module.exports = {
 
         /**
          * Checks if the given token is an `else` token or not.
-         *
-         * @param {Token} token - The token to check.
+         * @param {Token} token The token to check.
          * @returns {boolean} `true` if the token is an `else` token.
          */
         function isElseKeywordToken(token) {
@@ -129,7 +128,7 @@ module.exports = {
 
         /**
          * Gets the `else` keyword token of a given `IfStatement` node.
-         * @param {ASTNode} node - A `IfStatement` node to get.
+         * @param {ASTNode} node A `IfStatement` node to get.
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
@@ -143,8 +142,7 @@ module.exports = {
          * 1. The given node has the `alternate` node.
          * 2. There is a `IfStatement` which doesn't have `alternate` node in the
          *    trailing statement chain of the `consequent` node.
-         *
-         * @param {ASTNode} node - A IfStatement node to check.
+         * @param {ASTNode} node A IfStatement node to check.
          * @returns {boolean} `true` if the node requires braces of the consequent chunk.
          */
         function requiresBraceOfConsequent(node) {

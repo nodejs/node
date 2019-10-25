@@ -35,8 +35,7 @@ module.exports = {
 
         /**
          * Checks if the node is the finalizer of a TryStatement
-         *
-         * @param {ASTNode} node - node to check.
+         * @param {ASTNode} node node to check.
          * @returns {boolean} - true if the node is the finalizer of a TryStatement
          */
         function isFinallyBlock(node) {
@@ -45,9 +44,8 @@ module.exports = {
 
         /**
          * Climbs up the tree if the node is not a sentinel node
-         *
-         * @param {ASTNode} node - node to check.
-         * @param {string} label - label of the break or continue statement
+         * @param {ASTNode} node node to check.
+         * @param {string} label label of the break or continue statement
          * @returns {boolean} - return whether the node is a finally block or a sentinel node
          */
         function isInFinallyBlock(node, label) {
@@ -82,8 +80,7 @@ module.exports = {
 
         /**
          * Checks whether the possibly-unsafe statement is inside a finally block.
-         *
-         * @param {ASTNode} node - node to check.
+         * @param {ASTNode} node node to check.
          * @returns {void}
          */
         function check(node) {

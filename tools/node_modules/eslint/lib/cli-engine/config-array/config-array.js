@@ -126,7 +126,6 @@ function isNonNullObject(x) {
  *
  * Assign every property values of `y` to `x` if `x` doesn't have the property.
  * If `x`'s property value is an object, it does recursive.
- *
  * @param {Object} target The destination to merge
  * @param {Object|undefined} source The source to merge.
  * @returns {void}
@@ -157,7 +156,6 @@ function mergeWithoutOverwrite(target, source) {
 /**
  * Merge plugins.
  * `target`'s definition is prior to `source`'s.
- *
  * @param {Record<string, DependentPlugin>} target The destination to merge
  * @param {Record<string, DependentPlugin>|undefined} source The source to merge.
  * @returns {void}
@@ -187,7 +185,6 @@ function mergePlugins(target, source) {
 /**
  * Merge rule configs.
  * `target`'s definition is prior to `source`'s.
- *
  * @param {Record<string, Array>} target The destination to merge
  * @param {Record<string, RuleConf>|undefined} source The source to merge.
  * @returns {void}
@@ -382,7 +379,6 @@ function ensurePluginMemberMaps(instance) {
  * You need to call `ConfigArray#extractConfig(filePath)` method in order to
  * extract, merge and get only the config data which is related to an arbitrary
  * file.
- *
  * @extends {Array<ConfigArrayElement>}
  */
 class ConfigArray extends Array {

@@ -53,7 +53,7 @@ module.exports = {
 
         /**
          * Checks spacing before `}` of a given token.
-         * @param {Token} token - A token to check. This is a Template token.
+         * @param {Token} token A token to check. This is a Template token.
          * @returns {void}
          */
         function checkSpacingBefore(token) {
@@ -82,7 +82,7 @@ module.exports = {
 
         /**
          * Checks spacing after `${` of a given token.
-         * @param {Token} token - A token to check. This is a Template token.
+         * @param {Token} token A token to check. This is a Template token.
          * @returns {void}
          */
         function checkSpacingAfter(token) {

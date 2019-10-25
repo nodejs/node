@@ -859,8 +859,14 @@ class ConfigArrayFactory {
         if (filePath) {
             try {
                 writeDebugLogForLoading(request, relativeTo, filePath);
+
+                const startTime = Date.now();
+                const pluginDefinition = require(filePath);
+
+                debug(`Plugin ${filePath} loaded in: ${Date.now() - startTime}ms`);
+
                 return new ConfigDependency({
-                    definition: normalizePlugin(require(filePath)),
+                    definition: normalizePlugin(pluginDefinition),
                     filePath,
                     id,
                     importerName,

@@ -49,7 +49,6 @@ module.exports = {
 
         /**
          * Function to check regular expression.
-         *
          * @param {string} pattern The regular expression pattern to be check.
          * @param {ASTNode} node AST node which contains regular expression.
          * @param {boolean} uFlag Flag indicates whether unicode mode is enabled or not.

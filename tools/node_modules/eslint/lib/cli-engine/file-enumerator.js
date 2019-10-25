@@ -149,9 +149,10 @@ function readdirSafeSync(directoryPath) {
  */
 class NoFilesFoundError extends Error {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} pattern - The glob pattern which was not found.
-     * @param {boolean} globDisabled - If `true` then the pattern was a glob pattern, but glob was disabled.
+     * @param {string} pattern The glob pattern which was not found.
+     * @param {boolean} globDisabled If `true` then the pattern was a glob pattern, but glob was disabled.
      */
     constructor(pattern, globDisabled) {
         super(`No files matching '${pattern}' were found${globDisabled ? " (glob was disabled)" : ""}.`);
@@ -165,8 +166,9 @@ class NoFilesFoundError extends Error {
  */
 class AllFilesIgnoredError extends Error {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} pattern - The glob pattern which was not found.
+     * @param {string} pattern The glob pattern which was not found.
      */
     constructor(pattern) {
         super(`All files matched by '${pattern}' are ignored.`);

@@ -232,7 +232,7 @@ module.exports = {
                     if (token.value === "(" && openerMissingSpace(token, nextToken)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
+                            loc: token.loc,
                             messageId: "missingOpeningSpace",
                             fix(fixer) {
                                 return fixer.insertTextAfter(token, " ");
@@ -244,7 +244,7 @@ module.exports = {
                     if (token.value === "(" && openerRejectsSpace(token, nextToken)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
+                            loc: { start: token.loc.end, end: nextToken.loc.start },
                             messageId: "rejectedOpeningSpace",
                             fix(fixer) {
                                 return fixer.removeRange([token.range[1], nextToken.range[0]]);
@@ -256,7 +256,7 @@ module.exports = {
                     if (token.value === ")" && closerMissingSpace(prevToken, token)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
+                            loc: token.loc,
                             messageId: "missingClosingSpace",
                             fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
@@ -268,7 +268,7 @@ module.exports = {
                     if (token.value === ")" && closerRejectsSpace(prevToken, token)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
+                            loc: { start: prevToken.loc.end, end: token.loc.start },
                             messageId: "rejectedClosingSpace",
                             fix(fixer) {
                                 return fixer.removeRange([prevToken.range[1], token.range[0]]);

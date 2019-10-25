@@ -23,8 +23,7 @@ const astUtils = require("./utils/ast-utils"),
  *   whether it's a computed property or not.
  * - If the property has a static name, this returns the static name.
  * - Otherwise, this returns null.
- *
- * @param {ASTNode} node - The `Property` node to get.
+ * @param {ASTNode} node The `Property` node to get.
  * @returns {string|null} The property name or null.
  * @private
  */
@@ -43,7 +42,6 @@ function getPropertyName(node) {
  *
  * Postfix `I` is meant insensitive.
  * Postfix `N` is meant natual.
- *
  * @private
  */
 const isValidOrders = {

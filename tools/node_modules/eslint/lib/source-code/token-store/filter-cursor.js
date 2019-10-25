@@ -21,8 +21,8 @@ module.exports = class FilterCursor extends DecorativeCursor {
 
     /**
      * Initializes this cursor.
-     * @param {Cursor} cursor - The cursor to be decorated.
-     * @param {Function} predicate - The predicate function to decide tokens this cursor iterates.
+     * @param {Cursor} cursor The cursor to be decorated.
+     * @param {Function} predicate The predicate function to decide tokens this cursor iterates.
      */
     constructor(cursor, predicate) {
         super(cursor);

@@ -57,7 +57,7 @@ module.exports = {
 
         /**
          * Test if the node is a boolean literal
-         * @param {ASTNode} node - The node to report.
+         * @param {ASTNode} node The node to report.
          * @returns {boolean} True if the its a boolean literal
          * @private
          */
@@ -91,7 +91,7 @@ module.exports = {
 
         /**
          * Tests if a given node always evaluates to a boolean value
-         * @param {ASTNode} node - An expression node
+         * @param {ASTNode} node An expression node
          * @returns {boolean} True if it is determined that the node will always evaluate to a boolean value
          */
         function isBooleanExpression(node) {
@@ -101,7 +101,7 @@ module.exports = {
 
         /**
          * Test if the node matches the pattern id ? id : expression
-         * @param {ASTNode} node - The ConditionalExpression to check.
+         * @param {ASTNode} node The ConditionalExpression to check.
          * @returns {boolean} True if the pattern is matched, and false otherwise
          * @private
          */

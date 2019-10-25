@@ -17,9 +17,8 @@ const astUtils = require("./utils/ast-utils"),
 
 /**
  * Removes the given element from the array.
- *
- * @param {Array} array - The source array to remove.
- * @param {any} element - The target item to remove.
+ * @param {Array} array The source array to remove.
+ * @param {any} element The target item to remove.
  * @returns {void}
  */
 function remove(array, element) {
@@ -32,8 +31,7 @@ function remove(array, element) {
 
 /**
  * Checks whether it can remove the given return statement or not.
- *
- * @param {ASTNode} node - The return statement node to check.
+ * @param {ASTNode} node The return statement node to check.
  * @returns {boolean} `true` if the node is removeable.
  */
 function isRemovable(node) {
@@ -42,8 +40,7 @@ function isRemovable(node) {
 
 /**
  * Checks whether the given return statement is in a `finally` block or not.
- *
- * @param {ASTNode} node - The return statement node to check.
+ * @param {ASTNode} node The return statement node to check.
  * @returns {boolean} `true` if the node is in a `finally` block.
  */
 function isInFinally(node) {
@@ -87,8 +84,7 @@ module.exports = {
 
         /**
          * Checks whether the given segment is terminated by a return statement or not.
-         *
-         * @param {CodePathSegment} segment - The segment to check.
+         * @param {CodePathSegment} segment The segment to check.
          * @returns {boolean} `true` if the segment is terminated by a return statement, or if it's still a part of unreachable.
          */
         function isReturned(segment) {
@@ -110,9 +106,8 @@ module.exports = {
          *
          * This behavior would simulate code paths for the case that the return
          * statement does not exist.
-         *
-         * @param {ASTNode[]} uselessReturns - The collected return statements.
-         * @param {CodePathSegment[]} prevSegments - The previous segments to traverse.
+         * @param {ASTNode[]} uselessReturns The collected return statements.
+         * @param {CodePathSegment[]} prevSegments The previous segments to traverse.
          * @param {WeakSet<CodePathSegment>} [providedTraversedSegments] A set of segments that have already been traversed in this call
          * @returns {ASTNode[]} `uselessReturns`.
          */
@@ -152,8 +147,7 @@ module.exports = {
          *
          * This behavior would simulate code paths for the case that the return
          * statement does not exist.
-         *
-         * @param {CodePathSegment} segment - The segment to get return statements.
+         * @param {CodePathSegment} segment The segment to get return statements.
          * @returns {void}
          */
         function markReturnStatementsOnSegmentAsUsed(segment) {
@@ -184,7 +178,6 @@ module.exports = {
          * - FunctionDeclarations are always executed whether it's returned or not.
          * - BlockStatements do nothing.
          * - BreakStatements go the next merely.
-         *
          * @returns {void}
          */
         function markReturnStatementsOnCurrentSegmentsAsUsed() {

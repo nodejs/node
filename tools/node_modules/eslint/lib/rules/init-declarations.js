@@ -11,7 +11,7 @@
 
 /**
  * Checks whether or not a given node is a for loop.
- * @param {ASTNode} block - A node to check.
+ * @param {ASTNode} block A node to check.
  * @returns {boolean} `true` when the node is a for loop.
  */
 function isForLoop(block) {
@@ -22,7 +22,7 @@ function isForLoop(block) {
 
 /**
  * Checks whether or not a given declarator node has its initializer.
- * @param {ASTNode} node - A declarator node to check.
+ * @param {ASTNode} node A declarator node to check.
  * @returns {boolean} `true` when the node has its initializer.
  */
 function isInitialized(node) {

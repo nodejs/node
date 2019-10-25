@@ -22,11 +22,11 @@ module.exports = class BackwardTokenCursor extends Cursor {
 
     /**
      * Initializes this cursor.
-     * @param {Token[]} tokens - The array of tokens.
-     * @param {Comment[]} comments - The array of comments.
-     * @param {Object} indexMap - The map from locations to indices in `tokens`.
-     * @param {number} startLoc - The start location of the iteration range.
-     * @param {number} endLoc - The end location of the iteration range.
+     * @param {Token[]} tokens The array of tokens.
+     * @param {Comment[]} comments The array of comments.
+     * @param {Object} indexMap The map from locations to indices in `tokens`.
+     * @param {number} startLoc The start location of the iteration range.
+     * @param {number} endLoc The end location of the iteration range.
      */
     constructor(tokens, comments, indexMap, startLoc, endLoc) {
         super();

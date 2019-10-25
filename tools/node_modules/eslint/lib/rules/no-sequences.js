@@ -54,7 +54,7 @@ module.exports = {
         /**
          * Determines whether a node is required by the grammar to be wrapped in
          * parens, e.g. the test of an if statement.
-         * @param {ASTNode} node - The AST node
+         * @param {ASTNode} node The AST node
          * @returns {boolean} True if parens around node belong to parent node.
          */
         function requiresExtraParens(node) {
@@ -64,7 +64,7 @@ module.exports = {
 
         /**
          * Check if a node is wrapped in parens.
-         * @param {ASTNode} node - The AST node
+         * @param {ASTNode} node The AST node
          * @returns {boolean} True if the node has a paren on each side.
          */
         function isParenthesised(node) {
@@ -73,7 +73,7 @@ module.exports = {
 
         /**
          * Check if a node is wrapped in two levels of parens.
-         * @param {ASTNode} node - The AST node
+         * @param {ASTNode} node The AST node
          * @returns {boolean} True if two parens surround the node on each side.
          */
         function isParenthesisedTwice(node) {

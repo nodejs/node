@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/eslint-utils.svg)](https://www.npmjs.com/package/eslint-utils)
 [![Downloads/month](https://img.shields.io/npm/dm/eslint-utils.svg)](http://www.npmtrends.com/eslint-utils)
-[![Build Status](https://travis-ci.org/mysticatea/eslint-utils.svg?branch=master)](https://travis-ci.org/mysticatea/eslint-utils)
+[![Build Status](https://github.com/mysticatea/eslint-utils/workflows/CI/badge.svg)](https://github.com/mysticatea/eslint-utils/actions)
 [![Coverage Status](https://codecov.io/gh/mysticatea/eslint-utils/branch/master/graph/badge.svg)](https://codecov.io/gh/mysticatea/eslint-utils)
 [![Dependency Status](https://david-dm.org/mysticatea/eslint-utils.svg)](https://david-dm.org/mysticatea/eslint-utils)
 
@@ -12,13 +12,13 @@ This package provides utility functions and classes for make ESLint custom rules
 
 For examples:
 
-- [getStaticValue](https://mysticatea.github.io/eslint-utils/api/ast-utils.html#getstaticvalue) evaluates static value on AST.
-- [PatternMatcher](https://mysticatea.github.io/eslint-utils/api/ast-utils.html#patternmatcher-class) finds a regular expression pattern as handling escape sequences.
-- [ReferenceTracker](https://mysticatea.github.io/eslint-utils/api/scope-utils.html#referencetracker-class) checks the members of modules/globals as handling assignments and destructuring.
+- [getStaticValue](https://eslint-utils.mysticatea.dev/api/ast-utils.html#getstaticvalue) evaluates static value on AST.
+- [PatternMatcher](https://eslint-utils.mysticatea.dev/api/ast-utils.html#patternmatcher-class) finds a regular expression pattern as handling escape sequences.
+- [ReferenceTracker](https://eslint-utils.mysticatea.dev/api/scope-utils.html#referencetracker-class) checks the members of modules/globals as handling assignments and destructuring.
 
 ## 📖 Usage
 
-See [documentation](https://mysticatea.github.io/eslint-utils/).
+See [documentation](https://eslint-utils.mysticatea.dev/).
 
 ## 📰 Changelog
 

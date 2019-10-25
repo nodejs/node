@@ -31,7 +31,6 @@ const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
 
 /**
  * Information about a rule configuration, in the context of a Registry.
- *
  * @typedef {Object}     registryItem
  * @param   {ruleConfig} config        A valid configuration for the rule
  * @param   {number}     specificity   The number of elements in the ruleConfig array
@@ -70,6 +69,7 @@ function makeRegistryItems(rulesConfig) {
  */
 class Registry {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {rulesConfig} [rulesConfig] Hash of rule names and arrays of possible configurations
      */
@@ -82,7 +82,6 @@ class Registry {
      *
      * It will set the registry's `rule` property to an object having rule names
      * as keys and an array of registryItems as values.
-     *
      * @returns {void}
      */
     populateFromCoreRules() {
@@ -101,7 +100,6 @@ class Registry {
      * configurations.
      *
      * The length of the returned array will be <= MAX_CONFIG_COMBINATIONS.
-     *
      * @returns {Object[]}          "rules" configurations to use for linting
      */
     buildRuleSets() {
@@ -114,7 +112,6 @@ class Registry {
          *
          * This is broken out into its own function so that it doesn't need to be
          * created inside of the while loop.
-         *
          * @param   {string} rule The ruleId to add.
          * @returns {void}
          */
@@ -162,7 +159,6 @@ class Registry {
      *
      * Note: this also removes rule configurations which were not linted
      * (meaning, they have an undefined errorCount).
-     *
      * @returns {void}
      */
     stripFailingConfigs() {
@@ -185,7 +181,6 @@ class Registry {
 
     /**
      * Removes rule configurations which were not included in a ruleSet
-     *
      * @returns {void}
      */
     stripExtraConfigs() {
@@ -204,7 +199,6 @@ class Registry {
      * Creates a registry of rules which had no error-free configs.
      * The new registry is intended to be analyzed to determine whether its rules
      * should be disabled or set to warning.
-     *
      * @returns {Registry}  A registry of failing rules.
      */
     getFailingRulesRegistry() {
@@ -225,7 +219,6 @@ class Registry {
     /**
      * Create an eslint config for any rules which only have one configuration
      * in the registry.
-     *
      * @returns {Object} An eslint config with rules section populated
      */
     createConfig() {
@@ -243,7 +236,6 @@ class Registry {
 
     /**
      * Return a cloned registry containing only configs with a desired specificity
-     *
      * @param   {number} specificity Only keep configs with this specificity
      * @returns {Registry}           A registry of rules
      */
@@ -261,7 +253,6 @@ class Registry {
 
     /**
      * Lint SourceCodes against all configurations in the registry, and record results
-     *
      * @param   {Object[]} sourceCodes  SourceCode objects for each filename
      * @param   {Object}   config       ESLint config object
      * @param   {progressCallback} [cb] Optional callback for reporting execution status
@@ -327,7 +318,6 @@ class Registry {
  *
  * This will return a new config with `"extends": "eslint:recommended"` and
  * only the rules which have configurations different from the recommended config.
- *
  * @param   {Object} config config object
  * @returns {Object}        config object using `"extends": "eslint:recommended"`
  */

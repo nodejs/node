@@ -14,8 +14,7 @@ const FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/u;
 
 /**
  * Parses a given value as options.
- *
- * @param {any} options - A value to parse.
+ * @param {any} options A value to parse.
  * @returns {Object} The parsed options.
  */
 function parseOptions(options) {
@@ -36,8 +35,7 @@ function parseOptions(options) {
 
 /**
  * Checks whether or not a given variable is a function declaration.
- *
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is a function declaration.
  */
 function isFunction(variable) {
@@ -46,9 +44,8 @@ function isFunction(variable) {
 
 /**
  * Checks whether or not a given variable is a class declaration in an upper function scope.
- *
- * @param {eslint-scope.Variable} variable - A variable to check.
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the variable is a class declaration.
  */
 function isOuterClass(variable, reference) {
@@ -60,8 +57,8 @@ function isOuterClass(variable, reference) {
 
 /**
  * Checks whether or not a given variable is a variable declaration in an upper function scope.
- * @param {eslint-scope.Variable} variable - A variable to check.
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the variable is a variable declaration.
  */
 function isOuterVariable(variable, reference) {
@@ -73,9 +70,8 @@ function isOuterVariable(variable, reference) {
 
 /**
  * Checks whether or not a given location is inside of the range of a given node.
- *
- * @param {ASTNode} node - An node to check.
- * @param {number} location - A location to check.
+ * @param {ASTNode} node An node to check.
+ * @param {number} location A location to check.
  * @returns {boolean} `true` if the location is inside of the range of the node.
  */
 function isInRange(node, location) {
@@ -92,9 +88,8 @@ function isInRange(node, location) {
  *     var {a = a} = obj
  *     for (var a in a) {}
  *     for (var a of a) {}
- *
- * @param {Variable} variable - A variable to check.
- * @param {Reference} reference - A reference to check.
+ * @param {Variable} variable A variable to check.
+ * @param {Reference} reference A reference to check.
  * @returns {boolean} `true` if the reference is inside of the initializers.
  */
 function isInInitializer(variable, reference) {

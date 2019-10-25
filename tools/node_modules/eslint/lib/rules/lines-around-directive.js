@@ -131,7 +131,7 @@ module.exports = {
 
         /**
          * Check lines around directives in node
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkDirectives(node) {

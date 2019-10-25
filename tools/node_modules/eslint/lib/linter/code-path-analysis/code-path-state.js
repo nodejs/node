@@ -22,11 +22,10 @@ const CodePathSegment = require("./code-path-segment"),
  * array as well.
  *
  * This adds only reachable and used segments.
- *
- * @param {CodePathSegment[]} dest - A destination array (`returnedSegments` or `thrownSegments`).
- * @param {CodePathSegment[]} others - Another destination array (`returnedSegments` or `thrownSegments`).
- * @param {CodePathSegment[]} all - The unified destination array (`finalSegments`).
- * @param {CodePathSegment[]} segments - Segments to add.
+ * @param {CodePathSegment[]} dest A destination array (`returnedSegments` or `thrownSegments`).
+ * @param {CodePathSegment[]} others Another destination array (`returnedSegments` or `thrownSegments`).
+ * @param {CodePathSegment[]} all The unified destination array (`finalSegments`).
+ * @param {CodePathSegment[]} segments Segments to add.
  * @returns {void}
  */
 function addToReturnedOrThrown(dest, others, all, segments) {
@@ -42,9 +41,8 @@ function addToReturnedOrThrown(dest, others, all, segments) {
 
 /**
  * Gets a loop-context for a `continue` statement.
- *
- * @param {CodePathState} state - A state to get.
- * @param {string} label - The label of a `continue` statement.
+ * @param {CodePathState} state A state to get.
+ * @param {string} label The label of a `continue` statement.
  * @returns {LoopContext} A loop-context for a `continue` statement.
  */
 function getContinueContext(state, label) {
@@ -67,9 +65,8 @@ function getContinueContext(state, label) {
 
 /**
  * Gets a context for a `break` statement.
- *
- * @param {CodePathState} state - A state to get.
- * @param {string} label - The label of a `break` statement.
+ * @param {CodePathState} state A state to get.
+ * @param {string} label The label of a `break` statement.
  * @returns {LoopContext|SwitchContext} A context for a `break` statement.
  */
 function getBreakContext(state, label) {
@@ -88,8 +85,7 @@ function getBreakContext(state, label) {
 
 /**
  * Gets a context for a `return` statement.
- *
- * @param {CodePathState} state - A state to get.
+ * @param {CodePathState} state A state to get.
  * @returns {TryContext|CodePathState} A context for a `return` statement.
  */
 function getReturnContext(state) {
@@ -107,8 +103,7 @@ function getReturnContext(state) {
 
 /**
  * Gets a context for a `throw` statement.
- *
- * @param {CodePathState} state - A state to get.
+ * @param {CodePathState} state A state to get.
  * @returns {TryContext|CodePathState} A context for a `throw` statement.
  */
 function getThrowContext(state) {
@@ -128,9 +123,8 @@ function getThrowContext(state) {
 
 /**
  * Removes a given element from a given array.
- *
- * @param {any[]} xs - An array to remove the specific element.
- * @param {any} x - An element to be removed.
+ * @param {any[]} xs An array to remove the specific element.
+ * @param {any} x An element to be removed.
  * @returns {void}
  */
 function remove(xs, x) {
@@ -143,9 +137,8 @@ function remove(xs, x) {
  * This is used in a process for switch statements.
  * If there is the "default" chunk before other cases, the order is different
  * between node's and running's.
- *
- * @param {CodePathSegment[]} prevSegments - Forward segments to disconnect.
- * @param {CodePathSegment[]} nextSegments - Backward segments to disconnect.
+ * @param {CodePathSegment[]} prevSegments Forward segments to disconnect.
+ * @param {CodePathSegment[]} nextSegments Backward segments to disconnect.
  * @returns {void}
  */
 function removeConnection(prevSegments, nextSegments) {
@@ -162,10 +155,9 @@ function removeConnection(prevSegments, nextSegments) {
 
 /**
  * Creates looping path.
- *
- * @param {CodePathState} state - The instance.
- * @param {CodePathSegment[]} unflattenedFromSegments - Segments which are source.
- * @param {CodePathSegment[]} unflattenedToSegments - Segments which are destination.
+ * @param {CodePathState} state The instance.
+ * @param {CodePathSegment[]} unflattenedFromSegments Segments which are source.
+ * @param {CodePathSegment[]} unflattenedToSegments Segments which are destination.
  * @returns {void}
  */
 function makeLooped(state, unflattenedFromSegments, unflattenedToSegments) {
@@ -200,10 +192,9 @@ function makeLooped(state, unflattenedFromSegments, unflattenedToSegments) {
  *
  * - Adds `false` paths to paths which are leaving from the loop.
  * - Sets `true` paths to paths which go to the body.
- *
- * @param {LoopContext} context - A loop context to modify.
- * @param {ChoiceContext} choiceContext - A choice context of this loop.
- * @param {CodePathSegment[]} head - The current head paths.
+ * @param {LoopContext} context A loop context to modify.
+ * @param {ChoiceContext} choiceContext A choice context of this loop.
+ * @param {CodePathSegment[]} head The current head paths.
  * @returns {void}
  */
 function finalizeTestSegmentsOfFor(context, choiceContext, head) {
@@ -227,10 +218,11 @@ function finalizeTestSegmentsOfFor(context, choiceContext, head) {
  */
 class CodePathState {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {IdGenerator} idGenerator - An id generator to generate id for code
+     * @param {IdGenerator} idGenerator An id generator to generate id for code
      *   path segments.
-     * @param {Function} onLooped - A callback function to notify looping.
+     * @param {Function} onLooped A callback function to notify looping.
      */
     constructor(idGenerator, onLooped) {
         this.idGenerator = idGenerator;
@@ -275,8 +267,7 @@ class CodePathState {
 
     /**
      * Creates and stacks new forking context.
-     *
-     * @param {boolean} forkLeavingPath - A flag which shows being in a
+     * @param {boolean} forkLeavingPath A flag which shows being in a
      *   "finally" block.
      * @returns {ForkContext} The created context.
      */
@@ -313,7 +304,6 @@ class CodePathState {
     /**
      * Creates a bypass path.
      * This is used for such as IfStatement which does not have "else" chunk.
-     *
      * @returns {void}
      */
     forkBypassPath() {
@@ -346,12 +336,11 @@ class CodePathState {
      *     a -> foo();
      *     a -> b -> foo();
      *     a -> b -> bar();
-     *
-     * @param {string} kind - A kind string.
+     * @param {string} kind A kind string.
      *   If the new context is LogicalExpression's, this is `"&&"` or `"||"`.
      *   If it's IfStatement's or ConditionalExpression's, this is `"test"`.
      *   Otherwise, this is `"loop"`.
-     * @param {boolean} isForkingAsResult - A flag that shows that goes different
+     * @param {boolean} isForkingAsResult A flag that shows that goes different
      *   paths between `true` and `false`.
      * @returns {void}
      */
@@ -368,7 +357,6 @@ class CodePathState {
 
     /**
      * Pops the last choice context and finalizes it.
-     *
      * @returns {ChoiceContext} The popped context.
      */
     popChoiceContext() {
@@ -456,7 +444,6 @@ class CodePathState {
     /**
      * Makes a code path segment of the right-hand operand of a logical
      * expression.
-     *
      * @returns {void}
      */
     makeLogicalRight() {
@@ -500,7 +487,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment of the `if` block.
-     *
      * @returns {void}
      */
     makeIfConsequent() {
@@ -527,7 +513,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment of the `else` block.
-     *
      * @returns {void}
      */
     makeIfAlternate() {
@@ -554,10 +539,9 @@ class CodePathState {
 
     /**
      * Creates a context object of SwitchStatement and stacks it.
-     *
-     * @param {boolean} hasCase - `true` if the switch statement has one or more
+     * @param {boolean} hasCase `true` if the switch statement has one or more
      *   case parts.
-     * @param {string|null} label - The label text.
+     * @param {string|null} label The label text.
      * @returns {void}
      */
     pushSwitchContext(hasCase, label) {
@@ -581,7 +565,6 @@ class CodePathState {
      * - Creates the next code path segment from `context.brokenForkContext`.
      * - If the last `SwitchCase` node is not a `default` part, creates a path
      *   to the `default` body.
-     *
      * @returns {void}
      */
     popSwitchContext() {
@@ -655,9 +638,8 @@ class CodePathState {
 
     /**
      * Makes a code path segment for a `SwitchCase` node.
-     *
-     * @param {boolean} isEmpty - `true` if the body is empty.
-     * @param {boolean} isDefault - `true` if the body is the default case.
+     * @param {boolean} isEmpty `true` if the body is empty.
+     * @param {boolean} isDefault `true` if the body is the default case.
      * @returns {void}
      */
     makeSwitchCaseBody(isEmpty, isDefault) {
@@ -706,8 +688,7 @@ class CodePathState {
 
     /**
      * Creates a context object of TryStatement and stacks it.
-     *
-     * @param {boolean} hasFinalizer - `true` if the try statement has a
+     * @param {boolean} hasFinalizer `true` if the try statement has a
      *   `finally` block.
      * @returns {void}
      */
@@ -729,7 +710,6 @@ class CodePathState {
 
     /**
      * Pops the last context of TryStatement and finalizes it.
-     *
      * @returns {void}
      */
     popTryContext() {
@@ -785,7 +765,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment for a `catch` block.
-     *
      * @returns {void}
      */
     makeCatchBlock() {
@@ -814,7 +793,6 @@ class CodePathState {
      * In the `finally` block, parallel paths are created. The parallel paths
      * are used as leaving-paths. The leaving-paths are paths from `return`
      * statements and `throw` statements in a `try` block or a `catch` block.
-     *
      * @returns {void}
      */
     makeFinallyBlock() {
@@ -874,7 +852,6 @@ class CodePathState {
     /**
      * Makes a code path segment from the first throwable node to the `catch`
      * block or the `finally` block.
-     *
      * @returns {void}
      */
     makeFirstThrowablePathInTryBlock() {
@@ -903,11 +880,10 @@ class CodePathState {
 
     /**
      * Creates a context object of a loop statement and stacks it.
-     *
-     * @param {string} type - The type of the node which was triggered. One of
+     * @param {string} type The type of the node which was triggered. One of
      *   `WhileStatement`, `DoWhileStatement`, `ForStatement`, `ForInStatement`,
      *   and `ForStatement`.
-     * @param {string|null} label - A label of the node which was triggered.
+     * @param {string|null} label A label of the node which was triggered.
      * @returns {void}
      */
     pushLoopContext(type, label) {
@@ -979,7 +955,6 @@ class CodePathState {
 
     /**
      * Pops the last context of a loop statement and finalizes it.
-     *
      * @returns {void}
      */
     popLoopContext() {
@@ -1051,8 +1026,7 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the test part of a WhileStatement.
-     *
-     * @param {boolean|undefined} test - The test value (only when constant).
+     * @param {boolean|undefined} test The test value (only when constant).
      * @returns {void}
      */
     makeWhileTest(test) {
@@ -1068,7 +1042,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the body part of a WhileStatement.
-     *
      * @returns {void}
      */
     makeWhileBody() {
@@ -1090,7 +1063,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the body part of a DoWhileStatement.
-     *
      * @returns {void}
      */
     makeDoWhileBody() {
@@ -1105,8 +1077,7 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the test part of a DoWhileStatement.
-     *
-     * @param {boolean|undefined} test - The test value (only when constant).
+     * @param {boolean|undefined} test The test value (only when constant).
      * @returns {void}
      */
     makeDoWhileTest(test) {
@@ -1126,8 +1097,7 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the test part of a ForStatement.
-     *
-     * @param {boolean|undefined} test - The test value (only when constant).
+     * @param {boolean|undefined} test The test value (only when constant).
      * @returns {void}
      */
     makeForTest(test) {
@@ -1145,7 +1115,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the update part of a ForStatement.
-     *
      * @returns {void}
      */
     makeForUpdate() {
@@ -1173,7 +1142,6 @@ class CodePathState {
 
     /**
      * Makes a code path segment for the body part of a ForStatement.
-     *
      * @returns {void}
      */
     makeForBody() {
@@ -1227,7 +1195,6 @@ class CodePathState {
     /**
      * Makes a code path segment for the left part of a ForInStatement and a
      * ForOfStatement.
-     *
      * @returns {void}
      */
     makeForInOfLeft() {
@@ -1244,7 +1211,6 @@ class CodePathState {
     /**
      * Makes a code path segment for the right part of a ForInStatement and a
      * ForOfStatement.
-     *
      * @returns {void}
      */
     makeForInOfRight() {
@@ -1263,7 +1229,6 @@ class CodePathState {
     /**
      * Makes a code path segment for the body part of a ForInStatement and a
      * ForOfStatement.
-     *
      * @returns {void}
      */
     makeForInOfBody() {
@@ -1288,10 +1253,9 @@ class CodePathState {
 
     /**
      * Creates new context for BreakStatement.
-     *
-     * @param {boolean} breakable - The flag to indicate it can break by
+     * @param {boolean} breakable The flag to indicate it can break by
      *      an unlabeled BreakStatement.
-     * @param {string|null} label - The label of this context.
+     * @param {string|null} label The label of this context.
      * @returns {Object} The new context.
      */
     pushBreakContext(breakable, label) {
@@ -1306,7 +1270,6 @@ class CodePathState {
 
     /**
      * Removes the top item of the break context stack.
-     *
      * @returns {Object} The removed context.
      */
     popBreakContext() {
@@ -1333,8 +1296,7 @@ class CodePathState {
      *
      * It registers the head segment to a context of `break`.
      * It makes new unreachable segment, then it set the head with the segment.
-     *
-     * @param {string} label - A label of the break statement.
+     * @param {string} label A label of the break statement.
      * @returns {void}
      */
     makeBreak(label) {
@@ -1359,8 +1321,7 @@ class CodePathState {
      *
      * It makes a looping path.
      * It makes new unreachable segment, then it set the head with the segment.
-     *
-     * @param {string} label - A label of the continue statement.
+     * @param {string} label A label of the continue statement.
      * @returns {void}
      */
     makeContinue(label) {
@@ -1395,7 +1356,6 @@ class CodePathState {
      *
      * It registers the head segment to a context of `return`.
      * It makes new unreachable segment, then it set the head with the segment.
-     *
      * @returns {void}
      */
     makeReturn() {
@@ -1412,7 +1372,6 @@ class CodePathState {
      *
      * It registers the head segment to a context of `throw`.
      * It makes new unreachable segment, then it set the head with the segment.
-     *
      * @returns {void}
      */
     makeThrow() {

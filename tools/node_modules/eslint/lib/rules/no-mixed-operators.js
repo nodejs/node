@@ -40,8 +40,7 @@ const TARGET_NODE_TYPE = /^(?:Binary|Logical|Conditional)Expression$/u;
 
 /**
  * Normalizes options.
- *
- * @param {Object|undefined} options - A options object to normalize.
+ * @param {Object|undefined} options A options object to normalize.
  * @returns {Object} Normalized option object.
  */
 function normalizeOptions(options = {}) {
@@ -57,10 +56,9 @@ function normalizeOptions(options = {}) {
 
 /**
  * Checks whether any group which includes both given operator exists or not.
- *
- * @param {Array.<string[]>} groups - A list of groups to check.
- * @param {string} left - An operator.
- * @param {string} right - Another operator.
+ * @param {Array.<string[]>} groups A list of groups to check.
+ * @param {string} left An operator.
+ * @param {string} right Another operator.
  * @returns {boolean} `true` if such group existed.
  */
 function includesBothInAGroup(groups, left, right) {
@@ -69,8 +67,7 @@ function includesBothInAGroup(groups, left, right) {
 
 /**
  * Checks whether the given node is a conditional expression and returns the test node else the left node.
- *
- * @param {ASTNode} node - A node which can be a BinaryExpression or a LogicalExpression node.
+ * @param {ASTNode} node A node which can be a BinaryExpression or a LogicalExpression node.
  * This parent node can be BinaryExpression, LogicalExpression
  *      , or a ConditionalExpression node
  * @returns {ASTNode} node the appropriate node(left or test).
@@ -124,8 +121,7 @@ module.exports = {
 
         /**
          * Checks whether a given node should be ignored by options or not.
-         *
-         * @param {ASTNode} node - A node to check. This is a BinaryExpression
+         * @param {ASTNode} node A node to check. This is a BinaryExpression
          *      node or a LogicalExpression node. This parent node is one of
          *      them, too.
          * @returns {boolean} `true` if the node should be ignored.
@@ -146,8 +142,7 @@ module.exports = {
         /**
          * Checks whether the operator of a given node is mixed with parent
          * node's operator or not.
-         *
-         * @param {ASTNode} node - A node to check. This is a BinaryExpression
+         * @param {ASTNode} node A node to check. This is a BinaryExpression
          *      node or a LogicalExpression node. This parent node is one of
          *      them, too.
          * @returns {boolean} `true` if the node was mixed.
@@ -163,8 +158,7 @@ module.exports = {
         /**
          * Checks whether the operator of a given node is mixed with a
          * conditional expression.
-         *
-         * @param {ASTNode} node - A node to check. This is a conditional
+         * @param {ASTNode} node A node to check. This is a conditional
          *      expression node
          * @returns {boolean} `true` if the node was mixed.
          */
@@ -174,8 +168,7 @@ module.exports = {
 
         /**
          * Gets the operator token of a given node.
-         *
-         * @param {ASTNode} node - A node to check. This is a BinaryExpression
+         * @param {ASTNode} node A node to check. This is a BinaryExpression
          *      node or a LogicalExpression node.
          * @returns {Token} The operator token of the node.
          */
@@ -186,8 +179,7 @@ module.exports = {
         /**
          * Reports both the operator of a given node and the operator of the
          * parent node.
-         *
-         * @param {ASTNode} node - A node to check. This is a BinaryExpression
+         * @param {ASTNode} node A node to check. This is a BinaryExpression
          *      node or a LogicalExpression node. This parent node is one of
          *      them, too.
          * @returns {void}
@@ -205,13 +197,13 @@ module.exports = {
 
             context.report({
                 node: left,
-                loc: getOperatorToken(left).loc.start,
+                loc: getOperatorToken(left).loc,
                 message,
                 data
             });
             context.report({
                 node: right,
-                loc: getOperatorToken(right).loc.start,
+                loc: getOperatorToken(right).loc,
                 message,
                 data
             });
@@ -220,8 +212,7 @@ module.exports = {
         /**
          * Checks between the operator of this node and the operator of the
          * parent node.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function check(node) {

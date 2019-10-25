@@ -21,10 +21,11 @@ const IdGenerator = require("./id-generator");
  */
 class CodePath {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} id - An identifier.
-     * @param {CodePath|null} upper - The code path of the upper function scope.
-     * @param {Function} onLooped - A callback function to notify looping.
+     * @param {string} id An identifier.
+     * @param {CodePath|null} upper The code path of the upper function scope.
+     * @param {Function} onLooped A callback function to notify looping.
      */
     constructor(id, upper, onLooped) {
 
@@ -62,8 +63,7 @@ class CodePath {
 
     /**
      * Gets the state of a given code path.
-     *
-     * @param {CodePath} codePath - A code path to get.
+     * @param {CodePath} codePath A code path to get.
      * @returns {CodePathState} The state of the code path.
      */
     static getState(codePath) {
@@ -126,11 +126,10 @@ class CodePath {
      *
      * - `controller.skip()` - Skip the following segments in this branch.
      * - `controller.break()` - Skip all following segments.
-     *
-     * @param {Object} [options] - Omittable.
-     * @param {CodePathSegment} [options.first] - The first segment to traverse.
-     * @param {CodePathSegment} [options.last] - The last segment to traverse.
-     * @param {Function} callback - A callback function.
+     * @param {Object} [options] Omittable.
+     * @param {CodePathSegment} [options.first] The first segment to traverse.
+     * @param {CodePathSegment} [options.last] The last segment to traverse.
+     * @param {Function} callback A callback function.
      * @returns {void}
      */
     traverseSegments(options, callback) {
@@ -171,7 +170,7 @@ class CodePath {
 
         /**
          * Checks a given previous segment has been visited.
-         * @param {CodePathSegment} prevSegment - A previous segment to check.
+         * @param {CodePathSegment} prevSegment A previous segment to check.
          * @returns {boolean} `true` if the segment has been visited.
          */
         function isVisited(prevSegment) {

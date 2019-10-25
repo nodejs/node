@@ -28,8 +28,8 @@ function environment() {
 
     /**
      * Checks if a path is a child of a directory.
-     * @param {string} parentPath - The parent path to check.
-     * @param {string} childPath - The path to check.
+     * @param {string} parentPath The parent path to check.
+     * @param {string} childPath The path to check.
      * @returns {boolean} Whether or not the given path is a child of a directory.
      */
     function isChildOfDirectory(parentPath, childPath) {
@@ -38,8 +38,8 @@ function environment() {
 
     /**
      * Synchronously executes a shell command and formats the result.
-     * @param {string} cmd - The command to execute.
-     * @param {Array} args - The arguments to be executed with the command.
+     * @param {string} cmd The command to execute.
+     * @param {Array} args The arguments to be executed with the command.
      * @returns {string} The version returned by the command.
      */
     function execCommand(cmd, args) {
@@ -63,7 +63,7 @@ function environment() {
 
     /**
      * Normalizes a version number.
-     * @param {string} versionStr - The string to normalize.
+     * @param {string} versionStr The string to normalize.
      * @returns {string} The normalized version number.
      */
     function normalizeVersionStr(versionStr) {
@@ -72,7 +72,7 @@ function environment() {
 
     /**
      * Gets bin version.
-     * @param {string} bin - The bin to check.
+     * @param {string} bin The bin to check.
      * @returns {string} The normalized version returned by the command.
      */
     function getBinVersion(bin) {
@@ -88,8 +88,8 @@ function environment() {
 
     /**
      * Gets installed npm package version.
-     * @param {string} pkg - The package to check.
-     * @param {boolean} global - Whether to check globally or not.
+     * @param {string} pkg The package to check.
+     * @param {boolean} global Whether to check globally or not.
      * @returns {string} The normalized version returned by the command.
      */
     function getNpmPackageVersion(pkg, { global = false } = {}) {

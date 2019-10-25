@@ -25,6 +25,7 @@ module.exports = {
 
     create(context) {
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
          * @param {ASTNode} node function node
          * @returns {void}

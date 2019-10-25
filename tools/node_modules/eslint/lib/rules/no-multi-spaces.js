@@ -121,7 +121,7 @@ module.exports = {
 
                     context.report({
                         node: rightToken,
-                        loc: rightToken.loc.start,
+                        loc: { start: leftToken.loc.end, end: rightToken.loc.start },
                         message: "Multiple spaces found before '{{displayValue}}'.",
                         data: { displayValue },
                         fix: fixer => fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ")

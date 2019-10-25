@@ -46,8 +46,8 @@ module.exports = {
         /**
          * Reports that a variable declarator or assignment expression is assigning
          * a non-'this' value to the specified alias.
-         * @param {ASTNode} node - The assigning node.
-         * @param {string}  name - the name of the alias that was incorrectly used.
+         * @param {ASTNode} node The assigning node.
+         * @param {string}  name the name of the alias that was incorrectly used.
          * @returns {void}
          */
         function reportBadAssignment(node, name) {
@@ -57,9 +57,9 @@ module.exports = {
         /**
          * Checks that an assignment to an identifier only assigns 'this' to the
          * appropriate alias, and the alias is only assigned to 'this'.
-         * @param {ASTNode} node - The assigning node.
-         * @param {Identifier} name - The name of the variable assigned to.
-         * @param {Expression} value - The value of the assignment.
+         * @param {ASTNode} node The assigning node.
+         * @param {Identifier} name The name of the variable assigned to.
+         * @param {Expression} value The value of the assignment.
          * @returns {void}
          */
         function checkAssignment(node, name, value) {
