@@ -11,8 +11,7 @@
 
 /**
  * Checks whether a given code path segment is reachable or not.
- *
- * @param {CodePathSegment} segment - A code path segment to check.
+ * @param {CodePathSegment} segment A code path segment to check.
  * @returns {boolean} `true` if the segment is reachable.
  */
 function isReachable(segment) {
@@ -21,7 +20,7 @@ function isReachable(segment) {
 
 /**
  * Checks whether or not a given node is a constructor.
- * @param {ASTNode} node - A node to check. This node type is one of
+ * @param {ASTNode} node A node to check. This node type is one of
  *   `Program`, `FunctionDeclaration`, `FunctionExpression`, and
  *   `ArrowFunctionExpression`.
  * @returns {boolean} `true` if the node is a constructor.
@@ -36,8 +35,7 @@ function isConstructorFunction(node) {
 
 /**
  * Checks whether a given node can be a constructor or not.
- *
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node can be a constructor.
  */
 function isPossibleConstructor(node) {
@@ -137,7 +135,7 @@ module.exports = {
 
         /**
          * Gets the flag which shows `super()` is called in some paths.
-         * @param {CodePathSegment} segment - A code path segment to get.
+         * @param {CodePathSegment} segment A code path segment to get.
          * @returns {boolean} The flag which shows `super()` is called in some paths
          */
         function isCalledInSomePath(segment) {
@@ -146,7 +144,7 @@ module.exports = {
 
         /**
          * Gets the flag which shows `super()` is called in all paths.
-         * @param {CodePathSegment} segment - A code path segment to get.
+         * @param {CodePathSegment} segment A code path segment to get.
          * @returns {boolean} The flag which shows `super()` is called in all paths.
          */
         function isCalledInEveryPath(segment) {
@@ -168,8 +166,8 @@ module.exports = {
 
             /**
              * Stacks a constructor information.
-             * @param {CodePath} codePath - A code path which was started.
-             * @param {ASTNode} node - The current node.
+             * @param {CodePath} codePath A code path which was started.
+             * @param {ASTNode} node The current node.
              * @returns {void}
              */
             onCodePathStart(codePath, node) {
@@ -200,8 +198,8 @@ module.exports = {
             /**
              * Pops a constructor information.
              * And reports if `super()` lacked.
-             * @param {CodePath} codePath - A code path which was ended.
-             * @param {ASTNode} node - The current node.
+             * @param {CodePath} codePath A code path which was ended.
+             * @param {ASTNode} node The current node.
              * @returns {void}
              */
             onCodePathEnd(codePath, node) {
@@ -231,7 +229,7 @@ module.exports = {
 
             /**
              * Initialize information of a given code path segment.
-             * @param {CodePathSegment} segment - A code path segment to initialize.
+             * @param {CodePathSegment} segment A code path segment to initialize.
              * @returns {void}
              */
             onCodePathSegmentStart(segment) {
@@ -258,9 +256,9 @@ module.exports = {
             /**
              * Update information of the code path segment when a code path was
              * looped.
-             * @param {CodePathSegment} fromSegment - The code path segment of the
+             * @param {CodePathSegment} fromSegment The code path segment of the
              *      end of a loop.
-             * @param {CodePathSegment} toSegment - A code path segment of the head
+             * @param {CodePathSegment} toSegment A code path segment of the head
              *      of a loop.
              * @returns {void}
              */
@@ -303,7 +301,7 @@ module.exports = {
 
             /**
              * Checks for a call of `super()`.
-             * @param {ASTNode} node - A CallExpression node to check.
+             * @param {ASTNode} node A CallExpression node to check.
              * @returns {void}
              */
             "CallExpression:exit"(node) {
@@ -358,7 +356,7 @@ module.exports = {
 
             /**
              * Set the mark to the returned path as `super()` was called.
-             * @param {ASTNode} node - A ReturnStatement node to check.
+             * @param {ASTNode} node A ReturnStatement node to check.
              * @returns {void}
              */
             ReturnStatement(node) {

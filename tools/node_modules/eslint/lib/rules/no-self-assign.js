@@ -20,9 +20,8 @@ const SPACES = /\s+/gu;
 /**
  * Checks whether the property of 2 given member expression nodes are the same
  * property or not.
- *
- * @param {ASTNode} left - A member expression node to check.
- * @param {ASTNode} right - Another member expression node to check.
+ * @param {ASTNode} left A member expression node to check.
+ * @param {ASTNode} right Another member expression node to check.
  * @returns {boolean} `true` if the member expressions have the same property.
  */
 function isSameProperty(left, right) {
@@ -43,9 +42,8 @@ function isSameProperty(left, right) {
 /**
  * Checks whether 2 given member expression nodes are the reference to the same
  * property or not.
- *
- * @param {ASTNode} left - A member expression node to check.
- * @param {ASTNode} right - Another member expression node to check.
+ * @param {ASTNode} left A member expression node to check.
+ * @param {ASTNode} right Another member expression node to check.
  * @returns {boolean} `true` if the member expressions are the reference to the
  *  same property or not.
  */
@@ -63,18 +61,20 @@ function isSameMember(left, right) {
     if (lobj.type === "MemberExpression") {
         return isSameMember(lobj, robj);
     }
+    if (lobj.type === "ThisExpression") {
+        return true;
+    }
     return lobj.type === "Identifier" && lobj.name === robj.name;
 }
 
 /**
  * Traverses 2 Pattern nodes in parallel, then reports self-assignments.
- *
- * @param {ASTNode|null} left - A left node to traverse. This is a Pattern or
+ * @param {ASTNode|null} left A left node to traverse. This is a Pattern or
  *      a Property.
- * @param {ASTNode|null} right - A right node to traverse. This is a Pattern or
+ * @param {ASTNode|null} right A right node to traverse. This is a Pattern or
  *      a Property.
- * @param {boolean} props - The flag to check member expressions as well.
- * @param {Function} report - A callback function to report.
+ * @param {boolean} props The flag to check member expressions as well.
+ * @param {Function} report A callback function to report.
  * @returns {void}
  */
 function eachSelfAssignment(left, right, props, report) {
@@ -205,8 +205,7 @@ module.exports = {
 
         /**
          * Reports a given node as self assignments.
-         *
-         * @param {ASTNode} node - A node to report. This is an Identifier node.
+         * @param {ASTNode} node A node to report. This is an Identifier node.
          * @returns {void}
          */
         function report(node) {

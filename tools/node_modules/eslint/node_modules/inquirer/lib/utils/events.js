@@ -1,6 +1,6 @@
 'use strict';
 var { fromEvent } = require('rxjs');
-var { filter, map, share } = require('rxjs/operators');
+var { filter, map, share, takeUntil } = require('rxjs/operators');
 
 function normalizeKeypressEvents(value, key) {
   return { value: value, key: key || {} };
@@ -8,6 +8,7 @@ function normalizeKeypressEvents(value, key) {
 
 module.exports = function(rl) {
   var keypress = fromEvent(rl.input, 'keypress', normalizeKeypressEvents)
+    .pipe(takeUntil(fromEvent(rl, 'close')))
     // Ignore `enter` key. On the readline, we only care about the `line` event.
     .pipe(filter(({ key }) => key.name !== 'enter' && key.name !== 'return'));
 

@@ -48,10 +48,10 @@ module.exports = {
 
         /**
          * Reports error for unnecessarily renamed assignments
-         * @param {ASTNode} node - node to report
-         * @param {ASTNode} initial - node with initial name value
-         * @param {ASTNode} result - node with new name value
-         * @param {string} type - the type of the offending node
+         * @param {ASTNode} node node to report
+         * @param {ASTNode} initial node with initial name value
+         * @param {ASTNode} result node with new name value
+         * @param {string} type the type of the offending node
          * @returns {void}
          */
         function reportError(node, initial, result, type) {
@@ -83,7 +83,7 @@ module.exports = {
 
         /**
          * Checks whether a destructured assignment is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkDestructured(node) {
@@ -120,7 +120,7 @@ module.exports = {
 
         /**
          * Checks whether an import is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkImport(node) {
@@ -136,7 +136,7 @@ module.exports = {
 
         /**
          * Checks whether an export is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkExport(node) {

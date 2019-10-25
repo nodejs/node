@@ -21,7 +21,6 @@ const fs = require("fs"),
 /**
  * Find the closest package.json file, starting at process.cwd (by default),
  * and working up to root.
- *
  * @param   {string} [startDir=process.cwd()] Starting directory
  * @returns {string}                          Absolute path to closest package.json file
  */
@@ -88,7 +87,6 @@ function fetchPeerDependencies(packageName) {
 
 /**
  * Check whether node modules are include in a project's package.json.
- *
  * @param   {string[]} packages           Array of node module names
  * @param   {Object}  opt                 Options Object
  * @param   {boolean} opt.dependencies    Set to true to check for direct dependencies
@@ -136,7 +134,6 @@ function check(packages, opt) {
  * package.json.
  *
  * Convenience wrapper around check().
- *
  * @param   {string[]} packages  Array of node modules to check.
  * @param   {string}   rootDir   The directory contianing a package.json
  * @returns {Object}             An object whose keys are the module names
@@ -151,7 +148,6 @@ function checkDeps(packages, rootDir) {
  * package.json.
  *
  * Convenience wrapper around check().
- *
  * @param   {string[]} packages  Array of node modules to check.
  * @returns {Object}             An object whose keys are the module names
  *                               and values are booleans indicating installation.
@@ -162,7 +158,6 @@ function checkDevDeps(packages) {
 
 /**
  * Check whether package.json is found in current path.
- *
  * @param   {string} [startDir] Starting directory
  * @returns {boolean} Whether a package.json is found in current path.
  */

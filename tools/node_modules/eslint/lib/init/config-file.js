@@ -23,7 +23,6 @@ const debug = require("debug")("eslint:config-file");
  * Determines sort order for object keys for json-stable-stringify
  *
  * see: https://github.com/samn/json-stable-stringify#cmp
- *
  * @param   {Object} a The first comparison object ({key: akey, value: avalue})
  * @param   {Object} b The second comparison object ({key: bkey, value: bvalue})
  * @returns {number}   1 or -1, used in stringify cmp method

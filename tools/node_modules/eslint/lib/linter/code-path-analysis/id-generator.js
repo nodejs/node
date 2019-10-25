@@ -18,8 +18,9 @@
  */
 class IdGenerator {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} prefix - Optional. A prefix of generated ids.
+     * @param {string} prefix Optional. A prefix of generated ids.
      */
     constructor(prefix) {
         this.prefix = String(prefix);
@@ -28,7 +29,6 @@ class IdGenerator {
 
     /**
      * Generates id.
-     *
      * @returns {string} A generated id.
      */
     next() {

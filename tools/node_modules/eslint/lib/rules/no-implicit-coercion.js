@@ -16,7 +16,7 @@ const ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
 
 /**
  * Parses and normalizes an option object.
- * @param {Object} options - An option object to parse.
+ * @param {Object} options An option object to parse.
  * @returns {Object} The parsed and normalized option object.
  */
 function parseOptions(options) {
@@ -30,7 +30,7 @@ function parseOptions(options) {
 
 /**
  * Checks whether or not a node is a double logical nigating.
- * @param {ASTNode} node - An UnaryExpression node to check.
+ * @param {ASTNode} node An UnaryExpression node to check.
  * @returns {boolean} Whether or not the node is a double logical nigating.
  */
 function isDoubleLogicalNegating(node) {
@@ -43,7 +43,7 @@ function isDoubleLogicalNegating(node) {
 
 /**
  * Checks whether or not a node is a binary negating of `.indexOf()` method calling.
- * @param {ASTNode} node - An UnaryExpression node to check.
+ * @param {ASTNode} node An UnaryExpression node to check.
  * @returns {boolean} Whether or not the node is a binary negating of `.indexOf()` method calling.
  */
 function isBinaryNegatingOfIndexOf(node) {
@@ -58,7 +58,7 @@ function isBinaryNegatingOfIndexOf(node) {
 
 /**
  * Checks whether or not a node is a multiplying by one.
- * @param {BinaryExpression} node - A BinaryExpression node to check.
+ * @param {BinaryExpression} node A BinaryExpression node to check.
  * @returns {boolean} Whether or not the node is a multiplying by one.
  */
 function isMultiplyByOne(node) {
@@ -118,7 +118,7 @@ function isEmptyString(node) {
 
 /**
  * Checks whether or not a node is a concatenating with an empty string.
- * @param {ASTNode} node - A BinaryExpression node to check.
+ * @param {ASTNode} node A BinaryExpression node to check.
  * @returns {boolean} Whether or not the node is a concatenating with an empty string.
  */
 function isConcatWithEmptyString(node) {
@@ -130,7 +130,7 @@ function isConcatWithEmptyString(node) {
 
 /**
  * Checks whether or not a node is appended with an empty string.
- * @param {ASTNode} node - An AssignmentExpression node to check.
+ * @param {ASTNode} node An AssignmentExpression node to check.
  * @returns {boolean} Whether or not the node is appended with an empty string.
  */
 function isAppendEmptyString(node) {
@@ -139,7 +139,7 @@ function isAppendEmptyString(node) {
 
 /**
  * Returns the operand that is not an empty string from a flagged BinaryExpression.
- * @param {ASTNode} node - The flagged BinaryExpression node to check.
+ * @param {ASTNode} node The flagged BinaryExpression node to check.
  * @returns {ASTNode} The operand that is not an empty string from a flagged BinaryExpression.
  */
 function getNonEmptyOperand(node) {
@@ -196,9 +196,9 @@ module.exports = {
 
         /**
          * Reports an error and autofixes the node
-         * @param {ASTNode} node - An ast node to report the error on.
-         * @param {string} recommendation - The recommended code for the issue
-         * @param {bool} shouldFix - Whether this report should fix the node
+         * @param {ASTNode} node An ast node to report the error on.
+         * @param {string} recommendation The recommended code for the issue
+         * @param {bool} shouldFix Whether this report should fix the node
          * @returns {void}
          */
         function report(node, recommendation, shouldFix) {

@@ -121,6 +121,7 @@ function relativize(globPattern, relativePathToOldBaseDir) {
  */
 class IgnoredPaths {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {Object} providedOptions object containing 'ignore', 'ignorePath' and 'patterns' properties
      */

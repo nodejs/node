@@ -16,7 +16,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a given node is a concatenation.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a concatenation.
  */
 function isConcatenation(node) {
@@ -25,7 +25,7 @@ function isConcatenation(node) {
 
 /**
  * Checks if the given token is a `+` token or not.
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a `+` token.
  */
 function isConcatOperatorToken(token) {
@@ -34,7 +34,7 @@ function isConcatOperatorToken(token) {
 
 /**
  * Get's the right most node on the left side of a BinaryExpression with + operator.
- * @param {ASTNode} node - A BinaryExpression node to check.
+ * @param {ASTNode} node A BinaryExpression node to check.
  * @returns {ASTNode} node
  */
 function getLeft(node) {
@@ -48,7 +48,7 @@ function getLeft(node) {
 
 /**
  * Get's the left most node on the right side of a BinaryExpression with + operator.
- * @param {ASTNode} node - A BinaryExpression node to check.
+ * @param {ASTNode} node A BinaryExpression node to check.
  * @returns {ASTNode} node
  */
 function getRight(node) {

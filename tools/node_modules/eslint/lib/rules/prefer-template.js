@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a given node is a concatenation.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a concatenation.
  */
 function isConcatenation(node) {
@@ -26,7 +26,7 @@ function isConcatenation(node) {
 
 /**
  * Gets the top binary expression node for concatenation in parents of a given node.
- * @param {ASTNode} node - A node to get.
+ * @param {ASTNode} node A node to get.
  * @returns {ASTNode} the top binary expression node in parents of a given node.
  */
 function getTopConcatBinaryExpression(node) {
@@ -70,7 +70,7 @@ function hasOctalEscapeSequence(node) {
 
 /**
  * Checks whether or not a given binary expression has string literals.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node has string literals.
  */
 function hasStringLiteral(node) {
@@ -84,7 +84,7 @@ function hasStringLiteral(node) {
 
 /**
  * Checks whether or not a given binary expression has non string literals.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node has non string literals.
  */
 function hasNonStringLiteral(node) {
@@ -242,8 +242,7 @@ module.exports = {
 
         /**
          * Reports if a given node is string concatenation with non string literals.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function checkForStringConcat(node) {

@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -40,6 +46,10 @@ module.exports = {
                     enforceForSwitchCase: {
                         type: "boolean",
                         default: false
+                    },
+                    enforceForIndexOf: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -49,16 +59,18 @@ module.exports = {
         messages: {
             comparisonWithNaN: "Use the isNaN function to compare with NaN.",
             switchNaN: "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch.",
-            caseNaN: "'case NaN' can never match. Use Number.isNaN before the switch."
+            caseNaN: "'case NaN' can never match. Use Number.isNaN before the switch.",
+            indexOfNaN: "Array prototype method '{{ methodName }}' cannot find NaN."
         }
     },
 
     create(context) {
 
         const enforceForSwitchCase = context.options[0] && context.options[0].enforceForSwitchCase;
+        const enforceForIndexOf = context.options[0] && context.options[0].enforceForIndexOf;
 
         /**
-         * Checks the given `BinaryExpression` node.
+         * Checks the given `BinaryExpression` node for `foo === NaN` and other comparisons.
          * @param {ASTNode} node The node to check.
          * @returns {void}
          */
@@ -72,7 +84,7 @@ module.exports = {
         }
 
         /**
-         * Checks the discriminant and all case clauses of the given `SwitchStatement` node.
+         * Checks the discriminant and all case clauses of the given `SwitchStatement` node for `switch(NaN)` and `case NaN:`
          * @param {ASTNode} node The node to check.
          * @returns {void}
          */
@@ -88,12 +100,37 @@ module.exports = {
             }
         }
 
+        /**
+         * Checks the the given `CallExpression` node for `.indexOf(NaN)` and `.lastIndexOf(NaN)`.
+         * @param {ASTNode} node The node to check.
+         * @returns {void}
+         */
+        function checkCallExpression(node) {
+            const callee = node.callee;
+
+            if (callee.type === "MemberExpression") {
+                const methodName = astUtils.getStaticPropertyName(callee);
+
+                if (
+                    (methodName === "indexOf" || methodName === "lastIndexOf") &&
+                    node.arguments.length === 1 &&
+                    isNaNIdentifier(node.arguments[0])
+                ) {
+                    context.report({ node, messageId: "indexOfNaN", data: { methodName } });
+                }
+            }
+        }
+
         const listeners = {
             BinaryExpression: checkBinaryExpression
         };
 
         if (enforceForSwitchCase) {
             listeners.SwitchStatement = checkSwitchStatement;
+        }
+
+        if (enforceForIndexOf) {
+            listeners.CallExpression = checkCallExpression;
         }
 
         return listeners;

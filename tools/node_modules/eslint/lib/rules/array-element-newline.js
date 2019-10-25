@@ -62,8 +62,7 @@ module.exports = {
 
         /**
          * Normalizes a given option value.
-         *
-         * @param {string|Object|undefined} providedOption - An option value to parse.
+         * @param {string|Object|undefined} providedOption An option value to parse.
          * @returns {{multiline: boolean, minItems: number}} Normalized option object.
          */
         function normalizeOptionValue(providedOption) {
@@ -90,8 +89,7 @@ module.exports = {
 
         /**
          * Normalizes a given option value.
-         *
-         * @param {string|Object|undefined} options - An option value to parse.
+         * @param {string|Object|undefined} options An option value to parse.
          * @returns {{ArrayExpression: {multiline: boolean, minItems: number}, ArrayPattern: {multiline: boolean, minItems: number}}} Normalized option object.
          */
         function normalizeOptions(options) {
@@ -102,7 +100,7 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a line break after the first token
-         * @param {Token} token - The token to use for the report.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportNoLineBreak(token) {
@@ -151,7 +149,7 @@ module.exports = {
 
         /**
          * Reports that there should be a line break after the first token
-         * @param {Token} token - The token to use for the report.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredLineBreak(token) {
@@ -171,8 +169,7 @@ module.exports = {
 
         /**
          * Reports a given node if it violated this rule.
-         *
-         * @param {ASTNode} node - A node to check. This is an ObjectExpression node or an ObjectPattern node.
+         * @param {ASTNode} node A node to check. This is an ObjectExpression node or an ObjectPattern node.
          * @returns {void}
          */
         function check(node) {

@@ -55,8 +55,14 @@ module.exports = {
                         context.report({
                             node,
                             loc: {
-                                line: index + 1,
-                                column: match.index
+                                start: {
+                                    line: index + 1,
+                                    column: match.index
+                                },
+                                end: {
+                                    line: index + 1,
+                                    column: match.index + match[0].length
+                                }
                             },
                             message: "Unexpected tab character."
                         });

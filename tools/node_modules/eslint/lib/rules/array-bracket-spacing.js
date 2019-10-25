@@ -59,7 +59,7 @@ module.exports = {
          * Determines whether an option is set, relative to the spacing option.
          * If spaced is "always", then check whether option is set to false.
          * If spaced is "never", then check whether option is set to true.
-         * @param {Object} option - The option to exclude.
+         * @param {Object} option The option to exclude.
          * @returns {boolean} Whether or not the property is excluded.
          */
         function isOptionSet(option) {
@@ -79,8 +79,8 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token) {
@@ -101,8 +101,8 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportNoEndingSpace(node, token) {
@@ -123,8 +123,8 @@ module.exports = {
 
         /**
          * Reports that there should be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredBeginningSpace(node, token) {
@@ -143,8 +143,8 @@ module.exports = {
 
         /**
          * Reports that there should be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredEndingSpace(node, token) {
@@ -163,7 +163,7 @@ module.exports = {
 
         /**
          * Determines if a node is an object type
-         * @param {ASTNode} node - The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {boolean} Whether or not the node is an object type.
          */
         function isObjectType(node) {
@@ -172,7 +172,7 @@ module.exports = {
 
         /**
          * Determines if a node is an array type
-         * @param {ASTNode} node - The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {boolean} Whether or not the node is an array type.
          */
         function isArrayType(node) {
@@ -181,7 +181,7 @@ module.exports = {
 
         /**
          * Validates the spacing around array brackets
-         * @param {ASTNode} node - The node we're checking for spacing
+         * @param {ASTNode} node The node we're checking for spacing
          * @returns {void}
          */
         function validateArraySpacing(node) {

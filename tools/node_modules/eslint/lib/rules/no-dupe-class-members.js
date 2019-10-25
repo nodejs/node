@@ -32,8 +32,8 @@ module.exports = {
 
         /**
          * Gets state of a given member name.
-         * @param {string} name - A name of a member.
-         * @param {boolean} isStatic - A flag which specifies that is a static member.
+         * @param {string} name A name of a member.
+         * @param {boolean} isStatic A flag which specifies that is a static member.
          * @returns {Object} A state of a given member name.
          *   - retv.init {boolean} A flag which shows the name is declared as normal member.
          *   - retv.get {boolean} A flag which shows the name is declared as getter.
@@ -55,8 +55,7 @@ module.exports = {
 
         /**
          * Gets the name text of a given node.
-         *
-         * @param {ASTNode} node - A node to get the name.
+         * @param {ASTNode} node A node to get the name.
          * @returns {string} The name text of the node.
          */
         function getName(node) {

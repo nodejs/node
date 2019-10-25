@@ -72,8 +72,7 @@ module.exports = {
          *     var foo = 1
          *
          *     ;(a || b).doSomething()
-         *
-         * @param {ASTNode} node - The node to get.
+         * @param {ASTNode} node The node to get.
          * @returns {Token} The token to compare line to the next statement.
          */
         function getLastToken(node) {
@@ -93,7 +92,7 @@ module.exports = {
         /**
          * Determine if provided keyword is a variable declaration
          * @private
-         * @param {string} keyword - keyword to test
+         * @param {string} keyword keyword to test
          * @returns {boolean} True if `keyword` is a type of var
          */
         function isVar(keyword) {
@@ -103,7 +102,7 @@ module.exports = {
         /**
          * Determine if provided keyword is a variant of for specifiers
          * @private
-         * @param {string} keyword - keyword to test
+         * @param {string} keyword keyword to test
          * @returns {boolean} True if `keyword` is a variant of for specifier
          */
         function isForTypeSpecifier(keyword) {
@@ -113,7 +112,7 @@ module.exports = {
         /**
          * Determine if provided keyword is an export specifiers
          * @private
-         * @param {string} nodeType - nodeType to test
+         * @param {string} nodeType nodeType to test
          * @returns {boolean} True if `nodeType` is an export specifier
          */
         function isExportSpecifier(nodeType) {
@@ -124,7 +123,7 @@ module.exports = {
         /**
          * Determine if provided node is the last of their parent block.
          * @private
-         * @param {ASTNode} node - node to test
+         * @param {ASTNode} node node to test
          * @returns {boolean} True if `node` is last of their parent block.
          */
         function isLastNode(node) {
@@ -159,7 +158,7 @@ module.exports = {
          * set to "always", or checks that there is no blank line when mode is set
          * to "never"
          * @private
-         * @param {ASTNode} node - `VariableDeclaration` node to test
+         * @param {ASTNode} node `VariableDeclaration` node to test
          * @returns {void}
          */
         function checkForBlankLine(node) {

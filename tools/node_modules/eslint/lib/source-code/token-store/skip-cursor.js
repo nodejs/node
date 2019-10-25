@@ -21,8 +21,8 @@ module.exports = class SkipCursor extends DecorativeCursor {
 
     /**
      * Initializes this cursor.
-     * @param {Cursor} cursor - The cursor to be decorated.
-     * @param {number} count - The count of tokens this cursor skips.
+     * @param {Cursor} cursor The cursor to be decorated.
+     * @param {number} count The count of tokens this cursor skips.
      */
     constructor(cursor, count) {
         super(cursor);

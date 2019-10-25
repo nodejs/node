@@ -187,6 +187,7 @@ class BinarySearchTree {
  */
 class TokenInfo {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {SourceCode} sourceCode A SourceCode object
      */
@@ -236,6 +237,7 @@ class TokenInfo {
  */
 class OffsetStorage {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {TokenInfo} tokenInfo a TokenInfo instance
      * @param {number} indentSize The desired size of each indentation level
@@ -329,7 +331,6 @@ class OffsetStorage {
      * Instead, the correct way would be to offset `baz` by 1 level from `bar`, offset `bar` by 1 level from the `)`, and
      * offset the `)` by 0 levels from `foo`. This ensures that the offset between `bar` and the `)` are correctly collapsed
      * in the second case.
-     *
      * @param {Token} token The token
      * @param {Token} fromToken The token that `token` should be offset from
      * @param {number} offset The desired indent level
@@ -358,7 +359,6 @@ class OffsetStorage {
      *
      * The `setDesiredOffsets` methods inserts ranges like the ones above. The third line above would be inserted by using:
      * `setDesiredOffsets([30, 43], fooToken, 1);`
-     *
      * @param {[number, number]} range A [start, end] pair. All tokens with range[0] <= token.start < range[1] will have the offset applied.
      * @param {Token} fromToken The token that this is offset from
      * @param {number} offset The desired indent level

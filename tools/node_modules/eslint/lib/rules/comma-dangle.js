@@ -27,8 +27,7 @@ const DEFAULT_OPTIONS = Object.freeze({
 /**
  * Checks whether or not a trailing comma is allowed in a given node.
  * If the `lastItem` is `RestElement` or `RestProperty`, it disallows trailing commas.
- *
- * @param {ASTNode} lastItem - The node of the last element in the given node.
+ * @param {ASTNode} lastItem The node of the last element in the given node.
  * @returns {boolean} `true` if a trailing comma is allowed.
  */
 function isTrailingCommaAllowed(lastItem) {
@@ -41,20 +40,18 @@ function isTrailingCommaAllowed(lastItem) {
 
 /**
  * Normalize option value.
- *
- * @param {string|Object|undefined} optionValue - The 1st option value to normalize.
+ * @param {string|Object|undefined} optionValue The 1st option value to normalize.
+ * @param {number} ecmaVersion The normalized ECMAScript version.
  * @returns {Object} The normalized option value.
  */
-function normalizeOptions(optionValue) {
+function normalizeOptions(optionValue, ecmaVersion) {
     if (typeof optionValue === "string") {
         return {
             arrays: optionValue,
             objects: optionValue,
             imports: optionValue,
             exports: optionValue,
-
-            // For backward compatibility, always ignore functions.
-            functions: "ignore"
+            functions: (!ecmaVersion || ecmaVersion < 8) ? "ignore" : optionValue
         };
     }
     if (typeof optionValue === "object" && optionValue !== null) {
@@ -137,12 +134,13 @@ module.exports = {
     },
 
     create(context) {
-        const options = normalizeOptions(context.options[0]);
+        const options = normalizeOptions(context.options[0], context.parserOptions.ecmaVersion);
+
         const sourceCode = context.getSourceCode();
 
         /**
          * Gets the last item of the given node.
-         * @param {ASTNode} node - The node to get.
+         * @param {ASTNode} node The node to get.
          * @returns {ASTNode|null} The last node or null.
          */
         function getLastItem(node) {
@@ -172,9 +170,8 @@ module.exports = {
          * Gets the trailing comma token of the given node.
          * If the trailing comma does not exist, this returns the token which is
          * the insertion point of the trailing comma token.
-         *
-         * @param {ASTNode} node - The node to get.
-         * @param {ASTNode} lastItem - The last item of the node.
+         * @param {ASTNode} node The node to get.
+         * @param {ASTNode} lastItem The last item of the node.
          * @returns {Token} The trailing comma token or the insertion point.
          */
         function getTrailingToken(node, lastItem) {
@@ -199,8 +196,7 @@ module.exports = {
          * Checks whether or not a given node is multiline.
          * This rule handles a given node as multiline when the closing parenthesis
          * and the last element are not on the same line.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} `true` if the node is multiline.
          */
         function isMultiline(node) {
@@ -218,8 +214,7 @@ module.exports = {
 
         /**
          * Reports a trailing comma if it exists.
-         *
-         * @param {ASTNode} node - A node to check. Its type is one of
+         * @param {ASTNode} node A node to check. Its type is one of
          *   ObjectExpression, ObjectPattern, ArrayExpression, ArrayPattern,
          *   ImportDeclaration, and ExportNamedDeclaration.
          * @returns {void}
@@ -251,8 +246,7 @@ module.exports = {
          *
          * If a given node is `ArrayPattern` which has `RestElement`, the trailing
          * comma is disallowed, so report if it exists.
-         *
-         * @param {ASTNode} node - A node to check. Its type is one of
+         * @param {ASTNode} node A node to check. Its type is one of
          *   ObjectExpression, ObjectPattern, ArrayExpression, ArrayPattern,
          *   ImportDeclaration, and ExportNamedDeclaration.
          * @returns {void}
@@ -286,8 +280,7 @@ module.exports = {
          * If a given node is multiline, reports the last element of a given node
          * when it does not have a trailing comma.
          * Otherwise, reports a trailing comma if it exists.
-         *
-         * @param {ASTNode} node - A node to check. Its type is one of
+         * @param {ASTNode} node A node to check. Its type is one of
          *   ObjectExpression, ObjectPattern, ArrayExpression, ArrayPattern,
          *   ImportDeclaration, and ExportNamedDeclaration.
          * @returns {void}
@@ -304,8 +297,7 @@ module.exports = {
          * Only if a given node is not multiline, reports the last element of a given node
          * when it does not have a trailing comma.
          * Otherwise, reports a trailing comma if it exists.
-         *
-         * @param {ASTNode} node - A node to check. Its type is one of
+         * @param {ASTNode} node A node to check. Its type is one of
          *   ObjectExpression, ObjectPattern, ArrayExpression, ArrayPattern,
          *   ImportDeclaration, and ExportNamedDeclaration.
          * @returns {void}

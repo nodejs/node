@@ -105,7 +105,7 @@ module.exports = {
 
         /**
          * Validates the spacing around a comma token.
-         * @param {Object} tokens - The tokens to be validated.
+         * @param {Object} tokens The tokens to be validated.
          * @param {Token} tokens.comma The token representing the comma.
          * @param {Token} [tokens.left] The last token before the comma.
          * @param {Token} [tokens.right] The first token after the comma.

@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -94,13 +100,13 @@ module.exports = {
                             functionName: sourceCode.getText(node.callee)
                         },
                         fix(fixer) {
-                            const newPrefix = prefixMap[node.arguments[1].value];
-
                             if (sourceCode.getCommentsInside(node).length) {
                                 return null;
                             }
 
-                            if (+(newPrefix + node.arguments[0].value) !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
+                            const replacement = `${prefixMap[node.arguments[1].value]}${node.arguments[0].value}`;
+
+                            if (+replacement !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
 
                                 /*
                                  * If the newly-produced literal would be invalid, (e.g. 0b1234),
@@ -108,7 +114,29 @@ module.exports = {
                                  */
                                 return null;
                             }
-                            return fixer.replaceText(node, prefixMap[node.arguments[1].value] + node.arguments[0].value);
+
+                            const tokenBefore = sourceCode.getTokenBefore(node),
+                                tokenAfter = sourceCode.getTokenAfter(node);
+                            let prefix = "",
+                                suffix = "";
+
+                            if (
+                                tokenBefore &&
+                                tokenBefore.range[1] === node.range[0] &&
+                                !astUtils.canTokensBeAdjacent(tokenBefore, replacement)
+                            ) {
+                                prefix = " ";
+                            }
+
+                            if (
+                                tokenAfter &&
+                                node.range[1] === tokenAfter.range[0] &&
+                                !astUtils.canTokensBeAdjacent(replacement, tokenAfter)
+                            ) {
+                                suffix = " ";
+                            }
+
+                            return fixer.replaceText(node, `${prefix}${replacement}${suffix}`);
                         }
                     });
                 }

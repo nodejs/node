@@ -27,8 +27,7 @@ function isGlobal(variable) {
 /**
  * Finds the nearest function scope or global scope walking up the scope
  * hierarchy.
- *
- * @param {eslint-scope.Scope} scope - The scope to traverse.
+ * @param {eslint-scope.Scope} scope The scope to traverse.
  * @returns {eslint-scope.Scope} a function scope or global scope containing the given
  *      scope.
  */
@@ -44,8 +43,7 @@ function getEnclosingFunctionScope(scope) {
 /**
  * Checks whether the given variable has any references from a more specific
  * function expression (i.e. a closure).
- *
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is used from a closure.
  */
 function isReferencedInClosure(variable) {
@@ -57,8 +55,7 @@ function isReferencedInClosure(variable) {
 
 /**
  * Checks whether the given node is the assignee of a loop.
- *
- * @param {ASTNode} node - A VariableDeclaration node to check.
+ * @param {ASTNode} node A VariableDeclaration node to check.
  * @returns {boolean} `true` if the declaration is assigned as part of loop
  *      iteration.
  */
@@ -69,8 +66,7 @@ function isLoopAssignee(node) {
 
 /**
  * Checks whether the given variable declaration is immediately initialized.
- *
- * @param {ASTNode} node - A VariableDeclaration node to check.
+ * @param {ASTNode} node A VariableDeclaration node to check.
  * @returns {boolean} `true` if the declaration has an initializer.
  */
 function isDeclarationInitialized(node) {
@@ -81,8 +77,7 @@ const SCOPE_NODE_TYPE = /^(?:Program|BlockStatement|SwitchStatement|ForStatement
 
 /**
  * Gets the scope node which directly contains a given node.
- *
- * @param {ASTNode} node - A node to get. This is a `VariableDeclaration` or
+ * @param {ASTNode} node A node to get. This is a `VariableDeclaration` or
  *      an `Identifier`.
  * @returns {ASTNode} A scope node. This is one of `Program`, `BlockStatement`,
  *      `SwitchStatement`, `ForStatement`, `ForInStatement`, and
@@ -101,8 +96,7 @@ function getScopeNode(node) {
 
 /**
  * Checks whether a given variable is redeclared or not.
- *
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is redeclared.
  */
 function isRedeclared(variable) {
@@ -111,8 +105,7 @@ function isRedeclared(variable) {
 
 /**
  * Checks whether a given variable is used from outside of the specified scope.
- *
- * @param {ASTNode} scopeNode - A scope node to check.
+ * @param {ASTNode} scopeNode A scope node to check.
  * @returns {Function} The predicate function which checks whether a given
  *      variable is used from outside of the specified scope.
  */
@@ -120,8 +113,7 @@ function isUsedFromOutsideOf(scopeNode) {
 
     /**
      * Checks whether a given reference is inside of the specified scope or not.
-     *
-     * @param {eslint-scope.Reference} reference - A reference to check.
+     * @param {eslint-scope.Reference} reference A reference to check.
      * @returns {boolean} `true` if the reference is inside of the specified
      *      scope.
      */
@@ -145,8 +137,7 @@ function isUsedFromOutsideOf(scopeNode) {
  * - if a reference is before the declarator. E.g. (var a = b, b = 1;)(var {a = b, b} = {};)
  * - if a reference is in the expression of their default value.  E.g. (var {a = a} = {};)
  * - if a reference is in the expression of their initializer.  E.g. (var a = a;)
- *
- * @param {ASTNode} node - The initializer node of VariableDeclarator.
+ * @param {ASTNode} node The initializer node of VariableDeclarator.
  * @returns {Function} The predicate function.
  * @private
  */
@@ -177,7 +168,6 @@ function hasReferenceInTDZ(node) {
 /**
  * Checks whether a given variable has name that is allowed for 'var' declarations,
  * but disallowed for `let` declarations.
- *
  * @param {eslint-scope.Variable} variable The variable to check.
  * @returns {boolean} `true` if the variable has a disallowed name.
  */
@@ -209,8 +199,7 @@ module.exports = {
 
         /**
          * Checks whether the variables which are defined by the given declarator node have their references in TDZ.
-         *
-         * @param {ASTNode} declarator - The VariableDeclarator node to check.
+         * @param {ASTNode} declarator The VariableDeclarator node to check.
          * @returns {boolean} `true` if one of the variables which are defined by the given declarator node have their references in TDZ.
          */
         function hasSelfReferenceInTDZ(declarator) {
@@ -271,8 +260,7 @@ module.exports = {
          * the implementation simple, we only convert `var` to `let` within
          * loops when the variable is a loop assignee or the declaration has an
          * initializer.
-         *
-         * @param {ASTNode} node - A variable declaration node to check.
+         * @param {ASTNode} node A variable declaration node to check.
          * @returns {boolean} `true` if it can fix the node.
          */
         function canFix(node) {
@@ -313,8 +301,7 @@ module.exports = {
 
         /**
          * Reports a given variable declaration node.
-         *
-         * @param {ASTNode} node - A variable declaration node to report.
+         * @param {ASTNode} node A variable declaration node to report.
          * @returns {void}
          */
         function report(node) {

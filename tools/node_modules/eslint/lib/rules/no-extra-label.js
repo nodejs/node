@@ -40,8 +40,7 @@ module.exports = {
 
         /**
          * Creates a new scope with a breakable statement.
-         *
-         * @param {ASTNode} node - A node to create. This is a BreakableStatement.
+         * @param {ASTNode} node A node to create. This is a BreakableStatement.
          * @returns {void}
          */
         function enterBreakableStatement(node) {
@@ -54,7 +53,6 @@ module.exports = {
 
         /**
          * Removes the top scope of the stack.
-         *
          * @returns {void}
          */
         function exitBreakableStatement() {
@@ -66,8 +64,7 @@ module.exports = {
          *
          * This ignores it if the body is a breakable statement.
          * In this case it's handled in the `enterBreakableStatement` function.
-         *
-         * @param {ASTNode} node - A node to create. This is a LabeledStatement.
+         * @param {ASTNode} node A node to create. This is a LabeledStatement.
          * @returns {void}
          */
         function enterLabeledStatement(node) {
@@ -85,8 +82,7 @@ module.exports = {
          *
          * This ignores it if the body is a breakable statement.
          * In this case it's handled in the `exitBreakableStatement` function.
-         *
-         * @param {ASTNode} node - A node. This is a LabeledStatement.
+         * @param {ASTNode} node A node. This is a LabeledStatement.
          * @returns {void}
          */
         function exitLabeledStatement(node) {
@@ -97,8 +93,7 @@ module.exports = {
 
         /**
          * Reports a given control node if it's unnecessary.
-         *
-         * @param {ASTNode} node - A node. This is a BreakStatement or a
+         * @param {ASTNode} node A node. This is a BreakStatement or a
          *      ContinueStatement.
          * @returns {void}
          */

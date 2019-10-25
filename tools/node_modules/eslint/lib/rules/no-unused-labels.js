@@ -35,8 +35,7 @@ module.exports = {
 
         /**
          * Adds a scope info to the stack.
-         *
-         * @param {ASTNode} node - A node to add. This is a LabeledStatement.
+         * @param {ASTNode} node A node to add. This is a LabeledStatement.
          * @returns {void}
          */
         function enterLabeledScope(node) {
@@ -50,8 +49,7 @@ module.exports = {
         /**
          * Removes the top of the stack.
          * At the same time, this reports the label if it's never used.
-         *
-         * @param {ASTNode} node - A node to report. This is a LabeledStatement.
+         * @param {ASTNode} node A node to report. This is a LabeledStatement.
          * @returns {void}
          */
         function exitLabeledScope(node) {
@@ -81,8 +79,7 @@ module.exports = {
 
         /**
          * Marks the label of a given node as used.
-         *
-         * @param {ASTNode} node - A node to mark. This is a BreakStatement or
+         * @param {ASTNode} node A node to mark. This is a BreakStatement or
          *      ContinueStatement.
          * @returns {void}
          */

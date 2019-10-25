@@ -117,10 +117,9 @@ module.exports = {
 
         /**
          * Checks if the escape character in given string slice is unnecessary.
-         *
          * @private
-         * @param {ASTNode} node - node to validate.
-         * @param {string} match - string slice to validate.
+         * @param {ASTNode} node node to validate.
+         * @param {string} match string slice to validate.
          * @returns {void}
          */
         function validateString(node, match) {
@@ -156,8 +155,7 @@ module.exports = {
 
         /**
          * Checks if a node has an escape.
-         *
-         * @param {ASTNode} node - node to check.
+         * @param {ASTNode} node node to check.
          * @returns {void}
          */
         function check(node) {

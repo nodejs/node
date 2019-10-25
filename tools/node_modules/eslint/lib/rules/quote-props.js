@@ -85,7 +85,7 @@ module.exports = {
 
         /**
          * Checks whether a certain string constitutes an ES3 token
-         * @param   {string} tokenStr - The string to be checked.
+         * @param   {string} tokenStr The string to be checked.
          * @returns {boolean} `true` if it is an ES3 token.
          */
         function isKeyword(tokenStr) {

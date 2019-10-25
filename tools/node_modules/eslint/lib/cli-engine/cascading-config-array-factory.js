@@ -152,8 +152,9 @@ function createCLIConfigArray({
  */
 class ConfigurationNotFoundError extends Error {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} directoryPath - The directory path.
+     * @param {string} directoryPath The directory path.
      */
     constructor(directoryPath) {
         super(`No ESLint configuration found in ${directoryPath}.`);

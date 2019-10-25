@@ -54,7 +54,6 @@ const DEFAULTS = {
  *   set is returned. Options specified in overrides will take priority
  *   over options specified in the main options object, which will in
  *   turn take priority over the rule's defaults.
- *
  * @param {Object|string} rawOptions The user-provided options.
  * @param {string} which Either "line" or "block".
  * @returns {Object} The normalized options.
@@ -65,7 +64,6 @@ function getNormalizedOptions(rawOptions, which) {
 
 /**
  * Get normalized options for block and line comments.
- *
  * @param {Object|string} rawOptions The user-provided options.
  * @returns {Object} An object with "Line" and "Block" keys and corresponding
  * normalized options objects.
@@ -82,7 +80,6 @@ function getAllNormalizedOptions(rawOptions = {}) {
  * options.
  *
  * This is done in order to avoid invoking the RegExp constructor repeatedly.
- *
  * @param {Object} normalizedOptions The normalized rule options.
  * @returns {void}
  */
@@ -162,7 +159,6 @@ module.exports = {
          * Also, it follows from this definition that only block comments can
          * be considered as possibly inline. This is because line comments
          * would consume any following tokens on the same line as the comment.
-         *
          * @param {ASTNode} comment The comment node to check.
          * @returns {boolean} True if the comment is an inline comment, false
          * otherwise.
@@ -181,7 +177,6 @@ module.exports = {
 
         /**
          * Determine if a comment follows another comment.
-         *
          * @param {ASTNode} comment The comment to check.
          * @returns {boolean} True if the comment follows a valid comment.
          */
@@ -196,7 +191,6 @@ module.exports = {
 
         /**
          * Check a comment to determine if it is valid for this rule.
-         *
          * @param {ASTNode} comment The comment node to process.
          * @param {Object} options The options for checking this comment.
          * @returns {boolean} True if the comment is valid, false otherwise.
@@ -261,7 +255,6 @@ module.exports = {
 
         /**
          * Process a comment to determine if it needs to be reported.
-         *
          * @param {ASTNode} comment The comment node to process.
          * @returns {void}
          */
