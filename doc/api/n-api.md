@@ -5220,40 +5220,51 @@ idempotent.
 This API may only be called from the main thread.
 
 [ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
+[AppVeyor]: https://www.appveyor.com
+[C++ Addons]: addons.html
+[CMake.js]: https://github.com/cmake-js/cmake-js
+[CMake]: https://cmake.org
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling
+[GCC]: https://gcc.gnu.org
+[GYP]: https://gyp.gsrc.io
+[GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
+[LLVM]: https://llvm.org
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
-[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
-[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
-[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
-[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
-[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
-[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
-[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
-[Section 7.1.2]: https://tc39.github.io/ecma262/#sec-toboolean
-[Section 7.1.3]: https://tc39.github.io/ecma262/#sec-tonumber
-[Section 7.1.13]: https://tc39.github.io/ecma262/#sec-toobject
-[Section 7.2.2]: https://tc39.github.io/ecma262/#sec-isarray
-[Section 7.2.14]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
-[Section 8.7]: https://tc39.es/ecma262/#sec-agents
-[Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
-[Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
 [Section 12.10.4]: https://tc39.github.io/ecma262/#sec-instanceofoperator
+[Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
 [Section 19.2]: https://tc39.github.io/ecma262/#sec-function-objects
 [Section 19.4]: https://tc39.github.io/ecma262/#sec-symbol-objects
 [Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
-[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
 [Section 22.1.4.1]: https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length
+[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
 [Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
-[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
 [Section 24.1.1.3]: https://tc39.es/ecma262/#sec-detacharraybuffer
+[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
 [Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
 [Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
-[`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
-[`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
+[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
+[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
+[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
+[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
+[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
+[Section 7.1.13]: https://tc39.github.io/ecma262/#sec-toobject
+[Section 7.1.2]: https://tc39.github.io/ecma262/#sec-toboolean
+[Section 7.1.3]: https://tc39.github.io/ecma262/#sec-tonumber
+[Section 7.2.14]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
+[Section 7.2.2]: https://tc39.github.io/ecma262/#sec-isarray
+[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
+[Section 8.7]: https://tc39.es/ecma262/#sec-agents
+[Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+[Travis CI]: https://travis-ci.org
+[Visual Studio]: https://visualstudio.microsoft.com
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
+[Xcode]: https://developer.apple.com/xcode/
+[`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
+[`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
 [`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_init`]: #n_api_napi_async_init
@@ -5297,27 +5308,16 @@ This API may only be called from the main thread.
 [`napi_throw`]: #n_api_napi_throw
 [`napi_unwrap`]: #n_api_napi_unwrap
 [`napi_wrap`]: #n_api_napi_wrap
+[`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
 [`process.release`]: process.html#process_process_release
 [`uv_ref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
 [async_hooks `type`]: async_hooks.html#async_hooks_type
 [context-aware addons]: addons.html#addons_context_aware_addons
-[node-addon-api]: https://github.com/nodejs/node-addon-api
-[worker threads]: https://nodejs.org/api/worker_threads.html
-[C++ Addons]: addons.html
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
-[GCC]: https://gcc.gnu.org
-[LLVM]: https://llvm.org
-[Xcode]: https://developer.apple.com/xcode/
-[Visual Studio]: https://visualstudio.microsoft.com
+[node-addon-api]: https://github.com/nodejs/node-addon-api
 [node-gyp]: https://github.com/nodejs/node-gyp
-[GYP]: https://gyp.gsrc.io
-[CMake.js]: https://github.com/cmake-js/cmake-js
-[CMake]: https://cmake.org
-[Travis CI]: https://travis-ci.org
-[AppVeyor]: https://www.appveyor.com
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
 [prebuild]: https://github.com/prebuild/prebuild
-[GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [prebuildify]: https://github.com/prebuild/prebuildify
-[`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
+[worker threads]: https://nodejs.org/api/worker_threads.html
