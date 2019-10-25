@@ -162,9 +162,11 @@ const assert = require('assert');
 const http = require('http');
 
 let request = 0;
+let listening = 0;
 let response = 0;
 process.on('exit', () => {
   assert.equal(request, 1, 'http server "request" callback was not called');
+  assert.equal(listening, 1, 'http server "listening" callback was not called');
   assert.equal(response, 1, 'http request "response" callback was not called');
 });
 
@@ -172,6 +174,7 @@ const server = http.createServer((req, res) => {
   request++;
   res.end();
 }).listen(0, () => {
+  listening++;
   const options = {
     agent: null,
     port: server.address().port
