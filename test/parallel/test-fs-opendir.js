@@ -192,7 +192,7 @@ for (const bufferSize of [-1, 0, 0.5, 1.5, Infinity, NaN, '', '1', null]) {
                 });
 }
 
-// Check that it passing a positive integer as bufferSize works
+// Check that passing a positive integer as bufferSize works
 {
   const dir = fs.opendirSync(testDir, { bufferSize: 1024 });
   assertDirent(dir.readSync());
