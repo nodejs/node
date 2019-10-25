@@ -45,8 +45,8 @@ class DirHandle : public AsyncWrap {
   void GCClose();
 
   uv_dir_t* dir_;
-  // Up to 32 directory entries are read through a single libuv call.
-  uv_dirent_t dirents_[32];
+  // Multiple entries are read through a single libuv call.
+  std::vector<uv_dirent_t> dirents_;
   bool closing_ = false;
   bool closed_ = false;
 };
