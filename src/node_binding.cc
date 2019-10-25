@@ -484,7 +484,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         mp = dlib->GetSavedModuleFromGlobalHandleMap();
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
-          env->ThrowError("Module did not self-register.");
+          char errmsg[1024];
+          snprintf(errmsg, 1024, "Module did not self-register: '%s'.", *filename);
+          env->ThrowError(errmsg);
           return false;
         }
       }
