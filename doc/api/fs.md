@@ -2626,8 +2626,8 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACME
-    pr-url: ???
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
 
@@ -2653,8 +2653,8 @@ directory and subsequent read operations.
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACME
-    pr-url: ???
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
 
@@ -4844,8 +4844,8 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACME
-    pr-url: ???
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
 
