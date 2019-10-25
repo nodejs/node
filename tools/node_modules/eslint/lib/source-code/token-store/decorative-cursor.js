@@ -21,7 +21,7 @@ module.exports = class DecorativeCursor extends Cursor {
 
     /**
      * Initializes this cursor.
-     * @param {Cursor} cursor - The cursor to be decorated.
+     * @param {Cursor} cursor The cursor to be decorated.
      */
     constructor(cursor) {
         super();

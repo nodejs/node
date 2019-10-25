@@ -41,8 +41,7 @@ const KEYS = keywords.concat(["as", "async", "await", "from", "get", "let", "of"
 
 /**
  * Checks whether or not a given token is a "Template" token ends with "${".
- *
- * @param {Token} token - A token to check.
+ * @param {Token} token A token to check.
  * @returns {boolean} `true` if the token is a "Template" token ends with "${".
  */
 function isOpenParenOfTemplate(token) {
@@ -51,8 +50,7 @@ function isOpenParenOfTemplate(token) {
 
 /**
  * Checks whether or not a given token is a "Template" token starts with "}".
- *
- * @param {Token} token - A token to check.
+ * @param {Token} token A token to check.
  * @returns {boolean} `true` if the token is a "Template" token starts with "}".
  */
 function isCloseParenOfTemplate(token) {
@@ -88,8 +86,8 @@ module.exports = {
                             retv[key] = {
                                 type: "object",
                                 properties: {
-                                    before: { type: "boolean", default: true },
-                                    after: { type: "boolean", default: true }
+                                    before: { type: "boolean" },
+                                    after: { type: "boolean" }
                                 },
                                 additionalProperties: false
                             };
@@ -114,9 +112,8 @@ module.exports = {
 
         /**
          * Reports a given token if there are not space(s) before the token.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp} pattern - A pattern of the previous token to check.
+         * @param {Token} token A token to report.
+         * @param {RegExp} pattern A pattern of the previous token to check.
          * @returns {void}
          */
         function expectSpaceBefore(token, pattern) {
@@ -141,9 +138,8 @@ module.exports = {
 
         /**
          * Reports a given token if there are space(s) before the token.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp} pattern - A pattern of the previous token to check.
+         * @param {Token} token A token to report.
+         * @param {RegExp} pattern A pattern of the previous token to check.
          * @returns {void}
          */
         function unexpectSpaceBefore(token, pattern) {
@@ -168,9 +164,8 @@ module.exports = {
 
         /**
          * Reports a given token if there are not space(s) after the token.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp} pattern - A pattern of the next token to check.
+         * @param {Token} token A token to report.
+         * @param {RegExp} pattern A pattern of the next token to check.
          * @returns {void}
          */
         function expectSpaceAfter(token, pattern) {
@@ -195,9 +190,8 @@ module.exports = {
 
         /**
          * Reports a given token if there are space(s) after the token.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp} pattern - A pattern of the next token to check.
+         * @param {Token} token A token to report.
+         * @param {RegExp} pattern A pattern of the next token to check.
          * @returns {void}
          */
         function unexpectSpaceAfter(token, pattern) {
@@ -222,8 +216,7 @@ module.exports = {
 
         /**
          * Parses the option object and determines check methods for each keyword.
-         *
-         * @param {Object|undefined} options - The option object to parse.
+         * @param {Object|undefined} options The option object to parse.
          * @returns {Object} - Normalized option object.
          *      Keys are keywords (there are for every keyword).
          *      Values are instances of `{"before": function, "after": function}`.
@@ -263,9 +256,8 @@ module.exports = {
         /**
          * Reports a given token if usage of spacing followed by the token is
          * invalid.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp|undefined} pattern - Optional. A pattern of the previous
+         * @param {Token} token A token to report.
+         * @param {RegExp} [pattern] Optional. A pattern of the previous
          *      token to check.
          * @returns {void}
          */
@@ -276,9 +268,8 @@ module.exports = {
         /**
          * Reports a given token if usage of spacing preceded by the token is
          * invalid.
-         *
-         * @param {Token} token - A token to report.
-         * @param {RegExp|undefined} pattern - Optional. A pattern of the next
+         * @param {Token} token A token to report.
+         * @param {RegExp} [pattern] Optional. A pattern of the next
          *      token to check.
          * @returns {void}
          */
@@ -288,8 +279,7 @@ module.exports = {
 
         /**
          * Reports a given token if usage of spacing around the token is invalid.
-         *
-         * @param {Token} token - A token to report.
+         * @param {Token} token A token to report.
          * @returns {void}
          */
         function checkSpacingAround(token) {
@@ -300,8 +290,7 @@ module.exports = {
         /**
          * Reports the first token of a given node if the first token is a keyword
          * and usage of spacing around the token is invalid.
-         *
-         * @param {ASTNode|null} node - A node to report.
+         * @param {ASTNode|null} node A node to report.
          * @returns {void}
          */
         function checkSpacingAroundFirstToken(node) {
@@ -318,8 +307,7 @@ module.exports = {
          *
          * This is used for unary operators (e.g. `typeof`), `function`, and `super`.
          * Other rules are handling usage of spacing preceded by those keywords.
-         *
-         * @param {ASTNode|null} node - A node to report.
+         * @param {ASTNode|null} node A node to report.
          * @returns {void}
          */
         function checkSpacingBeforeFirstToken(node) {
@@ -333,8 +321,7 @@ module.exports = {
         /**
          * Reports the previous token of a given node if the token is a keyword and
          * usage of spacing around the token is invalid.
-         *
-         * @param {ASTNode|null} node - A node to report.
+         * @param {ASTNode|null} node A node to report.
          * @returns {void}
          */
         function checkSpacingAroundTokenBefore(node) {
@@ -348,8 +335,7 @@ module.exports = {
         /**
          * Reports `async` or `function` keywords of a given node if usage of
          * spacing around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForFunction(node) {
@@ -366,8 +352,7 @@ module.exports = {
         /**
          * Reports `class` and `extends` keywords of a given node if usage of
          * spacing around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForClass(node) {
@@ -378,8 +363,7 @@ module.exports = {
         /**
          * Reports `if` and `else` keywords of a given node if usage of spacing
          * around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForIfStatement(node) {
@@ -390,8 +374,7 @@ module.exports = {
         /**
          * Reports `try`, `catch`, and `finally` keywords of a given node if usage
          * of spacing around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForTryStatement(node) {
@@ -403,8 +386,7 @@ module.exports = {
         /**
          * Reports `do` and `while` keywords of a given node if usage of spacing
          * around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForDoWhileStatement(node) {
@@ -415,8 +397,7 @@ module.exports = {
         /**
          * Reports `for` and `in` keywords of a given node if usage of spacing
          * around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForForInStatement(node) {
@@ -427,8 +408,7 @@ module.exports = {
         /**
          * Reports `for` and `of` keywords of a given node if usage of spacing
          * around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForForOfStatement(node) {
@@ -449,8 +429,7 @@ module.exports = {
          *
          *     import*as A from "./a"; /*error Expected space(s) after "import".
          *                               error Expected space(s) before "as".
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForModuleDeclaration(node) {
@@ -474,8 +453,7 @@ module.exports = {
         /**
          * Reports `as` keyword of a given node if usage of spacing around this
          * keyword is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForImportNamespaceSpecifier(node) {
@@ -487,8 +465,7 @@ module.exports = {
         /**
          * Reports `static`, `get`, and `set` keywords of a given node if usage of
          * spacing around those keywords is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForProperty(node) {
@@ -528,8 +505,7 @@ module.exports = {
         /**
          * Reports `await` keyword of a given node if usage of spacing before
          * this keyword is invalid.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function checkSpacingForAwaitExpression(node) {

@@ -18,8 +18,7 @@ const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
 
 /**
  * Checks a given code path segment is reachable.
- *
- * @param {CodePathSegment} segment - A segment to check.
+ * @param {CodePathSegment} segment A segment to check.
  * @returns {boolean} `true` if the segment is reachable.
  */
 function isReachable(segment) {
@@ -30,8 +29,7 @@ function isReachable(segment) {
  * Gets a readable location.
  *
  * - FunctionExpression -> the function name or `function` keyword.
- *
- * @param {ASTNode} node - A function node to get.
+ * @param {ASTNode} node A function node to get.
  * @returns {ASTNode|Token} The node or the token of a location.
  */
 function getId(node) {
@@ -92,8 +90,7 @@ module.exports = {
          *
          * If the last code path segment is reachable, there are paths which are not
          * returned or thrown.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function checkLastSegment(node) {
@@ -113,7 +110,7 @@ module.exports = {
 
         /**
          * Checks whether a node means a getter function.
-         * @param {ASTNode} node - a node to check.
+         * @param {ASTNode} node a node to check.
          * @returns {boolean} if node means a getter, return true; else return false.
          */
         function isGetter(node) {

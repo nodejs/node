@@ -54,7 +54,6 @@ module.exports = {
 
         /**
          * Check if variable name is allowed.
-         *
          * @param  {ASTNode} variable The variable to check.
          * @returns {boolean} Whether or not the variable name is allowed.
          */
@@ -67,7 +66,6 @@ module.exports = {
          *
          * ClassDeclaration creates two variables of its name into its outer scope and its class scope.
          * So we should ignore the variable in the class scope.
-         *
          * @param {Object} variable The variable to check.
          * @returns {boolean} Whether or not the variable of the class name in the class scope of ClassDeclaration.
          */
@@ -82,7 +80,6 @@ module.exports = {
          *
          * To avoid reporting at declarations such as `var a = function a() {};`.
          * But it should report `var a = function(a) {};` or `var a = function() { function a() {} };`.
-         *
          * @param {Object} variable The variable to check.
          * @param {Object} scopeVar The scope variable to look for.
          * @returns {boolean} Whether or not the variable is inside initializer of scopeVar.
@@ -139,7 +136,7 @@ module.exports = {
 
         /**
          * Checks the current context for shadowed variables.
-         * @param {Scope} scope - Fixme
+         * @param {Scope} scope Fixme
          * @returns {void}
          */
         function checkForShadows(scope) {

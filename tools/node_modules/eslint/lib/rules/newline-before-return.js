@@ -39,8 +39,8 @@ module.exports = {
 
         /**
          * Tests whether node is preceded by supplied tokens
-         * @param {ASTNode} node - node to check
-         * @param {Array} testTokens - array of tokens to test against
+         * @param {ASTNode} node node to check
+         * @param {Array} testTokens array of tokens to test against
          * @returns {boolean} Whether or not the node is preceded by one of the supplied tokens
          * @private
          */
@@ -52,7 +52,7 @@ module.exports = {
 
         /**
          * Checks whether node is the first node after statement or in block
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {boolean} Whether or not the node is the first node after statement or in block
          * @private
          */
@@ -80,8 +80,8 @@ module.exports = {
 
         /**
          * Returns the number of lines of comments that precede the node
-         * @param {ASTNode} node - node to check for overlapping comments
-         * @param {number} lineNumTokenBefore - line number of previous token, to check for overlapping comments
+         * @param {ASTNode} node node to check for overlapping comments
+         * @param {number} lineNumTokenBefore line number of previous token, to check for overlapping comments
          * @returns {number} Number of lines of comments that precede the node
          * @private
          */
@@ -115,7 +115,7 @@ module.exports = {
 
         /**
          * Returns the line number of the token before the node that is passed in as an argument
-         * @param {ASTNode} node - The node to use as the start of the calculation
+         * @param {ASTNode} node The node to use as the start of the calculation
          * @returns {number} Line number of the token before `node`
          * @private
          */
@@ -142,7 +142,7 @@ module.exports = {
 
         /**
          * Checks whether node is preceded by a newline
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {boolean} Whether or not the node is preceded by a newline
          * @private
          */
@@ -160,8 +160,7 @@ module.exports = {
          * The fix is not considered safe if the given return statement has leading comments,
          * as we cannot safely determine if the newline should be added before or after the comments.
          * For more information, see: https://github.com/eslint/eslint/issues/5958#issuecomment-222767211
-         *
-         * @param {ASTNode} node - The return statement node to check.
+         * @param {ASTNode} node The return statement node to check.
          * @returns {boolean} `true` if it can fix the node.
          * @private
          */

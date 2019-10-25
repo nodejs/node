@@ -46,9 +46,9 @@ module.exports = {
 
         /**
          * Tests whether node is preceded by supplied tokens
-         * @param {ASTNode} node - node to check
-         * @param {ASTNode} parentNode - parent of node to report
-         * @param {boolean} expected - whether newline was expected or not
+         * @param {ASTNode} node node to check
+         * @param {ASTNode} parentNode parent of node to report
+         * @param {boolean} expected whether newline was expected or not
          * @returns {void}
          * @private
          */

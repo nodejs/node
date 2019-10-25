@@ -116,7 +116,7 @@ module.exports = {
 
         /**
          * Checks to see if "*" is being used to import everything.
-         * @param {Set.<string>} importNames - Set of import names that are being imported
+         * @param {Set.<string>} importNames Set of import names that are being imported
          * @returns {boolean} whether everything is imported or not
          */
         function isEverythingImported(importNames) {
@@ -145,7 +145,7 @@ module.exports = {
 
         /**
          * Report a restricted path specifically for patterns.
-         * @param {node} node - representing the restricted path reference
+         * @param {node} node representing the restricted path reference
          * @returns {void}
          * @private
          */
@@ -163,8 +163,8 @@ module.exports = {
 
         /**
          * Report a restricted path specifically when using the '*' import.
-         * @param {string} importSource - path of the import
-         * @param {node} node - representing the restricted path reference
+         * @param {string} importSource path of the import
+         * @param {node} node representing the restricted path reference
          * @returns {void}
          * @private
          */
@@ -185,8 +185,8 @@ module.exports = {
 
         /**
          * Check if the given importSource is restricted because '*' is being imported.
-         * @param {string} importSource - path of the import
-         * @param {Set.<string>} importNames - Set of import names that are being imported
+         * @param {string} importSource path of the import
+         * @param {Set.<string>} importNames Set of import names that are being imported
          * @returns {boolean} whether the path is restricted
          * @private
          */
@@ -198,8 +198,8 @@ module.exports = {
 
         /**
          * Check if the given importNames are restricted given a list of restrictedImportNames.
-         * @param {Set.<string>} importNames - Set of import names that are being imported
-         * @param {string[]} restrictedImportNames - array of import names that are restricted for this import
+         * @param {Set.<string>} importNames Set of import names that are being imported
+         * @param {string[]} restrictedImportNames array of import names that are restricted for this import
          * @returns {boolean} whether the objectName is restricted
          * @private
          */
@@ -211,8 +211,8 @@ module.exports = {
 
         /**
          * Check if the given importSource is a restricted path.
-         * @param {string} importSource - path of the import
-         * @param {Set.<string>} importNames - Set of import names that are being imported
+         * @param {string} importSource path of the import
+         * @param {Set.<string>} importNames Set of import names that are being imported
          * @returns {boolean} whether the variable is a restricted path or not
          * @private
          */
@@ -232,7 +232,7 @@ module.exports = {
 
         /**
          * Check if the given importSource is restricted by a pattern.
-         * @param {string} importSource - path of the import
+         * @param {string} importSource path of the import
          * @returns {boolean} whether the variable is a restricted pattern or not
          * @private
          */

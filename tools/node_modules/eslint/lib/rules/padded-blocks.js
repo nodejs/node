@@ -97,7 +97,7 @@ module.exports = {
 
         /**
          * Gets the open brace token from a given node.
-         * @param {ASTNode} node - A BlockStatement or SwitchStatement node from which to get the open brace.
+         * @param {ASTNode} node A BlockStatement or SwitchStatement node from which to get the open brace.
          * @returns {Token} The token of the open brace.
          */
         function getOpenBrace(node) {

@@ -78,9 +78,8 @@ module.exports = {
 
         /**
          * Returns resolved option definitions based on an option and defaults
-         *
-         * @param {any} option - The option object or string value
-         * @param {Object} defaults - The defaults to use if options are not present
+         * @param {any} option The option object or string value
+         * @param {Object} defaults The defaults to use if options are not present
          * @returns {Object} the resolved object definition
          */
         function optionToDefinition(option, defaults) {
@@ -107,8 +106,7 @@ module.exports = {
 
         /**
          * Checks if the given token is a star token or not.
-         *
-         * @param {Token} token - The token to check.
+         * @param {Token} token The token to check.
          * @returns {boolean} `true` if the token is a star token.
          */
         function isStarToken(token) {
@@ -117,8 +115,7 @@ module.exports = {
 
         /**
          * Gets the generator star token of the given function node.
-         *
-         * @param {ASTNode} node - The function node to get.
+         * @param {ASTNode} node The function node to get.
          * @returns {Token} Found star token.
          */
         function getStarToken(node) {
@@ -139,7 +136,6 @@ module.exports = {
 
         /**
          * Checks the spacing between two tokens before or after the star token.
-         *
          * @param {string} kind Either "named", "anonymous", or "method"
          * @param {string} side Either "before" or "after".
          * @param {Token} leftToken `function` keyword token if side is "before", or
@@ -173,7 +169,6 @@ module.exports = {
 
         /**
          * Enforces the spacing around the star if node is a generator function.
-         *
          * @param {ASTNode} node A function expression or declaration node.
          * @returns {void}
          */

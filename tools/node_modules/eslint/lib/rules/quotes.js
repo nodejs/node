@@ -41,7 +41,7 @@ const UNESCAPED_LINEBREAK_PATTERN = new RegExp(String.raw`(^|[^\\])(\\\\)*[${Arr
  * escaping and unescaping as necessary.
  * Only escaping of the minimal set of characters is changed.
  * Note: escaping of newlines when switching from backtick to other quotes is not handled.
- * @param {string} str - A string to convert.
+ * @param {string} str A string to convert.
  * @returns {string} The string with changed quotes.
  * @private
  */
@@ -143,7 +143,6 @@ module.exports = {
          *
          * In both cases, inside of the braces is handled as normal JavaScript.
          * The braces are `JSXExpressionContainer` nodes.
-         *
          * @param {ASTNode} node The Literal node to check.
          * @returns {boolean} True if the node is a part of JSX, false if not.
          * @private
@@ -155,7 +154,7 @@ module.exports = {
         /**
          * Checks whether or not a given node is a directive.
          * The directive is a `ExpressionStatement` which has only a string literal.
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} Whether or not the node is a directive.
          * @private
          */
@@ -170,7 +169,7 @@ module.exports = {
         /**
          * Checks whether or not a given node is a part of directive prologues.
          * See also: http://www.ecma-international.org/ecma-262/6.0/#sec-directive-prologues-and-the-use-strict-directive
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} Whether or not the node is a part of directive prologues.
          * @private
          */
@@ -198,7 +197,7 @@ module.exports = {
 
         /**
          * Checks whether or not a given node is allowed as non backtick.
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} Whether or not the node is allowed as non backtick.
          * @private
          */
@@ -230,7 +229,7 @@ module.exports = {
 
         /**
          * Checks whether or not a given TemplateLiteral node is actually using any of the special features provided by template literal strings.
-         * @param {ASTNode} node - A TemplateLiteral node to check.
+         * @param {ASTNode} node A TemplateLiteral node to check.
          * @returns {boolean} Whether or not the TemplateLiteral node is using any of the special features provided by template literal strings.
          * @private
          */

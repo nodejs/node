@@ -65,7 +65,7 @@ module.exports = {
 
         /**
          * Checks if the given string literal node uses the expected quotes
-         * @param {ASTNode} node - A string literal node.
+         * @param {ASTNode} node A string literal node.
          * @returns {boolean} Whether or not the string literal used the expected quotes.
          * @public
          */

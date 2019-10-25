@@ -16,7 +16,6 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Get location should be reported by AST node.
- *
  * @param {ASTNode} node AST Node.
  * @returns {Location} Location information.
  */

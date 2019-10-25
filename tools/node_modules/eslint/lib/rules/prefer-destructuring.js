@@ -103,6 +103,7 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
          * @param {string} nodeType "AssignmentExpression" or "VariableDeclarator"
          * @param {string} destructuringType "array" or "object"
@@ -119,7 +120,6 @@ module.exports = {
          *
          * This is used to differentiate array index access from object property
          * access.
-         *
          * @param {ASTNode} node the node to evaluate
          * @returns {boolean} whether or not the node is an integer
          */
@@ -129,7 +129,6 @@ module.exports = {
 
         /**
          * Report that the given node should use destructuring
-         *
          * @param {ASTNode} reportNode the node to report
          * @param {string} type the type of destructuring that should have been done
          * @param {Function|null} fix the fix function or null to pass to context.report
@@ -153,7 +152,6 @@ module.exports = {
          * Assignment expression is not fixed.
          * Array destructuring is not fixed.
          * Renamed property is not fixed.
-         *
          * @param {ASTNode} node the the node to evaluate
          * @returns {boolean} whether or not the node should be fixed
          */
@@ -168,7 +166,6 @@ module.exports = {
          * Fix a node into object destructuring.
          * This function only handles the simplest case of object destructuring,
          * see {@link shouldFix}.
-         *
          * @param {SourceCodeFixer} fixer the fixer object
          * @param {ASTNode} node the node to be fixed.
          * @returns {Object} a fix for the node
@@ -189,7 +186,6 @@ module.exports = {
          *
          * Pulled out into a separate method so that VariableDeclarators and
          * AssignmentExpressions can share the same verification logic.
-         *
          * @param {ASTNode} leftNode the left-hand side of the assignment
          * @param {ASTNode} rightNode the right-hand side of the assignment
          * @param {ASTNode} reportNode the node to report the error on
@@ -231,7 +227,6 @@ module.exports = {
         /**
          * Check if a given variable declarator is coming from an property access
          * that should be using destructuring instead
-         *
          * @param {ASTNode} node the variable declarator to check
          * @returns {void}
          */
@@ -252,7 +247,6 @@ module.exports = {
 
         /**
          * Run the `prefer-destructuring` check on an AssignmentExpression
-         *
          * @param {ASTNode} node the AssignmentExpression node
          * @returns {void}
          */

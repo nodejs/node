@@ -61,7 +61,7 @@ module.exports = {
 
         /**
          * Returns whether the node is number literal
-         * @param {Node} node - the node literal being evaluated
+         * @param {Node} node the node literal being evaluated
          * @returns {boolean} true if the node is a number literal
          */
         function isNumber(node) {
@@ -70,7 +70,7 @@ module.exports = {
 
         /**
          * Returns whether the number should be ignored
-         * @param {number} num - the number
+         * @param {number} num the number
          * @returns {boolean} true if the number should be ignored
          */
         function shouldIgnoreNumber(num) {
@@ -79,8 +79,8 @@ module.exports = {
 
         /**
          * Returns whether the number should be ignored when used as a radix within parseInt() or Number.parseInt()
-         * @param {ASTNode} parent - the non-"UnaryExpression" parent
-         * @param {ASTNode} node - the node literal being evaluated
+         * @param {ASTNode} parent the non-"UnaryExpression" parent
+         * @param {ASTNode} node the node literal being evaluated
          * @returns {boolean} true if the number should be ignored
          */
         function shouldIgnoreParseInt(parent, node) {
@@ -93,7 +93,7 @@ module.exports = {
 
         /**
          * Returns whether the number should be ignored when used to define a JSX prop
-         * @param {ASTNode} parent - the non-"UnaryExpression" parent
+         * @param {ASTNode} parent the non-"UnaryExpression" parent
          * @returns {boolean} true if the number should be ignored
          */
         function shouldIgnoreJSXNumbers(parent) {
@@ -102,7 +102,7 @@ module.exports = {
 
         /**
          * Returns whether the number should be ignored when used as an array index with enabled 'ignoreArrayIndexes' option.
-         * @param {ASTNode} parent - the non-"UnaryExpression" parent.
+         * @param {ASTNode} parent the non-"UnaryExpression" parent.
          * @returns {boolean} true if the number should be ignored
          */
         function shouldIgnoreArrayIndexes(parent) {

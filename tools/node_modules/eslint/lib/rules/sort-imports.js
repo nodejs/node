@@ -70,8 +70,7 @@ module.exports = {
          * import * as myModule from "my-module.js" --> all
          * import {myMember} from "my-module.js" --> single
          * import {foo, bar} from  "my-module.js" --> multiple
-         *
-         * @param {ASTNode} node - the ImportDeclaration node.
+         * @param {ASTNode} node the ImportDeclaration node.
          * @returns {string} used member parameter style, ["all", "multiple", "single"]
          */
         function usedMemberSyntax(node) {
@@ -90,7 +89,7 @@ module.exports = {
 
         /**
          * Gets the group by member parameter index for given declaration.
-         * @param {ASTNode} node - the ImportDeclaration node.
+         * @param {ASTNode} node the ImportDeclaration node.
          * @returns {number} the declaration group by member index.
          */
         function getMemberParameterGroupIndex(node) {
@@ -99,7 +98,7 @@ module.exports = {
 
         /**
          * Gets the local name of the first imported module.
-         * @param {ASTNode} node - the ImportDeclaration node.
+         * @param {ASTNode} node the ImportDeclaration node.
          * @returns {?string} the local name of the first imported module.
          */
         function getFirstLocalMemberName(node) {

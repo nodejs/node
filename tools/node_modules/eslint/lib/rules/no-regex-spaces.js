@@ -52,7 +52,6 @@ module.exports = {
 
         /**
          * Validate regular expression
-         *
          * @param {ASTNode} nodeToReport Node to report.
          * @param {string} pattern Regular expression pattern to validate.
          * @param {string} rawPattern Raw representation of the pattern in the source code.

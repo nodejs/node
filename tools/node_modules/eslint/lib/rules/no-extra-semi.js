@@ -40,7 +40,7 @@ module.exports = {
 
         /**
          * Reports an unnecessary semicolon error.
-         * @param {Node|Token} nodeOrToken - A node or a token to be reported.
+         * @param {Node|Token} nodeOrToken A node or a token to be reported.
          * @returns {void}
          */
         function report(nodeOrToken) {
@@ -64,8 +64,7 @@ module.exports = {
         /**
          * Checks for a part of a class body.
          * This checks tokens from a specified token to a next MethodDefinition or the end of class body.
-         *
-         * @param {Token} firstToken - The first token to check.
+         * @param {Token} firstToken The first token to check.
          * @returns {void}
          */
         function checkForPartOfClassBody(firstToken) {
@@ -83,7 +82,7 @@ module.exports = {
 
             /**
              * Reports this empty statement, except if the parent node is a loop.
-             * @param {Node} node - A EmptyStatement node to be reported.
+             * @param {Node} node A EmptyStatement node to be reported.
              * @returns {void}
              */
             EmptyStatement(node) {
@@ -106,7 +105,7 @@ module.exports = {
 
             /**
              * Checks tokens from the head of this class body to the first MethodDefinition or the end of this class body.
-             * @param {Node} node - A ClassBody node to check.
+             * @param {Node} node A ClassBody node to check.
              * @returns {void}
              */
             ClassBody(node) {
@@ -115,7 +114,7 @@ module.exports = {
 
             /**
              * Checks tokens from this MethodDefinition to the next MethodDefinition or the end of this class body.
-             * @param {Node} node - A MethodDefinition node of the start point.
+             * @param {Node} node A MethodDefinition node of the start point.
              * @returns {void}
              */
             MethodDefinition(node) {

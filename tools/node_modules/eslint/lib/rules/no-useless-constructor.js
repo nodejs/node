@@ -10,8 +10,7 @@
 
 /**
  * Checks whether a given array of statements is a single call of `super`.
- *
- * @param {ASTNode[]} body - An array of statements to check.
+ * @param {ASTNode[]} body An array of statements to check.
  * @returns {boolean} `true` if the body is a single call of `super`.
  */
 function isSingleSuperCall(body) {
@@ -26,8 +25,7 @@ function isSingleSuperCall(body) {
 /**
  * Checks whether a given node is a pattern which doesn't have any side effects.
  * Default parameters and Destructuring parameters can have side effects.
- *
- * @param {ASTNode} node - A pattern node.
+ * @param {ASTNode} node A pattern node.
  * @returns {boolean} `true` if the node doesn't have any side effects.
  */
 function isSimple(node) {
@@ -37,8 +35,7 @@ function isSimple(node) {
 /**
  * Checks whether a given array of expressions is `...arguments` or not.
  * `super(...arguments)` passes all arguments through.
- *
- * @param {ASTNode[]} superArgs - An array of expressions to check.
+ * @param {ASTNode[]} superArgs An array of expressions to check.
  * @returns {boolean} `true` if the superArgs is `...arguments`.
  */
 function isSpreadArguments(superArgs) {
@@ -52,9 +49,8 @@ function isSpreadArguments(superArgs) {
 
 /**
  * Checks whether given 2 nodes are identifiers which have the same name or not.
- *
- * @param {ASTNode} ctorParam - A node to check.
- * @param {ASTNode} superArg - A node to check.
+ * @param {ASTNode} ctorParam A node to check.
+ * @param {ASTNode} superArg A node to check.
  * @returns {boolean} `true` if the nodes are identifiers which have the same
  *      name.
  */
@@ -68,9 +64,8 @@ function isValidIdentifierPair(ctorParam, superArg) {
 
 /**
  * Checks whether given 2 nodes are a rest/spread pair which has the same values.
- *
- * @param {ASTNode} ctorParam - A node to check.
- * @param {ASTNode} superArg - A node to check.
+ * @param {ASTNode} ctorParam A node to check.
+ * @param {ASTNode} superArg A node to check.
  * @returns {boolean} `true` if the nodes are a rest/spread pair which has the
  *      same values.
  */
@@ -84,9 +79,8 @@ function isValidRestSpreadPair(ctorParam, superArg) {
 
 /**
  * Checks whether given 2 nodes have the same value or not.
- *
- * @param {ASTNode} ctorParam - A node to check.
- * @param {ASTNode} superArg - A node to check.
+ * @param {ASTNode} ctorParam A node to check.
+ * @param {ASTNode} superArg A node to check.
  * @returns {boolean} `true` if the nodes have the same value or not.
  */
 function isValidPair(ctorParam, superArg) {
@@ -99,9 +93,8 @@ function isValidPair(ctorParam, superArg) {
 /**
  * Checks whether the parameters of a constructor and the arguments of `super()`
  * have the same values or not.
- *
- * @param {ASTNode} ctorParams - The parameters of a constructor to check.
- * @param {ASTNode} superArgs - The arguments of `super()` to check.
+ * @param {ASTNode} ctorParams The parameters of a constructor to check.
+ * @param {ASTNode} superArgs The arguments of `super()` to check.
  * @returns {boolean} `true` if those have the same values.
  */
 function isPassingThrough(ctorParams, superArgs) {
@@ -120,9 +113,8 @@ function isPassingThrough(ctorParams, superArgs) {
 
 /**
  * Checks whether the constructor body is a redundant super call.
- *
- * @param {Array} body - constructor body content.
- * @param {Array} ctorParams - The params to check against super call.
+ * @param {Array} body constructor body content.
+ * @param {Array} ctorParams The params to check against super call.
  * @returns {boolean} true if the construtor body is redundant
  */
 function isRedundantSuperCall(body, ctorParams) {
@@ -158,7 +150,7 @@ module.exports = {
 
         /**
          * Checks whether a node is a redundant constructor
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkForConstructor(node) {

@@ -38,8 +38,7 @@ module.exports = {
         /**
          * Reports if node does not conform the rule in case rule is set to
          * report missing description
-         *
-         * @param {ASTNode} node - A CallExpression node to check.
+         * @param {ASTNode} node A CallExpression node to check.
          * @returns {void}
          */
         function checkArgument(node) {

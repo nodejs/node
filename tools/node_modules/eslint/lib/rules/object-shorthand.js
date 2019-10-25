@@ -147,7 +147,7 @@ module.exports = {
 
         /**
          * Checks whether a node is a string literal.
-         * @param   {ASTNode} node - Any AST node.
+         * @param   {ASTNode} node Any AST node.
          * @returns {boolean} `true` if it is a string literal.
          */
         function isStringLiteral(node) {

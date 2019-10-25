@@ -13,7 +13,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a given variable is a function name.
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is a function name.
  */
 function isFunctionName(variable) {
@@ -73,7 +73,7 @@ module.exports = {
 
         /**
          * Returns the config option for the given node.
-         * @param {ASTNode} node - A node to get the config for.
+         * @param {ASTNode} node A node to get the config for.
          * @returns {string} The config option.
          */
         function getConfigForNode(node) {
@@ -91,7 +91,7 @@ module.exports = {
         /**
          * Determines whether the current FunctionExpression node is a get, set, or
          * shorthand method in an object literal or a class.
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} True if the node is a get, set, or shorthand method.
          */
         function isObjectOrClassMethod(node) {
@@ -109,7 +109,7 @@ module.exports = {
         /**
          * Determines whether the current FunctionExpression node has a name that would be
          * inferred from context in a conforming ES6 environment.
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} True if the node would have a name assigned automatically.
          */
         function hasInferredName(node) {
@@ -125,7 +125,7 @@ module.exports = {
 
         /**
          * Reports that an unnamed function should be named
-         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {ASTNode} node The node to report in the event of an error.
          * @returns {void}
          */
         function reportUnexpectedUnnamedFunction(node) {
@@ -139,7 +139,7 @@ module.exports = {
 
         /**
          * Reports that a named function should be unnamed
-         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {ASTNode} node The node to report in the event of an error.
          * @returns {void}
          */
         function reportUnexpectedNamedFunction(node) {

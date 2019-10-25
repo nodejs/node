@@ -54,7 +54,6 @@ module.exports = {
          * Convert a warning term into a RegExp which will match a comment containing that whole word in the specified
          * location ("start" or "anywhere"). If the term starts or ends with non word characters, then the match will not
          * require word boundaries on that side.
-         *
          * @param {string} term A term to convert to a RegExp
          * @returns {RegExp} The term converted to a RegExp
          */

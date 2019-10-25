@@ -45,6 +45,13 @@ module.exports = {
                                     type: "string"
                                 },
                                 uniqueItems: true
+                            },
+                            ignorePropertyModificationsForRegex: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                uniqueItems: true
                             }
                         },
                         additionalProperties: false
@@ -57,10 +64,11 @@ module.exports = {
     create(context) {
         const props = context.options[0] && context.options[0].props;
         const ignoredPropertyAssignmentsFor = context.options[0] && context.options[0].ignorePropertyModificationsFor || [];
+        const ignoredPropertyAssignmentsForRegex = context.options[0] && context.options[0].ignorePropertyModificationsForRegex || [];
 
         /**
          * Checks whether or not the reference modifies properties of its variable.
-         * @param {Reference} reference - A reference to check.
+         * @param {Reference} reference A reference to check.
          * @returns {boolean} Whether or not the reference modifies properties of its variable.
          */
         function isModifyingProp(reference) {
@@ -137,10 +145,23 @@ module.exports = {
         }
 
         /**
+         * Tests that an identifier name matches any of the ignored property assignments.
+         * First we test strings in ignoredPropertyAssignmentsFor.
+         * Then we instantiate and test RegExp objects from ignoredPropertyAssignmentsForRegex strings.
+         * @param {string} identifierName A string that describes the name of an identifier to
+         * ignore property assignments for.
+         * @returns {boolean} Whether the string matches an ignored property assignment regular expression or not.
+         */
+        function isIgnoredPropertyAssignment(identifierName) {
+            return ignoredPropertyAssignmentsFor.includes(identifierName) ||
+                ignoredPropertyAssignmentsForRegex.some(ignored => new RegExp(ignored, "u").test(identifierName));
+        }
+
+        /**
          * Reports a reference if is non initializer and writable.
-         * @param {Reference} reference - A reference to check.
-         * @param {int} index - The index of the reference in the references.
-         * @param {Reference[]} references - The array that the reference belongs to.
+         * @param {Reference} reference A reference to check.
+         * @param {int} index The index of the reference in the references.
+         * @param {Reference[]} references The array that the reference belongs to.
          * @returns {void}
          */
         function checkReference(reference, index, references) {
@@ -157,7 +178,7 @@ module.exports = {
             ) {
                 if (reference.isWrite()) {
                     context.report({ node: identifier, message: "Assignment to function parameter '{{name}}'.", data: { name: identifier.name } });
-                } else if (props && isModifyingProp(reference) && ignoredPropertyAssignmentsFor.indexOf(identifier.name) === -1) {
+                } else if (props && isModifyingProp(reference) && !isIgnoredPropertyAssignment(identifier.name)) {
                     context.report({ node: identifier, message: "Assignment to property of function parameter '{{name}}'.", data: { name: identifier.name } });
                 }
             }
@@ -165,7 +186,7 @@ module.exports = {
 
         /**
          * Finds and reports references that are non initializer and writable.
-         * @param {Variable} variable - A variable to check.
+         * @param {Variable} variable A variable to check.
          * @returns {void}
          */
         function checkVariable(variable) {
@@ -176,7 +197,7 @@ module.exports = {
 
         /**
          * Checks parameters of a given function node.
-         * @param {ASTNode} node - A function node to check.
+         * @param {ASTNode} node A function node to check.
          * @returns {void}
          */
         function checkForFunction(node) {

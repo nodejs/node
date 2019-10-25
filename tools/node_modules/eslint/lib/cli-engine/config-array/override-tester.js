@@ -166,6 +166,7 @@ class OverrideTester {
         ));
     }
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @returns {Object} a JSON compatible object.
      */
@@ -182,6 +183,7 @@ class OverrideTester {
         };
     }
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @returns {Object} an object to display by `console.log()`.
      */

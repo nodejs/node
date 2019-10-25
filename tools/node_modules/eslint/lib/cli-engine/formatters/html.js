@@ -96,6 +96,7 @@ function renderMessages(messages, parentIndex, rulesMeta) {
     }).join("\n");
 }
 
+// eslint-disable-next-line jsdoc/require-description
 /**
  * @param {Array} results Test results.
  * @param {Object} rulesMeta Dictionary containing metadata for each rule executed by the analysis.

@@ -1,39 +1,35 @@
 'use strict';
 const restoreCursor = require('restore-cursor');
 
-let hidden = false;
+let isHidden = false;
 
-exports.show = stream => {
-	const s = stream || process.stderr;
-
-	if (!s.isTTY) {
+exports.show = (writableStream = process.stderr) => {
+	if (!writableStream.isTTY) {
 		return;
 	}
 
-	hidden = false;
-	s.write('\u001b[?25h');
+	isHidden = false;
+	writableStream.write('\u001B[?25h');
 };
 
-exports.hide = stream => {
-	const s = stream || process.stderr;
-
-	if (!s.isTTY) {
+exports.hide = (writableStream = process.stderr) => {
+	if (!writableStream.isTTY) {
 		return;
 	}
 
 	restoreCursor();
-	hidden = true;
-	s.write('\u001b[?25l');
+	isHidden = true;
+	writableStream.write('\u001B[?25l');
 };
 
-exports.toggle = (force, stream) => {
+exports.toggle = (force, writableStream) => {
 	if (force !== undefined) {
-		hidden = force;
+		isHidden = force;
 	}
 
-	if (hidden) {
-		exports.show(stream);
+	if (isHidden) {
+		exports.show(writableStream);
 	} else {
-		exports.hide(stream);
+		exports.hide(writableStream);
 	}
 };

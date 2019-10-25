@@ -42,9 +42,9 @@ const OCTAL_ESCAPE_PATTERN = /^(?:[^\\]|\\[^0-7]|\\0(?![0-9]))*\\(?:[1-7]|0[0-9]
 
 /**
  * Checks reference if is non initializer and writable.
- * @param {Reference} reference - A reference to check.
- * @param {int} index - The index of the reference in the references.
- * @param {Reference[]} references - The array that the reference belongs to.
+ * @param {Reference} reference A reference to check.
+ * @param {int} index The index of the reference in the references.
+ * @param {Reference[]} references The array that the reference belongs to.
  * @returns {boolean} Success/Failure
  * @private
  */
@@ -68,8 +68,7 @@ function isModifyingReference(reference, index, references) {
 
 /**
  * Checks whether the given string starts with uppercase or not.
- *
- * @param {string} s - The string to check.
+ * @param {string} s The string to check.
  * @returns {boolean} `true` if the string starts with uppercase.
  */
 function startsWithUpperCase(s) {
@@ -78,7 +77,7 @@ function startsWithUpperCase(s) {
 
 /**
  * Checks whether or not a node is a constructor.
- * @param {ASTNode} node - A function node to check.
+ * @param {ASTNode} node A function node to check.
  * @returns {boolean} Wehether or not a node is a constructor.
  */
 function isES5Constructor(node) {
@@ -87,7 +86,7 @@ function isES5Constructor(node) {
 
 /**
  * Finds a function node from ancestors of a node.
- * @param {ASTNode} node - A start node to find.
+ * @param {ASTNode} node A start node to find.
  * @returns {Node|null} A found function node.
  */
 function getUpperFunction(node) {
@@ -106,8 +105,7 @@ function getUpperFunction(node) {
  * - ArrowFunctionExpression
  * - FunctionDeclaration
  * - FunctionExpression
- *
- * @param {ASTNode|null} node - A node to check.
+ * @param {ASTNode|null} node A node to check.
  * @returns {boolean} `true` if the node is a function node.
  */
 function isFunction(node) {
@@ -123,8 +121,7 @@ function isFunction(node) {
  * - ForOfStatement
  * - ForStatement
  * - WhileStatement
- *
- * @param {ASTNode|null} node - A node to check.
+ * @param {ASTNode|null} node A node to check.
  * @returns {boolean} `true` if the node is a loop node.
  */
 function isLoop(node) {
@@ -133,8 +130,7 @@ function isLoop(node) {
 
 /**
  * Checks whether the given node is in a loop or not.
- *
- * @param {ASTNode} node - The node to check.
+ * @param {ASTNode} node The node to check.
  * @returns {boolean} `true` if the node is in a loop.
  */
 function isInLoop(node) {
@@ -149,7 +145,7 @@ function isInLoop(node) {
 
 /**
  * Checks whether or not a node is `null` or `undefined`.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a `null` or `undefined`.
  * @public
  */
@@ -163,7 +159,7 @@ function isNullOrUndefined(node) {
 
 /**
  * Checks whether or not a node is callee.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is callee.
  */
 function isCallee(node) {
@@ -172,7 +168,7 @@ function isCallee(node) {
 
 /**
  * Checks whether or not a node is `Reflect.apply`.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a `Reflect.apply`.
  */
 function isReflectApply(node) {
@@ -188,7 +184,7 @@ function isReflectApply(node) {
 
 /**
  * Checks whether or not a node is `Array.from`.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a `Array.from`.
  */
 function isArrayFromMethod(node) {
@@ -204,7 +200,7 @@ function isArrayFromMethod(node) {
 
 /**
  * Checks whether or not a node is a method which has `thisArg`.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a method which has `thisArg`.
  */
 function isMethodWhichHasThisArg(node) {
@@ -223,7 +219,7 @@ function isMethodWhichHasThisArg(node) {
 
 /**
  * Creates the negate function of the given function.
- * @param {Function} f - The function to negate.
+ * @param {Function} f The function to negate.
  * @returns {Function} Negated function.
  */
 function negate(f) {
@@ -232,8 +228,8 @@ function negate(f) {
 
 /**
  * Checks whether or not a node has a `@this` tag in its comments.
- * @param {ASTNode} node - A node to check.
- * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
+ * @param {ASTNode} node A node to check.
+ * @param {SourceCode} sourceCode A SourceCode instance to get comments.
  * @returns {boolean} Whether or not the node has a `@this` tag in its comments.
  */
 function hasJSDocThisTag(node, sourceCode) {
@@ -268,8 +264,7 @@ function isParenthesised(sourceCode, node) {
 
 /**
  * Checks if the given token is an arrow token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is an arrow token.
  */
 function isArrowToken(token) {
@@ -278,8 +273,7 @@ function isArrowToken(token) {
 
 /**
  * Checks if the given token is a comma token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a comma token.
  */
 function isCommaToken(token) {
@@ -288,8 +282,7 @@ function isCommaToken(token) {
 
 /**
  * Checks if the given token is a dot token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a dot token.
  */
 function isDotToken(token) {
@@ -298,8 +291,7 @@ function isDotToken(token) {
 
 /**
  * Checks if the given token is a semicolon token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a semicolon token.
  */
 function isSemicolonToken(token) {
@@ -308,8 +300,7 @@ function isSemicolonToken(token) {
 
 /**
  * Checks if the given token is a colon token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a colon token.
  */
 function isColonToken(token) {
@@ -318,8 +309,7 @@ function isColonToken(token) {
 
 /**
  * Checks if the given token is an opening parenthesis token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is an opening parenthesis token.
  */
 function isOpeningParenToken(token) {
@@ -328,8 +318,7 @@ function isOpeningParenToken(token) {
 
 /**
  * Checks if the given token is a closing parenthesis token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a closing parenthesis token.
  */
 function isClosingParenToken(token) {
@@ -338,8 +327,7 @@ function isClosingParenToken(token) {
 
 /**
  * Checks if the given token is an opening square bracket token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is an opening square bracket token.
  */
 function isOpeningBracketToken(token) {
@@ -348,8 +336,7 @@ function isOpeningBracketToken(token) {
 
 /**
  * Checks if the given token is a closing square bracket token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a closing square bracket token.
  */
 function isClosingBracketToken(token) {
@@ -358,8 +345,7 @@ function isClosingBracketToken(token) {
 
 /**
  * Checks if the given token is an opening brace token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is an opening brace token.
  */
 function isOpeningBraceToken(token) {
@@ -368,8 +354,7 @@ function isOpeningBraceToken(token) {
 
 /**
  * Checks if the given token is a closing brace token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a closing brace token.
  */
 function isClosingBraceToken(token) {
@@ -378,8 +363,7 @@ function isClosingBraceToken(token) {
 
 /**
  * Checks if the given token is a comment token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a comment token.
  */
 function isCommentToken(token) {
@@ -388,8 +372,7 @@ function isCommentToken(token) {
 
 /**
  * Checks if the given token is a keyword token or not.
- *
- * @param {Token} token - The token to check.
+ * @param {Token} token The token to check.
  * @returns {boolean} `true` if the token is a keyword token.
  */
 function isKeywordToken(token) {
@@ -398,9 +381,8 @@ function isKeywordToken(token) {
 
 /**
  * Gets the `(` token of the given function node.
- *
- * @param {ASTNode} node - The function node to get.
- * @param {SourceCode} sourceCode - The source code object to get tokens.
+ * @param {ASTNode} node The function node to get.
+ * @param {SourceCode} sourceCode The source code object to get tokens.
  * @returns {Token} `(` token.
  */
 function getOpeningParenOfParams(node, sourceCode) {
@@ -411,9 +393,9 @@ function getOpeningParenOfParams(node, sourceCode) {
 
 /**
  * Checks whether or not the tokens of two given nodes are same.
- * @param {ASTNode} left - A node 1 to compare.
- * @param {ASTNode} right - A node 2 to compare.
- * @param {SourceCode} sourceCode - The ESLint source code object.
+ * @param {ASTNode} left A node 1 to compare.
+ * @param {ASTNode} right A node 2 to compare.
+ * @param {SourceCode} sourceCode The ESLint source code object.
  * @returns {boolean} the source code for the given node.
  */
 function equalTokens(left, right, sourceCode) {
@@ -447,8 +429,8 @@ module.exports = {
 
     /**
      * Determines whether two adjacent tokens are on the same line.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
+     * @param {Object} left The left token object.
+     * @param {Object} right The right token object.
      * @returns {boolean} Whether or not the tokens are on the same line.
      * @public
      */
@@ -494,7 +476,7 @@ module.exports = {
 
     /**
      * Checks whether or not a given node is a string literal.
-     * @param {ASTNode} node - A node to check.
+     * @param {ASTNode} node A node to check.
      * @returns {boolean} `true` if the node is a string literal.
      */
     isStringLiteral(node) {
@@ -514,8 +496,7 @@ module.exports = {
      * - ForStatement
      * - SwitchStatement
      * - WhileStatement
-     *
-     * @param {ASTNode} node - A node to check.
+     * @param {ASTNode} node A node to check.
      * @returns {boolean} `true` if the node is breakable.
      */
     isBreakableStatement(node) {
@@ -524,7 +505,7 @@ module.exports = {
 
     /**
      * Gets references which are non initializer and writable.
-     * @param {Reference[]} references - An array of references.
+     * @param {Reference[]} references An array of references.
      * @returns {Reference[]} An array of only references which are non initializer and writable.
      * @public
      */
@@ -568,7 +549,6 @@ module.exports = {
      *         consequent;
      *
      * When taking this `IfStatement`, returns `consequent;` statement.
-     *
      * @param {ASTNode} A node to get.
      * @returns {ASTNode|null} The trailing statement's node.
      */
@@ -576,9 +556,8 @@ module.exports = {
 
     /**
      * Finds the variable by a given name in a given scope and its upper scopes.
-     *
-     * @param {eslint-scope.Scope} initScope - A scope to start find.
-     * @param {string} name - A variable name to find.
+     * @param {eslint-scope.Scope} initScope A scope to start find.
+     * @param {string} name A variable name to find.
      * @returns {eslint-scope.Variable|null} A found variable or `null`.
      */
     getVariableByName(initScope, name) {
@@ -613,9 +592,8 @@ module.exports = {
      * - The location is not on an ES2015 class.
      * - Its `bind`/`call`/`apply` method is not called directly.
      * - The function is not a callback of array methods (such as `.forEach()`) if `thisArg` is given.
-     *
-     * @param {ASTNode} node - A function node to check.
-     * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
+     * @param {ASTNode} node A function node to check.
+     * @param {SourceCode} sourceCode A SourceCode instance to get comments.
      * @returns {boolean} The function node is the default `this` binding.
      */
     isDefaultThisBinding(node, sourceCode) {
@@ -861,8 +839,7 @@ module.exports = {
 
     /**
      * Checks whether the given node is an empty block node or not.
-     *
-     * @param {ASTNode|null} node - The node to check.
+     * @param {ASTNode|null} node The node to check.
      * @returns {boolean} `true` if the node is an empty block.
      */
     isEmptyBlock(node) {
@@ -871,8 +848,7 @@ module.exports = {
 
     /**
      * Checks whether the given node is an empty function node or not.
-     *
-     * @param {ASTNode|null} node - The node to check.
+     * @param {ASTNode|null} node The node to check.
      * @returns {boolean} `true` if the node is an empty function.
      */
     isEmptyFunction(node) {
@@ -906,8 +882,7 @@ module.exports = {
      *     let a = {["a" + "b"]: 1}  // => null
      *     let a = {[tag`b`]: 1}     // => null
      *     let a = {[`${b}`]: 1}     // => null
-     *
-     * @param {ASTNode} node - The node to get.
+     * @param {ASTNode} node The node to get.
      * @returns {string|null} The property name if static. Otherwise, null.
      */
     getStaticPropertyName(node) {
@@ -950,7 +925,7 @@ module.exports = {
 
     /**
      * Get directives from directive prologue of a Program or Function node.
-     * @param {ASTNode} node - The node to check.
+     * @param {ASTNode} node The node to check.
      * @returns {ASTNode[]} The directives found in the directive prologue.
      */
     getDirectivePrologue(node) {
@@ -989,7 +964,7 @@ module.exports = {
     /**
      * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
      * after the node will be parsed as a decimal point, rather than a property-access dot.
-     * @param {ASTNode} node - The node to check.
+     * @param {ASTNode} node The node to check.
      * @returns {boolean} `true` if this node is a decimal integer.
      * @example
      *
@@ -1011,7 +986,7 @@ module.exports = {
     /**
      * Determines whether this token is a decimal integer numeric token.
      * This is similar to isDecimalInteger(), but for tokens.
-     * @param {Token} token - The token to check.
+     * @param {Token} token The token to check.
      * @returns {boolean} `true` if this token is a decimal integer.
      */
     isDecimalIntegerNumericToken(token) {
@@ -1063,8 +1038,7 @@ module.exports = {
      * - `class A { static async foo() {} }`  .... `static async method 'foo'`
      * - `class A { static get foo() {} }`  ...... `static getter 'foo'`
      * - `class A { static set foo(a) {} }`  ..... `static setter 'foo'`
-     *
-     * @param {ASTNode} node - The function node to get.
+     * @param {ASTNode} node The function node to get.
      * @returns {string} The name and kind of the function node.
      */
     getFunctionNameWithKind(node) {
@@ -1198,9 +1172,8 @@ module.exports = {
      *              ^^^^^^^^^^^^^^
      * - `class A { static set foo(a) {} }`
      *              ^^^^^^^^^^^^^^
-     *
-     * @param {ASTNode} node - The function node to get.
-     * @param {SourceCode} sourceCode - The source code object to get tokens.
+     * @param {ASTNode} node The function node to get.
+     * @param {SourceCode} sourceCode The source code object to get tokens.
      * @returns {string} The location of the function node for reporting.
      */
     getFunctionHeadLoc(node, sourceCode) {
@@ -1384,7 +1357,6 @@ module.exports = {
      * "\00", "\01" ... "\09"
      *
      * "\0", when not followed by a digit, is not an octal escape sequence.
-     *
      * @param {string} rawString A string in its raw representation.
      * @returns {boolean} `true` if the string contains at least one octal escape sequence.
      */

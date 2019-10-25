@@ -77,7 +77,7 @@ module.exports = {
 
     /**
      * Checks whether a given config has valid severity or not.
-     * @param {number|string|Array} ruleConfig - The configuration for an individual rule.
+     * @param {number|string|Array} ruleConfig The configuration for an individual rule.
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isValidSeverity(ruleConfig) {
@@ -91,7 +91,7 @@ module.exports = {
 
     /**
      * Checks whether every rule of a given config has valid severity or not.
-     * @param {Object} config - The configuration for rules.
+     * @param {Object} config The configuration for rules.
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isEverySeverityValid(config) {

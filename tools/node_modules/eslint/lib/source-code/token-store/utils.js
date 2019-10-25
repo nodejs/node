@@ -16,8 +16,7 @@ const lodash = require("lodash");
 
 /**
  * Gets `token.range[0]` from the given token.
- *
- * @param {Node|Token|Comment} token - The token to get.
+ * @param {Node|Token|Comment} token The token to get.
  * @returns {number} The start location.
  * @private
  */
@@ -32,9 +31,8 @@ function getStartLocation(token) {
 /**
  * Binary-searches the index of the first token which is after the given location.
  * If it was not found, this returns `tokens.length`.
- *
- * @param {(Token|Comment)[]} tokens - It searches the token in this list.
- * @param {number} location - The location to search.
+ * @param {(Token|Comment)[]} tokens It searches the token in this list.
+ * @param {number} location The location to search.
  * @returns {number} The found index or `tokens.length`.
  */
 exports.search = function search(tokens, location) {
@@ -48,10 +46,9 @@ exports.search = function search(tokens, location) {
 /**
  * Gets the index of the `startLoc` in `tokens`.
  * `startLoc` can be the value of `node.range[1]`, so this checks about `startLoc - 1` as well.
- *
- * @param {(Token|Comment)[]} tokens - The tokens to find an index.
- * @param {Object} indexMap - The map from locations to indices.
- * @param {number} startLoc - The location to get an index.
+ * @param {(Token|Comment)[]} tokens The tokens to find an index.
+ * @param {Object} indexMap The map from locations to indices.
+ * @param {number} startLoc The location to get an index.
  * @returns {number} The index.
  */
 exports.getFirstIndex = function getFirstIndex(tokens, indexMap, startLoc) {
@@ -77,10 +74,9 @@ exports.getFirstIndex = function getFirstIndex(tokens, indexMap, startLoc) {
 /**
  * Gets the index of the `endLoc` in `tokens`.
  * The information of end locations are recorded at `endLoc - 1` in `indexMap`, so this checks about `endLoc - 1` as well.
- *
- * @param {(Token|Comment)[]} tokens - The tokens to find an index.
- * @param {Object} indexMap - The map from locations to indices.
- * @param {number} endLoc - The location to get an index.
+ * @param {(Token|Comment)[]} tokens The tokens to find an index.
+ * @param {Object} indexMap The map from locations to indices.
+ * @param {number} endLoc The location to get an index.
  * @returns {number} The index.
  */
 exports.getLastIndex = function getLastIndex(tokens, indexMap, endLoc) {

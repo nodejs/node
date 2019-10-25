@@ -61,7 +61,7 @@ module.exports = {
 
         /**
          * Check if the node is an instance method
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {boolean} True if its an instance method
          * @private
          */
@@ -71,7 +71,7 @@ module.exports = {
 
         /**
          * Check if the node is an instance method not excluded by config
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {boolean} True if it is an instance method, and not excluded by config
          * @private
          */
@@ -84,7 +84,7 @@ module.exports = {
          * Checks if we are leaving a function that is a method, and reports if 'this' has not been used.
          * Static methods and the constructor are exempt.
          * Then pops the context off the stack.
-         * @param {ASTNode} node - A function node that was entered.
+         * @param {ASTNode} node A function node that was entered.
          * @returns {void}
          * @private
          */

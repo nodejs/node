@@ -78,8 +78,7 @@ const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
 /**
  * Clones a given value deeply.
  * Note: This ignores `parent` property.
- *
- * @param {any} x - A value to clone.
+ * @param {any} x A value to clone.
  * @returns {any} A cloned value.
  */
 function cloneDeeplyExcludesParent(x) {
@@ -104,8 +103,7 @@ function cloneDeeplyExcludesParent(x) {
 
 /**
  * Freezes a given value deeply.
- *
- * @param {any} x - A value to freeze.
+ * @param {any} x A value to freeze.
  * @returns {void}
  */
 function freezeDeeply(x) {
@@ -146,8 +144,8 @@ const IT = Symbol("it");
 /**
  * This is `it` default handler if `it` don't exist.
  * @this {Mocha}
- * @param {string} text - The description of the test case.
- * @param {Function} method - The logic of the test case.
+ * @param {string} text The description of the test case.
+ * @param {Function} method The logic of the test case.
  * @returns {any} Returned value of `method`.
  */
 function itDefaultHandler(text, method) {
@@ -164,8 +162,8 @@ function itDefaultHandler(text, method) {
 /**
  * This is `describe` default handler if `describe` don't exist.
  * @this {Mocha}
- * @param {string} text - The description of the test case.
- * @param {Function} method - The logic of the test case.
+ * @param {string} text The description of the test case.
+ * @param {Function} method The logic of the test case.
  * @returns {any} Returned value of `method`.
  */
 function describeDefaultHandler(text, method) {

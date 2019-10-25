@@ -41,9 +41,9 @@ module.exports = {
 
         /**
          * Reports write references.
-         * @param {Reference} reference - A reference to check.
-         * @param {int} index - The index of the reference in the references.
-         * @param {Reference[]} references - The array that the reference belongs to.
+         * @param {Reference} reference A reference to check.
+         * @param {int} index The index of the reference in the references.
+         * @param {Reference[]} references The array that the reference belongs to.
          * @returns {void}
          */
         function checkReference(reference, index, references) {
@@ -68,7 +68,7 @@ module.exports = {
 
         /**
          * Reports write references if a given variable is read-only builtin.
-         * @param {Variable} variable - A variable to check.
+         * @param {Variable} variable A variable to check.
          * @returns {void}
          */
         function checkVariable(variable) {

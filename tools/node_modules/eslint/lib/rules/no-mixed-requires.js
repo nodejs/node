@@ -58,7 +58,6 @@ module.exports = {
 
         /**
          * Returns the list of built-in modules.
-         *
          * @returns {string[]} An array of built-in Node.js modules.
          */
         function getBuiltinModules() {

@@ -10,7 +10,6 @@ const debug = require("debug")("eslint:rules");
 
 /**
  * The `Map` object that loads each rule when it's accessed.
- *
  * @example
  * const rules = new LazyLoadingRuleMap([
  *     ["eqeqeq", () => require("eqeqeq")],

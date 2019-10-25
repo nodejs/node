@@ -53,8 +53,7 @@ module.exports = {
          * Get the prefix of a given MemberExpression node.
          * If the MemberExpression node is a computed value it returns a
          * left bracket. If not it returns a period.
-         *
-         * @param  {ASTNode} node - A MemberExpression node to get
+         * @param  {ASTNode} node A MemberExpression node to get
          * @returns {string} The prefix of the node.
          */
         function getPrefix(node) {
@@ -64,8 +63,7 @@ module.exports = {
         /**
          * Gets the property text of a given MemberExpression node.
          * If the text is multiline, this returns only the first line.
-         *
-         * @param {ASTNode} node - A MemberExpression node to get.
+         * @param {ASTNode} node A MemberExpression node to get.
          * @returns {string} The property text of the node.
          */
         function getPropertyText(node) {

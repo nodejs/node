@@ -147,7 +147,6 @@ function getModulesList(config, installESLint) {
  *
  * Note: This clones the config object and returns a new config to avoid mutating
  * the original config parameter.
- *
  * @param   {Object} answers  answers received from inquirer
  * @param   {Object} config   config object
  * @returns {Object}          config object with configured rules

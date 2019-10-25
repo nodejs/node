@@ -35,7 +35,7 @@ module.exports = {
 
         /**
          * Checks whether or not a given definition is a parameter's.
-         * @param {eslint-scope.DefEntry} def - A definition to check.
+         * @param {eslint-scope.DefEntry} def A definition to check.
          * @returns {boolean} `true` if the definition is a parameter's.
          */
         function isParameter(def) {

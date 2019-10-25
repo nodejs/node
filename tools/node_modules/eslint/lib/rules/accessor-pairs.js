@@ -79,7 +79,7 @@ function areEqualKeys(left, right) {
 
 /**
  * Checks whether or not a given node is of an accessor kind ('get' or 'set').
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is of an accessor kind.
  */
 function isAccessorKind(node) {
@@ -88,8 +88,8 @@ function isAccessorKind(node) {
 
 /**
  * Checks whether or not a given node is an `Identifier` node which was named a given name.
- * @param {ASTNode} node - A node to check.
- * @param {string} name - An expected name of the node.
+ * @param {ASTNode} node A node to check.
+ * @param {string} name An expected name of the node.
  * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
  */
 function isIdentifier(node, name) {
@@ -98,10 +98,10 @@ function isIdentifier(node, name) {
 
 /**
  * Checks whether or not a given node is an argument of a specified method call.
- * @param {ASTNode} node - A node to check.
- * @param {number} index - An expected index of the node in arguments.
- * @param {string} object - An expected name of the object of the method.
- * @param {string} property - An expected name of the method.
+ * @param {ASTNode} node A node to check.
+ * @param {number} index An expected index of the node in arguments.
+ * @param {string} object An expected name of the object of the method.
+ * @param {string} property An expected name of the method.
  * @returns {boolean} `true` if the node is an argument of the specified method call.
  */
 function isArgumentOfMethodCall(node, index, object, property) {
@@ -119,7 +119,7 @@ function isArgumentOfMethodCall(node, index, object, property) {
 
 /**
  * Checks whether or not a given node is a property descriptor.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a property descriptor.
  */
 function isPropertyDescriptor(node) {

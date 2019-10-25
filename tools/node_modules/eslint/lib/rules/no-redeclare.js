@@ -86,7 +86,7 @@ module.exports = {
 
         /**
          * Find variables in a given scope and flag redeclared ones.
-         * @param {Scope} scope - An eslint-scope scope object.
+         * @param {Scope} scope An eslint-scope scope object.
          * @returns {void}
          * @private
          */
