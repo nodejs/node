@@ -7,6 +7,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 runBenchmark('fs', [
+  'bufferSize=32',
   'concurrent=1',
   'dir=.github',
   'dur=0.1',

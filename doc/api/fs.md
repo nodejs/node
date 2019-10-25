@@ -2634,9 +2634,9 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Size of the internal buffer when reading
-     directory entries. Higher values lead to better performance but higher
-     memory usage. **Default:** `32`
+  * `bufferSize` {number} Number of directory entries that are buffered
+    internally when reading from the directory. Higher values lead to better
+    performance but higher memory usage. **Default:** `32`
 * `callback` {Function}
   * `err` {Error}
   * `dir` {fs.Dir}
@@ -2661,9 +2661,9 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Size of the internal buffer when reading
-     directory entries. Higher values lead to better performance but higher
-     memory usage. **Default:** `32`
+  * `bufferSize` {number} Number of directory entries that are buffered
+    internally when reading from the directory. Higher values lead to better
+    performance but higher memory usage. **Default:** `32`
 * Returns: {fs.Dir}
 
 Synchronously open a directory. See opendir(3).
@@ -4852,9 +4852,9 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Size of the internal buffer when reading
-     directory entries. Higher values lead to better performance but higher
-     memory usage. **Default:** `32`
+  * `bufferSize` {number} Number of directory entries that are buffered
+    internally when reading from the directory. Higher values lead to better
+    performance but higher memory usage. **Default:** `32`
 * Returns: {Promise} containing {fs.Dir}
 
 Asynchronously open a directory. See opendir(3).
