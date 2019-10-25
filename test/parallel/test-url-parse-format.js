@@ -892,7 +892,7 @@ const parseTests = {
     href: 'https:///*'
   },
 
-  // Adding test for unix socket url parsing
+  // Test for unix socket url parsing
   'http://unix:/my.socket:/main': {
     protocol: 'http:',
     slashes: true,
