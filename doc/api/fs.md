@@ -2625,11 +2625,18 @@ Functions based on `fs.open()` exhibit this behavior as well:
 ## fs.opendir(path\[, options\], callback)
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: REPLACME
+    pr-url: ???
+    description: The `bufferSize` option was introduced.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
+  * `bufferSize` {number} Size of the internal buffer when reading
+     directory entries. Higher values lead to better performance but higher
+     memory usage. **Default:** `32`
 * `callback` {Function}
   * `err` {Error}
   * `dir` {fs.Dir}
@@ -2645,11 +2652,18 @@ directory and subsequent read operations.
 ## fs.opendirSync(path\[, options\])
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: REPLACME
+    pr-url: ???
+    description: The `bufferSize` option was introduced.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
+  * `bufferSize` {number} Size of the internal buffer when reading
+     directory entries. Higher values lead to better performance but higher
+     memory usage. **Default:** `32`
 * Returns: {fs.Dir}
 
 Synchronously open a directory. See opendir(3).
@@ -4829,11 +4843,18 @@ a colon, Node.js will open a file system stream, as described by
 ### fsPromises.opendir(path\[, options\])
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: REPLACME
+    pr-url: ???
+    description: The `bufferSize` option was introduced.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `encoding` {string|null} **Default:** `'utf8'`
+  * `bufferSize` {number} Size of the internal buffer when reading
+     directory entries. Higher values lead to better performance but higher
+     memory usage. **Default:** `32`
 * Returns: {Promise} containing {fs.Dir}
 
 Asynchronously open a directory. See opendir(3).
