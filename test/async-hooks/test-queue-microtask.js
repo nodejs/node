@@ -11,11 +11,11 @@ hooks.enable();
 
 const rootAsyncId = async_hooks.executionAsyncId();
 
-queueMicrotask(common.mustCall(function() {
+queueMicrotask(common.mustCall(() => {
   assert.strictEqual(async_hooks.triggerAsyncId(), rootAsyncId);
 }));
 
-process.on('exit', function() {
+process.on('exit', () => {
   hooks.sanityCheck();
 
   const as = hooks.activitiesOfTypes('Microtask');

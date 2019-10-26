@@ -7,7 +7,7 @@ const fs = require('fs');
 let nestedCall = false;
 
 async_hooks.createHook({
-  init: common.mustCall(function() {
+  init: common.mustCall(() => {
     nestedHook.disable();
     if (!nestedCall) {
       nestedCall = true;
