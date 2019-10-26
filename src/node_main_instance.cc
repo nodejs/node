@@ -35,7 +35,9 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       owns_isolate_(false),
       deserialize_mode_(false) {
   isolate_data_.reset(new IsolateData(isolate_, event_loop, platform, nullptr));
-  SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
+
+  IsolateSettings misc;
+  SetIsolateMiscHandlers(isolate_, misc);
 }
 
 std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
@@ -79,11 +81,12 @@ NodeMainInstance::NodeMainInstance(
                                       platform,
                                       array_buffer_allocator_.get(),
                                       per_isolate_data_indexes));
-  SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
+  IsolateSettings s;
+  SetIsolateMiscHandlers(isolate_, s);
   if (!deserialize_mode_) {
     // If in deserialize mode, delay until after the deserialization is
     // complete.
-    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+    SetIsolateErrorHandlers(isolate_, s);
   }
 }
 
@@ -201,7 +204,8 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
     context =
         Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
     InitializeContextRuntime(context);
-    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+    IsolateSettings s;
+    SetIsolateErrorHandlers(isolate_, s);
   } else {
     context = NewContext(isolate_);
   }
