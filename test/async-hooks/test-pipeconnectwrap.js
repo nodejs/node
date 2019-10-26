@@ -17,9 +17,9 @@ let pipe1, pipe2;
 let pipeserver;
 let pipeconnect;
 
-net.createServer(common.mustCall(function(c) {
+const server = net.createServer(common.mustCall((c) => {
   c.end();
-  this.close();
+  server.close();
   process.nextTick(maybeOnconnect.bind(null, 'server'));
 })).listen(common.PIPE, common.mustCall(onlisten));
 
