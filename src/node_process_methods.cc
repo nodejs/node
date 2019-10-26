@@ -362,7 +362,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   LPTHREAD_START_ROUTINE* handler = nullptr;
   DWORD pid = 0;
 
-  OnScopeLeave cleanup([&]() {
+  auto cleanup = OnScopeLeave([&]() {
     if (process != nullptr) CloseHandle(process);
     if (thread != nullptr) CloseHandle(thread);
     if (handler != nullptr) UnmapViewOfFile(handler);
