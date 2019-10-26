@@ -26,7 +26,7 @@ if (!binding.ensureAllocation(2 * kStringMaxLength))
 
 const stringLengthHex = kStringMaxLength.toString(16);
 
-common.expectsError(function() {
+common.expectsError(() => {
   buf.toString('utf16le');
 }, {
   message: `Cannot create a string longer than 0x${stringLengthHex} ` +

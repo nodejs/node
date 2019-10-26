@@ -27,9 +27,9 @@ if (!binding.ensureAllocation(2 * kStringMaxLength))
 
 const stringLengthHex = kStringMaxLength.toString(16);
 
-assert.throws(function() {
+assert.throws(() => {
   buf.toString();
-}, function(e) {
+}, (e) => {
   if (e.message !== 'Array buffer allocation failed') {
     common.expectsError({
       message: `Cannot create a string longer than 0x${stringLengthHex} ` +
@@ -43,7 +43,7 @@ assert.throws(function() {
   }
 });
 
-common.expectsError(function() {
+common.expectsError(() => {
   buf.toString('utf8');
 }, {
   message: `Cannot create a string longer than 0x${stringLengthHex} ` +
