@@ -158,7 +158,11 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
                                size_t length,
                                bool uses_malloc);
-
+// Creates a Buffer instance over an existing Uint8Array.
+v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
+                                   v8::Local<v8::ArrayBuffer> ab,
+                                   size_t byte_offset,
+                                   size_t length);
 // Construct a Buffer from a MaybeStackBuffer (and also its subclasses like
 // Utf8Value and TwoByteValue).
 // If |buf| is invalidated, an empty MaybeLocal is returned, and nothing is
