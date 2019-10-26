@@ -291,9 +291,40 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 NODE_EXTERN void SetIsolateCreateParams(v8::Isolate::CreateParams* params,
                                         ArrayBufferAllocator* allocator
                                             = nullptr);
+
+enum IsolateSettingsFlags {
+  MESSAGE_LISTENER_WITH_ERROR_LEVEL = 1 << 0,
+  DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1
+};
+
+struct IsolateSettings {
+  uint64_t flags = MESSAGE_LISTENER_WITH_ERROR_LEVEL |
+      DETAILED_SOURCE_POSITIONS_FOR_PROFILING;
+  v8::MicrotasksPolicy policy = v8::MicrotasksPolicy::kExplicit;
+
+  // Error handling callbacks
+  v8::Isolate::AbortOnUncaughtExceptionCallback
+      should_abort_on_uncaught_exception_callback = nullptr;
+  v8::FatalErrorCallback fatal_error_callback = nullptr;
+  v8::PrepareStackTraceCallback prepare_stack_trace_callback = nullptr;
+
+  // Miscellaneous callbacks
+  v8::PromiseRejectCallback promise_reject_callback = nullptr;
+  v8::AllowWasmCodeGenerationCallback
+      allow_wasm_code_generation_callback = nullptr;
+  v8::HostCleanupFinalizationGroupCallback
+      host_cleanup_finalization_group_callback = nullptr;
+};
+
+// Overriding IsolateSettings may produce unexpected behavior
+// in Node.js core functionality, so proceed at your own risk.
+NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate,
+                                     const IsolateSettings& settings);
+
 // Set a number of callbacks for the `isolate`, in particular the Node.js
 // uncaught exception listener.
 NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
+
 // Creates a new isolate with Node.js-specific settings.
 // This is a convenience method equivalent to using SetIsolateCreateParams(),
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
