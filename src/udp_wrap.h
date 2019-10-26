@@ -25,12 +25,13 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap.h"
-#include "env.h"
 #include "handle_wrap.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
 
 class UDPWrap: public HandleWrap {
  public:

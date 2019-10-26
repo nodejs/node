@@ -4,9 +4,9 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_internals.h"
-#include "env-inl.h"
-
 namespace node {
+
+class Environment;
 
 inline DiagnosticFilename::DiagnosticFilename(
     Environment* env,

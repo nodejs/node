@@ -5,7 +5,6 @@
 
 #include "node.h"
 #include "node_perf_common.h"
-#include "env.h"
 #include "base_object-inl.h"
 #include "histogram-inl.h"
 
@@ -15,6 +14,9 @@
 #include <string>
 
 namespace node {
+
+class Environment;
+
 namespace performance {
 
 using v8::FunctionCallbackInfo;

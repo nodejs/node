@@ -25,13 +25,13 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "stream_base.h"
-
-#include "env.h"
 #include "handle_wrap.h"
 #include "string_bytes.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
 
 class LibuvStreamWrap : public HandleWrap, public StreamBase {
  public:
