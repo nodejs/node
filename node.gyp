@@ -205,6 +205,7 @@
       'lib/internal/streams/async_iterator.js',
       'lib/internal/streams/buffer_list.js',
       'lib/internal/streams/duplexpair.js',
+      'lib/internal/streams/from.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
       'lib/internal/streams/state.js',
