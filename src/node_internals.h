@@ -296,8 +296,8 @@ struct InitializationResult {
 };
 InitializationResult InitializeOncePerProcess(int argc, char** argv);
 void TearDownOncePerProcess();
-enum class IsolateSettingCategories { kErrorHandlers, kMisc };
-void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat);
+void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
+void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 
 #if HAVE_INSPECTOR
