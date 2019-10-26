@@ -42,6 +42,12 @@
 #include <unordered_map>
 #include <utility>
 
+#ifdef __GNUC__
+#define MUST_USE_RESULT __attribute__((warn_unused_result))
+#else
+#define MUST_USE_RESULT
+#endif
+
 namespace node {
 
 // Maybe remove kPathSeparator when cpp17 is ready
@@ -505,7 +511,7 @@ struct OnScopeLeaveImpl {
 //   // ... run some code ...
 // });
 template <typename Fn>
-inline OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
+inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
   return OnScopeLeaveImpl<Fn>{std::move(fn)};
 }
 
@@ -685,12 +691,6 @@ template <typename T>
 constexpr T RoundUp(T a, T b) {
   return a % b != 0 ? a + b - (a % b) : a;
 }
-
-#ifdef __GNUC__
-#define MUST_USE_RESULT __attribute__((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
 
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:
