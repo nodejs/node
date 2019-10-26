@@ -43,14 +43,14 @@ const server = https.createServer(serverOptions, common.mustCall((req, res) => {
     headers: {}
   };
 
-  const req = https.request(clientOptions, common.mustCall(function(response) {
+  const req = https.request(clientOptions, common.mustCall((response) => {
     let body = '';
     response.setEncoding('utf8');
-    response.on('data', function(chunk) {
+    response.on('data', (chunk) => {
       body += chunk;
     });
 
-    response.on('end', common.mustCall(function() {
+    response.on('end', common.mustCall(() => {
       assert.strictEqual(body, 'hello world');
       server.close();
     }));
