@@ -22,10 +22,7 @@
     "fail": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
   },
   "textdecoder-byte-order-marks.any.js": {
-    "fail": "Mismatching BOM should not be ignored"
-  },
-  "textdecoder-copy.any.js": {
-    "fail": "Should not have output BOM: https://encoding.spec.whatwg.org/#concept-td-serialize"
+    "requires": ["small-icu"]
   },
   "textdecoder-fatal-single-byte.any.js": {
     "requires": ["full-icu"],
