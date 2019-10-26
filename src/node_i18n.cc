@@ -217,7 +217,7 @@ class ConverterObject : public BaseObject, Converter {
       result.AllocateSufficientStorage(limit);
 
     UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
-    OnScopeLeave cleanup([&]() {
+    auto cleanup = OnScopeLeave([&]() {
       if (flush) {
         // Reset the converter state.
         converter->bomSeen_ = false;

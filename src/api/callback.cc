@@ -105,7 +105,7 @@ void InternalCallbackScope::Close() {
 
   if (!env_->can_call_into_js()) return;
 
-  OnScopeLeave weakref_cleanup([&]() { env_->RunWeakRefCleanup(); });
+  auto weakref_cleanup = OnScopeLeave([&]() { env_->RunWeakRefCleanup(); });
 
   if (!tick_info->has_tick_scheduled()) {
     MicrotasksScope::PerformCheckpoint(env_->isolate());

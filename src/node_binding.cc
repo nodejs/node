@@ -153,7 +153,7 @@ void* wrapped_dlopen(const char* filename, int flags) {
   Mutex::ScopedLock lock(dlhandles_mutex);
 
   uv_fs_t req;
-  OnScopeLeave cleanup([&]() { uv_fs_req_cleanup(&req); });
+  auto cleanup = OnScopeLeave([&]() { uv_fs_req_cleanup(&req); });
   int rc = uv_fs_stat(nullptr, &req, filename, nullptr);
 
   if (rc != 0) {

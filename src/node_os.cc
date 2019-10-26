@@ -302,7 +302,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
+  auto free_passwd = OnScopeLeave([&]() { uv_os_free_passwd(&pwd); });
 
   Local<Value> error;
 
