@@ -95,6 +95,7 @@ using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace i18n {
@@ -227,14 +228,6 @@ class ConverterObject : public BaseObject, Converter {
     const char* source = input.data();
     size_t source_length = input.length();
 
-    if (converter->unicode_ && !converter->ignoreBOM_ && !converter->bomSeen_) {
-      int32_t bomOffset = 0;
-      ucnv_detectUnicodeSignature(source, source_length, &bomOffset, &status);
-      source += bomOffset;
-      source_length -= bomOffset;
-      converter->bomSeen_ = true;
-    }
-
     UChar* target = *result;
     ucnv_toUnicode(converter->conv,
                    &target, target + (limit * sizeof(UChar)),
@@ -242,10 +235,34 @@ class ConverterObject : public BaseObject, Converter {
                    nullptr, flush, &status);
 
     if (U_SUCCESS(status)) {
-      if (limit > 0)
+      bool omit_initial_bom = false;
+      if (limit > 0) {
         result.SetLength(target - &result[0]);
+        if (result.length() > 0 &&
+            converter->unicode_ &&
+            !converter->ignoreBOM_ &&
+            !converter->bomSeen_) {
+          // If the very first result in the stream is a BOM, and we are not
+          // explicitly told to ignore it, then we mark it for discarding.
+          if (result[0] == 0xFEFF) {
+            omit_initial_bom = true;
+          }
+          converter->bomSeen_ = true;
+        }
+      }
       ret = ToBufferEndian(env, &result);
-      args.GetReturnValue().Set(ret.ToLocalChecked());
+      if (omit_initial_bom && !ret.IsEmpty()) {
+        // Peform `ret = ret.slice(2)`.
+        CHECK(ret.ToLocalChecked()->IsUint8Array());
+        Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
+        ret = Buffer::New(env,
+                          orig_ret->Buffer(),
+                          orig_ret->ByteOffset() + 2,
+                          orig_ret->ByteLength() - 2)
+                              .FromMaybe(Local<Uint8Array>());
+      }
+      if (!ret.IsEmpty())
+        args.GetReturnValue().Set(ret.ToLocalChecked());
       return;
     }
 
