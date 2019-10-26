@@ -606,7 +606,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // Once we’re done here, either indicate that the HTTP parser buffer
     // is free for re-use, or free() the data if it didn’t come from there
     // in the first place.
-    OnScopeLeave on_scope_leave([&]() {
+    auto on_scope_leave = OnScopeLeave([&]() {
       if (buf.base == env()->http_parser_buffer())
         env()->set_http_parser_buffer_in_use(false);
       else

@@ -182,7 +182,7 @@ void Worker::Run() {
     SealHandleScope outer_seal(isolate_);
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
-    OnScopeLeave cleanup_env([&]() {
+    auto cleanup_env = OnScopeLeave([&]() {
       if (!env_) return;
       env_->set_can_call_into_js(false);
       Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,

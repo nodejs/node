@@ -132,7 +132,7 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   uv_env_item_t* items;
   int count;
 
-  OnScopeLeave cleanup([&]() { uv_os_free_environ(items, count); });
+  auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
   MaybeStackBuffer<Local<Value>, 256> env_v(count);
