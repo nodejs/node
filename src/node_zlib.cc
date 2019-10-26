@@ -386,7 +386,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
   // v8 land!
   void AfterThreadPoolWork(int status) override {
     AllocScope alloc_scope(this);
-    OnScopeLeave on_scope_leave([&]() { Unref(); });
+    auto on_scope_leave = OnScopeLeave([&]() { Unref(); });
 
     write_in_progress_ = false;
 

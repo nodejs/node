@@ -333,7 +333,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     PrintSystemError(errno);
     return -1;
   }
-  OnScopeLeave munmap_on_return([nmem, size]() {
+  auto munmap_on_return = OnScopeLeave([nmem, size]() {
     if (-1 == munmap(nmem, size)) PrintSystemError(errno);
   });
 
