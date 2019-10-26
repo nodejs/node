@@ -26,11 +26,13 @@
 
 #include "node_crypto.h"
 #include "openssl/bio.h"
-#include "env.h"
 #include "util.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
+
 namespace crypto {
 
 // This class represents buffers for OpenSSL I/O, implemented as a singly-linked
