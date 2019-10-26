@@ -184,12 +184,19 @@ async function doAsyncIterThrowTest() {
 doAsyncIterThrowTest().then(common.mustCall());
 
 // Check error thrown on invalid values of bufferSize
-for (const bufferSize of [-1, 0, 0.5, 1.5, Infinity, NaN, '', '1', null]) {
-  assert.throws(() => fs.opendirSync(testDir, { bufferSize }),
-                {
-                  message: /The value ".*" is invalid for option "bufferSize"/,
-                  code: 'ERR_INVALID_OPT_VALUE'
-                });
+for (const bufferSize of [-1, 0, 0.5, 1.5, Infinity, NaN]) {
+  assert.throws(
+    () => fs.opendirSync(testDir, { bufferSize }),
+    {
+      code: 'ERR_OUT_OF_RANGE'
+    });
+}
+for (const bufferSize of ['', '1', null]) {
+  assert.throws(
+    () => fs.opendirSync(testDir, { bufferSize }),
+    {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
 }
 
 // Check that passing a positive integer as bufferSize works
