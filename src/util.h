@@ -494,13 +494,20 @@ class BufferValue : public MaybeStackBuffer<char> {
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
 
-// Run a function when exiting the current scope.
-struct OnScopeLeave {
-  std::function<void()> fn_;
-
-  explicit OnScopeLeave(std::function<void()> fn) : fn_(std::move(fn)) {}
-  ~OnScopeLeave() { fn_(); }
+template <typename Fn>
+struct OnScopeLeaveImpl {
+  Fn fn_;
+  ~OnScopeLeaveImpl() { fn_(); }
 };
+
+// Run a function when exiting the current scope. Used like this:
+// auto on_scope_leave = OnScopeLeave([&] {
+//   // ... run some code ...
+// });
+template <typename Fn>
+inline OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
+  return OnScopeLeaveImpl<Fn>{std::move(fn)};
+}
 
 // Simple RAII wrapper for contiguous data that uses malloc()/free().
 template <typename T>

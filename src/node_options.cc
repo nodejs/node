@@ -809,7 +809,7 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   per_process::cli_options->per_isolate = env->isolate_data()->options();
   auto original_per_env = per_process::cli_options->per_isolate->per_env;
   per_process::cli_options->per_isolate->per_env = env->options();
-  OnScopeLeave on_scope_leave([&]() {
+  auto on_scope_leave = OnScopeLeave([&]() {
     per_process::cli_options->per_isolate->per_env = original_per_env;
     per_process::cli_options->per_isolate = original_per_isolate;
   });
