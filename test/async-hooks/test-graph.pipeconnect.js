@@ -12,9 +12,9 @@ tmpdir.refresh();
 const hooks = initHooks();
 hooks.enable();
 
-net.createServer(function(c) {
+const server = net.createServer((c) => {
   c.end();
-  this.close();
+  server.close();
 }).listen(common.PIPE, common.mustCall(onlisten));
 
 function onlisten() {
