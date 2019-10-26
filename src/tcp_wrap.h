@@ -25,10 +25,11 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap.h"
-#include "env.h"
 #include "connection_wrap.h"
 
 namespace node {
+
+class Environment;
 
 class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
  public:
