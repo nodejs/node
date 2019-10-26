@@ -196,36 +196,56 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
 }
 
-void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
-  switch (cat) {
-    case IsolateSettingCategories::kErrorHandlers:
-      isolate->AddMessageListenerWithErrorLevel(
-          errors::PerIsolateMessageListener,
-          Isolate::MessageErrorLevel::kMessageError |
-              Isolate::MessageErrorLevel::kMessageWarning);
-      isolate->SetAbortOnUncaughtExceptionCallback(
-          ShouldAbortOnUncaughtException);
-      isolate->SetFatalErrorHandler(OnFatalError);
-      isolate->SetPrepareStackTraceCallback(PrepareStackTraceCallback);
-      break;
-    case IsolateSettingCategories::kMisc:
-      isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
-      isolate->SetAllowWasmCodeGenerationCallback(
-          AllowWasmCodeGenerationCallback);
-      isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
-      isolate->SetHostCleanupFinalizationGroupCallback(
-          HostCleanupFinalizationGroupCallback);
-      v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+  if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
+    isolate->AddMessageListenerWithErrorLevel(
+            errors::PerIsolateMessageListener,
+            Isolate::MessageErrorLevel::kMessageError |
+                Isolate::MessageErrorLevel::kMessageWarning);
+
+  auto* abort_callback = s.should_abort_on_uncaught_exception_callback ?
+      s.should_abort_on_uncaught_exception_callback :
+      ShouldAbortOnUncaughtException;
+  isolate->SetAbortOnUncaughtExceptionCallback(abort_callback);
+
+  auto* fatal_error_cb = s.fatal_error_callback ?
+      s.fatal_error_callback : OnFatalError;
+  isolate->SetFatalErrorHandler(fatal_error_cb);
+
+  auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
+      s.prepare_stack_trace_callback : PrepareStackTraceCallback;
+  isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
+}
+
+void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+  isolate->SetMicrotasksPolicy(s.policy);
+
+  auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
+    s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
+  isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+
+  auto* promise_reject_cb = s.promise_reject_callback ?
+    s.promise_reject_callback : task_queue::PromiseRejectCallback;
+  isolate->SetPromiseRejectCallback(promise_reject_cb);
+
+  auto* host_cleanup_cb = s.host_cleanup_finalization_group_callback ?
+    s.host_cleanup_finalization_group_callback :
+    HostCleanupFinalizationGroupCallback;
+  isolate->SetHostCleanupFinalizationGroupCallback(host_cleanup_cb);
+
+  if (s.flags & DETAILED_SOURCE_POSITIONS_FOR_PROFILING)
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+}
+
+void SetIsolateUpForNode(v8::Isolate* isolate,
+                         const IsolateSettings& settings) {
+  SetIsolateErrorHandlers(isolate, settings);
+  SetIsolateMiscHandlers(isolate, settings);
 }
 
 void SetIsolateUpForNode(v8::Isolate* isolate) {
-  SetIsolateUpForNode(isolate, IsolateSettingCategories::kErrorHandlers);
-  SetIsolateUpForNode(isolate, IsolateSettingCategories::kMisc);
+  IsolateSettings settings;
+  SetIsolateUpForNode(isolate, settings);
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
