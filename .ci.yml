@@ -47,7 +47,10 @@ tests:
     label: Lint JS, C++, Python, Markdown & Docs
     image: node-linter
     execute: |
-      make lint-ci || {
+      make lint-py-build PYTHON=python3
+      make lint-py PYTHON=python3
+      make lint-py-build PYTHON=python2
+      make lint-ci PYTHON=python2 || {
         cat test-eslint.tap | grep -v '^ok\|^TAP version 13\|^1\.\.' | sed '/^\s*$/d' &&
         exit 1; }
 
