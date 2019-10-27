@@ -23,6 +23,7 @@
 # the host.
 
 linux_x64_container_suite:
+  - lint
   - ubuntu1804
   - ubuntu1910
   - ubuntu1604-gcc6
@@ -42,6 +43,14 @@ linux_x64_container_suite:
   - workers
 
 tests:
+  lint:
+    label: Lint JS, C++, Python, Markdown & Docs
+    image: node-linter
+    execute: |
+      make lint-ci || {
+        cat test-eslint.tap | grep -v '^ok\|^TAP version 13\|^1\.\.' | sed '/^\s*$/d' &&
+        exit 1; }
+
   ubuntu1804:
     label: Ubuntu 18.04 (Bionic) Container
     image: ubuntu1804
