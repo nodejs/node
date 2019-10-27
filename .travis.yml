@@ -88,3 +88,13 @@ jobs:
         - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
+
+    - name: "Find syntax errors in our Python dependencies"
+      language: python
+      python: 3.8
+      install:
+        - mv .flake8 disabled.flake8  # take the blinders off of flake8
+        - python3.8 -m pip install --upgrade pip
+        - python3.8 -m pip install flake8
+      script:
+        - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
