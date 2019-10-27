@@ -123,11 +123,10 @@ tests:
       ZLIB_VERSION="$(out/Release/node -pe process.versions | grep zlib)"
       echo "zlib Version: $ZLIB_VERSION"
       if [ X"$(echo $ZLIB_VERSION | grep 1\.2\.11)" = X"" ]; then
-        FAIL_MSG="Not built with zlib 1.2.11, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="Not built with zlib 1.2.11"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > zlib-test.tap
+        exit 1
       fi
 
   openssl111:
@@ -142,20 +141,18 @@ tests:
       OPENSSL_VERSION="$(out/Release/node -pe 'process.versions.openssl')"
       echo "OpenSSL Version: $OPENSSL_VERSION"
       if [ X"$(echo $OPENSSL_VERSION | grep 1\.1\.1)" = X"" ]; then
-        FAIL_MSG="Not built with OpenSSL 1.1.1, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="Not built with OpenSSL 1.1.1"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > openssl111-test.tap
+        exit 1
       fi
       OPENSSL_LIB="$(out/Release/node -pe 'process.config.target_defaults.libraries[0]')"
       echo "OpenSSL link: $OPENSSL_LIB"
       if [ X"$(echo $OPENSSL_LIB | grep 1\.1\.1)" = X"" ]; then
-        FAIL_MSG="Not linked against OpenSSL 1.1.1, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="Not linked against OpenSSL 1.1.1"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > openssl111-test.tap
+        exit 1
       fi
 
   withoutintl:
@@ -168,20 +165,18 @@ tests:
       INTL_OBJECT="$(out/Release/node -pe 'typeof Intl')"
       echo "Intl object type: $INTL_OBJECT"
       if [ X"$INTL_OBJECT" != X"undefined" ]; then
-        FAIL_MSG="Has an Intl object, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="Has an Intl object"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > withoutintl-test.tap
+        exit 1
       fi
       PROCESS_VERSIONS_INTL="$(out/Release/node -pe process.versions.icu)"
       echo "process.versions.icu: $PROCESS_VERSIONS_INTL"
       if [ X"$PROCESS_VERSIONS_INTL" != X"undefined" ]; then
-        FAIL_MSG="process.versions.icu not undefined, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="process.versions.icu not undefined"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > withoutintl-test.tap
+        exit 1
       fi
 
   withoutssl:
@@ -194,19 +189,17 @@ tests:
       HAS_OPENSSL="$(out/Release/node -p 'Boolean(process.versions.openssl)')"
       echo "Has OpenSSL: $HAS_OPENSSL"
       if [ X"$HAS_OPENSSL" != X"false" ]; then
-        FAIL_MSG="Has an OpenSSL, exiting"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG="Has an OpenSSL"
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > withoutssl-test.tap
+        exit 1
       fi
       out/Release/node -p 'require("crypto")' || REQUIRE_CRYPTO="no crypto"
       if [ "$REQUIRE_CRYPTO" != "no crypto" ]; then
-        FAIL_MSG='require("crypto") did not fail, exiting'
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        exit -1
+        FAIL_MSG='require("crypto") did not fail'
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > withoutssl-test.tap
+        exit 1
       fi
 
   shared:
@@ -233,26 +226,18 @@ tests:
 
       if ! [ -x out/Debug/node ]; then
         FAIL_MSG="No Debug executable"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        echo "  ---"
-        echo "  duration_ms: 0"
-        echo "  ..."
-        exit 0
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > debug-test.tap
+        exit 1
       fi
 
       BUILD_TYPE="$(out/Debug/node -pe process.config.target_defaults.default_configuration)"
       echo "Build type: $BUILD_TYPE"
       if [ X"$BUILD_TYPE" != X"Debug" ]; then
         FAIL_MSG="Not built as Debug"
-        echo $FAIL_MSG
-        echo "1..1" > test.tap
-        echo "not ok 1 $FAIL_MSG" >> test.tap
-        echo "  ---"
-        echo "  duration_ms: 0"
-        echo "  ..."
-        exit 0
+        echo "Error: $FAIL_MSG"
+        echo -e "TAP version 13\n1..1\nnot ok 1 $FAIL_MSG\n  ---\n  duration_ms: 0\n  ..." > debug-test.tap
+        exit 1
       fi
 
       python tools/test.py -j $JOBS -p tap --logfile test.tap \
