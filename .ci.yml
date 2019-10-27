@@ -1,6 +1,6 @@
 # Configuration for ci.nodejs.org
 #
-# `linux-x64-container-suite` list tests that are to be run in: 
+# `linux-x64-container-suite` list tests that are to be run in:
 #   https://ci.nodejs.org/job/rv-test-commit-linux-docker
 # using container images found at:
 #   https://github.com/rvagg/node-ci-containers
@@ -208,8 +208,6 @@ tests:
         echo "not ok 1 $FAIL_MSG" >> test.tap
         exit -1
       fi
-
-      python tools/test.py -j $JOBS -p tap --logfile test.tap --flaky-tests=$FLAKY_TESTS async-hooks default known_issues
 
   shared:
     label: Linux --shared
