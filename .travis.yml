@@ -98,3 +98,5 @@ jobs:
         - python3.8 -m pip install flake8
       script:
         - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+  allow_failures:  # TODO (cclauss): remove this when dependencies are clean
+    - name: "Find syntax errors in our Python dependencies"
