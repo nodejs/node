@@ -137,29 +137,25 @@ class MacTool(object):
     #     semicolon in dictionary.
     # on invalid files. Do the same kind of validation.
     import CoreFoundation
-    s = open(source, 'rb').read()
+    with open(source, 'rb') as in_file:
+      s = in_file.read()
     d = CoreFoundation.CFDataCreate(None, s, len(s))
     _, error = CoreFoundation.CFPropertyListCreateFromXMLData(None, d, 0, None)
     if error:
       return
 
-    fp = open(dest, 'wb')
-    fp.write(s.decode(input_code).encode('UTF-16'))
-    fp.close()
+    with open(dest, 'wb') as fp:
+      fp.write(s.decode(input_code).encode('UTF-16'))
 
   def _DetectInputEncoding(self, file_name):
     """Reads the first few bytes from file_name and tries to guess the text
     encoding. Returns None as a guess if it can't detect it."""
-    fp = open(file_name, 'rb')
-    try:
-      header = fp.read(3)
-    except Exception:
-      fp.close()
-      return None
-    fp.close()
-    if header.startswith("\xFE\xFF"):
-      return "UTF-16"
-    elif header.startswith("\xFF\xFE"):
+    with open(file_name, 'rb') as fp:
+      try:
+        header = fp.read(3)
+      except Exception:
+        return None
+    if header.startswith(("\xFE\xFF", "\xFF\xFE")):
       return "UTF-16"
     elif header.startswith("\xEF\xBB\xBF"):
       return "UTF-8"
@@ -169,9 +165,8 @@ class MacTool(object):
   def ExecCopyInfoPlist(self, source, dest, convert_to_binary, *keys):
     """Copies the |source| Info.plist to the destination directory |dest|."""
     # Read the source Info.plist into memory.
-    fd = open(source, 'r')
-    lines = fd.read()
-    fd.close()
+    with open(source, 'r') as fd:
+      lines = fd.read()
 
     # Insert synthesized key/value pairs (e.g. BuildMachineOSBuild).
     plist = plistlib.readPlistFromString(lines)
@@ -204,17 +199,16 @@ class MacTool(object):
       lines = string.replace(lines, evar, evalue)
 
     # Remove any keys with values that haven't been replaced.
-    lines = lines.split('\n')
+    lines = lines.splitlines()
     for i in range(len(lines)):
       if lines[i].strip().startswith("<string>${"):
         lines[i] = None
         lines[i - 1] = None
-    lines = '\n'.join(filter(lambda x: x is not None, lines))
+    lines = '\n'.join(line for line in lines if line is not None)
 
     # Write out the file with variables replaced.
-    fd = open(dest, 'w')
-    fd.write(lines)
-    fd.close()
+    with open(dest, 'w') as fd:
+      fd.write(lines)
 
     # Now write out PkgInfo file now that the Info.plist file has been
     # "compiled".
@@ -242,9 +236,8 @@ class MacTool(object):
       signature_code = '?' * 4
 
     dest = os.path.join(os.path.dirname(info_plist), 'PkgInfo')
-    fp = open(dest, 'w')
-    fp.write('%s%s' % (package_type, signature_code))
-    fp.close()
+    with open(dest, 'w') as fp:
+      fp.write('%s%s' % (package_type, signature_code))
 
   def ExecFlock(self, lockfile, *cmd_list):
     """Emulates the most basic behavior of Linux's flock(1)."""
@@ -295,9 +288,8 @@ class MacTool(object):
                       '  module * { export * }\n' \
                       '}\n' % (binary, binary)
 
-    module_file = open(os.path.join(module_path, 'module.modulemap'), "w")
-    module_file.write(module_template)
-    module_file.close()
+    with open(os.path.join(module_path, 'module.modulemap'), "w") as module_file:
+      module_file.write(module_template)
 
   def ExecPackageFramework(self, framework, version):
     """Takes a path to Something.framework and the Current version of that and
@@ -337,7 +329,7 @@ class MacTool(object):
 
   def ExecCompileIosFrameworkHeaderMap(self, out, framework, *all_headers):
     framework_name = os.path.basename(framework).split('.')[0]
-    all_headers = map(os.path.abspath, all_headers)
+    all_headers = [os.path.abspath(header) for header in all_headers]
     filelist = {}
     for header in all_headers:
       filename = os.path.basename(header)
@@ -669,7 +661,7 @@ def WriteHmap(output_name, filelist):
   count = len(filelist)
   capacity = NextGreaterPowerOf2(count)
   strings_offset = 24 + (12 * capacity)
-  max_value_length = len(max(filelist.items(), key=lambda (k,v):len(v))[1])
+  max_value_length = max(len(value) for value in filelist.values())
 
   out = open(output_name, "wb")
   out.write(struct.pack('<LHHLLLL', magic, version, _reserved, strings_offset,
