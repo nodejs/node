@@ -341,6 +341,9 @@ Runtime Deprecations and End-of-Life APIs (internal or public) are breaking
 changes (`semver-major`). The TSC may make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
+Avoid Runtime Deprecations when an alias or a stub/no-op will suffice. An alias
+or stub will have lower maintenance costs for end users and Node.js core.
+
 All deprecations receive a unique and immutable identifier. Documentation,
 warnings, and errors use the identifier when referring to the deprecation. The
 documentation for the deprecation identifier must always remain in the API
