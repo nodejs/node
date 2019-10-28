@@ -23721,7 +23721,9 @@ v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackFail(
 
 v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackSetExport(
     Local<Context> context, Local<Module> module) {
-  module->SetSyntheticModuleExport(v8_str("test_export"), v8_num(42));
+  Maybe<bool> set_export_result = module->SetSyntheticModuleExport(
+      context->GetIsolate(), v8_str("test_export"), v8_num(42));
+  CHECK(set_export_result.FromJust());
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(context->GetIsolate()));
 }
 
@@ -23940,7 +23942,9 @@ TEST(SyntheticModuleSetExports) {
   // undefined.
   CHECK(foo_cell->value().IsUndefined());
 
-  module->SetSyntheticModuleExport(foo_string, bar_string);
+  Maybe<bool> set_export_result =
+      module->SetSyntheticModuleExport(isolate, foo_string, bar_string);
+  CHECK(set_export_result.FromJust());
 
   // After setting the export the Cell should still have the same idenitity.
   CHECK_EQ(exports->Lookup(v8::Utils::OpenHandle(*foo_string)), *foo_cell);
@@ -23949,6 +23953,34 @@ TEST(SyntheticModuleSetExports) {
   CHECK(i::Handle<i::String>::cast(
             i::Handle<i::Object>(foo_cell->value(), i_isolate))
             ->Equals(*v8::Utils::OpenHandle(*bar_string)));
+}
+
+TEST(SyntheticModuleSetMissingExport) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<String> foo_string = v8_str("foo");
+  Local<String> bar_string = v8_str("bar");
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate, v8_str("SyntheticModuleSetExports-TestSyntheticModule"), context,
+      std::vector<v8::Local<v8::String>>(),
+      UnexpectedSyntheticModuleEvaluationStepsCallback);
+
+  i::Handle<i::SyntheticModule> i_module =
+      i::Handle<i::SyntheticModule>::cast(v8::Utils::OpenHandle(*module));
+  i::Handle<i::ObjectHashTable> exports(i_module->exports(), i_isolate);
+
+  TryCatch try_catch(isolate);
+  Maybe<bool> set_export_result =
+      module->SetSyntheticModuleExport(isolate, foo_string, bar_string);
+  CHECK(set_export_result.IsNothing());
+  CHECK(try_catch.HasCaught());
 }
 
 TEST(SyntheticModuleEvaluationStepsNoThrow) {

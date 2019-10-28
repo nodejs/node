@@ -17,16 +17,36 @@ namespace internal {
 
 // Implements SetSyntheticModuleBinding:
 // https://heycam.github.io/webidl/#setsyntheticmoduleexport
-void SyntheticModule::SetExport(Isolate* isolate,
-                                Handle<SyntheticModule> module,
-                                Handle<String> export_name,
-                                Handle<Object> export_value) {
+Maybe<bool> SyntheticModule::SetExport(Isolate* isolate,
+                                       Handle<SyntheticModule> module,
+                                       Handle<String> export_name,
+                                       Handle<Object> export_value) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   Handle<Object> export_object(exports->Lookup(export_name), isolate);
-  CHECK(export_object->IsCell());
+
+  if (!export_object->IsCell()) {
+    isolate->Throw(*isolate->factory()->NewReferenceError(
+        MessageTemplate::kModuleExportUndefined, export_name));
+    return Nothing<bool>();
+  }
+
   Handle<Cell> export_cell(Handle<Cell>::cast(export_object));
   // Spec step 2: Set the mutable binding of export_name to export_value
   export_cell->set_value(*export_value);
+
+  return Just(true);
+}
+
+void SyntheticModule::SetExportStrict(Isolate* isolate,
+                                      Handle<SyntheticModule> module,
+                                      Handle<String> export_name,
+                                      Handle<Object> export_value) {
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  Handle<Object> export_object(exports->Lookup(export_name), isolate);
+  CHECK(export_object->IsCell());
+  Maybe<bool> set_export_result =
+      SetExport(isolate, module, export_name, export_value);
+  CHECK(set_export_result.FromJust());
 }
 
 // Implements Synthetic Module Record's ResolveExport concrete method:
