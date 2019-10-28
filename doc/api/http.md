@@ -473,7 +473,9 @@ added: v0.5.3
 
 * `socket` {net.Socket}
 
-Emitted after a socket is assigned to this request.
+Emitted after a socket is assigned to this request. This event is sometimes passed 
+a `duplex` {stream.Duplex} which `socket` {net.Socket} extends rather than being 
+passed a socket.
 
 ### Event: 'timeout'
 <!-- YAML
