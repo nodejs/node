@@ -2362,6 +2362,28 @@ Local<Module> Module::CreateSyntheticModule(
           i_module_name, i_export_names, evaluation_steps)));
 }
 
+Maybe<bool> Module::SetSyntheticModuleExport(Isolate* isolate,
+                                             Local<String> export_name,
+                                             Local<v8::Value> export_value) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_export_name = Utils::OpenHandle(*export_name);
+  i::Handle<i::Object> i_export_value = Utils::OpenHandle(*export_value);
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(self->IsSyntheticModule(),
+                  "v8::Module::SyntheticModuleSetExport",
+                  "v8::Module::SyntheticModuleSetExport must only be called on "
+                  "a SyntheticModule");
+  ENTER_V8_NO_SCRIPT(i_isolate, isolate->GetCurrentContext(), Module,
+                     SetSyntheticModuleExport, Nothing<bool>(), i::HandleScope);
+  has_pending_exception =
+      i::SyntheticModule::SetExport(i_isolate,
+                                    i::Handle<i::SyntheticModule>::cast(self),
+                                    i_export_name, i_export_value)
+          .IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
 void Module::SetSyntheticModuleExport(Local<String> export_name,
                                       Local<v8::Value> export_value) {
   i::Handle<i::String> i_export_name = Utils::OpenHandle(*export_name);
@@ -2371,9 +2393,9 @@ void Module::SetSyntheticModuleExport(Local<String> export_name,
                   "v8::Module::SetSyntheticModuleExport",
                   "v8::Module::SetSyntheticModuleExport must only be called on "
                   "a SyntheticModule");
-  i::SyntheticModule::SetExport(self->GetIsolate(),
-                                i::Handle<i::SyntheticModule>::cast(self),
-                                i_export_name, i_export_value);
+  i::SyntheticModule::SetExportStrict(self->GetIsolate(),
+                                      i::Handle<i::SyntheticModule>::cast(self),
+                                      i_export_name, i_export_value);
 }
 
 namespace {
