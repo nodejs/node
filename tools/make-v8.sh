@@ -28,7 +28,7 @@ if [[ "$ARCH" == "s390x" ]] || [[ "$ARCH" == "ppc64le" ]]; then
   g++ --version
   gcc --version
   export PKG_CONFIG_PATH=$BUILD_TOOLS/pkg-config
-  gn gen -v out.gn/$BUILD_ARCH_TYPE --args="is_component_build=false is_debug=false use_goma=false goma_dir=\"None\" use_custom_libcxx=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\""
+  gn gen -v out.gn/$BUILD_ARCH_TYPE --args="is_component_build=false is_debug=false use_goma=false goma_dir=\"None\" use_custom_libcxx=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true"
   ninja -v -C out.gn/$BUILD_ARCH_TYPE d8 cctest inspector-test
 else
   PATH=~/_depot_tools:$PATH tools/dev/v8gen.py $BUILD_ARCH_TYPE --no-goma $V8_BUILD_OPTIONS
