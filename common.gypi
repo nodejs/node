@@ -96,6 +96,9 @@
       ['OS=="mac"', {
         'clang%': 1,
       }],
+      ['target_arch in "ppc64 s390x"', {
+        'v8_enable_backtrace': 1,
+      }],
     ],
   },
 
