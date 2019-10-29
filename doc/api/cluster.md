@@ -525,7 +525,7 @@ added: v0.7.9
 
 When any of the workers die the cluster module will emit the `'exit'` event.
 
-This can be used to restart the worker by calling `.fork()` again.
+This can be used to restart the worker by calling [`.fork()`][] again.
 
 ```js
 cluster.on('exit', (worker, code, signal) => {
@@ -754,8 +754,8 @@ changes:
   * `windowsHide` {boolean} Hide the forked processes console window that would
     normally be created on Windows systems. **Default:** `false`.
 
-After calling `.setupMaster()` (or `.fork()`) this settings object will contain
-the settings, including the default values.
+After calling [`.setupMaster()`][] (or [`.fork()`][]) this settings object will
+contain the settings, including the default values.
 
 This object is not intended to be changed or set manually.
 
@@ -773,11 +773,11 @@ changes:
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.
 
-Any settings changes only affect future calls to `.fork()` and have no
+Any settings changes only affect future calls to [`.fork()`][] and have no
 effect on workers that are already running.
 
 The only attribute of a worker that cannot be set via `.setupMaster()` is
-the `env` passed to `.fork()`.
+the `env` passed to [`.fork()`][].
 
 The defaults above apply to the first call only; the defaults for later
 calls are the current values at the time of `cluster.setupMaster()` is called.
@@ -856,6 +856,8 @@ socket.on('data', (id) => {
 });
 ```
 
+[`.fork()`]: #cluster_cluster_fork_env
+[`.setupMaster()`]: #cluster_cluster_setupmaster_settings
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`child_process` event: `'exit'`]: child_process.html#child_process_event_exit
