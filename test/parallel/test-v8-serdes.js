@@ -156,8 +156,10 @@ const deserializerTypeError =
 }
 
 {
-  assert.throws(() => v8.serialize(hostObject),
-                /^Error: Unknown host object type: \[object .*\]$/);
+  assert.throws(() => v8.serialize(hostObject), {
+    constructor: Error,
+    message: 'Unserializable host object: JSStream {}'
+  });
 }
 
 {
