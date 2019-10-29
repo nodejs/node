@@ -18,8 +18,8 @@ everywhere:
     npm completion >> ~/.zshrc
 
 You may of course also pipe the output of `npm completion` to a file
-such as `/usr/local/etc/bash_completion.d/npm` or
-`/etc/bash_completion.d/npm` if you have a system that will read
+such as `/usr/local/etc/bash_completion.d/npm` or 
+`/etc/bash_completion.d/npm` if you have a system that will read 
 that file for you.
 
 When `COMP_CWORD`, `COMP_LINE`, and `COMP_POINT` are defined in the

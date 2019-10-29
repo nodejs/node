@@ -5,7 +5,7 @@ npm-audit(1) -- Run a security audit
 
     npm audit [--json|--parseable|--audit-level=(low|moderate|high|critical)]
     npm audit fix [--force|--package-lock-only|--dry-run]
-
+    
     common options: [--production] [--only=(dev|prod)]
 
 ## EXAMPLES

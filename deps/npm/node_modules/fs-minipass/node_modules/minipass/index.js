@@ -43,6 +43,14 @@ const isEndish = ev =>
   ev === 'finish' ||
   ev === 'prefinish'
 
+const isArrayBuffer = b => b instanceof ArrayBuffer ||
+  typeof b === 'object' &&
+  b.constructor &&
+  b.constructor.name === 'ArrayBuffer' &&
+  b.byteLength >= 0
+
+const isArrayBufferView = b => !B.isBuffer(b) && ArrayBuffer.isView(b)
+
 module.exports = class Minipass extends EE {
   constructor (options) {
     super()
@@ -114,8 +122,19 @@ module.exports = class Minipass extends EE {
     if (!encoding)
       encoding = 'utf8'
 
-    if (typeof chunk !== 'string' && !B.isBuffer(chunk) && !this[OBJECTMODE])
-      this.objectMode = true
+    // convert array buffers and typed array views into buffers
+    // at some point in the future, we may want to do the opposite!
+    // leave strings and buffers as-is
+    // anything else switches us into object mode
+    if (!this[OBJECTMODE] && !B.isBuffer(chunk)) {
+      if (isArrayBufferView(chunk))
+        chunk = B.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+      else if (isArrayBuffer(chunk))
+        chunk = B.from(chunk)
+      else if (typeof chunk !== 'string')
+        // use the setter so we throw if we have encoding set
+        this.objectMode = true
+    }
 
     // this ensures at this point that the chunk is a buffer or string
     // don't buffer it up or send it to the decoder

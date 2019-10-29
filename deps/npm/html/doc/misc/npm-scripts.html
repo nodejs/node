@@ -60,7 +60,7 @@ Run by the <code>npm shrinkwrap</code> command.</li>
 <p>Additionally, arbitrary scripts can be executed by running <code>npm
 run-script &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
-<code>postmyscript</code>). Scripts from dependencies can be run with
+<code>postmyscript</code>). Scripts from dependencies can be run with 
 <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h2 id="prepublish-and-prepare">PREPUBLISH AND PREPARE</h2>
 <h3 id="deprecation-note">DEPRECATION NOTE</h3>
@@ -132,8 +132,8 @@ exported into the <code>node_modules/.bin</code> directory on <code>npm install<
 for instance, if you had <code>{&quot;name&quot;:&quot;foo&quot;, &quot;version&quot;:&quot;1.2.5&quot;}</code> in your
 package.json file, then your package scripts would have the
 <code>npm_package_name</code> environment variable set to &quot;foo&quot;, and the
-<code>npm_package_version</code> set to &quot;1.2.5&quot;.  You can access these variables
-in your code with <code>process.env.npm_package_name</code> and
+<code>npm_package_version</code> set to &quot;1.2.5&quot;.  You can access these variables 
+in your code with <code>process.env.npm_package_name</code> and 
 <code>process.env.npm_package_version</code>, and so on for other fields.</p>
 <h3 id="configuration">configuration</h3>
 <p>Configuration parameters are put in the environment with the
@@ -234,5 +234,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@6.12.0</p>
+<p id="footer">npm-scripts &mdash; npm@6.12.1</p>
 
