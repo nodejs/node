@@ -137,7 +137,7 @@ class Installer {
         )
         return BB.join(
           this.checkLock(),
-          stat && rimraf(path.join(this.prefix, 'node_modules'))
+          stat && rimraf(path.join(this.prefix, 'node_modules/*'))
         )
       }).then(() => {
       // This needs to happen -after- we've done checkLock()
