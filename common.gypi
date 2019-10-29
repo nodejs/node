@@ -102,6 +102,9 @@
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
+      ['target_arch in ("ppc64", "s390x")', {
+        'v8_enable_backtrace': 1,
+      }],
     ],
   },
 
