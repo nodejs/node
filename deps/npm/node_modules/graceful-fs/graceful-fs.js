@@ -234,22 +234,24 @@ function patch (fs) {
   })
 
   // legacy names
+  var FileReadStream = ReadStream
   Object.defineProperty(fs, 'FileReadStream', {
     get: function () {
-      return ReadStream
+      return FileReadStream
     },
     set: function (val) {
-      ReadStream = val
+      FileReadStream = val
     },
     enumerable: true,
     configurable: true
   })
+  var FileWriteStream = WriteStream
   Object.defineProperty(fs, 'FileWriteStream', {
     get: function () {
-      return WriteStream
+      return FileWriteStream
     },
     set: function (val) {
-      WriteStream = val
+      FileWriteStream = val
     },
     enumerable: true,
     configurable: true

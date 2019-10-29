@@ -1,0 +1,77 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/Users/jharband/.nvm/v0.10.26/bin/node',
+1 verbose cli   '/Users/jharband/Dropbox/git/ljharb-npm.git/bin/npm-cli.js',
+1 verbose cli   'install' ]
+2 info using npm@1.4.4
+3 info using node@v0.10.26
+4 warn package.json ignore-shrinkwrap@0.0.0 No description
+5 warn package.json ignore-shrinkwrap@0.0.0 No repository field.
+6 warn package.json ignore-shrinkwrap@0.0.0 No README data
+7 info shrinkwrap file "/Users/jharband/Dropbox/git/ljharb-npm.git/test/tap/ignore-shrinkwrap/npm-shrinkwrap.json"
+8 verbose readDependencies returned deps { 'npm-test-ignore-shrinkwrap-file': 'http://localhost:1337/shrinkwrap.js' }
+9 verbose install where, deps [ '/Users/jharband/Dropbox/git/ljharb-npm.git/test/tap/ignore-shrinkwrap',
+9 verbose install   [ 'npm-test-ignore-shrinkwrap-file' ] ]
+10 info preinstall ignore-shrinkwrap@0.0.0
+11 info shrinkwrap file "/Users/jharband/Dropbox/git/ljharb-npm.git/test/tap/ignore-shrinkwrap/npm-shrinkwrap.json"
+12 verbose readDependencies returned deps { 'npm-test-ignore-shrinkwrap-file': 'http://localhost:1337/shrinkwrap.js' }
+13 verbose cache add [ 'npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js',
+13 verbose cache add   null ]
+14 verbose cache add name=undefined spec="npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js" args=["npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js",null]
+15 verbose parsed url { protocol: null,
+15 verbose parsed url   slashes: null,
+15 verbose parsed url   auth: null,
+15 verbose parsed url   host: null,
+15 verbose parsed url   port: null,
+15 verbose parsed url   hostname: null,
+15 verbose parsed url   hash: null,
+15 verbose parsed url   search: null,
+15 verbose parsed url   query: null,
+15 verbose parsed url   pathname: 'npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js',
+15 verbose parsed url   path: 'npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js',
+15 verbose parsed url   href: 'npm-test-ignore-shrinkwrap-file@http://localhost:1337/shrinkwrap.js' }
+16 verbose cache add name="npm-test-ignore-shrinkwrap-file" spec="http://localhost:1337/shrinkwrap.js" args=["npm-test-ignore-shrinkwrap-file","http://localhost:1337/shrinkwrap.js"]
+17 verbose parsed url { protocol: 'http:',
+17 verbose parsed url   slashes: true,
+17 verbose parsed url   auth: null,
+17 verbose parsed url   host: 'localhost:1337',
+17 verbose parsed url   port: '1337',
+17 verbose parsed url   hostname: 'localhost',
+17 verbose parsed url   hash: null,
+17 verbose parsed url   search: null,
+17 verbose parsed url   query: null,
+17 verbose parsed url   pathname: '/shrinkwrap.js',
+17 verbose parsed url   path: '/shrinkwrap.js',
+17 verbose parsed url   href: 'http://localhost:1337/shrinkwrap.js' }
+18 silly lockFile 93f1472f-ttp-localhost-1337-shrinkwrap-js http://localhost:1337/shrinkwrap.js
+19 verbose lock http://localhost:1337/shrinkwrap.js /Users/jharband/.npm/93f1472f-ttp-localhost-1337-shrinkwrap-js.lock
+20 verbose addRemoteTarball [ 'http://localhost:1337/shrinkwrap.js', null ]
+21 info retry fetch attempt 1 at 13:37:30
+22 verbose fetch to= /Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+23 http GET http://localhost:1337/shrinkwrap.js
+24 http 200 http://localhost:1337/shrinkwrap.js
+25 verbose tar unpack /Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+26 silly lockFile 5a7eb945-50520-0-5202431683428586-package tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package
+27 verbose lock tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package /Users/jharband/.npm/5a7eb945-50520-0-5202431683428586-package.lock
+28 silly lockFile d3aeeebb-50520-0-5202431683428586-tmp-tgz tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+29 verbose lock tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz /Users/jharband/.npm/d3aeeebb-50520-0-5202431683428586-tmp-tgz.lock
+30 silly gunzTarPerm modes [ '755', '644' ]
+31 error not a package /Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+32 silly lockFile 5a7eb945-50520-0-5202431683428586-package tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package
+33 silly lockFile 5a7eb945-50520-0-5202431683428586-package tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package
+34 silly lockFile d3aeeebb-50520-0-5202431683428586-tmp-tgz tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+35 silly lockFile d3aeeebb-50520-0-5202431683428586-tmp-tgz tar:///Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/tmp.tgz
+36 silly lockFile 93f1472f-ttp-localhost-1337-shrinkwrap-js http://localhost:1337/shrinkwrap.js
+37 silly lockFile 93f1472f-ttp-localhost-1337-shrinkwrap-js http://localhost:1337/shrinkwrap.js
+38 error Error: ENOENT, open '/Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package/package.json'
+39 error If you need help, you may report this *entire* log,
+39 error including the npm and node versions, at:
+39 error     <http://github.com/npm/npm/issues>
+40 error System Darwin 13.0.0
+41 error command "/Users/jharband/.nvm/v0.10.26/bin/node" "/Users/jharband/Dropbox/git/ljharb-npm.git/bin/npm-cli.js" "install"
+42 error cwd /Users/jharband/Dropbox/git/ljharb-npm.git/test/tap/ignore-shrinkwrap
+43 error node -v v0.10.26
+44 error npm -v 1.4.4
+45 error path /Users/jharband/tmp/npm-37593-Hn7OQpiJ/1393105050520-0.5202431683428586/package/package.json
+46 error code ENOENT
+47 error errno 34
+48 verbose exit [ 34, true ]

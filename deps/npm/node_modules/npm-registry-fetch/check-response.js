@@ -95,7 +95,7 @@ function checkErrors (method, res, startTime, opts) {
             method, res, parsed, opts.spec
           )
         }
-      } else if (res.status === 401 && /one-time pass/.test(body.toString('utf8'))) {
+      } else if (res.status === 401 && body != null && /one-time pass/.test(body.toString('utf8'))) {
         // Heuristic for malformed OTP responses that don't include the www-authenticate header.
         throw new errors.HttpErrorAuthOTP(
           method, res, parsed, opts.spec

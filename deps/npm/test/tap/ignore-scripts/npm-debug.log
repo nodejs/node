@@ -1,0 +1,28 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/Users/jharband/.nvm/v0.10.26/bin/node',
+1 verbose cli   '/Users/jharband/Dropbox/git/ljharb-npm.git/bin/npm-cli.js',
+1 verbose cli   'run-script',
+1 verbose cli   'postrestart' ]
+2 info using npm@1.4.4
+3 info using node@v0.10.26
+4 verbose run-script [ 'postrestart' ]
+5 info postrestart ignore-scripts@0.0.0
+6 verbose unsafe-perm in lifecycle true
+7 info ignore-scripts@0.0.0 Failed to exec postrestart script
+8 error ignore-scripts@0.0.0 postrestart: `exit 123`
+8 error Exit status 123
+9 error Failed at the ignore-scripts@0.0.0 postrestart script.
+9 error This is most likely a problem with the ignore-scripts package,
+9 error not with npm itself.
+9 error Tell the author that this fails on your system:
+9 error     exit 123
+9 error You can get their info via:
+9 error     npm owner ls ignore-scripts
+9 error There is likely additional logging output above.
+10 error System Darwin 13.0.0
+11 error command "/Users/jharband/.nvm/v0.10.26/bin/node" "/Users/jharband/Dropbox/git/ljharb-npm.git/bin/npm-cli.js" "run-script" "postrestart"
+12 error cwd /Users/jharband/Dropbox/git/ljharb-npm.git/test/tap/ignore-scripts
+13 error node -v v0.10.26
+14 error npm -v 1.4.4
+15 error code ELIFECYCLE
+16 verbose exit [ 1, true ]

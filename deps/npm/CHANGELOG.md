@@ -1,3 +1,37 @@
+## 6.12.1 (2019-10-29)
+
+### BUG FIXES
+
+* [`6508e833d`](https://github.com/npm/cli/commit/6508e833df35a3caeb2b496f120ce67feff306b6)
+  [#269](https://github.com/npm/cli/pull/269)
+  add node v13 as a supported version
+  ([@ljharb](https://github.com/ljharb))
+* [`b6588a8f7`](https://github.com/npm/cli/commit/b6588a8f74fb8b1ad103060b73c4fd5174b1d1f6)
+  [#265](https://github.com/npm/cli/pull/265)
+  Fix regression in lockfile repair for sub-deps
+  ([@feelepxyz](https://github.com/feelepxyz))
+* [`d5dfe57a1`](https://github.com/npm/cli/commit/d5dfe57a1d810fe7fd64edefc976633ee3a4da53)
+  [#266](https://github.com/npm/cli/pull/266)
+  resolve circular dependency in pack.js
+  ([@addaleax](https://github.com/addaleax))
+
+### DEPENDENCIES
+
+* [`73678bb59`](https://github.com/npm/cli/commit/73678bb590a8633c3bdbf72e08f1279f9e17fd28)
+  `chownr@1.1.3`
+* [`4b76926e2`](https://github.com/npm/cli/commit/4b76926e2058ef30ab1d5e2541bb96d847653417)
+  `graceful-fs@4.2.3`
+* [`c691f36a9`](https://github.com/npm/cli/commit/c691f36a9c108b6267859fe61e4a38228b190c17)
+  `libcipm@4.0.7`
+* [`5e1a14975`](https://github.com/npm/cli/commit/5e1a14975311bfdc43df8e1eb317ae5690ee580c)
+  `npm-packlist@1.4.6`
+* [`c194482d6`](https://github.com/npm/cli/commit/c194482d65ee81a5a0a6281c7a9f984462286c56)
+  `npm-registry-fetch@4.0.2`
+* [`bc6a8e0ec`](https://github.com/npm/cli/commit/bc6a8e0ec966281e49b1dc66f9c641ea661ab7a6)
+  `tar@4.4.1`
+* [`4dcca3cbb`](https://github.com/npm/cli/commit/4dcca3cbb161da1f261095d9cdd26e1fbb536a8d)
+  `uuid@3.3.3`
+
 ## 6.12.0 (2019-10-08):
 
 Now `npm ci` runs prepare scripts for git dependencies, and respects the

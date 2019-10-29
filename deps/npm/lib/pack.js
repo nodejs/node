@@ -4,6 +4,9 @@
 // Packs the specified package into a .tgz file, which can then
 // be installed.
 
+// Set this early to avoid issues with circular dependencies.
+module.exports = pack
+
 const BB = require('bluebird')
 
 const byteSize = require('byte-size')
@@ -37,7 +40,6 @@ pack.usage = 'npm pack [[<@scope>/]<pkg>...] [--dry-run]'
 // if it can be installed, it can be packed.
 pack.completion = install.completion
 
-module.exports = pack
 function pack (args, silent, cb) {
   const cwd = process.cwd()
   if (typeof cb !== 'function') {
