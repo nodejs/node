@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.7"></a>
+## [4.0.7](https://github.com/npm/libcipm/compare/v4.0.4...v4.0.7) (2019-10-09)
+
+
+### Bug Fixes
+
+* delete node_modules contents but keep the dir itself ([f668181](https://github.com/npm/libcipm/commit/f668181)), closes [#3](https://github.com/npm/libcipm/issues/3)
+
 <a name="4.0.4"></a>
 ## [4.0.4](https://github.com/npm/libcipm/compare/v4.0.3...v4.0.4) (2019-09-24)
 
