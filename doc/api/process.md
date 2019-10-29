@@ -626,6 +626,10 @@ $ bash -c 'exec -a customArgv0 ./node'
 ## `process.channel`
 <!-- YAML
 added: v7.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30165
+    description: The object no longer accidentally exposes native C++ bindings.
 -->
 
 * {Object}
@@ -634,6 +638,30 @@ If the Node.js process was spawned with an IPC channel (see the
 [Child Process][] documentation), the `process.channel`
 property is a reference to the IPC channel. If no IPC channel exists, this
 property is `undefined`.
+
+### `process.channel.ref()`
+<!-- YAML
+added: v7.1.0
+-->
+
+This method makes the IPC channel keep the event loop of the process
+running if `.unref()` has been called before.
+
+Typically, this is managed through the number of `'disconnect'` and `'message'`
+listeners on the `process` object. However, this method can be used to
+explicitly request a specific behavior.
+
+### `process.channel.unref()`
+<!-- YAML
+added: v7.1.0
+-->
+
+This method makes the IPC channel not keep the event loop of the process
+running, and lets it finish even while the channel is open.
+
+Typically, this is managed through the number of `'disconnect'` and `'message'`
+listeners on the `process` object. However, this method can be used to
+explicitly request a specific behavior.
 
 ## `process.chdir(directory)`
 <!-- YAML

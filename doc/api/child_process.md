@@ -1018,12 +1018,32 @@ See [Advanced Serialization][] for more details.
 ### `subprocess.channel`
 <!-- YAML
 added: v7.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30165
+    description: The object no longer accidentally exposes native C++ bindings.
 -->
 
 * {Object} A pipe representing the IPC channel to the child process.
 
 The `subprocess.channel` property is a reference to the child's IPC channel. If
 no IPC channel currently exists, this property is `undefined`.
+
+#### `subprocess.channel.ref()`
+<!-- YAML
+added: v7.1.0
+-->
+
+This method makes the IPC channel keep the event loop of the parent process
+running if `.unref()` has been called before.
+
+#### `subprocess.channel.unref()`
+<!-- YAML
+added: v7.1.0
+-->
+
+This method makes the IPC channel not keep the event loop of the parent process
+running, and lets it finish even while the channel is open.
 
 ### `subprocess.connected`
 <!-- YAML
