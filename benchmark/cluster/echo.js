@@ -7,15 +7,24 @@ if (cluster.isMaster) {
     workers: [1],
     payload: ['string', 'object'],
     sendsPerBroadcast: [1, 10],
+    serialization: ['json', 'advanced'],
     n: [1e5]
   });
 
-  function main({ n, workers, sendsPerBroadcast, payload }) {
+  function main({
+    n,
+    workers,
+    sendsPerBroadcast,
+    payload,
+    serialization
+  }) {
     const expectedPerBroadcast = sendsPerBroadcast * workers;
     var readies = 0;
     var broadcasts = 0;
     var msgCount = 0;
     var data;
+
+    cluster.settings.serialization = serialization;
 
     switch (payload) {
       case 'string':

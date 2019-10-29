@@ -718,6 +718,9 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30162
+    description: The `serialization` option is supported now.
   - version: v9.5.0
     pr-url: https://github.com/nodejs/node/pull/18399
     description: The `cwd` option is supported now.
@@ -740,6 +743,10 @@ changes:
     **Default:** `process.argv.slice(2)`.
   * `cwd` {string} Current working directory of the worker process. **Default:**
     `undefined` (inherits from parent process).
+  * `serialization` {string} Specify the kind of serialization used for sending
+    messages between processes. Possible values are `'json'` and `'advanced'`.
+    See [Advanced Serialization for child_process][] for more details.
+    **Default:** `false`.
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`.
   * `stdio` {Array} Configures the stdio of forked processes. Because the
@@ -866,4 +873,5 @@ socket.on('data', (id) => {
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
+[Advanced Serialization for child_process]: child_process.html#child_process_advanced_serialization
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options

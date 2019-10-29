@@ -119,6 +119,11 @@ the child process.
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
 
+If the `serialization` option was set to `advanced` used when spawning the
+process, the `message` argument can contain data that JSON is not able
+to represent.
+See [Advanced Serialization for child_process][] for more details.
+
 ### Event: 'multipleResolves'
 <!-- YAML
 added: v10.12.0
@@ -2452,6 +2457,7 @@ cases:
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
+[Advanced Serialization for child_process]: child_process.html#child_process_advanced_serialization
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html
 [Cluster]: cluster.html
