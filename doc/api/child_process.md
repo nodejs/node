@@ -321,6 +321,9 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30162
+    description: The `serialization` option is supported now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10866
     description: The `stdio` option can now be a string.
@@ -340,6 +343,9 @@ changes:
   * `execPath` {string} Executable used to create the child process.
   * `execArgv` {string[]} List of string arguments passed to the executable.
     **Default:** `process.execArgv`.
+  * `serialization` {string} Specify the kind of serialization used for sending
+    messages between processes. Possible values are `'json'` and `'advanced'`.
+    See [Advanced Serialization][] for more details. **Default:** `'json'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
@@ -386,6 +392,9 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30162
+    description: The `serialization` option is supported now.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -411,6 +420,9 @@ changes:
     [`options.detached`][]).
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `serialization` {string} Specify the kind of serialization used for sending
+    messages between processes. Possible values are `'json'` and `'advanced'`.
+    See [Advanced Serialization][] for more details. **Default:** `'json'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
@@ -998,6 +1010,11 @@ The `'message'` event is triggered when a child process uses
 The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
 
+If the `serialization` option was set to `'advanced'` used when spawning the
+child process, the `message` argument can contain data that JSON is not able
+to represent.
+See [Advanced Serialization][] for more details.
+
 ### `subprocess.channel`
 <!-- YAML
 added: v7.1.0
@@ -1474,6 +1491,26 @@ the same requirement. Thus, in `child_process` functions where a shell can be
 spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is
 unavailable.
 
+## Advanced Serialization
+<!-- YAML
+added: REPLACEME
+-->
+
+Child processes support a serialization mechanism for IPC that is based on the
+[serialization API of the `v8` module][v8.serdes], based on the
+[HTML structured clone algorithm][]. This is generally more powerful and
+supports more built-in JavaScript object types, such as `BigInt`, `Map`
+and `Set`, `ArrayBuffer` and `TypedArray`, `Buffer`, `Error`, `RegExp` etc.
+
+However, this format is not a full superset of JSON, and e.g. properties set on
+objects of such built-in types will not be passed on through the serialization
+step. Additionally, performance may not be equivalent to that of JSON, depending
+on the structure of the passed data.
+Therefore, this feature requires opting in by setting the
+`serialization` option to `'advanced'` when calling [`child_process.spawn()`][]
+or [`child_process.fork()`][].
+
+[Advanced Serialization]: #child_process_advanced_serialization
 [`'disconnect'`]: process.html#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1507,5 +1544,7 @@ unavailable.
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Default Windows Shell]: #child_process_default_windows_shell
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell Requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
+[v8.serdes]: v8.html#v8_serialization_api
