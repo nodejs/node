@@ -311,6 +311,7 @@ added: v8.4.0
 After the `http2session.setTimeout()` method is used to set the timeout period
 for this `Http2Session`, the `'timeout'` event is emitted if there is no
 activity on the `Http2Session` after the configured number of milliseconds.
+Its listener does not expect any arguments.
 
 ```js
 session.setTimeout(2000);
