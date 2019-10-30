@@ -16,5 +16,6 @@ require(bindingPath);
 new Worker(`require(${JSON.stringify(bindingPath)})`, { eval: true })
   .on('error', common.mustCall((err) => {
     assert.strictEqual(err.constructor, Error);
-    assert.strictEqual(err.message, `Module did not self-register: '${bindingPath}'.`);
+    assert.strictEqual(err.message,
+                       `Module did not self-register: '${bindingPath}'.`);
   }));
