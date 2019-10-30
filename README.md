@@ -338,8 +338,6 @@ For information about the governance of the Node.js project, see
 **Jan Krems** &lt;jan.krems@gmail.com&gt; (he/him)
 * [joaocgreis](https://github.com/joaocgreis) -
 **João Reis** &lt;reis@janeasystems.com&gt;
-* [joshgav](https://github.com/joshgav) -
-**Josh Gavant** &lt;josh.gavant@outlook.com&gt;
 * [joyeecheung](https://github.com/joyeecheung) -
 **Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
 * [julianduque](https://github.com/julianduque) -
@@ -348,8 +346,6 @@ For information about the governance of the Node.js project, see
 **Minwoo Jung** &lt;nodecorelab@gmail.com&gt; (he/him)
 * [kfarnung](https://github.com/kfarnung) -
 **Kyle Farnung** &lt;kfarnung@microsoft.com&gt; (he/him)
-* [kunalspathak](https://github.com/kunalspathak) -
-**Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt; (he/him)
 * [legendecas](https://github.com/legendecas) -
@@ -358,8 +354,6 @@ For information about the governance of the Node.js project, see
 **Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
-* [lucamaraschi](https://github.com/lucamaraschi) -
-**Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [lundibundi](https://github.com/lundibundi) -
 **Denys Otrishko** &lt;shishugi@gmail.com&gt; (he/him)
 * [maclover7](https://github.com/maclover7) -
@@ -432,8 +426,6 @@ For information about the governance of the Node.js project, see
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [thekemkid](https://github.com/thekemkid) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt; (he/him)
-* [thlorenz](https://github.com/thlorenz) -
-**Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [TimothyGu](https://github.com/TimothyGu) -
 **Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -481,6 +473,12 @@ For information about the governance of the Node.js project, see
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [jhamhader](https://github.com/jhamhader) -
 **Yuval Brik** &lt;yuval@brik.org.il&gt;
+* [joshgav](https://github.com/joshgav) -
+**Josh Gavant** &lt;josh.gavant@outlook.com&gt;
+* [kunalspathak](https://github.com/kunalspathak) -
+**Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
+* [lucamaraschi](https://github.com/lucamaraschi) -
+**Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
@@ -517,6 +515,8 @@ For information about the governance of the Node.js project, see
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
+* [thlorenz](https://github.com/thlorenz) -
+**Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [tunniclm](https://github.com/tunniclm) -
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
