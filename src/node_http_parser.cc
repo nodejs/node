@@ -74,6 +74,7 @@ const uint32_t kOnHeadersComplete = 1;
 const uint32_t kOnBody = 2;
 const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
+const uint32_t kOnMessageBegin = 5;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
 
@@ -181,6 +182,23 @@ class Parser : public AsyncWrap, public StreamListener {
     num_fields_ = num_values_ = 0;
     url_.Reset();
     status_message_.Reset();
+
+    Local<Object> obj = object();
+    Local<Value> cb = obj->Get(env()->context(),
+                               kOnMessageBegin).ToLocalChecked();
+
+    if (!cb->IsFunction())
+      return 0;
+
+    Local<Value> argv[0];
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, argv);
+
+    if (r.IsEmpty()) {
+      got_exception_ = true;
+      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
+      return HPE_USER;
+    }
+
     return 0;
   }
 
@@ -890,6 +908,8 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kOnMessageComplete));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnExecute"),
          Integer::NewFromUnsigned(env->isolate(), kOnExecute));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnMessageBegin"),
+         Integer::NewFromUnsigned(env->isolate(), kOnMessageBegin));
 
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
