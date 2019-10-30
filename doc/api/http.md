@@ -474,7 +474,7 @@ added: v0.5.3
 * `duplex` {stream.Duplex}
 
 Emitted after a socket is assigned to this request. This event is guaranteed to
-be passed an instance of the {net.Socket} class, a subclass of duplex, unless
+be passed an instance of the {net.Socket} class, a subclass of Duplex, unless
 the user specifies a socket type other than {net.Socket}.
 
 ### Event: 'timeout'
