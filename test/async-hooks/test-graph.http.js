@@ -39,10 +39,12 @@ process.on('exit', () => {
         id: 'httpclientrequest:1',
         triggerAsyncId: 'tcpserver:1' },
       { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcpserver:1' },
-      { type: 'Timeout', id: 'timeout:1', triggerAsyncId: 'tcp:2' },
       { type: 'HTTPINCOMINGMESSAGE',
         id: 'httpincomingmessage:1',
         triggerAsyncId: 'tcp:2' },
+      { type: 'Timeout',
+        id: 'timeout:1',
+        triggerAsyncId: 'httpincomingmessage:1' },
       { type: 'SHUTDOWNWRAP',
         id: 'shutdown:1',
         triggerAsyncId: 'tcp:2' } ]
