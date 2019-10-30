@@ -273,10 +273,11 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   // This function may only be called once per `Isolate`.
   virtual void RegisterIsolate(v8::Isolate* isolate,
                                struct uv_loop_s* loop) = 0;
-  // This needs to be called right before calling `Isolate::Dispose()`.
+
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
+
   // The platform should call the passed function once all state associated
   // with the given isolate has been cleaned up. This can, but does not have to,
   // happen asynchronously.
