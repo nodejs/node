@@ -2955,8 +2955,11 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
 
   obj->SetAlignedPointerInInternalFields(2, indices, values);
   CcTest::CollectAllGarbage();
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
+  {
+    v8::SealHandleScope no_handle_leak(isolate);
+    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
+    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
+  }
 
   indices[0] = 1;
   indices[1] = 0;
@@ -3009,6 +3012,7 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   }
   CcTest::CollectAllGarbage();
   for (int i = 0; i < 100; i++) {
+    v8::SealHandleScope no_handle_leak(env->GetIsolate());
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
   }
 }
