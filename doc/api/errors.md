@@ -1405,6 +1405,11 @@ An invalid URL was passed to the [WHATWG][WHATWG URL API]
 typically has an additional property `'input'` that contains the URL that failed
 to parse.
 
+<a id="ERR_INVALID_URL_OBJECT_TO_FORMAT_BOTH_HOST_SOCKET"></a>
+### ERR_INVALID_URL_OBJECT_TO_FORMAT_BOTH_HOST_SOCKET
+
+An invalid URL object if it has both socketPath and host set.
+
 <a id="ERR_INVALID_URL_SCHEME"></a>
 ### ERR_INVALID_URL_SCHEME
 

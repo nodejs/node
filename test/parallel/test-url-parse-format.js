@@ -897,15 +897,16 @@ const parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: null,
-    host: 'unix:/my.socket:',
-    port: '/my.socket:',
-    hostname: 'unix',
+    host: '',
+    port: null,
+    hostname: '',
     hash: null,
     search: null,
     query: null,
     pathname: '/main',
     path: '/main',
-    href: 'http://unix:/my.socket:/main'
+    href: 'http://unix:/my.socket:/main',
+    socketPath: '/my.socket'
   },
 
   'http://unix/my.socket:/main': {
