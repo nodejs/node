@@ -473,9 +473,9 @@ added: v0.5.3
 
 * `duplex` {stream.Duplex}
 
-Emitted after a socket is assigned to this request. This event may be passed
-a socket {net.Socket} object, an extendion the duplex object, however this
-behavior is not guaranteed.
+Emitted after a socket is assigned to this request. This event is guaranteed to
+be passed an instance of the {net.Socket} class, a subclass of duplex, unless
+the user specifies a socket type other than {net.Socket}.
 
 ### Event: 'timeout'
 <!-- YAML
