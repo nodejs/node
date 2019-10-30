@@ -471,11 +471,11 @@ once.
 added: v0.5.3
 -->
 
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 
-Emitted after a socket is assigned to this request. This event is sometimes
-passed a `duplex` {stream.Duplex} which `socket` {net.Socket} extends rather
-than being passed a socket.
+Emitted after a socket is assigned to this request. This event may be passed
+a socket {net.Socket} object, an extendion the duplex object, however this
+behavior is not guaranteed.
 
 ### Event: 'timeout'
 <!-- YAML
