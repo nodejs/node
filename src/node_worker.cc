@@ -155,9 +155,9 @@ class WorkerThreadData {
     w_->platform_->AddIsolateFinishedCallback(isolate, [](void* data) {
       *static_cast<bool*>(data) = true;
     }, &platform_finished);
-    w_->platform_->UnregisterIsolate(isolate);
 
     isolate->Dispose();
+    w_->platform_->UnregisterIsolate(isolate);
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)
