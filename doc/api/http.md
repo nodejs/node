@@ -169,14 +169,14 @@ socket/stream from this function, or by passing the socket/stream to `callback`.
 
 `callback` has a signature of `(err, stream)`.
 
-### agent.keepSocketAlive(socket)
+### agent.keepSocketAlive(duplex)
 <!-- YAML
 added: v8.1.0
 -->
 
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 
-Called when `socket` is detached from a request and could be persisted by the
+Called when socket is detached from a request and could be persisted by the
 `Agent`. Default behavior is to:
 
 ```js
@@ -184,6 +184,10 @@ socket.setKeepAlive(true, this.keepAliveMsecs);
 socket.unref();
 return true;
 ```
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, unless the user specifies a socket type other than
+{net.Socket}.
 
 This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
