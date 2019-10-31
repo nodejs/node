@@ -7,8 +7,10 @@
 
 #include "src/objects/dictionary.h"
 
+#include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell-inl.h"
 
@@ -28,8 +30,60 @@ Dictionary<Derived, Shape>::Dictionary(Address ptr)
     : HashTable<Derived, Shape>(ptr) {}
 
 template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAt(int entry) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return ValueAt(isolate, entry);
+}
+
+template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAt(Isolate* isolate, int entry) {
+  return this->get(isolate, DerivedHashTable::EntryToIndex(entry) + 1);
+}
+
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::ValueAtPut(int entry, Object value) {
+  this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
+}
+
+template <typename Derived, typename Shape>
+PropertyDetails Dictionary<Derived, Shape>::DetailsAt(int entry) {
+  return Shape::DetailsAt(Derived::cast(*this), entry);
+}
+
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::DetailsAtPut(Isolate* isolate, int entry,
+                                              PropertyDetails value) {
+  Shape::DetailsAtPut(isolate, Derived::cast(*this), entry, value);
+}
+
+template <typename Derived, typename Shape>
 BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
     : Dictionary<Derived, Shape>(ptr) {}
+
+template <typename Derived, typename Shape>
+void BaseNameDictionary<Derived, Shape>::SetNextEnumerationIndex(int index) {
+  DCHECK_NE(0, index);
+  this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
+}
+
+template <typename Derived, typename Shape>
+int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex() {
+  return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
+}
+
+template <typename Derived, typename Shape>
+void BaseNameDictionary<Derived, Shape>::SetHash(int hash) {
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  this->set(kObjectHashIndex, Smi::FromInt(hash));
+}
+
+template <typename Derived, typename Shape>
+int BaseNameDictionary<Derived, Shape>::Hash() const {
+  Object hash_obj = this->get(kObjectHashIndex);
+  int hash = Smi::ToInt(hash_obj);
+  DCHECK(PropertyArray::HashField::is_valid(hash));
+  return hash;
+}
 
 GlobalDictionary::GlobalDictionary(Address ptr)
     : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
@@ -89,6 +143,25 @@ void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
   this->set(index + Derived::kEntryValueIndex, value, mode);
   if (Shape::kHasDetails) DetailsAtPut(isolate, entry, details);
 }
+
+template <typename Key>
+template <typename Dictionary>
+PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Dictionary dict,
+                                                    int entry) {
+  STATIC_ASSERT(Dictionary::kEntrySize == 3);
+  DCHECK_GE(entry, 0);  // Not found is -1, which is not caught by get().
+  return PropertyDetails(Smi::cast(dict.get(Dictionary::EntryToIndex(entry) +
+                                            Dictionary::kEntryDetailsIndex)));
+}
+
+template <typename Key>
+template <typename Dictionary>
+void BaseDictionaryShape<Key>::DetailsAtPut(Isolate* isolate, Dictionary dict,
+                                            int entry, PropertyDetails value) {
+    STATIC_ASSERT(Dictionary::kEntrySize == 3);
+    dict.set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
+             value.AsSmi());
+  }
 
 Object GlobalDictionaryShape::Unwrap(Object object) {
   return PropertyCell::cast(object).name();

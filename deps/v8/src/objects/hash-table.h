@@ -164,13 +164,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   inline bool ToKey(Isolate* isolate, int entry, Object* out_k);
 
   // Returns the key at entry.
-  Object KeyAt(int entry) {
-    Isolate* isolate = GetIsolateForPtrCompr(*this);
-    return KeyAt(isolate, entry);
-  }
-  Object KeyAt(Isolate* isolate, int entry) {
-    return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
-  }
+  inline Object KeyAt(int entry);
+  inline Object KeyAt(Isolate* isolate, int entry);
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
@@ -239,14 +234,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                 kMaxRegularHeapObjectSize);
 
   // Sets the capacity of the hash table.
-  void SetCapacity(int capacity) {
-    // To scale a computed hash code to fit within the hash table, we
-    // use bit-wise AND with a mask, so the capacity must be positive
-    // and non-zero.
-    DCHECK_GT(capacity, 0);
-    DCHECK_LE(capacity, kMaxCapacity);
-    set(kCapacityIndex, Smi::FromInt(capacity));
-  }
+  inline void SetCapacity(int capacity);
 
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
