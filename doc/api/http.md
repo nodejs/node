@@ -996,12 +996,16 @@ added: v0.7.0
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `socket` {net.Socket} Network socket between the server and client
+* `duplex` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the tunneling stream (may be empty)
 
 Emitted each time a client requests an HTTP `CONNECT` method. If this event is
 not listened for, then clients requesting a `CONNECT` method will have their
 connections closed.
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
@@ -1012,7 +1016,7 @@ sent to the server on that socket.
 added: v0.1.0
 -->
 
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 
 This event is emitted when a new TCP stream is established. `socket` is
 typically an object of type [`net.Socket`][]. Usually users will not want to
@@ -1026,6 +1030,10 @@ into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 If `socket.setTimeout()` is called here, the timeout will be replaced with
 `server.keepAliveTimeout` when the socket has served a request (if
 `server.keepAliveTimeout` is non-zero).
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 ### Event: 'request'
 <!-- YAML
@@ -1050,7 +1058,7 @@ changes:
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `socket` {net.Socket} Network socket between the server and client
+* `duplex` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client requests an HTTP upgrade. Listening to this event
@@ -1059,6 +1067,10 @@ is optional and clients cannot insist on a protocol change.
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 ### server.close(\[callback\])
 <!-- YAML
