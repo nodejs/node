@@ -29,7 +29,6 @@ using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
-using v8::FinalizationGroup;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -1050,21 +1049,6 @@ void Environment::AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
   }
 
   keep_alive_allocators_->insert(allocator);
-}
-
-bool Environment::RunWeakRefCleanup() {
-  isolate()->ClearKeptObjects();
-
-  while (!cleanup_finalization_groups_.empty()) {
-    Local<FinalizationGroup> fg =
-        cleanup_finalization_groups_.front().Get(isolate());
-    cleanup_finalization_groups_.pop_front();
-    if (!FinalizationGroup::Cleanup(fg).FromMaybe(false)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {

@@ -43,7 +43,7 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 
 // Should be in sync with runNextTicks in internal/process/task_queues.js
 bool RunNextTicksNative(Environment* env) {
-  OnScopeLeave weakref_cleanup([&]() { env->RunWeakRefCleanup(); });
+  OnScopeLeave weakref_cleanup([&]() { env->isolate()->ClearKeptObjects(); });
 
   TickInfo* tick_info = env->tick_info();
   if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())

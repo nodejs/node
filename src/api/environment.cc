@@ -14,6 +14,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FinalizationGroup;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -77,13 +78,39 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   return result;
 }
 
+class FinalizationGroupCleanupTask final {
+ public:
+  FinalizationGroupCleanupTask(Environment* env, Local<FinalizationGroup> group)
+      : env_(env), group_(env->isolate(), group) {}
+
+  inline Environment* env() { return env_; }
+  inline Local<FinalizationGroup> group() {
+    return group_.Get(env_->isolate());
+  }
+
+ private:
+  Environment* env_;
+  Global<FinalizationGroup> group_;
+};
+
+void HostCleanupFinalizationGroupMicrotask(void* data) {
+  FinalizationGroupCleanupTask* t =
+      reinterpret_cast<FinalizationGroupCleanupTask*>(data);
+  TryCatchScope try_catch(t->env());
+  if (!FinalizationGroup::Cleanup(t->group()).FromMaybe(false)) {
+    TriggerUncaughtException(t->env()->isolate(), try_catch);
+  }
+}
+
 static void HostCleanupFinalizationGroupCallback(
     Local<Context> context, Local<FinalizationGroup> group) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
     return;
   }
-  env->RegisterFinalizationGroupForCleanup(group);
+  env->isolate()->EnqueueMicrotask(
+      HostCleanupFinalizationGroupMicrotask,
+      new FinalizationGroupCleanupTask(env, group));
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
