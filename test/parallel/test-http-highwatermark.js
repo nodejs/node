@@ -14,7 +14,7 @@ let requestReceived = 0;
 const server = http.createServer(function(req, res) {
   const id = ++requestReceived;
   const enoughToDrain = req.connection.writableHighWaterMark;
-  const body = 'x'.repeat(enoughToDrain * 100);
+  const body = 'x'.repeat(enoughToDrain * 200);
 
   if (id === 1) {
     // Case of needParse = false
