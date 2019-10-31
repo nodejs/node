@@ -893,19 +893,19 @@ const parseTests = {
   },
 
   // Test for unix socket url parsing
-  'http://unix:/my.socket:/main': {
-    protocol: 'http:',
-    slashes: true,
+  'http+unix:/my.socket:/main?search=foo#bar': {
+    protocol: 'http+unix:',
+    slashes: null,
     auth: null,
-    host: '',
+    host: null,
     port: null,
-    hostname: '',
-    hash: null,
-    search: null,
-    query: null,
+    hostname: null,
+    hash: '#bar',
+    search: '?search=foo',
+    query: 'search=foo',
     pathname: '/main',
-    path: '/main',
-    href: 'http://unix:/my.socket:/main',
+    path: '/main?search=foo',
+    href: 'http+unix:/my.socket:/main?search=foo#bar',
     socketPath: '/my.socket'
   },
 
@@ -924,9 +924,8 @@ const parseTests = {
     href: 'http://unix/my.socket:/main'
   },
 
-  // The following two URLs are the same, but they differ for
-  // a capital A: it is important that we verify that the protocol
-  // is checked in a case-insensitive manner.
+  // The following two URLs are the same, but they differ for a capital A.
+  // Verify that the protocol is checked in a case-insensitive manner.
   'javascript:alert(1);a=\x27@white-listed.com\x27': {
     protocol: 'javascript:',
     slashes: null,
