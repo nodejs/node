@@ -189,7 +189,8 @@ This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
 it for use with the next request.
 
-`socket` can be an instance of {stream.Duplex} which is a superclass of Socket.
+`socket` argument can be an instance of {stream.Duplex}, a superclass of
+Socket.
 
 ### agent.reuseSocket(socket, request)
 <!-- YAML
@@ -207,6 +208,9 @@ socket.ref();
 ```
 
 This method can be overridden by a particular `Agent` subclass.
+
+`socket` argument can be an instance of {stream.Duplex}, a superclass of
+Socket.
 
 ### agent.destroy()
 <!-- YAML
@@ -833,6 +837,8 @@ req.once('response', (res) => {
   // Consume response object
 });
 ```
+
+Can be passed an instance of {stream.Duplex}, a superclass of Socket.
 
 ### request.writableEnded
 <!-- YAML
@@ -1507,6 +1513,8 @@ const server = http.createServer((req, res) => {
 }).listen(3000);
 ```
 
+Can be passsed an instance of {stream.Duplex}, a superclass of Socket.
+
 ### response.statusCode
 <!-- YAML
 added: v0.4.0
@@ -1884,6 +1892,8 @@ The [`net.Socket`][] object associated with the connection.
 
 With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
 client's authentication details.
+
+Can be passed an instance of {stream.Duplex}, a superclass of Socket.
 
 ### message.statusCode
 <!-- YAML
