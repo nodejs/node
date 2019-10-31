@@ -189,6 +189,8 @@ This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
 it for use with the next request.
 
+`socket` can be an instance of {stream.Duplex} which is a superclass of Socket.
+
 ### agent.reuseSocket(socket, request)
 <!-- YAML
 added: v8.1.0
