@@ -169,14 +169,14 @@ socket/stream from this function, or by passing the socket/stream to `callback`.
 
 `callback` has a signature of `(err, stream)`.
 
-### agent.keepSocketAlive(duplex)
+### agent.keepSocketAlive(socket)
 <!-- YAML
 added: v8.1.0
 -->
 
-* `duplex` {stream.Duplex}
+* `socket` {net.Socket}
 
-Called when socket is detached from a request and could be persisted by the
+Called when `socket` is detached from a request and could be persisted by the
 `Agent`. Default behavior is to:
 
 ```js
@@ -184,10 +184,6 @@ socket.setKeepAlive(true, this.keepAliveMsecs);
 socket.unref();
 return true;
 ```
-
-This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of Duplex, unless the user specifies a socket type other than
-{net.Socket}.
 
 This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
@@ -345,12 +341,16 @@ added: v0.7.0
 -->
 
 * `response` {http.IncomingMessage}
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with a `CONNECT` method. If
 this event is not being listened for, clients receiving a `CONNECT` method will
 have their connections closed.
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
@@ -477,9 +477,9 @@ added: v0.5.3
 
 * `duplex` {stream.Duplex}
 
-Emitted after a socket is assigned to this request. This event is guaranteed to
-be passed an instance of the {net.Socket} class, a subclass of Duplex, unless
-the user specifies a socket type other than {net.Socket}.
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 ### Event: 'timeout'
 <!-- YAML
@@ -497,7 +497,7 @@ added: v0.1.94
 -->
 
 * `response` {http.IncomingMessage}
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
@@ -941,12 +941,16 @@ changes:
 -->
 
 * `exception` {Error}
-* `socket` {net.Socket}
+* `duplex` {stream.Duplex}
 
 If a client connection emits an `'error'` event, it will be forwarded here.
 Listener of this event is responsible for closing/destroying the underlying
 socket. For example, one may wish to more gracefully close the socket with a
 custom HTTP response instead of abruptly severing the connection.
+
+This event is guaranteed to be passed an instance of the {net.Socket} class,
+a subclass of Duplex, instead of Duplex unless the user specifies a socket
+type other than {net.Socket}.
 
 Default behavior is to try close the socket with a HTTP '400 Bad Request',
 or a HTTP '431 Request Header Fields Too Large' in the case of a
