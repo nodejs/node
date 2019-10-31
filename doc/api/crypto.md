@@ -1311,10 +1311,10 @@ PKCS#1 and SEC1 encryption.
 
 ### keyObject.params
 <!-- YAML
-added: README
+added: REPLACEME
 -->
 
-* {object}
+* {Object}
 
 This property exists only on asymmetric keys. Depending on the type of the key,
 this object contains information about the key. None of the information obtained
