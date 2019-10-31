@@ -39,7 +39,9 @@ const {
   assert.strictEqual(num, TestWords(num));
 });
 
-assert.throws(CreateTooBigBigInt, {
+common.expectsError(CreateTooBigBigInt, {
+  code: 'ERR_INVALID_RANGE',
   name: 'RangeError',
   message: 'Maximum BigInt size exceeded',
+  type: RangeError
 });
