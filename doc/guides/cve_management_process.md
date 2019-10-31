@@ -82,7 +82,7 @@ after we get HackerOne up and running).
 * Review the request.
   * If a CVE is appropriate then assign the
     CVE as outline in the section titled
-    [CVE Management process for Node.js vulnerabilities](cve-management-process-for-nodejs-vulnerabilities)
+    [CVE Management process for Node.js vulnerabilities](#cve-management-process-for-nodejs-vulnerabilities)
     and return the CVE number to the requester (along with the request
     to keep it confidential until the vulnerability is announced)
   * If a CVE is not appropriate then respond to the requester
