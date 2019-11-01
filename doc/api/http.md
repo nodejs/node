@@ -1044,7 +1044,7 @@ If `socket.setTimeout()` is called here, the timeout will be replaced with
 `server.keepAliveTimeout` is non-zero).
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of Duplex, instead of Duplex unless the user specifies a socket
+a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
 ### Event: 'request'
