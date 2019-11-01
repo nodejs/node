@@ -355,7 +355,7 @@ this event is not being listened for, clients receiving a `CONNECT` method will
 have their connections closed.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of Duplex, instead of Duplex unless the user specifies a socket
+a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
 A client and server pair demonstrating how to listen for the `'connect'` event:
