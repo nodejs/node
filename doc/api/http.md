@@ -1513,7 +1513,7 @@ const server = http.createServer((req, res) => {
 }).listen(3000);
 ```
 
-Can be passsed an instance of {stream.Duplex}, a superclass of Socket.
+Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
 
 ### response.statusCode
 <!-- YAML
