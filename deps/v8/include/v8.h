@@ -1427,7 +1427,9 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
+#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
+#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -1438,7 +1440,9 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
+#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor that takes an isolate")
+#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
@@ -1940,9 +1944,11 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
+#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
     V8_DEPRECATED(
         "This class takes ownership of source_stream, so use the constructor "
         "taking a unique_ptr to make these semantics clearer")
+#endif
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
