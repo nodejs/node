@@ -1016,7 +1016,7 @@ not listened for, then clients requesting a `CONNECT` method will have their
 connections closed.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of Duplex, instead of Duplex unless the user specifies a socket
+a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
 After this event is emitted, the request's socket will not have a `'data'`
