@@ -189,8 +189,16 @@ This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
 it for use with the next request.
 
+<<<<<<< HEAD
 `socket` argument can be an instance of {stream.Duplex}, a superclass of
 {net.Socket}.
+=======
+The `socket` argument can be an instance of {stream.Duplex}, a superclass of
+Socket.
+
+
+Socket.
+>>>>>>> doc: wording suggestion from tniessen
 
 ### agent.reuseSocket(socket, request)
 <!-- YAML
@@ -209,8 +217,13 @@ socket.ref();
 
 This method can be overridden by a particular `Agent` subclass.
 
+<<<<<<< HEAD
 `socket` argument can be an instance of {stream.Duplex}, a superclass of
 {net.Socket}.
+=======
+The `socket` argument can be an instance of {stream.Duplex}, a superclass of
+Socket.
+>>>>>>> doc: wording suggestion from tniessen
 
 ### agent.destroy()
 <!-- YAML
