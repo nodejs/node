@@ -190,7 +190,7 @@ method returns a falsy value, the socket will be destroyed instead of persisting
 it for use with the next request.
 
 `socket` argument can be an instance of {stream.Duplex}, a superclass of
-Socket.
+{net.Socket}.
 
 ### agent.reuseSocket(socket, request)
 <!-- YAML
