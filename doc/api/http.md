@@ -210,7 +210,7 @@ socket.ref();
 This method can be overridden by a particular `Agent` subclass.
 
 `socket` argument can be an instance of {stream.Duplex}, a superclass of
-Socket.
+{net.Socket}.
 
 ### agent.destroy()
 <!-- YAML
