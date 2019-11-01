@@ -838,7 +838,7 @@ req.once('response', (res) => {
 });
 ```
 
-Can be passed an instance of {stream.Duplex}, a superclass of Socket.
+Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
 
 ### request.writableEnded
 <!-- YAML
@@ -1893,7 +1893,7 @@ The [`net.Socket`][] object associated with the connection.
 With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
 client's authentication details.
 
-Can be passed an instance of {stream.Duplex}, a superclass of Socket.
+Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
 
 ### message.statusCode
 <!-- YAML
