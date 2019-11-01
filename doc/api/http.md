@@ -512,7 +512,7 @@ Protocols, clients receiving an upgrade header will have their connections
 closed.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of Duplex, instead of Duplex unless the user specifies a socket
+a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
 A client server pair demonstrating how to listen for the `'upgrade'` event.
