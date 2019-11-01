@@ -46,26 +46,23 @@ import copy
 
 
 if sys.version_info >= (3, 5):
-    from importlib import machinery, util
-    def get_module(name, path):
-        loader_details = (
-            machinery.SourceFileLoader,
-            machinery.SOURCE_SUFFIXES
-        )
-        spec = machinery.FileFinder(path, loader_details).find_spec(name)
-        module = util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+  from importlib import machinery, util
+  def get_module(name, path):
+    loader_details = (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES)
+    spec = machinery.FileFinder(path, loader_details).find_spec(name)
+    module = util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 else:
-    import imp
-    def get_module(name, path):
-        file = None
-        try:
-            (file, pathname, description) = imp.find_module(name, [path])
-            return imp.load_module(name, file, pathname, description)
-        finally:
-          if file:
-            file.close()
+  import imp
+  def get_module(name, path):
+    file = None
+    try:
+      (file, pathname, description) = imp.find_module(name, [path])
+      return imp.load_module(name, file, pathname, description)
+    finally:
+      if file:
+        file.close()
 
 
 from io import open
