@@ -393,7 +393,7 @@ have a different exported value for CommonJS and ES modules, which can be a
 hazard in that it can result in having two separate instances of the same
 package in use in an application, which can cause a number of bugs.
 
-Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
 etc. could be defined in other runtimes or tools.
 
 ## <code>import</code> Specifiers
