@@ -260,6 +260,9 @@ that would only be supported in ES module-supporting versions of Node.js (and
 other runtimes). New packages could be published containing only ES module
 sources, and would be compatible only with ES module-supporting runtimes.
 
+To define separate package entry points for use by `require` and by `import`,
+see [Conditional Exports][].
+
 ### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
@@ -1082,6 +1085,7 @@ success!
 ```
 
 [CommonJS]: modules.html
+[Conditional Exports]: #esm_conditional_exports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
