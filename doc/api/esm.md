@@ -385,9 +385,7 @@ The conditions supported in Node.js are matched in the following order:
 1. `"require"` - matched when the package is loaded via `require()`.
   This is currently only supported behind the `--experimental-require-target`
   flag.
-2. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file.
-3. `"default"` - the generic fallback that will always match if no other
+2. `"default"` - the generic fallback that will always match if no other
    more specific condition is matched first. Can be a CommonJS or ES module
    file.
 
@@ -848,7 +846,7 @@ of these top-level routines unless stated otherwise.
 _isMain_ is **true** when resolving the Node.js application entry point.
 
 _defaultEnv_ is the conditional environment name priority array,
-`["node", "default"]`.
+`["default"]`.
 
 <details>
 <summary>Resolver algorithm specification</summary>
