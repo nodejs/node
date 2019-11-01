@@ -1441,7 +1441,9 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
+#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATED("Use constructor with primitive C++ types")
+#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -1452,7 +1454,9 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
+#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATED("Use constructor that takes an isolate")
+#endif
   V8_INLINE explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
