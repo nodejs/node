@@ -157,9 +157,9 @@ const deserializerTypeError =
 
 {
   assert.throws(() => v8.serialize(hostObject), {
-                  constructor: Error,
-                  message: 'Unserializable host object: JSStream {}'
-                });
+    constructor: Error,
+    message: 'Unserializable host object: JSStream {}'
+  });
 }
 
 {
