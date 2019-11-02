@@ -38,7 +38,12 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+void DecreaseSignalHandlerCount(int signum);
+
 namespace {
+
+static Mutex handled_signals_mutex;
+static std::map<int, int64_t> handled_signals;  // Signal -> number of handlers
 
 class SignalWrap : public HandleWrap {
  public:
@@ -85,6 +90,11 @@ class SignalWrap : public HandleWrap {
     CHECK_EQ(r, 0);
   }
 
+  void Close(v8::Local<v8::Value> close_callback) override {
+    if (active_) DecreaseSignalHandlerCount(handle_.signum);
+    HandleWrap::Close(close_callback);
+  }
+
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -112,21 +122,50 @@ class SignalWrap : public HandleWrap {
           wrap->MakeCallback(env->onsignal_string(), 1, &arg);
         },
         signum);
+
+    if (err == 0) {
+      CHECK(!wrap->active_);
+      wrap->active_ = true;
+      Mutex::ScopedLock lock(handled_signals_mutex);
+      handled_signals[signum]++;
+    }
+
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+    if (wrap->active_)  {
+      wrap->active_ = false;
+      fprintf(stderr, "Stop %d\n", wrap->handle_.signum);
+      DecreaseSignalHandlerCount(wrap->handle_.signum);
+    }
+
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }
 
   uv_signal_t handle_;
+  bool active_ = false;
 };
 
 
 }  // anonymous namespace
+
+void DecreaseSignalHandlerCount(int signum) {
+  Mutex::ScopedLock lock(handled_signals_mutex);
+  int new_handler_count = --handled_signals[signum];
+  CHECK_GE(new_handler_count, 0);
+  if (new_handler_count == 0)
+    handled_signals.erase(signum);
+}
+
+bool HasSignalJSHandler(int signum) {
+  Mutex::ScopedLock lock(handled_signals_mutex);
+  return handled_signals.find(signum) != handled_signals.end();
+}
 }  // namespace node
 
 

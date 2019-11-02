@@ -311,6 +311,8 @@ void EndStartedProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR
 
+bool HasSignalJSHandler(int signum);
+
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
 #else  // UNIX, OSX
