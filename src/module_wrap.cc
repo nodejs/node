@@ -977,21 +977,6 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
   return Nothing<URL>();
 }
 
-bool FirstKeyStartsWithDot(Environment* env, Local<Value> exports) {
-  CHECK(exports->IsObject());
-  Local<Context> context = env->context();
-  Local<Object> exports_obj = exports.As<Object>();
-  Local<Array> keys =
-      exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
-  if (keys->Length() > 0) {
-    Local<String> key = keys->Get(context, 0).ToLocalChecked().As<String>();
-    Utf8Value key_utf8(env->isolate(), key);
-    std::string key_str(*key_utf8, key_utf8.length());
-    return key_str.front() == '.';
-  }
-  return false;
-}
-
 Maybe<URL> PackageMainResolve(Environment* env,
                               const URL& pjson_url,
                               const PackageConfig& pcfg,
@@ -1001,20 +986,18 @@ Maybe<URL> PackageMainResolve(Environment* env,
 
     if (!pcfg.exports.IsEmpty()) {
       Local<Value> exports = pcfg.exports.Get(isolate);
-      if (exports->IsString() || exports->IsObject()) {
-        if (!exports->IsObject() || !FirstKeyStartsWithDot(env, exports)) {
-          return ResolveExportsTarget(env, pjson_url, exports, "", "", base,
+      if (exports->IsString()) {
+        return ResolveExportsTarget(env, pjson_url, exports, "", "", base,
+                                    true);
+      } else if (exports->IsObject()) {
+        Local<Object> exports_obj = exports.As<Object>();
+        if (exports_obj->HasOwnProperty(env->context(), env->dot_string())
+            .FromJust()) {
+          Local<Value> target =
+              exports_obj->Get(env->context(), env->dot_string())
+              .ToLocalChecked();
+          return ResolveExportsTarget(env, pjson_url, target, "", "", base,
                                       true);
-        } else {
-          Local<Object> exports_obj = exports.As<Object>();
-          if (exports_obj->HasOwnProperty(env->context(), env->dot_string())
-              .FromJust()) {
-            Local<Value> target =
-                exports_obj->Get(env->context(), env->dot_string())
-                .ToLocalChecked();
-            return ResolveExportsTarget(env, pjson_url, target, "", "", base,
-                                        true);
-          }
         }
       }
     }
@@ -1054,7 +1037,7 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Value> exports = pcfg.exports.Get(isolate);
-  if (!exports->IsObject() || !FirstKeyStartsWithDot(env, exports)) {
+  if (!exports->IsObject()) {
     ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
     return Nothing<URL>();
   }
