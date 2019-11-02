@@ -400,9 +400,6 @@ void Worker::Run() {
       if (exit_code_ == 0 && !stopped)
         exit_code_ = exit_code;
 
-#if HAVE_INSPECTOR
-      profiler::EndStartedProfilers(env_.get());
-#endif
       Debug(this, "Exiting thread for worker %llu with exit code %d",
             thread_id_, exit_code_);
     }
