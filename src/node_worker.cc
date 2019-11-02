@@ -42,17 +42,6 @@ using v8::Value;
 namespace node {
 namespace worker {
 
-namespace {
-
-#if HAVE_INSPECTOR
-void WaitForWorkerInspectorToStop(Environment* child) {
-  child->inspector_agent()->WaitForDisconnect();
-  child->inspector_agent()->Stop();
-}
-#endif
-
-}  // anonymous namespace
-
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
@@ -251,9 +240,6 @@ void Worker::Run() {
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
     SealHandleScope outer_seal(isolate_);
-#if HAVE_INSPECTOR
-    bool inspector_started = false;
-#endif
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
     OnScopeLeave cleanup_env([&]() {
@@ -283,10 +269,6 @@ void Worker::Run() {
         env_->stop_sub_worker_contexts();
         env_->RunCleanup();
         RunAtExit(env_.get());
-#if HAVE_INSPECTOR
-        if (inspector_started)
-          WaitForWorkerInspectorToStop(env_.get());
-#endif
 
         // This call needs to be made while the `Environment` is still alive
         // because we assume that it is available for async tracking in the
@@ -344,7 +326,6 @@ void Worker::Run() {
         env_->InitializeDiagnostics();
 #if HAVE_INSPECTOR
         env_->InitializeInspector(inspector_parent_handle_.release());
-        inspector_started = true;
 #endif
         HandleScope handle_scope(isolate_);
         InternalCallbackScope callback_scope(
