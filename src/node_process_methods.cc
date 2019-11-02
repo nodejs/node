@@ -172,11 +172,15 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(context).To(&pid)) return;
   int sig;
   if (!args[1]->Int32Value(context).To(&sig)) return;
-    // TODO(joyeecheung): white list the signals?
 
-#if HAVE_INSPECTOR
-  profiler::EndStartedProfilers(env);
-#endif
+  uv_pid_t own_pid = uv_os_getpid();
+  if (sig > 0 &&
+      (pid == 0 || pid == -1 || pid == own_pid || pid == -own_pid) &&
+      !HasSignalJSHandler(sig)) {
+    // This is most likely going to terminate this process.
+    // It's not an exact method but it might be close enough.
+    RunAtExit(env);
+  }
 
   int err = uv_kill(pid, sig);
   args.GetReturnValue().Set(err);
@@ -428,6 +432,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 
 static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  RunAtExit(env);
   WaitForInspectorDisconnect(env);
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);

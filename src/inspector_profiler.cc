@@ -4,6 +4,7 @@
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_file.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
@@ -13,6 +14,7 @@
 namespace node {
 namespace profiler {
 
+using errors::TryCatchScope;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -219,12 +221,21 @@ void V8CoverageConnection::WriteProfile(Local<String> message) {
   }
 
   // append source-map cache information to coverage object:
-  Local<Function> source_map_cache_getter = env_->source_map_cache_getter();
   Local<Value> source_map_cache_v;
-  if (!source_map_cache_getter->Call(env()->context(),
-      Undefined(isolate), 0, nullptr)
-      .ToLocal(&source_map_cache_v)) {
-    return;
+  {
+    TryCatchScope try_catch(env());
+    {
+      Isolate::AllowJavascriptExecutionScope allow_js_here(isolate);
+      Local<Function> source_map_cache_getter = env_->source_map_cache_getter();
+      if (!source_map_cache_getter->Call(
+              context, Undefined(isolate), 0, nullptr)
+              .ToLocal(&source_map_cache_v)) {
+        return;
+      }
+    }
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      PrintCaughtException(isolate, context, try_catch);
+    }
   }
   // Avoid writing to disk if no source-map data:
   if (!source_map_cache_v->IsUndefined()) {
@@ -351,7 +362,7 @@ void V8HeapProfilerConnection::End() {
 
 // For now, we only support coverage profiling, but we may add more
 // in the future.
-void EndStartedProfilers(Environment* env) {
+static void EndStartedProfilers(Environment* env) {
   Debug(env, DebugCategory::INSPECTOR_PROFILER, "EndStartedProfilers\n");
   V8ProfilerConnection* connection = env->cpu_profiler_connection();
   if (connection != nullptr && !connection->ending()) {
@@ -390,6 +401,10 @@ std::string GetCwd(Environment* env) {
 }
 
 void StartProfilers(Environment* env) {
+  AtExit(env, [](void* env) {
+    EndStartedProfilers(static_cast<Environment*>(env));
+  }, env);
+
   Isolate* isolate = env->isolate();
   Local<String> coverage_str = env->env_vars()->Get(
       isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"))
