@@ -664,8 +664,13 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
+ *
+ * You should always use the three-argument variant (or, for addons,
+ * AddEnvironmentCleanupHook) in order to avoid relying on global state.
  */
-NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr);
+NODE_DEPRECATED(
+    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
+    NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr));
 
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.
@@ -673,7 +678,13 @@ NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr);
  */
 NODE_EXTERN void AtExit(Environment* env,
                         void (*cb)(void* arg),
-                        void* arg = nullptr);
+                        void* arg);
+NODE_DEPRECATED(
+    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
+    inline void AtExit(Environment* env,
+                       void (*cb)(void* arg)) {
+      AtExit(env, cb, nullptr);
+    })
 
 typedef double async_id;
 struct async_context {
