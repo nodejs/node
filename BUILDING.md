@@ -146,7 +146,10 @@ platforms. This is true regardless of entries in the table below.
   systems. Issues that only reproduce on WSL should be reported in the
   [WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
   Windows binary (`node.exe`) in WSL is not recommended. It will not work
-  without workarounds such as stdio redirection.
+  without workarounds such as stdio redirection. 
+  If you running into `No module named 'distutils.spawn'` 
+  Error when executing `./configure`, please try `python3 -m pip install setuptools` or `sudo apt install python3-distutils -y`.
+  For more information, see https://github.com/nodejs/node/issues/30189.
 
 <em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
 are provided. However, tests in our infrastructure only run on WoW64.
