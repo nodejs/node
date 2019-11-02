@@ -2457,7 +2457,7 @@ cases:
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
-[Advanced Serialization for child_process]: child_process.html#child_process_advanced_serialization
+[Advanced Serialization for `child_process`]: child_process.html#child_process_advanced_serialization
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html
 [Cluster]: cluster.html
