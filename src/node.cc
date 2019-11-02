@@ -168,7 +168,6 @@ static const unsigned kMaxSignal = 32;
 
 void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
-  profiler::EndStartedProfilers(env);
 
   if (env->inspector_agent()->IsActive()) {
     // Restore signal dispositions, the app is done and is no longer

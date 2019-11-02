@@ -318,7 +318,6 @@ void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 #if HAVE_INSPECTOR
 namespace profiler {
 void StartProfilers(Environment* env);
-void EndStartedProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR
 
