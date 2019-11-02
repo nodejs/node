@@ -180,8 +180,6 @@ written.
 
 Examples of [`Writable`][] streams include:
 
-* [HTTP requests, on the client][]
-* [HTTP responses, on the server][]
 * [fs write streams][]
 * [zlib streams][zlib]
 * [crypto streams][crypto]
@@ -2814,8 +2812,6 @@ contain multi-byte characters.
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
-[HTTP requests, on the client]: http.html#http_class_http_clientrequest
-[HTTP responses, on the server]: http.html#http_class_http_serverresponse
 [TCP sockets]: net.html#net_class_net_socket
 [child process stdin]: child_process.html#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
