@@ -873,5 +873,5 @@ socket.on('data', (id) => {
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
-[Advanced Serialization for child_process]: child_process.html#child_process_advanced_serialization
+[Advanced Serialization for `child_process`]: child_process.html#child_process_advanced_serialization
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
