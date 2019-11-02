@@ -90,7 +90,6 @@ void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
 
-void WaitForInspectorDisconnect(Environment* env);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 void SignalExit(int signo);
 #ifdef __POSIX__
@@ -312,6 +311,10 @@ namespace profiler {
 void StartProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR
+
+#ifdef __POSIX__
+static constexpr unsigned kMaxSignal = 32;
+#endif
 
 bool HasSignalJSHandler(int signum);
 

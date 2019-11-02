@@ -151,31 +151,6 @@ bool v8_is_profiling = false;
 struct V8Platform v8_platform;
 }  // namespace per_process
 
-#ifdef __POSIX__
-static const unsigned kMaxSignal = 32;
-#endif
-
-void WaitForInspectorDisconnect(Environment* env) {
-#if HAVE_INSPECTOR
-
-  if (env->inspector_agent()->IsActive()) {
-    // Restore signal dispositions, the app is done and is no longer
-    // capable of handling signals.
-#if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-      if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
-        continue;
-      act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
-      CHECK_EQ(0, sigaction(nr, &act, nullptr));
-    }
-#endif
-    env->inspector_agent()->WaitForDisconnect();
-  }
-#endif
-}
-
 void SignalExit(int signo) {
   ResetStdio();
 #ifdef __FreeBSD__
@@ -522,6 +497,7 @@ inline void PlatformInit() {
   CHECK_EQ(err, 0);
 #endif  // HAVE_INSPECTOR
 
+  // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
 #ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
