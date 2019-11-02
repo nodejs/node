@@ -122,7 +122,7 @@ not be the same as what is originally sent.
 If the `serialization` option was set to `advanced` used when spawning the
 process, the `message` argument can contain data that JSON is not able
 to represent.
-See [Advanced Serialization for child_process][] for more details.
+See [Advanced Serialization for `child_process`][] for more details.
 
 ### Event: 'multipleResolves'
 <!-- YAML
