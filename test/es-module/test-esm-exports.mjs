@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-resolve-self --experimental-require-target
+// Flags: --experimental-modules --experimental-resolve-self --experimental-dual-resolution
 
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';

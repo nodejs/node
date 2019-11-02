@@ -383,7 +383,7 @@ will be used as the final fallback.
 The conditions supported in Node.js are matched in the following order:
 
 1. `"require"` - matched when the package is loaded via `require()`.
-  This is currently only supported behind the `--experimental-require-target`
+  This is currently only supported behind the `--experimental-dual-resolution`
   flag.
 2. `"default"` - the generic fallback that will always match if no other
    more specific condition is matched first. Can be a CommonJS or ES module

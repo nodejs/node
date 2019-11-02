@@ -331,9 +331,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
-  AddOption("--experimental-require-target",
-            "experimental support for conditional require mapping",
-            &EnvironmentOptions::experimental_require_target,
+  AddOption("--experimental-dual-resolution",
+            "experimental support for separate require / import resolution",
+            &EnvironmentOptions::experimental_dual_resolution,
             kAllowedInEnvironment);
   AddOption("--experimental-resolve-self",
             "experimental support for require/import of the current package",
