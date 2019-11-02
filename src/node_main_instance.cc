@@ -140,8 +140,6 @@ int NodeMainInstance::Run() {
         more = uv_loop_alive(env->event_loop());
         if (more && !env->is_stopping()) continue;
 
-        env->RunBeforeExitCallbacks();
-
         if (!uv_loop_alive(env->event_loop())) {
           EmitBeforeExit(env.get());
         }
