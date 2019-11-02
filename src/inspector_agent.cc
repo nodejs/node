@@ -778,6 +778,13 @@ bool Agent::Start(const std::string& path,
     StartDebugSignalHandler();
   }
 
+  AtExit(parent_env_, [](void* env) {
+    Agent* agent = static_cast<Environment*>(env)->inspector_agent();
+    if (agent->IsActive()) {
+      agent->WaitForDisconnect();
+    }
+  }, parent_env_);
+
   bool wait_for_connect = options.wait_for_connect();
   if (parent_handle_) {
     wait_for_connect = parent_handle_->WaitForConnect();
