@@ -576,7 +576,7 @@ console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
 //           'test',
 //           'foo' ] ],
 //     4 ],
-//   b: Map { 'za' => 1, 'zb' => 'test' } }
+//   b: Map(2) { 'za' => 1, 'zb' => 'test' } }
 
 // Setting `compact` to false changes the output to be more reader friendly.
 console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
@@ -597,7 +597,7 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 //     ],
 //     4
 //   ],
-//   b: Map {
+//   b: Map(2) {
 //     'za' => 1,
 //     'zb' => 'test'
 //   }
@@ -639,9 +639,9 @@ const o1 = {
   c: new Set([2, 3, 1])
 };
 console.log(inspect(o1, { sorted: true }));
-// { a: '`a` comes before `b`', b: [ 2, 3, 1 ], c: Set { 1, 2, 3 } }
+// { a: '`a` comes before `b`', b: [ 2, 3, 1 ], c: Set(3) { 1, 2, 3 } }
 console.log(inspect(o1, { sorted: (a, b) => b.localeCompare(a) }));
-// { c: Set { 3, 2, 1 }, b: [ 2, 3, 1 ], a: '`a` comes before `b`' }
+// { c: Set(3) { 3, 2, 1 }, b: [ 2, 3, 1 ], a: '`a` comes before `b`' }
 
 const o2 = {
   c: new Set([2, 1, 3]),
