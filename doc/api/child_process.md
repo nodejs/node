@@ -1010,8 +1010,9 @@ The `'message'` event is triggered when a child process uses
 The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
 
-If the `advancedSerialization` option was used when spawning the child process,
-the `message` argument can contain data that JSON is not able to represent.
+If the `serialization` option was set to `advanced` used when spawning the
+child process, the `message` argument can contain data that JSON is not able
+to represent.
 See [Advanced Serialization][] for more details.
 
 ### subprocess.channel
@@ -1495,8 +1496,9 @@ added: REPLACEME
 
 Child processes support a serialization mechanism for IPC that is based on the
 [serialization API of the `v8` module][v8.serdes]. This is generally more
-powerful and supports more built-in JS object types, such as `BigInt`, `Map`
-and `Set`, `ArrayBuffer` and `TypedArray`, `Buffer`, `Error`, `RegExp` etc.
+powerful and supports more built-in JavaScript object types, such as `BigInt`,
+`Map` and `Set`, `ArrayBuffer` and `TypedArray`, `Buffer`, `Error`,
+`RegExp` etc.
 
 However, this format is not a full superset of JSON, and e.g. properties set on
 objects of such built-in types will not be passed on through the serialization
