@@ -241,6 +241,12 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 
 #### Worker support
 
+In order to be loaded from multiple Node.js environments,
+such as a main thread and a Worker thread, an add-on needs to either:
+
+* Be an N-API addon, or
+* Be declared as context-aware using `NODE_MODULE_INIT()` as described above
+
 In order to support [`Worker`][] threads, addons need to clean up any resources
 they may have allocated when such a thread exists. This can be achieved through
 the usage of the `AddEnvironmentCleanupHook()` function:
@@ -254,13 +260,62 @@ void AddEnvironmentCleanupHook(v8::Isolate* isolate,
 This function adds a hook that will run before a given Node.js instance shuts
 down. If necessary, such hooks can be removed using
 `RemoveEnvironmentCleanupHook()` before they are run, which has the same
-signature.
+signature. Callbacks are run in last-in first-out order.
 
-In order to be loaded from multiple Node.js environments,
-such as a main thread and a Worker thread, an add-on needs to either:
+The following `addon.cc` uses `AddEnvironmentCleanupHook`:
 
-* Be an N-API addon, or
-* Be declared as context-aware using `NODE_MODULE_INIT()` as described above
+```cpp
+// addon.cc
+#include <assert.h>
+#include <stdlib.h>
+#include <node.h>
+
+using node::AddEnvironmentCleanupHook;
+using v8::HandleScope;
+using v8::Isolate;
+using v8::Local;
+using v8::Object;
+
+// Note: In a real-world application, do not rely on static/global data.
+static char cookie[] = "yum yum";
+static int cleanup_cb1_called = 0;
+static int cleanup_cb2_called = 0;
+
+static void cleanup_cb1(void* arg) {
+  Isolate* isolate = static_cast<Isolate*>(arg);
+  HandleScope scope(isolate);
+  Local<Object> obj = Object::New(isolate);
+  assert(!obj.IsEmpty());  // assert VM is still alive
+  assert(obj->IsObject());
+  cleanup_cb1_called++;
+}
+
+static void cleanup_cb2(void* arg) {
+  assert(arg == static_cast<void*>(cookie));
+  cleanup_cb2_called++;
+}
+
+static void sanity_check(void*) {
+  assert(cleanup_cb1_called == 1);
+  assert(cleanup_cb2_called == 1);
+}
+
+// Initialize this addon to be context-aware.
+NODE_MODULE_INIT(/* exports, module, context */) {
+  Isolate* isolate = context->GetIsolate();
+
+  AddEnvironmentCleanupHook(isolate, sanity_check, nullptr);
+  AddEnvironmentCleanupHook(isolate, cleanup_cb2, cookie);
+  AddEnvironmentCleanupHook(isolate, cleanup_cb1, isolate);
+}
+```
+
+Test in JavaScript by running:
+
+```js
+// test.js
+require('./build/Release/addon');
+```
 
 ### Building
 
@@ -1291,85 +1346,6 @@ const result = addon.add(obj1, obj2);
 
 console.log(result);
 // Prints: 30
-```
-
-### AtExit hooks
-
-An `AtExit` hook is a function that is invoked after the Node.js event loop
-has ended but before the JavaScript VM is terminated and Node.js shuts down.
-`AtExit` hooks are registered using the `node::AtExit` API.
-
-#### void AtExit(callback, args)
-
-* `callback` <span class="type">&lt;void (\*)(void\*)&gt;</span>
-  A pointer to the function to call at exit.
-* `args` <span class="type">&lt;void\*&gt;</span>
-  A pointer to pass to the callback at exit.
-
-Registers exit hooks that run after the event loop has ended but before the VM
-is killed.
-
-`AtExit` takes two parameters: a pointer to a callback function to run at exit,
-and a pointer to untyped context data to be passed to that callback.
-
-Callbacks are run in last-in first-out order.
-
-The following `addon.cc` implements `AtExit`:
-
-```cpp
-// addon.cc
-#include <assert.h>
-#include <stdlib.h>
-#include <node.h>
-
-namespace demo {
-
-using node::AtExit;
-using v8::HandleScope;
-using v8::Isolate;
-using v8::Local;
-using v8::Object;
-
-static char cookie[] = "yum yum";
-static int at_exit_cb1_called = 0;
-static int at_exit_cb2_called = 0;
-
-static void at_exit_cb1(void* arg) {
-  Isolate* isolate = static_cast<Isolate*>(arg);
-  HandleScope scope(isolate);
-  Local<Object> obj = Object::New(isolate);
-  assert(!obj.IsEmpty());  // assert VM is still alive
-  assert(obj->IsObject());
-  at_exit_cb1_called++;
-}
-
-static void at_exit_cb2(void* arg) {
-  assert(arg == static_cast<void*>(cookie));
-  at_exit_cb2_called++;
-}
-
-static void sanity_check(void*) {
-  assert(at_exit_cb1_called == 1);
-  assert(at_exit_cb2_called == 2);
-}
-
-void init(Local<Object> exports) {
-  AtExit(sanity_check);
-  AtExit(at_exit_cb2, cookie);
-  AtExit(at_exit_cb2, cookie);
-  AtExit(at_exit_cb1, exports->GetIsolate());
-}
-
-NODE_MODULE(NODE_GYP_MODULE_NAME, init)
-
-}  // namespace demo
-```
-
-Test in JavaScript by running:
-
-```js
-// test.js
-require('./build/Release/addon');
 ```
 
 [`Worker`]: worker_threads.html#worker_threads_class_worker

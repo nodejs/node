@@ -3,7 +3,11 @@
 #include <node.h>
 #include <v8.h>
 
+// TODO(addaleax): Maybe merge this file with the cctest for AtExit()?
+
 using node::AtExit;
+using node::Environment;
+using node::GetCurrentEnvironment;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -46,9 +50,10 @@ NODE_C_DTOR(sanity_check) {
 }
 
 void init(Local<Object> exports) {
-  AtExit(at_exit_cb1, exports->GetIsolate());
-  AtExit(at_exit_cb2, cookie);
-  AtExit(at_exit_cb2, cookie);
+  Environment* env = GetCurrentEnvironment(exports->CreationContext());
+  AtExit(env, at_exit_cb1, exports->GetIsolate());
+  AtExit(env, at_exit_cb2, cookie);
+  AtExit(env, at_exit_cb2, cookie);
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, init)
