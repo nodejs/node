@@ -7,6 +7,10 @@
 #include <sanitizer/lsan_interface.h>
 #endif
 
+#if HAVE_INSPECTOR
+#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+#endif
+
 namespace node {
 
 using v8::Context;
@@ -217,7 +221,7 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   // TODO(joyeecheung): when we snapshot the bootstrapped context,
   // the inspector and diagnostics setup should after after deserialization.
 #if HAVE_INSPECTOR
-  *exit_code = env->InitializeInspector(nullptr);
+  *exit_code = env->InitializeInspector({});
 #endif
   if (*exit_code != 0) {
     return env;
