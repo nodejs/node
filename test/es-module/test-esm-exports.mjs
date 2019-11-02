@@ -25,9 +25,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports', { default: 'asdf' }],
     // Conditional split for require
     ['pkgexports/condition', isRequire ? { default: 'encoded path' } :
-      { default: 'asdf' }],
-    // Conditional sugar for exports
-    ['pkgexports-direct', isRequire ? { default: 'encoded path' } :
       { default: 'asdf' }]
   ]);
 
