@@ -202,13 +202,12 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
 
 #if HAVE_INSPECTOR
 int Environment::InitializeInspector(
-    inspector::ParentInspectorHandle* parent_handle) {
+    std::unique_ptr<inspector::ParentInspectorHandle> parent_handle) {
   std::string inspector_path;
-  if (parent_handle != nullptr) {
+  if (parent_handle) {
     DCHECK(!is_main_thread());
     inspector_path = parent_handle->url();
-    inspector_agent_->SetParentHandle(
-        std::unique_ptr<inspector::ParentInspectorHandle>(parent_handle));
+    inspector_agent_->SetParentHandle(std::move(parent_handle));
   } else {
     inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
   }
