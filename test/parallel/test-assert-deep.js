@@ -524,7 +524,7 @@ assertNotDeepOrStrict(
     {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
-               "  Map {\n+   1 => 1\n-   1 => '1'\n  }"
+               "  Map(1) {\n+   1 => 1\n-   1 => '1'\n  }"
     }
   );
 }
