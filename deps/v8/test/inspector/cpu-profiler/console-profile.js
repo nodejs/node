@@ -34,7 +34,7 @@ Protocol.Profiler.onConsoleProfileFinished(function(messageObject)
 function didCollectProfiles(messageObject)
 {
   if (headers.length !== 2)
-    return InspectorTest.fail("Cannot retrive headers: " + JSON.stringify(messageObject, null, 4));
+    return InspectorTest.fail("Cannot retrieve headers: " + JSON.stringify(messageObject, null, 4));
   for (var i = 0; i < headers.length; i++) {
     if (headers[i].title === "42") {
       checkInnerProfile(headers[i].profile);
