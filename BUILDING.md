@@ -282,6 +282,11 @@ $ ./configure
 $ make -j4
 ```
 
+If you run into a `No module named 'distutils.spawn'` error when executing
+`./configure`, please try `python3 -m pip install --upgrade setuptools` or
+`sudo apt install python3-distutils -y`.
+For more information, see https://github.com/nodejs/node/issues/30189.
+
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
