@@ -433,7 +433,6 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   RunAtExit(env);
-  WaitForInspectorDisconnect(env);
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);
 }
