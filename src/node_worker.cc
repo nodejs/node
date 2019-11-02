@@ -325,7 +325,7 @@ void Worker::Run() {
       {
         env_->InitializeDiagnostics();
 #if HAVE_INSPECTOR
-        env_->InitializeInspector(inspector_parent_handle_.release());
+        env_->InitializeInspector(std::move(inspector_parent_handle_));
 #endif
         HandleScope handle_scope(isolate_);
         InternalCallbackScope callback_scope(
