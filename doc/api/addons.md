@@ -1354,10 +1354,10 @@ static void sanity_check(void*) {
 }
 
 void init(Local<Object> exports) {
+  AtExit(sanity_check);
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb1, exports->GetIsolate());
-  AtExit(sanity_check);
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, init)
