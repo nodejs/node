@@ -1495,10 +1495,10 @@ added: REPLACEME
 -->
 
 Child processes support a serialization mechanism for IPC that is based on the
-[serialization API of the `v8` module][v8.serdes]. This is generally more
-powerful and supports more built-in JavaScript object types, such as `BigInt`,
-`Map` and `Set`, `ArrayBuffer` and `TypedArray`, `Buffer`, `Error`,
-`RegExp` etc.
+[serialization API of the `v8` module][v8.serdes], based on the
+[HTML structured clone algorithm][]. This is generally more powerful and
+supports more built-in JavaScript object types, such as `BigInt`, `Map`
+and `Set`, `ArrayBuffer` and `TypedArray`, `Buffer`, `Error`, `RegExp` etc.
 
 However, this format is not a full superset of JSON, and e.g. properties set on
 objects of such built-in types will not be passed on through the serialization
@@ -1542,6 +1542,7 @@ or [`child_process.fork()`][].
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Default Windows Shell]: #child_process_default_windows_shell
+[HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell Requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.html#v8_serialization_api
