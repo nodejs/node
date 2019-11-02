@@ -104,6 +104,7 @@ struct PackageConfig {
   const std::string name;
   const PackageType type;
 
+  v8::Global<v8::Value> index;
   v8::Global<v8::Value> exports;
 };
 }  // namespace loader
@@ -254,6 +255,7 @@ constexpr size_t kFsStatsBufferLength =
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
   V(ignore_string, "ignore")                                                   \
+  V(index_string, "index")                                                     \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \

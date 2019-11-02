@@ -230,17 +230,17 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
 1. Try to interpret X as a combination of name and subpath where the name
    may have a @scope/ prefix and the subpath begins with a slash (`/`).
 2. If X matches this pattern and DIR/name/package.json is a file:
-   a. Parse DIR/name/package.json, and look for "exports" field.
-   b. If "exports" is null or undefined, GOTO 3.
-   c. If "exports" is a string, or object whose first key does not start with
-      ".", treat it as having that value as its "." object property.
-   d. If subpath is "." and "exports" does not have a "." entry, GOTO 3.
-   e. Find the longest key in "exports" that the subpath starts with.
-   f. If no such key can be found, throw "not found".
-   g. let RESOLVED_URL =
+   a. Parse DIR/name/package.json, and look for "exports" and "default" fields.
+   b. If subpath is empty and "entry" is null or undefined, GOTO 3.
+   c. If subpath is not empty and "exports" is null or undefined, GOTO 3.
+   d. If subpath is empty, let target = the value of "entry"
+   e. If subpath is not empty, let target = the corresponding value for the
+      longest key in "exports" that the subpath starts with throwing
+      "not found" if no such key can be found.
+   e. let RESOLVED_URL =
         PACKAGE_EXPORTS_TARGET_RESOLVE(pathToFileURL(DIR/name), exports[key],
-        subpath.slice(key.length)), as defined in the esm resolver.
-   h. return fileURLToPath(RESOLVED_URL)
+        subpath.slice(key.length), ["require"]), as defined in the esm resolver.
+   f. return fileURLToPath(RESOLVED_URL)
 3. return DIR/X
 ```
 

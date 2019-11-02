@@ -589,8 +589,8 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
   if (source.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,
         PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                        HasName::No, "",
-                        PackageType::None, Global<Value>() });
+                        HasName::No, "", PackageType::None, Global<Value>(),
+                        Global<Value>() });
     return Just(&entry.first->second);
   }
 
@@ -610,8 +610,8 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
         !pkg_json_v->ToObject(context).ToLocal(&pkg_json)) {
       env->package_json_cache.emplace(path,
           PackageConfig { Exists::Yes, IsValid::No, HasMain::No, "",
-                          HasName::No, "",
-                          PackageType::None, Global<Value>() });
+                          HasName::No, "", PackageType::None, Global<Value>(),
+                          Global<Value>() });
       std::string msg = "Invalid JSON in " + path +
           " imported from " + base.ToFilePath();
       node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
@@ -653,24 +653,26 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
     // ignore unknown types for forwards compatibility
   }
 
+  Global<Value> pkg_index;
+  Local<Value> pkg_index_v;
+  if (pkg_json->Get(env->context(),
+      env->index_string()).ToLocal(&pkg_index_v) &&
+      !pkg_index_v->IsNullOrUndefined()) {
+    pkg_index.Reset(env->isolate(), pkg_index_v);
+  }
+
+  Global<Value> exports;
   Local<Value> exports_v;
   if (pkg_json->Get(env->context(),
       env->exports_string()).ToLocal(&exports_v) &&
       !exports_v->IsNullOrUndefined()) {
-    Global<Value> exports;
     exports.Reset(env->isolate(), exports_v);
-
-    auto entry = env->package_json_cache.emplace(path,
-        PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
-                        has_name, name_std,
-                        pkg_type, std::move(exports) });
-    return Just(&entry.first->second);
   }
 
   auto entry = env->package_json_cache.emplace(path,
       PackageConfig { Exists::Yes, IsValid::Yes, has_main, main_std,
-                      has_name, name_std,
-                      pkg_type, Global<Value>() });
+                      has_name, name_std, pkg_type, std::move(pkg_index),
+                      std::move(exports) });
   return Just(&entry.first->second);
 }
 
@@ -699,8 +701,8 @@ Maybe<const PackageConfig*> GetPackageScopeConfig(Environment* env,
   }
   auto entry = env->package_json_cache.emplace(pjson_url.ToFilePath(),
   PackageConfig { Exists::No, IsValid::Yes, HasMain::No, "",
-                  HasName::No, "",
-                  PackageType::None, Global<Value>() });
+                  HasName::No, "", PackageType::None, Global<Value>(),
+                  Global<Value>() });
   const PackageConfig* pcfg = &entry.first->second;
   return Just(pcfg);
 }
@@ -841,8 +843,9 @@ void ThrowExportsInvalid(Environment* env,
         ", imported from " + base.ToFilePath();
     node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
   } else {
-    const std::string msg = "Cannot resolve package main '" + target + "' in" +
-        pjson_url.ToFilePath() + ", imported from " + base.ToFilePath();
+    const std::string msg = "Cannot resolve package index '" + target +
+        "' in" + pjson_url.ToFilePath() + ", imported from " +
+        base.ToFilePath();
     node::THROW_ERR_MODULE_NOT_FOUND(env, msg.c_str());
   }
 }
@@ -983,42 +986,36 @@ Maybe<URL> PackageMainResolve(Environment* env,
                               const URL& base) {
   if (pcfg.exists == Exists::Yes) {
     Isolate* isolate = env->isolate();
-
-    if (!pcfg.exports.IsEmpty()) {
-      Local<Value> exports = pcfg.exports.Get(isolate);
-      if (exports->IsString()) {
-        return ResolveExportsTarget(env, pjson_url, exports, "", "", base,
-                                    true);
-      } else if (exports->IsObject()) {
-        Local<Object> exports_obj = exports.As<Object>();
-        if (exports_obj->HasOwnProperty(env->context(), env->dot_string())
-            .FromJust()) {
-          Local<Value> target =
-              exports_obj->Get(env->context(), env->dot_string())
-              .ToLocalChecked();
-          return ResolveExportsTarget(env, pjson_url, target, "", "", base,
-                                      true);
+    Local<Value> pkg_index = pcfg.index.Get(isolate);
+    if (!pkg_index.IsEmpty() && !pkg_index->IsNullOrUndefined()) {
+      if (pkg_index->IsString() || pkg_index->IsObject()) {
+        Maybe<URL> resolved =
+            ResolveExportsTarget(env, pjson_url, pkg_index, "", "", base);
+        if (resolved.IsNothing()) {
+          return Nothing<URL>();
+        }
+        return FinalizeResolution(env, resolved.FromJust(), base);
+      }
+    } else {
+      if (pcfg.has_main == HasMain::Yes) {
+        URL resolved(pcfg.main, pjson_url);
+        const std::string& path = resolved.ToFilePath();
+        if (CheckDescriptorAtPath(path) == FILE) {
+          return Just(resolved);
         }
       }
-    }
-    if (pcfg.has_main == HasMain::Yes) {
-      URL resolved(pcfg.main, pjson_url);
-      const std::string& path = resolved.ToFilePath();
-      if (CheckDescriptorAtPath(path) == FILE) {
-        return Just(resolved);
+      if (env->options()->es_module_specifier_resolution == "node") {
+        if (pcfg.has_main == HasMain::Yes) {
+          return FinalizeResolution(env, URL(pcfg.main, pjson_url), base);
+        } else {
+          return FinalizeResolution(env, URL("index", pjson_url), base);
+        }
       }
-    }
-    if (env->options()->es_module_specifier_resolution == "node") {
-      if (pcfg.has_main == HasMain::Yes) {
-        return FinalizeResolution(env, URL(pcfg.main, pjson_url), base);
-      } else {
-        return FinalizeResolution(env, URL("index", pjson_url), base);
-      }
-    }
-    if (pcfg.type != PackageType::Module) {
-      Maybe<URL> resolved = LegacyMainResolve(pjson_url, pcfg);
-      if (!resolved.IsNothing()) {
-        return resolved;
+      if (pcfg.type != PackageType::Module) {
+        Maybe<URL> resolved = LegacyMainResolve(pjson_url, pcfg);
+        if (!resolved.IsNothing()) {
+          return resolved;
+        }
       }
     }
   }
@@ -1134,6 +1131,9 @@ Maybe<URL> ResolveSelf(Environment* env,
     } else if (found_pjson) {
       if (!pcfg->exports.IsEmpty()) {
         return PackageExportsResolve(env, pjson_url, subpath, *pcfg, base);
+      } else if (!pcfg->index.IsEmpty()) {
+        ThrowExportsNotFound(env, subpath, pjson_url, base);
+        return Nothing<URL>();
       } else {
         return FinalizeResolution(env, URL(subpath, pjson_url), base);
       }

@@ -260,8 +260,75 @@ that would only be supported in ES module-supporting versions of Node.js (and
 other runtimes). New packages could be published containing only ES module
 sources, and would be compatible only with ES module-supporting runtimes.
 
-To define separate package entry points for use by `require` and by `import`,
-see [Conditional Exports][].
+### Package Index
+
+The `"index"` field in the package.json can be considered as the new version
+of the `"main"` field.
+
+When set, it must start with `"./"`, and reference an exact file name within the
+package - no extension or index searching will apply.
+
+If no `"index"` field is specified, the traditional `"main"` will be used.
+
+When setting the `"index"`, packages are automatically encapsulated and do not
+expose any subpaths. Instead subpaths should be manually configured with the
+`"exports"` field.
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "type": "module",
+  "index": "./main.js"
+}
+```
+
+The default field can also be set to **false** to indicate no main entry point
+is provided by the package.
+
+#### Conditional Entries
+
+The `"index"` field supports a conditional environment mapping object to allow
+defining a different entry point dependenting on the environment, for example:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "type": "module",
+  "main": "./main.cjs",
+  "index": {
+    "require": "./main.cjs",
+    "browser": "./main-browser.js"
+    "default": "./main.js",
+  }
+}
+```
+
+Defines a package which loads `main.cjs` for legacy Node.js and CommonJS
+importers, `main.js` for modern ES module importers, and `main-browser.js`
+when using browser tooling.
+
+When an exports target condition object is provided like the above, the first
+matching key in the object that is supported by the current environment will
+be resolved.
+
+The conditions supported in Node.js are matched in the following order:
+
+1. `"require"` - matched when the package is loaded via `require()`.
+  This is currently only supported behind the `--experimental-dual-resolution`
+  flag.
+2. `"default"` - the generic fallback that will always match if no other
+   more specific condition is matched first. Can be a CommonJS or ES module
+   file.
+
+Using the `"require"` condition it is possible to define a package that will
+have a different exported value for CommonJS and ES modules, which can be a
+hazard in that it can result in having two separate instances of the same
+package in use in an application, which can cause a number of bugs.
+
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
+etc. could be defined in other runtimes or tools.
 
 ### Package Exports
 
@@ -334,29 +401,10 @@ in order to be forwards-compatible with possible fallback workflows in future:
 Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
 
-Defining a `"."` export will define the main entry point for the package,
-and will always take precedence over the `"main"` field in the `package.json`.
-
-This allows defining a different entry point for Node.js versions that support
-ECMAScript modules and versions that don't, for example:
-
-<!-- eslint-skip -->
-```js
-{
-  "main": "./main-legacy.cjs",
-  "exports": {
-    ".": "./main-modern.cjs"
-  }
-}
-```
-
 #### Conditional Exports
 
-Conditional exports provide a way to map to different paths depending on
-certain conditions. They are supported for both CommonJS and ES module imports.
-
-For example, a package that wants to provide different ES module exports for
-Node.js and the browser can be written:
+Just like the `"index"` field exports targets support conditional environment
+mappings by setting the target to an object:
 
 <!-- eslint-skip -->
 ```js
@@ -372,30 +420,6 @@ Node.js and the browser can be written:
   }
 }
 ```
-
-When an exports target condition object is provided like the above, the first
-matching key in the object that is supported by the current environment will
-be resolved.
-
-When resolving the `"."` export, if no matching target is found, the `"main"`
-will be used as the final fallback.
-
-The conditions supported in Node.js are matched in the following order:
-
-1. `"require"` - matched when the package is loaded via `require()`.
-  This is currently only supported behind the `--experimental-dual-resolution`
-  flag.
-2. `"default"` - the generic fallback that will always match if no other
-   more specific condition is matched first. Can be a CommonJS or ES module
-   file.
-
-Using the `"require"` condition it is possible to define a package that will
-have a different exported value for CommonJS and ES modules, which can be a
-hazard in that it can result in having two separate instances of the same
-package in use in an application, which can cause a number of bugs.
-
-Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. could be defined in other runtimes or tools.
 
 ## <code>import</code> Specifiers
 
@@ -946,15 +970,11 @@ _defaultEnv_ is the conditional environment name priority array,
 
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
-> 1. If _pjson.exports_ is not **null** or **undefined**, then
->    1. If _pjson.exports_ is a String or Array, or an Object whose first key
->       does not start with _"."_, then
+> 1. If _pjson.entry_ is not **null** or **undefined**, then
+>    1. If _pjson.entry_ is a String, Object or Array, then
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _pjson.exports_, _""_).
->    1. If _pjson.exports_ is an Object containing a _"."_ property, then
->       1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
->       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _mainExport_, _""_).
+>          _pjson.entry_, _""_, _defaultEnv_)_.
+>    1. Otherwise, throw a _Module Not Found_ error.
 > 1. If _pjson.main_ is a String, then
 >    1. Let _resolvedMain_ be the URL resolution of _packageURL_, "/", and
 >       _pjson.main_.
@@ -1083,7 +1103,6 @@ success!
 ```
 
 [CommonJS]: modules.html
-[Conditional Exports]: #esm_conditional_exports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
