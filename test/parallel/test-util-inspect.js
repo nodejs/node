@@ -2219,6 +2219,19 @@ assert.strictEqual(
     configurable: true
   });
   assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
+  Object.defineProperty(obj, Symbol.iterator, {
+    value: true,
+    configurable: true
+  });
+  Object.defineProperty(obj, 'size', {
+    value: NaN,
+    configurable: true,
+    enumerable: true
+  });
+  assert.strictEqual(
+    util.inspect(obj),
+    '[Set: null prototype] { 1, 2, size: NaN }'
+  );
 }
 
 // Check the getter option.
