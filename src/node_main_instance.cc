@@ -148,13 +148,26 @@ int NodeMainInstance::Run() {
 
     env->set_trace_sync_io(false);
     exit_code = EmitExit(env.get());
-    WaitForInspectorDisconnect(env.get());
   }
 
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   ResetStdio();
   env->RunCleanup();
+
+  // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
+  // make sense here.
+#if HAVE_INSPECTOR && defined(__POSIX__) && !defined(NODE_SHARED_MODE)
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
+    if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
+      continue;
+    act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
+    CHECK_EQ(0, sigaction(nr, &act, nullptr));
+  }
+#endif
+
   RunAtExit(env.get());
 
   per_process::v8_platform.DrainVMTasks(isolate_);
