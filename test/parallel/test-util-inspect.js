@@ -577,9 +577,9 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   let obj = vm.runInNewContext('(function(){return {}})()', {});
   assert.strictEqual(util.inspect(obj), '{}');
   obj = vm.runInNewContext('var m=new Map();m.set(1,2);m', {});
-  assert.strictEqual(util.inspect(obj), 'Map { 1 => 2 }');
+  assert.strictEqual(util.inspect(obj), 'Map(1) { 1 => 2 }');
   obj = vm.runInNewContext('var s=new Set();s.add(1);s.add(2);s', {});
-  assert.strictEqual(util.inspect(obj), 'Set { 1, 2 }');
+  assert.strictEqual(util.inspect(obj), 'Set(2) { 1, 2 }');
   obj = vm.runInNewContext('fn=function(){};new Promise(fn,fn)', {});
   assert.strictEqual(util.inspect(obj), 'Promise { <pending> }');
 }
@@ -1068,13 +1068,13 @@ if (typeof Symbol !== 'undefined') {
 
 // Test Set.
 {
-  assert.strictEqual(util.inspect(new Set()), 'Set {}');
-  assert.strictEqual(util.inspect(new Set([1, 2, 3])), 'Set { 1, 2, 3 }');
+  assert.strictEqual(util.inspect(new Set()), 'Set(0) {}');
+  assert.strictEqual(util.inspect(new Set([1, 2, 3])), 'Set(3) { 1, 2, 3 }');
   const set = new Set(['foo']);
   set.bar = 42;
   assert.strictEqual(
     util.inspect(set, { showHidden: true }),
-    "Set { 'foo', [size]: 1, bar: 42 }"
+    "Set(1) { 'foo', bar: 42 }"
   );
 }
 
@@ -1082,33 +1082,39 @@ if (typeof Symbol !== 'undefined') {
 {
   const set = new Set();
   set.add(set);
-  assert.strictEqual(util.inspect(set), '<ref *1> Set { [Circular *1] }');
+  assert.strictEqual(util.inspect(set), '<ref *1> Set(1) { [Circular *1] }');
 }
 
 // Test Map.
 {
-  assert.strictEqual(util.inspect(new Map()), 'Map {}');
+  assert.strictEqual(util.inspect(new Map()), 'Map(0) {}');
   assert.strictEqual(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
-                     "Map { 1 => 'a', 2 => 'b', 3 => 'c' }");
+                     "Map(3) { 1 => 'a', 2 => 'b', 3 => 'c' }");
   const map = new Map([['foo', null]]);
   map.bar = 42;
   assert.strictEqual(util.inspect(map, true),
-                     "Map { 'foo' => null, [size]: 1, bar: 42 }");
+                     "Map(1) { 'foo' => null, bar: 42 }");
 }
 
 // Test circular Map.
 {
   const map = new Map();
   map.set(map, 'map');
-  assert.strictEqual(inspect(map), "<ref *1> Map { [Circular *1] => 'map' }");
+  assert.strictEqual(
+    inspect(map),
+    "<ref *1> Map(1) { [Circular *1] => 'map' }"
+  );
   map.set(map, map);
   assert.strictEqual(
     inspect(map),
-    '<ref *1> Map { [Circular *1] => [Circular *1] }'
+    '<ref *1> Map(1) { [Circular *1] => [Circular *1] }'
   );
   map.delete(map);
   map.set('map', map);
-  assert.strictEqual(inspect(map), "<ref *1> Map { 'map' => [Circular *1] }");
+  assert.strictEqual(
+    inspect(map),
+    "<ref *1> Map(1) { 'map' => [Circular *1] }"
+  );
 }
 
 // Test multiple circular references.
@@ -1274,10 +1280,10 @@ if (typeof Symbol !== 'undefined') {
   });
 
   checkAlignment(obj, '{', "  'X': null", '}');
-  checkAlignment(new Set(bigArray), 'Set {', '  X', '}');
+  checkAlignment(new Set(bigArray), 'Set(100) {', '  X', '}');
   checkAlignment(
     new Map(bigArray.map((number) => [number, null])),
-    'Map {', '  X => null', '}'
+    'Map(100) {', '  X => null', '}'
   );
 }
 
@@ -1297,9 +1303,9 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass [Set] { 1, 2, 3 }');
+                     'SetSubclass(3) [Set] { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass [Map] { 'foo' => 42 }");
+                     "MapSubclass(1) [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
                      'PromiseSubclass [Promise] { <pending> }');
   assert.strictEqual(
@@ -1558,7 +1564,7 @@ util.inspect(process);
     "         'test',",
     "         'foo' ] ],",
     '     4 ],',
-    "  b: Map { 'za' => 1, 'zb' => 'test' } }",
+    "  b: Map(2) { 'za' => 1, 'zb' => 'test' } }",
   ].join('\n');
   assert.strictEqual(out, expect);
 
@@ -1579,7 +1585,7 @@ util.inspect(process);
     '    ],',
     '    4',
     '  ],',
-    '  b: Map {',
+    '  b: Map(2) {',
     "    'za' => 1,",
     "    'zb' => 'test'",
     '  }',
@@ -1659,18 +1665,17 @@ util.inspect(process);
 
   let out = util.inspect(map, { compact: false, showHidden: true, depth: 9 });
   let expected = [
-    'Map {',
+    'Map(2) {',
     '  Promise {',
     '    [',
     '      [',
     '        1,',
-    '        Set {',
+    '        Set(1) {',
     '          [',
     '            1,',
     '            2,',
     '            [length]: 2',
-    '          ],',
-    '          [size]: 1',
+    '          ]',
     '        },',
     '        [length]: 2',
     '      ],',
@@ -1704,8 +1709,7 @@ util.inspect(process);
     '      }',
     '    ],',
     '    [Circular *1]',
-    '  },',
-    '  [size]: 2',
+    '  }',
     '}'
   ].join('\n');
 
@@ -1714,12 +1718,12 @@ util.inspect(process);
   out = util.inspect(map, { compact: 2, showHidden: true, depth: 9 });
 
   expected = [
-    'Map {',
+    'Map(2) {',
     '  Promise {',
     '    [',
     '      [',
     '        1,',
-    '        Set { [ 1, 2, [length]: 2 ], [size]: 1 },',
+    '        Set(1) { [ 1, 2, [length]: 2 ] },',
     '        [length]: 2',
     '      ],',
     '      [length]: 1',
@@ -1740,8 +1744,7 @@ util.inspect(process);
     '      [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '    ],',
     '    [Circular *1]',
-    '  },',
-    '  [size]: 2',
+    '  }',
     '}'
   ].join('\n');
 
@@ -1751,14 +1754,13 @@ util.inspect(process);
     showHidden: true, depth: 9, breakLength: 4, compact: true
   });
   expected = [
-    'Map {',
+    'Map(2) {',
     '  Promise {',
     '    [ [ 1,',
-    '        Set {',
+    '        Set(1) {',
     '          [ 1,',
     '            2,',
-    '            [length]: 2 ],',
-    '          [size]: 1 },',
+    '            [length]: 2 ] },',
     '        [length]: 2 ],',
     '      [length]: 1 ] } => Uint8Array [',
     '    [BYTES_PER_ELEMENT]: 1,',
@@ -1780,8 +1782,7 @@ util.inspect(process);
     '      [buffer]: ArrayBuffer {',
     '        byteLength: 0,',
     '        foo: true } ],',
-    '    [Circular *1] },',
-    '  [size]: 2 }'
+    '    [Circular *1] } }'
   ].join('\n');
 
   assert.strict.equal(out, expected);
@@ -1945,8 +1946,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [[1, 2], '[ 1, 2 ]'],
   [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
   [{ a: 5 }, '{ a: 5 }'],
-  [new Set([1, 2]), 'Set { 1, 2 }'],
-  [new Map([[1, 2]]), 'Map { 1 => 2 }'],
+  [new Set([1, 2]), 'Set(2) { 1, 2 }'],
+  [new Map([[1, 2]]), 'Map(1) { 1 => 2 }'],
   [new Set([1, 2]).entries(), '[Set Entries] { [ 1, 1 ], [ 2, 2 ] }'],
   [new Map([[1, 2]]).keys(), '[Map Iterator] { 1 }'],
   [new Date(2000), '1970-01-01T00:00:02.000Z'],
@@ -1977,8 +1978,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 // Verify that having no prototype still produces nice results.
 [
   [[1, 3, 4], '[Array: null prototype] [ 1, 3, 4 ]'],
-  [new Set([1, 2]), '[Set: null prototype] { 1, 2 }'],
-  [new Map([[1, 2]]), '[Map: null prototype] { 1 => 2 }'],
+  [new Set([1, 2]), '[Set(2): null prototype] { 1, 2 }'],
+  [new Map([[1, 2]]), '[Map(1): null prototype] { 1 => 2 }'],
   [new Promise((resolve) => setTimeout(resolve, 10)),
    '[Promise: null prototype] { <pending> }'],
   [new WeakSet(), '[WeakSet: null prototype] { <items unknown> }'],
@@ -2219,7 +2220,7 @@ assert.strictEqual(
     value: iterator,
     configurable: true
   });
-  assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
+  assert.strictEqual(util.inspect(obj), '[Set(2): null prototype] { 1, 2 }');
   Object.defineProperty(obj, Symbol.iterator, {
     value: true,
     configurable: true
@@ -2231,7 +2232,7 @@ assert.strictEqual(
   });
   assert.strictEqual(
     util.inspect(obj),
-    '[Set: null prototype] { 1, 2, size: NaN }'
+    '[Set(2): null prototype] { 1, 2, size: NaN }'
   );
 }
 
@@ -2264,7 +2265,7 @@ assert.strictEqual(
   getset.foo = new Set([[{ a: true }, 2, {}], 'foobar', { x: 1 }]);
   assert.strictEqual(
     inspect(getset, { getters: true }),
-    '{\n  foo: [Getter/Setter] Set { [ [Object], 2, {} ], ' +
+    '{\n  foo: [Getter/Setter] Set(3) { [ [Object], 2, {} ], ' +
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
@@ -2655,12 +2656,11 @@ assert.strictEqual(
 
   assert.strictEqual(
     inspect(bar),
-    'Bar [Map] { prop: true, prop2: true, abc: true }'
+    'Bar(0) [Map] { prop: true, prop2: true, abc: true }'
   );
   assert.strictEqual(
     inspect(bar, { showHidden: true, getters: true, colors: false }),
-    'Bar [Map] {\n' +
-    '  [size]: 0,\n' +
+    'Bar(0) [Map] {\n' +
     '  prop: true,\n' +
     '  prop2: true,\n' +
     '  abc: true,\n' +
@@ -2670,8 +2670,7 @@ assert.strictEqual(
   );
   assert.strictEqual(
     inspect(bar, { showHidden: true, getters: false, colors: true }),
-    'Bar [Map] {\n' +
-    '  [size]: \x1B[33m0\x1B[39m,\n' +
+    'Bar(0) [Map] {\n' +
     '  prop: \x1B[33mtrue\x1B[39m,\n' +
     '  prop2: \x1B[33mtrue\x1B[39m,\n' +
     '  abc: \x1B[33mtrue\x1B[39m,\n' +
