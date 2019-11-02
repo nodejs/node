@@ -17,8 +17,7 @@ reservePortSocket.bind(() => {
   let errors = 0;
   newSocket.on('error', common.mustCall(() => {
     if (++errors < 20) {
-      const cb = errors === 20 ? common.mustCall() : common.mustNotCall();
-      newSocket.bind(port, cb);
+      newSocket.bind(port, common.mustNotCall());
     } else {
       newSocket.close();
       reservePortSocket.close();
