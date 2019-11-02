@@ -2,7 +2,6 @@
 
 'use strict';
 const common = require('../common');
-const { internalBinding } = require('internal/test/binding');
 const { getOptionValue } = require('internal/options');
 
 // Monkey patch before requiring anything
@@ -16,9 +15,12 @@ class DummyParser {
 }
 DummyParser.REQUEST = Symbol();
 
+// Note: using process.binding instead of internalBinding because this test is
+// verifying that user applications are still able to monkey-patch the
+// http_parser module.
 const binding =
   getOptionValue('--http-parser') === 'legacy' ?
-    internalBinding('http_parser') : internalBinding('http_parser_llhttp');
+    process.binding('http_parser') : process.binding('http_parser_llhttp');
 binding.HTTPParser = DummyParser;
 
 const assert = require('assert');
@@ -34,7 +36,9 @@ assert.strictEqual(parser.test_type, DummyParser.REQUEST);
 if (process.argv[2] !== 'child') {
   // Also test in a child process with IPC (specific case of https://github.com/nodejs/node/issues/23716)
   const child = spawn(process.execPath, [
-    '--expose-internals', __filename, 'child'
+    '--expose-internals',
+    `--http-parser=${getOptionValue('--http-parser')}`,
+    __filename, 'child'
   ], {
     stdio: ['inherit', 'inherit', 'inherit', 'ipc']
   });
