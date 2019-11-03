@@ -211,14 +211,6 @@ Environment* Environment::ForAsyncHooks(AsyncHooks* hooks) {
   return ContainerOf(&Environment::async_hooks_, hooks);
 }
 
-inline AsyncCallbackScope::AsyncCallbackScope(Environment* env) : env_(env) {
-  env_->PushAsyncCallbackScope();
-}
-
-inline AsyncCallbackScope::~AsyncCallbackScope() {
-  env_->PopAsyncCallbackScope();
-}
-
 inline size_t Environment::async_callback_scope_depth() const {
   return async_callback_scope_depth_;
 }

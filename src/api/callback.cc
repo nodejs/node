@@ -34,11 +34,12 @@ CallbackScope::~CallbackScope() {
   delete private_;
 }
 
-InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap)
+InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap, int flags)
     : InternalCallbackScope(async_wrap->env(),
                             async_wrap->object(),
                             { async_wrap->get_async_id(),
-                              async_wrap->get_trigger_async_id() }) {}
+                              async_wrap->get_trigger_async_id() },
+                            flags) {}
 
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
@@ -47,10 +48,11 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   : env_(env),
     async_context_(asyncContext),
     object_(object),
-    callback_scope_(env),
-    skip_hooks_(flags & kSkipAsyncHooks) {
+    skip_hooks_(flags & kSkipAsyncHooks),
+    skip_task_queues_(flags & kSkipTaskQueues) {
   CHECK_IMPLIES(!(flags & kAllowEmptyResource), !object.IsEmpty());
   CHECK_NOT_NULL(env);
+  env->PushAsyncCallbackScope();
 
   if (!env->can_call_into_js()) {
     failed_ = true;
@@ -74,6 +76,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
 
 InternalCallbackScope::~InternalCallbackScope() {
   Close();
+  env_->PopAsyncCallbackScope();
 }
 
 void InternalCallbackScope::Close() {
@@ -94,7 +97,7 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (env_->async_callback_scope_depth() > 1) {
+  if (env_->async_callback_scope_depth() > 1 || skip_task_queues_) {
     return;
   }
 
