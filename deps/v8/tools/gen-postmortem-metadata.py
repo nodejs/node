@@ -49,6 +49,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import io
 import re
 import sys
 
@@ -382,7 +383,7 @@ def load_objects():
 
 
 def load_objects_from_file(objfilename, checktypes):
-        objfile = open(objfilename, 'r');
+        objfile = io.open(objfilename, 'r', encoding='utf-8');
         in_insttype = False;
 
         typestr = '';
@@ -577,7 +578,7 @@ def load_fields():
 
 
 def load_fields_from_file(filename):
-        inlfile = open(filename, 'r');
+        inlfile = io.open(filename, 'r', encoding='utf-8');
 
         #
         # Each class's fields and the corresponding offsets are described in the
