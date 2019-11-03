@@ -41,22 +41,6 @@ static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
   isolate->EnqueueMicrotask(args[0].As<Function>());
 }
 
-// Should be in sync with runNextTicks in internal/process/task_queues.js
-bool RunNextTicksNative(Environment* env) {
-  OnScopeLeave weakref_cleanup([&]() { env->RunWeakRefCleanup(); });
-
-  TickInfo* tick_info = env->tick_info();
-  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
-    MicrotasksScope::PerformCheckpoint(env->isolate());
-  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn())
-    return true;
-
-  Local<Function> callback = env->tick_callback_function();
-  CHECK(!callback.IsEmpty());
-  return !callback->Call(env->context(), env->process_object(), 0, nullptr)
-              .IsEmpty();
-}
-
 static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   MicrotasksScope::PerformCheckpoint(args.GetIsolate());
 }

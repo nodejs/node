@@ -14,6 +14,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::Object;
 using v8::SealHandleScope;
 
 NodeMainInstance::NodeMainInstance(Isolate* isolate,
@@ -111,10 +112,13 @@ int NodeMainInstance::Run() {
 
   if (exit_code == 0) {
     {
-      AsyncCallbackScope callback_scope(env.get());
-      env->async_hooks()->push_async_ids(1, 0);
+      InternalCallbackScope callback_scope(
+          env.get(),
+          Local<Object>(),
+          { 1, 0 },
+          InternalCallbackScope::kAllowEmptyResource |
+              InternalCallbackScope::kSkipAsyncHooks);
       LoadEnvironment(env.get());
-      env->async_hooks()->pop_async_id(1);
     }
 
     env->set_trace_sync_io(env->options()->trace_sync_io);
