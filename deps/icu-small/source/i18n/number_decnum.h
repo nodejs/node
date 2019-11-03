@@ -55,6 +55,8 @@ class U_I18N_API DecNum : public UMemory {
 
     bool isZero() const;
 
+    void toString(ByteSink& output, UErrorCode& status) const;
+
     inline const decNumber* getRawDecNumber() const {
         return fData.getAlias();
     }

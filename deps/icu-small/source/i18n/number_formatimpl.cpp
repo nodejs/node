@@ -72,7 +72,7 @@ NumberFormatterImpl::NumberFormatterImpl(const MacroProps& macros, UErrorCode& s
 }
 
 int32_t NumberFormatterImpl::formatStatic(const MacroProps& macros, DecimalQuantity& inValue,
-                                       NumberStringBuilder& outString, UErrorCode& status) {
+                                       FormattedStringBuilder& outString, UErrorCode& status) {
     NumberFormatterImpl impl(macros, false, status);
     MicroProps& micros = impl.preProcessUnsafe(inValue, status);
     if (U_FAILURE(status)) { return 0; }
@@ -81,9 +81,9 @@ int32_t NumberFormatterImpl::formatStatic(const MacroProps& macros, DecimalQuant
     return length;
 }
 
-int32_t NumberFormatterImpl::getPrefixSuffixStatic(const MacroProps& macros, int8_t signum,
+int32_t NumberFormatterImpl::getPrefixSuffixStatic(const MacroProps& macros, Signum signum,
                                                    StandardPlural::Form plural,
-                                                   NumberStringBuilder& outString, UErrorCode& status) {
+                                                   FormattedStringBuilder& outString, UErrorCode& status) {
     NumberFormatterImpl impl(macros, false, status);
     return impl.getPrefixSuffixUnsafe(signum, plural, outString, status);
 }
@@ -93,7 +93,7 @@ int32_t NumberFormatterImpl::getPrefixSuffixStatic(const MacroProps& macros, int
 // The "unsafe" method simply re-uses fMicros, eliminating the extra copy operation.
 // See MicroProps::processQuantity() for details.
 
-int32_t NumberFormatterImpl::format(DecimalQuantity& inValue, NumberStringBuilder& outString,
+int32_t NumberFormatterImpl::format(DecimalQuantity& inValue, FormattedStringBuilder& outString,
                                 UErrorCode& status) const {
     MicroProps micros;
     preProcess(inValue, micros, status);
@@ -129,8 +129,8 @@ MicroProps& NumberFormatterImpl::preProcessUnsafe(DecimalQuantity& inValue, UErr
     return fMicros;
 }
 
-int32_t NumberFormatterImpl::getPrefixSuffix(int8_t signum, StandardPlural::Form plural,
-                                             NumberStringBuilder& outString, UErrorCode& status) const {
+int32_t NumberFormatterImpl::getPrefixSuffix(Signum signum, StandardPlural::Form plural,
+                                             FormattedStringBuilder& outString, UErrorCode& status) const {
     if (U_FAILURE(status)) { return 0; }
     // #13453: DecimalFormat wants the affixes from the pattern only (modMiddle, aka pattern modifier).
     // Safe path: use fImmutablePatternModifier.
@@ -140,8 +140,8 @@ int32_t NumberFormatterImpl::getPrefixSuffix(int8_t signum, StandardPlural::Form
     return modifier->getPrefixLength();
 }
 
-int32_t NumberFormatterImpl::getPrefixSuffixUnsafe(int8_t signum, StandardPlural::Form plural,
-                                                   NumberStringBuilder& outString, UErrorCode& status) {
+int32_t NumberFormatterImpl::getPrefixSuffixUnsafe(Signum signum, StandardPlural::Form plural,
+                                                   FormattedStringBuilder& outString, UErrorCode& status) {
     if (U_FAILURE(status)) { return 0; }
     // #13453: DecimalFormat wants the affixes from the pattern only (modMiddle, aka pattern modifier).
     // Unsafe path: use fPatternModifier.
@@ -215,7 +215,12 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
     if (macros.symbols.isDecimalFormatSymbols()) {
         fMicros.symbols = macros.symbols.getDecimalFormatSymbols();
     } else {
-        fMicros.symbols = new DecimalFormatSymbols(macros.locale, *ns, status);
+        auto newSymbols = new DecimalFormatSymbols(macros.locale, *ns, status);
+        if (newSymbols == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return nullptr;
+        }
+        fMicros.symbols = newSymbols;
         // Give ownership to the NumberFormatterImpl.
         fSymbols.adoptInstead(fMicros.symbols);
     }
@@ -229,7 +234,11 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
         if (info.exists) {
             pattern = info.pattern;
             // It's clunky to clone an object here, but this code is not frequently executed.
-            auto* symbols = new DecimalFormatSymbols(*fMicros.symbols);
+            auto symbols = new DecimalFormatSymbols(*fMicros.symbols);
+            if (symbols == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return nullptr;
+            }
             fMicros.symbols = symbols;
             fSymbols.adoptInstead(symbols);
             symbols->setSymbol(
@@ -260,6 +269,10 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
         pattern = utils::getPatternForStyle(macros.locale, nsName, patternStyle, status);
     }
     auto patternInfo = new ParsedPatternInfo();
+    if (patternInfo == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     fPatternInfo.adoptInstead(patternInfo);
     PatternParser::parseToPatternInfo(UnicodeString(pattern), *patternInfo, status);
 
@@ -337,7 +350,12 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // Inner modifier (scientific notation)
     if (macros.notation.fType == Notation::NTN_SCIENTIFIC) {
-        fScientificHandler.adoptInstead(new ScientificHandler(&macros.notation, fMicros.symbols, chain));
+        auto newScientificHandler = new ScientificHandler(&macros.notation, fMicros.symbols, chain);
+        if (newScientificHandler == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return nullptr;
+        }
+        fScientificHandler.adoptInstead(newScientificHandler);
         chain = fScientificHandler.getAlias();
     } else {
         // No inner modifier required
@@ -346,6 +364,10 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // Middle modifier (patterns, positive/negative, currency symbols, percent)
     auto patternModifier = new MutablePatternModifier(false);
+    if (patternModifier == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
     fPatternModifier.adoptInstead(patternModifier);
     patternModifier->setPatternInfo(
             macros.affixProvider != nullptr ? macros.affixProvider
@@ -401,16 +423,20 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
     if (macros.notation.fType == Notation::NTN_COMPACT) {
         CompactType compactType = (isCurrency && unitWidth != UNUM_UNIT_WIDTH_FULL_NAME)
                                   ? CompactType::TYPE_CURRENCY : CompactType::TYPE_DECIMAL;
-        fCompactHandler.adoptInstead(
-                new CompactHandler(
-                        macros.notation.fUnion.compactStyle,
-                        macros.locale,
-                        nsName,
-                        compactType,
-                        resolvePluralRules(macros.rules, macros.locale, status),
-                        safe ? patternModifier : nullptr,
-                        chain,
-                        status));
+        auto newCompactHandler = new CompactHandler(
+            macros.notation.fUnion.compactStyle,
+            macros.locale,
+            nsName,
+            compactType,
+            resolvePluralRules(macros.rules, macros.locale, status),
+            safe ? patternModifier : nullptr,
+            chain,
+            status);
+        if (newCompactHandler == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return nullptr;
+        }
+        fCompactHandler.adoptInstead(newCompactHandler);
         chain = fCompactHandler.getAlias();
     }
 
@@ -430,7 +456,7 @@ NumberFormatterImpl::resolvePluralRules(const PluralRules* rulesPtr, const Local
     return fRules.getAlias();
 }
 
-int32_t NumberFormatterImpl::writeAffixes(const MicroProps& micros, NumberStringBuilder& string,
+int32_t NumberFormatterImpl::writeAffixes(const MicroProps& micros, FormattedStringBuilder& string,
                                           int32_t start, int32_t end, UErrorCode& status) {
     // Always apply the inner modifier (which is "strong").
     int32_t length = micros.modInner->apply(string, start, end, status);
@@ -445,7 +471,7 @@ int32_t NumberFormatterImpl::writeAffixes(const MicroProps& micros, NumberString
 }
 
 int32_t NumberFormatterImpl::writeNumber(const MicroProps& micros, DecimalQuantity& quantity,
-                                         NumberStringBuilder& string, int32_t index,
+                                         FormattedStringBuilder& string, int32_t index,
                                          UErrorCode& status) {
     int32_t length = 0;
     if (quantity.isInfinite()) {
@@ -487,7 +513,7 @@ int32_t NumberFormatterImpl::writeNumber(const MicroProps& micros, DecimalQuanti
 }
 
 int32_t NumberFormatterImpl::writeIntegerDigits(const MicroProps& micros, DecimalQuantity& quantity,
-                                                NumberStringBuilder& string, int32_t index,
+                                                FormattedStringBuilder& string, int32_t index,
                                                 UErrorCode& status) {
     int length = 0;
     int integerCount = quantity.getUpperDisplayMagnitude() + 1;
@@ -513,7 +539,7 @@ int32_t NumberFormatterImpl::writeIntegerDigits(const MicroProps& micros, Decima
 }
 
 int32_t NumberFormatterImpl::writeFractionDigits(const MicroProps& micros, DecimalQuantity& quantity,
-                                                 NumberStringBuilder& string, int32_t index,
+                                                 FormattedStringBuilder& string, int32_t index,
                                                  UErrorCode& status) {
     int length = 0;
     int fractionCount = -quantity.getLowerDisplayMagnitude();

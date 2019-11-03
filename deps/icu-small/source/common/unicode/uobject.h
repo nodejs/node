@@ -20,6 +20,9 @@
 #define __UOBJECT_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/platform.h"
 
 /**
@@ -43,7 +46,7 @@
  * @stable ICU 4.2. Since ICU 64, Use U_NOEXCEPT instead. See ICU-20422.
  */
 #ifndef U_NO_THROW
-#define U_NO_THROW throw()
+#define U_NO_THROW U_NOEXCEPT
 #endif
 
 /*===========================================================================*/
@@ -212,11 +215,8 @@ public:
  * The clone() function is not available in UObject because it is not
  * implemented by all ICU classes.
  * Many ICU services provide a clone() function for their class trees,
- * defined on the service's C++ base class, and all subclasses within that
- * service class tree return a pointer to the service base class
+ * defined on the service's C++ base class
  * (which itself is a subclass of UObject).
- * This is because some compilers do not support covariant (same-as-this)
- * return types; cast to the appropriate subclass if necessary.
  *
  * @stable ICU 2.2
  */
@@ -318,5 +318,7 @@ protected:
 #endif  /* U_HIDE_INTERNAL_API */
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

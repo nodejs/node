@@ -33,6 +33,7 @@ might have to #include some other header
 #include "cstring.h"
 #include "mutex.h"
 #include "putilimp.h"
+#include "restrace.h"
 #include "uassert.h"
 #include "ucln_cmn.h"
 #include "ucmndata.h"
@@ -110,11 +111,12 @@ static u_atomic_int32_t gHaveTriedToLoadCommonData = ATOMIC_INT32_T_INITIALIZER(
 static UHashtable  *gCommonDataCache = NULL;  /* Global hash table of opened ICU data files.  */
 static icu::UInitOnce gCommonDataCacheInitOnce = U_INITONCE_INITIALIZER;
 
-#if U_PLATFORM_HAS_WINUWP_API == 0
+#if !defined(ICU_DATA_DIR_WINDOWS)
 static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;  // Access not synchronized.
                                                                  // Modifying is documented as thread-unsafe.
 #else
-static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;        // Windows UWP looks in one spot explicitly
+// If we are using the Windows data directory, then look in one spot only.
+static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;
 #endif
 
 static UBool U_CALLCONV
@@ -206,7 +208,7 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     return didUpdate;
 }
 
-#if U_PLATFORM_HAS_WINUWP_API == 0
+#if !defined(ICU_DATA_DIR_WINDOWS)
 
 static UBool
 setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCode) {
@@ -320,7 +322,7 @@ static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err)
         retVal = el->item;
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, retVal);
+    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, (void*) retVal);
 #endif
     return retVal;
 }
@@ -383,7 +385,7 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
 
 #ifdef UDATA_DEBUG
     fprintf(stderr, "Cache: [%s] <<< %p : %s. vFunc=%p\n", newElement->name,
-    newElement->item, u_errorName(subErr), newElement->item->vFuncs);
+    (void*) newElement->item, u_errorName(subErr), (void*) newElement->item->vFuncs);
 #endif
 
     if (subErr == U_USING_DEFAULT_WARNING || U_FAILURE(subErr)) {
@@ -477,7 +479,7 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
         nextPath = itemPath.data();
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, inSuffix);
+    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, (void*) inSuffix);
 #endif
 
     /** Suffix  **/
@@ -492,12 +494,11 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
     /* pathBuffer will hold the output path strings returned by this iterator */
 
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "%p: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
-            iter,
+    fprintf(stderr, "0: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
             item,
             path,
             basename,
-            suffix,
+            suffix.data(),
             itemPath.data(),
             nextPath,
             checkLastFour?"TRUE":"false");
@@ -553,7 +554,7 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
         fprintf(stderr, "rest of path (IDD) = %s\n", currentPath);
         fprintf(stderr, "                     ");
         {
-            uint32_t qqq;
+            int32_t qqq;
             for(qqq=0;qqq<pathLen;qqq++)
             {
                 fprintf(stderr, " ");
@@ -574,7 +575,7 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
            uprv_strlen(pathBasename)==(basenameLen+4)) { /* base+suffix = full len */
 
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "Have %s file on the path: %s\n", suffix, pathBuffer.data());
+            fprintf(stderr, "Have %s file on the path: %s\n", suffix.data(), pathBuffer.data());
 #endif
             /* do nothing */
         }
@@ -640,7 +641,8 @@ U_NAMESPACE_END
  *      our common data.                                                *
  *                                                                      *
  *----------------------------------------------------------------------*/
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
 extern "C" const DataHeader U_DATA_API U_ICUDATA_ENTRY_POINT;
 #endif
 
@@ -690,7 +692,8 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             if(gCommonICUDataArray[commonDataIndex] != NULL) {
                 return gCommonICUDataArray[commonDataIndex];
             }
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
             int32_t i;
             for(i = 0; i < commonDataIndex; ++i) {
                 if(gCommonICUDataArray[i]->pHeader == &U_ICUDATA_ENTRY_POINT) {
@@ -714,7 +717,8 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
         }
         */
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
         setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT, FALSE, pErrorCode);
         {
             Mutex lock;
@@ -831,7 +835,7 @@ static UBool extendICUData(UErrorCode *pErr)
      * Use a specific mutex to avoid nested locks of the global mutex.
      */
 #if MAP_IMPLEMENTATION==MAP_STDIO
-    static UMutex extendICUDataMutex = U_MUTEX_INITIALIZER;
+    static UMutex extendICUDataMutex;
     umtx_lock(&extendICUDataMutex);
 #endif
     if(!umtx_loadAcquire(gHaveTriedToLoadCommonData)) {
@@ -1070,13 +1074,13 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
             /* look up the data piece in the common data */
             pHeader=pCommonData->vFuncs->Lookup(pCommonData, tocEntryName, &length, subErrorCode);
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, pHeader, u_errorName(*subErrorCode));
+            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, (void*) pHeader, u_errorName(*subErrorCode));
 #endif
 
             if(pHeader!=NULL) {
                 pEntryData = checkDataItem(pHeader, isAcceptable, context, type, name, subErrorCode, pErrorCode);
 #ifdef UDATA_DEBUG
-                fprintf(stderr, "pEntryData=%p\n", pEntryData);
+                fprintf(stderr, "pEntryData=%p\n", (void*) pEntryData);
 #endif
                 if (U_FAILURE(*pErrorCode)) {
                     return NULL;
@@ -1166,6 +1170,9 @@ doOpenChoice(const char *path, const char *type, const char *name,
     const char         *treeChar;
 
     UBool               isICUData = FALSE;
+
+
+    FileTracer::traceOpen(path, type, name);
 
 
     /* Is this path ICU data? */
@@ -1276,12 +1283,12 @@ doOpenChoice(const char *path, const char *type, const char *name,
     fprintf(stderr, " tocEntryPath = %s\n", tocEntryName.data());
 #endif
 
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
     if(path == NULL) {
         path = COMMON_DATA_NAME; /* "icudt26e" */
     }
 #else
-    // Windows UWP expects only a single data file.
+    // When using the Windows system data, we expects only a single data file.
     path = COMMON_DATA_NAME; /* "icudt26e" */
 #endif
 

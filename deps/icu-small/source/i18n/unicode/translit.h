@@ -14,6 +14,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Tranforms text from one format to another.
@@ -1587,5 +1589,7 @@ inline Transliterator::Token Transliterator::pointerToken(void* p) {
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_TRANSLITERATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

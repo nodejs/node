@@ -7,7 +7,7 @@
 
 #include "unicode/numberformatter.h"
 #include "number_types.h"
-#include "number_stringbuilder.h"
+#include "formatted_string_builder.h"
 #include "number_decimfmtprops.h"
 
 using namespace icu;
@@ -17,7 +17,7 @@ using namespace icu::number::impl;
 namespace {
 
 int32_t
-addPaddingHelper(UChar32 paddingCp, int32_t requiredPadding, NumberStringBuilder &string, int32_t index,
+addPaddingHelper(UChar32 paddingCp, int32_t requiredPadding, FormattedStringBuilder &string, int32_t index,
                  UErrorCode &status) {
     for (int32_t i = 0; i < requiredPadding; i++) {
         // TODO: If appending to the end, this will cause actual insertion operations. Improve.
@@ -60,7 +60,7 @@ Padder Padder::forProperties(const DecimalFormatProperties& properties) {
 }
 
 int32_t Padder::padAndApply(const Modifier &mod1, const Modifier &mod2,
-                            NumberStringBuilder &string, int32_t leftIndex, int32_t rightIndex,
+                            FormattedStringBuilder &string, int32_t leftIndex, int32_t rightIndex,
                             UErrorCode &status) const {
     int32_t modLength = mod1.getCodePointCount() + mod2.getCodePointCount();
     int32_t requiredPadding = fWidth - modLength - string.codePointCount();

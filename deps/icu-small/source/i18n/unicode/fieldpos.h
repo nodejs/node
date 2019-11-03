@@ -26,6 +26,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: FieldPosition identifies the fields in a formatted output.
@@ -289,6 +291,8 @@ FieldPosition::operator!=(const FieldPosition& copy) const
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _FIELDPOS
 //eof

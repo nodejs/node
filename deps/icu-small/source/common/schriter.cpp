@@ -101,7 +101,7 @@ StringCharacterIterator::operator==(const ForwardCharacterIterator& that) const 
         && end == realThat.end;
 }
 
-CharacterIterator*
+StringCharacterIterator*
 StringCharacterIterator::clone() const {
     return new StringCharacterIterator(*this);
 }

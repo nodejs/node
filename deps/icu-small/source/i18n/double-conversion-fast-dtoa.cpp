@@ -152,7 +152,7 @@ static bool RoundWeed(Vector<char> buffer,
   // Conceptually rest ~= too_high - buffer
   // We need to do the following tests in this order to avoid over- and
   // underflows.
-  ASSERT(rest <= unsafe_interval);
+  DOUBLE_CONVERSION_ASSERT(rest <= unsafe_interval);
   while (rest < small_distance &&  // Negated condition 1
          unsafe_interval - rest >= ten_kappa &&  // Negated condition 2
          (rest + ten_kappa < small_distance ||  // buffer{-1} > w_high
@@ -198,7 +198,7 @@ static bool RoundWeedCounted(Vector<char> buffer,
                              uint64_t ten_kappa,
                              uint64_t unit,
                              int* kappa) {
-  ASSERT(rest < ten_kappa);
+  DOUBLE_CONVERSION_ASSERT(rest < ten_kappa);
   // The following tests are done in a specific order to avoid overflows. They
   // will work correctly with any uint64 values of rest < ten_kappa and unit.
   //
@@ -255,7 +255,7 @@ static void BiggestPowerTen(uint32_t number,
                             int number_bits,
                             uint32_t* power,
                             int* exponent_plus_one) {
-  ASSERT(number < (1u << (number_bits + 1)));
+  DOUBLE_CONVERSION_ASSERT(number < (1u << (number_bits + 1)));
   // 1233/4096 is approximately 1/lg(10).
   int exponent_plus_one_guess = ((number_bits + 1) * 1233 >> 12);
   // We increment to skip over the first entry in the kPowersOf10 table.
@@ -317,9 +317,9 @@ static bool DigitGen(DiyFp low,
                      Vector<char> buffer,
                      int* length,
                      int* kappa) {
-  ASSERT(low.e() == w.e() && w.e() == high.e());
-  ASSERT(low.f() + 1 <= high.f() - 1);
-  ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
+  DOUBLE_CONVERSION_ASSERT(low.e() == w.e() && w.e() == high.e());
+  DOUBLE_CONVERSION_ASSERT(low.f() + 1 <= high.f() - 1);
+  DOUBLE_CONVERSION_ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
   // low, w and high are imprecise, but by less than one ulp (unit in the last
   // place).
   // If we remove (resp. add) 1 ulp from low (resp. high) we are certain that
@@ -361,7 +361,7 @@ static bool DigitGen(DiyFp low,
   // that is smaller than integrals.
   while (*kappa > 0) {
     int digit = integrals / divisor;
-    ASSERT(digit <= 9);
+    DOUBLE_CONVERSION_ASSERT(digit <= 9);
     buffer[*length] = static_cast<char>('0' + digit);
     (*length)++;
     integrals %= divisor;
@@ -388,16 +388,16 @@ static bool DigitGen(DiyFp low,
   // data (like the interval or 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  ASSERT(one.e() >= -60);
-  ASSERT(fractionals < one.f());
-  ASSERT(UINT64_2PART_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DOUBLE_CONVERSION_ASSERT(one.e() >= -60);
+  DOUBLE_CONVERSION_ASSERT(fractionals < one.f());
+  DOUBLE_CONVERSION_ASSERT(DOUBLE_CONVERSION_UINT64_2PART_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   for (;;) {
     fractionals *= 10;
     unit *= 10;
     unsafe_interval.set_f(unsafe_interval.f() * 10);
     // Integer division by one.
     int digit = static_cast<int>(fractionals >> -one.e());
-    ASSERT(digit <= 9);
+    DOUBLE_CONVERSION_ASSERT(digit <= 9);
     buffer[*length] = static_cast<char>('0' + digit);
     (*length)++;
     fractionals &= one.f() - 1;  // Modulo by one.
@@ -444,9 +444,9 @@ static bool DigitGenCounted(DiyFp w,
                             Vector<char> buffer,
                             int* length,
                             int* kappa) {
-  ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
-  ASSERT(kMinimalTargetExponent >= -60);
-  ASSERT(kMaximalTargetExponent <= -32);
+  DOUBLE_CONVERSION_ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
+  DOUBLE_CONVERSION_ASSERT(kMinimalTargetExponent >= -60);
+  DOUBLE_CONVERSION_ASSERT(kMaximalTargetExponent <= -32);
   // w is assumed to have an error less than 1 unit. Whenever w is scaled we
   // also scale its error.
   uint64_t w_error = 1;
@@ -472,7 +472,7 @@ static bool DigitGenCounted(DiyFp w,
   // that is smaller than 'integrals'.
   while (*kappa > 0) {
     int digit = integrals / divisor;
-    ASSERT(digit <= 9);
+    DOUBLE_CONVERSION_ASSERT(digit <= 9);
     buffer[*length] = static_cast<char>('0' + digit);
     (*length)++;
     requested_digits--;
@@ -498,15 +498,15 @@ static bool DigitGenCounted(DiyFp w,
   // data (the 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  ASSERT(one.e() >= -60);
-  ASSERT(fractionals < one.f());
-  ASSERT(UINT64_2PART_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DOUBLE_CONVERSION_ASSERT(one.e() >= -60);
+  DOUBLE_CONVERSION_ASSERT(fractionals < one.f());
+  DOUBLE_CONVERSION_ASSERT(DOUBLE_CONVERSION_UINT64_2PART_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (requested_digits > 0 && fractionals > w_error) {
     fractionals *= 10;
     w_error *= 10;
     // Integer division by one.
     int digit = static_cast<int>(fractionals >> -one.e());
-    ASSERT(digit <= 9);
+    DOUBLE_CONVERSION_ASSERT(digit <= 9);
     buffer[*length] = static_cast<char>('0' + digit);
     (*length)++;
     requested_digits--;
@@ -544,11 +544,11 @@ static bool Grisu3(double v,
   if (mode == FAST_DTOA_SHORTEST) {
     Double(v).NormalizedBoundaries(&boundary_minus, &boundary_plus);
   } else {
-    ASSERT(mode == FAST_DTOA_SHORTEST_SINGLE);
+    DOUBLE_CONVERSION_ASSERT(mode == FAST_DTOA_SHORTEST_SINGLE);
     float single_v = static_cast<float>(v);
     Single(single_v).NormalizedBoundaries(&boundary_minus, &boundary_plus);
   }
-  ASSERT(boundary_plus.e() == w.e());
+  DOUBLE_CONVERSION_ASSERT(boundary_plus.e() == w.e());
   DiyFp ten_mk;  // Cached power of ten: 10^-k
   int mk;        // -k
   int ten_mk_minimal_binary_exponent =
@@ -559,7 +559,7 @@ static bool Grisu3(double v,
       ten_mk_minimal_binary_exponent,
       ten_mk_maximal_binary_exponent,
       &ten_mk, &mk);
-  ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
+  DOUBLE_CONVERSION_ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize));
@@ -573,7 +573,7 @@ static bool Grisu3(double v,
   // In other words: let f = scaled_w.f() and e = scaled_w.e(), then
   //           (f-1) * 2^e < w*10^k < (f+1) * 2^e
   DiyFp scaled_w = DiyFp::Times(w, ten_mk);
-  ASSERT(scaled_w.e() ==
+  DOUBLE_CONVERSION_ASSERT(scaled_w.e() ==
          boundary_plus.e() + ten_mk.e() + DiyFp::kSignificandSize);
   // In theory it would be possible to avoid some recomputations by computing
   // the difference between w and boundary_minus/plus (a power of 2) and to
@@ -618,7 +618,7 @@ static bool Grisu3Counted(double v,
       ten_mk_minimal_binary_exponent,
       ten_mk_maximal_binary_exponent,
       &ten_mk, &mk);
-  ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
+  DOUBLE_CONVERSION_ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize));
@@ -652,8 +652,8 @@ bool FastDtoa(double v,
               Vector<char> buffer,
               int* length,
               int* decimal_point) {
-  ASSERT(v > 0);
-  ASSERT(!Double(v).IsSpecial());
+  DOUBLE_CONVERSION_ASSERT(v > 0);
+  DOUBLE_CONVERSION_ASSERT(!Double(v).IsSpecial());
 
   bool result = false;
   int decimal_exponent = 0;
@@ -667,7 +667,7 @@ bool FastDtoa(double v,
                              buffer, length, &decimal_exponent);
       break;
     default:
-      UNREACHABLE();
+      DOUBLE_CONVERSION_UNREACHABLE();
   }
   if (result) {
     *decimal_point = *length + decimal_exponent;

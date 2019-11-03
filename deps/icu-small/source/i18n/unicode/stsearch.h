@@ -14,6 +14,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Service for searching text based on RuleBasedCollator.
@@ -119,8 +121,7 @@ U_NAMESPACE_BEGIN
  *      pos != USEARCH_DONE;
  *      pos = iter.next(error))
  * {
- *     printf("Found match at %d pos, length is %d\n", pos,
- *                                             iter.getMatchLength());
+ *     printf("Found match at %d pos, length is %d\n", pos, iter.getMatchedLength());
  * }
  * </code></pre>
  * <p>
@@ -412,7 +413,7 @@ public:
      * @return cloned object
      * @stable ICU 2.0
      */
-    virtual SearchIterator * safeClone(void) const;
+    virtual StringSearch * safeClone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
@@ -501,5 +502,7 @@ private :
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_COLLATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

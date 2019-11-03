@@ -229,11 +229,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_GET
  * @stable ICU 2.4
  */
-#define U8_GET_UNSAFE(s, i, c) { \
+#define U8_GET_UNSAFE(s, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t _u8_get_unsafe_index=(int32_t)(i); \
     U8_SET_CP_START_UNSAFE(s, _u8_get_unsafe_index); \
     U8_NEXT_UNSAFE(s, _u8_get_unsafe_index, c); \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Get a code point from a string at a random-access offset,
@@ -256,11 +256,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_GET_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_GET(s, start, i, length, c) { \
+#define U8_GET(s, start, i, length, c) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t _u8_get_index=(i); \
     U8_SET_CP_START(s, start, _u8_get_index); \
     U8_NEXT(s, _u8_get_index, length, c); \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Get a code point from a string at a random-access offset,
@@ -287,11 +287,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_GET
  * @stable ICU 51
  */
-#define U8_GET_OR_FFFD(s, start, i, length, c) { \
+#define U8_GET_OR_FFFD(s, start, i, length, c) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t _u8_get_index=(i); \
     U8_SET_CP_START(s, start, _u8_get_index); \
     U8_NEXT_OR_FFFD(s, _u8_get_index, length, c); \
-}
+} UPRV_BLOCK_MACRO_END
 
 /* definitions with forward iteration --------------------------------------- */
 
@@ -312,7 +312,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_NEXT
  * @stable ICU 2.4
  */
-#define U8_NEXT_UNSAFE(s, i, c) { \
+#define U8_NEXT_UNSAFE(s, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     (c)=(uint8_t)(s)[(i)++]; \
     if(!U8_IS_SINGLE(c)) { \
         if((c)<0xe0) { \
@@ -326,7 +326,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
             (i)+=3; \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Get a code point from a string at a code point boundary offset,
@@ -377,7 +377,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
 #define U8_NEXT_OR_FFFD(s, i, length, c) U8_INTERNAL_NEXT_OR_SUB(s, i, length, c, 0xfffd)
 
 /** @internal */
-#define U8_INTERNAL_NEXT_OR_SUB(s, i, length, c, sub) { \
+#define U8_INTERNAL_NEXT_OR_SUB(s, i, length, c, sub) UPRV_BLOCK_MACRO_BEGIN { \
     (c)=(uint8_t)(s)[(i)++]; \
     if(!U8_IS_SINGLE(c)) { \
         uint8_t __t = 0; \
@@ -403,7 +403,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
             (c)=(sub);  /* ill-formed*/ \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Append a code point to a string, overwriting 1 to 4 bytes.
@@ -418,7 +418,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_APPEND
  * @stable ICU 2.4
  */
-#define U8_APPEND_UNSAFE(s, i, c) { \
+#define U8_APPEND_UNSAFE(s, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     uint32_t __uc=(c); \
     if(__uc<=0x7f) { \
         (s)[(i)++]=(uint8_t)__uc; \
@@ -436,7 +436,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
         } \
         (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Append a code point to a string, overwriting 1 to 4 bytes.
@@ -455,7 +455,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_APPEND_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_APPEND(s, i, capacity, c, isError) { \
+#define U8_APPEND(s, i, capacity, c, isError) UPRV_BLOCK_MACRO_BEGIN { \
     uint32_t __uc=(c); \
     if(__uc<=0x7f) { \
         (s)[(i)++]=(uint8_t)__uc; \
@@ -474,7 +474,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
     } else { \
         (isError)=TRUE; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Advance the string offset from one code point boundary to the next.
@@ -486,9 +486,9 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_FWD_1
  * @stable ICU 2.4
  */
-#define U8_FWD_1_UNSAFE(s, i) { \
+#define U8_FWD_1_UNSAFE(s, i) UPRV_BLOCK_MACRO_BEGIN { \
     (i)+=1+U8_COUNT_TRAIL_BYTES_UNSAFE((s)[i]); \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Advance the string offset from one code point boundary to the next.
@@ -503,7 +503,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_FWD_1_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_FWD_1(s, i, length) { \
+#define U8_FWD_1(s, i, length) UPRV_BLOCK_MACRO_BEGIN { \
     uint8_t __b=(s)[(i)++]; \
     if(U8_IS_LEAD(__b) && (i)!=(length)) { \
         uint8_t __t1=(s)[i]; \
@@ -524,7 +524,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
             } \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Advance the string offset from one code point boundary to the n-th next one,
@@ -538,13 +538,13 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_FWD_N
  * @stable ICU 2.4
  */
-#define U8_FWD_N_UNSAFE(s, i, n) { \
+#define U8_FWD_N_UNSAFE(s, i, n) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t __N=(n); \
     while(__N>0) { \
         U8_FWD_1_UNSAFE(s, i); \
         --__N; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Advance the string offset from one code point boundary to the n-th next one,
@@ -561,13 +561,13 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_FWD_N_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_FWD_N(s, i, length, n) { \
+#define U8_FWD_N(s, i, length, n) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t __N=(n); \
     while(__N>0 && ((i)<(length) || ((length)<0 && (s)[i]!=0))) { \
         U8_FWD_1(s, i, length); \
         --__N; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Adjust a random-access offset to a code point boundary
@@ -582,9 +582,9 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_SET_CP_START
  * @stable ICU 2.4
  */
-#define U8_SET_CP_START_UNSAFE(s, i) { \
+#define U8_SET_CP_START_UNSAFE(s, i) UPRV_BLOCK_MACRO_BEGIN { \
     while(U8_IS_TRAIL((s)[i])) { --(i); } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Adjust a random-access offset to a code point boundary
@@ -603,11 +603,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_TRUNCATE_IF_INCOMPLETE
  * @stable ICU 2.4
  */
-#define U8_SET_CP_START(s, start, i) { \
+#define U8_SET_CP_START(s, start, i) UPRV_BLOCK_MACRO_BEGIN { \
     if(U8_IS_TRAIL((s)[(i)])) { \
         (i)=utf8_back1SafeBody(s, start, (i)); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * If the string ends with a UTF-8 byte sequence that is valid so far
@@ -635,7 +635,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_SET_CP_START
  * @stable ICU 61
  */
-#define U8_TRUNCATE_IF_INCOMPLETE(s, start, length) \
+#define U8_TRUNCATE_IF_INCOMPLETE(s, start, length) UPRV_BLOCK_MACRO_BEGIN { \
     if((length)>(start)) { \
         uint8_t __b1=s[(length)-1]; \
         if(U8_IS_SINGLE(__b1)) { \
@@ -656,7 +656,8 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
                 } \
             } \
         } \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /* definitions with backward iteration -------------------------------------- */
 
@@ -679,7 +680,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_PREV
  * @stable ICU 2.4
  */
-#define U8_PREV_UNSAFE(s, i, c) { \
+#define U8_PREV_UNSAFE(s, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     (c)=(uint8_t)(s)[--(i)]; \
     if(U8_IS_TRAIL(c)) { \
         uint8_t __b, __count=1, __shift=6; \
@@ -699,7 +700,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
             } \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the previous one
@@ -721,12 +722,12 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_PREV_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_PREV(s, start, i, c) { \
+#define U8_PREV(s, start, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     (c)=(uint8_t)(s)[--(i)]; \
     if(!U8_IS_SINGLE(c)) { \
         (c)=utf8_prevCharSafeBody((const uint8_t *)s, start, &(i), c, -1); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the previous one
@@ -752,12 +753,12 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_PREV
  * @stable ICU 51
  */
-#define U8_PREV_OR_FFFD(s, start, i, c) { \
+#define U8_PREV_OR_FFFD(s, start, i, c) UPRV_BLOCK_MACRO_BEGIN { \
     (c)=(uint8_t)(s)[--(i)]; \
     if(!U8_IS_SINGLE(c)) { \
         (c)=utf8_prevCharSafeBody((const uint8_t *)s, start, &(i), c, -3); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the previous one.
@@ -770,9 +771,9 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_BACK_1
  * @stable ICU 2.4
  */
-#define U8_BACK_1_UNSAFE(s, i) { \
+#define U8_BACK_1_UNSAFE(s, i) UPRV_BLOCK_MACRO_BEGIN { \
     while(U8_IS_TRAIL((s)[--(i)])) {} \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the previous one.
@@ -786,11 +787,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_BACK_1_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_BACK_1(s, start, i) { \
+#define U8_BACK_1(s, start, i) UPRV_BLOCK_MACRO_BEGIN { \
     if(U8_IS_TRAIL((s)[--(i)])) { \
         (i)=utf8_back1SafeBody(s, start, (i)); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the n-th one before it,
@@ -805,13 +806,13 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_BACK_N
  * @stable ICU 2.4
  */
-#define U8_BACK_N_UNSAFE(s, i, n) { \
+#define U8_BACK_N_UNSAFE(s, i, n) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t __N=(n); \
     while(__N>0) { \
         U8_BACK_1_UNSAFE(s, i); \
         --__N; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Move the string offset from one code point boundary to the n-th one before it,
@@ -827,13 +828,13 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_BACK_N_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_BACK_N(s, start, i, n) { \
+#define U8_BACK_N(s, start, i, n) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t __N=(n); \
     while(__N>0 && (i)>(start)) { \
         U8_BACK_1(s, start, i); \
         --__N; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Adjust a random-access offset to a code point boundary after a code point.
@@ -848,10 +849,10 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_SET_CP_LIMIT
  * @stable ICU 2.4
  */
-#define U8_SET_CP_LIMIT_UNSAFE(s, i) { \
+#define U8_SET_CP_LIMIT_UNSAFE(s, i) UPRV_BLOCK_MACRO_BEGIN { \
     U8_BACK_1_UNSAFE(s, i); \
     U8_FWD_1_UNSAFE(s, i); \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Adjust a random-access offset to a code point boundary after a code point.
@@ -870,11 +871,11 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_SET_CP_LIMIT_UNSAFE
  * @stable ICU 2.4
  */
-#define U8_SET_CP_LIMIT(s, start, i, length) { \
+#define U8_SET_CP_LIMIT(s, start, i, length) UPRV_BLOCK_MACRO_BEGIN { \
     if((start)<(i) && ((i)<(length) || (length)<0)) { \
         U8_BACK_1(s, start, i); \
         U8_FWD_1(s, i, length); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 #endif

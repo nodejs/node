@@ -249,7 +249,7 @@ static UDate getUTCtime_real() {
 }
 
 static UDate getUTCtime_fake() {
-    static UMutex fakeClockMutex = U_MUTEX_INTIALIZER;
+    static UMutex fakeClockMutex;
     umtx_lock(&fakeClockMutex);
     if(!fakeClock_set) {
         UDate real = getUTCtime_real();
@@ -1315,11 +1315,10 @@ uprv_pathIsAbsolute(const char *path)
 # endif
 #endif
 
-#if U_PLATFORM_HAS_WINUWP_API != 0
+#if defined(ICU_DATA_DIR_WINDOWS)
 // Helper function to get the ICU Data Directory under the Windows directory location.
 static BOOL U_CALLCONV getIcuDataDirectoryUnderWindowsDirectory(char* directoryBuffer, UINT bufferLength)
 {
-#if defined(ICU_DATA_DIR_WINDOWS)
     wchar_t windowsPath[MAX_PATH];
     char windowsPathUtf8[MAX_PATH];
 
@@ -1346,7 +1345,6 @@ static BOOL U_CALLCONV getIcuDataDirectoryUnderWindowsDirectory(char* directoryB
             }
         }
     }
-#endif
 
     return FALSE;
 }
@@ -1380,9 +1378,9 @@ static void U_CALLCONV dataDirectoryInitFn() {
     */
 #   if !defined(ICU_NO_USER_DATA_OVERRIDE) && !UCONFIG_NO_FILE_IO
     /* First try to get the environment variable */
-#       if U_PLATFORM_HAS_WINUWP_API == 0  // Windows UWP does not support getenv
+#     if U_PLATFORM_HAS_WINUWP_API == 0  // Windows UWP does not support getenv
         path=getenv("ICU_DATA");
-#       endif
+#     endif
 #   endif
 
     /* ICU_DATA_DIR may be set as a compile option.
@@ -1411,7 +1409,7 @@ static void U_CALLCONV dataDirectoryInitFn() {
     }
 #endif
 
-#if U_PLATFORM_HAS_WINUWP_API != 0  && defined(ICU_DATA_DIR_WINDOWS)
+#if defined(ICU_DATA_DIR_WINDOWS)
     char datadir_path_buffer[MAX_PATH];
     if (getIcuDataDirectoryUnderWindowsDirectory(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer))) {
         path = datadir_path_buffer;
@@ -1461,12 +1459,17 @@ static void U_CALLCONV TimeZoneDataDirInitFn(UErrorCode &status) {
 
     const char *dir = "";
 
-#if U_PLATFORM_HAS_WINUWP_API != 0
-    // The UWP version does not support the environment variable setting, but can possibly pick them up from the Windows directory.
+#if U_PLATFORM_HAS_WINUWP_API == 1
+// The UWP version does not support the environment variable setting.
+
+# if defined(ICU_DATA_DIR_WINDOWS)
+    // When using the Windows system data, we can possibly pick up time zone data from the Windows directory.
     char datadir_path_buffer[MAX_PATH];
     if (getIcuDataDirectoryUnderWindowsDirectory(datadir_path_buffer, UPRV_LENGTHOF(datadir_path_buffer))) {
         dir = datadir_path_buffer;
     }
+# endif
+
 #else
     dir = getenv("ICU_TIMEZONE_FILES_DIR");
 #endif // U_PLATFORM_HAS_WINUWP_API
@@ -1560,6 +1563,10 @@ static const char *uprv_getPOSIXIDForCategory(int category)
     {
         /* Nothing worked.  Give it a nice POSIX default value. */
         posixID = "en_US_POSIX";
+        // Note: this test will not catch 'C.UTF-8',
+        // that will be handled in uprv_getDefaultLocaleID().
+        // Leave this mapping here for the uprv_getPOSIXIDForDefaultCodepage()
+        // caller which expects to see "en_US_POSIX" in many branches.
     }
     return posixID;
 }
@@ -1631,8 +1638,8 @@ The leftmost codepage (.xxx) wins.
     }
 
     // Copy the ID into owned memory.
-    // Over-allocate in case we replace "@" with "__".
-    char *correctedPOSIXLocale = static_cast<char *>(uprv_malloc(uprv_strlen(posixID) + 1 + 1));
+    // Over-allocate in case we replace "C" with "en_US_POSIX" (+10), + null termination
+    char *correctedPOSIXLocale = static_cast<char *>(uprv_malloc(uprv_strlen(posixID) + 10 + 1));
     if (correctedPOSIXLocale == nullptr) {
         return nullptr;
     }
@@ -1641,9 +1648,16 @@ The leftmost codepage (.xxx) wins.
     char *limit;
     if ((limit = uprv_strchr(correctedPOSIXLocale, '.')) != nullptr) {
         *limit = 0;
-        if ((limit = uprv_strchr(correctedPOSIXLocale, '@')) != nullptr) {
-            *limit = 0;
-        }
+    }
+    if ((limit = uprv_strchr(correctedPOSIXLocale, '@')) != nullptr) {
+        *limit = 0;
+    }
+
+    if ((uprv_strcmp("C", correctedPOSIXLocale) == 0) // no @ variant
+        || (uprv_strcmp("POSIX", correctedPOSIXLocale) == 0)) {
+      // Raw input was C.* or POSIX.*, Give it a nice POSIX default value.
+      // (The "C"/"POSIX" case is handled in uprv_getPOSIXIDForCategory())
+      uprv_strcpy(correctedPOSIXLocale, "en_US_POSIX");
     }
 
     /* Note that we scan the *uncorrected* ID. */
@@ -1668,7 +1682,7 @@ The leftmost codepage (.xxx) wins.
         if ((q = uprv_strchr(p, '.')) != nullptr) {
             /* How big will the resulting string be? */
             int32_t len = (int32_t)(uprv_strlen(correctedPOSIXLocale) + (q-p));
-            uprv_strncat(correctedPOSIXLocale, p, q-p);
+            uprv_strncat(correctedPOSIXLocale, p, q-p); // do not include charset
             correctedPOSIXLocale[len] = 0;
         }
         else {
@@ -2053,7 +2067,7 @@ int_getDefaultCodepage()
     static char codepage[64];
     DWORD codepageNumber = 0;
 
-#if U_PLATFORM_HAS_WINUWP_API > 0
+#if U_PLATFORM_HAS_WINUWP_API == 1
     // UWP doesn't have a direct API to get the default ACP as Microsoft would rather
     // have folks use Unicode than a "system" code page, however this is the same
     // codepage as the system default locale codepage.  (FWIW, the system locale is

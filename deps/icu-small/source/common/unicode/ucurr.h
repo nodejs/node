@@ -159,14 +159,14 @@ ucurr_unregister(UCurrRegistryKey key, UErrorCode* status);
  * @param currency null-terminated 3-letter ISO 4217 code
  * @param locale locale in which to display currency
  * @param nameStyle selector for which kind of name to return
- * @param isChoiceFormat fill-in set to TRUE if the returned value
- * is a ChoiceFormat pattern; otherwise it is a static string
+ * @param isChoiceFormat always set to FALSE, or can be NULL;
+ *     display names are static strings;
+ *     since ICU 4.4, ChoiceFormat patterns are no longer supported
  * @param len fill-in parameter to receive length of result
  * @param ec error code
  * @return pointer to display string of 'len' UChars.  If the resource
  * data contains no entry for 'currency', then 'currency' itself is
- * returned.  If *isChoiceFormat is TRUE, then the result is a
- * ChoiceFormat pattern.  Otherwise it is a static string.
+ * returned.
  * @stable ICU 2.6
  */
 U_STABLE const UChar* U_EXPORT2
@@ -183,8 +183,9 @@ ucurr_getName(const UChar* currency,
  * currency object in the en_US locale is "US dollar" or "US dollars".
  * @param currency null-terminated 3-letter ISO 4217 code
  * @param locale locale in which to display currency
- * @param isChoiceFormat fill-in set to TRUE if the returned value
- * is a ChoiceFormat pattern; otherwise it is a static string
+ * @param isChoiceFormat always set to FALSE, or can be NULL;
+ *     display names are static strings;
+ *     since ICU 4.4, ChoiceFormat patterns are no longer supported
  * @param pluralCount plural count
  * @param len fill-in parameter to receive length of result
  * @param ec error code
@@ -320,7 +321,7 @@ typedef enum UCurrCurrencyType {
  * Provides a UEnumeration object for listing ISO-4217 codes.
  * @param currType You can use one of several UCurrCurrencyType values for this
  *      variable. You can also | (or) them together to get a specific list of
- *      currencies. Most people will want to use the (UCURR_CURRENCY|UCURR_NON_DEPRECATED) value to
+ *      currencies. Most people will want to use the (UCURR_COMMON|UCURR_NON_DEPRECATED) value to
  *      get a list of current currencies.
  * @param pErrorCode Error code
  * @stable ICU 3.2

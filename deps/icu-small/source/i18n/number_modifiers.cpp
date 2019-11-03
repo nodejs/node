@@ -57,7 +57,7 @@ Modifier::Parameters::Parameters()
         : obj(nullptr) {}
 
 Modifier::Parameters::Parameters(
-    const ModifierStore* _obj, int8_t _signum, StandardPlural::Form _plural)
+    const ModifierStore* _obj, Signum _signum, StandardPlural::Form _plural)
         : obj(_obj), signum(_signum), plural(_plural) {}
 
 ModifierStore::~ModifierStore() = default;
@@ -69,7 +69,7 @@ AdoptingModifierStore::~AdoptingModifierStore()  {
 }
 
 
-int32_t ConstantAffixModifier::apply(NumberStringBuilder &output, int leftIndex, int rightIndex,
+int32_t ConstantAffixModifier::apply(FormattedStringBuilder &output, int leftIndex, int rightIndex,
                                      UErrorCode &status) const {
     // Insert the suffix first since inserting the prefix will change the rightIndex
     int length = output.insert(rightIndex, fSuffix, fField, status);
@@ -154,7 +154,7 @@ SimpleModifier::SimpleModifier()
         : fField(UNUM_FIELD_COUNT), fStrong(false), fPrefixLength(0), fSuffixLength(0) {
 }
 
-int32_t SimpleModifier::apply(NumberStringBuilder &output, int leftIndex, int rightIndex,
+int32_t SimpleModifier::apply(FormattedStringBuilder &output, int leftIndex, int rightIndex,
                               UErrorCode &status) const {
     return formatAsPrefixSuffix(output, leftIndex, rightIndex, status);
 }
@@ -203,7 +203,7 @@ bool SimpleModifier::semanticallyEquivalent(const Modifier& other) const {
 
 
 int32_t
-SimpleModifier::formatAsPrefixSuffix(NumberStringBuilder &result, int32_t startIndex, int32_t endIndex,
+SimpleModifier::formatAsPrefixSuffix(FormattedStringBuilder &result, int32_t startIndex, int32_t endIndex,
                                      UErrorCode &status) const {
     if (fSuffixOffset == -1 && fPrefixLength + fSuffixLength > 0) {
         // There is no argument for the inner number; overwrite the entire segment with our string.
@@ -227,7 +227,7 @@ SimpleModifier::formatAsPrefixSuffix(NumberStringBuilder &result, int32_t startI
 
 
 int32_t
-SimpleModifier::formatTwoArgPattern(const SimpleFormatter& compiled, NumberStringBuilder& result,
+SimpleModifier::formatTwoArgPattern(const SimpleFormatter& compiled, FormattedStringBuilder& result,
                                     int32_t index, int32_t* outPrefixLength, int32_t* outSuffixLength,
                                     Field field, UErrorCode& status) {
     const UnicodeString& compiledPattern = compiled.compiledPattern;
@@ -284,7 +284,7 @@ SimpleModifier::formatTwoArgPattern(const SimpleFormatter& compiled, NumberStrin
 }
 
 
-int32_t ConstantMultiFieldModifier::apply(NumberStringBuilder &output, int leftIndex, int rightIndex,
+int32_t ConstantMultiFieldModifier::apply(FormattedStringBuilder &output, int leftIndex, int rightIndex,
                                           UErrorCode &status) const {
     int32_t length = output.insert(leftIndex, fPrefix, status);
     if (fOverwrite) {
@@ -333,8 +333,8 @@ bool ConstantMultiFieldModifier::semanticallyEquivalent(const Modifier& other) c
 }
 
 
-CurrencySpacingEnabledModifier::CurrencySpacingEnabledModifier(const NumberStringBuilder &prefix,
-                                                               const NumberStringBuilder &suffix,
+CurrencySpacingEnabledModifier::CurrencySpacingEnabledModifier(const FormattedStringBuilder &prefix,
+                                                               const FormattedStringBuilder &suffix,
                                                                bool overwrite,
                                                                bool strong,
                                                                const DecimalFormatSymbols &symbols,
@@ -374,7 +374,7 @@ CurrencySpacingEnabledModifier::CurrencySpacingEnabledModifier(const NumberStrin
     }
 }
 
-int32_t CurrencySpacingEnabledModifier::apply(NumberStringBuilder &output, int leftIndex, int rightIndex,
+int32_t CurrencySpacingEnabledModifier::apply(FormattedStringBuilder &output, int leftIndex, int rightIndex,
                                               UErrorCode &status) const {
     // Currency spacing logic
     int length = 0;
@@ -395,7 +395,7 @@ int32_t CurrencySpacingEnabledModifier::apply(NumberStringBuilder &output, int l
 }
 
 int32_t
-CurrencySpacingEnabledModifier::applyCurrencySpacing(NumberStringBuilder &output, int32_t prefixStart,
+CurrencySpacingEnabledModifier::applyCurrencySpacing(FormattedStringBuilder &output, int32_t prefixStart,
                                                      int32_t prefixLen, int32_t suffixStart,
                                                      int32_t suffixLen,
                                                      const DecimalFormatSymbols &symbols,
@@ -414,7 +414,7 @@ CurrencySpacingEnabledModifier::applyCurrencySpacing(NumberStringBuilder &output
 }
 
 int32_t
-CurrencySpacingEnabledModifier::applyCurrencySpacingAffix(NumberStringBuilder &output, int32_t index,
+CurrencySpacingEnabledModifier::applyCurrencySpacingAffix(FormattedStringBuilder &output, int32_t index,
                                                           EAffix affix,
                                                           const DecimalFormatSymbols &symbols,
                                                           UErrorCode &status) {

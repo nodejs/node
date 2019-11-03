@@ -42,7 +42,9 @@ U_NAMESPACE_BEGIN
 
 
 #ifdef DTITVINF_DEBUG
-#define PRINTMESG(msg) { std::cout << "(" << __FILE__ << ":" << __LINE__ << ") " << msg << "\n"; }
+#define PRINTMESG(msg) UPRV_BLOCK_MACRO_BEGIN { \
+    std::cout << "(" << __FILE__ << ":" << __LINE__ << ") " << msg << "\n"; \
+} UPRV_BLOCK_MACRO_END
 #endif
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(DateIntervalInfo)

@@ -2578,8 +2578,6 @@ typedef enum UVerticalOrientation {
 U_STABLE UBool U_EXPORT2
 u_hasBinaryProperty(UChar32 c, UProperty which);
 
-#ifndef U_HIDE_DRAFT_API
-
 /**
  * Returns a frozen USet for a binary property.
  * The library retains ownership over the returned object.
@@ -2593,12 +2591,10 @@ u_hasBinaryProperty(UChar32 c, UProperty which);
  * @see UProperty
  * @see u_hasBinaryProperty
  * @see Unicode::fromUSet
- * @draft ICU 63
+ * @stable ICU 63
  */
 U_CAPI const USet * U_EXPORT2
 u_getBinaryPropertySet(UProperty property, UErrorCode *pErrorCode);
-
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Check if a code point has the Alphabetic Unicode property.
@@ -2757,8 +2753,6 @@ u_getIntPropertyMinValue(UProperty which);
 U_STABLE int32_t U_EXPORT2
 u_getIntPropertyMaxValue(UProperty which);
 
-#ifndef U_HIDE_DRAFT_API
-
 /**
  * Returns an immutable UCPMap for an enumerated/catalog/int-valued property.
  * The library retains ownership over the returned object.
@@ -2772,12 +2766,10 @@ u_getIntPropertyMaxValue(UProperty which);
  * @return the property as a map
  * @see UProperty
  * @see u_getIntPropertyValue
- * @draft ICU 63
+ * @stable ICU 63
  */
 U_CAPI const UCPMap * U_EXPORT2
 u_getIntPropertyMap(UProperty property, UErrorCode *pErrorCode);
-
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Get the numeric value for a Unicode code point as defined in the
@@ -3197,15 +3189,14 @@ U_STABLE UBool U_EXPORT2
 u_isprint(UChar32 c);
 
 /**
- * Determines whether the specified code point is a base character.
+ * Non-standard: Determines whether the specified code point is a base character.
  * True for general categories "L" (letters), "N" (numbers),
  * "Mc" (spacing combining marks), and "Me" (enclosing marks).
  *
- * Note that this is different from the Unicode definition in
- * chapter 3.5, conformance clause D13,
- * which defines base characters to be all characters (not Cn)
- * that do not graphically combine with preceding characters (M)
- * and that are neither control (Cc) or format (Cf) characters.
+ * Note that this is different from the Unicode Standard definition in
+ * chapter 3.6, conformance clause D51 “Base character”,
+ * which defines base characters as the code points with general categories
+ * Letter (L), Number (N), Punctuation (P), Symbol (S), or Space Separator (Zs).
  *
  * @param c the code point to be tested
  * @return TRUE if the code point is a base character according to this function

@@ -38,7 +38,7 @@
 #define ESC_LEN       2
 
 
-#define CONCAT_ESCAPE_MACRO( args, targetIndex,targetLength,strToAppend, err, len,sourceIndex){                             \
+#define CONCAT_ESCAPE_MACRO(args, targetIndex,targetLength,strToAppend, err, len,sourceIndex) UPRV_BLOCK_MACRO_BEGIN {      \
     while(len-->0){                                                                                                         \
         if(targetIndex < targetLength){                                                                                     \
             args->target[targetIndex] = (unsigned char) *strToAppend;                                                       \
@@ -53,7 +53,7 @@
         }                                                                                                                   \
         strToAppend++;                                                                                                      \
     }                                                                                                                       \
-}
+} UPRV_BLOCK_MACRO_END
 
 
 typedef struct{
@@ -518,19 +518,11 @@ _HZ_WriteSub(UConverterFromUnicodeArgs *args, int32_t offsetIndex, UErrorCode *e
 
 /*
  * Structure for cloning an HZ converter into a single memory block.
- * ucnv_safeClone() of the HZ converter will align the entire cloneHZStruct,
- * and then ucnv_safeClone() of the sub-converter may additionally align
- * subCnv inside the cloneHZStruct, for which we need the deadSpace after
- * subCnv. This is because UAlignedMemory may be larger than the actually
- * necessary alignment size for the platform.
- * The other cloneHZStruct fields will not be moved around,
- * and are aligned properly with cloneHZStruct's alignment.
  */
 struct cloneHZStruct
 {
     UConverter cnv;
     UConverter subCnv;
-    UAlignedMemory deadSpace;
     UConverterDataHZ mydata;
 };
 
@@ -545,12 +537,12 @@ _HZ_SafeClone(const UConverter *cnv,
     int32_t size, bufferSizeNeeded = sizeof(struct cloneHZStruct);
 
     if (U_FAILURE(*status)){
-        return 0;
+        return nullptr;
     }
 
     if (*pBufferSize == 0){ /* 'preflighting' request - set needed size into *pBufferSize */
         *pBufferSize = bufferSizeNeeded;
-        return 0;
+        return nullptr;
     }
 
     localClone = (struct cloneHZStruct *)stackBuffer;
@@ -561,7 +553,7 @@ _HZ_SafeClone(const UConverter *cnv,
     localClone->cnv.isExtraLocal = TRUE;
 
     /* deep-clone the sub-converter */
-    size = (int32_t)(sizeof(UConverter) + sizeof(UAlignedMemory)); /* include size of padding */
+    size = (int32_t)sizeof(UConverter);
     ((UConverterDataHZ*)localClone->cnv.extraInfo)->gbConverter =
         ucnv_safeClone(((UConverterDataHZ*)cnv->extraInfo)->gbConverter, &localClone->subCnv, &size, status);
 

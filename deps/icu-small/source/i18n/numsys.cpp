@@ -37,7 +37,7 @@ U_NAMESPACE_BEGIN
 
 // Useful constants
 
-#define DEFAULT_DIGITS UNICODE_STRING_SIMPLE("0123456789");
+#define DEFAULT_DIGITS UNICODE_STRING_SIMPLE("0123456789")
 static const char gNumberingSystems[] = "numberingSystems";
 static const char gNumberElements[] = "NumberElements";
 static const char gDefault[] = "default";

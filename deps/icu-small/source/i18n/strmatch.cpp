@@ -58,7 +58,7 @@ StringMatcher::~StringMatcher() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringMatcher::clone() const {
+StringMatcher* StringMatcher::clone() const {
     return new StringMatcher(*this);
 }
 

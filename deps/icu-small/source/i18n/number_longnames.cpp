@@ -148,12 +148,11 @@ void getCurrencyLongNameData(const Locale &locale, const CurrencyUnit &currency,
         if (pattern.isBogus()) {
             continue;
         }
-        UBool isChoiceFormat = FALSE;
         int32_t longNameLen = 0;
         const char16_t *longName = ucurr_getPluralName(
                 currency.getISOCurrency(),
                 locale.getName(),
-                &isChoiceFormat,
+                nullptr /* isChoiceFormat */,
                 StandardPlural::getKeyword(static_cast<StandardPlural::Form>(i)),
                 &longNameLen,
                 &status);
@@ -265,6 +264,26 @@ UnicodeString LongNameHandler::getUnitDisplayName(
     return simpleFormats[DNAM_INDEX];
 }
 
+UnicodeString LongNameHandler::getUnitPattern(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        StandardPlural::Form pluralForm,
+        UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return ICU_Utility::makeBogusString();
+    }
+    UnicodeString simpleFormats[ARRAY_LENGTH];
+    getMeasureData(loc, unit, width, simpleFormats, status);
+    // The above already handles fallback from other widths to short
+    if (U_FAILURE(status)) {
+        return ICU_Utility::makeBogusString();
+    }
+    // Now handle fallback from other plural forms to OTHER
+    return (!(simpleFormats[pluralForm]).isBogus())? simpleFormats[pluralForm]:
+            simpleFormats[StandardPlural::Form::OTHER];
+}
+
 LongNameHandler* LongNameHandler::forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency,
                                                       const PluralRules *rules,
                                                       const MicroPropsGenerator *parent,
@@ -289,7 +308,7 @@ void LongNameHandler::simpleFormatsToModifiers(const UnicodeString *simpleFormat
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compiledFormatter(simpleFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, 0, plural});
+        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, SIGNUM_ZERO, plural});
     }
 }
 
@@ -306,7 +325,7 @@ void LongNameHandler::multiSimpleFormatsToModifiers(const UnicodeString *leadFor
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compoundCompiled(compoundFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, 0, plural});
+        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, SIGNUM_ZERO, plural});
     }
 }
 
@@ -317,7 +336,7 @@ void LongNameHandler::processQuantity(DecimalQuantity &quantity, MicroProps &mic
     micros.modOuter = &fModifiers[pluralForm];
 }
 
-const Modifier* LongNameHandler::getModifier(int8_t /*signum*/, StandardPlural::Form plural) const {
+const Modifier* LongNameHandler::getModifier(Signum /*signum*/, StandardPlural::Form plural) const {
     return &fModifiers[plural];
 }
 

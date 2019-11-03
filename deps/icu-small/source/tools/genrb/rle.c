@@ -91,14 +91,14 @@ encodeRunByte(uint16_t* buffer,uint16_t* bufLimit, uint8_t value, int32_t length
     return buffer;
 }
 
-#define APPEND( buffer, bufLimit, value, num, status){  \
+#define APPEND( buffer, bufLimit, value, num, status) UPRV_BLOCK_MACRO_BEGIN { \
     if(buffer<bufLimit){                    \
         *buffer++=(value);                  \
     }else{                                  \
         *status = U_BUFFER_OVERFLOW_ERROR;  \
     }                                       \
     num++;                                  \
-}
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Encode a run, possibly a degenerate run (of < 4 values).

@@ -65,7 +65,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
                     if (U_FAILURE(status)) {
                         fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, u_errorName(status));
                         return FALSE;
-                    };
+                    }
 
                     if ((subDirp = opendir(newpath.data())) != NULL) {
                         /* If this new path is a directory, make a recursive call with the newpath. */

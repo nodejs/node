@@ -35,7 +35,7 @@ U_NAMESPACE_BEGIN
 //-------------------------------------------------------------------------
 
 
-Calendar* IndianCalendar::clone() const {
+IndianCalendar* IndianCalendar::clone() const {
   return new IndianCalendar(*this);
 }
 
