@@ -206,17 +206,23 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
 class InternalCallbackScope {
  public:
   enum Flags {
+    kNoFlags = 0,
     // Tell the constructor whether its `object` parameter may be empty or not.
     kAllowEmptyResource = 1,
     // Indicates whether 'before' and 'after' hooks should be skipped.
-    kSkipAsyncHooks = 2
+    kSkipAsyncHooks = 2,
+    // Indicates whether nextTick and microtask queues should be skipped.
+    // This should only be used when there is no call into JS in this scope.
+    // (The HTTP parser also uses it for some weird backwards
+    // compatibility issues, but it shouldn't.)
+    kSkipTaskQueues = 4
   };
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,
                         const async_context& asyncContext,
-                        int flags = 0);
+                        int flags = kNoFlags);
   // Utility that can be used by AsyncWrap classes.
-  explicit InternalCallbackScope(AsyncWrap* async_wrap);
+  explicit InternalCallbackScope(AsyncWrap* async_wrap, int flags = 0);
   ~InternalCallbackScope();
   void Close();
 
@@ -227,8 +233,8 @@ class InternalCallbackScope {
   Environment* env_;
   async_context async_context_;
   v8::Local<v8::Object> object_;
-  AsyncCallbackScope callback_scope_;
   bool skip_hooks_;
+  bool skip_task_queues_;
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;

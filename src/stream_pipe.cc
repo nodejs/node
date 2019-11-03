@@ -119,7 +119,6 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
                                                 const uv_buf_t& buf_) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   AllocatedBuffer buf(pipe->env(), buf_);
-  AsyncScope async_scope(pipe);
   if (nread < 0) {
     // EOF or error; stop reading and pass the error to the previous listener
     // (which might end up in JS).
@@ -162,7 +161,9 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->is_writing_ = false;
   if (pipe->is_eof_) {
-    AsyncScope async_scope(pipe);
+    HandleScope handle_scope(pipe->env()->isolate());
+    InternalCallbackScope callback_scope(pipe,
+        InternalCallbackScope::kSkipTaskQueues);
     pipe->ShutdownWritable();
     pipe->Unpipe();
     return;
@@ -206,7 +207,9 @@ void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
   pipe->wanted_data_ = suggested_size;
   if (pipe->is_reading_ || pipe->is_closed_)
     return;
-  AsyncScope async_scope(pipe);
+  HandleScope handle_scope(pipe->env()->isolate());
+  InternalCallbackScope callback_scope(pipe,
+      InternalCallbackScope::kSkipTaskQueues);
   pipe->is_reading_ = true;
   pipe->source()->ReadStart();
 }

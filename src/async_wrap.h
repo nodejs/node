@@ -162,7 +162,6 @@ class AsyncWrap : public BaseObject {
   inline ProviderType set_provider_type(ProviderType provider);
 
   inline double get_async_id() const;
-
   inline double get_trigger_async_id() const;
 
   void AsyncReset(v8::Local<v8::Object> resource,
@@ -199,18 +198,6 @@ class AsyncWrap : public BaseObject {
   v8::Local<v8::Object> GetOwner();
   static v8::Local<v8::Object> GetOwner(Environment* env,
                                         v8::Local<v8::Object> obj);
-
-  // This is a simplified version of InternalCallbackScope that only runs
-  // the `before` and `after` hooks. Only use it when not actually calling
-  // back into JS; otherwise, use InternalCallbackScope.
-  class AsyncScope {
-   public:
-    explicit inline AsyncScope(AsyncWrap* wrap);
-    ~AsyncScope();
-
-   private:
-    AsyncWrap* wrap_ = nullptr;
-  };
 
   bool IsDoneInitializing() const override;
 

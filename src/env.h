@@ -723,20 +723,6 @@ class AsyncHooks : public MemoryRetainer {
   void grow_async_ids_stack();
 };
 
-class AsyncCallbackScope {
- public:
-  AsyncCallbackScope() = delete;
-  explicit AsyncCallbackScope(Environment* env);
-  ~AsyncCallbackScope();
-  AsyncCallbackScope(const AsyncCallbackScope&) = delete;
-  AsyncCallbackScope& operator=(const AsyncCallbackScope&) = delete;
-  AsyncCallbackScope(AsyncCallbackScope&&) = delete;
-  AsyncCallbackScope& operator=(AsyncCallbackScope&&) = delete;
-
- private:
-  Environment* env_;
-};
-
 class ImmediateInfo : public MemoryRetainer {
  public:
   inline AliasedUint32Array& fields();
