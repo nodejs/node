@@ -1,0 +1,44 @@
+.hljs-attribute,
+.hljs-tag,
+.hljs-name,
+.hljs-class .hljs-title,
+.hljs-selector-id,
+.hljs-type,
+.hljs-params,
+.hljs-function {
+  color: hsla(288, 8.108%, 37%, 1);
+}
+
+.hljs-literal {
+  color: hsla(39, 81.176%, 57.5%, 1);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #978998;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  color: #8e85e5;
+}
+
+.hljs-link,
+.hljs-keyword,
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #4a91e2;
+}
+
+.hljs-number {
+  color: #33b277;
+}
+
+.hljs-string {
+  color: #dd6546;
+}
+
+.hljs-regexp,
+.hljs-symbol {
+  color: #cc4928;
+}

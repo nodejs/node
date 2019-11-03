@@ -10,6 +10,8 @@ wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 Use `require('crypto')` to access this module.
 
 ```js
+// RUNKIT-ENABLE
+
 const crypto = require('crypto');
 
 const secret = 'abcdefg';

@@ -32,6 +32,7 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 const path = require('path');
+const hljs = require('highlightjs');
 const typeParser = require('./type-parser.js');
 
 module.exports = {
@@ -170,6 +171,8 @@ function linkJsTypeDocs(text) {
   return parts.join('`');
 }
 
+const RUNKIT_RE = /\/\/ RUNKIT-ENABLE([\n]+)/;
+
 // Preprocess headers, stability blockquotes, and YAML blocks.
 function preprocessElements({ filename }) {
   return (tree) => {
@@ -183,7 +186,18 @@ function preprocessElements({ filename }) {
         heading = node;
       } else if (node.type === 'html' && common.isYAMLBlock(node.value)) {
         node.value = parseYAML(node.value);
-
+      } else if (node.type === 'code') {
+        const useRunkit = RUNKIT_RE.test(node.value);
+        if (useRunkit) {
+          node.value = node.value.replace(RUNKIT_RE, '');
+        }
+        const text = hljs.getLanguage(node.lang) ?
+          hljs.highlight(node.lang, node.value).value :
+          node.value;
+        node.type = 'html';
+        node.value = `<pre>
+<code class="language-${node.lang}${useRunkit ? ' runkit' : ''}">${text}</code>
+</pre>`;
       } else if (node.type === 'blockquote') {
         const paragraph = node.children[0].type === 'paragraph' &&
           node.children[0];
