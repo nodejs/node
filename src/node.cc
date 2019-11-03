@@ -406,13 +406,8 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
           ->GetFunction(env->context())
           .ToLocalChecked()};
 
-  Local<Value> result;
-  if (!ExecuteBootstrapper(env, main_script_id, &parameters, &arguments)
-           .ToLocal(&result) ||
-      !task_queue::RunNextTicksNative(env)) {
-    return MaybeLocal<Value>();
-  }
-  return scope.Escape(result);
+  return scope.EscapeMaybe(
+      ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
 }
 
 MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
