@@ -23,6 +23,9 @@ ResKeyPath::ResKeyPath(const std::string& path, UErrorCode& status) {
         status = U_PARSE_ERROR;
         return;
     }
+    if (path.length() == 1) {
+        return;
+    }
     size_t i;
     size_t j = 0;
     while (true) {

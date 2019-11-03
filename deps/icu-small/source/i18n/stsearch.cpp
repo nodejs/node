@@ -282,7 +282,7 @@ void StringSearch::reset()
     usearch_reset(m_strsrch_);
 }
 
-SearchIterator * StringSearch::safeClone(void) const
+StringSearch * StringSearch::safeClone() const
 {
     UErrorCode status = U_ZERO_ERROR;
     StringSearch *result = new StringSearch(m_pattern_, m_text_,

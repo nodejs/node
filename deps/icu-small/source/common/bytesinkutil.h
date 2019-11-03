@@ -59,7 +59,7 @@ private:
                                         ByteSink &sink, uint32_t options, Edits *edits);
 };
 
-class CharStringByteSink : public ByteSink {
+class U_COMMON_API CharStringByteSink : public ByteSink {
 public:
     CharStringByteSink(CharString* dest);
     ~CharStringByteSink() override;

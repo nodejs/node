@@ -154,7 +154,7 @@ DateFormat& DateFormat::operator=(const DateFormat& other)
           fCalendar = NULL;
         }
         if(other.fNumberFormat) {
-          fNumberFormat = (NumberFormat*)other.fNumberFormat->clone();
+          fNumberFormat = other.fNumberFormat->clone();
         } else {
           fNumberFormat = NULL;
         }
@@ -598,7 +598,7 @@ DateFormat::adoptNumberFormat(NumberFormat* newNumberFormat)
 void
 DateFormat::setNumberFormat(const NumberFormat& newNumberFormat)
 {
-    NumberFormat* newNumFmtClone = (NumberFormat*)newNumberFormat.clone();
+    NumberFormat* newNumFmtClone = newNumberFormat.clone();
     if (newNumFmtClone != NULL) {
         adoptNumberFormat(newNumFmtClone);
     }

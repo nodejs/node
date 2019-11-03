@@ -280,7 +280,7 @@ UChar32 getRange(const void *t, UChar32 start,
     int32_t prevI3Block = -1;
     int32_t prevBlock = -1;
     UChar32 c = start;
-    uint32_t trieValue, value;
+    uint32_t trieValue, value = nullValue;
     bool haveValue = false;
     do {
         int32_t i3Block;

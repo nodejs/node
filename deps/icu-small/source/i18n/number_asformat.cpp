@@ -43,7 +43,7 @@ UBool LocalizedNumberFormatterAsFormat::operator==(const Format& other) const {
     return fFormatter.toSkeleton(localStatus) == _other->fFormatter.toSkeleton(localStatus);
 }
 
-Format* LocalizedNumberFormatterAsFormat::clone() const {
+LocalizedNumberFormatterAsFormat* LocalizedNumberFormatterAsFormat::clone() const {
     return new LocalizedNumberFormatterAsFormat(*this);
 }
 
@@ -62,12 +62,12 @@ UnicodeString& LocalizedNumberFormatterAsFormat::format(const Formattable& obj, 
     // always return first occurrence:
     pos.setBeginIndex(0);
     pos.setEndIndex(0);
-    bool found = data.getStringRef().nextFieldPosition(pos, status);
+    bool found = data.nextFieldPosition(pos, status);
     if (found && appendTo.length() != 0) {
         pos.setBeginIndex(pos.getBeginIndex() + appendTo.length());
         pos.setEndIndex(pos.getEndIndex() + appendTo.length());
     }
-    appendTo.append(data.getStringRef().toTempUnicodeString());
+    appendTo.append(data.toTempString(status));
     return appendTo;
 }
 
@@ -84,10 +84,10 @@ UnicodeString& LocalizedNumberFormatterAsFormat::format(const Formattable& obj, 
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    appendTo.append(data.getStringRef().toTempUnicodeString());
+    appendTo.append(data.toTempString(status));
     if (posIter != nullptr) {
         FieldPositionIteratorHandler fpih(posIter, status);
-        data.getStringRef().getAllFieldPositions(fpih, status);
+        data.getAllFieldPositions(fpih, status);
     }
     return appendTo;
 }

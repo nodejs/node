@@ -736,7 +736,7 @@ CharString *Formattable::internalGetCharString(UErrorCode &status) {
         fDecimalStr->append("Infinity", status);
       } else if (fDecimalQuantity->isNaN()) {
         fDecimalStr->append("NaN", status);
-      } else if (fDecimalQuantity->isZero()) {
+      } else if (fDecimalQuantity->isZeroish()) {
         fDecimalStr->append("0", -1, status);
       } else if (fType==kLong || fType==kInt64 || // use toPlainString for integer types
                   (fDecimalQuantity->getMagnitude() != INT32_MIN && std::abs(fDecimalQuantity->getMagnitude()) < 5)) {

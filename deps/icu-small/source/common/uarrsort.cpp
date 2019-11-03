@@ -34,6 +34,10 @@ enum {
     STACK_ITEM_SIZE=200
 };
 
+static constexpr int32_t sizeInMaxAlignTs(int32_t sizeInBytes) {
+    return (sizeInBytes + sizeof(max_align_t) - 1) / sizeof(max_align_t);
+}
+
 /* UComparator convenience implementations ---------------------------------- */
 
 U_CAPI int32_t U_EXPORT2
@@ -134,25 +138,15 @@ doInsertionSort(char *array, int32_t length, int32_t itemSize,
 static void
 insertionSort(char *array, int32_t length, int32_t itemSize,
               UComparator *cmp, const void *context, UErrorCode *pErrorCode) {
-    UAlignedMemory v[STACK_ITEM_SIZE/sizeof(UAlignedMemory)+1];
-    void *pv;
 
-    /* allocate an intermediate item variable (v) */
-    if(itemSize<=STACK_ITEM_SIZE) {
-        pv=v;
-    } else {
-        pv=uprv_malloc(itemSize);
-        if(pv==NULL) {
-            *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
+    icu::MaybeStackArray<max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE)> v;
+    if (sizeInMaxAlignTs(itemSize) > v.getCapacity() &&
+            v.resize(sizeInMaxAlignTs(itemSize)) == nullptr) {
+        *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
+        return;
     }
 
-    doInsertionSort(array, length, itemSize, cmp, context, pv);
-
-    if(pv!=v) {
-        uprv_free(pv);
-    }
+    doInsertionSort(array, length, itemSize, cmp, context, v.getAlias());
 }
 
 /* QuickSort ---------------------------------------------------------------- */
@@ -238,26 +232,16 @@ subQuickSort(char *array, int32_t start, int32_t limit, int32_t itemSize,
 static void
 quickSort(char *array, int32_t length, int32_t itemSize,
             UComparator *cmp, const void *context, UErrorCode *pErrorCode) {
-    UAlignedMemory xw[(2*STACK_ITEM_SIZE)/sizeof(UAlignedMemory)+1];
-    void *p;
-
     /* allocate two intermediate item variables (x and w) */
-    if(itemSize<=STACK_ITEM_SIZE) {
-        p=xw;
-    } else {
-        p=uprv_malloc(2*itemSize);
-        if(p==NULL) {
-            *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
+    icu::MaybeStackArray<max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE) * 2> xw;
+    if(sizeInMaxAlignTs(itemSize)*2 > xw.getCapacity() &&
+            xw.resize(sizeInMaxAlignTs(itemSize) * 2) == nullptr) {
+        *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
+        return;
     }
 
-    subQuickSort(array, 0, length, itemSize,
-                 cmp, context, p, (char *)p+itemSize);
-
-    if(p!=xw) {
-        uprv_free(p);
-    }
+    subQuickSort(array, 0, length, itemSize, cmp, context,
+                 xw.getAlias(), xw.getAlias() + sizeInMaxAlignTs(itemSize));
 }
 
 /* uprv_sortArray() API ----------------------------------------------------- */

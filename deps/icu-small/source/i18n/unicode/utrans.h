@@ -142,7 +142,7 @@ typedef struct UTransPosition {
     int32_t contextLimit;
 
     /**
-     * Beginning index, inclusive, of the text to be transliteratd.
+     * Beginning index, inclusive, of the text to be transliterated.
      * INPUT/OUTPUT parameter: This parameter is advanced past
      * characters that have already been transliterated by a
      * transliteration operation.
@@ -151,7 +151,7 @@ typedef struct UTransPosition {
     int32_t start;
 
     /**
-     * Ending index, exclusive, of the text to be transliteratd.
+     * Ending index, exclusive, of the text to be transliterated.
      * INPUT/OUTPUT parameter: This parameter is updated to reflect
      * changes in the length of the text, but points to the same
      * logical position in the text.
@@ -389,7 +389,7 @@ utrans_trans(const UTransliterator* trans,
 
 /**
  * Transliterate the portion of the UReplaceable text buffer that can
- * be transliterated unambiguosly.  This method is typically called
+ * be transliterated unambiguously.  This method is typically called
  * after new text has been inserted, e.g. as a result of a keyboard
  * event.  The transliterator will try to transliterate characters of
  * <code>rep</code> between <code>index.cursor</code> and
@@ -454,8 +454,7 @@ utrans_transIncremental(const UTransliterator* trans,
  * zero-terminated.  Upon return, the new length is stored in
  * *textLength.  If textLength is NULL then the string is assumed to
  * be zero-terminated.
- * @param textCapacity a pointer to the length of the text buffer.
- * Upon return,
+ * @param textCapacity the length of the text buffer
  * @param start the beginning index, inclusive; <code>0 <= start <=
  * limit</code>.
  * @param limit pointer to the ending index, exclusive; <code>start <=
@@ -479,7 +478,7 @@ utrans_transUChars(const UTransliterator* trans,
 
 /**
  * Transliterate the portion of the UChar* text buffer that can be
- * transliterated unambiguosly.  See utrans_transIncremental().  The
+ * transliterated unambiguously.  See utrans_transIncremental().  The
  * string is passed in in a UChar* buffer.  The string is modified in
  * place.  If the result is longer than textCapacity, it is truncated.
  * The actual length of the result is returned in *textLength, if

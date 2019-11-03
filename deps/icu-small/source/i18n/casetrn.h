@@ -58,7 +58,7 @@ public:
      * Transliterator API.
      * @return a copy of the object.
      */
-    virtual Transliterator* clone(void) const = 0;
+    virtual CaseMapTransliterator* clone() const = 0;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

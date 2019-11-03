@@ -35,6 +35,17 @@ CharString& CharString::operator=(CharString&& src) U_NOEXCEPT {
     return *this;
 }
 
+char *CharString::cloneData(UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode)) { return nullptr; }
+    char *p = static_cast<char *>(uprv_malloc(len + 1));
+    if (p == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    uprv_memcpy(p, buffer.getAlias(), len + 1);
+    return p;
+}
+
 CharString &CharString::copyFrom(const CharString &s, UErrorCode &errorCode) {
     if(U_SUCCESS(errorCode) && this!=&s && ensureCapacity(s.len+1, 0, errorCode)) {
         len=s.len;
@@ -50,6 +61,18 @@ int32_t CharString::lastIndexOf(char c) const {
         }
     }
     return -1;
+}
+
+bool CharString::contains(StringPiece s) const {
+    if (s.empty()) { return false; }
+    const char *p = buffer.getAlias();
+    int32_t lastStart = len - s.length();
+    for (int32_t i = 0; i <= lastStart; ++i) {
+        if (uprv_memcmp(p + i, s.data(), s.length()) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 CharString &CharString::truncate(int32_t newLength) {

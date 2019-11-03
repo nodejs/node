@@ -274,11 +274,11 @@ expect(ParseState* state, enum ETokenType expectedToken, struct UString **tokenV
     }
 }
 
-static char *getInvariantString(ParseState* state, uint32_t *line, struct UString *comment, UErrorCode *status)
+static char *getInvariantString(ParseState* state, uint32_t *line, struct UString *comment,
+                                int32_t &stringLength, UErrorCode *status)
 {
     struct UString *tokenValue;
     char           *result;
-    uint32_t        count;
 
     expect(state, TOK_STRING, &tokenValue, comment, line, status);
 
@@ -287,14 +287,13 @@ static char *getInvariantString(ParseState* state, uint32_t *line, struct UStrin
         return NULL;
     }
 
-    count = u_strlen(tokenValue->fChars);
-    if(!uprv_isInvariantUString(tokenValue->fChars, count)) {
+    if(!uprv_isInvariantUString(tokenValue->fChars, tokenValue->fLength)) {
         *status = U_INVALID_FORMAT_ERROR;
         error(*line, "invariant characters required for table keys, binary data, etc.");
         return NULL;
     }
 
-    result = static_cast<char *>(uprv_malloc(count+1));
+    result = static_cast<char *>(uprv_malloc(tokenValue->fLength+1));
 
     if (result == NULL)
     {
@@ -302,7 +301,8 @@ static char *getInvariantString(ParseState* state, uint32_t *line, struct UStrin
         return NULL;
     }
 
-    u_UCharsToChars(tokenValue->fChars, result, count+1);
+    u_UCharsToChars(tokenValue->fChars, result, tokenValue->fLength+1);
+    stringLength = tokenValue->fLength;
     return result;
 }
 
@@ -1371,7 +1371,6 @@ parseIntVector(ParseState* state, char *tag, uint32_t startline, const struct US
     int32_t            value;
     UBool              readToken = FALSE;
     char              *stopstring;
-    uint32_t           len;
     struct UString     memberComments;
 
     IntVectorResource *result = intvector_open(state->bundle, tag, comment, status);
@@ -1404,7 +1403,8 @@ parseIntVector(ParseState* state, char *tag, uint32_t startline, const struct US
             return result;
         }
 
-        string = getInvariantString(state, NULL, NULL, status);
+        int32_t stringLength;
+        string = getInvariantString(state, NULL, NULL, stringLength, status);
 
         if (U_FAILURE(*status))
         {
@@ -1414,9 +1414,9 @@ parseIntVector(ParseState* state, char *tag, uint32_t startline, const struct US
 
         /* For handling illegal char in the Intvector */
         value = uprv_strtoul(string, &stopstring, 0);/* make intvector support decimal,hexdigit,octal digit ranging from -2^31-2^32-1*/
-        len=(uint32_t)(stopstring-string);
+        int32_t len = (int32_t)(stopstring-string);
 
-        if(len==uprv_strlen(string))
+        if(len==stringLength)
         {
             result->add(value, *status);
             uprv_free(string);
@@ -1454,7 +1454,8 @@ static struct SResource *
 parseBinary(ParseState* state, char *tag, uint32_t startline, const struct UString *comment, UErrorCode *status)
 {
     uint32_t line;
-    LocalMemory<char> string(getInvariantString(state, &line, NULL, status));
+    int32_t stringLength;
+    LocalMemory<char> string(getInvariantString(state, &line, NULL, stringLength, status));
     if (string.isNull() || U_FAILURE(*status))
     {
         return NULL;
@@ -1470,46 +1471,45 @@ parseBinary(ParseState* state, char *tag, uint32_t startline, const struct UStri
         printf(" binary %s at line %i \n",  (tag == NULL) ? "(null)" : tag, (int)startline);
     }
 
-    uint32_t count = (uint32_t)uprv_strlen(string.getAlias());
-    if (count > 0){
-        if((count % 2)==0){
-            LocalMemory<uint8_t> value;
-            if (value.allocateInsteadAndCopy(count) == NULL)
-            {
-                *status = U_MEMORY_ALLOCATION_ERROR;
-                return NULL;
-            }
+    LocalMemory<uint8_t> value;
+    int32_t count = 0;
+    if (stringLength > 0 && value.allocateInsteadAndCopy(stringLength) == NULL)
+    {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
 
-            char toConv[3] = {'\0', '\0', '\0'};
-            for (uint32_t i = 0; i < count; i += 2)
-            {
-                toConv[0] = string[i];
-                toConv[1] = string[i + 1];
-
-                char *stopstring;
-                value[i >> 1] = (uint8_t) uprv_strtoul(toConv, &stopstring, 16);
-                uint32_t len=(uint32_t)(stopstring-toConv);
-
-                if(len!=2)
-                {
-                    *status=U_INVALID_CHAR_FOUND;
-                    return NULL;
-                }
-            }
-
-            return bin_open(state->bundle, tag, count >> 1, value.getAlias(), NULL, comment, status);
+    char toConv[3] = {'\0', '\0', '\0'};
+    for (int32_t i = 0; i < stringLength;)
+    {
+        // Skip spaces (which may have been line endings).
+        char c0 = string[i++];
+        if (c0 == ' ') { continue; }
+        if (i == stringLength) {
+            *status=U_INVALID_CHAR_FOUND;
+            error(line, "Encountered invalid binary value (odd number of hex digits)");
+            return NULL;
         }
-        else
+        toConv[0] = c0;
+        toConv[1] = string[i++];
+
+        char *stopstring;
+        value[count++] = (uint8_t) uprv_strtoul(toConv, &stopstring, 16);
+        uint32_t len=(uint32_t)(stopstring-toConv);
+
+        if(len!=2)
         {
-            *status = U_INVALID_CHAR_FOUND;
-            error(line, "Encountered invalid binary value (length is odd)");
+            *status=U_INVALID_CHAR_FOUND;
+            error(line, "Encountered invalid binary value (not all pairs of hex digits)");
             return NULL;
         }
     }
-    else
-    {
+
+    if (count == 0) {
         warning(startline, "Encountered empty binary value");
         return bin_open(state->bundle, tag, 0, NULL, "", comment, status);
+    } else {
+        return bin_open(state->bundle, tag, count, value.getAlias(), NULL, comment, status);
     }
 }
 
@@ -1520,9 +1520,9 @@ parseInteger(ParseState* state, char *tag, uint32_t startline, const struct UStr
     int32_t           value;
     char             *string;
     char             *stopstring;
-    uint32_t          len;
 
-    string = getInvariantString(state, NULL, NULL, status);
+    int32_t stringLength;
+    string = getInvariantString(state, NULL, NULL, stringLength, status);
 
     if (string == NULL || U_FAILURE(*status))
     {
@@ -1541,7 +1541,7 @@ parseInteger(ParseState* state, char *tag, uint32_t startline, const struct UStr
         printf(" integer %s at line %i \n",  (tag == NULL) ? "(null)" : tag, (int)startline);
     }
 
-    if (uprv_strlen(string) <= 0)
+    if (stringLength == 0)
     {
         warning(startline, "Encountered empty integer. Default value is 0.");
     }
@@ -1549,8 +1549,8 @@ parseInteger(ParseState* state, char *tag, uint32_t startline, const struct UStr
     /* Allow integer support for hexdecimal, octal digit and decimal*/
     /* and handle illegal char in the integer*/
     value = uprv_strtoul(string, &stopstring, 0);
-    len=(uint32_t)(stopstring-string);
-    if(len==uprv_strlen(string))
+    int32_t len = (int32_t)(stopstring-string);
+    if(len==stringLength)
     {
         result = int_open(state->bundle, tag, value, comment, status);
     }
@@ -1567,7 +1567,8 @@ static struct SResource *
 parseImport(ParseState* state, char *tag, uint32_t startline, const struct UString* comment, UErrorCode *status)
 {
     uint32_t          line;
-    LocalMemory<char> filename(getInvariantString(state, &line, NULL, status));
+    int32_t stringLength;
+    LocalMemory<char> filename(getInvariantString(state, &line, NULL, stringLength, status));
     if (U_FAILURE(*status))
     {
         return NULL;
@@ -1628,12 +1629,11 @@ parseInclude(ParseState* state, char *tag, uint32_t startline, const struct UStr
 
     UCHARBUF *ucbuf;
     char     *fullname = NULL;
-    int32_t  count     = 0;
     const char* cp = NULL;
     const UChar* uBuffer = NULL;
 
-    filename = getInvariantString(state, &line, NULL, status);
-    count     = (int32_t)uprv_strlen(filename);
+    int32_t stringLength;
+    filename = getInvariantString(state, &line, NULL, stringLength, status);
 
     if (U_FAILURE(*status))
     {
@@ -1652,7 +1652,7 @@ parseInclude(ParseState* state, char *tag, uint32_t startline, const struct UStr
         printf(" include %s at line %i \n",  (tag == NULL) ? "(null)" : tag, (int)startline);
     }
 
-    fullname = (char *) uprv_malloc(state->inputdirLength + count + 2);
+    fullname = (char *) uprv_malloc(state->inputdirLength + stringLength + 2);
     /* test for NULL */
     if(fullname == NULL)
     {

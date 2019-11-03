@@ -60,7 +60,7 @@ TitlecaseTransliterator::TitlecaseTransliterator(const TitlecaseTransliterator& 
 /**
  * Transliterator API.
  */
-Transliterator* TitlecaseTransliterator::clone(void) const {
+TitlecaseTransliterator* TitlecaseTransliterator::clone() const {
     return new TitlecaseTransliterator(*this);
 }
 

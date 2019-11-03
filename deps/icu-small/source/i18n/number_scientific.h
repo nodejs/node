@@ -21,7 +21,7 @@ class U_I18N_API ScientificModifier : public UMemory, public Modifier {
 
     void set(int32_t exponent, const ScientificHandler *handler);
 
-    int32_t apply(NumberStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
+    int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
                   UErrorCode &status) const U_OVERRIDE;
 
     int32_t getPrefixLength() const U_OVERRIDE;

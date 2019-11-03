@@ -10,14 +10,12 @@
 #define UNISTR_FROM_STRING_EXPLICIT
 
 #include "numparse_types.h"
-#include "numparse_stringsegment.h"
+#include "string_segment.h"
 #include "putilimp.h"
 #include "unicode/utf16.h"
 #include "unicode/uniset.h"
 
-using namespace icu;
-using namespace icu::numparse;
-using namespace icu::numparse::impl;
+U_NAMESPACE_BEGIN
 
 
 StringSegment::StringSegment(const UnicodeString& str, bool ignoreCase)
@@ -143,4 +141,5 @@ bool StringSegment::operator==(const UnicodeString& other) const {
 }
 
 
+U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_FORMATTING */

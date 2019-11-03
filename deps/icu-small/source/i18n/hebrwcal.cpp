@@ -169,7 +169,7 @@ const char *HebrewCalendar::getType() const {
     return "hebrew";
 }
 
-Calendar* HebrewCalendar::clone() const {
+HebrewCalendar* HebrewCalendar::clone() const {
     return new HebrewCalendar(*this);
 }
 

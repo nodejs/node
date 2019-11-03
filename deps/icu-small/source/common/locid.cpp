@@ -38,19 +38,19 @@
 #include "unicode/strenum.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uloc.h"
-#include "putilimp.h"
-#include "mutex.h"
-#include "umutex.h"
-#include "uassert.h"
+
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "mutex.h"
+#include "putilimp.h"
 #include "uassert.h"
+#include "ucln_cmn.h"
 #include "uhash.h"
 #include "ulocimp.h"
-#include "ucln_cmn.h"
+#include "umutex.h"
 #include "ustr_imp.h"
-#include "charstr.h"
-#include "bytesinkutil.h"
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV locale_cleanup(void);
@@ -62,10 +62,7 @@ static Locale   *gLocaleCache = NULL;
 static UInitOnce gLocaleCacheInitOnce = U_INITONCE_INITIALIZER;
 
 // gDefaultLocaleMutex protects all access to gDefaultLocalesHashT and gDefaultLocale.
-static UMutex *gDefaultLocaleMutex() {
-    static UMutex m = U_MUTEX_INITIALIZER;
-    return &m;
-}
+static UMutex gDefaultLocaleMutex;
 static UHashtable *gDefaultLocalesHashT = NULL;
 static Locale *gDefaultLocale = NULL;
 
@@ -174,7 +171,7 @@ U_NAMESPACE_BEGIN
 
 Locale *locale_set_default_internal(const char *id, UErrorCode& status) {
     // Synchronize this entire function.
-    Mutex lock(gDefaultLocaleMutex());
+    Mutex lock(&gDefaultLocaleMutex);
 
     UBool canonicalize = FALSE;
 
@@ -711,7 +708,7 @@ const Locale& U_EXPORT2
 Locale::getDefault()
 {
     {
-        Mutex lock(gDefaultLocaleMutex());
+        Mutex lock(&gDefaultLocaleMutex);
         if (gDefaultLocale != NULL) {
             return *gDefaultLocale;
         }
@@ -1398,6 +1395,8 @@ const char *
 Locale::getBaseName() const {
     return baseName;
 }
+
+Locale::Iterator::~Iterator() = default;
 
 //eof
 U_NAMESPACE_END
