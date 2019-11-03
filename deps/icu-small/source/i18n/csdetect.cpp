@@ -47,7 +47,7 @@ struct CSRecognizerInfo : public UMemory {
 U_NAMESPACE_END
 
 static icu::CSRecognizerInfo **fCSRecognizers = NULL;
-static icu::UInitOnce gCSRecognizersInitOnce;
+static icu::UInitOnce gCSRecognizersInitOnce = U_INITONCE_INITIALIZER;
 static int32_t fCSRecognizers_size = 0;
 
 U_CDECL_BEGIN
@@ -126,7 +126,7 @@ static void U_CALLCONV initRecognizers(UErrorCode &status) {
 
     if (fCSRecognizers == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
-    }
+    } 
     else {
         fCSRecognizers_size = rCount;
         for (int32_t r = 0; r < rCount; r += 1) {
@@ -224,7 +224,7 @@ int32_t CharsetDetector::getDetectableCount()
 
     setRecognizers(status);
 
-    return fCSRecognizers_size;
+    return fCSRecognizers_size; 
 }
 
 const CharsetMatch *CharsetDetector::detect(UErrorCode &status)

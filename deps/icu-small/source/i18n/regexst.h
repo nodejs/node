@@ -36,7 +36,7 @@ public:
     static RegexStaticSets *gStaticSets;  // Ptr to all lazily initialized constant
                                           //   shared sets.
 
-    RegexStaticSets(UErrorCode *status);
+    RegexStaticSets(UErrorCode *status);         
     ~RegexStaticSets();
     static void    initGlobals(UErrorCode *status);
     static UBool   cleanup();
@@ -57,3 +57,4 @@ public:
 U_NAMESPACE_END
 #endif   // !UCONFIG_NO_REGULAR_EXPRESSIONS
 #endif   // REGEXST_H
+

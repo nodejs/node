@@ -18,6 +18,9 @@
 #define __STRINGTRIEBUILDER_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
 /**
@@ -272,7 +275,7 @@ protected:
     // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
     // it is needed for layout of other objects.
     /**
-     * @internal
+     * @internal 
      */
     class ValueNode : public Node {
     public:
@@ -289,8 +292,8 @@ protected:
     };
 
 #ifndef U_HIDE_INTERNAL_API
-    /**
-     * @internal
+    /** 
+     * @internal 
      */
     class IntermediateValueNode : public ValueNode {
     public:
@@ -307,7 +310,7 @@ protected:
     // Do not conditionalize the following with #ifndef U_HIDE_INTERNAL_API,
     // it is needed for layout of other objects.
     /**
-     * @internal
+     * @internal 
      */
     class LinearMatchNode : public ValueNode {
     public:
@@ -323,7 +326,7 @@ protected:
 
 #ifndef U_HIDE_INTERNAL_API
     /**
-     * @internal
+     * @internal 
      */
     class BranchNode : public Node {
     public:
@@ -333,7 +336,7 @@ protected:
     };
 
     /**
-     * @internal
+     * @internal 
      */
     class ListBranchNode : public BranchNode {
     public:
@@ -365,7 +368,7 @@ protected:
     };
 
     /**
-     * @internal
+     * @internal 
      */
     class SplitBranchNode : public BranchNode {
     public:
@@ -417,5 +420,7 @@ protected:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __STRINGTRIEBUILDER_H__

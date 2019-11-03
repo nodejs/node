@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 1999-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -37,10 +37,10 @@ uprv_strCompare(const UChar *s1, int32_t length1,
                 const UChar *s2, int32_t length2,
                 UBool strncmpStyle, UBool codePointOrder);
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 ustr_hashUCharsN(const UChar *str, int32_t length);
 
-U_CAPI int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2 
 ustr_hashCharsN(const char *str, int32_t length);
 
 U_CAPI int32_t U_EXPORT2

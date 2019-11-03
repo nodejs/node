@@ -64,7 +64,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     numRead=T_FileStream_read(in, start, sizeof(start));
 
     *cp = ucnv_detectUnicodeSignature(start, numRead, signatureLength, error);
-
+    
     /* unread the bytes beyond what was consumed for U+FEFF */
     T_FileStream_rewind(in);
     if (*signatureLength > 0) {
@@ -94,7 +94,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     }
 
 
-    return TRUE;
+    return TRUE; 
 }
 static UBool ucbuf_isCPKnown(const char* cp){
     if(ucnv_compareNames("UTF-8",cp)==0){
@@ -142,7 +142,7 @@ ucbuf_autodetect(const char* fileName, const char** cp,UConverter** conv, int32_
     }
     /* open the file */
     in= T_FileStream_open(fileName,"rb");
-
+    
     if(in == NULL){
         *error=U_FILE_ACCESS_ERROR;
         return NULL;
@@ -186,13 +186,13 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         /* read the file */
         inputRead=T_FileStream_read(buf->in,cbuf,cbufSize-offset);
         buf->remaining-=inputRead;
-
+        
     }else{
         cbufSize = T_FileStream_size(buf->in);
         cbuf = (char*)uprv_malloc(cbufSize);
         if (cbuf == NULL) {
-		*error = U_MEMORY_ALLOCATION_ERROR;
-		return NULL;
+        	*error = U_MEMORY_ALLOCATION_ERROR;
+        	return NULL;
         }
         inputRead= T_FileStream_read(buf->in,cbuf,cbufSize);
         buf->remaining-=inputRead;
@@ -233,7 +233,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
             int32_t pos =0;
             /* use erro1 to preserve the error code */
             UErrorCode error1 =U_ZERO_ERROR;
-
+            
             if( buf->showWarning==TRUE){
                 fprintf(stderr,"\n###WARNING: Encountered abnormal bytes while"
                                " converting input stream to target encoding: %s\n",
@@ -422,7 +422,7 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
             char context[CONTEXT_LEN+1];
             int32_t len = CONTEXT_LEN;
             if(length < len) {
-                len = length;
+                len = length; 
             }
             context[len]= 0 ; /* null terminate the buffer */
             u_UCharsToChars( buf->currentPos, context, len);
@@ -449,7 +449,7 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
 U_CAPI UCHARBUF* U_EXPORT2
 ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffered, UErrorCode* error){
 
-    FileStream* in = NULL;
+    FileStream* in = NULL; 
     int32_t fileSize=0;
     const char* knownCp;
     if(error==NULL || U_FAILURE(*error)){
@@ -461,10 +461,10 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
     }
     if (!uprv_strcmp(fileName, "-")) {
         in = T_FileStream_stdin();
-    }else{
+    }else{ 
         in = T_FileStream_open(fileName, "rb");
     }
-
+    
     if(in!=NULL){
         UCHARBUF* buf =(UCHARBUF*) uprv_malloc(sizeof(UCHARBUF));
         fileSize = T_FileStream_size(in);
@@ -494,7 +494,7 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
             T_FileStream_close(in);
             return NULL;
         }
-
+        
         if((buf->conv==NULL) && (buf->showWarning==TRUE)){
             fprintf(stderr,"###WARNING: No converter defined. Using codepage of system.\n");
         }
@@ -502,7 +502,7 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
         if(buf->isBuffered){
             buf->bufCapacity=MAX_U_BUF;
         }else{
-            buf->bufCapacity=buf->remaining+buf->signatureLength+1/*for terminating nul*/;
+            buf->bufCapacity=buf->remaining+buf->signatureLength+1/*for terminating nul*/;               
         }
         buf->buffer=(UChar*) uprv_malloc(U_SIZEOF_UCHAR * buf->bufCapacity );
         if (buf->buffer == NULL) {
@@ -663,7 +663,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
 
         target[0] = '\0';
         /*
-         * append the input dir to openFileName if the first char in
+         * append the input dir to openFileName if the first char in 
          * filename is not file seperation char and the last char input directory is  not '.'.
          * This is to support :
          * genrb -s. /home/icu/data
@@ -685,7 +685,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
             *status = U_BUFFER_OVERFLOW_ERROR;
             return NULL;
         }
-
+        
         uprv_strcpy(target, inputDir);
     }
 
@@ -695,7 +695,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
 /*
  * Unicode TR 13 says any of the below chars is
  * a new line char in a readline function in addition
- * to CR+LF combination which needs to be
+ * to CR+LF combination which needs to be 
  * handled seperately
  */
 static UBool ucbuf_isCharNewLine(UChar c){
@@ -732,7 +732,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
             }else{
                 ucbuf_fillucbuf(buf,err);
                 if(U_FAILURE(*err)){
-                    return NULL;
+                    return NULL; 
                 }
             }
             /*
@@ -761,7 +761,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
         */
         for(;;){
             c = *temp++;
-
+            
             if(buf->currentPos==buf->bufLimit){
                 return NULL; /* end of file is reached return NULL */
             }

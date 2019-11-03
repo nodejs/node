@@ -55,8 +55,8 @@ uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
     if (U_FAILURE(*status)) {
         return NULL;
     }
-#if UCONFIG_NO_REGULAR_EXPRESSIONS
-    *status = U_UNSUPPORTED_ERROR;
+#if UCONFIG_NO_REGULAR_EXPRESSIONS 
+    *status = U_UNSUPPORTED_ERROR;      
     return NULL;
 #else
     if (errorType!=NULL) {
@@ -96,13 +96,13 @@ uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
 
     // Compile the binary data from the source (text) format.
     ConfusabledataBuilder::buildConfusableData(This, confusables, confusablesLen, errorType, pe, *status);
-
+    
     if (U_FAILURE(*status)) {
         delete This;
         This = NULL;
     }
     return (USpoofChecker *)This;
-#endif // UCONFIG_NO_REGULAR_EXPRESSIONS
+#endif // UCONFIG_NO_REGULAR_EXPRESSIONS 
 }
 
 #endif

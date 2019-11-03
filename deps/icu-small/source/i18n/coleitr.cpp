@@ -20,7 +20,7 @@
 * 08/03/98   erm         Synched with 1.2 version of CollationElementIterator.java
 * 12/10/99   aliu        Ported Thai collation support from Java.
 * 01/25/01   swquek      Modified to a C++ wrapper calling C APIs (ucoliter.h)
-* 02/19/01   swquek      Removed CollationElementIterator() since it is
+* 02/19/01   swquek      Removed CollationElementIterator() since it is 
 *                        private constructor and no calls are made to it
 * 2012-2014  markus      Rewritten in C++ again.
 */
@@ -53,7 +53,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CollationElementIterator)
 /* CollationElementIterator public constructor/destructor ------------------ */
 
 CollationElementIterator::CollationElementIterator(
-                                         const CollationElementIterator& other)
+                                         const CollationElementIterator& other) 
         : UObject(other), iter_(NULL), rbc_(NULL), otherHalf_(0), dir_(0), offsets_(NULL) {
     *this = other;
 }
@@ -98,7 +98,7 @@ int32_t CollationElementIterator::getOffset() const
 
 /**
 * Get the ordering priority of the next character in the string.
-* @return the next character's ordering. Returns NULLORDER if an error has
+* @return the next character's ordering. Returns NULLORDER if an error has 
 *         occured or if the end of string has been reached
 */
 int32_t CollationElementIterator::next(UErrorCode& status)
@@ -161,7 +161,7 @@ UBool CollationElementIterator::operator==(
 /**
 * Get the ordering priority of the previous collation element in the string.
 * @param status the error code status.
-* @return the previous element's ordering. Returns NULLORDER if an error has
+* @return the previous element's ordering. Returns NULLORDER if an error has 
 *         occured or if the start of string has been reached.
 */
 int32_t CollationElementIterator::previous(UErrorCode& status)
@@ -227,7 +227,7 @@ void CollationElementIterator::reset()
     dir_ = 0;
 }
 
-void CollationElementIterator::setOffset(int32_t newOffset,
+void CollationElementIterator::setOffset(int32_t newOffset, 
                                          UErrorCode& status)
 {
     if (U_FAILURE(status)) { return; }
@@ -297,10 +297,10 @@ void CollationElementIterator::setText(const UnicodeString& source,
 }
 
 // Sets the source to the new character iterator.
-void CollationElementIterator::setText(CharacterIterator& source,
+void CollationElementIterator::setText(CharacterIterator& source, 
                                        UErrorCode& status)
 {
-    if (U_FAILURE(status))
+    if (U_FAILURE(status)) 
         return;
 
     source.getText(string_);
@@ -323,7 +323,7 @@ int32_t CollationElementIterator::strengthOrder(int32_t order) const
 
 /* CollationElementIterator private constructors/destructors --------------- */
 
-/**
+/** 
 * This is the "real" constructor for this class; it constructs an iterator
 * over the source text using the specified collator
 */
@@ -335,8 +335,8 @@ CollationElementIterator::CollationElementIterator(
     setText(source, status);
 }
 
-/**
-* This is the "real" constructor for this class; it constructs an iterator over
+/** 
+* This is the "real" constructor for this class; it constructs an iterator over 
 * the source text using the specified collator
 */
 CollationElementIterator::CollationElementIterator(

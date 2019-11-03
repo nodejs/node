@@ -23,6 +23,9 @@
 #define __BYTESTRIEBUILDER_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/bytestrie.h"
 #include "unicode/stringpiece.h"
 #include "unicode/stringtriebuilder.h"
@@ -153,7 +156,7 @@ private:
     private:
         const char *s;
     };
-
+    
     virtual Node *createLinearMatchNode(int32_t i, int32_t byteIndex, int32_t length,
                                         Node *nextNode) const;
 
@@ -178,5 +181,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __BYTESTRIEBUILDER_H__

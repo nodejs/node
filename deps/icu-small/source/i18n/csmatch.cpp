@@ -30,7 +30,7 @@ void CharsetMatch::set(InputText *input, const CharsetRecognizer *cr, int32_t co
                        const char *csName, const char *lang)
 {
     textIn = input;
-    confidence = conf;
+    confidence = conf; 
     fCharsetName = csName;
     fLang = lang;
     if (cr != NULL) {
@@ -45,12 +45,12 @@ void CharsetMatch::set(InputText *input, const CharsetRecognizer *cr, int32_t co
 
 const char* CharsetMatch::getName()const
 {
-    return fCharsetName;
+    return fCharsetName; 
 }
 
 const char* CharsetMatch::getLanguage()const
 {
-    return fLang;
+    return fLang; 
 }
 
 int32_t CharsetMatch::getConfidence()const

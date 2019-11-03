@@ -27,8 +27,8 @@
 #include "ustr_cnv.h"
 
 U_CAPI UResourceBundle * U_EXPORT2
-ures_openU(const UChar *myPath,
-           const char *localeID,
+ures_openU(const UChar *myPath, 
+           const char *localeID, 
            UErrorCode *status)
 {
     char pathBuffer[1024];

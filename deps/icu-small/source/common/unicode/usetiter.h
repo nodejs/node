@@ -10,11 +10,14 @@
 #define USETITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: UnicodeSetIterator iterates over the contents of a UnicodeSet.
  */
 
@@ -162,14 +165,14 @@ class U_COMMON_API UnicodeSetIterator : public UObject {
      * Ownership of the returned string remains with the iterator.
      * The string is guaranteed to remain valid only until the iterator is
      *   advanced to the next item, or until the iterator is deleted.
-     *
+     * 
      * @stable ICU 2.4
      */
     const UnicodeString& getString();
 
     /**
-     * Advances the iteration position to the next element in the set,
-     * which can be either a single code point or a string.
+     * Advances the iteration position to the next element in the set, 
+     * which can be either a single code point or a string.  
      * If there are no more elements in the set, return false.
      *
      * <p>
@@ -316,5 +319,7 @@ inline UChar32 UnicodeSetIterator::getCodepointEnd() const {
 
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

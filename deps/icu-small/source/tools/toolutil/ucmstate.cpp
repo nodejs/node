@@ -1050,3 +1050,4 @@ ucm_countChars(UCMStates *states,
     return count;
 }
 #endif
+

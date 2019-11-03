@@ -105,9 +105,9 @@ LocaleKeyFactory::getDisplayName(const UnicodeString& id, const Locale& locale, 
 }
 
 UObject*
-LocaleKeyFactory::handleCreate(const Locale& /* loc */,
-                   int32_t /* kind */,
-                   const ICUService* /* service */,
+LocaleKeyFactory::handleCreate(const Locale& /* loc */, 
+                   int32_t /* kind */, 
+                   const ICUService* /* service */, 
                    UErrorCode& /* status */) const {
     return NULL;
 }
@@ -148,3 +148,5 @@ U_NAMESPACE_END
 
 /* !UCONFIG_NO_SERVICE */
 #endif
+
+

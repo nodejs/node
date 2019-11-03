@@ -143,19 +143,19 @@ static void maskingError(const icu::TransliterationRule& rule1,
     int32_t len;
 
     parseError.line = parseError.offset = -1;
-
+    
     // for pre-context
     rule1.toRule(r, FALSE);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.preContext);
-    parseError.preContext[len] = 0;
-
+    parseError.preContext[len] = 0;   
+    
     //for post-context
     r.truncate(0);
     rule2.toRule(r, FALSE);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.postContext);
-    parseError.postContext[len] = 0;
+    parseError.postContext[len] = 0;   
 }
 
 U_NAMESPACE_BEGIN

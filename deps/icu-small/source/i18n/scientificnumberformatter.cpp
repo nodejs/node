@@ -121,7 +121,7 @@ ScientificNumberFormatter *ScientificNumberFormatter::createInstance(
     return result;
 }
 
-ScientificNumberFormatter::Style *ScientificNumberFormatter::SuperscriptStyle::clone() const {
+ScientificNumberFormatter::SuperscriptStyle *ScientificNumberFormatter::SuperscriptStyle::clone() const {
     return new ScientificNumberFormatter::SuperscriptStyle(*this);
 }
 
@@ -195,7 +195,7 @@ UnicodeString &ScientificNumberFormatter::SuperscriptStyle::format(
     return appendTo;
 }
 
-ScientificNumberFormatter::Style *ScientificNumberFormatter::MarkupStyle::clone() const {
+ScientificNumberFormatter::MarkupStyle *ScientificNumberFormatter::MarkupStyle::clone() const {
     return new ScientificNumberFormatter::MarkupStyle(*this);
 }
 

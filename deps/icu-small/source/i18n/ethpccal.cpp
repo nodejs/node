@@ -46,7 +46,7 @@ EthiopicCalendar::~EthiopicCalendar()
 {
 }
 
-Calendar*
+EthiopicCalendar*
 EthiopicCalendar::clone() const
 {
     return new EthiopicCalendar(*this);
@@ -66,7 +66,7 @@ EthiopicCalendar::setAmeteAlemEra(UBool onOff)
 {
     eraType = onOff ? AMETE_ALEM_ERA : AMETE_MIHRET_ERA;
 }
-
+    
 UBool
 EthiopicCalendar::isAmeteAlemEra() const
 {
@@ -138,7 +138,7 @@ EthiopicCalendar::handleGetLimit(UCalendarDateFields field, ELimitType limitType
 
 /**
  * The system maintains a static default century start date and Year.  They are
- * initialized the first time they are used.  Once the system default century date
+ * initialized the first time they are used.  Once the system default century date 
  * and year are set, they do not change.
  */
 static UDate           gSystemDefaultCenturyStart       = DBL_MIN;

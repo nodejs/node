@@ -179,76 +179,6 @@ typedef size_t uintptr_t;
 /** @} */
 
 /*===========================================================================*/
-/** @{ GCC built in functions for atomic memory operations                   */
-/*===========================================================================*/
-
-/**
- * \def U_HAVE_GCC_ATOMICS
- * @internal
- */
-#ifdef U_HAVE_GCC_ATOMICS
-    /* Use the predefined value. */
-#elif U_PLATFORM == U_PF_MINGW
-    #define U_HAVE_GCC_ATOMICS 0
-#elif U_GCC_MAJOR_MINOR >= 404 || defined(__clang__)
-    /* TODO: Intel icc and IBM xlc on AIX also support gcc atomics.  (Intel originated them.)
-     *       Add them for these compilers.
-     * Note: Clang sets __GNUC__ defines for version 4.2, so misses the 4.4 test here.
-     */
-#   define U_HAVE_GCC_ATOMICS 1
-#else
-#   define U_HAVE_GCC_ATOMICS 0
-#endif
-
-/** @} */
-
-/**
- * \def U_HAVE_STD_ATOMICS
- * Defines whether to use the C++11 std::atomic functions.
- * If false, ICU will fall back to compiler or platform specific alternatives.
- * Note: support for these fall back options for atomics will be removed in a future version
- *       of ICU, and the use of C++ 11 atomics will be required.
- * @internal
- */
-#ifdef U_HAVE_STD_ATOMICS
-    /* Use the predefined value. */
-#else
-#    define U_HAVE_STD_ATOMICS 1
-#endif
-
-/**
- *  \def U_HAVE_CLANG_ATOMICS
- *  Defines whether Clang c11 style built-in atomics are available.
- *  These are used in preference to gcc atomics when both are available.
- */
-#ifdef U_HAVE_CLANG_ATOMICS
-    /* Use the predefined value. */
-#elif __has_builtin(__c11_atomic_load) && \
-    __has_builtin(__c11_atomic_store) && \
-    __has_builtin(__c11_atomic_fetch_add) && \
-    __has_builtin(__c11_atomic_fetch_sub)
-#    define U_HAVE_CLANG_ATOMICS 1
-#else
-#    define U_HAVE_CLANG_ATOMICS 0
-#endif
-
-
-/**
- * \def U_HAVE_STD_MUTEX
- * Defines whether to use the C++11 std::mutex functions.
- * If false, ICU will fall back to compiler or platform specific alternatives.
- * std::mutex is preferred, and used by default unless this setting is overridden.
- * Note: support for other options for mutexes will be removed in a future version
- *       of ICU, and the use of std::mutex will be required.
- * @internal
- */
-#ifdef U_HAVE_STD_MUTEX
-    /* Use the predefined value. */
-#else
-#    define U_HAVE_STD_MUTEX 1
-#endif
-
-/*===========================================================================*/
 /** @{ Programs used by ICU code                                             */
 /*===========================================================================*/
 
@@ -438,7 +368,7 @@ U_INTERNAL UBool U_EXPORT2 uprv_mul32_overflow(int32_t a, int32_t b, int32_t* re
  * Return the default codepage for this platform and locale.
  * This function can call setlocale() on Unix platforms. Please read the
  * platform documentation on setlocale() before calling this function.
- * @return the default codepage for this platform
+ * @return the default codepage for this platform 
  * @internal
  */
 U_INTERNAL const char*  U_EXPORT2 uprv_getDefaultCodepage(void);
@@ -447,7 +377,7 @@ U_INTERNAL const char*  U_EXPORT2 uprv_getDefaultCodepage(void);
 /**
  * Please use uloc_getDefault() instead.
  * Return the default locale ID string by querying the system, or
- *     zero if one cannot be found.
+ *     zero if one cannot be found. 
  * This function can call setlocale() on Unix platforms. Please read the
  * platform documentation on setlocale() before calling this function.
  * @return the default locale ID string

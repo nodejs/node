@@ -19,16 +19,19 @@
 #define PARSEPOS_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
  * \file
  * \brief C++ API: Canonical Iterator
  */
-/**
+/** 
  * <code>ParsePosition</code> is a simple class used by <code>Format</code>
  * and its subclasses to keep track of the current position during parsing.
  * The <code>parseObject</code> method in the various <code>Format</code>
@@ -228,5 +231,7 @@ ParsePosition::setErrorIndex(int32_t ei)
   this->errorIndex = ei;
 }
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

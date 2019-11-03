@@ -10,11 +10,13 @@
 #define TZRULE_H
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Time zone rule classes
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -28,7 +30,7 @@ U_NAMESPACE_BEGIN
  * <code>TimeZoneRule</code> is a class representing a rule for time zone.
  * <code>TimeZoneRule</code> has a set of time zone attributes, such as zone name,
  * raw offset (UTC offset for standard time) and daylight saving time offset.
- *
+ * 
  * @stable ICU 3.8
  */
 class U_I18N_API TimeZoneRule : public UObject {
@@ -45,7 +47,7 @@ public:
      * @return  A copy of the object.
      * @stable ICU 3.8
      */
-    virtual TimeZoneRule* clone(void) const = 0;
+    virtual TimeZoneRule* clone() const = 0;
 
     /**
      * Return true if the given <code>TimeZoneRule</code> objects are semantically equal. Objects
@@ -229,7 +231,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual InitialTimeZoneRule* clone(void) const;
+    virtual InitialTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -372,7 +374,7 @@ public:
  * <code>AnnualTimeZoneRule</code> is a class used for representing a time zone
  * rule which takes effect annually.  The calenday system used for the rule is
  * is based on Gregorian calendar
- *
+ * 
  * @stable ICU 3.8
  */
 class U_I18N_API AnnualTimeZoneRule : public TimeZoneRule {
@@ -440,7 +442,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual AnnualTimeZoneRule* clone(void) const;
+    virtual AnnualTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -612,7 +614,7 @@ public:
 /**
  * <code>TimeArrayTimeZoneRule</code> represents a time zone rule whose start times are
  * defined by an array of milliseconds since the standard base time.
- *
+ * 
  * @stable ICU 3.8
  */
 class U_I18N_API TimeArrayTimeZoneRule : public TimeZoneRule {
@@ -656,7 +658,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual TimeArrayTimeZoneRule* clone(void) const;
+    virtual TimeArrayTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -687,7 +689,7 @@ public:
      * Gets the time type of the start times used by this rule.  The return value
      * is either <code>DateTimeRule::WALL_TIME</code> or <code>STANDARD_TIME</code>
      * or <code>UTC_TIME</code>.
-     *
+     * 
      * @return The time type used of the start times used by this rule.
      * @stable ICU 3.8
      */
@@ -824,6 +826,8 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // TZRULE_H
 

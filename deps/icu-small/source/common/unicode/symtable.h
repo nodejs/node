@@ -13,14 +13,17 @@
 #define SYMTABLE_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: An interface that defines both lookup protocol and parsing of
  * symbolic names.
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 class ParsePosition;
@@ -110,5 +113,7 @@ public:
                                          ParsePosition& pos, int32_t limit) const = 0;
 };
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

@@ -27,7 +27,7 @@
 #include "unicode/locid.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Format dates using Windows API.
  */
 
@@ -48,7 +48,7 @@ public:
 
     virtual ~Win32DateFormat();
 
-    virtual Format *clone(void) const;
+    virtual Win32DateFormat *clone() const;
 
     Win32DateFormat &operator=(const Win32DateFormat &other);
 

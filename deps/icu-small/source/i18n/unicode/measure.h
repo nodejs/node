@@ -15,11 +15,13 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
- * \file
+ * \file 
  * \brief C++ API: MeasureUnit object.
  */
-
+ 
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/fmtable.h"
@@ -72,14 +74,14 @@ class U_I18N_API Measure: public UObject {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual UObject* clone() const;
+    virtual Measure* clone() const;
 
     /**
      * Destructor
      * @stable ICU 3.0
      */
     virtual ~Measure();
-
+    
     /**
      * Equality operator.  Return true if this object is equal
      * to the given object.
@@ -158,4 +160,7 @@ inline const MeasureUnit& Measure::getUnit() const {
 U_NAMESPACE_END
 
 #endif // !UCONFIG_NO_FORMATTING
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif // __MEASURE_H__

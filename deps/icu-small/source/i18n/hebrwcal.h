@@ -89,26 +89,26 @@ public:
    * @internal
    */
   enum EEras {
-    /**
-     * Constant for Tishri, the 1st month of the Hebrew year.
+    /** 
+     * Constant for Tishri, the 1st month of the Hebrew year. 
      */
       TISHRI,
       /**
-     * Constant for Heshvan, the 2nd month of the Hebrew year.
+     * Constant for Heshvan, the 2nd month of the Hebrew year. 
      */
       HESHVAN,
       /**
-     * Constant for Kislev, the 3rd month of the Hebrew year.
+     * Constant for Kislev, the 3rd month of the Hebrew year. 
      */
       KISLEV,
 
     /**
-     * Constant for Tevet, the 4th month of the Hebrew year.
+     * Constant for Tevet, the 4th month of the Hebrew year. 
      */
       TEVET,
 
     /**
-     * Constant for Shevat, the 5th month of the Hebrew year.
+     * Constant for Shevat, the 5th month of the Hebrew year. 
      */
       SHEVAT,
 
@@ -119,38 +119,38 @@ public:
      */
       ADAR_1,
 
-    /**
-     * Constant for the Adar, the 7th month of the Hebrew year.
+    /** 
+     * Constant for the Adar, the 7th month of the Hebrew year. 
      */
       ADAR,
 
     /**
-     * Constant for Nisan, the 8th month of the Hebrew year.
+     * Constant for Nisan, the 8th month of the Hebrew year. 
      */
       NISAN,
 
     /**
-     * Constant for Iyar, the 9th month of the Hebrew year.
+     * Constant for Iyar, the 9th month of the Hebrew year. 
      */
       IYAR,
 
     /**
-     * Constant for Sivan, the 10th month of the Hebrew year.
+     * Constant for Sivan, the 10th month of the Hebrew year. 
      */
       SIVAN,
 
     /**
-     * Constant for Tammuz, the 11th month of the Hebrew year.
+     * Constant for Tammuz, the 11th month of the Hebrew year. 
      */
       TAMUZ,
 
     /**
-     * Constant for Av, the 12th month of the Hebrew year.
+     * Constant for Av, the 12th month of the Hebrew year. 
      */
       AV,
 
     /**
-     * Constant for Elul, the 13th month of the Hebrew year.
+     * Constant for Elul, the 13th month of the Hebrew year. 
      */
       ELUL
     };
@@ -192,8 +192,8 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
-
+    virtual HebrewCalendar* clone() const;
+    
 public:
     /**
      * Override Calendar Returns a unique class ID POLYMORPHICALLY. Pure virtual
@@ -276,7 +276,7 @@ public:
     virtual void roll(EDateFields field, int32_t amount, UErrorCode& status);
 
     /**
-     * @internal
+     * @internal 
      */
     static UBool isLeapYear(int32_t year) ;
 
@@ -431,14 +431,14 @@ public:
     static int32_t startOfYear(int32_t year, UErrorCode& status);
 
     static int32_t absoluteDayToDayOfWeek(int32_t day) ;
-
+    
     /**
-     * @internal
+     * @internal 
      */
     int32_t yearType(int32_t year) const;
 
     /**
-     * @internal
+     * @internal 
      */
     static int32_t monthsInYear(int32_t year) ;
 };
@@ -447,5 +447,6 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif
+#endif 
 //eof
+

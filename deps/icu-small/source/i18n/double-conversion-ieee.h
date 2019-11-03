@@ -55,12 +55,14 @@ static float uint32_to_float(uint32_t d32) { return BitCast<float>(d32); }
 // Helper functions for doubles.
 class Double {
  public:
-  static const uint64_t kSignMask = UINT64_2PART_C(0x80000000, 00000000);
-  static const uint64_t kExponentMask = UINT64_2PART_C(0x7FF00000, 00000000);
-  static const uint64_t kSignificandMask = UINT64_2PART_C(0x000FFFFF, FFFFFFFF);
-  static const uint64_t kHiddenBit = UINT64_2PART_C(0x00100000, 00000000);
+  static const uint64_t kSignMask = DOUBLE_CONVERSION_UINT64_2PART_C(0x80000000, 00000000);
+  static const uint64_t kExponentMask = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF00000, 00000000);
+  static const uint64_t kSignificandMask = DOUBLE_CONVERSION_UINT64_2PART_C(0x000FFFFF, FFFFFFFF);
+  static const uint64_t kHiddenBit = DOUBLE_CONVERSION_UINT64_2PART_C(0x00100000, 00000000);
   static const int kPhysicalSignificandSize = 52;  // Excludes the hidden bit.
   static const int kSignificandSize = 53;
+  static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
+  static const int kMaxExponent = 0x7FF - kExponentBias;
 
   Double() : d64_(0) {}
   explicit Double(double d) : d64_(double_to_uint64(d)) {}
@@ -71,14 +73,14 @@ class Double {
   // The value encoded by this Double must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
-    ASSERT(Sign() > 0);
-    ASSERT(!IsSpecial());
+    DOUBLE_CONVERSION_ASSERT(Sign() > 0);
+    DOUBLE_CONVERSION_ASSERT(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
   // The value encoded by this Double must be strictly greater than 0.
   DiyFp AsNormalizedDiyFp() const {
-    ASSERT(value() > 0.0);
+    DOUBLE_CONVERSION_ASSERT(value() > 0.0);
     uint64_t f = Significand();
     int e = Exponent();
 
@@ -174,7 +176,7 @@ class Double {
   // Precondition: the value encoded by this Double must be greater or equal
   // than +0.0.
   DiyFp UpperBoundary() const {
-    ASSERT(Sign() > 0);
+    DOUBLE_CONVERSION_ASSERT(Sign() > 0);
     return DiyFp(Significand() * 2 + 1, Exponent() - 1);
   }
 
@@ -183,7 +185,7 @@ class Double {
   // exponent as m_plus.
   // Precondition: the value encoded by this Double must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
-    ASSERT(value() > 0.0);
+    DOUBLE_CONVERSION_ASSERT(value() > 0.0);
     DiyFp v = this->AsDiyFp();
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));
     DiyFp m_minus;
@@ -236,11 +238,9 @@ class Double {
   }
 
  private:
-  static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
   static const int kDenormalExponent = -kExponentBias + 1;
-  static const int kMaxExponent = 0x7FF - kExponentBias;
-  static const uint64_t kInfinity = UINT64_2PART_C(0x7FF00000, 00000000);
-  static const uint64_t kNaN = UINT64_2PART_C(0x7FF80000, 00000000);
+  static const uint64_t kInfinity = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF00000, 00000000);
+  static const uint64_t kNaN = DOUBLE_CONVERSION_UINT64_2PART_C(0x7FF80000, 00000000);
 
   const uint64_t d64_;
 
@@ -271,7 +271,7 @@ class Double {
         (biased_exponent << kPhysicalSignificandSize);
   }
 
-  DC_DISALLOW_COPY_AND_ASSIGN(Double);
+  DOUBLE_CONVERSION_DISALLOW_COPY_AND_ASSIGN(Double);
 };
 
 class Single {
@@ -290,8 +290,8 @@ class Single {
   // The value encoded by this Single must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
-    ASSERT(Sign() > 0);
-    ASSERT(!IsSpecial());
+    DOUBLE_CONVERSION_ASSERT(Sign() > 0);
+    DOUBLE_CONVERSION_ASSERT(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
@@ -354,7 +354,7 @@ class Single {
   // exponent as m_plus.
   // Precondition: the value encoded by this Single must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
-    ASSERT(value() > 0.0);
+    DOUBLE_CONVERSION_ASSERT(value() > 0.0);
     DiyFp v = this->AsDiyFp();
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));
     DiyFp m_minus;
@@ -372,7 +372,7 @@ class Single {
   // Precondition: the value encoded by this Single must be greater or equal
   // than +0.0.
   DiyFp UpperBoundary() const {
-    ASSERT(Sign() > 0);
+    DOUBLE_CONVERSION_ASSERT(Sign() > 0);
     return DiyFp(Significand() * 2 + 1, Exponent() - 1);
   }
 
@@ -408,7 +408,7 @@ class Single {
 
   const uint32_t d32_;
 
-  DC_DISALLOW_COPY_AND_ASSIGN(Single);
+  DOUBLE_CONVERSION_DISALLOW_COPY_AND_ASSIGN(Single);
 };
 
 }  // namespace double_conversion

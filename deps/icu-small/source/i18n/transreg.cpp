@@ -131,7 +131,7 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
             return 0;
         }
         if (compoundFilter != 0)
-            t->adoptFilter((UnicodeSet*)compoundFilter->clone());
+            t->adoptFilter(compoundFilter->clone());
         break;
     case COMPOUND:
         {
@@ -173,8 +173,8 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
 
             if (U_SUCCESS(ec)) {
                 t = new CompoundTransliterator(ID, transliterators,
-                    (compoundFilter ? (UnicodeSet*)(compoundFilter->clone()) : 0),
-                    anonymousRBTs, pe, ec);
+                        (compoundFilter ? compoundFilter->clone() : nullptr),
+                        anonymousRBTs, pe, ec);
                 if (t == 0) {
                     ec = U_MEMORY_ALLOCATION_ERROR;
                     return 0;
@@ -592,7 +592,7 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
     if (entry->entryType == TransliteratorEntry::RULES_FORWARD ||
         entry->entryType == TransliteratorEntry::RULES_REVERSE ||
         entry->entryType == TransliteratorEntry::LOCALE_RULES) {
-
+        
         if (parser.idBlockVector.isEmpty() && parser.dataVector.isEmpty()) {
             entry->u.data = 0;
             entry->entryType = TransliteratorEntry::ALIAS;
@@ -946,7 +946,7 @@ void TransliteratorRegistry::registerEntry(const UnicodeString& ID,
     if (visible) {
         registerSTV(source, target, variant);
         if (!availableIDs.contains((void*) &ID)) {
-            UnicodeString *newID = (UnicodeString *)ID.clone();
+            UnicodeString *newID = ID.clone();
             // Check to make sure newID was created.
             if (newID != NULL) {
                 // NUL-terminate the ID string
@@ -1194,12 +1194,12 @@ TransliteratorEntry* TransliteratorRegistry::find(const UnicodeString& ID) {
  * Top-level find method.  Attempt to find a source-target/variant in
  * either the dynamic or the static (locale resource) store.  Perform
  * fallback.
- *
+ * 
  * Lookup sequence for ss_SS_SSS-tt_TT_TTT/v:
  *
  *   ss_SS_SSS-tt_TT_TTT/v -- in hashtable
  *   ss_SS_SSS-tt_TT_TTT/v -- in ss_SS_SSS (no fallback)
- *
+ * 
  *     repeat with t = tt_TT_TTT, tt_TT, tt, and tscript
  *
  *     ss_SS_SSS-t/ *
@@ -1214,7 +1214,7 @@ TransliteratorEntry* TransliteratorRegistry::find(const UnicodeString& ID) {
 TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
                                     UnicodeString& target,
                                     UnicodeString& variant) {
-
+    
     TransliteratorSpec src(source);
     TransliteratorSpec trg(target);
     TransliteratorEntry* entry;
@@ -1232,13 +1232,13 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
     }
 
     if (variant.length() != 0) {
-
+        
         // Seek exact match in hashtable
         entry = findInDynamicStore(src, trg, variant);
         if (entry != 0) {
             return entry;
         }
-
+        
         // Seek exact match in locale resources
         entry = findInStaticStore(src, trg, variant);
         if (entry != 0) {
@@ -1254,7 +1254,7 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
             if (entry != 0) {
                 return entry;
             }
-
+            
             // Seek match in locale resources
             entry = findInStaticStore(src, trg, NO_VARIANT);
             if (entry != 0) {
@@ -1360,7 +1360,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
         // we modify the registry with the parsed data and retry.
         {
             TransliteratorParser parser(status);
-
+            
             // We use the file name, taken from another resource bundle
             // 2-d array at static init time, as a locale language.  We're
             // just using the locale mechanism to map through to a file
@@ -1369,7 +1369,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
             //UResourceBundle *bundle = ures_openDirect(0, ch, &status);
             UnicodeString rules = entry->stringArg;
             //ures_close(bundle);
-
+            
             //if (U_FAILURE(status)) {
                 // We have a failure of some kind.  Remove the ID from the
                 // registry so we don't keep trying.  NOTE: This will throw off
@@ -1379,7 +1379,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                 // or unrecoverable run time memory failures.
             //    remove(ID);
             //} else {
-
+                
                 // If the status indicates a failure, then we don't have any
                 // rules -- there is probably an installation error.  The list
                 // in the root locale should correspond to all the installed

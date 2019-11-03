@@ -27,7 +27,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Format numbers using Windows API.
  */
 
@@ -44,7 +44,7 @@ public:
 
     virtual ~Win32NumberFormat();
 
-    virtual Format *clone(void) const;
+    virtual Win32NumberFormat *clone() const;
 
     Win32NumberFormat &operator=(const Win32NumberFormat &other);
 

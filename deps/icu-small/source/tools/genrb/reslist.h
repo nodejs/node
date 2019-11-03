@@ -124,7 +124,7 @@ public:
 
 /* write a java resource file */
 // TODO: C++ify
-void bundle_write_java(struct SRBRoot *bundle, const char *outputDir, const char* outputEnc, char *writtenFilename,
+void bundle_write_java(struct SRBRoot *bundle, const char *outputDir, const char* outputEnc, char *writtenFilename, 
                        int writtenFilenameLen, const char* packageName, const char* bundleName, UErrorCode *status);
 
 /* write a xml resource file */
@@ -219,7 +219,7 @@ struct SResource {
     /**
      * Applies the given filter with the given base path to this resource.
      * Removes child resources rejected by the filter recursively.
-     *
+     * 
      * @param bundle Needed in order to access the key for this and child resources.
      */
     virtual void applyFilter(const PathFilter& filter, ResKeyPath& path, const SRBRoot* bundle);

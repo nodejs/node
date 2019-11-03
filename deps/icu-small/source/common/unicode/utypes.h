@@ -211,16 +211,16 @@ typedef double UDate;
 /** The number of milliseconds per day @stable ICU 2.0 */
 #define U_MILLIS_PER_DAY       (86400000)
 
-/**
- * Maximum UDate value
- * @stable ICU 4.8
- */
+/** 
+ * Maximum UDate value 
+ * @stable ICU 4.8 
+ */ 
 #define U_DATE_MAX DBL_MAX
 
 /**
- * Minimum UDate value
- * @stable ICU 4.8
- */
+ * Minimum UDate value 
+ * @stable ICU 4.8 
+ */ 
 #define U_DATE_MIN -U_DATE_MAX
 
 /*===========================================================================*/
@@ -385,17 +385,31 @@ typedef double UDate;
 /*===========================================================================*/
 
 /**
- * Error code to replace exception handling, so that the code is compatible with all C++ compilers,
- * and to use the same mechanism for C and C++.
+ * Standard ICU4C error code type, a substitute for exceptions.
  *
- * \par
- * ICU functions that take a reference (C++) or a pointer (C) to a UErrorCode
- * first test if(U_FAILURE(errorCode)) { return immediately; }
+ * Initialize the UErrorCode with U_ZERO_ERROR, and check for success or
+ * failure using U_SUCCESS() or U_FAILURE():
+ *
+ *     UErrorCode errorCode = U_ZERO_ERROR;
+ *     // call ICU API that needs an error code parameter.
+ *     if (U_FAILURE(errorCode)) {
+ *         // An error occurred. Handle it here.
+ *     }
+ *
+ * C++ code should use icu::ErrorCode, available in unicode/errorcode.h, or a
+ * suitable subclass.
+ *
+ * For more information, see:
+ * http://icu-project.org/userguide/conventions
+ *
+ * Note: By convention, ICU functions that take a reference (C++) or a pointer
+ * (C) to a UErrorCode first test:
+ *
+ *     if (U_FAILURE(errorCode)) { return immediately; }
+ *
  * so that in a chain of such functions the first one that sets an error code
  * causes the following ones to not perform any operations.
  *
- * \par
- * Error codes should be tested using U_FAILURE() and U_SUCCESS().
  * @stable ICU 2.0
  */
 typedef enum UErrorCode {
@@ -421,7 +435,7 @@ typedef enum UErrorCode {
     U_AMBIGUOUS_ALIAS_WARNING = -122,   /**< This converter alias can go to different converter implementations */
 
     U_DIFFERENT_UCA_VERSION = -121,     /**< ucol_open encountered a mismatch between UCA version and collator image version, so the collator was constructed from rules. No impact to further function */
-
+    
     U_PLUGIN_CHANGED_LEVEL_WARNING = -120, /**< A plugin caused a level change. May not be an error, but later plugins may not load. */
 
 #ifndef U_HIDE_DEPRECATED_API
@@ -642,7 +656,7 @@ typedef enum UErrorCode {
     U_STRINGPREP_PROHIBITED_ERROR = U_IDNA_PROHIBITED_ERROR,
     U_STRINGPREP_UNASSIGNED_ERROR = U_IDNA_UNASSIGNED_ERROR,
     U_STRINGPREP_CHECK_BIDI_ERROR = U_IDNA_CHECK_BIDI_ERROR,
-
+    
     /*
      * Error codes in the range 0x10500-0x105ff are reserved for Plugin related error codes.
      */

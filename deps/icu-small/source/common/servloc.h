@@ -60,11 +60,11 @@ class ServiceListener;
  *
  * <p>Canonicalization adjusts the locale string so that the
  * section before the first understore is in lower case, and the rest
- * is in upper case, with no trailing underscores.</p>
+ * is in upper case, with no trailing underscores.</p> 
  */
 
 class U_COMMON_API LocaleKey : public ICUServiceKey {
-  private:
+  private: 
     int32_t _kind;
     UnicodeString _primaryID;
     UnicodeString _fallbackID;
@@ -78,15 +78,15 @@ class U_COMMON_API LocaleKey : public ICUServiceKey {
     /**
      * Create a LocaleKey with canonical primary and fallback IDs.
      */
-    static LocaleKey* createWithCanonicalFallback(const UnicodeString* primaryID,
+    static LocaleKey* createWithCanonicalFallback(const UnicodeString* primaryID, 
                                                   const UnicodeString* canonicalFallbackID,
                                                   UErrorCode& status);
 
     /**
      * Create a LocaleKey with canonical primary and fallback IDs.
      */
-    static LocaleKey* createWithCanonicalFallback(const UnicodeString* primaryID,
-                                                  const UnicodeString* canonicalFallbackID,
+    static LocaleKey* createWithCanonicalFallback(const UnicodeString* primaryID, 
+                                                  const UnicodeString* canonicalFallbackID, 
                                                   int32_t kind,
                                                   UErrorCode& status);
 
@@ -97,9 +97,9 @@ class U_COMMON_API LocaleKey : public ICUServiceKey {
      * fallbackID is the current default locale's string in
      * canonical form.
      */
-    LocaleKey(const UnicodeString& primaryID,
-              const UnicodeString& canonicalPrimaryID,
-              const UnicodeString* canonicalFallbackID,
+    LocaleKey(const UnicodeString& primaryID, 
+              const UnicodeString& canonicalPrimaryID, 
+              const UnicodeString* canonicalFallbackID, 
               int32_t kind);
 
  public:
@@ -145,16 +145,16 @@ class U_COMMON_API LocaleKey : public ICUServiceKey {
      * <p>First falls back through the primary ID, then through
      * the fallbackID.  The final fallback is the empty string,
      * unless the primary id was the empty string, in which case
-     * there is no fallback.
+     * there is no fallback.  
      */
     virtual UBool fallback();
 
     /**
      * Return true if a key created from id matches, or would eventually
-     * fallback to match, the canonical ID of this key.
+     * fallback to match, the canonical ID of this key.  
      */
     virtual UBool isFallbackOf(const UnicodeString& id) const;
-
+    
  public:
     /**
      * UObject boilerplate.
@@ -183,7 +183,7 @@ class U_COMMON_API LocaleKey : public ICUServiceKey {
 /**
  * A subclass of ICUServiceFactory that uses LocaleKeys, and is able to
  * 'cover' more specific locales with more general locales that it
- * supports.
+ * supports.  
  *
  * <p>Coverage may be either of the values VISIBLE or INVISIBLE.
  *
@@ -203,7 +203,7 @@ public:
     enum {
         /**
          * Coverage value indicating that the factory makes
-         * its locales visible, and does not cover more specific
+         * its locales visible, and does not cover more specific 
          * locales.
          */
         VISIBLE = 0,
@@ -263,13 +263,13 @@ protected:
     virtual UObject* handleCreate(const Locale& loc, int32_t kind, const ICUService* service, UErrorCode& status) const;
 
    /**
-     * Return true if this id is one the factory supports (visible or
+     * Return true if this id is one the factory supports (visible or 
      * otherwise).
      */
  //   virtual UBool isSupportedID(const UnicodeString& id, UErrorCode& status) const;
 
    /**
-     * Return the set of ids that this factory supports (visible or
+     * Return the set of ids that this factory supports (visible or 
      * otherwise).  This can be called often and might need to be
      * cached if it is expensive to create.
      */
@@ -306,14 +306,14 @@ class U_COMMON_API SimpleLocaleKeyFactory : public LocaleKeyFactory {
     const int32_t _kind;
 
  public:
-    SimpleLocaleKeyFactory(UObject* objToAdopt,
-                           const UnicodeString& locale,
-                           int32_t kind,
+    SimpleLocaleKeyFactory(UObject* objToAdopt, 
+                           const UnicodeString& locale, 
+                           int32_t kind, 
                            int32_t coverage);
 
-    SimpleLocaleKeyFactory(UObject* objToAdopt,
-                           const Locale& locale,
-                           int32_t kind,
+    SimpleLocaleKeyFactory(UObject* objToAdopt, 
+                           const Locale& locale, 
+                           int32_t kind, 
                            int32_t coverage);
 
     /**
@@ -366,7 +366,7 @@ public:
  * IDs.  Subclasses then override handleCreate to create the actual service
  * object.  The default implementation returns a resource bundle.
  */
-class U_COMMON_API ICUResourceBundleFactory : public LocaleKeyFactory
+class U_COMMON_API ICUResourceBundleFactory : public LocaleKeyFactory 
 {
  protected:
     UnicodeString _bundleName;
@@ -422,7 +422,7 @@ public:
  ******************************************************************
  */
 
-class U_COMMON_API ICULocaleService : public ICUService
+class U_COMMON_API ICULocaleService : public ICUService 
 {
  private:
   Locale fallbackLocale;
@@ -447,7 +447,7 @@ class U_COMMON_API ICULocaleService : public ICUService
 #if 0
   // redeclare because of overload resolution rules?
   // no, causes ambiguities since both UnicodeString and Locale have constructors that take a const char*
-  // need some compiler flag to remove warnings
+  // need some compiler flag to remove warnings 
   UObject* get(const UnicodeString& descriptor, UErrorCode& status) const {
     return ICUService::get(descriptor, status);
   }
@@ -475,12 +475,12 @@ class U_COMMON_API ICULocaleService : public ICUService
    * get(Locale, String, Locale[]) with a null kind.
    */
   UObject* get(const Locale& locale, Locale* actualReturn, UErrorCode& status) const;
-
+                   
   /**
    * Convenience override for callers using locales.  This uses
    * createKey(Locale.toString(), kind) to create a key, calls getKey, and then
    * if actualReturn is not null, returns the actualResult from
-   * getKey (stripping any prefix) into a Locale.
+   * getKey (stripping any prefix) into a Locale.  
    */
   UObject* get(const Locale& locale, int32_t kind, Locale* actualReturn, UErrorCode& status) const;
 
@@ -548,3 +548,4 @@ U_NAMESPACE_END
 
     /* ICULSERV_H */
 #endif
+

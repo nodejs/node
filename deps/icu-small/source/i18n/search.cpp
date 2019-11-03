@@ -24,10 +24,10 @@ U_NAMESPACE_BEGIN
 
 SearchIterator::SearchIterator(const SearchIterator &other)
     : UObject(other)
-{
+{   
     m_breakiterator_            = other.m_breakiterator_;
     m_text_                     = other.m_text_;
-    m_search_                   = (USearch *)uprv_malloc(sizeof(USearch));
+    m_search_                   = (USearch *)uprv_malloc(sizeof(USearch));   
     m_search_->breakIter        = other.m_search_->breakIter;
     m_search_->isCanonicalMatch = other.m_search_->isCanonicalMatch;
     m_search_->isOverlap        = other.m_search_->isOverlap;
@@ -83,7 +83,7 @@ USearchAttributeValue SearchIterator::getAttribute(
     case USEARCH_OVERLAP :
         return (m_search_->isOverlap == TRUE ? USEARCH_ON : USEARCH_OFF);
     case USEARCH_CANONICAL_MATCH :
-        return (m_search_->isCanonicalMatch == TRUE ? USEARCH_ON :
+        return (m_search_->isCanonicalMatch == TRUE ? USEARCH_ON : 
                                                                 USEARCH_OFF);
     case USEARCH_ELEMENT_COMPARISON :
         {
@@ -98,7 +98,7 @@ USearchAttributeValue SearchIterator::getAttribute(
         return USEARCH_DEFAULT;
     }
 }
-
+    
 int32_t SearchIterator::getMatchedStart() const
 {
     return m_search_->matchedIndex;
@@ -108,20 +108,20 @@ int32_t SearchIterator::getMatchedLength() const
 {
     return m_search_->matchedLength;
 }
-
+    
 void SearchIterator::getMatchedText(UnicodeString &result) const
 {
     int32_t matchedindex  = m_search_->matchedIndex;
     int32_t     matchedlength = m_search_->matchedLength;
     if (matchedindex != USEARCH_DONE && matchedlength != 0) {
-        result.setTo(m_search_->text + matchedindex, matchedlength);
+        result.setTo(m_search_->text + matchedindex, matchedlength); 
     }
     else {
         result.remove();
     }
 }
-
-void SearchIterator::setBreakIterator(BreakIterator *breakiter,
+    
+void SearchIterator::setBreakIterator(BreakIterator *breakiter, 
                                       UErrorCode &status)
 {
     if (U_SUCCESS(status)) {
@@ -139,11 +139,11 @@ void SearchIterator::setBreakIterator(BreakIterator *breakiter,
         // any subclass of BreakIterator should work fine here...
         m_search_->breakIter = (UBreakIterator *) breakiter;
 #endif
-
+        
         m_breakiterator_ = breakiter;
     }
 }
-
+    
 const BreakIterator * SearchIterator::getBreakIterator(void) const
 {
     return m_breakiterator_;
@@ -170,7 +170,7 @@ void SearchIterator::setText(CharacterIterator &text, UErrorCode &status)
         setText(m_text_, status);
     }
 }
-
+    
 const UnicodeString & SearchIterator::getText(void) const
 {
     return m_text_;
@@ -191,7 +191,7 @@ UBool SearchIterator::operator==(const SearchIterator &that) const
             m_search_->matchedLength    == that.m_search_->matchedLength &&
             m_search_->textLength       == that.m_search_->textLength &&
             getOffset() == that.getOffset() &&
-            (uprv_memcmp(m_search_->text, that.m_search_->text,
+            (uprv_memcmp(m_search_->text, that.m_search_->text, 
                               m_search_->textLength * sizeof(UChar)) == 0));
 }
 
@@ -206,7 +206,7 @@ int32_t SearchIterator::first(UErrorCode &status)
     return handleNext(0, status);
 }
 
-int32_t SearchIterator::following(int32_t position,
+int32_t SearchIterator::following(int32_t position, 
                                       UErrorCode &status)
 {
     if (U_FAILURE(status)) {
@@ -215,7 +215,7 @@ int32_t SearchIterator::following(int32_t position,
     setOffset(position, status);
     return handleNext(position, status);
 }
-
+    
 int32_t SearchIterator::last(UErrorCode &status)
 {
     if (U_FAILURE(status)) {
@@ -225,7 +225,7 @@ int32_t SearchIterator::last(UErrorCode &status)
     return handlePrev(m_search_->textLength, status);
 }
 
-int32_t SearchIterator::preceding(int32_t position,
+int32_t SearchIterator::preceding(int32_t position, 
                                       UErrorCode &status)
 {
     if (U_FAILURE(status)) {
@@ -244,19 +244,19 @@ int32_t SearchIterator::next(UErrorCode &status)
         m_search_->reset = FALSE;
         if (m_search_->isForwardSearching == TRUE) {
             int32_t textlength = m_search_->textLength;
-            if (offset == textlength || matchindex == textlength ||
-                (matchindex != USEARCH_DONE &&
+            if (offset == textlength || matchindex == textlength || 
+                (matchindex != USEARCH_DONE && 
                 matchindex + matchlength >= textlength)) {
                 // not enough characters to match
                 setMatchNotFound();
-                return USEARCH_DONE;
+                return USEARCH_DONE; 
             }
         }
         else {
-            // switching direction.
-            // if matchedIndex == USEARCH_DONE, it means that either a
+            // switching direction. 
+            // if matchedIndex == USEARCH_DONE, it means that either a 
             // setOffset has been called or that previous ran off the text
-            // string. the iterator would have been set to offset 0 if a
+            // string. the iterator would have been set to offset 0 if a 
             // match is not found.
             m_search_->isForwardSearching = TRUE;
             if (m_search_->matchedIndex != USEARCH_DONE) {
@@ -293,13 +293,13 @@ int32_t SearchIterator::previous(UErrorCode &status)
         else {
             offset = getOffset();
         }
-
+        
         int32_t matchindex = m_search_->matchedIndex;
         if (m_search_->isForwardSearching == TRUE) {
-            // switching direction.
-            // if matchedIndex == USEARCH_DONE, it means that either a
+            // switching direction. 
+            // if matchedIndex == USEARCH_DONE, it means that either a 
             // setOffset has been called or that next ran off the text
-            // string. the iterator would have been set to offset textLength if
+            // string. the iterator would have been set to offset textLength if 
             // a match is not found.
             m_search_->isForwardSearching = FALSE;
             if (matchindex != USEARCH_DONE) {
@@ -310,7 +310,7 @@ int32_t SearchIterator::previous(UErrorCode &status)
             if (offset == 0 || matchindex == 0) {
                 // not enough characters to match
                 setMatchNotFound();
-                return USEARCH_DONE;
+                return USEARCH_DONE; 
             }
         }
 
@@ -319,7 +319,7 @@ int32_t SearchIterator::previous(UErrorCode &status)
                 matchindex += m_search_->matchedLength - 2;
             }
 
-            return handlePrev(matchindex, status);
+            return handlePrev(matchindex, status); 
         }
 
         return handlePrev(offset, status);
@@ -358,7 +358,7 @@ SearchIterator::SearchIterator()
     m_breakiterator_              = NULL;
 }
 
-SearchIterator::SearchIterator(const UnicodeString &text,
+SearchIterator::SearchIterator(const UnicodeString &text, 
                                      BreakIterator *breakiter) :
                                      m_breakiterator_(breakiter),
                                      m_text_(text)
@@ -376,7 +376,7 @@ SearchIterator::SearchIterator(const UnicodeString &text,
     m_search_->textLength         = text.length();
 }
 
-SearchIterator::SearchIterator(CharacterIterator &text,
+SearchIterator::SearchIterator(CharacterIterator &text, 
                                BreakIterator     *breakiter) :
                                m_breakiterator_(breakiter)
 {
@@ -424,12 +424,12 @@ void SearchIterator::setMatchStart(int32_t position)
     m_search_->matchedIndex = position;
 }
 
-void SearchIterator::setMatchNotFound()
+void SearchIterator::setMatchNotFound() 
 {
     setMatchStart(USEARCH_DONE);
     setMatchLength(0);
     UErrorCode status = U_ZERO_ERROR;
-    // by default no errors should be returned here since offsets are within
+    // by default no errors should be returned here since offsets are within 
     // range.
     if (m_search_->isForwardSearching) {
         setOffset(m_search_->textLength, status);

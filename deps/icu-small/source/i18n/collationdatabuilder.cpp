@@ -502,7 +502,7 @@ CollationDataBuilder::addCE32(uint32_t ce32, UErrorCode &errorCode) {
     for(int32_t i = 0; i < length; ++i) {
         if(ce32 == (uint32_t)ce32s.elementAti(i)) { return i; }
     }
-    ce32s.addElement((int32_t)ce32, errorCode);
+    ce32s.addElement((int32_t)ce32, errorCode);  
     return length;
 }
 

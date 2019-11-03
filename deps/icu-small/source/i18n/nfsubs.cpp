@@ -88,7 +88,7 @@ public:
     }
     virtual ~MultiplierSubstitution();
 
-    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) {
+    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) { 
         divisor = util64_pow(radix, exponent);
 
         if(divisor == 0) {
@@ -137,7 +137,7 @@ public:
         UErrorCode& status);
     virtual ~ModulusSubstitution();
 
-    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) {
+    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) { 
         divisor = util64_pow(radix, exponent);
 
         if (divisor == 0) {
@@ -153,7 +153,7 @@ public:
     virtual int64_t transformNumber(int64_t number) const { return number % divisor; }
     virtual double transformNumber(double number) const { return uprv_fmod(number, static_cast<double>(divisor)); }
 
-    virtual UBool doParse(const UnicodeString& text,
+    virtual UBool doParse(const UnicodeString& text, 
         ParsePosition& parsePosition,
         double baseValue,
         double upperBound,
@@ -278,7 +278,7 @@ public:
         NFRuleSet* _ruleSet,
         const UnicodeString& description,
         UErrorCode& status)
-        : NFSubstitution(_pos, _ruleSet, fixdesc(description), status), denominator(_denominator)
+        : NFSubstitution(_pos, _ruleSet, fixdesc(description), status), denominator(_denominator) 
     {
         ldenominator = util64_fromDouble(denominator);
         withZeros = description.endsWith(LTLT, 2);
@@ -292,7 +292,7 @@ public:
 
     virtual void doSubstitution(int64_t /*number*/, UnicodeString& /*toInsertInto*/, int32_t /*_pos*/, int32_t /*recursionCount*/, UErrorCode& /*status*/) const {}
     virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
-    virtual UBool doParse(const UnicodeString& text,
+    virtual UBool doParse(const UnicodeString& text, 
         ParsePosition& parsePosition,
         double baseValue,
         double upperBound,
@@ -592,20 +592,20 @@ NFSubstitution::doSubstitution(int64_t number, UnicodeString& toInsertInto, int3
             UnicodeString temp;
             numberFormat->format(numberToFormat, temp, status);
             toInsertInto.insert(_pos + this->pos, temp);
-        }
-        else {
-            // We have gone beyond double precision. Something has to give.
-            // We're favoring accuracy of the large number over potential rules
-            // that round like a CompactDecimalFormat, which is not a common use case.
-            //
-            // Perform a transformation on the number that is dependent
-            // on the type of substitution this is, then just call its
-            // rule set's format() method to format the result
-            int64_t numberToFormat = transformNumber(number);
+        } 
+        else { 
+            // We have gone beyond double precision. Something has to give. 
+            // We're favoring accuracy of the large number over potential rules 
+            // that round like a CompactDecimalFormat, which is not a common use case. 
+            // 
+            // Perform a transformation on the number that is dependent 
+            // on the type of substitution this is, then just call its 
+            // rule set's format() method to format the result 
+            int64_t numberToFormat = transformNumber(number); 
             UnicodeString temp;
             numberFormat->format(numberToFormat, temp, status);
             toInsertInto.insert(_pos + this->pos, temp);
-        }
+        } 
     }
 }
 
@@ -1075,7 +1075,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     DecimalQuantity dl;
     dl.setToDouble(number);
     dl.roundToMagnitude(-20, UNUM_ROUND_HALFEVEN, status);     // round to 20 fraction digits.
-
+    
     UBool pad = FALSE;
     for (int32_t didx = dl.getLowerDisplayMagnitude(); didx<0; didx++) {
       // Loop iterates over fraction digits, starting with the LSD.
@@ -1254,8 +1254,8 @@ NumeratorSubstitution::doSubstitution(double number, UnicodeString& toInsertInto
     }
 }
 
-UBool
-NumeratorSubstitution::doParse(const UnicodeString& text,
+UBool 
+NumeratorSubstitution::doParse(const UnicodeString& text, 
                                ParsePosition& parsePosition,
                                double baseValue,
                                double upperBound,
@@ -1337,8 +1337,9 @@ NumeratorSubstitution::operator==(const NFSubstitution& rhs) const
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(NumeratorSubstitution)
 
 const UChar NumeratorSubstitution::LTLT[] = { 0x003c, 0x003c };
-
+        
 U_NAMESPACE_END
 
 /* U_HAVE_RBNF */
 #endif
+

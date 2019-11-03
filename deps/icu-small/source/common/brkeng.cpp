@@ -78,7 +78,7 @@ UnhandledEngine::findBreaks( UText *text,
                              int32_t /* startPos */,
                              int32_t endPos,
                              UVector32 &/*foundBreaks*/ ) const {
-    UChar32 c = utext_current32(text);
+    UChar32 c = utext_current32(text); 
     while((int32_t)utext_getNativeIndex(text) < endPos && fHandled->contains(c)) {
         utext_next32(text);            // TODO:  recast loop to work with post-increment operations.
         c = utext_current32(text);
@@ -129,7 +129,7 @@ ICULanguageBreakFactory::getEngineFor(UChar32 c) {
     const LanguageBreakEngine *lbe = NULL;
     UErrorCode  status = U_ZERO_ERROR;
 
-    static UMutex gBreakEngineMutex = U_MUTEX_INITIALIZER;
+    static UMutex gBreakEngineMutex;
     Mutex m(&gBreakEngineMutex);
 
     if (fEngines == NULL) {
@@ -149,7 +149,7 @@ ICULanguageBreakFactory::getEngineFor(UChar32 c) {
             }
         }
     }
-
+    
     // We didn't find an engine. Create one.
     lbe = loadEngineFor(c);
     if (lbe != NULL) {
@@ -224,7 +224,7 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c) {
 }
 
 DictionaryMatcher *
-ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script) {
+ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script) { 
     UErrorCode status = U_ZERO_ERROR;
     // open root from brkitr tree.
     UResourceBundle *b = ures_open(U_ICUDATA_BRKITR, "", &status);
@@ -265,7 +265,7 @@ ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script) {
             m = new UCharsDictionaryMatcher(characters, file);
         }
         if (m == NULL) {
-            // no matcher exists to take ownership - either we are an invalid
+            // no matcher exists to take ownership - either we are an invalid 
             // type or memory allocation failed
             udata_close(file);
         }

@@ -116,7 +116,7 @@ static const uint8_t flagsOffset[256]={
  *               moved to the last uint16_t of the value, use +1 for beginning of next slot
  * @param value (out) int32_t or uint32_t output if hasSlot, otherwise not modified
  */
-#define GET_SLOT_VALUE(excWord, idx, pExc16, value) \
+#define GET_SLOT_VALUE(excWord, idx, pExc16, value) UPRV_BLOCK_MACRO_BEGIN { \
     if(((excWord)&UCASE_EXC_DOUBLE_SLOTS)==0) { \
         (pExc16)+=SLOT_OFFSET(excWord, idx); \
         (value)=*pExc16; \
@@ -124,7 +124,8 @@ static const uint8_t flagsOffset[256]={
         (pExc16)+=2*SLOT_OFFSET(excWord, idx); \
         (value)=*pExc16++; \
         (value)=((value)<<16)|*pExc16; \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /* simple case mappings ----------------------------------------------------- */
 
@@ -689,7 +690,7 @@ ucase_isCaseSensitive(UChar32 c) {
  *   - The general category of C is
  *     Nonspacing Mark (Mn), or Enclosing Mark (Me), or Format Control (Cf), or
  *     Letter Modifier (Lm), or Symbol Modifier (Sk)
- *   - C is one of the following characters
+ *   - C is one of the following characters 
  *     U+0027 APOSTROPHE
  *     U+00AD SOFT HYPHEN (SHY)
  *     U+2019 RIGHT SINGLE QUOTATION MARK
@@ -1505,7 +1506,7 @@ U_CAPI UChar32 U_EXPORT2
 u_tolower(UChar32 c) {
     return ucase_tolower(c);
 }
-
+    
 /* Transforms the Unicode character to its upper case equivalent.*/
 U_CAPI UChar32 U_EXPORT2
 u_toupper(UChar32 c) {

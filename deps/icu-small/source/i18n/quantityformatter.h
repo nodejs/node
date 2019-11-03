@@ -26,12 +26,7 @@ class PluralRules;
 class NumberFormat;
 class Formattable;
 class FieldPosition;
-
-namespace number {
-namespace impl {
-class NumberStringBuilder;
-}
-}
+class FormattedStringBuilder;
 
 /**
  * A plural aware formatter that is good for expressing a single quantity and
@@ -41,10 +36,10 @@ class NumberStringBuilder;
  * There must be a pattern for the "other" variant.
  * Then use the format() method.
  * <p>
- * Concurrent calls only to const methods on a QuantityFormatter object are
+ * Concurrent calls only to const methods on a QuantityFormatter object are 
  * safe, but concurrent const and non-const method calls on a QuantityFormatter
  * object are not safe and require synchronization.
- *
+ * 
  */
 class U_I18N_API QuantityFormatter : public UMemory {
 public:
@@ -99,7 +94,7 @@ public:
      * Formats a number with this object appending the result to appendTo.
      * At least the "other" variant must be added to this object for this
      * method to work.
-     *
+     * 
      * @param number the single number.
      * @param fmt formats the number
      * @param rules computes the plural variant to use.
@@ -129,7 +124,7 @@ public:
 
     /**
      * Formats a quantity and selects its plural form. The output is appended
-     * to a NumberStringBuilder in order to retain field information.
+     * to a FormattedStringBuilder in order to retain field information.
      *
      * @param quantity The number to format.
      * @param fmt The formatter to use to format the number.
@@ -144,7 +139,7 @@ public:
             double quantity,
             const NumberFormat& fmt,
             const PluralRules& rules,
-            number::impl::NumberStringBuilder& output,
+            FormattedStringBuilder& output,
             StandardPlural::Form& pluralForm,
             UErrorCode& status);
 

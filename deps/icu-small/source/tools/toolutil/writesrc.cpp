@@ -211,7 +211,7 @@ usrc_writeUTrie2Struct(FILE *f,
             "    %s+%ld,\n"     /* data16 */
             "    NULL,\n",      /* data32 */
             indexName,
-            indexName,
+            indexName, 
             (long)pTrie->indexLength);
     } else {
         /* 32-bit trie */
@@ -321,7 +321,7 @@ usrc_writeArrayOfMostlyInvChars(FILE *f,
         c=(uint8_t)p[i];
         if(i>0) {
             /* Break long lines. Try to break at interesting places, to minimize revision diffs. */
-            if(
+            if( 
                 /* Very long line. */
                 col>=32 ||
                 /* Long line, break after terminating NUL. */

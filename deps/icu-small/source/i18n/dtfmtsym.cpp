@@ -1246,7 +1246,7 @@ const UnicodeString**
 DateFormatSymbols::getZoneStrings(int32_t& rowCount, int32_t& columnCount) const
 {
     const UnicodeString **result = NULL;
-    static UMutex LOCK = U_MUTEX_INITIALIZER;
+    static UMutex LOCK;
 
     umtx_lock(&LOCK);
     if (fZoneStrings == NULL) {
@@ -1497,7 +1497,7 @@ struct CalendarDataSink : public ResourceSink {
     Hashtable arrays;
     Hashtable arraySizes;
     Hashtable maps;
-    /**
+    /** 
      * Whenever there are aliases, the same object will be added twice to 'map'.
      * To avoid double deletion, 'maps' won't take ownership of the objects. Instead,
      * 'mapRefs' will own them and will delete them when CalendarDataSink is deleted.
@@ -2177,16 +2177,16 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
             // The ordering of the following statements is important.
             if (fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].isEmpty()) {
                 fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
-            };
+            }
             if (fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].isEmpty()) {
                 fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].setTo(fLeapMonthPatterns[kLeapMonthPatternStandaloneNarrow]);
-            };
+            }
             if (fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].isEmpty()) {
                 fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
-            };
+            }
             if (fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].isEmpty()) {
                 fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev]);
-            };
+            }
             // end of hack
             fLeapMonthPatternsCount = kMonthPatternsCount;
         } else {
@@ -2338,11 +2338,21 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
         assignArray(fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, fShortMonths, fShortMonthsCount);
     }
 
-    // Load AM/PM markers
+    // Load AM/PM markers; if wide or narrow not available, use short
+    UErrorCode ampmStatus = U_ZERO_ERROR;
     initField(&fAmPms, fAmPmsCount, calendarSink,
-              buildResourcePath(path, gAmPmMarkersTag, status), status);
+              buildResourcePath(path, gAmPmMarkersTag, ampmStatus), ampmStatus);
+    if (U_FAILURE(ampmStatus)) {
+        initField(&fAmPms, fAmPmsCount, calendarSink,
+                  buildResourcePath(path, gAmPmMarkersAbbrTag, status), status);
+    }
+    ampmStatus = U_ZERO_ERROR;
     initField(&fNarrowAmPms, fNarrowAmPmsCount, calendarSink,
-              buildResourcePath(path, gAmPmMarkersNarrowTag, status), status);
+              buildResourcePath(path, gAmPmMarkersNarrowTag, ampmStatus), ampmStatus);
+    if (U_FAILURE(ampmStatus)) {
+        initField(&fNarrowAmPms, fNarrowAmPmsCount, calendarSink,
+                  buildResourcePath(path, gAmPmMarkersAbbrTag, status), status);
+    }
 
     // Load quarters
     initField(&fQuarters, fQuartersCount, calendarSink,

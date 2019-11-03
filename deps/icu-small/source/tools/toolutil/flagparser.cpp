@@ -98,7 +98,7 @@ parseFlagsFile_cleanup:
     uprv_free(buffer);
 
     T_FileStream_close(f);
-
+    
     if (U_FAILURE(*status) && *status != U_BUFFER_OVERFLOW_ERROR) {
         return -1;
     }

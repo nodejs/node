@@ -44,7 +44,7 @@ T_FileStream_open(const char* filename, const char* mode)
 U_CAPI FileStream* U_EXPORT2
 T_FileStream_wopen(const wchar_t* filename, const wchar_t* mode)
 {
-   // TBD: _wfopen is believed to be MS-specific?
+   // TBD: _wfopen is believed to be MS-specific? 
 #if U_PLATFORM_USES_ONLY_WIN32_API
     FILE* result = _wfopen(filename, mode);
     return (FileStream*)result;
@@ -53,7 +53,7 @@ T_FileStream_wopen(const wchar_t* filename, const wchar_t* mode)
     char *fn, *md;
     FILE *result;
 
-    // convert from wchar_t to char
+    // convert from wchar_t to char 
     fnMbsSize = wcstombs(NULL, filename, ((size_t)-1) >> 1);
     fn = (char*)uprv_malloc(fnMbsSize+2);
     wcstombs(fn, filename, fnMbsSize);
@@ -182,7 +182,7 @@ T_FileStream_eof(FileStream* fileStream)
 }
 
 /*
- Warning
+ Warning 
  This function may not work consistently on all platforms
  (e.g. HP-UX, FreeBSD and MacOSX don't return an error when
  putc is used on a file opened as readonly)

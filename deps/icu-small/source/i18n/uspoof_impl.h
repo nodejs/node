@@ -66,7 +66,7 @@ public:
     /** Copy constructor, used by the user level uspoof_clone() function.
      */
     SpoofImpl(const SpoofImpl &src, UErrorCode &status);
-
+    
     USpoofChecker *asUSpoofChecker();
     static SpoofImpl *validateThis(USpoofChecker *sc, UErrorCode &status);
     static const SpoofImpl *validateThis(const USpoofChecker *sc, UErrorCode &status);
@@ -102,7 +102,7 @@ public:
     int32_t           fChecks;            // Bit vector of checks to perform.
 
     SpoofData        *fSpoofData;
-
+    
     const UnicodeSet *fAllowedCharsSet;   // The UnicodeSet of allowed characters.
                                           //   for this Spoof Checker.  Defaults to all chars.
 
@@ -211,7 +211,7 @@ class SpoofData: public UMemory {
 
     SpoofData(UErrorCode &status);   // Create new spoof data wrapper.
                                      // Only used when building new data from rules.
-
+    
     // Constructor for use when creating from prebuilt default data.
     //   A UDataMemory is what the ICU internal data loading functions provide.
     //   The udm is adopted by the SpoofData.
@@ -231,7 +231,7 @@ class SpoofData: public UMemory {
     //    Clone of a user-level spoof detector increments the ref count on the data.
     //    Close of a user-level spoof detector decrements the ref count.
     //    If the data is owned by us, it will be deleted when count goes to zero.
-    SpoofData *addReference();
+    SpoofData *addReference(); 
     void removeReference();
 
     // Reset all fields to an initial state.
@@ -340,3 +340,4 @@ uspoof_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *ou
 #endif
 
 #endif  /* USPOOFIM_H */
+

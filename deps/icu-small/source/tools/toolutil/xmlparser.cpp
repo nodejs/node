@@ -64,62 +64,62 @@ UXMLParser::UXMLParser(UErrorCode &status) :
       //      This is a sloppy implementation - just look for the leading <?xml and the closing ?>
       //            allow for a possible leading BOM.
       mXMLDecl(UnicodeString("(?s)\\uFEFF?<\\?xml.+?\\?>", -1, US_INV), 0, status),
-
+      
       //  XML Comment   production #15
       //     example:  "<!-- whatever -->
       //       note, does not detect an illegal "--" within comments
       mXMLComment(UnicodeString("(?s)<!--.+?-->", -1, US_INV), 0, status),
-
+      
       //  XML Spaces
       //      production [3]
       mXMLSP(UnicodeString(XML_SPACES "+", -1, US_INV), 0, status),
-
+      
       //  XML Doctype decl  production #28
       //     example   "<!DOCTYPE foo SYSTEM "somewhere" >
       //       or      "<!DOCTYPE foo [internal dtd]>
       //    TODO:  we don't actually parse the DOCTYPE or internal subsets.
       //           Some internal dtd subsets could confuse this simple-minded
       //           attempt at skipping over them, specifically, occcurences
-      //           of closeing square brackets.  These could appear in comments,
+      //           of closeing square brackets.  These could appear in comments, 
       //           or in parameter entity declarations, for example.
       mXMLDoctype(UnicodeString(
            "(?s)<!DOCTYPE.*?(>|\\[.*?\\].*?>)", -1, US_INV
            ), 0, status),
-
+      
       //  XML PI     production #16
       //     example   "<?target stuff?>
       mXMLPI(UnicodeString("(?s)<\\?.+?\\?>", -1, US_INV), 0, status),
-
+      
       //  XML Element Start   Productions #40, #41
       //          example   <foo att1='abc'  att2="d e f" >
       //      capture #1:  the tag name
       //
       mXMLElemStart (UnicodeString("(?s)<(" XML_NAME ")"                                 // match  "<tag_name"
-          "(?:"
+          "(?:" 
                 XML_SPACES "+" XML_NAME XML_SPACES "*=" XML_SPACES "*"     // match  "ATTR_NAME = "
                 "(?:(?:\\\'[^<\\\']*?\\\')|(?:\\\"[^<\\\"]*?\\\"))"        // match  '"attribute value"'
           ")*"                                                             //   * for zero or more attributes.
           XML_SPACES "*?>", -1, US_INV), 0, status),                               // match " >"
-
+      
       //  XML Element End     production #42
       //     example   </foo>
       mXMLElemEnd (UnicodeString("</(" XML_NAME ")" XML_SPACES "*>", -1, US_INV), 0, status),
-
+      
       // XML Element Empty    production #44
       //     example   <foo att1="abc"   att2="d e f" />
       mXMLElemEmpty (UnicodeString("(?s)<(" XML_NAME ")"                                 // match  "<tag_name"
-          "(?:"
+          "(?:" 
                 XML_SPACES "+" XML_NAME XML_SPACES "*=" XML_SPACES "*"     // match  "ATTR_NAME = "
                 "(?:(?:\\\'[^<\\\']*?\\\')|(?:\\\"[^<\\\"]*?\\\"))"        // match  '"attribute value"'
           ")*"                                                             //   * for zero or more attributes.
           XML_SPACES "*?/>", -1, US_INV), 0, status),                              // match " />"
-
+      
 
       // XMLCharData.  Everything but '<'.  Note that & will be dealt with later.
       mXMLCharData(UnicodeString("(?s)[^<]*", -1, US_INV), 0, status),
 
       // Attribute name = "value".  XML Productions 10, 40/41
-      //  Capture group 1 is name,
+      //  Capture group 1 is name, 
       //                2 is the attribute value, including the quotes.
       //
       //   Note that attributes are scanned twice.  The first time is with
@@ -313,7 +313,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
             // reached end of file, convert once more to flush the converter
             flush=TRUE;
         }
-    };
+    }
 
 exit:
     ucnv_close(cnv);
@@ -501,8 +501,8 @@ UXMLParser::createElement(RegexMatcher  &mEl, UErrorCode &status) {
         //   that parsed the attribue, which couldn't conveniently strip them.
         attValue.remove(0,1);                    // one char from the beginning
         attValue.truncate(attValue.length()-1);  // and one from the end.
-
-        // XML Attribue value normalization.
+        
+        // XML Attribue value normalization. 
         // This is one of the really screwy parts of the XML spec.
         // See http://www.w3.org/TR/2004/REC-xml11-20040204/#AVNormalize
         // Note that non-validating parsers must treat all entities as type CDATA
@@ -569,7 +569,7 @@ UXMLParser::scanContent(UErrorCode &status) {
         // Normalize the new-lines.  (Before char ref substitution)
         mNewLineNormalizer.reset(result);
         result = mNewLineNormalizer.replaceAll(fOneLF, status);
-
+        
         // TODO:  handle CDATA
         fPos = mXMLCharData.end(0, status);
     }
@@ -824,3 +824,4 @@ UXMLElement::getChildElement(const UnicodeString &name) const {
 U_NAMESPACE_END
 
 #endif /* !UCONFIG_NO_REGULAR_EXPRESSIONS */
+

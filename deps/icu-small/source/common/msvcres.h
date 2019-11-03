@@ -11,8 +11,8 @@
 //
 
 /*
-These are defined before unicode/uversion.h in order to prevent
-STLPort's broken stddef.h from being used when rc.exe parses this file.
+These are defined before unicode/uversion.h in order to prevent 
+STLPort's broken stddef.h from being used when rc.exe parses this file. 
 */
 #define _STLP_OUTERMOST_HEADER_ID 0
 #define _STLP_WINCE 1

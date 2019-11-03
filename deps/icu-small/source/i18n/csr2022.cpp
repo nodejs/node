@@ -24,8 +24,8 @@ U_NAMESPACE_BEGIN
  * Counts up the number of legal and unrecognized escape sequences in
  * the sample of text, and computes a score based on the total number &
  * the proportion that fit the encoding.
- *
- *
+ * 
+ * 
  * @param text the byte buffer containing text to analyse
  * @param textLen  the size of the text in the byte.
  * @param escapeSequences the byte escape sequences to test for.
@@ -84,7 +84,7 @@ scanInput:
 
     //
     // Initial quality is based on relative proportion of recongized vs.
-    //   unrecognized escape sequences.
+    //   unrecognized escape sequences. 
     //   All good:  quality = 100;
     //   half or less good: quality = 0;
     //   linear inbetween.
@@ -122,7 +122,7 @@ static const uint8_t escapeSequences_2022JP[][5] = {
 
 #if !UCONFIG_ONLY_HTML_CONVERSION
 static const uint8_t escapeSequences_2022KR[][5] = {
-    {0x1b, 0x24, 0x29, 0x43, 0x00}
+    {0x1b, 0x24, 0x29, 0x43, 0x00}   
 };
 
 static const uint8_t escapeSequences_2022CN[][5] = {
@@ -147,9 +147,9 @@ const char *CharsetRecog_2022JP::getName() const {
 }
 
 UBool CharsetRecog_2022JP::match(InputText *textIn, CharsetMatch *results) const {
-    int32_t confidence = match_2022(textIn->fInputBytes,
-                                    textIn->fInputLen,
-                                    escapeSequences_2022JP,
+    int32_t confidence = match_2022(textIn->fInputBytes, 
+                                    textIn->fInputLen, 
+                                    escapeSequences_2022JP, 
                                     UPRV_LENGTHOF(escapeSequences_2022JP));
     results->set(textIn, this, confidence);
     return (confidence > 0);
@@ -163,9 +163,9 @@ const char *CharsetRecog_2022KR::getName() const {
 }
 
 UBool CharsetRecog_2022KR::match(InputText *textIn, CharsetMatch *results) const {
-    int32_t confidence = match_2022(textIn->fInputBytes,
-                                    textIn->fInputLen,
-                                    escapeSequences_2022KR,
+    int32_t confidence = match_2022(textIn->fInputBytes, 
+                                    textIn->fInputLen, 
+                                    escapeSequences_2022KR, 
                                     UPRV_LENGTHOF(escapeSequences_2022KR));
     results->set(textIn, this, confidence);
     return (confidence > 0);

@@ -60,7 +60,7 @@ UnicodeNameTransliterator::UnicodeNameTransliterator(const UnicodeNameTransliter
 /**
  * Transliterator API.
  */
-Transliterator* UnicodeNameTransliterator::clone(void) const {
+UnicodeNameTransliterator* UnicodeNameTransliterator::clone() const {
     return new UnicodeNameTransliterator(*this);
 }
 
@@ -87,7 +87,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
         offsets.start = offsets.limit;
         return;
     }
-
+    
     int32_t cursor = offsets.start;
     int32_t limit = offsets.limit;
 

@@ -62,7 +62,7 @@ public:
 /**
  * Wrapper class around generic dictionaries, implementing matches().
  * getType() should return a TRIE_TYPE_??? constant from DictionaryData.
- *
+ * 
  * All implementations of this interface must be thread-safe if they are to be used inside of the
  * dictionary-based break iteration code.
  */

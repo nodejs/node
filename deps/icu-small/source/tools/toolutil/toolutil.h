@@ -81,13 +81,13 @@ findBasename(const char *filename);
 
 /**
  * Find the directory name of a pathname, that is, everything
- * up to but not including the last file separator.
+ * up to but not including the last file separator. 
  *
  * If successful, copies the directory name into the output buffer along with
- * a terminating NULL.
+ * a terminating NULL. 
  *
  * If there isn't a directory name in the path, it returns an empty string.
- * @param path the full pathname to inspect.
+ * @param path the full pathname to inspect. 
  * @param buffer the output buffer
  * @param bufLen the output buffer length
  * @param status error code- may return U_BUFFER_OVERFLOW_ERROR if bufLen is too small.

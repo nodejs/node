@@ -180,15 +180,15 @@
  *     -- normal base table with optional extension
  *
  *     int32_t stateTable[countStates][256];
- *
+ *    
  *     struct _MBCSToUFallback { (fallbacks are sorted by offset)
  *         uint32_t offset;
  *         UChar32 codePoint;
  *     } toUFallbacks[countToUFallbacks];
- *
+ *    
  *     uint16_t unicodeCodeUnits[(offsetFromUTable-offsetToUCodeUnits)/2];
  *                  (padded to an even number of units)
- *
+ *    
  *     -- stage 1 tables
  *     if(staticData.unicodeMask&UCNV_HAS_SUPPLEMENTARY) {
  *         -- stage 1 table for all of Unicode
@@ -566,10 +566,10 @@ ucnv_MBCSSingleFromUChar32(UConverterSharedData *sharedData,
 U_CFUNC UConverterType
 ucnv_MBCSGetType(const UConverter* converter);
 
-U_CFUNC void
+U_CFUNC void 
 ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode);
-U_CFUNC void
+U_CFUNC void 
 ucnv_MBCSToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                           UErrorCode *pErrorCode);
 

@@ -24,7 +24,7 @@
 /**
  * \file
  * \brief C API:  Arabic shaping
- *
+ * 
  */
 
 /**
@@ -117,7 +117,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  * This option is an alias to U_SHAPE_LENGTH_GROW_SHRINK
  * @stable ICU 4.2
  */
-#define U_SHAPE_LAMALEF_RESIZE                  0
+#define U_SHAPE_LAMALEF_RESIZE                  0 
 
 /**
  * Memory option: the result must have the same length as the source.
@@ -133,7 +133,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  * This option is an alias to U_SHAPE_LENGTH_FIXED_SPACES_NEAR
  * @stable ICU 4.2
  */
-#define U_SHAPE_LAMALEF_NEAR                    1
+#define U_SHAPE_LAMALEF_NEAR                    1 
 
 /**
  * Memory option: the result must have the same length as the source.
@@ -149,7 +149,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  * This option is an alias to U_SHAPE_LENGTH_FIXED_SPACES_AT_END
  * @stable ICU 4.2
  */
-#define U_SHAPE_LAMALEF_END                     2
+#define U_SHAPE_LAMALEF_END                     2 
 
 /**
  * Memory option: the result must have the same length as the source.
@@ -165,7 +165,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  * This option is an alias to U_SHAPE_LENGTH_FIXED_SPACES_AT_BEGINNING
  * @stable ICU 4.2
  */
-#define U_SHAPE_LAMALEF_BEGIN                    3
+#define U_SHAPE_LAMALEF_BEGIN                    3 
 
 
 /**
@@ -174,14 +174,14 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  *               If there is no space at end, use spaces at beginning of the buffer. If there
  *               is no space at beginning of the buffer, use spaces at the near (i.e. the space
  *               after the LAMALEF character).
- *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h)
+ *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h) 
  *               will be set in pErrorCode
  *
- * Deshaping Mode: Perform the same function as the flag equals U_SHAPE_LAMALEF_END.
+ * Deshaping Mode: Perform the same function as the flag equals U_SHAPE_LAMALEF_END. 
  * Affects: LamAlef options
  * @stable ICU 4.2
  */
-#define U_SHAPE_LAMALEF_AUTO                     0x10000
+#define U_SHAPE_LAMALEF_AUTO                     0x10000 
 
 /** Bit mask for memory options. @stable ICU 2.0 */
 #define U_SHAPE_LENGTH_MASK                      0x10003 /* Changed old value 3 */
@@ -301,7 +301,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 /** Bit mask for digit type options. @stable ICU 2.0 */
 #define U_SHAPE_DIGIT_TYPE_MASK                 0x300 /* I need to change this from 0x3f00 to 0x300 */
 
-/**
+/** 
  * Tashkeel aggregation option:
  * Replaces any combination of U+0651 with one of
  * U+064C, U+064D, U+064E, U+064F, U+0650 with
@@ -314,28 +314,28 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 /** Bit mask for tashkeel aggregation. @stable ICU 3.6 */
 #define U_SHAPE_AGGREGATE_TASHKEEL_MASK         0x4000
 
-/**
+/** 
  * Presentation form option:
  * Don't replace Arabic Presentation Forms-A and Arabic Presentation Forms-B
  * characters with 0+06xx characters, before shaping.
  * @stable ICU 3.6
  */
 #define U_SHAPE_PRESERVE_PRESENTATION           0x8000
-/** Presentation form option:
- * Replace Arabic Presentation Forms-A and Arabic Presentationo Forms-B with
+/** Presentation form option: 
+ * Replace Arabic Presentation Forms-A and Arabic Presentationo Forms-B with 
  * their unshaped correspondants in range 0+06xx, before shaping.
- * @stable ICU 3.6
+ * @stable ICU 3.6 
  */
 #define U_SHAPE_PRESERVE_PRESENTATION_NOOP      0
 /** Bit mask for preserve presentation form. @stable ICU 3.6 */
 #define U_SHAPE_PRESERVE_PRESENTATION_MASK      0x8000
 
-/* Seen Tail option */
+/* Seen Tail option */ 
 /**
  * Memory option: the result must have the same length as the source.
- * Shaping mode: The SEEN family character will expand into two characters using space near
+ * Shaping mode: The SEEN family character will expand into two characters using space near 
  *               the SEEN family character(i.e. the space after the character).
- *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h)
+ *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h) 
  *               will be set in pErrorCode
  *
  * De-shaping mode: Any Seen character followed by Tail character will be
@@ -346,17 +346,17 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 #define U_SHAPE_SEEN_TWOCELL_NEAR     0x200000
 
 /**
- * Bit mask for Seen memory options.
+ * Bit mask for Seen memory options. 
  * @stable ICU 4.2
  */
 #define U_SHAPE_SEEN_MASK             0x700000
 
-/* YehHamza option */
+/* YehHamza option */ 
 /**
  * Memory option: the result must have the same length as the source.
- * Shaping mode: The YEHHAMZA character will expand into two characters using space near it
+ * Shaping mode: The YEHHAMZA character will expand into two characters using space near it 
  *              (i.e. the space after the character
- *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h)
+ *               If there are no spaces found, an error U_NO_SPACE_AVAILABLE (as defined in utypes.h) 
  *               will be set in pErrorCode
  *
  * De-shaping mode: Any Yeh (final or isolated) character followed by Hamza character will be
@@ -368,15 +368,15 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 
 
 /**
- * Bit mask for YehHamza memory options.
+ * Bit mask for YehHamza memory options. 
  * @stable ICU 4.2
  */
 #define U_SHAPE_YEHHAMZA_MASK              0x3800000
 
-/* New Tashkeel options */
+/* New Tashkeel options */ 
 /**
  * Memory option: the result must have the same length as the source.
- * Shaping mode: Tashkeel characters will be replaced by spaces.
+ * Shaping mode: Tashkeel characters will be replaced by spaces. 
  *               Spaces will be placed at beginning of the buffer
  *
  * De-shaping mode: N/A
@@ -387,7 +387,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 
 /**
  * Memory option: the result must have the same length as the source.
- * Shaping mode: Tashkeel characters will be replaced by spaces.
+ * Shaping mode: Tashkeel characters will be replaced by spaces. 
  *               Spaces will be placed at end of the buffer
  *
  * De-shaping mode: N/A
@@ -398,8 +398,8 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 
 /**
  * Memory option: allow the result to have a different length than the source.
- * Shaping mode: Tashkeel characters will be removed, buffer length will shrink.
- * De-shaping mode: N/A
+ * Shaping mode: Tashkeel characters will be removed, buffer length will shrink. 
+ * De-shaping mode: N/A 
  *
  * Affect: Tashkeel options
  * @stable ICU 4.2
@@ -417,46 +417,46 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
  */
 #define U_SHAPE_TASHKEEL_REPLACE_BY_TATWEEL         0xC0000
 
-/**
- * Bit mask for Tashkeel replacement with Space or Tatweel memory options.
+/** 
+ * Bit mask for Tashkeel replacement with Space or Tatweel memory options. 
  * @stable ICU 4.2
  */
 #define U_SHAPE_TASHKEEL_MASK                       0xE0000
 
 
-/* Space location Control options */
+/* Space location Control options */ 
 /**
  * This option affect the meaning of BEGIN and END options. if this option is not used the default
- * for BEGIN and END will be as following:
+ * for BEGIN and END will be as following: 
  * The Default (for both Visual LTR, Visual RTL and Logical Text)
  *           1. BEGIN always refers to the start address of physical memory.
  *           2. END always refers to the end address of physical memory.
  *
- * If this option is used it will swap the meaning of BEGIN and END only for Visual LTR text.
+ * If this option is used it will swap the meaning of BEGIN and END only for Visual LTR text. 
  *
  * The effect on BEGIN and END Memory Options will be as following:
  *    A. BEGIN For Visual LTR text: This will be the beginning (right side) of the visual text(
- *       corresponding to the physical memory address end for Visual LTR text, Same as END in
+ *       corresponding to the physical memory address end for Visual LTR text, Same as END in 
  *       default behavior)
- *    B. BEGIN For Logical text: Same as BEGIN in default behavior.
+ *    B. BEGIN For Logical text: Same as BEGIN in default behavior. 
  *    C. END For Visual LTR text: This will be the end (left side) of the visual text (corresponding
  *       to the physical memory address beginning for Visual LTR text, Same as BEGIN in default behavior.
- *    D. END For Logical text: Same as END in default behavior).
+ *    D. END For Logical text: Same as END in default behavior). 
  * Affects: All LamAlef BEGIN, END and AUTO options.
  * @stable ICU 4.2
  */
 #define U_SHAPE_SPACES_RELATIVE_TO_TEXT_BEGIN_END 0x4000000
 
 /**
- * Bit mask for swapping BEGIN and END for Visual LTR text
+ * Bit mask for swapping BEGIN and END for Visual LTR text 
  * @stable ICU 4.2
  */
 #define U_SHAPE_SPACES_RELATIVE_TO_TEXT_MASK      0x4000000
 
 /**
- * If this option is used, shaping will use the new Unicode code point for TAIL (i.e. 0xFE73).
+ * If this option is used, shaping will use the new Unicode code point for TAIL (i.e. 0xFE73). 
  * If this option is not specified (Default), old unofficial Unicode TAIL code point is used (i.e. 0x200B)
- * De-shaping will not use this option as it will always search for both the new Unicode code point for the
+ * De-shaping will not use this option as it will always search for both the new Unicode code point for the 
  * TAIL (i.e. 0xFE73) or the old unofficial Unicode TAIL code point (i.e. 0x200B) and de-shape the
  * Seen-Family letter accordingly.
  *
@@ -468,7 +468,7 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
 #define U_SHAPE_TAIL_NEW_UNICODE        0x8000000
 
 /**
- * Bit mask for new Unicode Tail option
+ * Bit mask for new Unicode Tail option 
  * @stable ICU 4.8
  */
 #define U_SHAPE_TAIL_TYPE_MASK          0x8000000

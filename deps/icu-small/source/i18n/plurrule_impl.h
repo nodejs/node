@@ -319,7 +319,7 @@ public:
     tokenType digitsType = none;    // n | i | v | f constraint.
     AndConstraint *next = nullptr;
     // Internal error status, used for errors that occur during the copy constructor.
-    UErrorCode fInternalStatus = U_ZERO_ERROR;
+    UErrorCode fInternalStatus = U_ZERO_ERROR;    
 
     AndConstraint() = default;
     AndConstraint(const AndConstraint& other);

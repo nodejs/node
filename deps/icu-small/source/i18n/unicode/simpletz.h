@@ -28,11 +28,13 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
- * \file
+ * \file 
  * \brief C++ API: SimpleTimeZone is a concrete subclass of TimeZone.
  */
-
+ 
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/basictz.h"
@@ -672,6 +674,7 @@ public:
      */
     virtual UBool useDaylightTime(void) const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Returns true if the given date is within the period when daylight savings time
      * is in effect; false otherwise.  If the TimeZone doesn't observe daylight savings
@@ -687,6 +690,7 @@ public:
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
     virtual UBool inDaylightTime(UDate date, UErrorCode& status) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Return true if this zone has the same rules and offset as another zone.
@@ -703,7 +707,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 2.0
      */
-    virtual TimeZone* clone(void) const;
+    virtual SimpleTimeZone* clone() const;
 
     /**
      * Gets the first time zone transition after the base time.
@@ -928,5 +932,7 @@ SimpleTimeZone::getOffset(UDate date, UBool local, int32_t& rawOffsetRef,
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _SIMPLETZ

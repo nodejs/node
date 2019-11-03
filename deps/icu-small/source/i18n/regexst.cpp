@@ -164,10 +164,10 @@ fEmptyText(NULL)
     fPropSets[URX_GC_T]        = new UnicodeSet(UnicodeString(TRUE, gGC_TPattern, -1),       *status);
     fPropSets[URX_GC_LV]       = new UnicodeSet(UnicodeString(TRUE, gGC_LVPattern, -1),      *status);
     fPropSets[URX_GC_LVT]      = new UnicodeSet(UnicodeString(TRUE, gGC_LVTPattern, -1),     *status);
-
+    
     // Check for null pointers
-    if (fPropSets[URX_ISWORD_SET] == NULL || fPropSets[URX_ISSPACE_SET] == NULL || fPropSets[URX_GC_EXTEND] == NULL ||
-        fPropSets[URX_GC_CONTROL] == NULL || fPropSets[URX_GC_L] == NULL || fPropSets[URX_GC_V] == NULL ||
+    if (fPropSets[URX_ISWORD_SET] == NULL || fPropSets[URX_ISSPACE_SET] == NULL || fPropSets[URX_GC_EXTEND] == NULL || 
+        fPropSets[URX_GC_CONTROL] == NULL || fPropSets[URX_GC_L] == NULL || fPropSets[URX_GC_V] == NULL || 
         fPropSets[URX_GC_T] == NULL || fPropSets[URX_GC_LV] == NULL || fPropSets[URX_GC_LVT] == NULL) {
         goto ExitConstrDeleteAll;
     }
@@ -191,7 +191,7 @@ fEmptyText(NULL)
     fPropSets[URX_GC_NORMAL] = new UnicodeSet(0, UnicodeSet::MAX_VALUE);
     // Null pointer check
     if (fPropSets[URX_GC_NORMAL] == NULL) {
-	goto ExitConstrDeleteAll;
+    	goto ExitConstrDeleteAll;
     }
     fPropSets[URX_GC_NORMAL]->remove(0xac00, 0xd7a4);
     fPropSets[URX_GC_NORMAL]->removeAll(*fPropSets[URX_GC_CONTROL]);
@@ -217,10 +217,10 @@ fEmptyText(NULL)
     for (i=0; i<UPRV_LENGTHOF(fRuleSets); i++) {
         fRuleSets[i].compact();
     }
-
+    
     // Finally, initialize an empty string for utility purposes
     fEmptyText = utext_openUChars(NULL, NULL, 0, status);
-
+    
     if (U_SUCCESS(*status)) {
         return;
     }
@@ -244,7 +244,7 @@ RegexStaticSets::~RegexStaticSets() {
         fPropSets[i] = NULL;
     }
     fRuleDigitsAlias = NULL;
-
+    
     utext_close(fEmptyText);
 }
 

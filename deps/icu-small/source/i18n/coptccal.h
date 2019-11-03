@@ -24,90 +24,90 @@ U_NAMESPACE_BEGIN
  * @internal
  */
 class CopticCalendar : public CECalendar {
-
+  
 public:
     /**
      * Useful constants for CopticCalendar.
      * @internal
      */
     enum EMonths {
-        /**
+        /** 
          * Constant for &#x03c9;&#x03bf;&#x03b3;&#x03c4;/&#x062a;&#xfeee;&#xfe97;,
-         * the 1st month of the Coptic year.
+         * the 1st month of the Coptic year. 
          */
         TOUT,
-
-        /**
+        
+        /** 
          * Constant for &#x03a0;&#x03b1;&#x03bf;&#x03c0;&#x03b9;/&#xfeea;&#xfe91;&#xfe8e;&#xfe91;,
-         * the 2nd month of the Coptic year.
+         * the 2nd month of the Coptic year. 
          */
         BABA,
 
-        /**
+        /** 
          * Constant for &#x0391;&#x03b8;&#x03bf;&#x03c1;/&#x0631;&#xfeee;&#xfe97;&#xfe8e;&#xfeeb;,
-         * the 3rd month of the Coptic year.
+         * the 3rd month of the Coptic year. 
          */
         HATOR,
 
-        /**
+        /** 
          * Constant for &#x03a7;&#x03bf;&#x03b9;&#x03b1;&#x03ba;/&#xfeda;&#xfeec;&#xfef4;&#xfedb;,
-         * the 4th month of the Coptic year.
+         * the 4th month of the Coptic year. 
          */
         KIAHK,
 
-        /**
+        /** 
          * Constant for &#x03a4;&#x03c9;&#x03b2;&#x03b9;/&#x0637;&#xfeee;&#xfe92;&#xfeeb;,
-         * the 5th month of the Coptic year.
+         * the 5th month of the Coptic year. 
          */
         TOBA,
 
-        /**
+        /** 
          * Constant for &#x039c;&#x03b5;&#x03e3;&#x03b9;&#x03c1;/&#xfeae;&#xfef4;&#xfeb8;&#xfee3;&#x0623;,
-         * the 6th month of the Coptic year.
+         * the 6th month of the Coptic year. 
          */
         AMSHIR,
 
-        /**
+        /** 
          * Constant for &#x03a0;&#x03b1;&#x03c1;&#x03b5;&#x03bc;&#x03e9;&#x03b1;&#x03c4;/&#x062a;&#xfe8e;&#xfeec;&#xfee3;&#xfeae;&#xfe91;,
-         * the 7th month of the Coptic year.
+         * the 7th month of the Coptic year. 
          */
         BARAMHAT,
 
-        /**
-         * Constant for &#x03a6;&#x03b1;&#x03c1;&#x03bc;&#x03bf;&#x03b8;&#x03b9;/&#x0647;&#x062f;&#xfeee;&#xfee3;&#xfeae;&#xfe91;,
-         * the 8th month of the Coptic year.
+        /** 
+         * Constant for &#x03a6;&#x03b1;&#x03c1;&#x03bc;&#x03bf;&#x03b8;&#x03b9;/&#x0647;&#x062f;&#xfeee;&#xfee3;&#xfeae;&#xfe91;, 
+         * the 8th month of the Coptic year. 
          */
         BARAMOUDA,
 
-        /**
+        /** 
          * Constant for &#x03a0;&#x03b1;&#x03e3;&#x03b1;&#x03bd;/&#xfeb2;&#xfee8;&#xfeb8;&#xfe91;,
-         * the 9th month of the Coptic year.
+         * the 9th month of the Coptic year. 
          */
         BASHANS,
 
-        /**
+        /** 
          * Constant for &#x03a0;&#x03b1;&#x03c9;&#x03bd;&#x03b9;/&#xfeea;&#xfee7;&#x0624;&#xfeee;&#xfe91;,
-         * the 10th month of the Coptic year.
+         * the 10th month of the Coptic year. 
          */
         PAONA,
 
-        /**
+        /** 
          * Constant for &#x0395;&#x03c0;&#x03b7;&#x03c0;/&#xfe90;&#xfef4;&#xfe91;&#x0623;,
-         * the 11th month of the Coptic year.
+         * the 11th month of the Coptic year. 
          */
         EPEP,
 
-        /**
+        /** 
          * Constant for &#x039c;&#x03b5;&#x03f2;&#x03c9;&#x03c1;&#x03b7;/&#x0649;&#xfeae;&#xfeb4;&#xfee3;,
-         * the 12th month of the Coptic year.
+         * the 12th month of the Coptic year. 
          */
         MESRA,
 
-        /**
+        /** 
          * Constant for &#x03a0;&#x03b9;&#x03ba;&#x03bf;&#x03b3;&#x03eb;&#x03b9;
          * &#x03bc;&#x03b1;&#x03b2;&#x03bf;&#x03c4;/&#xfeae;&#xfef4;&#xfed0;&#xfebc;&#xfedf;&#x0627;
          * &#xfeae;&#xfeec;&#xfeb8;&#xfedf;&#x0627;,
-         * the 13th month of the Coptic year.
+         * the 13th month of the Coptic year. 
          */
         NASIE
     };
@@ -145,7 +145,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual CopticCalendar* clone() const;
 
     /**
      * return the calendar type, "coptic"
@@ -215,7 +215,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @internal
      */
-    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);  
 
 #if 0
     // We do not want to introduce this API in ICU4C.

@@ -23,7 +23,7 @@
 
 #if !UCONFIG_NO_CONVERSION
 
-U_NAMESPACE_BEGIN
+U_NAMESPACE_BEGIN 
 
 class InputText : public UMemory
 {
@@ -35,7 +35,7 @@ public:
 
     void setText(const char *in, int32_t len);
     void setDeclaredEncoding(const char *encoding, int32_t len);
-    UBool isSet() const;
+    UBool isSet() const; 
     void MungeInput(UBool fStripTags);
 
     // The text to be checked.  Markup will have been
@@ -44,14 +44,14 @@ public:
     int32_t     fInputLen;          // Length of the byte data in fInputBytes.
     // byte frequency statistics for the input text.
     //   Value is percent, not absolute.
-    //   Value is rounded up, so zero really means zero occurences.
+    //   Value is rounded up, so zero really means zero occurences. 
     int16_t  *fByteStats;
     UBool     fC1Bytes;          // True if any bytes in the range 0x80 - 0x9F are in the input;false by default
     char     *fDeclaredEncoding;
 
     const uint8_t           *fRawInput;     // Original, untouched input bytes.
     //  If user gave us a byte array, this is it.
-    //  If user gave us a stream, it's read to a
+    //  If user gave us a stream, it's read to a 
     //   buffer here.
     int32_t                  fRawLength;    // Length of data in fRawInput array.
 

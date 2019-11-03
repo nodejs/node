@@ -323,7 +323,7 @@ ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outD
     //
     const uint8_t  *inBytes =(const uint8_t *)inData+headerSize;
     RBBIDataHeader *rbbiDH = (RBBIDataHeader *)inBytes;
-    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 ||
+    if (ds->readUInt32(rbbiDH->fMagic) != 0xb1a0 || 
             !RBBIDataWrapper::isDataVersionAcceptable(rbbiDH->fFormatVersion) ||
             ds->readUInt32(rbbiDH->fLength)  <  sizeof(RBBIDataHeader)) {
         udata_printError(ds, "ubrk_swap(): RBBI Data header is invalid.\n");
@@ -377,23 +377,23 @@ ubrk_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outD
     //
     int32_t         topSize = offsetof(RBBIStateTable, fTableData);
 
-    // Forward state table.
+    // Forward state table.  
     tableStartOffset = ds->readUInt32(rbbiDH->fFTable);
     tableLength      = ds->readUInt32(rbbiDH->fFTableLen);
 
     if (tableLength > 0) {
-        ds->swapArray32(ds, inBytes+tableStartOffset, topSize,
+        ds->swapArray32(ds, inBytes+tableStartOffset, topSize, 
                             outBytes+tableStartOffset, status);
         ds->swapArray16(ds, inBytes+tableStartOffset+topSize, tableLength-topSize,
                             outBytes+tableStartOffset+topSize, status);
     }
-
+    
     // Reverse state table.  Same layout as forward table, above.
     tableStartOffset = ds->readUInt32(rbbiDH->fRTable);
     tableLength      = ds->readUInt32(rbbiDH->fRTableLen);
 
     if (tableLength > 0) {
-        ds->swapArray32(ds, inBytes+tableStartOffset, topSize,
+        ds->swapArray32(ds, inBytes+tableStartOffset, topSize, 
                             outBytes+tableStartOffset, status);
         ds->swapArray16(ds, inBytes+tableStartOffset+topSize, tableLength-topSize,
                             outBytes+tableStartOffset+topSize, status);

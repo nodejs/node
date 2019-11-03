@@ -122,8 +122,9 @@ enum {
     QUIET,
     WITHOUT_ASSEMBLY,
     PDS_BUILD,
-    UWP_BUILD,
-    UWP_ARM_BUILD
+    WIN_UWP_BUILD,
+    WIN_DLL_ARCH,
+    WIN_DYNAMICBASE
 };
 
 /* This sets the modes that are available */
@@ -167,7 +168,8 @@ static UOption options[]={
     /*20*/    UOPTION_DEF( "without-assembly", 'w', UOPT_NO_ARG),
     /*21*/    UOPTION_DEF("zos-pds-build", 'z', UOPT_NO_ARG),
     /*22*/    UOPTION_DEF("windows-uwp-build", 'u', UOPT_NO_ARG),
-    /*23*/    UOPTION_DEF("windows-uwp-arm-build", 'a', UOPT_NO_ARG)
+    /*23*/    UOPTION_DEF("windows-DLL-arch", 'a', UOPT_REQUIRES_ARG),
+    /*24*/    UOPTION_DEF("windows-dynamicbase", 'b', UOPT_NO_ARG),
 };
 
 /* This enum and the following char array should be kept in sync. */
@@ -258,7 +260,8 @@ const char options_help[][320]={
     "Build the data without assembly code",
     "Build PDS dataset (zOS build only)",
     "Build for Universal Windows Platform (Windows build only)",
-    "Set DLL machine type for UWP to target windows ARM (Windows UWP build only)"
+    "Specify the DLL machine architecture for LINK.exe (Windows build only)",
+    "Ignored. Enable DYNAMICBASE on the DLL. This is now the default. (Windows build only)",
 };
 
 const char  *progname = "PKGDATA";
@@ -468,6 +471,10 @@ main(int argc, char* argv[]) {
 #endif
     }
 
+    if (options[WIN_DYNAMICBASE].doesOccur) {
+        fprintf(stdout, "Note: Ignoring option -b (windows-dynamicbase).\n");
+    }
+
     /* OK options are set up. Now the file lists. */
     tail = NULL;
     for( n=1; n<argc; n++) {
@@ -576,7 +583,7 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                 uprv_strcat(targetDir, PKGDATA_FILE_SEP_STRING);
                 uprv_strcat(targetDir, o->shortName);
             }
-
+            
             if(o->verbose) {
               fprintf(stdout, "# Install: Files mode, copying files to %s..\n", targetDir);
             }
@@ -713,12 +720,18 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                 if(o->verbose) {
                   fprintf(stdout, "# Generating assembly code %s of type %s ..\n", gencFilePath, genccodeAssembly);
                 }
-
+                
                 /* Offset genccodeAssembly by 3 because "-a " */
                 if (genccodeAssembly &&
                     (uprv_strlen(genccodeAssembly)>3) &&
                     checkAssemblyHeaderName(genccodeAssembly+3)) {
-                    writeAssemblyCode(datFileNamePath, o->tmpDir, o->entryName, NULL, gencFilePath);
+                    writeAssemblyCode(
+                        datFileNamePath,
+                        o->tmpDir,
+                        o->entryName,
+                        NULL,
+                        gencFilePath,
+                        sizeof(gencFilePath));
 
                     result = pkg_createWithAssemblyCode(targetDir, mode, gencFilePath);
                     if (result != 0) {
@@ -753,7 +766,14 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                     /* Try to detect the arch type, use NULL if unsuccessful */
                     char optMatchArch[10] = { 0 };
                     pkg_createOptMatchArch(optMatchArch);
-                    writeObjectCode(datFileNamePath, o->tmpDir, o->entryName, (optMatchArch[0] == 0 ? NULL : optMatchArch), NULL, gencFilePath);
+                    writeObjectCode(
+                        datFileNamePath,
+                        o->tmpDir,
+                        o->entryName,
+                        (optMatchArch[0] == 0 ? NULL : optMatchArch),
+                        NULL,
+                        gencFilePath,
+                        sizeof(gencFilePath));
                     pkg_destroyOptMatchArch(optMatchArch);
 #if U_PLATFORM_IS_LINUX_BASED
                     result = pkg_generateLibraryFile(targetDir, mode, gencFilePath);
@@ -1027,7 +1047,7 @@ static int32_t pkg_createSymLinks(const char *targetDir, UBool specialHandling) 
         uprv_strcmp(libFileNames[LIB_FILE_VERSION], libFileNames[LIB_FILE_VERSION_MAJOR]) == 0) {
         return result;
     }
-
+    
     sprintf(cmd, "cd %s && %s %s && %s %s %s",
             targetDir,
             RM_CMD,
@@ -1291,18 +1311,18 @@ static int32_t pkg_archiveLibrary(const char *targetDir, const char *version, UB
                 targetDir,
                 libFileNames[LIB_FILE_VERSION_TMP]);
 
-        result = runCommand(cmd);
-        if (result != 0) {
+        result = runCommand(cmd); 
+        if (result != 0) { 
             fprintf(stderr, "Error creating archive library. Failed command: %s\n", cmd);
-            return result;
-        }
-
-        sprintf(cmd, "%s %s%s",
-            pkgDataFlags[RANLIB],
-            targetDir,
+            return result; 
+        } 
+        
+        sprintf(cmd, "%s %s%s", 
+            pkgDataFlags[RANLIB], 
+            targetDir, 
             libFileNames[LIB_FILE_VERSION]);
-
-        result = runCommand(cmd);
+        
+        result = runCommand(cmd); 
         if (result != 0) {
             fprintf(stderr, "Error creating archive library. Failed command: %s\n", cmd);
             return result;
@@ -1367,11 +1387,11 @@ static int32_t pkg_generateLibraryFile(const char *targetDir, const char mode, c
 
         result = runCommand(cmd);
         if (result == 0) {
-            sprintf(cmd, "%s %s%s",
-                    pkgDataFlags[RANLIB],
-                    targetDir,
-                    libFileNames[LIB_FILE_VERSION]);
-
+            sprintf(cmd, "%s %s%s", 
+                    pkgDataFlags[RANLIB], 
+                    targetDir, 
+                    libFileNames[LIB_FILE_VERSION]); 
+        
             result = runCommand(cmd);
         }
     } else /* if (IN_DLL_MODE(mode)) */ {
@@ -1584,10 +1604,10 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
 #ifdef USE_SINGLE_CCODE_FILE
     char icudtAll[SMALL_BUFFER_MAX_SIZE] = "";
     FileStream *icudtAllFile = NULL;
-
+    
     sprintf(icudtAll, "%s%s%sall.c",
             o->tmpDir,
-            PKGDATA_FILE_SEP_STRING,
+            PKGDATA_FILE_SEP_STRING, 
             libFileNames[LIB_FILE]);
     /* Remove previous icudtall.c file. */
     if (T_FileStream_file_exists(icudtAll) && (result = remove(icudtAll)) != 0) {
@@ -1628,18 +1648,18 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
 #ifdef USE_SINGLE_CCODE_FILE
             uprv_strcpy(tempObjectFile, gencmnFile);
             tempObjectFile[uprv_strlen(tempObjectFile) - 1] = 'o';
-
+            
             sprintf(cmd, "%s %s -o %s %s",
                         pkgDataFlags[COMPILER],
                         pkgDataFlags[LIBFLAGS],
                         tempObjectFile,
                         gencmnFile);
-
+            
             result = runCommand(cmd);
             if (result != 0) {
                 break;
             }
-
+            
             sprintf(buffer, "%s",tempObjectFile);
 #endif
         } else {
@@ -1685,7 +1705,13 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
               printf("# Generating %s \n", gencmnFile);
             }
 
-            writeCCode(file, o->tmpDir, dataName[0] != 0 ? dataName : o->shortName, newName[0] != 0 ? newName : NULL, gencmnFile);
+            writeCCode(
+                file,
+                o->tmpDir,
+                dataName[0] != 0 ? dataName : o->shortName,
+                newName[0] != 0 ? newName : NULL,
+                gencmnFile,
+                sizeof(gencmnFile));
 
 #ifdef USE_SINGLE_CCODE_FILE
             sprintf(cmd, "#include \"%s\"\n", gencmnFile);
@@ -1697,7 +1723,7 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
 #ifndef USE_SINGLE_CCODE_FILE
         uprv_strcpy(tempObjectFile, gencmnFile);
         tempObjectFile[uprv_strlen(tempObjectFile) - 1] = 'o';
-
+        
         sprintf(cmd, "%s %s -o %s %s",
                     pkgDataFlags[COMPILER],
                     pkgDataFlags[LIBFLAGS],
@@ -1713,7 +1739,7 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
         uprv_strcat(buffer, tempObjectFile);
 
 #endif
-
+        
         if (i > 0) {
             list = list->next;
             listNames = listNames->next;
@@ -1730,7 +1756,7 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
         pkgDataFlags[LIBFLAGS],
         tempObjectFile,
         icudtAll);
-
+    
     result = runCommand(cmd);
     if (result == 0) {
         uprv_strcat(buffer, " ");
@@ -1758,14 +1784,12 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
 
 #ifdef WINDOWS_WITH_MSVC
 #define LINK_CMD "link.exe /nologo /release /out:"
-#define LINK_FLAGS "/DLL /NOENTRY /MANIFEST:NO /implib:"
-#ifdef _WIN64
-#define LINK_EXTRA_UWP_FLAGS "/NXCOMPAT /DYNAMICBASE /APPCONTAINER "
-#else
-#define LINK_EXTRA_UWP_FLAGS "/NXCOMPAT /SAFESEH /DYNAMICBASE /APPCONTAINER /MACHINE:X86"
-#endif
-#define LINK_EXTRA_UWP_FLAGS_ARM "/NXCOMPAT /DYNAMICBASE /APPCONTAINER /MACHINE:ARM"
-#define LINK_EXTRA_NO_UWP_FLAGS "/base:0x4ad00000 "
+#define LINK_FLAGS "/NXCOMPAT /DYNAMICBASE /DLL /NOENTRY /MANIFEST:NO /implib:"
+
+#define LINK_EXTRA_UWP_FLAGS "/APPCONTAINER "
+#define LINK_EXTRA_UWP_FLAGS_X86_ONLY "/SAFESEH "
+
+#define LINK_EXTRA_FLAGS_MACHINE "/MACHINE:"
 #define LIB_CMD "LIB.exe /nologo /out:"
 #define LIB_FILE "icudt.lib"
 #define LIB_EXT UDATA_LIB_SUFFIX
@@ -1814,7 +1838,7 @@ static int32_t pkg_createWindowsDLL(const char mode, const char *gencFilePath, U
 #ifdef CYGWINMSVC
         uprv_strcat(libFilePath, o->libName);
         uprv_strcat(libFilePath, ".lib");
-
+        
         uprv_strcat(dllFilePath, o->libName);
         uprv_strcat(dllFilePath, o->version);
 #else
@@ -1827,7 +1851,7 @@ static int32_t pkg_createWindowsDLL(const char mode, const char *gencFilePath, U
         uprv_strcat(dllFilePath, o->entryName);
 #endif
         uprv_strcat(dllFilePath, DLL_EXT);
-
+        
         uprv_strcpy(tmpResFilePath, o->tmpDir);
         uprv_strcat(tmpResFilePath, PKGDATA_FILE_SEP_STRING);
         uprv_strcat(tmpResFilePath, ICUDATA_RES_FILE);
@@ -1845,23 +1869,23 @@ static int32_t pkg_createWindowsDLL(const char mode, const char *gencFilePath, U
           return 0;
         }
 
-        char *extraFlags = "";
+        char extraFlags[SMALL_BUFFER_MAX_SIZE] = "";
 #ifdef WINDOWS_WITH_MSVC
-        if (options[UWP_BUILD].doesOccur)
-        {
-            if (options[UWP_ARM_BUILD].doesOccur)
-            {
-                extraFlags = LINK_EXTRA_UWP_FLAGS_ARM;
-            }
-            else
-            {
-                extraFlags = LINK_EXTRA_UWP_FLAGS;
+        if (options[WIN_UWP_BUILD].doesOccur) {
+            uprv_strcat(extraFlags, LINK_EXTRA_UWP_FLAGS);
+
+            if (options[WIN_DLL_ARCH].doesOccur) {
+                if (uprv_strcmp(options[WIN_DLL_ARCH].value, "X86") == 0) {
+                    uprv_strcat(extraFlags, LINK_EXTRA_UWP_FLAGS_X86_ONLY);
+                }
             }
         }
-        else
-        {
-            extraFlags = LINK_EXTRA_NO_UWP_FLAGS;
+
+        if (options[WIN_DLL_ARCH].doesOccur) {
+            uprv_strcat(extraFlags, LINK_EXTRA_FLAGS_MACHINE);
+            uprv_strcat(extraFlags, options[WIN_DLL_ARCH].value);
         }
+
 #endif
         sprintf(cmd, "%s\"%s\" %s %s\"%s\" \"%s\" %s",
             LINK_CMD,
@@ -1976,9 +2000,9 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
             return NULL;
         } else {
             sprintf(tmpbuffer, "%s%s ", o->entryName, UDATA_CMN_INTERMEDIATE_SUFFIX);
-
+    
             T_FileStream_writeLine(f, tmpbuffer);
-
+    
             T_FileStream_close(f);
         }
     }
@@ -2018,7 +2042,7 @@ static UPKGOptions *pkg_checkFlag(UPKGOptions *o) {
 #endif
     // Don't really need a return value, just need to stop compiler warnings about
     // the unused parameter 'o' on platforms where it is not otherwise used.
-    return o;
+    return o;   
 }
 
 static void loadLists(UPKGOptions *o, UErrorCode *status)
@@ -2152,7 +2176,7 @@ static void loadLists(UPKGOptions *o, UErrorCode *status)
         cmdBuf.append( U_FILE_SEP_STRING, status );
       }
       cmdBuf.append( cmd, status );
-
+      
       if(verbose) {
         fprintf(stdout, "# Calling icu-config: %s\n", cmdBuf.data());
       }

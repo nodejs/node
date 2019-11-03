@@ -567,7 +567,7 @@ enum {
 
 struct ExtendedUText {
     UText          ut;
-    UAlignedMemory extension;
+    max_align_t    extension;
 };
 
 static const UText emptyText = UTEXT_INITIALIZER;
@@ -582,7 +582,7 @@ utext_setup(UText *ut, int32_t extraSpace, UErrorCode *status) {
         // We need to heap-allocate storage for the new UText
         int32_t spaceRequired = sizeof(UText);
         if (extraSpace > 0) {
-            spaceRequired = sizeof(ExtendedUText) + extraSpace - sizeof(UAlignedMemory);
+            spaceRequired = sizeof(ExtendedUText) + extraSpace - sizeof(max_align_t);
         }
         ut = (UText *)uprv_malloc(spaceRequired);
         if (ut == NULL) {
@@ -1302,7 +1302,7 @@ fillReverse:
         //   If index is at the end, there is no character there to look at.
         if (ix != ut->b) {
             // Note: this function will only move the index back if it is on a trail byte
-            //       and there is a preceding lead byte and the sequence from the lead
+            //       and there is a preceding lead byte and the sequence from the lead 
             //       through this trail could be part of a valid UTF-8 sequence
             //       Otherwise the index remains unchanged.
             U8_SET_CP_START(s8, 0, ix);

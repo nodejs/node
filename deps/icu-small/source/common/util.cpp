@@ -169,7 +169,7 @@ int32_t ICU_Utility::skipWhitespace(const UnicodeString& str, int32_t& pos,
 //?    if (!isForward) {
 //?        --pos; // pos is a limit, so back up by one
 //?    }
-//?
+//?    
 //?    while (pos != stop &&
 //?           PatternProps::isWhiteSpace(c = text.char32At(pos))) {
 //?        if (isForward) {
@@ -276,6 +276,16 @@ int32_t ICU_Utility::parsePattern(const UnicodeString& pat,
     return -1; // text ended before end of pat
 }
 
+int32_t ICU_Utility::parseAsciiInteger(const UnicodeString& str, int32_t& pos) {
+    int32_t result = 0;
+    UChar c;
+    while (pos < str.length() && (c = str.charAt(pos)) >= u'0' && c <= u'9') {
+        result = result * 10 + (c - u'0');
+        pos++;
+    }
+    return result;
+}
+
 /**
  * Append a character to a rule that is being built up.  To flush
  * the quoteBuf to rule, make one final call with isLiteral == TRUE.
@@ -376,7 +386,7 @@ void ICU_Utility::appendToRule(UnicodeString& rule,
             quoteBuf.append(c);
         }
     }
-
+    
     // Otherwise just append
     else {
         rule.append(c);

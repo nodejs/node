@@ -816,9 +816,9 @@ handleGeneratedSpaces(UChar *dest, int32_t sourceLength,
 
     if(lamAlefOption || tashkeelOption){
         uprv_memset(tempbuffer, 0, (sourceLength+1)*U_SIZEOF_UCHAR);
-
+        
         i = j = sourceLength; count = 0;
-
+        
         while(i >= 0) {
             if ( (lamAlefOption && dest[i] == LAMALEF_SPACE_SUB) ||
                  (tashkeelOption && dest[i] == TASHKEEL_SPACE_SUB) ){

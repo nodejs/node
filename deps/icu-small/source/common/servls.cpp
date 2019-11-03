@@ -92,12 +92,12 @@ ICULocaleService::get(const Locale& locale, int32_t kind, Locale* actualReturn, 
 
 
 URegistryKey
-ICULocaleService::registerInstance(UObject* objToAdopt, const UnicodeString& locale,
+ICULocaleService::registerInstance(UObject* objToAdopt, const UnicodeString& locale, 
     UBool visible, UErrorCode& status)
 {
     Locale loc;
     LocaleUtility::initLocaleFromName(locale, loc);
-    return registerInstance(objToAdopt, loc, LocaleKey::KIND_ANY,
+    return registerInstance(objToAdopt, loc, LocaleKey::KIND_ANY, 
         visible ? LocaleKeyFactory::VISIBLE : LocaleKeyFactory::INVISIBLE, status);
 }
 
@@ -263,7 +263,7 @@ ICULocaleService::validateFallbackLocale() const
 {
     const Locale&     loc    = Locale::getDefault();
     ICULocaleService* ncThis = (ICULocaleService*)this;
-    static UMutex llock = U_MUTEX_INITIALIZER;
+    static UMutex llock;
     {
         Mutex mutex(&llock);
         if (loc != fallbackLocale) {
@@ -291,3 +291,5 @@ U_NAMESPACE_END
 
 /* !UCONFIG_NO_SERVICE */
 #endif
+
+

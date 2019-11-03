@@ -109,13 +109,13 @@ CurrencyUnit& CurrencyUnit::operator=(const CurrencyUnit& other) {
     return *this;
 }
 
-UObject* CurrencyUnit::clone() const {
+CurrencyUnit* CurrencyUnit::clone() const {
     return new CurrencyUnit(*this);
 }
 
 CurrencyUnit::~CurrencyUnit() {
 }
-
+    
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyUnit)
 
 U_NAMESPACE_END

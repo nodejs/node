@@ -60,8 +60,8 @@ U_NAMESPACE_BEGIN
 // The current RBBI data format version.
 static const uint8_t RBBI_DATA_FORMAT_VERSION[] = {5, 0, 0, 0};
 
-/*
- *   The following structs map exactly onto the raw data from ICU common data file.
+/*  
+ *   The following structs map exactly onto the raw data from ICU common data file. 
  */
 struct RBBIDataHeader {
     uint32_t         fMagic;           /*  == 0xbla0                                               */
@@ -171,7 +171,7 @@ public:
     const RBBIStateTable     *fForwardTable;
     const RBBIStateTable     *fReverseTable;
     const UChar              *fRuleSource;
-    const int32_t            *fRuleStatusTable;
+    const int32_t            *fRuleStatusTable; 
 
     /* number of int32_t values in the rule status table.   Used to sanity check indexing */
     int32_t             fStatusMaxIdx;

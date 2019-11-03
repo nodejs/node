@@ -140,7 +140,7 @@ ucol_sit_letterToAttributeValue(char letter, UErrorCode *status) {
     *status = U_ILLEGAL_ARGUMENT_ERROR;
 #ifdef UCOL_TRACE_SIT
     fprintf(stderr, "%s:%d: unknown letter %c: %s\n", __FILE__, __LINE__, letter, u_errorName(*status));
-#endif
+#endif    
     return UCOL_DEFAULT;
 }
 
@@ -201,7 +201,7 @@ _processCollatorOption(CollatorSpec *spec, uint32_t option, const char* string,
     if((*(++string) != '_' && *string) || U_FAILURE(*status)) {
 #ifdef UCOL_TRACE_SIT
     fprintf(stderr, "%s:%d: unknown collator option at '%s': %s\n", __FILE__, __LINE__, string, u_errorName(*status));
-#endif
+#endif    
         *status = U_ILLEGAL_ARGUMENT_ERROR;
     }
     return string;
@@ -227,7 +227,7 @@ readHexCodeUnit(const char **string, UErrorCode *status)
             *status = U_ILLEGAL_ARGUMENT_ERROR;
 #ifdef UCOL_TRACE_SIT
             fprintf(stderr, "%s:%d: Bad hex char at '%s': %s\n", __FILE__, __LINE__, *string, u_errorName(*status));
-#endif
+#endif    
             return 0;
         }
         result = (result << 4) | (UChar)value;
@@ -239,7 +239,7 @@ readHexCodeUnit(const char **string, UErrorCode *status)
         *status = U_ILLEGAL_ARGUMENT_ERROR;
 #ifdef UCOL_TRACE_SIT
         fprintf(stderr, "%s:%d: Short (only %d digits, wanted 4) at '%s': %s\n", __FILE__, __LINE__, noDigits,*string, u_errorName(*status));
-#endif
+#endif    
     }
     return result;
 }

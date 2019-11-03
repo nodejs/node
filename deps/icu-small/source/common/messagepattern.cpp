@@ -454,7 +454,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
         UChar c=msg.charAt(index++);
         if(c==u_apos) {
             if(index==msg.length()) {
-                // The apostrophe is the last character in the pattern.
+                // The apostrophe is the last character in the pattern. 
                 // Add a Part for auto-quoting.
                 addPart(UMSGPAT_PART_TYPE_INSERT_CHAR, index, 0,
                         u_apos, errorCode);  // value=char to be inserted

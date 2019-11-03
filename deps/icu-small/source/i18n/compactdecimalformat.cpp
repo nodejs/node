@@ -30,9 +30,9 @@ CompactDecimalFormat::CompactDecimalFormat(const Locale& inLocale, UNumberCompac
         : DecimalFormat(new DecimalFormatSymbols(inLocale, status), status) {
     if (U_FAILURE(status)) return;
     // Minimal properties: let the non-shim code path do most of the logic for us.
-    fields->properties->compactStyle = style;
-    fields->properties->groupingSize = -2; // do not forward grouping information
-    fields->properties->minimumGroupingDigits = 2;
+    fields->properties.compactStyle = style;
+    fields->properties.groupingSize = -2; // do not forward grouping information
+    fields->properties.minimumGroupingDigits = 2;
     touch(status);
 }
 
@@ -45,7 +45,7 @@ CompactDecimalFormat& CompactDecimalFormat::operator=(const CompactDecimalFormat
     return *this;
 }
 
-Format* CompactDecimalFormat::clone() const {
+CompactDecimalFormat* CompactDecimalFormat::clone() const {
     return new CompactDecimalFormat(*this);
 }
 

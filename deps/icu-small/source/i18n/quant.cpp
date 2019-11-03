@@ -47,7 +47,7 @@ Quantifier::~Quantifier() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* Quantifier::clone() const {
+Quantifier* Quantifier::clone() const {
     return new Quantifier(*this);
 }
 
@@ -58,7 +58,7 @@ UnicodeFunctor* Quantifier::clone() const {
 UnicodeMatcher* Quantifier::toMatcher() const {
   Quantifier  *nonconst_this = const_cast<Quantifier *>(this);
   UnicodeMatcher *nonconst_base = static_cast<UnicodeMatcher *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 

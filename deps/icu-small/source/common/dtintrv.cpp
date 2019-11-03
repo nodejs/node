@@ -5,7 +5,7 @@
 * others. All Rights Reserved.
 *******************************************************************************
 *
-* File DTINTRV.CPP
+* File DTINTRV.CPP 
 *
 *******************************************************************************
 */
@@ -34,7 +34,7 @@ DateInterval::~DateInterval(){}
 DateInterval::DateInterval(const DateInterval& other)
 : UObject(other) {
     *this = other;
-}
+}   
 
 
 DateInterval&
@@ -47,16 +47,17 @@ DateInterval::operator=(const DateInterval& other) {
 }
 
 
-DateInterval*
+DateInterval* 
 DateInterval::clone() const {
     return new DateInterval(*this);
 }
 
 
-UBool
-DateInterval::operator==(const DateInterval& other) const {
+UBool 
+DateInterval::operator==(const DateInterval& other) const { 
     return ( fromDate == other.fromDate && toDate == other.toDate );
 }
 
 
 U_NAMESPACE_END
+

@@ -51,7 +51,7 @@ static void* _getBuffer(UEnumeration* en, int32_t capacity) {
         }
         ((_UEnumBuffer*) en->baseContext)->len = capacity;
     }
-
+    
     return (void*) & ((_UEnumBuffer*) en->baseContext)->data;
 }
 

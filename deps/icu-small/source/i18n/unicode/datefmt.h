@@ -23,6 +23,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/udat.h"
@@ -50,7 +52,7 @@ class DateTimePatternGenerator;
  */
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN && !defined(U_IN_DOXYGEN)
 template class U_I18N_API EnumSet<UDateFormatBooleanAttribute,
-            0,
+            0, 
             UDAT_BOOLEAN_ATTRIBUTE_COUNT>;
 #endif
 /** \endcond */
@@ -220,6 +222,14 @@ public:
      * @stable ICU 2.0
      */
     virtual ~DateFormat();
+
+    /**
+     * Clones this object polymorphically.
+     * The caller owns the result and should delete it when done.
+     * @return clone, or nullptr if an error occurred
+     * @stable ICU 2.0
+     */
+    virtual DateFormat* clone() const = 0;
 
     /**
      * Equality operator.  Returns true if the two formats have the same behavior.
@@ -594,7 +604,7 @@ public:
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
-     * Creates a date/time formatter for the given skeleton and
+     * Creates a date/time formatter for the given skeleton and 
      * default locale.
      *
      * @param skeleton The skeleton e.g "yMMMMd." Fields in the skeleton can
@@ -670,20 +680,20 @@ public:
      * lenient parsing, the parser may use heuristics to interpret inputs that
      * do not precisely match this object's format.  Without lenient parsing,
      * inputs must match this object's format more closely.
-     *
-     * Note: ICU 53 introduced finer grained control of leniency (and added
-     * new control points) making the preferred method a combination of
-     * setCalendarLenient() & setBooleanAttribute() calls.
-     * This method supports prior functionality but may not support all
-     * future leniency control & behavior of DateFormat. For control of pre 53 leniency,
-     * Calendar and DateFormat whitespace & numeric tolerance, this method is safe to
-     * use. However, mixing leniency control via this method and modification of the
-     * newer attributes via setBooleanAttribute() may produce undesirable
+     * 
+     * Note: ICU 53 introduced finer grained control of leniency (and added 
+     * new control points) making the preferred method a combination of 
+     * setCalendarLenient() & setBooleanAttribute() calls. 
+     * This method supports prior functionality but may not support all 
+     * future leniency control & behavior of DateFormat. For control of pre 53 leniency,  
+     * Calendar and DateFormat whitespace & numeric tolerance, this method is safe to 
+     * use. However, mixing leniency control via this method and modification of the 
+     * newer attributes via setBooleanAttribute() may produce undesirable 
      * results.
      *
      * @param lenient  True specifies date/time interpretation to be lenient.
      * @see Calendar::setLenient
-     * @stable ICU 2.0
+     * @stable ICU 2.0     
      */
     virtual void setLenient(UBool lenient);
 
@@ -789,7 +799,7 @@ public:
      * @param value The UDisplayContext value to set.
      * @param status Input/output status. If at entry this indicates a failure
      *               status, the function will do nothing; otherwise this will be
-     *               updated with any new status from the function.
+     *               updated with any new status from the function. 
      * @stable ICU 53
      */
     virtual void setContext(UDisplayContext value, UErrorCode& status);
@@ -800,7 +810,7 @@ public:
      * @param type The UDisplayContextType whose value to return
      * @param status Input/output status. If at entry this indicates a failure
      *               status, the function will do nothing; otherwise this will be
-     *               updated with any new status from the function.
+     *               updated with any new status from the function. 
      * @return The UDisplayContextValue for the specified type.
      * @stable ICU 53
      */
@@ -818,8 +828,8 @@ public:
      */
 
     virtual DateFormat&  U_EXPORT2 setBooleanAttribute(UDateFormatBooleanAttribute attr,
-									UBool newvalue,
-									UErrorCode &status);
+    									UBool newvalue,
+    									UErrorCode &status);
 
     /**
      * Returns a boolean from this DateFormat
@@ -882,7 +892,7 @@ private:
      */
     static DateFormat* U_EXPORT2 create(EStyle timeStyle, EStyle dateStyle, const Locale& inLocale);
 
-
+     
     /**
      * enum set of active boolean attributes for this instance
      */
@@ -952,6 +962,8 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _DATEFMT
 //eof

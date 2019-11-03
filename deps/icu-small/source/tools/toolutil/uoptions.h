@@ -130,7 +130,7 @@ struct UOption {
  * where the error was detected.
  *
  * The OS/400 compiler requires that argv either be "char* argv[]",
- * or "const char* const argv[]", and it will not accept,
+ * or "const char* const argv[]", and it will not accept, 
  * "const char* argv[]" as a definition for main().
  *
  * @param argv This parameter is modified

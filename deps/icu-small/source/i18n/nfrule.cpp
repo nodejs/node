@@ -1107,14 +1107,14 @@ NFRule::stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosit
 {
     // if the prefix text is empty, dump out without doing anything
     if (prefix.length() != 0) {
-	UErrorCode status = U_ZERO_ERROR;
+    	UErrorCode status = U_ZERO_ERROR;
         // use prefixLength() to match the beginning of
         // "text" against "prefix".  This function returns the
         // number of characters from "text" that matched (or 0 if
         // we didn't match the whole prefix)
         int32_t pfl = prefixLength(text, prefix, status);
         if (U_FAILURE(status)) { // Memory allocation error.
-		return;
+        	return;
         }
         if (pfl != 0) {
             // if we got a successful match, update the parse position
@@ -1170,9 +1170,9 @@ NFRule::matchToDelimiter(const UnicodeString& text,
     // use "sub"'s doParse() method to match the text before the
     // instance of "delimiter" we just found.
     if (!allIgnorable(delimiter, status)) {
-	if (U_FAILURE(status)) { //Memory allocation error.
-		return 0;
-	}
+    	if (U_FAILURE(status)) { //Memory allocation error.
+    		return 0;
+    	}
         ParsePosition tempPP;
         Formattable result;
 

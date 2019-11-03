@@ -231,7 +231,7 @@ class U_I18N_API PatternStringUtils {
      * it should not be ignored if maxFrac is 2 or more (but a roundingIncrement of
      * 0.005 is treated like 0.001 for significance).
      *
-     * This test is needed for both NumberPropertyMapper::oldToNew and
+     * This test is needed for both NumberPropertyMapper::oldToNew and 
      * PatternStringUtils::propertiesToPatternString. In Java it cannot be
      * exported by NumberPropertyMapper (package provate) so it is in
      * PatternStringUtils, do the same in C.
@@ -295,7 +295,7 @@ class U_I18N_API PatternStringUtils {
      * substitution, and plural forms for CurrencyPluralInfo.
      */
     static void patternInfoToStringBuilder(const AffixPatternProvider& patternInfo, bool isPrefix,
-                                           int8_t signum, UNumberSignDisplay signDisplay,
+                                           Signum signum, UNumberSignDisplay signDisplay,
                                            StandardPlural::Form plural, bool perMilleReplacesPercent,
                                            UnicodeString& output);
 

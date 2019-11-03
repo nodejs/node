@@ -68,7 +68,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * @param o  the object to be copied.
      */
     StringMatcher(const StringMatcher& o);
-
+        
     /**
      * Destructor
      */
@@ -78,7 +78,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * Implement UnicodeFunctor
      * @return a copy of the object.
      */
-    virtual UnicodeFunctor* clone() const;
+    virtual StringMatcher* clone() const;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeMatcher* pointer
@@ -137,7 +137,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * offset).  This is used by <tt>RuleBasedTransliterator</tt> for
      * indexing.
      * @param v    the given value
-     * @return     TRUE if this matcher will match a character c,
+     * @return     TRUE if this matcher will match a character c, 
      *             where c & 0xFF == v
      */
     virtual UBool matchesIndexValue(uint8_t v) const;

@@ -98,7 +98,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
     return NULL;
   }
 
-  static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
+  static UMutex gGenderMetaLock;
   const GenderInfo* result = NULL;
   const char* key = locale.getName();
   {
@@ -166,7 +166,7 @@ const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& sta
     return &gObjs[NEUTRAL];
   }
   if (uprv_strcmp(type_str, gMixedNeutralStr) == 0) {
-    return &gObjs[MIXED_NEUTRAL];
+    return &gObjs[MIXED_NEUTRAL]; 
   }
   if (uprv_strcmp(type_str, gMailTaintsStr) == 0) {
     return &gObjs[MALE_TAINTS];

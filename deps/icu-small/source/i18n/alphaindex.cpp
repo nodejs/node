@@ -260,8 +260,7 @@ AlphabeticIndex::ImmutableIndex *AlphabeticIndex::buildImmutableIndex(UErrorCode
     // but that would be worth it only if this method is called multiple times,
     // or called after using the old-style bucket iterator API.
     LocalPointer<BucketList> immutableBucketList(createBucketList(errorCode));
-    LocalPointer<RuleBasedCollator> coll(
-        static_cast<RuleBasedCollator *>(collatorPrimaryOnly_->clone()));
+    LocalPointer<RuleBasedCollator> coll(collatorPrimaryOnly_->clone());
     if (immutableBucketList.isNull() || coll.isNull()) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
@@ -907,7 +906,7 @@ void AlphabeticIndex::init(const Locale *locale, UErrorCode &status) {
             return;
         }
     }
-    collatorPrimaryOnly_ = static_cast<RuleBasedCollator *>(collator_->clone());
+    collatorPrimaryOnly_ = collator_->clone();
     if (collatorPrimaryOnly_ == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
@@ -958,7 +957,7 @@ collatorComparator(const void *context, const void *left, const void *right) {
     }
     if (leftString == NULL) {
         return 1;
-    };
+    }
     if (rightString == NULL) {
         return -1;
     }
@@ -1083,7 +1082,7 @@ AlphabeticIndex & AlphabeticIndex::addRecord(const UnicodeString &name, const vo
     clearBuckets();
     //std::string ss;
     //std::string ss2;
-    //std::cout << "added record: name = \"" << r->name_.toUTF8String(ss) << "\"" <<
+    //std::cout << "added record: name = \"" << r->name_.toUTF8String(ss) << "\"" << 
     //             "   sortingName = \"" << r->sortingName_.toUTF8String(ss2) << "\"" << std::endl;
     return *this;
 }

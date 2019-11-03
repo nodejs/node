@@ -293,11 +293,11 @@ U_CDECL_BEGIN
 static UBool U_CALLCONV uprv_normalizer2_cleanup() {
     delete noopSingleton;
     noopSingleton = NULL;
-    noopInitOnce.reset();
+    noopInitOnce.reset(); 
 #if NORM2_HARDCODE_NFC_DATA
     delete nfcSingleton;
     nfcSingleton = NULL;
-    nfcInitOnce.reset();
+    nfcInitOnce.reset(); 
 #endif
     return TRUE;
 }

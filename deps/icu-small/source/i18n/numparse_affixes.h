@@ -52,7 +52,7 @@ class CodePointMatcher : public NumberParseMatcher, public UMemory {
 // (See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.)
 // Note: These need to be outside of the numparse::impl namespace, or Clang will generate a compile error.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>;
+template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>; 
 template class U_I18N_API MaybeStackArray<UChar, 4>;
 template class U_I18N_API MemoryPool<numparse::impl::CodePointMatcher, 8>;
 template class U_I18N_API numparse::impl::CompactUnicodeString<4>;

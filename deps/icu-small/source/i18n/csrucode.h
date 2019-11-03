@@ -21,10 +21,10 @@ U_NAMESPACE_BEGIN
 /**
  * This class matches UTF-16 and UTF-32, both big- and little-endian. The
  * BOM will be used if it is present.
- *
+ * 
  * @internal
  */
-class CharsetRecog_Unicode : public CharsetRecognizer
+class CharsetRecog_Unicode : public CharsetRecognizer 
 {
 
 public:

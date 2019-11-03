@@ -11,8 +11,10 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
- * \file
+ * \file 
  * \brief C++ API: Rule based customizable time zone
  */
 
@@ -121,7 +123,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 3.8
      */
-    virtual TimeZone* clone(void) const;
+    virtual RuleBasedTimeZone* clone() const;
 
     /**
      * Returns the TimeZone's adjusted GMT offset (i.e., the number of milliseconds to add
@@ -224,6 +226,7 @@ public:
      */
     virtual UBool useDaylightTime(void) const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Queries if the given date is in daylight savings time in
      * this time zone.
@@ -238,6 +241,7 @@ public:
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
     virtual UBool inDaylightTime(UDate date, UErrorCode& status) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Returns true if this zone has the same rule and offset as another zone.
@@ -358,6 +362,8 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // RBTZ_H
 

@@ -113,7 +113,7 @@ U_CAPI int32_t  U_EXPORT2 udbg_enumByString(UDebugEnumType type, const UnicodeSt
 }
 
 // from DataMap::utoi
-U_CAPI int32_t
+U_CAPI int32_t 
 udbg_stoi(const UnicodeString &s)
 {
     char ch[256];
@@ -125,7 +125,7 @@ udbg_stoi(const UnicodeString &s)
 }
 
 
-U_CAPI double
+U_CAPI double 
 udbg_stod(const UnicodeString &s)
 {
     char ch[256];

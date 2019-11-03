@@ -23,7 +23,7 @@
 /**
  * The capacity of the context strings in UParseError.
  * @stable ICU 2.0
- */
+ */ 
 enum { U_PARSE_CONTEXT_LEN = 16 };
 
 /**
@@ -52,7 +52,7 @@ enum { U_PARSE_CONTEXT_LEN = 16 };
  * <p>Examples of engines which use UParseError (or may use it in the
  * future) are Transliterator, RuleBasedBreakIterator, and
  * RegexPattern.
- *
+ * 
  * @stable ICU 2.0
  */
 typedef struct UParseError {
@@ -78,14 +78,14 @@ typedef struct UParseError {
     /**
      * Textual context before the error.  Null-terminated.  The empty
      * string if not supported by parser.
-     * @stable ICU 2.0
+     * @stable ICU 2.0   
      */
     UChar          preContext[U_PARSE_CONTEXT_LEN];
 
     /**
      * The error itself and/or textual context after the error.
      * Null-terminated.  The empty string if not supported by parser.
-     * @stable ICU 2.0
+     * @stable ICU 2.0   
      */
     UChar          postContext[U_PARSE_CONTEXT_LEN];
 

@@ -365,7 +365,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
                     mode = 1;
                     patLocal.append((UChar) 0x5B /*'['*/);
                     chars.getPos(backup); // prepare to backup
-                    c = chars.next(opts, literal, ec);
+                    c = chars.next(opts, literal, ec); 
                     if (U_FAILURE(ec)) return;
                     if (c == 0x5E /*'^'*/ && !literal) {
                         invert = TRUE;
@@ -802,7 +802,10 @@ static UBool mungeCharName(char* dst, const char* src, int32_t dstCapacity) {
 // Property set API
 //----------------------------------------------------------------
 
-#define FAIL(ec) {ec=U_ILLEGAL_ARGUMENT_ERROR; return *this;}
+#define FAIL(ec) UPRV_BLOCK_MACRO_BEGIN { \
+    ec=U_ILLEGAL_ARGUMENT_ERROR; \
+    return *this; \
+} UPRV_BLOCK_MACRO_END
 
 UnicodeSet&
 UnicodeSet::applyIntPropertyValue(UProperty prop, int32_t value, UErrorCode& ec) {
@@ -1113,7 +1116,7 @@ UnicodeSet& UnicodeSet::applyPropertyPattern(const UnicodeString& pattern,
     else {
         // Handle case where no '=' is seen, and \N{}
         pattern.extractBetween(pos, close, propName);
-
+            
         // Handle \N{name}
         if (isName) {
             // This is a little inefficient since it means we have to
@@ -1132,7 +1135,7 @@ UnicodeSet& UnicodeSet::applyPropertyPattern(const UnicodeString& pattern,
         if (invert) {
             complement();
         }
-
+            
         // Move to the limit position after the close delimiter if the
         // parse succeeded.
         ppos.setIndex(close + (posix ? 2 : 1));

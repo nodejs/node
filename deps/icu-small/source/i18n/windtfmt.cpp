@@ -141,7 +141,7 @@ static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeSt
         // This means that it will fail for locales where ICU has a completely different
         // name (like ku vs ckb), and it will also not work for alternate sort locale
         // names like "de-DE-u-co-phonebk".
-
+        
         // TODO: We could add some sort of exception table for cases like ku vs ckb.
 
         int length = ResolveLocaleName(bcp47Tag, windowsLocaleName, UPRV_LENGTHOF(windowsLocaleName));
@@ -167,7 +167,7 @@ Win32DateFormat::Win32DateFormat(DateFormat::EStyle timeStyle, DateFormat::EStyl
         // Note: In the previous code, it would look up the LCID for the locale, and if
         // the locale was not recognized then it would get an LCID of 0, which is a
         // synonym for LOCALE_USER_DEFAULT on Windows.
-        // If the above method fails, then fWindowsLocaleName will remain as nullptr, and
+        // If the above method fails, then fWindowsLocaleName will remain as nullptr, and 
         // then we will pass nullptr to API GetLocaleInfoEx, which is the same as passing
         // LOCALE_USER_DEFAULT.
 
@@ -213,7 +213,7 @@ Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
     return *this;
 }
 
-Format *Win32DateFormat::clone(void) const
+Win32DateFormat *Win32DateFormat::clone() const
 {
     return new Win32DateFormat(*this);
 }
@@ -405,3 +405,4 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 #endif // U_PLATFORM_USES_ONLY_WIN32_API
+

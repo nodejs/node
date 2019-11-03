@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 ******************************************************************************
 *
 *   Copyright (C) 2001, International Business Machines
@@ -42,11 +42,11 @@
 #   define uprv_wcscat wcscat
 #   define uprv_wcslen wcslen
 #else
-U_CAPI wchar_t* U_EXPORT2
+U_CAPI wchar_t* U_EXPORT2 
 uprv_wcscpy(wchar_t *dst, const wchar_t *src);
-U_CAPI wchar_t* U_EXPORT2
+U_CAPI wchar_t* U_EXPORT2 
 uprv_wcscat(wchar_t *dst, const wchar_t *src);
-U_CAPI size_t U_EXPORT2
+U_CAPI size_t U_EXPORT2 
 uprv_wcslen(const wchar_t *src);
 #endif
 

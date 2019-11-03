@@ -33,6 +33,7 @@ might have to #include some other header
 #include "cstring.h"
 #include "mutex.h"
 #include "putilimp.h"
+#include "restrace.h"
 #include "uassert.h"
 #include "ucln_cmn.h"
 #include "ucmndata.h"
@@ -110,11 +111,12 @@ static u_atomic_int32_t gHaveTriedToLoadCommonData = ATOMIC_INT32_T_INITIALIZER(
 static UHashtable  *gCommonDataCache = NULL;  /* Global hash table of opened ICU data files.  */
 static icu::UInitOnce gCommonDataCacheInitOnce = U_INITONCE_INITIALIZER;
 
-#if U_PLATFORM_HAS_WINUWP_API == 0
+#if !defined(ICU_DATA_DIR_WINDOWS)
 static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;  // Access not synchronized.
                                                                  // Modifying is documented as thread-unsafe.
 #else
-static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;        // Windows UWP looks in one spot explicitly
+// If we are using the Windows data directory, then look in one spot only.
+static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;
 #endif
 
 static UBool U_CALLCONV
@@ -206,7 +208,7 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     return didUpdate;
 }
 
-#if U_PLATFORM_HAS_WINUWP_API == 0
+#if !defined(ICU_DATA_DIR_WINDOWS)
 
 static UBool
 setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCode) {
@@ -320,7 +322,7 @@ static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err)
         retVal = el->item;
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, retVal);
+    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, (void*) retVal);
 #endif
     return retVal;
 }
@@ -382,8 +384,8 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
     umtx_unlock(NULL);
 
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "Cache: [%s] <<< %p : %s. vFunc=%p\n", newElement->name,
-    newElement->item, u_errorName(subErr), newElement->item->vFuncs);
+    fprintf(stderr, "Cache: [%s] <<< %p : %s. vFunc=%p\n", newElement->name, 
+    (void*) newElement->item, u_errorName(subErr), (void*) newElement->item->vFuncs);
 #endif
 
     if (subErr == U_USING_DEFAULT_WARNING || U_FAILURE(subErr)) {
@@ -434,13 +436,13 @@ private:
 
 /**
  * @param iter    The iterator to be initialized. Its current state does not matter.
- * @param inPath  The full pathname to be iterated over.  If NULL, defaults to U_ICUDATA_NAME
- * @param pkg     Package which is being searched for, ex "icudt28l".  Will ignore leaf directories such as /icudt28l
- * @param item    Item to be searched for.  Can include full path, such as /a/b/foo.dat
+ * @param inPath  The full pathname to be iterated over.  If NULL, defaults to U_ICUDATA_NAME 
+ * @param pkg     Package which is being searched for, ex "icudt28l".  Will ignore leaf directories such as /icudt28l 
+ * @param item    Item to be searched for.  Can include full path, such as /a/b/foo.dat 
  * @param inSuffix  Optional item suffix, if not-null (ex. ".dat") then 'path' can contain 'item' explicitly.
- *             Ex:   'stuff.dat' would be found in '/a/foo:/tmp/stuff.dat:/bar/baz' as item #2.
+ *             Ex:   'stuff.dat' would be found in '/a/foo:/tmp/stuff.dat:/bar/baz' as item #2.   
  *                   '/blarg/stuff.dat' would also be found.
- *  Note: inSuffix may also be the 'item' being searched for as well, (ex: "ibm-5348_P100-1997.cnv"), in which case
+ *  Note: inSuffix may also be the 'item' being searched for as well, (ex: "ibm-5348_P100-1997.cnv"), in which case 
  *        the 'item' parameter is often the same as pkg. (Though sometimes might have a tree part as well, ex: "icudt62l-curr").
  */
 UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
@@ -477,7 +479,7 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
         nextPath = itemPath.data();
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, inSuffix);
+    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, (void*) inSuffix);
 #endif
 
     /** Suffix  **/
@@ -492,12 +494,11 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
     /* pathBuffer will hold the output path strings returned by this iterator */
 
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "%p: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
-            iter,
+    fprintf(stderr, "0: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
             item,
             path,
             basename,
-            suffix,
+            suffix.data(),
             itemPath.data(),
             nextPath,
             checkLastFour?"TRUE":"false");
@@ -507,8 +508,8 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
 /**
  * Get the next path on the list.
  *
- * @param iter The Iter to be used
- * @param len  If set, pointer to the length of the returned path, for convenience.
+ * @param iter The Iter to be used 
+ * @param len  If set, pointer to the length of the returned path, for convenience. 
  * @return Pointer to the next path segment, or NULL if there are no more.
  */
 const char *UDataPathIterator::next(UErrorCode *pErrorCode)
@@ -536,7 +537,7 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
             nextPath = uprv_strchr(currentPath, U_PATH_SEP_CHAR);
             if(nextPath == NULL) {
                 /* segment: entire path */
-                pathLen = (int32_t)uprv_strlen(currentPath);
+                pathLen = (int32_t)uprv_strlen(currentPath); 
             } else {
                 /* segment: until next segment */
                 pathLen = (int32_t)(nextPath - currentPath);
@@ -552,8 +553,8 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
 #ifdef UDATA_DEBUG
         fprintf(stderr, "rest of path (IDD) = %s\n", currentPath);
         fprintf(stderr, "                     ");
-        {
-            uint32_t qqq;
+        { 
+            int32_t qqq;
             for(qqq=0;qqq<pathLen;qqq++)
             {
                 fprintf(stderr, " ");
@@ -567,18 +568,18 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
         /* check for .dat files */
         pathBasename = findBasename(pathBuffer.data());
 
-        if(checkLastFour == TRUE &&
+        if(checkLastFour == TRUE && 
            (pathLen>=4) &&
            uprv_strncmp(pathBuffer.data() +(pathLen-4), suffix.data(), 4)==0 && /* suffix matches */
            uprv_strncmp(findBasename(pathBuffer.data()), basename, basenameLen)==0  && /* base matches */
            uprv_strlen(pathBasename)==(basenameLen+4)) { /* base+suffix = full len */
 
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "Have %s file on the path: %s\n", suffix, pathBuffer.data());
+            fprintf(stderr, "Have %s file on the path: %s\n", suffix.data(), pathBuffer.data());
 #endif
             /* do nothing */
         }
-        else
+        else 
         {       /* regular dir path */
             if(pathBuffer[pathLen-1] != U_FILE_SEP_CHAR) {
                 if((pathLen>=4) &&
@@ -640,7 +641,8 @@ U_NAMESPACE_END
  *      our common data.                                                *
  *                                                                      *
  *----------------------------------------------------------------------*/
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
 extern "C" const DataHeader U_DATA_API U_ICUDATA_ENTRY_POINT;
 #endif
 
@@ -679,7 +681,7 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
 
     UDataMemory_init(&tData);
 
-    /* ??????? TODO revisit this */
+    /* ??????? TODO revisit this */ 
     if (commonDataIndex >= 0) {
         /* "mini-cache" for common ICU data */
         if(commonDataIndex >= UPRV_LENGTHOF(gCommonICUDataArray)) {
@@ -690,7 +692,8 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             if(gCommonICUDataArray[commonDataIndex] != NULL) {
                 return gCommonICUDataArray[commonDataIndex];
             }
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
             int32_t i;
             for(i = 0; i < commonDataIndex; ++i) {
                 if(gCommonICUDataArray[i]->pHeader == &U_ICUDATA_ENTRY_POINT) {
@@ -714,7 +717,8 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
         }
         */
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
         setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT, FALSE, pErrorCode);
         {
             Mutex lock;
@@ -831,7 +835,7 @@ static UBool extendICUData(UErrorCode *pErr)
      * Use a specific mutex to avoid nested locks of the global mutex.
      */
 #if MAP_IMPLEMENTATION==MAP_STDIO
-    static UMutex extendICUDataMutex = U_MUTEX_INITIALIZER;
+    static UMutex extendICUDataMutex;
     umtx_lock(&extendICUDataMutex);
 #endif
     if(!umtx_loadAcquire(gHaveTriedToLoadCommonData)) {
@@ -979,9 +983,9 @@ checkDataItem
 }
 
 /**
- * @return 0 if not loaded, 1 if loaded or err
+ * @return 0 if not loaded, 1 if loaded or err 
  */
-static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
+static UDataMemory *doLoadFromIndividualFiles(const char *pkgName, 
         const char *dataPath, const char *tocEntryPathSuffix,
             /* following arguments are the same as doOpenChoice itself */
             const char *path, const char *type, const char *name,
@@ -1037,9 +1041,9 @@ static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
 }
 
 /**
- * @return 0 if not loaded, 1 if loaded or err
+ * @return 0 if not loaded, 1 if loaded or err 
  */
-static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName*/,
+static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName*/, 
         const char * /*dataPath*/, const char * /*tocEntryPathSuffix*/, const char *tocEntryName,
             /* following arguments are the same as doOpenChoice itself */
             const char *path, const char *type, const char *name,
@@ -1070,13 +1074,13 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
             /* look up the data piece in the common data */
             pHeader=pCommonData->vFuncs->Lookup(pCommonData, tocEntryName, &length, subErrorCode);
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, pHeader, u_errorName(*subErrorCode));
+            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, (void*) pHeader, u_errorName(*subErrorCode));
 #endif
 
             if(pHeader!=NULL) {
                 pEntryData = checkDataItem(pHeader, isAcceptable, context, type, name, subErrorCode, pErrorCode);
 #ifdef UDATA_DEBUG
-                fprintf(stderr, "pEntryData=%p\n", pEntryData);
+                fprintf(stderr, "pEntryData=%p\n", (void*) pEntryData);
 #endif
                 if (U_FAILURE(*pErrorCode)) {
                     return NULL;
@@ -1168,11 +1172,14 @@ doOpenChoice(const char *path, const char *type, const char *name,
     UBool               isICUData = FALSE;
 
 
+    FileTracer::traceOpen(path, type, name);
+
+
     /* Is this path ICU data? */
     if(path == NULL ||
        !strcmp(path, U_ICUDATA_ALIAS) ||  /* "ICUDATA" */
        !uprv_strncmp(path, U_ICUDATA_NAME U_TREE_SEPARATOR_STRING, /* "icudt26e-" */
-                     uprv_strlen(U_ICUDATA_NAME U_TREE_SEPARATOR_STRING)) ||
+                     uprv_strlen(U_ICUDATA_NAME U_TREE_SEPARATOR_STRING)) ||  
        !uprv_strncmp(path, U_ICUDATA_ALIAS U_TREE_SEPARATOR_STRING, /* "ICUDATA-" */
                      uprv_strlen(U_ICUDATA_ALIAS U_TREE_SEPARATOR_STRING))) {
       isICUData = TRUE;
@@ -1219,7 +1226,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
             }
         } else {
             treeChar = uprv_strchr(path, U_TREE_SEPARATOR);
-            if(treeChar) {
+            if(treeChar) { 
                 treeName.append(treeChar+1, *pErrorCode); /* following '-' */
                 if(isICUData) {
                     pkgName.append(U_ICUDATA_NAME, *pErrorCode);
@@ -1247,7 +1254,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
     fprintf(stderr, " P=%s T=%s\n", pkgName.data(), treeName.data());
 #endif
 
-    /* setting up the entry name and file name
+    /* setting up the entry name and file name 
      * Make up a full name by appending the type to the supplied
      *  name, assuming that a type was supplied.
      */
@@ -1276,12 +1283,12 @@ doOpenChoice(const char *path, const char *type, const char *name,
     fprintf(stderr, " tocEntryPath = %s\n", tocEntryName.data());
 #endif
 
-#if U_PLATFORM_HAS_WINUWP_API == 0 // Windows UWP Platform does not support dll icu data at this time
+#if !defined(ICU_DATA_DIR_WINDOWS)
     if(path == NULL) {
         path = COMMON_DATA_NAME; /* "icudt26e" */
     }
 #else
-    // Windows UWP expects only a single data file.
+    // When using the Windows system data, we expects only a single data file.
     path = COMMON_DATA_NAME; /* "icudt26e" */
 #endif
 
@@ -1314,7 +1321,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
         fprintf(stderr, "Trying packages (UDATA_PACKAGES_FIRST)\n");
 #endif
         /* #2 */
-        retVal = doLoadFromCommonData(isICUData,
+        retVal = doLoadFromCommonData(isICUData, 
                             pkgName.data(), dataPath, tocEntryPathSuffix, tocEntryName.data(),
                             path, type, name, isAcceptable, context, &subErrorCode, pErrorCode);
         if((retVal != NULL) || U_FAILURE(*pErrorCode)) {
@@ -1339,7 +1346,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
     }
 
     /****    COMMON PACKAGE  */
-    if((gDataFileAccess==UDATA_ONLY_PACKAGES) ||
+    if((gDataFileAccess==UDATA_ONLY_PACKAGES) || 
        (gDataFileAccess==UDATA_FILES_FIRST)) {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "Trying packages (UDATA_ONLY_PACKAGES || UDATA_FILES_FIRST)\n");
@@ -1351,10 +1358,10 @@ doOpenChoice(const char *path, const char *type, const char *name,
             return retVal;
         }
     }
-
+    
     /* Load from DLL.  If we haven't attempted package load, we also haven't had any chance to
         try a DLL (static or setCommonData/etc)  load.
-         If we ever have a "UDATA_ONLY_FILES", add it to the or list here.  */
+         If we ever have a "UDATA_ONLY_FILES", add it to the or list here.  */  
     if(gDataFileAccess==UDATA_NO_FILES) {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "Trying common data (UDATA_NO_FILES)\n");

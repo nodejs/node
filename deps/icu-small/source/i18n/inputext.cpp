@@ -68,7 +68,7 @@ void InputText::setDeclaredEncoding(const char* encoding, int32_t len)
     }
 }
 
-UBool InputText::isSet() const
+UBool InputText::isSet() const 
 {
     return fRawInput != NULL;
 }
@@ -76,7 +76,7 @@ UBool InputText::isSet() const
 /**
 *  MungeInput - after getting a set of raw input data to be analyzed, preprocess
 *               it by removing what appears to be html markup.
-*
+* 
 * @internal
 */
 void InputText::MungeInput(UBool fStripTags) {
@@ -124,7 +124,7 @@ void InputText::MungeInput(UBool fStripTags) {
     //    essentially nothing but markup abandon the markup stripping.
     //    Detection will have to work on the unstripped input.
     //
-    if (openTags<5 || openTags/5 < badTags ||
+    if (openTags<5 || openTags/5 < badTags || 
         (fInputLen < 100 && fRawLength>600))
     {
         int32_t limit = fRawLength;
@@ -161,3 +161,4 @@ void InputText::MungeInput(UBool fStripTags) {
 
 U_NAMESPACE_END
 #endif
+

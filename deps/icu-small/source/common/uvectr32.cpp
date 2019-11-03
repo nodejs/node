@@ -23,7 +23,7 @@ U_NAMESPACE_BEGIN
  * or a pointer.  If a hint bit is zero, then the associated
  * token is assumed to be an integer. This is needed for iSeries
  */
-
+ 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UVector32)
 
 UVector32::UVector32(UErrorCode &status) :
@@ -253,7 +253,7 @@ void UVector32::setMaxCapacity(int32_t limit) {
         // Current capacity is within the new limit.
         return;
     }
-
+    
     // New maximum capacity is smaller than the current size.
     // Realloc the storage to the new, smaller size.
     int32_t* newElems = (int32_t *)uprv_realloc(elements, sizeof(int32_t)*maxCapacity);
@@ -288,7 +288,7 @@ void UVector32::setSize(int32_t newSize) {
         for (i=count; i<newSize; ++i) {
             elements[i] = 0;
         }
-    }
+    } 
     count = newSize;
 }
 
@@ -332,3 +332,4 @@ void UVector32::sortedInsert(int32_t tok, UErrorCode& ec) {
 
 
 U_NAMESPACE_END
+

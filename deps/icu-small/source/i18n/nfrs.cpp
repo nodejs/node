@@ -821,7 +821,7 @@ int64_t util64_fromDouble(double d) {
         } else if (d > mant) {
             d = mant;
         }
-        UBool neg = d < 0;
+        UBool neg = d < 0; 
         if (neg) {
             d = -d;
         }
@@ -852,12 +852,12 @@ uint64_t util64_pow(uint32_t base, uint16_t exponent)  {
     return result;
 }
 
-static const uint8_t asciiDigits[] = {
+static const uint8_t asciiDigits[] = { 
     0x30u, 0x31u, 0x32u, 0x33u, 0x34u, 0x35u, 0x36u, 0x37u,
     0x38u, 0x39u, 0x61u, 0x62u, 0x63u, 0x64u, 0x65u, 0x66u,
     0x67u, 0x68u, 0x69u, 0x6au, 0x6bu, 0x6cu, 0x6du, 0x6eu,
     0x6fu, 0x70u, 0x71u, 0x72u, 0x73u, 0x74u, 0x75u, 0x76u,
-    0x77u, 0x78u, 0x79u, 0x7au,
+    0x77u, 0x78u, 0x79u, 0x7au,  
 };
 
 static const UChar kUMinus = (UChar)0x002d;
@@ -938,7 +938,7 @@ int64_t util64_utoi(const UChar* str, uint32_t radix)
 }
 
 uint32_t util64_toa(int64_t w, char* buf, uint32_t len, uint32_t radix, UBool raw)
-{
+{    
     if (radix > 36) {
         radix = 36;
     } else if (radix < 2) {
@@ -984,7 +984,7 @@ uint32_t util64_toa(int64_t w, char* buf, uint32_t len, uint32_t radix, UBool ra
 #endif
 
 uint32_t util64_tou(int64_t w, UChar* buf, uint32_t len, uint32_t radix, UBool raw)
-{
+{    
     if (radix > 36) {
         radix = 36;
     } else if (radix < 2) {

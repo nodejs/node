@@ -1969,9 +1969,9 @@ struct cloneSCSUStruct
 };
 
 static UConverter *  U_CALLCONV
-_SCSUSafeClone(const UConverter *cnv,
-               void *stackBuffer,
-               int32_t *pBufferSize,
+_SCSUSafeClone(const UConverter *cnv, 
+               void *stackBuffer, 
+               int32_t *pBufferSize, 
                UErrorCode *status)
 {
     struct cloneSCSUStruct * localClone;

@@ -43,7 +43,7 @@ U_NAMESPACE_BEGIN
  * of that year were in the Showa era, e.g. "January 6, 64 Showa", while the rest
  * of the year was in the Heisei era, e.g. "January 7, 1 Heisei".  This class
  * handles this distinction correctly when computing dates.  However, in lenient
- * mode either form of date is acceptable as input.
+ * mode either form of date is acceptable as input. 
  * <p>
  * In modern times, eras have started on January 8, 1868 AD, Gregorian (Meiji),
  * July 30, 1912 (Taisho), December 25, 1926 (Showa), and January 7, 1989 (Heisei).  Constants
@@ -67,7 +67,7 @@ class JapaneseCalendar : public GregorianCalendar {
 public:
 
     /**
-     * Check environment variable.
+     * Check environment variable. 
      * @internal
      */
     U_I18N_API static UBool U_EXPORT2 enableTentativeEra(void);
@@ -116,10 +116,10 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual JapaneseCalendar* clone() const;
 
     /**
-     * Return the extended year defined by the current fields.  In the
+     * Return the extended year defined by the current fields.  In the 
      * Japanese calendar case, this is equal to the equivalent extended Gregorian year.
      * @internal
      */
@@ -168,7 +168,7 @@ public:
 
     /**
      * @return FALSE - no default century in Japanese
-     * @internal
+     * @internal 
      */
     virtual UBool haveDefaultCentury() const;
 
@@ -187,7 +187,7 @@ private:
     JapaneseCalendar(); // default constructor not implemented
 
 protected:
-    /**
+    /** 
      * Calculate the era for internal computation
      * @internal
      */
@@ -207,7 +207,7 @@ protected:
 
     /***
      * Called by computeJulianDay.  Returns the default month (0-based) for the year,
-     * taking year and era into account.  Will return the first month of the given era, if
+     * taking year and era into account.  Will return the first month of the given era, if 
      * the current year is an ascension year.
      * @param eyear the extended year
      * @internal
@@ -231,3 +231,4 @@ U_NAMESPACE_END
 
 #endif
 //eof
+

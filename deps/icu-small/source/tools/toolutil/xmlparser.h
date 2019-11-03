@@ -137,7 +137,7 @@ private:
 
     const UXMLParser *fParser;
     const UnicodeString *fName;          // The tag name of this element (owned by the UXMLParser)
-    UnicodeString       fContent;        // The text content of this node.  All element content is
+    UnicodeString       fContent;        // The text content of this node.  All element content is 
                                          //   concatenated even when there are intervening nested elements
                                          //   (which doesn't happen with most xml files we care about)
                                          //   Sections of content containing only white space are dropped,

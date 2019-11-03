@@ -296,7 +296,7 @@ static const char _kSeparator[]       = "separator";
 
 static int32_t
 _getStringOrCopyKey(const char *path, const char *locale,
-                    const char *tableKey,
+                    const char *tableKey, 
                     const char* subTableKey,
                     const char *itemKey,
                     const char *substitute,
@@ -320,7 +320,7 @@ _getStringOrCopyKey(const char *path, const char *locale,
         } else {
             /* second-level item, use special fallback */
             s=uloc_getTableStringWithFallback(path, locale,
-                                               tableKey,
+                                               tableKey, 
                                                subTableKey,
                                                itemKey,
                                                &length,
@@ -409,7 +409,7 @@ uloc_getDisplayScript(const char* locale,
 	UErrorCode err = U_ZERO_ERROR;
 	int32_t res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
                 uloc_getScript, _kScriptsStandAlone, &err);
-
+	
 	if ( err == U_USING_DEFAULT_WARNING ) {
         return _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
                     uloc_getScript, _kScripts, pErrorCode);
@@ -488,7 +488,7 @@ uloc_getDisplayName(const char *locale,
     const UChar *pattern;
     int32_t patLen = 0;
     int32_t sub0Pos, sub1Pos;
-
+    
     UChar formatOpenParen         = 0x0028; // (
     UChar formatReplaceOpenParen  = 0x005B; // [
     UChar formatCloseParen        = 0x0029; // )
@@ -785,9 +785,9 @@ uloc_getDisplayKeyword(const char* keyword,
 
     /* pass itemKey=NULL to look for a top-level item */
     return _getStringOrCopyKey(U_ICUDATA_LANG, displayLocale,
-                               _kKeys, NULL,
-                               keyword,
-                               keyword,
+                               _kKeys, NULL, 
+                               keyword, 
+                               keyword,      
                                dest, destCapacity,
                                status);
 
@@ -825,8 +825,8 @@ uloc_getDisplayKeywordValue(   const char* locale,
     if (*status == U_STRING_NOT_TERMINATED_WARNING)
       *status = U_BUFFER_OVERFLOW_ERROR;
 
-    /*
-     * if the keyword is equal to currency .. then to get the display name
+    /* 
+     * if the keyword is equal to currency .. then to get the display name 
      * we need to do the fallback ourselves
      */
     if(uprv_stricmp(keyword, _kCurrency)==0){
@@ -872,11 +872,11 @@ uloc_getDisplayKeywordValue(   const char* locale,
             }
         }
 
-
+        
     }else{
 
         return _getStringOrCopyKey(U_ICUDATA_LANG, displayLocale,
-                                   _kTypes, keyword,
+                                   _kTypes, keyword, 
                                    keywordValue,
                                    keywordValue,
                                    dest, destCapacity,

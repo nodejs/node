@@ -261,10 +261,10 @@ public:
      * context and key characters match, but the text is not long
      * enough to match all of them.  A full match means all context
      * and key characters match.
-     *
+     * 
      * If a full match is obtained, perform a replacement, update pos,
      * and return U_MATCH.  Otherwise both text and pos are unchanged.
-     *
+     * 
      * @param text the text
      * @param pos the position indices
      * @param incremental if TRUE, test for partial matches that may

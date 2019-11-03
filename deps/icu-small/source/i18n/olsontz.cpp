@@ -205,7 +205,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
         if (U_SUCCESS(ec)) {
             UnicodeString ruleID(TRUE, ruleIdUStr, len);
             UResourceBundle *rule = TimeZone::loadRule(top, ruleID, NULL, ec);
-            const int32_t *ruleData = ures_getIntVector(rule, &len, &ec);
+            const int32_t *ruleData = ures_getIntVector(rule, &len, &ec); 
             if (U_SUCCESS(ec) && len == 11) {
                 UnicodeString emptyStr;
                 finalZone = new SimpleTimeZone(
@@ -224,7 +224,7 @@ OlsonTimeZone::OlsonTimeZone(const UResourceBundle* top,
                     finalStartYear = ruleYear;
 
                     // Note: Setting finalStartYear to the finalZone is problematic.  When a date is around
-                    // year boundary, SimpleTimeZone may return false result when DST is observed at the
+                    // year boundary, SimpleTimeZone may return false result when DST is observed at the 
                     // beginning of year.  We could apply safe margin (day or two), but when one of recurrent
                     // rules falls around year boundary, it could return false result.  Without setting the
                     // start year, finalZone works fine around the year boundary of the start year.
@@ -287,8 +287,7 @@ OlsonTimeZone& OlsonTimeZone::operator=(const OlsonTimeZone& other) {
     typeMapData = other.typeMapData;
 
     delete finalZone;
-    finalZone = (other.finalZone != 0) ?
-        (SimpleTimeZone*) other.finalZone->clone() : 0;
+    finalZone = (other.finalZone != 0) ? other.finalZone->clone() : 0;
 
     finalStartYear = other.finalStartYear;
     finalStartMillis = other.finalStartMillis;
@@ -319,7 +318,7 @@ UBool OlsonTimeZone::operator==(const TimeZone& other) const {
 /**
  * TimeZone API.
  */
-TimeZone* OlsonTimeZone::clone() const {
+OlsonTimeZone* OlsonTimeZone::clone() const {
     return new OlsonTimeZone(*this);
 }
 
@@ -438,7 +437,7 @@ void printTime(double ms) {
             int32_t year, month, dom, dow;
             double millis=0;
             double days = ClockMath::floorDivide(((double)ms), (double)U_MILLIS_PER_DAY, millis);
-
+            
             Grego::dayToFields(days, year, month, dom, dow);
             U_DEBUG_TZ_MSG(("   getHistoricalOffset:  time %.1f (%04d.%02d.%02d+%.1fh)\n", ms,
                             year, month+1, dom, (millis/kOneHour)));
@@ -447,7 +446,7 @@ void printTime(double ms) {
 
 int64_t
 OlsonTimeZone::transitionTimeInSeconds(int16_t transIdx) const {
-    U_ASSERT(transIdx >= 0 && transIdx < transitionCount());
+    U_ASSERT(transIdx >= 0 && transIdx < transitionCount()); 
 
     if (transIdx < transitionCountPre32) {
         return (((int64_t)((uint32_t)transitionTimesPre32[transIdx << 1])) << 32)
@@ -502,7 +501,7 @@ OlsonTimeZone::getHistoricalOffset(UDate date, UBool local,
 
                     UBool dstToStd = dstBefore && !dstAfter;
                     UBool stdToDst = !dstBefore && dstAfter;
-
+                    
                     if (offsetAfter - offsetBefore >= 0) {
                         // Positive transition, which makes a non-existing local time range
                         if (((NonExistingTimeOpt & kStdDstMask) == kStandard && dstToStd)
@@ -588,7 +587,7 @@ UBool OlsonTimeZone::useDaylightTime() const {
     }
     return FALSE;
 }
-int32_t
+int32_t 
 OlsonTimeZone::getDSTSavings() const{
     if (finalZone != NULL){
         return finalZone->getDSTSavings();
@@ -620,7 +619,7 @@ OlsonTimeZone::hasSameRules(const TimeZone &other) const {
     if (typeMapData == z->typeMapData) {
         return TRUE;
     }
-
+    
     // If the pointers are not equal, the zones may still
     // be equal if their rules and transitions are equal
     if ((finalZone == NULL && z->finalZone != NULL)
@@ -693,7 +692,7 @@ OlsonTimeZone::deleteTransitionRules(void) {
 static void U_CALLCONV initRules(OlsonTimeZone *This, UErrorCode &status) {
     This->initTransitionRules(status);
 }
-
+    
 void
 OlsonTimeZone::checkTransitionRules(UErrorCode& status) const {
     OlsonTimeZone *ncThis = const_cast<OlsonTimeZone *>(this);
@@ -816,7 +815,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
              * For now, we do not set the valid start year when the construction time
              * and create a clone and set the start year when extracting rules.
              */
-            finalZoneWithStartYear = (SimpleTimeZone*)finalZone->clone();
+            finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
             if (finalZoneWithStartYear == NULL) {
                 status = U_MEMORY_ALLOCATION_ERROR;
@@ -837,7 +836,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             startTime = tzt.getTime();
         } else {
             // final rule with no transitions
-            finalZoneWithStartYear = (SimpleTimeZone*)finalZone->clone();
+            finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
             if (finalZoneWithStartYear == NULL) {
                 status = U_MEMORY_ALLOCATION_ERROR;

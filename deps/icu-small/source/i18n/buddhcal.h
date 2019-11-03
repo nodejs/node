@@ -94,7 +94,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual BuddhistCalendar* clone() const;
 
 public:
     /**
@@ -145,7 +145,7 @@ private:
     virtual int32_t handleGetExtendedYear();
     /**
      * Subclasses may override this method to compute several fields
-     * specific to each calendar system.
+     * specific to each calendar system.  
      * @internal
      */
     virtual void handleComputeFields(int32_t julianDay, UErrorCode& status);
@@ -199,3 +199,4 @@ U_NAMESPACE_END
 
 #endif // _GREGOCAL
 //eof
+

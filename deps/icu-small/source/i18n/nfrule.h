@@ -45,9 +45,9 @@ public:
     };
 
     static void makeRules(UnicodeString& definition,
-                          NFRuleSet* ruleSet,
-                          const NFRule* predecessor,
-                          const RuleBasedNumberFormat* rbnf,
+                          NFRuleSet* ruleSet, 
+                          const NFRule* predecessor, 
+                          const RuleBasedNumberFormat* rbnf, 
                           NFRuleList& ruleList,
                           UErrorCode& status);
 
@@ -70,9 +70,9 @@ public:
     void doFormat(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void doFormat(double  number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
-    UBool doParse(const UnicodeString& text,
-                  ParsePosition& pos,
-                  UBool isFractional,
+    UBool doParse(const UnicodeString& text, 
+                  ParsePosition& pos, 
+                  UBool isFractional, 
                   double upperBound,
                   uint32_t nonNumericalExecutedRuleMask,
                   Formattable& result) const;
@@ -81,7 +81,7 @@ public:
 
     void _appendRuleText(UnicodeString& result) const;
 
-    int32_t findTextLenient(const UnicodeString& str, const UnicodeString& key,
+    int32_t findTextLenient(const UnicodeString& str, const UnicodeString& key, 
                      int32_t startingAt, int32_t* resultCount) const;
 
     void setDecimalFormatSymbols(const DecimalFormatSymbols &newSymbols, UErrorCode& status);
@@ -90,18 +90,18 @@ private:
     void parseRuleDescriptor(UnicodeString& descriptor, UErrorCode& status);
     void extractSubstitutions(const NFRuleSet* ruleSet, const UnicodeString &ruleText, const NFRule* predecessor, UErrorCode& status);
     NFSubstitution* extractSubstitution(const NFRuleSet* ruleSet, const NFRule* predecessor, UErrorCode& status);
-
+    
     int16_t expectedExponent() const;
     int32_t indexOfAnyRulePrefix() const;
     double matchToDelimiter(const UnicodeString& text, int32_t startPos, double baseValue,
-                            const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub,
+                            const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub, 
                             uint32_t nonNumericalExecutedRuleMask,
                             double upperBound) const;
     void stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosition& pp) const;
 
     int32_t prefixLength(const UnicodeString& str, const UnicodeString& prefix, UErrorCode& status) const;
     UBool allIgnorable(const UnicodeString& str, UErrorCode& status) const;
-    int32_t findText(const UnicodeString& str, const UnicodeString& key,
+    int32_t findText(const UnicodeString& str, const UnicodeString& key, 
                      int32_t startingAt, int32_t* resultCount) const;
 
 private:
@@ -126,3 +126,4 @@ U_NAMESPACE_END
 
 // NFRULE_H
 #endif
+

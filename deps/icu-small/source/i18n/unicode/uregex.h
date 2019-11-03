@@ -48,9 +48,9 @@ typedef struct URegularExpression URegularExpression;
  */
 typedef enum URegexpFlag{
 
-#ifndef U_HIDE_DRAFT_API
-    /** Forces normalization of pattern and strings.
-    Not implemented yet, just a placeholder, hence draft.
+#ifndef U_HIDE_DRAFT_API 
+    /** Forces normalization of pattern and strings. 
+    Not implemented yet, just a placeholder, hence draft. 
     @draft ICU 2.4 */
     UREGEX_CANON_EQ         = 128,
 #endif /* U_HIDE_DRAFT_API */
@@ -63,10 +63,10 @@ typedef enum URegexpFlag{
     /**  If set, '.' matches line terminators,  otherwise '.' matching stops at line end.
       *  @stable ICU 2.4 */
     UREGEX_DOTALL           = 32,
-
-    /**  If set, treat the entire pattern as a literal string.
-      *  Metacharacters or escape sequences in the input sequence will be given
-      *  no special meaning.
+    
+    /**  If set, treat the entire pattern as a literal string.  
+      *  Metacharacters or escape sequences in the input sequence will be given 
+      *  no special meaning. 
       *
       *  The flag UREGEX_CASE_INSENSITIVE retains its impact
       *  on matching when used in conjunction with this flag.
@@ -81,7 +81,7 @@ typedef enum URegexpFlag{
       *    otherwise, match only at start and end of input string.
       *   @stable ICU 2.4 */
     UREGEX_MULTILINE        = 8,
-
+    
     /**   Unix-only line endings.
       *   When this mode is enabled, only \\u000a is recognized as a line ending
       *    in the behavior of ., ^, and $.
@@ -114,9 +114,9 @@ typedef enum URegexpFlag{
   *  string form into an internal representation using the specified match mode flags.
   *  The resulting regular expression handle can then be used to perform various
   *   matching operations.
+  * 
   *
-  *
-  * @param pattern        The Regular Expression pattern to be compiled.
+  * @param pattern        The Regular Expression pattern to be compiled. 
   * @param patternLength  The length of the pattern, or -1 if the pattern is
   *                       NUL terminated.
   * @param flags          Flags that alter the default matching behavior for
@@ -148,7 +148,7 @@ uregex_open( const  UChar          *pattern,
   *   UText struct itself remains with the caller. This is to match the behavior of
   *   uregex_open().
   *
-  * @param pattern        The Regular Expression pattern to be compiled.
+  * @param pattern        The Regular Expression pattern to be compiled. 
   * @param flags          Flags that alter the default matching behavior for
   *                       the regular expression, UREGEX_CASE_INSENSITIVE, for
   *                       example.  For default behavior, set this parameter to zero.
@@ -175,8 +175,8 @@ uregex_openUText(UText          *pattern,
   *   This function is the same as uregex_open, except that the pattern
   *   is supplied as an 8 bit char * string in the default code page.
   *
-  * @param pattern        The Regular Expression pattern to be compiled,
-  *                       NUL terminated.
+  * @param pattern        The Regular Expression pattern to be compiled, 
+  *                       NUL terminated.  
   * @param flags          Flags that alter the default matching behavior for
   *                       the regular expression, UREGEX_CASE_INSENSITIVE, for
   *                       example.  For default behavior, set this parameter to zero.
@@ -207,7 +207,7 @@ uregex_openC( const char           *pattern,
   * @param regexp   The regular expression to be closed.
   * @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_close(URegularExpression *regexp);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -247,7 +247,7 @@ U_NAMESPACE_END
  * @return the cloned copy of the compiled regular expression.
  * @stable ICU 3.0
  */
-U_STABLE URegularExpression * U_EXPORT2
+U_STABLE URegularExpression * U_EXPORT2 
 uregex_clone(const URegularExpression *regexp, UErrorCode *status);
 
 /**
@@ -267,7 +267,7 @@ uregex_clone(const URegularExpression *regexp, UErrorCode *status);
  *                   will remain valid until the regular expression is closed.
  * @stable ICU 3.0
  */
-U_STABLE const UChar * U_EXPORT2
+U_STABLE const UChar * U_EXPORT2 
 uregex_pattern(const URegularExpression *regexp,
                      int32_t            *patLength,
                      UErrorCode         *status);
@@ -283,7 +283,7 @@ uregex_pattern(const URegularExpression *regexp,
  *
  * @stable ICU 4.6
  */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_patternUText(const URegularExpression *regexp,
                           UErrorCode         *status);
 
@@ -295,7 +295,7 @@ uregex_patternUText(const URegularExpression *regexp,
   * @see URegexpFlag
   * @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_flags(const  URegularExpression   *regexp,
                     UErrorCode           *status);
 
@@ -308,7 +308,7 @@ uregex_flags(const  URegularExpression   *regexp,
   *  Regular expression matching operations work directly on the application's
   *  string data.  No copy is made.  The subject string data must not be
   *  altered after calling this function until after all regular expression
-  *  operations involving this string data are completed.
+  *  operations involving this string data are completed.  
   *  <p>
   *  Zero length strings are permitted.  In this case, no subsequent match
   *  operation will dereference the text string pointer.
@@ -320,7 +320,7 @@ uregex_flags(const  URegularExpression   *regexp,
   * @param status     Receives errors detected by this function.
   * @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_setText(URegularExpression *regexp,
                const UChar        *text,
                int32_t             textLength,
@@ -335,7 +335,7 @@ uregex_setText(URegularExpression *regexp,
   *  Regular expression matching operations work directly on the application's
   *  string data; only a shallow clone is made.  The subject string data must not be
   *  altered after calling this function until after all regular expression
-  *  operations involving this string data are completed.
+  *  operations involving this string data are completed.  
   *
   * @param regexp     The compiled regular expression.
   * @param text       The subject text string.
@@ -343,13 +343,13 @@ uregex_setText(URegularExpression *regexp,
   *
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_setUText(URegularExpression *regexp,
                 UText              *text,
                 UErrorCode         *status);
 
 /**
-  *  Get the subject text that is currently associated with this
+  *  Get the subject text that is currently associated with this 
   *   regular expression object.  If the input was supplied using uregex_setText(),
   *   that pointer will be returned.  Otherwise, the characters in the input will
   *   be extracted to a buffer and returned.  In either case, ownership remains
@@ -358,7 +358,7 @@ uregex_setUText(URegularExpression *regexp,
   *  This function will work even if the input was originally specified as a UText.
   *
   * @param regexp      The compiled regular expression.
-  * @param textLength  The length of the string is returned in this output parameter.
+  * @param textLength  The length of the string is returned in this output parameter. 
   *                    A NULL pointer may be used here if the
   *                    text length is not needed, as would be the case if
   *                    the text is known in advance to be a NUL terminated
@@ -368,13 +368,13 @@ uregex_setUText(URegularExpression *regexp,
   *                    this regular expression.
   * @stable ICU 3.0
   */
-U_STABLE const UChar * U_EXPORT2
+U_STABLE const UChar * U_EXPORT2 
 uregex_getText(URegularExpression *regexp,
                int32_t            *textLength,
                UErrorCode         *status);
 
 /**
-  *  Get the subject text that is currently associated with this
+  *  Get the subject text that is currently associated with this 
   *   regular expression object.
   *
   *  This function will work even if the input was originally specified as a UChar string.
@@ -389,7 +389,7 @@ uregex_getText(URegularExpression *regexp,
   *
   * @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_getUText(URegularExpression *regexp,
                 UText              *dest,
                 UErrorCode         *status);
@@ -399,19 +399,19 @@ uregex_getUText(URegularExpression *regexp,
   *  without changing any other aspect of the matching state.
   *  The new and previous text strings must have the same content.
   *
-  *  This function is intended for use in environments where ICU is operating on
+  *  This function is intended for use in environments where ICU is operating on 
   *  strings that may move around in memory.  It provides a mechanism for notifying
   *  ICU that the string has been relocated, and providing a new UText to access the
   *  string in its new position.
   *
   *  Note that the regular expression implementation never copies the underlying text
-  *  of a string being matched, but always operates directly on the original text
-  *  provided by the user. Refreshing simply drops the references to the old text
+  *  of a string being matched, but always operates directly on the original text 
+  *  provided by the user. Refreshing simply drops the references to the old text 
   *  and replaces them with references to the new.
   *
   *  Caution:  this function is normally used only by very specialized
-  *            system-level code.   One example use case is with garbage collection
-  *            that moves the text in memory.
+  *            system-level code.   One example use case is with garbage collection 
+  *            that moves the text in memory. 
   *
   * @param regexp     The compiled regular expression.
   * @param text       The new (moved) text string.
@@ -419,7 +419,7 @@ uregex_getUText(URegularExpression *regexp,
   *
   * @stable ICU 4.8
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_refreshUText(URegularExpression *regexp,
                     UText              *text,
                     UErrorCode         *status);
@@ -444,7 +444,7 @@ uregex_refreshUText(URegularExpression *regexp,
   *    @return             TRUE if there is a match
   *    @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_matches(URegularExpression *regexp,
                 int32_t            startIndex,
                 UErrorCode        *status);
@@ -470,7 +470,7 @@ uregex_matches(URegularExpression *regexp,
   *    @return             TRUE if there is a match
   *   @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_matches64(URegularExpression *regexp,
                  int64_t            startIndex,
                  UErrorCode        *status);
@@ -483,7 +483,7 @@ uregex_matches64(URegularExpression *regexp,
   *   <p>If startIndex is >= 0 any input region that was set for this
   *   URegularExpression is reset before the operation begins.
   *
-  *   <p>If the specified starting index == -1 the match begins at the start of the input
+  *   <p>If the specified starting index == -1 the match begins at the start of the input 
   *   region, or at the start of the full string if no region has been specified.
   *   This corresponds directly with Matcher.lookingAt() in Java.
   *
@@ -498,7 +498,7 @@ uregex_matches64(URegularExpression *regexp,
   *    @return  TRUE if there is a match.
   *    @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_lookingAt(URegularExpression *regexp,
                  int32_t             startIndex,
                  UErrorCode         *status);
@@ -512,7 +512,7 @@ uregex_lookingAt(URegularExpression *regexp,
   *   <p>If startIndex is >= 0 any input region that was set for this
   *   URegularExpression is reset before the operation begins.
   *
-  *   <p>If the specified starting index == -1 the match begins at the start of the input
+  *   <p>If the specified starting index == -1 the match begins at the start of the input 
   *   region, or at the start of the full string if no region has been specified.
   *   This corresponds directly with Matcher.lookingAt() in Java.
   *
@@ -527,7 +527,7 @@ uregex_lookingAt(URegularExpression *regexp,
   *    @return  TRUE if there is a match.
   *    @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_lookingAt64(URegularExpression *regexp,
                    int64_t             startIndex,
                    UErrorCode         *status);
@@ -551,9 +551,9 @@ uregex_lookingAt64(URegularExpression *regexp,
   *   @return              TRUE if a match is found.
   *   @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_find(URegularExpression *regexp,
-            int32_t             startIndex,
+            int32_t             startIndex, 
             UErrorCode         *status);
 
 /**
@@ -576,15 +576,15 @@ uregex_find(URegularExpression *regexp,
   *   @return              TRUE if a match is found.
   *   @stable ICU 4.6
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_find64(URegularExpression *regexp,
-              int64_t             startIndex,
+              int64_t             startIndex, 
               UErrorCode         *status);
 
 /**
-  *  Find the next pattern match in the input string.  Begin searching
-  *  the input at the location following the end of he previous match,
-  *  or at the start of the string (or region) if there is no
+  *  Find the next pattern match in the input string.  Begin searching 
+  *  the input at the location following the end of he previous match, 
+  *  or at the start of the string (or region) if there is no 
   *  previous match.  If a match is found, <code>uregex_start(), uregex_end()</code>, and
   *  <code>uregex_group()</code> will provide more information regarding the match.
   *
@@ -594,7 +594,7 @@ uregex_find64(URegularExpression *regexp,
   *  @see uregex_reset
   *  @stable ICU 3.0
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2 
 uregex_findNext(URegularExpression *regexp,
                 UErrorCode         *status);
 
@@ -605,7 +605,7 @@ uregex_findNext(URegularExpression *regexp,
   *   @return the number of capture groups
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_groupCount(URegularExpression *regexp,
                   UErrorCode         *status);
 
@@ -671,7 +671,7 @@ uregex_groupNumberFromCName(URegularExpression *regexp,
   *                         or -1 if no applicable match.
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_group(URegularExpression *regexp,
              int32_t             groupNum,
              UChar              *dest,
@@ -700,7 +700,7 @@ uregex_group(URegularExpression *regexp,
   *
   *   @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_groupUText(URegularExpression *regexp,
                   int32_t             groupNum,
                   UText              *dest,
@@ -717,11 +717,11 @@ uregex_groupUText(URegularExpression *regexp,
   *    @param   regexp      The compiled regular expression.
   *    @param   groupNum    The capture group number
   *    @param   status      A reference to a UErrorCode to receive any errors.
-  *    @return              the starting (native) position in the input of the text matched
+  *    @return              the starting (native) position in the input of the text matched 
   *                         by the specified group.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_start(URegularExpression *regexp,
              int32_t             groupNum,
              UErrorCode          *status);
@@ -737,11 +737,11 @@ uregex_start(URegularExpression *regexp,
   *    @param   regexp      The compiled regular expression.
   *    @param   groupNum    The capture group number
   *    @param   status      A reference to a UErrorCode to receive any errors.
-  *    @return              the starting (native) position in the input of the text matched
+  *    @return              the starting (native) position in the input of the text matched 
   *                         by the specified group.
   *   @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_STABLE int64_t U_EXPORT2 
 uregex_start64(URegularExpression *regexp,
                int32_t             groupNum,
                UErrorCode          *status);
@@ -759,7 +759,7 @@ uregex_start64(URegularExpression *regexp,
   *    @return              the (native) index of the position following the last matched character.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_end(URegularExpression   *regexp,
            int32_t               groupNum,
            UErrorCode           *status);
@@ -778,7 +778,7 @@ uregex_end(URegularExpression   *regexp,
   *    @return              the (native) index of the position following the last matched character.
   *   @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_STABLE int64_t U_EXPORT2 
 uregex_end64(URegularExpression *regexp,
              int32_t               groupNum,
              UErrorCode           *status);
@@ -786,7 +786,7 @@ uregex_end64(URegularExpression *regexp,
 /**
   *  Reset any saved state from the previous match.  Has the effect of
   *  causing uregex_findNext to begin at the specified index, and causing
-  *  uregex_start(), uregex_end() and uregex_group() to return an error
+  *  uregex_start(), uregex_end() and uregex_group() to return an error 
   *  indicating that there is no match information available.  Clears any
   *  match region that may have been set.
   *
@@ -796,7 +796,7 @@ uregex_end64(URegularExpression *regexp,
   *    @param   status      A reference to a UErrorCode to receive any errors.
   *    @stable ICU 3.0
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_reset(URegularExpression    *regexp,
              int32_t               index,
              UErrorCode            *status);
@@ -805,7 +805,7 @@ uregex_reset(URegularExpression    *regexp,
   *  64bit version of uregex_reset.
   *  Reset any saved state from the previous match.  Has the effect of
   *  causing uregex_findNext to begin at the specified index, and causing
-  *  uregex_start(), uregex_end() and uregex_group() to return an error
+  *  uregex_start(), uregex_end() and uregex_group() to return an error 
   *  indicating that there is no match information available.  Clears any
   *  match region that may have been set.
   *
@@ -815,7 +815,7 @@ uregex_reset(URegularExpression    *regexp,
   *    @param   status      A reference to a UErrorCode to receive any errors.
   *    @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_reset64(URegularExpression  *regexp,
                int64_t               index,
                UErrorCode            *status);
@@ -823,7 +823,7 @@ uregex_reset64(URegularExpression  *regexp,
 /**
   * Sets the limits of the matching region for this URegularExpression.
   * The region is the part of the input string that will be considered when matching.
-  * Invoking this method resets any saved state from the previous match,
+  * Invoking this method resets any saved state from the previous match, 
   * then sets the region to start at the index specified by the start parameter
   * and end at the index specified by the end parameter.
   *
@@ -850,7 +850,7 @@ uregex_setRegion(URegularExpression   *regexp,
   * 64bit version of uregex_setRegion.
   * Sets the limits of the matching region for this URegularExpression.
   * The region is the part of the input string that will be considered when matching.
-  * Invoking this method resets any saved state from the previous match,
+  * Invoking this method resets any saved state from the previous match, 
   * then sets the region to start at the index specified by the start parameter
   * and end at the index specified by the end parameter.
   *
@@ -867,7 +867,7 @@ uregex_setRegion(URegularExpression   *regexp,
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_setRegion64(URegularExpression *regexp,
                  int64_t               regionStart,
                  int64_t               regionLimit,
@@ -882,12 +882,12 @@ uregex_setRegion64(URegularExpression *regexp,
   * @param regexp The compiled regular expression.
   * @param regionStart  The (native) index to begin searches at.
   * @param regionLimit  The (native) index to end searches at (exclusive).
-  * @param startIndex   The index in the input text at which the next
+  * @param startIndex   The index in the input text at which the next 
   *                     match operation should begin.
   * @param status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_setRegionAndStart(URegularExpression *regexp,
                  int64_t               regionStart,
                  int64_t               regionLimit,
@@ -917,7 +917,7 @@ uregex_regionStart(const  URegularExpression   *regexp,
   * @return The starting (native) index of this matcher's region.
   * @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_STABLE int64_t U_EXPORT2 
 uregex_regionStart64(const  URegularExpression   *regexp,
                             UErrorCode           *status);
 
@@ -946,7 +946,7 @@ uregex_regionEnd(const  URegularExpression   *regexp,
   * @return The ending point (native) of this matcher's region.
   * @stable ICU 4.6
   */
-U_STABLE int64_t U_EXPORT2
+U_STABLE int64_t U_EXPORT2 
 uregex_regionEnd64(const  URegularExpression   *regexp,
                           UErrorCode           *status);
 
@@ -984,8 +984,8 @@ uregex_hasTransparentBounds(const  URegularExpression   *regexp,
   * @param   status A pointer to a UErrorCode to receive any errors.
   * @stable ICU 4.0
   **/
-U_STABLE void U_EXPORT2
-uregex_useTransparentBounds(URegularExpression   *regexp,
+U_STABLE void U_EXPORT2  
+uregex_useTransparentBounds(URegularExpression   *regexp, 
                             UBool                b,
                             UErrorCode           *status);
 
@@ -1047,7 +1047,7 @@ uregex_hitEnd(const  URegularExpression   *regexp,
   * @return TRUE  if more input could cause the most recent match to no longer match.
   * @stable ICU 4.0
   */
-U_STABLE UBool U_EXPORT2
+U_STABLE UBool U_EXPORT2   
 uregex_requireEnd(const  URegularExpression   *regexp,
                          UErrorCode           *status);
 
@@ -1060,7 +1060,7 @@ uregex_requireEnd(const  URegularExpression   *regexp,
   *    with the given replacement string.  This is a convenience function that
   *    provides a complete find-and-replace-all operation.
   *
-  *    This method scans the input string looking for matches of the pattern.
+  *    This method scans the input string looking for matches of the pattern. 
   *    Input that is not part of any match is copied unchanged to the
   *    destination buffer.  Matched regions are replaced in the output
   *    buffer by the replacement string.   The replacement string may contain
@@ -1079,7 +1079,7 @@ uregex_requireEnd(const  URegularExpression   *regexp,
   *                                is still the full length of the untruncated string.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_replaceAll(URegularExpression    *regexp,
                   const UChar           *replacementText,
                   int32_t                replacementLength,
@@ -1092,7 +1092,7 @@ uregex_replaceAll(URegularExpression    *regexp,
   *    with the given replacement string.  This is a convenience function that
   *    provides a complete find-and-replace-all operation.
   *
-  *    This method scans the input string looking for matches of the pattern.
+  *    This method scans the input string looking for matches of the pattern. 
   *    Input that is not part of any match is copied unchanged to the
   *    destination buffer.  Matched regions are replaced in the output
   *    buffer by the replacement string.   The replacement string may contain
@@ -1108,7 +1108,7 @@ uregex_replaceAll(URegularExpression    *regexp,
   *
   *    @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_replaceAllUText(URegularExpression *regexp,
                        UText              *replacement,
                        UText              *dest,
@@ -1119,7 +1119,7 @@ uregex_replaceAllUText(URegularExpression *regexp,
   *    with the given replacement string.  This is a convenience function that
   *    provides a complete find-and-replace operation.
   *
-  *    This method scans the input string looking for a match of the pattern.
+  *    This method scans the input string looking for a match of the pattern. 
   *    All input that is not part of the match is copied unchanged to the
   *    destination buffer.  The matched region is replaced in the output
   *    buffer by the replacement string.   The replacement string may contain
@@ -1138,7 +1138,7 @@ uregex_replaceAllUText(URegularExpression *regexp,
   *                                is still the full length of the untruncated string.
   *    @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_replaceFirst(URegularExpression  *regexp,
                     const UChar         *replacementText,
                     int32_t              replacementLength,
@@ -1151,7 +1151,7 @@ uregex_replaceFirst(URegularExpression  *regexp,
   *    with the given replacement string.  This is a convenience function that
   *    provides a complete find-and-replace operation.
   *
-  *    This method scans the input string looking for a match of the pattern.
+  *    This method scans the input string looking for a match of the pattern. 
   *    All input that is not part of the match is copied unchanged to the
   *    destination buffer.  The matched region is replaced in the output
   *    buffer by the replacement string.   The replacement string may contain
@@ -1167,7 +1167,7 @@ uregex_replaceFirst(URegularExpression  *regexp,
   *
   *    @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_replaceFirstUText(URegularExpression *regexp,
                          UText              *replacement,
                          UText              *dest,
@@ -1196,7 +1196,7 @@ uregex_replaceFirstUText(URegularExpression *regexp,
   *   <p>For simple, prepackaged, non-incremental find-and-replace
   *      operations, see replaceFirst() or replaceAll().</p>
   *
-  *   @param   regexp      The regular expression object.
+  *   @param   regexp      The regular expression object.  
   *   @param   replacementText The string that will replace the matched portion of the
   *                        input string as it is copied to the destination buffer.
   *                        The replacement text may contain references ($1, for
@@ -1211,7 +1211,7 @@ uregex_replaceFirstUText(URegularExpression *regexp,
   *   @param   destCapacity The size of the output buffer,  On return, this
   *                        parameter will be updated to reflect the space remaining
   *                        unused in the output buffer.
-  *   @param   status      A reference to a UErrorCode to receive any errors.
+  *   @param   status      A reference to a UErrorCode to receive any errors. 
   *   @return              The length of the result string.  In the event that
   *                        destCapacity is inadequate, the full length of the
   *                        untruncated output string is returned.
@@ -1219,7 +1219,7 @@ uregex_replaceFirstUText(URegularExpression *regexp,
   *   @stable ICU 3.0
   *
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_appendReplacement(URegularExpression    *regexp,
                          const UChar           *replacementText,
                          int32_t                replacementLength,
@@ -1239,17 +1239,17 @@ uregex_appendReplacement(URegularExpression    *regexp,
   *   <p>For simple, prepackaged, non-incremental find-and-replace
   *      operations, see replaceFirst() or replaceAll().</p>
   *
-  *   @param   regexp      The regular expression object.
+  *   @param   regexp      The regular expression object.  
   *   @param   replacementText The string that will replace the matched portion of the
   *                        input string as it is copied to the destination buffer.
   *                        The replacement text may contain references ($1, for
   *                        example) to capture groups from the match.
   *   @param   dest        A mutable UText that will receive the result. Must not be NULL.
-  *   @param   status      A reference to a UErrorCode to receive any errors.
+  *   @param   status      A reference to a UErrorCode to receive any errors. 
   *
   *   @stable ICU 4.6
   */
-U_STABLE void U_EXPORT2
+U_STABLE void U_EXPORT2 
 uregex_appendReplacementUText(URegularExpression    *regexp,
                               UText                 *replacementText,
                               UText                 *dest,
@@ -1258,11 +1258,11 @@ uregex_appendReplacementUText(URegularExpression    *regexp,
 /**
   * As the final step in a find-and-replace operation, append the remainder
   * of the input string, starting at the position following the last match,
-  * to the destination string. <code>uregex_appendTail()</code> is intended
+  * to the destination string. <code>uregex_appendTail()</code> is intended 
   *  to be invoked after one or more invocations of the
   *  <code>uregex_appendReplacement()</code> function.
   *
-  *   @param   regexp      The regular expression object.  This is needed to
+  *   @param   regexp      The regular expression object.  This is needed to 
   *                        obtain the input string and with the position
   *                        of the last match within it.
   *   @param   destBuf     The buffer in which the results of the
@@ -1272,14 +1272,14 @@ uregex_appendReplacementUText(URegularExpression    *regexp,
   *   @param   destCapacity The size of the output buffer,  On return, this
   *                        value will be updated to reflect the space remaining
   *                        unused in the output buffer.
-  *   @param   status      A reference to a UErrorCode to receive any errors.
+  *   @param   status      A reference to a UErrorCode to receive any errors. 
   *   @return              The length of the result string.  In the event that
   *                        destCapacity is inadequate, the full length of the
   *                        untruncated output string is returned.
   *
   *   @stable ICU 3.0
   */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_appendTail(URegularExpression    *regexp,
                   UChar                **destBuf,
                   int32_t               *destCapacity,
@@ -1288,11 +1288,11 @@ uregex_appendTail(URegularExpression    *regexp,
 /**
   * As the final step in a find-and-replace operation, append the remainder
   * of the input string, starting at the position following the last match,
-  * to the destination string. <code>uregex_appendTailUText()</code> is intended
+  * to the destination string. <code>uregex_appendTailUText()</code> is intended 
   *  to be invoked after one or more invocations of the
   *  <code>uregex_appendReplacementUText()</code> function.
   *
-  *   @param   regexp      The regular expression object.  This is needed to
+  *   @param   regexp      The regular expression object.  This is needed to 
   *                        obtain the input string and with the position
   *                        of the last match within it.
   *   @param   dest        A mutable UText that will receive the result. Must not be NULL.
@@ -1303,7 +1303,7 @@ uregex_appendTail(URegularExpression    *regexp,
   *
   *   @stable ICU 4.6
   */
-U_STABLE UText * U_EXPORT2
+U_STABLE UText * U_EXPORT2 
 uregex_appendTailUText(URegularExpression    *regexp,
                        UText                 *dest,
                        UErrorCode            *status);
@@ -1320,9 +1320,9 @@ uregex_appendTailUText(URegularExpression    *regexp,
    *
    *  If the delimiter pattern includes capture groups, the captured text will
    *  also appear in the destination array of output strings, interspersed
-   *  with the fields.  This is similar to Perl, but differs from Java,
+   *  with the fields.  This is similar to Perl, but differs from Java, 
    *  which ignores the presence of capture groups in the pattern.
-   *
+   * 
    *  Trailing empty fields will always be returned, assuming sufficient
    *  destination capacity.  This differs from the default behavior for Java
    *  and Perl where trailing empty fields are not returned.
@@ -1330,7 +1330,7 @@ uregex_appendTailUText(URegularExpression    *regexp,
    *  The number of strings produced by the split operation is returned.
    *  This count includes the strings from capture groups in the delimiter pattern.
    *  This behavior differs from Java, which ignores capture groups.
-   *
+   * 
    *    @param   regexp      The compiled regular expression.
    *    @param   destBuf     A (UChar *) buffer to receive the fields that
    *                         are extracted from the input string. These
@@ -1340,7 +1340,7 @@ uregex_appendTailUText(URegularExpression    *regexp,
    *                         set to NULL.
    *    @param   destCapacity The capacity of the destBuf.
    *    @param   requiredCapacity  The actual capacity required of the destBuf.
-   *                         If destCapacity is too small, requiredCapacity will return
+   *                         If destCapacity is too small, requiredCapacity will return 
    *                         the total capacity required to hold all of the output, and
    *                         a U_BUFFER_OVERFLOW_ERROR will be returned.
    *    @param   destFields  An array to be filled with the position of each
@@ -1359,7 +1359,7 @@ uregex_appendTailUText(URegularExpression    *regexp,
    * @return        The number of fields into which the input string was split.
    * @stable ICU 3.0
    */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_split(   URegularExpression      *regexp,
                   UChar                 *destBuf,
                   int32_t                destCapacity,
@@ -1394,7 +1394,7 @@ uregex_split(   URegularExpression      *regexp,
    *
    * @stable ICU 4.6
    */
-U_STABLE int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2 
 uregex_splitUText(URegularExpression    *regexp,
                   UText                 *destFields[],
                   int32_t                destFieldsCapacity,
@@ -1489,7 +1489,7 @@ uregex_getStackLimit(const URegularExpression      *regexp,
  * @param context  context pointer.  The callback function will be invoked
  *                 with the context specified at the time that
  *                 uregex_setMatchCallback() is called.
- * @param steps    the accumulated processing time, in match steps,
+ * @param steps    the accumulated processing time, in match steps, 
  *                 for this matching operation.
  * @return         TRUE to continue the matching operation.
  *                 FALSE to terminate the matching operation.
@@ -1526,7 +1526,7 @@ uregex_setMatchCallback(URegularExpression      *regexp,
  *  Get the callback function for this URegularExpression.
  *
  * @param   regexp      The compiled regular expression.
- * @param   callback    Out parameter, receives a pointer to the user-supplied
+ * @param   callback    Out parameter, receives a pointer to the user-supplied 
  *                      callback function.
  * @param   context     Out parameter, receives the user context pointer that
  *                      was set when uregex_setMatchCallback() was called.
@@ -1541,7 +1541,7 @@ uregex_getMatchCallback(const URegularExpression    *regexp,
 
 /**
  * Function pointer for a regular expression find callback function.
- *
+ * 
  * When set, a callback function will be called during a find operation
  * and for operations that depend on find, such as findNext, split and some replace
  * operations like replaceFirst.
@@ -1553,7 +1553,7 @@ uregex_getMatchCallback(const URegularExpression    *regexp,
  * When invoked, this callback will specify the index at which a match operation is about
  * to be attempted, giving the application the opportunity to terminate a long-running
  * find operation.
- *
+ * 
  * If the call back function returns FALSE, the find operation will be terminated early.
  *
  * Note:  the callback function must not call other functions on this
@@ -1597,7 +1597,7 @@ uregex_setFindProgressCallback(URegularExpression              *regexp,
  *  Get the find progress callback function for this URegularExpression.
  *
  * @param   regexp      The compiled regular expression.
- * @param   callback    Out parameter, receives a pointer to the user-supplied
+ * @param   callback    Out parameter, receives a pointer to the user-supplied 
  *                      callback function.
  * @param   context     Out parameter, receives the user context pointer that
  *                      was set when uregex_setFindProgressCallback() was called.

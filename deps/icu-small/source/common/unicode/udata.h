@@ -38,16 +38,16 @@ U_CDECL_BEGIN
  *
  * See the User Guide Data Management chapter.
  */
-
+ 
 #ifndef U_HIDE_INTERNAL_API
 /**
- * Character used to separate package names from tree names
+ * Character used to separate package names from tree names 
  * @internal ICU 3.0
  */
 #define U_TREE_SEPARATOR '-'
 
 /**
- * String used to separate package names from tree names
+ * String used to separate package names from tree names 
  * @internal ICU 3.0
  */
 #define U_TREE_SEPARATOR_STRING "-"
@@ -65,7 +65,7 @@ U_CDECL_BEGIN
 #define U_TREE_ENTRY_SEP_STRING "/"
 
 /**
- * Alias for standard ICU data
+ * Alias for standard ICU data 
  * @internal ICU 3.0
  */
 #define U_ICUDATA_ALIAS "ICUDATA"
@@ -115,7 +115,7 @@ typedef struct {
      *  @stable ICU 2.0 */
     uint16_t size;
 
-    /** unused, set to 0
+    /** unused, set to 0 
      *  @stable ICU 2.0*/
     uint16_t reservedWord;
 
@@ -124,27 +124,27 @@ typedef struct {
      *  @stable ICU 2.0 */
     uint8_t isBigEndian;
 
-    /** see U_CHARSET_FAMILY values in utypes.h
+    /** see U_CHARSET_FAMILY values in utypes.h 
      *  @stable ICU 2.0*/
     uint8_t charsetFamily;
 
-    /** sizeof(UChar), one of { 1, 2, 4 }
+    /** sizeof(UChar), one of { 1, 2, 4 } 
      *  @stable ICU 2.0*/
     uint8_t sizeofUChar;
 
-    /** unused, set to 0
+    /** unused, set to 0 
      *  @stable ICU 2.0*/
     uint8_t reservedByte;
 
-    /** data format identifier
+    /** data format identifier 
      *  @stable ICU 2.0*/
     uint8_t dataFormat[4];
 
-    /** versions: [0] major [1] minor [2] milli [3] micro
+    /** versions: [0] major [1] minor [2] milli [3] micro 
      *  @stable ICU 2.0*/
     uint8_t formatVersion[4];
 
-    /** versions: [0] major [1] minor [2] milli [3] micro
+    /** versions: [0] major [1] minor [2] milli [3] micro 
      *  @stable ICU 2.0*/
     uint8_t dataVersion[4];
 } UDataInfo;
@@ -263,25 +263,6 @@ udata_openChoice(const char *path, const char *type, const char *name,
  */
 U_STABLE void U_EXPORT2
 udata_close(UDataMemory *pData);
-
-#if U_SHOW_CPLUSPLUS_API
-
-U_NAMESPACE_BEGIN
-
-/**
- * \class LocalUDataMemoryPointer
- * "Smart pointer" class, closes a UDataMemory via udata_close().
- * For most methods see the LocalPointerBase base class.
- *
- * @see LocalPointerBase
- * @see LocalPointer
- * @stable ICU 4.4
- */
-U_DEFINE_LOCAL_OPEN_POINTER(LocalUDataMemoryPointer, UDataMemory, udata_close);
-
-U_NAMESPACE_END
-
-#endif
 
 /**
  * Get the pointer to the actual data inside the data memory.
@@ -421,17 +402,36 @@ typedef enum UDataFileAccess {
 
 /**
  * This function may be called to control how ICU loads data. It must be called
- * before any ICU data is loaded, including application data loaded with
- * ures/ResourceBundle or udata APIs. This function is not multithread safe.
+ * before any ICU data is loaded, including application data loaded with 
+ * ures/ResourceBundle or udata APIs. This function is not multithread safe.  
  * The results of calling it while other threads are loading data are undefined.
  * @param access The type of file access to be used
  * @param status Error code.
  * @see UDataFileAccess
- * @stable ICU 3.4
+ * @stable ICU 3.4 
  */
 U_STABLE void U_EXPORT2
 udata_setFileAccess(UDataFileAccess access, UErrorCode *status);
 
 U_CDECL_END
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * \class LocalUDataMemoryPointer
+ * "Smart pointer" class, closes a UDataMemory via udata_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 4.4
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUDataMemoryPointer, UDataMemory, udata_close);
+
+U_NAMESPACE_END
+
+#endif  // U_SHOW_CPLUSPLUS_API
 
 #endif

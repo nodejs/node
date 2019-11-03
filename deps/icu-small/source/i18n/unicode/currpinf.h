@@ -11,6 +11,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Currency Plural Information used by Decimal Format
@@ -27,13 +29,13 @@ class PluralRules;
 class Hashtable;
 
 /**
- * This class represents the information needed by
- * DecimalFormat to format currency plural,
- * such as "3.00 US dollars" or "1.00 US dollar".
+ * This class represents the information needed by 
+ * DecimalFormat to format currency plural, 
+ * such as "3.00 US dollars" or "1.00 US dollar". 
  * DecimalFormat creates for itself an instance of
- * CurrencyPluralInfo from its locale data.
+ * CurrencyPluralInfo from its locale data.  
  * If you need to change any of these symbols, you can get the
- * CurrencyPluralInfo object from your
+ * CurrencyPluralInfo object from your 
  * DecimalFormat and modify it.
  *
  * Following are the information needed for currency plural format and parse:
@@ -59,7 +61,7 @@ public:
      * @param status output param set to success/failure code on exit
      * @stable ICU 4.2
      */
-    CurrencyPluralInfo(const Locale& locale, UErrorCode& status);
+    CurrencyPluralInfo(const Locale& locale, UErrorCode& status); 
 
     /**
      * Copy constructor
@@ -118,7 +120,7 @@ public:
     const PluralRules* getPluralRules() const;
 
     /**
-     * Given a plural count, gets currency plural pattern of this locale,
+     * Given a plural count, gets currency plural pattern of this locale, 
      * used for currency plural format
      *
      * @param  pluralCount currency plural count
@@ -127,10 +129,10 @@ public:
      * @stable ICU 4.2
      */
     UnicodeString& getCurrencyPluralPattern(const UnicodeString& pluralCount,
-                                            UnicodeString& result) const;
+                                            UnicodeString& result) const; 
 
     /**
-     * Get locale
+     * Get locale 
      *
      * @return locale
      * @stable ICU 4.2
@@ -155,16 +157,16 @@ public:
      * Set currency plural pattern.
      * The currency plural pattern is set when CurrencyPluralInfo
      * instance is created.
-     * You can call this method to reset currency plural pattern only if
+     * You can call this method to reset currency plural pattern only if 
      * you want to modify the default currency plural pattern of the locale.
      *
-     * @param pluralCount the plural count for which the currency pattern will
+     * @param pluralCount the plural count for which the currency pattern will 
      *                    be overridden.
      * @param pattern     the new currency plural pattern
      * @param status      output param set to success/failure code on exit
      * @stable ICU 4.2
      */
-    void setCurrencyPluralPattern(const UnicodeString& pluralCount,
+    void setCurrencyPluralPattern(const UnicodeString& pluralCount, 
                                   const UnicodeString& pattern,
                                   UErrorCode& status);
 
@@ -196,7 +198,7 @@ private:
     friend class DecimalFormatImpl;
 
     void initialize(const Locale& loc, UErrorCode& status);
-
+   
     void setupCurrencyPluralPattern(const Locale& loc, UErrorCode& status);
 
     /*
@@ -260,11 +262,13 @@ private:
 inline UBool
 CurrencyPluralInfo::operator!=(const CurrencyPluralInfo& info) const {
     return !operator==(info);
-}
+}  
 
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _CURRPINFO
 //eof

@@ -26,7 +26,7 @@ U_NAMESPACE_BEGIN
 
 // For debugging, define REGEX_DEBUG
 // To define with configure,
-//   CPPFLAGS="-DREGEX_DEBUG" ./runConfigureICU --enable-debug --disable-release Linux
+//   CPPFLAGS="-DREGEX_DEBUG" ./runConfigureICU --enable-debug --disable-release Linux 
 
 #ifdef REGEX_DEBUG
 //
@@ -123,7 +123,7 @@ enum {
                                //     saved input position, FAIL rather than taking
                                //     the JMP
      URX_LA_START      = 37,   // Starting a LookAround expression.
-                               //   Save InputPos and SP in static data.
+                               //   Save InputPos, SP and active region in static data.
                                //   Operand:  Static data offset for the save
      URX_LA_END        = 38,   // Ending a Lookaround expression.
                                //   Restore InputPos and Stack to saved values.
@@ -243,7 +243,7 @@ enum {
         "DOLLAR_MD",           \
         "URX_BACKSLASH_H",     \
         "URX_BACKSLASH_R",     \
-        "URX_BACKSLASH_V"
+        "URX_BACKSLASH_V" 
 
 
 //
@@ -411,3 +411,4 @@ class CaseFoldingUCharIterator: public UMemory {
 
 U_NAMESPACE_END
 #endif
+

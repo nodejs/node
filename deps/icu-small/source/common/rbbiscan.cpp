@@ -96,7 +96,7 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
     fLineNum            = 1;
     fCharNum            = 0;
     fLastChar           = 0;
-
+    
     fStateTable         = NULL;
     fStack[0]           = 0;
     fStackPtr           = 0;
@@ -357,7 +357,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         thisRule->fRuleRoot = TRUE;
 
         // Flag if chaining into this rule is wanted.
-        //
+        //    
         if (fRB->fChainRules &&         // If rule chaining is enabled globally via !!chain
                 !fNoChainInRule) {      //     and no '^' chain-in inhibit was on this rule
             thisRule->fChainIn = TRUE;
@@ -1114,7 +1114,7 @@ void RBBIRuleScanner::parse() {
     if (U_FAILURE(*fRB->fStatus)) {
         return;
     }
-
+    
     // If there are no forward rules set an error.
     //
     if (fRB->fForwardTree == NULL) {

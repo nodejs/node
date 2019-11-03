@@ -136,7 +136,7 @@ JapaneseCalendar& JapaneseCalendar::operator= ( const JapaneseCalendar& right)
     return *this;
 }
 
-Calendar* JapaneseCalendar::clone(void) const
+JapaneseCalendar* JapaneseCalendar::clone() const
 {
     return new JapaneseCalendar(*this);
 }
@@ -146,7 +146,7 @@ const char *JapaneseCalendar::getType() const
     return "japanese";
 }
 
-int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear)
+int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear) 
 {
     int32_t era = internalGetEra();
     // TODO do we assume we can trust 'era'?  What if it is denormalized?
@@ -167,7 +167,7 @@ int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear)
     return month;
 }
 
-int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month)
+int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month) 
 {
     int32_t era = internalGetEra();
     int32_t day = 1;
@@ -226,7 +226,7 @@ void JapaneseCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status
 }
 
 /*
-Disable pivoting
+Disable pivoting 
 */
 UBool JapaneseCalendar::haveDefaultCentury() const
 {

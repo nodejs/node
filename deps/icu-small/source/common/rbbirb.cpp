@@ -242,7 +242,7 @@ RBBIRuleBuilder::createRuleBasedBreakIterator( const UnicodeString    &rules,
     if (U_FAILURE(status)) {
         delete This;
         This = NULL;
-    }
+    } 
     else if(This == NULL) { // test for NULL
         status = U_MEMORY_ALLOCATION_ERROR;
     }

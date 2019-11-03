@@ -31,8 +31,10 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
- * \file
+ * \file 
  * \brief C++ API: TimeZone object
  */
 
@@ -182,10 +184,10 @@ public:
      * @param zoneType      The system time zone type.
      * @param region        The ISO 3166 two-letter country code or UN M.49
      *                      three-digit area code. When NULL, no filtering
-     *                      done by region.
+     *                      done by region. 
      * @param rawOffset     An offset from GMT in milliseconds, ignoring
      *                      the effect of daylight savings time, if any.
-     *                      When NULL, no filtering done by zone offset.
+     *                      When NULL, no filtering done by zone offset. 
      * @param ec            Output param to filled in with a success or
      *                      an error.
      * @return an enumeration object, owned by the caller.
@@ -280,9 +282,9 @@ public:
      * system configuration. If the host system detection routines fail,
      * or if they specify a TimeZone or TimeZone offset which is not
      * recognized, then the special TimeZone "Etc/Unknown" is returned.
-     *
+     * 
      * Note that ICU4C does not change the default time zone unless
-     * `TimeZone::adoptDefault(TimeZone*)` or
+     * `TimeZone::adoptDefault(TimeZone*)` or 
      * `TimeZone::setDefault(const TimeZone&)` is explicitly called by a
      * user. This method does not update the current ICU's default,
      * and may return a different TimeZone from the one returned by
@@ -321,10 +323,6 @@ public:
      * zone is set to the default host time zone.  This call adopts the TimeZone object
      * passed in; the client is no longer responsible for deleting it.
      *
-     * <p>This function is not thread safe. It is an error for multiple threads
-     * to concurrently attempt to set the default time zone, or for any thread
-     * to attempt to reference the default zone while another thread is setting it.
-     *
      * @param zone  A pointer to the new TimeZone object to use as the default.
      * @stable ICU 2.0
      */
@@ -334,8 +332,6 @@ public:
     /**
      * Same as adoptDefault(), except that the TimeZone object passed in is NOT adopted;
      * the caller remains responsible for deleting it.
-     *
-     * <p>See the thread safety note under adoptDefault().
      *
      * @param zone  The given timezone.
      * @system
@@ -689,7 +685,7 @@ public:
      * @stable ICU 2.0
      */
     UnicodeString& getDisplayName(UBool inDaylight, EDisplayType style, const Locale& locale, UnicodeString& result) const;
-
+    
     /**
      * Queries if this time zone uses daylight savings time.
      * @return true if this time zone uses daylight savings time,
@@ -721,11 +717,12 @@ public:
      * always returns a <code>BasicTimeZone</code>) provides a series of methods allowing
      * historic and future time zone rule iteration, so you can check if daylight saving
      * time is observed or not within a given period.
-     *
+     * 
      * @stable ICU 2.0
      */
     virtual UBool useDaylightTime(void) const = 0;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Queries if the given date is in daylight savings time in
      * this time zone.
@@ -740,6 +737,7 @@ public:
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
     virtual UBool inDaylightTime(UDate date, UErrorCode& status) const = 0;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Returns true if this zone has the same rule and offset as another zone.
@@ -758,7 +756,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 2.0
      */
-    virtual TimeZone* clone(void) const = 0;
+    virtual TimeZone* clone() const = 0;
 
     /**
      * Return the class ID for this class.  This is useful only for
@@ -780,7 +778,7 @@ public:
      * @stable ICU 2.0
      */
     virtual UClassID getDynamicClassID(void) const = 0;
-
+    
     /**
      * Returns the amount of time to be added to local standard time
      * to get local wall clock time.
@@ -805,7 +803,7 @@ public:
      * When the time zone is not associated with a specific location,
      * for example - "Etc/UTC", "EST5EDT", then this method returns
      * "001" (UN M.49 area code for World).
-     *
+     * 
      * @param id            The system time zone ID.
      * @param region        Output buffer for receiving the region code.
      * @param capacity      The size of the output buffer.
@@ -813,10 +811,10 @@ public:
      *                      is not a known system time zone ID,
      *                      U_ILLEGAL_ARGUMENT_ERROR is set.
      * @return The length of the output region code.
-     * @stable ICU 4.8
-     */
-    static int32_t U_EXPORT2 getRegion(const UnicodeString& id,
-        char *region, int32_t capacity, UErrorCode& status);
+     * @stable ICU 4.8 
+     */ 
+    static int32_t U_EXPORT2 getRegion(const UnicodeString& id, 
+        char *region, int32_t capacity, UErrorCode& status); 
 
 protected:
 
@@ -971,6 +969,8 @@ TimeZone::setID(const UnicodeString& ID)
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif //_TIMEZONE
 //eof

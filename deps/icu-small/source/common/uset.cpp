@@ -83,7 +83,7 @@ uset_add(USet* set, UChar32 c) {
 
 U_CAPI void U_EXPORT2
 uset_addRange(USet* set, UChar32 start, UChar32 end) {
-    ((UnicodeSet*) set)->UnicodeSet::add(start, end);
+    ((UnicodeSet*) set)->UnicodeSet::add(start, end);    
 }
 
 U_CAPI void U_EXPORT2
@@ -527,40 +527,40 @@ uset_getSerializedRange(const USerializedSet* set, int32_t rangeIndex,
 // efficiency.
 // ---
 // #define USET_GROW_DELTA 20
-//
+// 
 // static int32_t
 // findChar(const UChar32* array, int32_t length, UChar32 c) {
 //     int32_t i;
-//
+// 
 //     /* check the last range limit first for more efficient appending */
 //     if(length>0) {
 //         if(c>=array[length-1]) {
 //             return length;
 //         }
-//
+// 
 //         /* do not check the last range limit again in the loop below */
 //         --length;
 //     }
-//
+// 
 //     for(i=0; i<length && c>=array[i]; ++i) {}
 //     return i;
 // }
-//
+// 
 // static UBool
 // addRemove(USet* set, UChar32 c, int32_t doRemove) {
 //     int32_t i, length, more;
-//
+// 
 //     if(set==NULL || (uint32_t)c>0x10ffff) {
 //         return FALSE;
 //     }
-//
+// 
 //     length=set->length;
 //     i=findChar(set->array, length, c);
 //     if((i&1)^doRemove) {
 //         /* c is already in the set */
 //         return TRUE;
 //     }
-//
+// 
 //     /* how many more array items do we need? */
 //     if(i<length && (c+1)==set->array[i]) {
 //         /* c is just before the following range, extend that in-place by one */
@@ -600,7 +600,7 @@ uset_getSerializedRange(const USerializedSet* set, int32_t rangeIndex,
 //         /* insert two range limits c, c+1 */
 //         more=2;
 //     }
-//
+// 
 //     /* insert <more> range limits */
 //     if(length+more>set->capacity) {
 //         /* reallocate */
@@ -611,13 +611,13 @@ uset_getSerializedRange(const USerializedSet* set, int32_t rangeIndex,
 //         }
 //         set->capacity=newCapacity;
 //         uprv_memcpy(newArray, set->array, length*4);
-//
+// 
 //         if(set->array!=set->staticBuffer) {
 //             uprv_free(set->array);
 //         }
 //         set->array=newArray;
 //     }
-//
+// 
 //     if(i<length) {
 //         uprv_memmove(set->array+i+more, set->array+i, (length-i)*4);
 //     }
@@ -626,15 +626,15 @@ uset_getSerializedRange(const USerializedSet* set, int32_t rangeIndex,
 //         set->array[i+1]=c+1;
 //     }
 //     set->length+=more;
-//
+// 
 //     return TRUE;
 // }
-//
+// 
 // U_CAPI UBool U_EXPORT2
 // uset_add(USet* set, UChar32 c) {
 //     return addRemove(set, c, 0);
 // }
-//
+// 
 // U_CAPI void U_EXPORT2
 // uset_remove(USet* set, UChar32 c) {
 //     addRemove(set, c, 1);

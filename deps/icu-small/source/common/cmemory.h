@@ -65,44 +65,43 @@ U_CAPI void * U_EXPORT2
 uprv_calloc(size_t num, size_t size) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR2(1,2);
 
 /**
- * This should align the memory properly on any machine.
- * This is very useful for the safeClone functions.
- */
-typedef union {
-    long    t1;
-    double  t2;
-    void   *t3;
-} UAlignedMemory;
-
-/**
  * Get the least significant bits of a pointer (a memory address).
  * For example, with a mask of 3, the macro gets the 2 least significant bits,
  * which will be 0 if the pointer is 32-bit (4-byte) aligned.
  *
- * ptrdiff_t is the most appropriate integer type to cast to.
- * size_t should work too, since on most (or all?) platforms it has the same
- * width as ptrdiff_t.
+ * uintptr_t is the most appropriate integer type to cast to.
  */
-#define U_POINTER_MASK_LSB(ptr, mask) (((ptrdiff_t)(char *)(ptr)) & (mask))
+#define U_POINTER_MASK_LSB(ptr, mask) ((uintptr_t)(ptr) & (mask))
 
 /**
- * Get the amount of bytes that a pointer is off by from
- * the previous UAlignedMemory-aligned pointer.
+ * Create & return an instance of "type" in statically allocated storage.
+ * e.g.
+ *    static std::mutex *myMutex = STATIC_NEW(std::mutex);
+ * To destroy an object created in this way, invoke the destructor explicitly, e.g.
+ *    myMutex->~mutex();
+ * DO NOT use delete.
+ * DO NOT use with class UMutex, which has specific support for static instances.
+ *
+ * STATIC_NEW is intended for use when
+ *   - We want a static (or global) object.
+ *   - We don't want it to ever be destructed, or to explicitly control destruction,
+ *     to avoid use-after-destruction problems.
+ *   - We want to avoid an ordinary heap allocated object,
+ *     to avoid the possibility of memory allocation failures, and
+ *     to avoid memory leak reports, from valgrind, for example.
+ * This is defined as a macro rather than a template function because each invocation
+ * must define distinct static storage for the object being returned.
  */
-#define U_ALIGNMENT_OFFSET(ptr) U_POINTER_MASK_LSB(ptr, sizeof(UAlignedMemory) - 1)
-
-/**
- * Get the amount of bytes to add to a pointer
- * in order to get the next UAlignedMemory-aligned address.
- */
-#define U_ALIGNMENT_OFFSET_UP(ptr) (sizeof(UAlignedMemory) - U_ALIGNMENT_OFFSET(ptr))
+#define STATIC_NEW(type) [] () { \
+    alignas(type) static char storage[sizeof(type)]; \
+    return new(storage) type();} ()
 
 /**
   *  Heap clean up function, called from u_cleanup()
   *    Clears any user heap functions from u_setMemoryFunctions()
   *    Does NOT deallocate any remaining allocated memory.
   */
-U_CFUNC UBool
+U_CFUNC UBool 
 cmemory_cleanup(void);
 
 /**

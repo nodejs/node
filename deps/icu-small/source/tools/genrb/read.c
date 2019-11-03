@@ -35,7 +35,7 @@
 #define BADBOM       0xFFFE
 #define CR           0x000D
 #define LF           0x000A
-
+               
 static int32_t lineCount;
 
 /* Protos */
@@ -187,7 +187,7 @@ static enum ETokenType getStringToken(UCHARBUF* buf,
                     if(c == CR || c == LF){
                         isNLUnescaped = TRUE;
                     }
-                }
+                }               
 
                 if(c==ESCAPE && !isFollowingCharEscaped){
                     isFollowingCharEscaped = TRUE;
@@ -204,7 +204,7 @@ static enum ETokenType getStringToken(UCHARBUF* buf,
                         isNLUnescaped = FALSE;
                     }
                 }
-
+                
                 if (U_FAILURE(*status)) {
                     return TOK_ERROR;
                 }
@@ -218,7 +218,7 @@ static enum ETokenType getStringToken(UCHARBUF* buf,
                     return TOK_ERROR;
                 }
             }
-
+            
             if(lastStringWasQuoted){
                 if(getShowWarning()){
                     warning(lineCount, "Mixing quoted and unquoted strings");
@@ -230,8 +230,8 @@ static enum ETokenType getStringToken(UCHARBUF* buf,
             }
 
             lastStringWasQuoted = FALSE;
-
-            /* if we reach here we are mixing
+            
+            /* if we reach here we are mixing 
              * quoted and unquoted strings
              * warn in normal mode and error in
              * pedantic mode
@@ -251,7 +251,7 @@ static enum ETokenType getStringToken(UCHARBUF* buf,
             pTarget = target;
             ustr_uscat(token, pTarget,len, status);
             len=0;
-
+            
             if (U_FAILURE(*status)) {
                 return TOK_ERROR;
             }

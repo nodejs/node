@@ -24,62 +24,62 @@
  * \file
  * \brief C API: StringSearch
  *
- * C Apis for an engine that provides language-sensitive text searching based
+ * C APIs for an engine that provides language-sensitive text searching based 
  * on the comparison rules defined in a <tt>UCollator</tt> data struct,
- * see <tt>ucol.h</tt>. This ensures that language eccentricity can be
- * handled, e.g. for the German collator, characters &szlig; and SS will be matched
- * if case is chosen to be ignored.
+ * see <tt>ucol.h</tt>. This ensures that language eccentricity can be 
+ * handled, e.g. for the German collator, characters &szlig; and SS will be matched 
+ * if case is chosen to be ignored. 
  * See the <a href="http://source.icu-project.org/repos/icu/icuhtml/trunk/design/collation/ICU_collation_design.htm">
  * "ICU Collation Design Document"</a> for more information.
- * <p>
+ * <p> 
  * The implementation may use a linear search or a modified form of the Boyer-Moore
- * search; for more information on the latter see
+ * search; for more information on the latter see 
  * <a href="http://icu-project.org/docs/papers/efficient_text_searching_in_java.html">
- * "Efficient Text Searching in Java"</a>, published in <i>Java Report</i>
+ * "Efficient Text Searching in Java"</a>, published in <i>Java Report</i> 
  * in February, 1999.
  * <p>
  * There are 2 match options for selection:<br>
- * Let S' be the sub-string of a text string S between the offsets start and
+ * Let S' be the sub-string of a text string S between the offsets start and 
  * end <start, end>.
  * <br>
- * A pattern string P matches a text string S at the offsets <start, end>
+ * A pattern string P matches a text string S at the offsets <start, end> 
  * if
- * <pre>
- * option 1. Some canonical equivalent of P matches some canonical equivalent
+ * <pre> 
+ * option 1. Some canonical equivalent of P matches some canonical equivalent 
  *           of S'
- * option 2. P matches S' and if P starts or ends with a combining mark,
- *           there exists no non-ignorable combining mark before or after S'
- *           in S respectively.
+ * option 2. P matches S' and if P starts or ends with a combining mark, 
+ *           there exists no non-ignorable combining mark before or after S' 
+ *           in S respectively. 
  * </pre>
  * Option 2. will be the default.
  * <p>
- * This search has APIs similar to that of other text iteration mechanisms
- * such as the break iterators in <tt>ubrk.h</tt>. Using these
- * APIs, it is easy to scan through text looking for all occurances of
- * a given pattern. This search iterator allows changing of direction by
- * calling a <tt>reset</tt> followed by a <tt>next</tt> or <tt>previous</tt>.
- * Though a direction change can occur without calling <tt>reset</tt> first,
+ * This search has APIs similar to that of other text iteration mechanisms 
+ * such as the break iterators in <tt>ubrk.h</tt>. Using these 
+ * APIs, it is easy to scan through text looking for all occurrences of 
+ * a given pattern. This search iterator allows changing of direction by 
+ * calling a <tt>reset</tt> followed by a <tt>next</tt> or <tt>previous</tt>. 
+ * Though a direction change can occur without calling <tt>reset</tt> first,  
  * this operation comes with some speed penalty.
- * Generally, match results in the forward direction will match the result
+ * Generally, match results in the forward direction will match the result 
  * matches in the backwards direction in the reverse order
  * <p>
- * <tt>usearch.h</tt> provides APIs to specify the starting position
+ * <tt>usearch.h</tt> provides APIs to specify the starting position 
  * within the text string to be searched, e.g. <tt>usearch_setOffset</tt>,
- * <tt>usearch_preceding</tt> and <tt>usearch_following</tt>. Since the
- * starting position will be set as it is specified, please take note that
- * there are some dangerous positions which the search may render incorrect
+ * <tt>usearch_preceding</tt> and <tt>usearch_following</tt>. Since the 
+ * starting position will be set as it is specified, please take note that 
+ * there are some dangerous positions which the search may render incorrect 
  * results:
  * <ul>
  * <li> The midst of a substring that requires normalization.
  * <li> If the following match is to be found, the position should not be the
- *      second character which requires to be swapped with the preceding
- *      character. Vice versa, if the preceding match is to be found,
- *      position to search from should not be the first character which
+ *      second character which requires to be swapped with the preceding 
+ *      character. Vice versa, if the preceding match is to be found, 
+ *      position to search from should not be the first character which 
  *      requires to be swapped with the next character. E.g certain Thai and
  *      Lao characters require swapping.
- * <li> If a following pattern match is to be found, any position within a
- *      contracting sequence except the first will fail. Vice versa if a
- *      preceding pattern match is to be found, a invalid starting point
+ * <li> If a following pattern match is to be found, any position within a 
+ *      contracting sequence except the first will fail. Vice versa if a 
+ *      preceding pattern match is to be found, a invalid starting point 
  *      would be any character within a contracting sequence except the last.
  * </ul>
  * <p>
@@ -88,9 +88,9 @@
  * boundaries given by the breakiterator. For instance the pattern "e" will
  * not be found in the string "\u00e9" if a character break iterator is used.
  * <p>
- * Options are provided to handle overlapping matches.
- * E.g. In English, overlapping matches produces the result 0 and 2
- * for the pattern "abab" in the text "ababab", where else mutually
+ * Options are provided to handle overlapping matches. 
+ * E.g. In English, overlapping matches produces the result 0 and 2 
+ * for the pattern "abab" in the text "ababab", where else mutually 
  * exclusive matches only produce the result of 0.
  * <p>
  * Options are also provided to implement "asymmetric search" as described in
@@ -98,19 +98,19 @@
  * UTS #10 Unicode Collation Algorithm</a>, specifically the USearchAttribute
  * USEARCH_ELEMENT_COMPARISON and its values.
  * <p>
- * Though collator attributes will be taken into consideration while
- * performing matches, there are no APIs here for setting and getting the
+ * Though collator attributes will be taken into consideration while 
+ * performing matches, there are no APIs here for setting and getting the 
  * attributes. These attributes can be set by getting the collator
  * from <tt>usearch_getCollator</tt> and using the APIs in <tt>ucol.h</tt>.
- * Lastly to update String Search to the new collator attributes,
+ * Lastly to update String Search to the new collator attributes, 
  * usearch_reset() has to be called.
- * <p>
+ * <p> 
  * Restriction: <br>
  * Currently there are no composite characters that consists of a
- * character with combining class > 0 before a character with combining
- * class == 0. However, if such a character exists in the future, the
+ * character with combining class > 0 before a character with combining 
+ * class == 0. However, if such a character exists in the future, the 
  * search mechanism does not guarantee the results for option 1.
- *
+ * 
  * <p>
  * Example of use:<br>
  * <pre><code>
@@ -122,15 +122,15 @@
  * u_uastrcpy(target, tgtstr);
  * u_uastrcpy(pattern, patstr);
  *
- * UStringSearch *search = usearch_open(pattern, -1, target, -1, "en_US",
+ * UStringSearch *search = usearch_open(pattern, -1, target, -1, "en_US", 
  *                                  NULL, &status);
  * if (U_SUCCESS(status)) {
- *     for (int pos = usearch_first(search, &status);
- *          pos != USEARCH_DONE;
+ *     for (int pos = usearch_first(search, &status); 
+ *          pos != USEARCH_DONE; 
  *          pos = usearch_next(search, &status))
  *     {
- *         printf("Found match at %d pos, length is %d\n", pos,
- *                                        usearch_getMatchLength(search));
+ *         printf("Found match at %d pos, length is %d\n", pos, 
+ *                                        usearch_getMatchedLength(search));
  *     }
  * }
  *
@@ -140,7 +140,7 @@
  */
 
 /**
-* DONE is returned by previous() and next() after all valid matches have
+* DONE is returned by previous() and next() after all valid matches have 
 * been returned, and by first() and last() if there are no matches at all.
 * @stable ICU 2.4
 */
@@ -167,7 +167,7 @@ typedef enum {
      */
     USEARCH_OVERLAP = 0,
 #ifndef U_HIDE_DEPRECATED_API
-    /**
+    /** 
      * Option for canonical matches; option 1 in header documentation.
      * The default value will be USEARCH_OFF.
      * Note: Setting this option to USEARCH_ON currently has no effect on
@@ -175,7 +175,7 @@ typedef enum {
      * canonical match behavior, you must set UCOL_NORMALIZATION_MODE
      * appropriately (to UCOL_OFF or UCOL_ON) in the UCollator used by
      * the UStringSearch object.
-     * @see usearch_openFromCollator
+     * @see usearch_openFromCollator 
      * @see usearch_getCollator
      * @see usearch_setCollator
      * @see ucol_getAttribute
@@ -183,7 +183,7 @@ typedef enum {
      */
     USEARCH_CANONICAL_MATCH = 1,
 #endif  /* U_HIDE_DEPRECATED_API */
-    /**
+    /** 
      * Option to control how collation elements are compared.
      * The default value will be USEARCH_STANDARD_ELEMENT_COMPARISON.
      * @stable ICU 4.4
@@ -203,7 +203,7 @@ typedef enum {
 * @stable ICU 2.4
 */
 typedef enum {
-    /**
+    /** 
      * Default value for any USearchAttribute
      * @stable ICU 2.4
      */
@@ -212,20 +212,20 @@ typedef enum {
      * Value for USEARCH_OVERLAP and USEARCH_CANONICAL_MATCH
      * @stable ICU 2.4
      */
-    USEARCH_OFF,
+    USEARCH_OFF, 
     /**
      * Value for USEARCH_OVERLAP and USEARCH_CANONICAL_MATCH
      * @stable ICU 2.4
      */
     USEARCH_ON,
-    /**
+    /** 
      * Value (default) for USEARCH_ELEMENT_COMPARISON;
      * standard collation element comparison at the specified collator
      * strength.
      * @stable ICU 4.4
      */
     USEARCH_STANDARD_ELEMENT_COMPARISON,
-    /**
+    /** 
      * Value for USEARCH_ELEMENT_COMPARISON;
      * collation element comparison is modified to effectively provide
      * behavior between the specified strength and strength - 1. Collation
@@ -244,7 +244,7 @@ typedef enum {
      * @stable ICU 4.4
      */
     USEARCH_PATTERN_BASE_WEIGHT_IS_WILDCARD,
-    /**
+    /** 
      * Value for USEARCH_ELEMENT_COMPARISON.
      * collation element comparison is modified to effectively provide
      * behavior between the specified strength and strength - 1. Collation
@@ -286,21 +286,21 @@ typedef enum {
 * @param textlength length of the text string, -1 for null-termination
 * @param locale name of locale for the rules to be used
 * @param breakiter A BreakIterator that will be used to restrict the points
-*                  at which matches are detected. If a match is found, but
-*                  the match's start or end index is not a boundary as
-*                  determined by the <tt>BreakIterator</tt>, the match will
-*                  be rejected and another will be searched for.
-*                  If this parameter is <tt>NULL</tt>, no break detection is
+*                  at which matches are detected. If a match is found, but 
+*                  the match's start or end index is not a boundary as 
+*                  determined by the <tt>BreakIterator</tt>, the match will 
+*                  be rejected and another will be searched for. 
+*                  If this parameter is <tt>NULL</tt>, no break detection is 
 *                  attempted.
 * @param status for errors if it occurs. If pattern or text is NULL, or if
-*               patternlength or textlength is 0 then an
+*               patternlength or textlength is 0 then an 
 *               U_ILLEGAL_ARGUMENT_ERROR is returned.
 * @return search iterator data structure, or NULL if there is an error.
 * @stable ICU 2.4
 */
-U_STABLE UStringSearch * U_EXPORT2 usearch_open(const UChar          *pattern,
-                                              int32_t         patternlength,
-                                        const UChar          *text,
+U_STABLE UStringSearch * U_EXPORT2 usearch_open(const UChar          *pattern, 
+                                              int32_t         patternlength, 
+                                        const UChar          *text, 
                                               int32_t         textlength,
                                         const char           *locale,
                                               UBreakIterator *breakiter,
@@ -308,9 +308,9 @@ U_STABLE UStringSearch * U_EXPORT2 usearch_open(const UChar          *pattern,
 
 /**
 * Creating a search iterator data struct using the argument collator language
-* rule set. Note, user retains the ownership of this collator, thus the
+* rule set. Note, user retains the ownership of this collator, thus the 
 * responsibility of deletion lies with the user.
-* NOTE: string search cannot be instantiated from a collator that has
+* NOTE: string search cannot be instantiated from a collator that has 
 * collate digits as numbers (CODAN) turned on.
 * @param pattern for matching
 * @param patternlength length of the pattern, -1 for null-termination
@@ -318,22 +318,22 @@ U_STABLE UStringSearch * U_EXPORT2 usearch_open(const UChar          *pattern,
 * @param textlength length of the text string, -1 for null-termination
 * @param collator used for the language rules
 * @param breakiter A BreakIterator that will be used to restrict the points
-*                  at which matches are detected. If a match is found, but
-*                  the match's start or end index is not a boundary as
-*                  determined by the <tt>BreakIterator</tt>, the match will
-*                  be rejected and another will be searched for.
-*                  If this parameter is <tt>NULL</tt>, no break detection is
+*                  at which matches are detected. If a match is found, but 
+*                  the match's start or end index is not a boundary as 
+*                  determined by the <tt>BreakIterator</tt>, the match will 
+*                  be rejected and another will be searched for. 
+*                  If this parameter is <tt>NULL</tt>, no break detection is 
 *                  attempted.
-* @param status for errors if it occurs. If collator, pattern or text is NULL,
-*               or if patternlength or textlength is 0 then an
+* @param status for errors if it occurs. If collator, pattern or text is NULL, 
+*               or if patternlength or textlength is 0 then an 
 *               U_ILLEGAL_ARGUMENT_ERROR is returned.
 * @return search iterator data structure, or NULL if there is an error.
 * @stable ICU 2.4
 */
 U_STABLE UStringSearch * U_EXPORT2 usearch_openFromCollator(
-                                         const UChar *pattern,
+                                         const UChar *pattern, 
                                                int32_t         patternlength,
-                                         const UChar          *text,
+                                         const UChar          *text, 
                                                int32_t         textlength,
                                          const UCollator      *collator,
                                                UBreakIterator *breakiter,
@@ -369,34 +369,34 @@ U_NAMESPACE_END
 /* get and set methods -------------------------------------------------- */
 
 /**
-* Sets the current position in the text string which the next search will
-* start from. Clears previous states.
-* This method takes the argument index and sets the position in the text
-* string accordingly without checking if the index is pointing to a
-* valid starting point to begin searching.
+* Sets the current position in the text string which the next search will 
+* start from. Clears previous states. 
+* This method takes the argument index and sets the position in the text 
+* string accordingly without checking if the index is pointing to a 
+* valid starting point to begin searching. 
 * Search positions that may render incorrect results are highlighted in the
 * header comments
 * @param strsrch search iterator data struct
 * @param position position to start next search from. If position is less
-*          than or greater than the text range for searching,
+*          than or greater than the text range for searching, 
 *          an U_INDEX_OUTOFBOUNDS_ERROR will be returned
 * @param status error status if any.
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setOffset(UStringSearch *strsrch,
+U_STABLE void U_EXPORT2 usearch_setOffset(UStringSearch *strsrch, 
                                         int32_t    position,
                                         UErrorCode    *status);
 
 /**
 * Return the current index in the string text being searched.
-* If the iteration has gone past the end of the text (or past the beginning
+* If the iteration has gone past the end of the text (or past the beginning 
 * for a backwards search), <tt>USEARCH_DONE</tt> is returned.
 * @param strsrch search iterator data struct
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
 U_STABLE int32_t U_EXPORT2 usearch_getOffset(const UStringSearch *strsrch);
-
+    
 /**
 * Sets the text searching attributes located in the enum USearchAttribute
 * with values from the enum USearchAttributeValue.
@@ -408,12 +408,12 @@ U_STABLE int32_t U_EXPORT2 usearch_getOffset(const UStringSearch *strsrch);
 * @see #usearch_getAttribute
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setAttribute(UStringSearch         *strsrch,
+U_STABLE void U_EXPORT2 usearch_setAttribute(UStringSearch         *strsrch, 
                                            USearchAttribute       attribute,
                                            USearchAttributeValue  value,
                                            UErrorCode            *status);
 
-/**
+/**    
 * Gets the text searching attributes.
 * @param strsrch search iterator data struct
 * @param attribute text attribute to be retrieve
@@ -427,15 +427,15 @@ U_STABLE USearchAttributeValue U_EXPORT2 usearch_getAttribute(
 
 /**
 * Returns the index to the match in the text string that was searched.
-* This call returns a valid result only after a successful call to
-* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>,
+* This call returns a valid result only after a successful call to 
+* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>, 
 * or <tt>usearch_last</tt>.
-* Just after construction, or after a searching method returns
+* Just after construction, or after a searching method returns 
 * <tt>USEARCH_DONE</tt>, this method will return <tt>USEARCH_DONE</tt>.
 * <p>
 * Use <tt>usearch_getMatchedLength</tt> to get the matched string length.
 * @param strsrch search iterator data struct
-* @return index to a substring within the text string that is being
+* @return index to a substring within the text string that is being 
 *         searched.
 * @see #usearch_first
 * @see #usearch_next
@@ -446,16 +446,16 @@ U_STABLE USearchAttributeValue U_EXPORT2 usearch_getAttribute(
 */
 U_STABLE int32_t U_EXPORT2 usearch_getMatchedStart(
                                                const UStringSearch *strsrch);
-
+    
 /**
-* Returns the length of text in the string which matches the search pattern.
-* This call returns a valid result only after a successful call to
-* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>,
+* Returns the length of text in the string which matches the search pattern. 
+* This call returns a valid result only after a successful call to 
+* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>, 
 * or <tt>usearch_last</tt>.
-* Just after construction, or after a searching method returns
+* Just after construction, or after a searching method returns 
 * <tt>USEARCH_DONE</tt>, this method will return 0.
 * @param strsrch search iterator data struct
-* @return The length of the match in the string text, or 0 if there is no
+* @return The length of the match in the string text, or 0 if there is no 
 *         match currently.
 * @see #usearch_first
 * @see #usearch_next
@@ -468,18 +468,18 @@ U_STABLE int32_t U_EXPORT2 usearch_getMatchedLength(
                                                const UStringSearch *strsrch);
 
 /**
-* Returns the text that was matched by the most recent call to
-* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>,
+* Returns the text that was matched by the most recent call to 
+* <tt>usearch_first</tt>, <tt>usearch_next</tt>, <tt>usearch_previous</tt>, 
 * or <tt>usearch_last</tt>.
-* If the iterator is not pointing at a valid match (e.g. just after
+* If the iterator is not pointing at a valid match (e.g. just after 
 * construction or after <tt>USEARCH_DONE</tt> has been returned, returns
 * an empty string. If result is not large enough to store the matched text,
-* result will be filled with the partial text and an U_BUFFER_OVERFLOW_ERROR
-* will be returned in status. result will be null-terminated whenever
-* possible. If the buffer fits the matched text exactly, a null-termination
+* result will be filled with the partial text and an U_BUFFER_OVERFLOW_ERROR 
+* will be returned in status. result will be null-terminated whenever 
+* possible. If the buffer fits the matched text exactly, a null-termination 
 * is not possible, then a U_STRING_NOT_TERMINATED_ERROR set in status.
-* Pre-flighting can be either done with length = 0 or the API
-* <tt>usearch_getMatchLength</tt>.
+* Pre-flighting can be either done with length = 0 or the API 
+* <tt>usearch_getMatchedLength</tt>.
 * @param strsrch search iterator data struct
 * @param result UChar buffer to store the matched string
 * @param resultCapacity length of the result buffer
@@ -492,37 +492,37 @@ U_STABLE int32_t U_EXPORT2 usearch_getMatchedLength(
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_getMatchedText(const UStringSearch *strsrch,
-                                            UChar         *result,
-                                            int32_t        resultCapacity,
+U_STABLE int32_t U_EXPORT2 usearch_getMatchedText(const UStringSearch *strsrch, 
+                                            UChar         *result, 
+                                            int32_t        resultCapacity, 
                                             UErrorCode    *status);
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
 /**
-* Set the BreakIterator that will be used to restrict the points at which
+* Set the BreakIterator that will be used to restrict the points at which 
 * matches are detected.
 * @param strsrch search iterator data struct
 * @param breakiter A BreakIterator that will be used to restrict the points
-*                  at which matches are detected. If a match is found, but
-*                  the match's start or end index is not a boundary as
-*                  determined by the <tt>BreakIterator</tt>, the match will
-*                  be rejected and another will be searched for.
-*                  If this parameter is <tt>NULL</tt>, no break detection is
+*                  at which matches are detected. If a match is found, but 
+*                  the match's start or end index is not a boundary as 
+*                  determined by the <tt>BreakIterator</tt>, the match will 
+*                  be rejected and another will be searched for. 
+*                  If this parameter is <tt>NULL</tt>, no break detection is 
 *                  attempted.
 * @param status for errors if it occurs
 * @see #usearch_getBreakIterator
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setBreakIterator(UStringSearch  *strsrch,
+U_STABLE void U_EXPORT2 usearch_setBreakIterator(UStringSearch  *strsrch, 
                                                UBreakIterator *breakiter,
                                                UErrorCode     *status);
 
 /**
-* Returns the BreakIterator that is used to restrict the points at which
-* matches are detected. This will be the same object that was passed to the
-* constructor or to <tt>usearch_setBreakIterator</tt>. Note that
-* <tt>NULL</tt>
+* Returns the BreakIterator that is used to restrict the points at which 
+* matches are detected. This will be the same object that was passed to the 
+* constructor or to <tt>usearch_setBreakIterator</tt>. Note that 
+* <tt>NULL</tt> 
 * is a legal value; it means that break detection should not be attempted.
 * @param strsrch search iterator data struct
 * @return break iterator used
@@ -531,23 +531,23 @@ U_STABLE void U_EXPORT2 usearch_setBreakIterator(UStringSearch  *strsrch,
 */
 U_STABLE const UBreakIterator * U_EXPORT2 usearch_getBreakIterator(
                                               const UStringSearch *strsrch);
-
+    
 #endif
-
+    
 /**
-* Set the string text to be searched. Text iteration will hence begin at the
-* start of the text string. This method is useful if you want to re-use an
+* Set the string text to be searched. Text iteration will hence begin at the 
+* start of the text string. This method is useful if you want to re-use an 
 * iterator to search for the same pattern within a different body of text.
 * @param strsrch search iterator data struct
 * @param text new string to look for match
 * @param textlength length of the new string, -1 for null-termination
-* @param status for errors if it occurs. If text is NULL, or textlength is 0
+* @param status for errors if it occurs. If text is NULL, or textlength is 0 
 *               then an U_ILLEGAL_ARGUMENT_ERROR is returned with no change
 *               done to strsrch.
 * @see #usearch_getText
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setText(      UStringSearch *strsrch,
+U_STABLE void U_EXPORT2 usearch_setText(      UStringSearch *strsrch, 
                                       const UChar         *text,
                                             int32_t        textlength,
                                             UErrorCode    *status);
@@ -556,17 +556,17 @@ U_STABLE void U_EXPORT2 usearch_setText(      UStringSearch *strsrch,
 * Return the string text to be searched.
 * @param strsrch search iterator data struct
 * @param length returned string text length
-* @return string text
+* @return string text 
 * @see #usearch_setText
 * @stable ICU 2.4
 */
-U_STABLE const UChar * U_EXPORT2 usearch_getText(const UStringSearch *strsrch,
+U_STABLE const UChar * U_EXPORT2 usearch_getText(const UStringSearch *strsrch, 
                                                int32_t       *length);
 
 /**
-* Gets the collator used for the language rules.
+* Gets the collator used for the language rules. 
 * <p>
-* Deleting the returned <tt>UCollator</tt> before calling
+* Deleting the returned <tt>UCollator</tt> before calling 
 * <tt>usearch_close</tt> would cause the string search to fail.
 * <tt>usearch_close</tt> will delete the collator if this search owns it.
 * @param strsrch search iterator data struct
@@ -577,32 +577,32 @@ U_STABLE UCollator * U_EXPORT2 usearch_getCollator(
                                                const UStringSearch *strsrch);
 
 /**
-* Sets the collator used for the language rules. User retains the ownership
+* Sets the collator used for the language rules. User retains the ownership 
 * of this collator, thus the responsibility of deletion lies with the user.
-* This method causes internal data such as Boyer-Moore shift tables to
+* This method causes internal data such as Boyer-Moore shift tables to  
 * be recalculated, but the iterator's position is unchanged.
 * @param strsrch search iterator data struct
 * @param collator to be used
 * @param status for errors if it occurs
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setCollator(      UStringSearch *strsrch,
+U_STABLE void U_EXPORT2 usearch_setCollator(      UStringSearch *strsrch, 
                                           const UCollator     *collator,
                                                 UErrorCode    *status);
 
 /**
 * Sets the pattern used for matching.
-* Internal data like the Boyer Moore table will be recalculated, but the
+* Internal data like the Boyer Moore table will be recalculated, but the 
 * iterator's position is unchanged.
 * @param strsrch search iterator data struct
 * @param pattern string
 * @param patternlength pattern length, -1 for null-terminated string
-* @param status for errors if it occurs. If text is NULL, or textlength is 0
+* @param status for errors if it occurs. If text is NULL, or textlength is 0 
 *               then an U_ILLEGAL_ARGUMENT_ERROR is returned with no change
 *               done to strsrch.
 * @stable ICU 2.4
 */
-U_STABLE void U_EXPORT2 usearch_setPattern(      UStringSearch *strsrch,
+U_STABLE void U_EXPORT2 usearch_setPattern(      UStringSearch *strsrch, 
                                          const UChar         *pattern,
                                                int32_t        patternlength,
                                                UErrorCode    *status);
@@ -610,46 +610,46 @@ U_STABLE void U_EXPORT2 usearch_setPattern(      UStringSearch *strsrch,
 /**
 * Gets the search pattern
 * @param strsrch search iterator data struct
-* @param length return length of the pattern, -1 indicates that the pattern
+* @param length return length of the pattern, -1 indicates that the pattern 
 *               is null-terminated
 * @return pattern string
 * @stable ICU 2.4
 */
 U_STABLE const UChar * U_EXPORT2 usearch_getPattern(
-                                               const UStringSearch *strsrch,
+                                               const UStringSearch *strsrch, 
                                                      int32_t       *length);
 
 /* methods ------------------------------------------------------------- */
 
 /**
-* Returns the first index at which the string text matches the search
-* pattern.
-* The iterator is adjusted so that its current index (as returned by
+* Returns the first index at which the string text matches the search 
+* pattern.  
+* The iterator is adjusted so that its current index (as returned by 
 * <tt>usearch_getOffset</tt>) is the match position if one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>.
 * @param strsrch search iterator data struct
 * @param status for errors if it occurs
-* @return The character index of the first match, or
+* @return The character index of the first match, or 
 * <tt>USEARCH_DONE</tt> if there are no matches.
 * @see #usearch_getOffset
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_first(UStringSearch *strsrch,
+U_STABLE int32_t U_EXPORT2 usearch_first(UStringSearch *strsrch, 
                                            UErrorCode    *status);
 
 /**
 * Returns the first index equal or greater than <tt>position</tt> at which
 * the string text
-* matches the search pattern. The iterator is adjusted so that its current
-* index (as returned by <tt>usearch_getOffset</tt>) is the match position if
+* matches the search pattern. The iterator is adjusted so that its current 
+* index (as returned by <tt>usearch_getOffset</tt>) is the match position if 
 * one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>
 * <p>
 * Search positions that may render incorrect results are highlighted in the
-* header comments. If position is less than or greater than the text range
+* header comments. If position is less than or greater than the text range 
 * for searching, an U_INDEX_OUTOFBOUNDS_ERROR will be returned
 * @param strsrch search iterator data struct
 * @param position to start the search at
@@ -660,38 +660,38 @@ U_STABLE int32_t U_EXPORT2 usearch_first(UStringSearch *strsrch,
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_following(UStringSearch *strsrch,
-                                               int32_t    position,
+U_STABLE int32_t U_EXPORT2 usearch_following(UStringSearch *strsrch, 
+                                               int32_t    position, 
                                                UErrorCode    *status);
-
+    
 /**
-* Returns the last index in the target text at which it matches the search
-* pattern. The iterator is adjusted so that its current
-* index (as returned by <tt>usearch_getOffset</tt>) is the match position if
+* Returns the last index in the target text at which it matches the search 
+* pattern. The iterator is adjusted so that its current 
+* index (as returned by <tt>usearch_getOffset</tt>) is the match position if 
 * one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>.
 * @param strsrch search iterator data struct
 * @param status for errors if it occurs
-* @return The index of the first match, or <tt>USEARCH_DONE</tt> if there
+* @return The index of the first match, or <tt>USEARCH_DONE</tt> if there 
 *         are no matches.
 * @see #usearch_getOffset
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_last(UStringSearch *strsrch,
+U_STABLE int32_t U_EXPORT2 usearch_last(UStringSearch *strsrch, 
                                           UErrorCode    *status);
 
 /**
-* Returns the first index less than <tt>position</tt> at which the string text
-* matches the search pattern. The iterator is adjusted so that its current
-* index (as returned by <tt>usearch_getOffset</tt>) is the match position if
+* Returns the first index less than <tt>position</tt> at which the string text 
+* matches the search pattern. The iterator is adjusted so that its current 
+* index (as returned by <tt>usearch_getOffset</tt>) is the match position if 
 * one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>
 * <p>
 * Search positions that may render incorrect results are highlighted in the
-* header comments. If position is less than or greater than the text range
+* header comments. If position is less than or greater than the text range 
 * for searching, an U_INDEX_OUTOFBOUNDS_ERROR will be returned.
 * <p>
 * When <tt>USEARCH_OVERLAP</tt> option is off, the last index of the
@@ -707,35 +707,35 @@ U_STABLE int32_t U_EXPORT2 usearch_last(UStringSearch *strsrch,
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_preceding(UStringSearch *strsrch,
-                                               int32_t    position,
+U_STABLE int32_t U_EXPORT2 usearch_preceding(UStringSearch *strsrch, 
+                                               int32_t    position, 
                                                UErrorCode    *status);
-
+    
 /**
 * Returns the index of the next point at which the string text matches the
 * search pattern, starting from the current position.
-* The iterator is adjusted so that its current
-* index (as returned by <tt>usearch_getOffset</tt>) is the match position if
+* The iterator is adjusted so that its current 
+* index (as returned by <tt>usearch_getOffset</tt>) is the match position if 
 * one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>
 * @param strsrch search iterator data struct
 * @param status for errors if it occurs
-* @return The index of the next match after the current position, or
+* @return The index of the next match after the current position, or 
 *         <tt>USEARCH_DONE</tt> if there are no more matches.
 * @see #usearch_first
 * @see #usearch_getOffset
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_next(UStringSearch *strsrch,
+U_STABLE int32_t U_EXPORT2 usearch_next(UStringSearch *strsrch, 
                                           UErrorCode    *status);
 
 /**
 * Returns the index of the previous point at which the string text matches
 * the search pattern, starting at the current position.
-* The iterator is adjusted so that its current
-* index (as returned by <tt>usearch_getOffset</tt>) is the match position if
+* The iterator is adjusted so that its current 
+* index (as returned by <tt>usearch_getOffset</tt>) is the match position if 
 * one was found.
 * If a match is not found, <tt>USEARCH_DONE</tt> will be returned and
 * the iterator will be adjusted to the index <tt>USEARCH_DONE</tt>
@@ -748,13 +748,13 @@ U_STABLE int32_t U_EXPORT2 usearch_next(UStringSearch *strsrch,
 * @see #USEARCH_DONE
 * @stable ICU 2.4
 */
-U_STABLE int32_t U_EXPORT2 usearch_previous(UStringSearch *strsrch,
+U_STABLE int32_t U_EXPORT2 usearch_previous(UStringSearch *strsrch, 
                                               UErrorCode    *status);
-
-/**
+    
+/** 
 * Reset the iteration.
-* Search will begin at the start of the text string if a forward iteration
-* is initiated before a backwards iteration. Otherwise if a backwards
+* Search will begin at the start of the text string if a forward iteration 
+* is initiated before a backwards iteration. Otherwise if a backwards 
 * iteration is initiated before a forwards iteration, the search will begin
 * at the end of the text string.
 * @param strsrch search iterator data struct
@@ -766,7 +766,7 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
 #ifndef U_HIDE_INTERNAL_API
 /**
   *  Simple forward search for the pattern, starting at a specified index,
-  *     and using using a default set search options.
+  *     and using a default set search options.
   *
   *  This is an experimental function, and is not an official part of the
   *      ICU API.
@@ -783,21 +783,21 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
   *      are part of a combining sequence, as described below.
   *
   *      A match will not include a partial combining sequence.  Combining
-  *      character sequences  are considered to be  inseperable units,
+  *      character sequences  are considered to be  inseparable units,
   *      and either match the pattern completely, or are considered to not match
-  *      at all.  Thus, for example, an A followed a combining accent mark will
+  *      at all.  Thus, for example, an A followed a combining accent mark will 
   *      not be found when searching for a plain (unaccented) A.   (unless
   *      the collation strength has been set to ignore all accents).
   *
   *      When beginning a search, the initial starting position, startIdx,
   *      is assumed to be an acceptable match boundary with respect to
   *      combining characters.  A combining sequence that spans across the
-  *      starting point will not supress a match beginning at startIdx.
+  *      starting point will not suppress a match beginning at startIdx.
   *
   *      Characters that expand to multiple collation elements
   *      (German sharp-S becoming 'ss', or the composed forms of accented
   *      characters, for example) also must match completely.
-  *      Searching for a single 's' in a string containing only a sharp-s will
+  *      Searching for a single 's' in a string containing only a sharp-s will 
   *      find no match.
   *
   *
@@ -812,7 +812,7 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
   *                    in the input text.
   *                    This parameter may be NULL.
   *                    A value of -1 will be returned if no match was found.
-  *
+  *          
   *  @param status     Report any errors.  Note that no match found is not an error.
   *  @return           TRUE if a match was found, FALSE otherwise.
   *
@@ -843,21 +843,21 @@ U_INTERNAL UBool U_EXPORT2 usearch_search(UStringSearch *strsrch,
   *      are part of a combining sequence, as described below.
   *
   *      A match will not include a partial combining sequence.  Combining
-  *      character sequences  are considered to be  inseperable units,
+  *      character sequences  are considered to be  inseparable units,
   *      and either match the pattern completely, or are considered to not match
-  *      at all.  Thus, for example, an A followed a combining accent mark will
+  *      at all.  Thus, for example, an A followed a combining accent mark will 
   *      not be found when searching for a plain (unaccented) A.   (unless
   *      the collation strength has been set to ignore all accents).
   *
   *      When beginning a search, the initial starting position, startIdx,
   *      is assumed to be an acceptable match boundary with respect to
   *      combining characters.  A combining sequence that spans across the
-  *      starting point will not supress a match beginning at startIdx.
+  *      starting point will not suppress a match beginning at startIdx.
   *
   *      Characters that expand to multiple collation elements
   *      (German sharp-S becoming 'ss', or the composed forms of accented
   *      characters, for example) also must match completely.
-  *      Searching for a single 's' in a string containing only a sharp-s will
+  *      Searching for a single 's' in a string containing only a sharp-s will 
   *      find no match.
   *
   *
@@ -872,7 +872,7 @@ U_INTERNAL UBool U_EXPORT2 usearch_search(UStringSearch *strsrch,
   *                    in the input text.
   *                    This parameter may be NULL.
   *                    A value of -1 will be returned if no match was found.
-  *
+  *          
   *  @param status     Report any errors.  Note that no match found is not an error.
   *  @return           TRUE if a match was found, FALSE otherwise.
   *

@@ -37,7 +37,7 @@
  * %.o: _%.cpp
  *       $(COMPILE.cc) ... $@ $<
  *
- * In the Makefiles, SKIP_ESCAPING=YES is used to prevent escapesrc.cpp
+ * In the Makefiles, SKIP_ESCAPING=YES is used to prevent escapesrc.cpp 
  * from being itself escaped.
  */
 
@@ -136,7 +136,7 @@ bool appendUtf8(std::string &outstr,
   tmp[chars] = 0;
   unsigned int c;
   sscanf(tmp, "%X", &c);
-  UChar32 ch = c & 0x1FFFFF;
+  UChar32 ch = c & 0x1FFFFF; 
 
   // now to append \\x%% etc
   uint8_t bytesNeeded = U8_LENGTH(ch);
@@ -194,7 +194,7 @@ bool fixu8(std::string &linestr, size_t origpos, size_t &endpos) {
   outstr += ('\"');
 
   linestr.replace(origpos, (endpos-origpos+1), outstr);
-
+  
   return false; // OK
 }
 
@@ -207,7 +207,7 @@ bool fixu8(std::string &linestr, size_t origpos, size_t &endpos) {
  */
 bool fixAt(std::string &linestr, size_t pos) {
   size_t origpos = pos;
-
+  
   if(linestr[pos] != 'u') {
     fprintf(stderr, "Not a 'u'?");
     return true;
@@ -216,12 +216,12 @@ bool fixAt(std::string &linestr, size_t pos) {
   pos++; // past 'u'
 
   bool utf8 = false;
-
+  
   if(linestr[pos] == '8') { // u8"
     utf8 = true;
     pos++;
   }
-
+  
   char quote = linestr[pos];
 
   if(quote != '\'' && quote != '\"') {
@@ -268,7 +268,7 @@ bool fixAt(std::string &linestr, size_t pos) {
         }
       }
 #endif
-
+      
       // Proceed to decode utf-8
       const uint8_t *s = (const uint8_t*) (linestr.c_str());
       int32_t length = linestr.size();
@@ -368,7 +368,7 @@ int convert(const std::string &infile, const std::string &outfile) {
   fprintf(stderr, "escapesrc: %s -> %s\n", infile.c_str(), outfile.c_str());
 
   std::ifstream inf;
-
+  
   inf.open(infile.c_str(), std::ios::in);
 
   if(!inf.is_open()) {

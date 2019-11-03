@@ -148,7 +148,7 @@ appendTag(
  * to be used when constructing the new tag.  If the alternateTags parameter is NULL, or
  * it contains no language tag, the default tag for the unknown language is used.
  *
- * If the length of the new string exceeds the capacity of the output buffer,
+ * If the length of the new string exceeds the capacity of the output buffer, 
  * the function copies as many bytes to the output buffer as it can, and returns
  * the error U_BUFFER_OVERFLOW_ERROR.
  *
@@ -366,7 +366,7 @@ error:
  * must be less than or equal to 0.  If the lang parameter is an empty string, the
  * default value for an unknown language is written to the output buffer.
  *
- * If the length of the new string exceeds the capacity of the output buffer,
+ * If the length of the new string exceeds the capacity of the output buffer, 
  * the function copies as many bytes to the output buffer as it can, and returns
  * the error U_BUFFER_OVERFLOW_ERROR.
  *
@@ -508,7 +508,7 @@ parseTagString(
          */
         if (_isIDSeparator(*position)) {
             ++position;
-        }
+        }    
     }
 
     subtagLength = ulocimp_getCountry(position, region, *regionLength, &position);
@@ -807,24 +807,24 @@ error:
     return FALSE;
 }
 
-#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) \
-    {   int32_t count = 0; \
-        int32_t i; \
-        for (i = 0; i < trailingLength; i++) { \
-            if (trailing[i] == '-' || trailing[i] == '_') { \
-                count = 0; \
-                if (count > 8) { \
-                    goto error; \
-                } \
-            } else if (trailing[i] == '@') { \
-                break; \
-            } else if (count > 8) { \
+#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) UPRV_BLOCK_MACRO_BEGIN { \
+    int32_t count = 0; \
+    int32_t i; \
+    for (i = 0; i < trailingLength; i++) { \
+        if (trailing[i] == '-' || trailing[i] == '_') { \
+            count = 0; \
+            if (count > 8) { \
                 goto error; \
-            } else { \
-                count++; \
             } \
+        } else if (trailing[i] == '@') { \
+            break; \
+        } else if (count > 8) { \
+            goto error; \
+        } else { \
+            count++; \
         } \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 static void
 _uloc_addLikelySubtags(const char* localeID,
@@ -1355,3 +1355,4 @@ ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
     uprv_strncpy(region, rgBuf, regionCapacity);
     return u_terminateChars(region, regionCapacity, rgLen, status);
 }
+

@@ -7,14 +7,15 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
-#ifndef U_HIDE_DRAFT_API
 
 #include "unicode/ufieldpositer.h"
+
+#ifndef U_HIDE_DRAFT_API
 
 /**
  * \file
  * \brief C API: Abstract operations for localized strings.
- *
+ * 
  * This file contains declarations for classes that deal with formatted strings. A number
  * of APIs throughout ICU use these classes for expressing their localized output.
  */
@@ -23,7 +24,7 @@
 /**
  * All possible field categories in ICU. Every entry in this enum corresponds
  * to another enum that exists in ICU.
- *
+ * 
  * In the APIs that take a UFieldCategory, an int32_t type is used. Field
  * categories having any of the top four bits turned on are reserved as
  * private-use for external APIs implementing FormattedValue. This means that
@@ -35,7 +36,7 @@
 typedef enum UFieldCategory {
     /**
      * For an undefined field category.
-     *
+     * 
      * @draft ICU 64
      */
     UFIELD_CATEGORY_UNDEFINED = 0,
@@ -152,7 +153,7 @@ ucfpos_close(UConstrainedFieldPosition* ucfpos);
 
 /**
  * Sets a constraint on the field category.
- *
+ * 
  * When this instance of UConstrainedFieldPosition is passed to ufmtval_nextPosition,
  * positions are skipped unless they have the given category.
  *
@@ -184,7 +185,7 @@ ucfpos_constrainCategory(
 
 /**
  * Sets a constraint on the category and field.
- *
+ * 
  * When this instance of UConstrainedFieldPosition is passed to ufmtval_nextPosition,
  * positions are skipped unless they have the given category and field.
  *

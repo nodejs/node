@@ -38,7 +38,7 @@ static UMemFreeFn     *pFree;
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
 #include <stdio.h>
 static int n=0;
-static long b=0;
+static long b=0; 
 #endif
 
 U_CAPI void * U_EXPORT2

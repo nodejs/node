@@ -126,7 +126,7 @@ private:
  * assemble the target item name from the source item name, an ID
  * and a suffix
  */
-static void
+static void 
 makeTargetName(const char *itemName, const char *id, int32_t idLength, const char *suffix,
                char *target, int32_t capacity,
                UErrorCode *pErrorCode) {
@@ -160,7 +160,7 @@ makeTargetName(const char *itemName, const char *id, int32_t idLength, const cha
     memcpy(target+treeLength+idLength, suffix, suffixLength+1); // +1 includes the terminating NUL
 }
 
-static void
+static void 
 checkIDSuffix(const char *itemName, const char *id, int32_t idLength, const char *suffix,
               CheckDependency check, void *context,
               UErrorCode *pErrorCode) {
@@ -172,7 +172,7 @@ checkIDSuffix(const char *itemName, const char *id, int32_t idLength, const char
 }
 
 /* assemble the target item name from the item's parent item name */
-static void
+static void 
 checkParent(const char *itemName, CheckDependency check, void *context,
             UErrorCode *pErrorCode) {
     const char *itemID, *parent, *parentLimit, *suffix;
@@ -305,7 +305,8 @@ ures_enumDependencies(const char *itemName,
                 break;
             }
             int32_t length;
-            const UChar *alias=res_getString(pResData, res, &length);
+            // No tracing: build tool
+            const UChar *alias=res_getStringNoTrace(pResData, res, &length);
             checkAlias(itemName, res, alias, length, useResSuffix, check, context, pErrorCode);
         }
         break;

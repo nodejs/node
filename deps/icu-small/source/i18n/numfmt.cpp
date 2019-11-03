@@ -122,7 +122,7 @@ static const UChar * const gLastResortNumberPatterns[UNUM_FORMAT_STYLE_COUNT] = 
     gLastResortIsoCurrencyPat,  // UNUM_CURRENCY_ISO
     gLastResortPluralCurrencyPat,  // UNUM_CURRENCY_PLURAL
     gLastResortAccountingCurrencyPat, // UNUM_CURRENCY_ACCOUNTING
-    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY
+    gLastResortCurrencyPat,  // UNUM_CASH_CURRENCY 
     NULL,  // UNUM_DECIMAL_COMPACT_SHORT
     NULL,  // UNUM_DECIMAL_COMPACT_LONG
     gLastResortCurrencyPat,  // UNUM_CURRENCY_STANDARD
@@ -434,13 +434,13 @@ NumberFormat::format(int64_t number,
 
 
 // -------------------------------------
-// Decimal Number format() default implementation
+// Decimal Number format() default implementation 
 // Subclasses do not normally override this function, but rather the DigitList
 // formatting functions..
 //   The expected call chain from here is
 //      this function ->
 //      NumberFormat::format(Formattable  ->
-//      DecimalFormat::format(DigitList
+//      DecimalFormat::format(DigitList    
 //
 //   Or, for subclasses of Formattable that do not know about DigitList,
 //       this Function ->
@@ -569,7 +569,7 @@ NumberFormat::format(const Formattable& obj,
     if(arg.wasCurrency() && u_strcmp(iso, getCurrency())) {
       // trying to format a different currency.
       // Right now, we clone.
-      LocalPointer<NumberFormat> cloneFmt((NumberFormat*)this->clone());
+      LocalPointer<NumberFormat> cloneFmt(this->clone());
       cloneFmt->setCurrency(iso, status);
       // next line should NOT recurse, because n is numeric whereas obj was a wrapper around currency amount.
       return cloneFmt->format(*n, appendTo, pos, status);
@@ -624,7 +624,7 @@ NumberFormat::format(const Formattable& obj,
     if(arg.wasCurrency() && u_strcmp(iso, getCurrency())) {
       // trying to format a different currency.
       // Right now, we clone.
-      LocalPointer<NumberFormat> cloneFmt((NumberFormat*)this->clone());
+      LocalPointer<NumberFormat> cloneFmt(this->clone());
       cloneFmt->setCurrency(iso, status);
       // next line should NOT recurse, because n is numeric whereas obj was a wrapper around currency amount.
       return cloneFmt->format(*n, appendTo, posIter, status);
@@ -986,15 +986,19 @@ static UBool haveService() {
 URegistryKey U_EXPORT2
 NumberFormat::registerFactory(NumberFormatFactory* toAdopt, UErrorCode& status)
 {
-  ICULocaleService *service = getNumberFormatService();
-  if (service) {
-	  NFFactory *tempnnf = new NFFactory(toAdopt);
-	  if (tempnnf != NULL) {
-		  return service->registerFactory(tempnnf, status);
-	  }
-  }
-  status = U_MEMORY_ALLOCATION_ERROR;
-  return NULL;
+    if (U_FAILURE(status)) {
+        delete toAdopt;
+        return nullptr;
+    }
+    ICULocaleService *service = getNumberFormatService();
+    if (service) {
+        NFFactory *tempnnf = new NFFactory(toAdopt);
+        if (tempnnf != NULL) {
+            return service->registerFactory(tempnnf, status);
+        }
+    }
+    status = U_MEMORY_ALLOCATION_ERROR;
+    return NULL;
 }
 
 // -------------------------------------
@@ -1055,14 +1059,14 @@ NumberFormat::createInstance(const Locale& loc, UNumberFormatStyle kind, UErrorC
     if (U_FAILURE(status)) {
         return NULL;
     }
-    NumberFormat *result = static_cast<NumberFormat *>((*shared)->clone());
+    NumberFormat *result = (*shared)->clone();
     shared->removeRef();
     if (result == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
     }
     return result;
 }
-
+    
 
 // -------------------------------------
 // Checks if the thousand/10 thousand grouping is used in the
@@ -1362,7 +1366,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
         // TODO: Bad hash key usage, see ticket #8504.
         int32_t hashKey = desiredLocale.hashCode();
 
-        static icu::UMutex nscacheMutex = U_MUTEX_INITIALIZER;
+        static UMutex nscacheMutex;
         Mutex lock(&nscacheMutex);
         ns = (NumberingSystem *)uhash_iget(NumberingSystem_cache, hashKey);
         if (ns == NULL) {
@@ -1408,7 +1412,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
     if (U_FAILURE(status)) {
         return NULL;
     }
-    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING
+    if(style==UNUM_CURRENCY || style == UNUM_CURRENCY_ISO || style == UNUM_CURRENCY_ACCOUNTING 
         || style == UNUM_CASH_CURRENCY || style == UNUM_CURRENCY_STANDARD){
         const UChar* currPattern = symbolsToAdopt->getCurrencyPattern();
         if(currPattern!=NULL){

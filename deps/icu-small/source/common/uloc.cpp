@@ -148,7 +148,8 @@ static const char * const LANGUAGES[] = {
     "mad", "maf", "mag", "mai", "mak", "man", "mas", "mde",
     "mdf", "mdh", "mdr", "men", "mer", "mfe", "mg",  "mga",
     "mgh", "mgo", "mh",  "mi",  "mic", "min", "mis", "mk",
-    "ml",  "mn",  "mnc", "mni", "moh", "mos", "mr",  "mrj",
+    "ml",  "mn",  "mnc", "mni", "mo",
+    "moh", "mos", "mr",  "mrj",
     "ms",  "mt",  "mua", "mul", "mus", "mwl", "mwr", "mwv",
     "my",  "mye", "myv", "mzn",
     "na",  "nan", "nap", "naq", "nb",  "nd",  "nds", "ne",
@@ -264,7 +265,8 @@ static const char * const LANGUAGES_3[] = {
     "mad", "maf", "mag", "mai", "mak", "man", "mas", "mde",
     "mdf", "mdh", "mdr", "men", "mer", "mfe", "mlg", "mga",
     "mgh", "mgo", "mah", "mri", "mic", "min", "mis", "mkd",
-    "mal", "mon", "mnc", "mni", "moh", "mos", "mar", "mrj",
+    "mal", "mon", "mnc", "mni", "mol",
+    "moh", "mos", "mar", "mrj",
     "msa", "mlt", "mua", "mul", "mus", "mwl", "mwr", "mwv",
     "mya", "mye", "myv", "mzn",
     "nau", "nan", "nap", "naq", "nob", "nde", "nds", "nep",
@@ -480,14 +482,15 @@ static const CanonicalizationMap CANONICALIZE_MAP[] = {
 /* Test if the locale id has BCP47 u extension and does not have '@' */
 #define _hasBCP47Extension(id) (id && uprv_strstr(id, "@") == NULL && getShortestSubtagLength(localeID) == 1)
 /* Converts the BCP47 id to Unicode id. Does nothing to id if conversion fails */
-#define _ConvertBCP47(finalID, id, buffer, length,err) \
-        if (uloc_forLanguageTag(id, buffer, length, NULL, err) <= 0 ||  \
-                U_FAILURE(*err) || *err == U_STRING_NOT_TERMINATED_WARNING) { \
-            finalID=id; \
-            if (*err == U_STRING_NOT_TERMINATED_WARNING) { *err = U_BUFFER_OVERFLOW_ERROR; } \
-        } else { \
-            finalID=buffer; \
-        }
+#define _ConvertBCP47(finalID, id, buffer, length,err) UPRV_BLOCK_MACRO_BEGIN { \
+    if (uloc_forLanguageTag(id, buffer, length, NULL, err) <= 0 || \
+            U_FAILURE(*err) || *err == U_STRING_NOT_TERMINATED_WARNING) { \
+        finalID=id; \
+        if (*err == U_STRING_NOT_TERMINATED_WARNING) { *err = U_BUFFER_OVERFLOW_ERROR; } \
+    } else { \
+        finalID=buffer; \
+    } \
+} UPRV_BLOCK_MACRO_END
 /* Gets the size of the shortest subtag in the given localeID. */
 static int32_t getShortestSubtagLength(const char *localeID) {
     int32_t localeIDLength = static_cast<int32_t>(uprv_strlen(localeID));
@@ -1454,31 +1457,29 @@ static const UEnumeration gKeywordsEnum = {
 U_CAPI UEnumeration* U_EXPORT2
 uloc_openKeywordList(const char *keywordList, int32_t keywordListSize, UErrorCode* status)
 {
-    UKeywordsContext *myContext = NULL;
-    UEnumeration *result = NULL;
+    LocalMemory<UKeywordsContext> myContext;
+    LocalMemory<UEnumeration> result;
 
-    if(U_FAILURE(*status)) {
-        return NULL;
+    if (U_FAILURE(*status)) {
+        return nullptr;
     }
-    result = (UEnumeration *)uprv_malloc(sizeof(UEnumeration));
-    /* Null pointer test */
-    if (result == NULL) {
+    myContext.adoptInstead(static_cast<UKeywordsContext *>(uprv_malloc(sizeof(UKeywordsContext))));
+    result.adoptInstead(static_cast<UEnumeration *>(uprv_malloc(sizeof(UEnumeration))));
+    if (myContext.isNull() || result.isNull()) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
-    uprv_memcpy(result, &gKeywordsEnum, sizeof(UEnumeration));
-    myContext = static_cast<UKeywordsContext *>(uprv_malloc(sizeof(UKeywordsContext)));
-    if (myContext == NULL) {
+    uprv_memcpy(result.getAlias(), &gKeywordsEnum, sizeof(UEnumeration));
+    myContext->keywords = static_cast<char *>(uprv_malloc(keywordListSize+1));
+    if (myContext->keywords == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        uprv_free(result);
-        return NULL;
+        return nullptr;
     }
-    myContext->keywords = (char *)uprv_malloc(keywordListSize+1);
     uprv_memcpy(myContext->keywords, keywordList, keywordListSize);
     myContext->keywords[keywordListSize] = 0;
     myContext->current = myContext->keywords;
-    result->context = myContext;
-    return result;
+    result->context = myContext.orphan();
+    return result.orphan();
 }
 
 U_CAPI UEnumeration* U_EXPORT2

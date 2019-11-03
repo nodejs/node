@@ -39,7 +39,7 @@ ResourceBundle::ResourceBundle( const UnicodeString&    path,
     constructForLocale(path, Locale::getDefault(), error);
 }
 
-void
+void 
 ResourceBundle::constructForLocale(const UnicodeString& path,
                                    const Locale& locale,
                                    UErrorCode& error)

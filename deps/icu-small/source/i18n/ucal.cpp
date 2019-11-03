@@ -34,7 +34,7 @@ U_NAMESPACE_USE
 static TimeZone*
 _createTimeZone(const UChar* zoneID, int32_t len, UErrorCode* ec) {
     TimeZone* zone = NULL;
-    if (ec!=NULL && U_SUCCESS(*ec)) {
+    if (ec != NULL && U_SUCCESS(*ec)) {
         // Note that if zoneID is invalid, we get back GMT. This odd
         // behavior is by design and goes back to the JDK. The only
         // failure we will see is a memory allocation failure.
@@ -69,7 +69,7 @@ ucal_openCountryTimeZones(const char* country, UErrorCode* ec) {
 U_CAPI int32_t U_EXPORT2
 ucal_getDefaultTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec) {
     int32_t len = 0;
-    if (ec!=NULL && U_SUCCESS(*ec)) {
+    if (ec != NULL && U_SUCCESS(*ec)) {
         TimeZone* zone = TimeZone::createDefault();
         if (zone == NULL) {
             *ec = U_MEMORY_ALLOCATION_ERROR;
@@ -89,6 +89,23 @@ ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec) {
     if (zone != NULL) {
         TimeZone::adoptDefault(zone);
     }
+}
+
+U_DRAFT int32_t U_EXPORT2
+ucal_getHostTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec) {
+    int32_t len = 0;
+    if (ec != NULL && U_SUCCESS(*ec)) {
+        TimeZone *zone = TimeZone::detectHostTimeZone();
+        if (zone == NULL) {
+            *ec = U_MEMORY_ALLOCATION_ERROR;
+        } else {
+            UnicodeString id;
+            zone->getID(id);
+            delete zone;
+            len = id.extract(result, resultCapacity, *ec);
+        }
+    }
+    return len;
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -139,9 +156,9 @@ ucal_open(  const UChar*  zoneID,
 {
 
   if(U_FAILURE(*status)) return 0;
-
-  TimeZone* zone = (zoneID==NULL) ? TimeZone::createDefault()
-      : _createTimeZone(zoneID, len, status);
+  
+  LocalPointer<TimeZone> zone( (zoneID==NULL) ? TimeZone::createDefault() 
+      : _createTimeZone(zoneID, len, status), *status);
 
   if (U_FAILURE(*status)) {
       return NULL;
@@ -157,9 +174,9 @@ ucal_open(  const UChar*  zoneID,
       if (U_FAILURE(*status)) {
           return NULL;
       }
-      return (UCalendar*)Calendar::createInstance(zone, Locale(localeBuf), *status);
+      return (UCalendar*)Calendar::createInstance(zone.orphan(), Locale(localeBuf), *status);
   }
-  return (UCalendar*)Calendar::createInstance(zone, Locale(locale), *status);
+  return (UCalendar*)Calendar::createInstance(zone.orphan(), Locale(locale), *status);
 }
 
 U_CAPI void U_EXPORT2
@@ -169,12 +186,12 @@ ucal_close(UCalendar *cal)
   delete (Calendar*) cal;
 }
 
-U_CAPI UCalendar* U_EXPORT2
+U_CAPI UCalendar* U_EXPORT2 
 ucal_clone(const UCalendar* cal,
            UErrorCode*      status)
 {
   if(U_FAILURE(*status)) return 0;
-
+  
   Calendar* res = ((Calendar*)cal)->clone();
 
   if(res == 0) {
@@ -259,7 +276,7 @@ ucal_getTimeZoneDisplayName(const     UCalendar*                 cal,
 }
 
 U_CAPI UBool  U_EXPORT2
-ucal_inDaylightTime(    const    UCalendar*      cal,
+ucal_inDaylightTime(    const    UCalendar*      cal, 
                     UErrorCode*     status )
 {
 
@@ -546,7 +563,7 @@ ucal_getLimit(    const    UCalendar*              cal,
 }
 
 U_CAPI const char * U_EXPORT2
-ucal_getLocaleByType(const UCalendar *cal, ULocDataLocaleType type, UErrorCode* status)
+ucal_getLocaleByType(const UCalendar *cal, ULocDataLocaleType type, UErrorCode* status) 
 {
     if (cal == NULL) {
         if (U_SUCCESS(*status)) {
@@ -643,7 +660,7 @@ static const UEnumeration defaultKeywordValues = {
     ulist_close_keyword_values_iterator,
     ulist_count_keyword_values,
     uenum_unextDefault,
-    ulist_next_keyword_value,
+    ulist_next_keyword_value, 
     ulist_reset_keyword_values_iterator
 };
 
@@ -674,7 +691,7 @@ ucal_getKeywordValuesForLocale(const char * /* key */, const char* locale, UBool
     // Resolve region
     char prefRegion[ULOC_COUNTRY_CAPACITY];
     (void)ulocimp_getRegionForSupplementalData(locale, TRUE, prefRegion, sizeof(prefRegion), status);
-
+    
     // Read preferred calendar values from supplementalData calendarPreference
     UResourceBundle *rb = ures_openDirect(NULL, "supplementalData", status);
     ures_getByKey(rb, "calendarPreferenceData", rb, status);
@@ -744,7 +761,7 @@ ucal_getKeywordValuesForLocale(const char * /* key */, const char* locale, UBool
     return en;
 }
 
-U_CAPI UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2 
 ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType type,
                                UDate* transition, UErrorCode* status)
 {

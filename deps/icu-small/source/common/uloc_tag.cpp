@@ -930,7 +930,7 @@ _addExtensionToList(ExtensionListEntry **first, ExtensionListEntry *ext, UBool l
                         cmp = *(ext->key) - *(cur->key);
                     }
                 } else if (len == 1) {
-                    cmp = *(ext->key) - LDMLEXT;
+                    cmp = *(ext->key) - LDMLEXT; 
                 } else if (curlen == 1) {
                     cmp = LDMLEXT - *(cur->key);
                 } else {
@@ -1558,10 +1558,8 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
                 return;
             }
 
-            if (!_addAttributeToList(&attrFirst, attr)) {
-                *status = U_ILLEGAL_ARGUMENT_ERROR;
-                return;
-            }
+            // duplicate attribute is ignored, causes no error.
+            _addAttributeToList(&attrFirst, attr);
 
             /* next tag */
             pTag += len;
@@ -1739,7 +1737,7 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
                     pType = LOCALE_TYPE_YES;
                 }
 
-                /* Special handling for u-va-posix, since we want to treat this as a variant,
+                /* Special handling for u-va-posix, since we want to treat this as a variant, 
                    not as a keyword */
                 if (!variantExists && !uprv_strcmp(pKey, POSIX_KEY) && !uprv_strcmp(pType, POSIX_VALUE) ) {
                     *posixVariant = TRUE;

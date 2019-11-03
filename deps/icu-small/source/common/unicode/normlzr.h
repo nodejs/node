@@ -13,11 +13,13 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
- * \file
+ * \file 
  * \brief C++ API: Unicode Normalization
  */
-
+ 
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/chariter.h"
@@ -183,6 +185,7 @@ public:
   Normalizer(const CharacterIterator& iter, UNormalizationMode mode);
 #endif  /* U_HIDE_DEPRECATED_API */
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
   /**
    * Copy constructor.
    * @param copy The object to be copied.
@@ -195,7 +198,7 @@ public:
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
   virtual ~Normalizer();
-
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
   //-------------------------------------------------------------------------
   // Static utility methods
@@ -599,7 +602,7 @@ public:
    * @return a pointer to a new Normalizer
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  Normalizer*        clone(void) const;
+  Normalizer*        clone() const;
 
   /**
    * Generates a hash code for this iterator.
@@ -723,12 +726,14 @@ public:
   static UClassID U_EXPORT2 getStaticClassID();
 #endif  /* U_HIDE_DEPRECATED_API */
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
   /**
    * ICU "poor man's RTTI", returns a UClassID for the actual class.
    * @return a UClassID for the actual class.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
   virtual UClassID getDynamicClassID() const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 private:
   //-------------------------------------------------------------------------
@@ -807,3 +812,5 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif // NORMLZR_H
+
+#endif /* U_SHOW_CPLUSPLUS_API */

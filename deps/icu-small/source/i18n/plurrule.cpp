@@ -929,7 +929,7 @@ RuleChain::RuleChain(const RuleChain& other) :
         fIntegerSamples(other.fIntegerSamples), fDecimalSamplesUnbounded(other.fDecimalSamplesUnbounded),
         fIntegerSamplesUnbounded(other.fIntegerSamplesUnbounded), fInternalStatus(other.fInternalStatus) {
     if (U_FAILURE(this->fInternalStatus)) {
-        return; // stop early if the object we are copying from is invalid.
+        return; // stop early if the object we are copying from is invalid. 
     }
     if (other.ruleHeader != nullptr) {
         this->ruleHeader = new OrConstraint(*(other.ruleHeader));
@@ -1489,7 +1489,7 @@ PluralOperand tokenTypeToPluralOperand(tokenType tt) {
 FixedDecimal::FixedDecimal(double n, int32_t v, int64_t f) {
     init(n, v, f);
     // check values. TODO make into unit test.
-    //
+    //            
     //            long visiblePower = (int) Math.pow(10, v);
     //            if (decimalDigits > visiblePower) {
     //                throw new IllegalArgumentException();
@@ -1646,7 +1646,7 @@ int32_t FixedDecimal::decimals(double n) {
 //    v is the number of visible fraction digits in the displayed form of the number.
 //       Example: n = 1001.234, v = 6, result = 234000
 //    TODO: need to think through how this is used in the plural rule context.
-//          This function can easily encounter integer overflow,
+//          This function can easily encounter integer overflow, 
 //          and can easily return noise digits when the precision of a double is exceeded.
 
 int64_t FixedDecimal::getFractionalDigits(double n, int32_t v) {

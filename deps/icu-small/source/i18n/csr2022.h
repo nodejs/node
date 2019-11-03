@@ -25,15 +25,15 @@ class CharsetMatch;
  *                           This is a superclass for the individual detectors for
  *                           each of the detectable members of the ISO 2022 family
  *                           of encodings.
- *
+ * 
  *                           The separate classes are nested within this class.
- *
+ * 
  * @internal
  */
 class CharsetRecog_2022 : public CharsetRecognizer
 {
 
-public:
+public:    
     virtual ~CharsetRecog_2022() = 0;
 
 protected:
@@ -43,8 +43,8 @@ protected:
      * Counts up the number of legal an unrecognized escape sequences in
      * the sample of text, and computes a score based on the total number &
      * the proportion that fit the encoding.
-     *
-     *
+     * 
+     * 
      * @param text the byte buffer containing text to analyse
      * @param textLen  the size of the text in the byte.
      * @param escapeSequences the byte escape sequences to test for.

@@ -59,7 +59,7 @@ FunctionReplacer::~FunctionReplacer() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* FunctionReplacer::clone() const {
+FunctionReplacer* FunctionReplacer::clone() const {
     return new FunctionReplacer(*this);
 }
 
@@ -70,7 +70,7 @@ UnicodeFunctor* FunctionReplacer::clone() const {
 UnicodeReplacer* FunctionReplacer::toReplacer() const {
   FunctionReplacer  *nonconst_this = const_cast<FunctionReplacer *>(this);
   UnicodeReplacer *nonconst_base = static_cast<UnicodeReplacer *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 

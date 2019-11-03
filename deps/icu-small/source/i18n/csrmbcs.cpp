@@ -114,7 +114,7 @@ static int32_t binarySearch(const uint16_t *array, int32_t len, uint16_t value)
     return -1;
 }
 
-IteratedChar::IteratedChar() :
+IteratedChar::IteratedChar() : 
 charValue(0), index(-1), nextIndex(0), error(FALSE), done(FALSE)
 {
     // nothing else to do.

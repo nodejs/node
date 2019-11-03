@@ -154,7 +154,7 @@ typedef void (*UConverterGetStarters)(const UConverter* converter,
                                       UErrorCode *pErrorCode);
 
 /* If this function pointer is null or if the function returns null
- * the name field in static data struct should be returned by
+ * the name field in static data struct should be returned by 
  * ucnv_getName() API function
  */
 typedef const char * (*UConverterGetName) (const UConverter *cnv);
@@ -177,9 +177,9 @@ typedef void (*UConverterWriteSub) (UConverterFromUnicodeArgs *pArgs, int32_t of
  * the initial state of the converter.  It is not expected to increment the
  * reference counts of the standard data types such as the shared data.
  */
-typedef UConverter * (*UConverterSafeClone) (const UConverter   *cnv,
+typedef UConverter * (*UConverterSafeClone) (const UConverter   *cnv, 
                                              void               *stackBuffer,
-                                             int32_t            *pBufferSize,
+                                             int32_t            *pBufferSize, 
                                              UErrorCode         *status);
 
 /**
@@ -258,7 +258,7 @@ struct UConverterImpl {
 extern const UConverterSharedData
     _MBCSData, _Latin1Data,
     _UTF8Data, _UTF16BEData, _UTF16LEData, _UTF32BEData, _UTF32LEData,
-    _ISO2022Data,
+    _ISO2022Data, 
     _LMBCSData1,_LMBCSData2, _LMBCSData3, _LMBCSData4, _LMBCSData5, _LMBCSData6,
     _LMBCSData8,_LMBCSData11,_LMBCSData16,_LMBCSData17,_LMBCSData18,_LMBCSData19,
     _HZData,_ISCIIData, _SCSUData, _ASCIIData,

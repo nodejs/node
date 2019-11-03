@@ -60,7 +60,7 @@ TitlecaseTransliterator::TitlecaseTransliterator(const TitlecaseTransliterator& 
 /**
  * Transliterator API.
  */
-Transliterator* TitlecaseTransliterator::clone(void) const {
+TitlecaseTransliterator* TitlecaseTransliterator::clone() const {
     return new TitlecaseTransliterator(*this);
 }
 
@@ -88,7 +88,7 @@ void TitlecaseTransliterator::handleTransliterate(
     // Our mode; we are either converting letter toTitle or
     // toLower.
     UBool doTitle = TRUE;
-
+    
     // Determine if there is a preceding context of cased case-ignorable*,
     // in which case we want to start in toLower mode.  If the
     // prior context is anything else (including empty) then start
@@ -106,7 +106,7 @@ void TitlecaseTransliterator::handleTransliterate(
         }
         // else (type<0) case-ignorable: continue
     }
-
+    
     // Convert things after a cased character toLower; things
     // after an uncased, non-case-ignorable character toTitle.  Case-ignorable
     // characters are copied directly and do not change the mode.

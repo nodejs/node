@@ -34,7 +34,7 @@ U_NAMESPACE_END
 U_NAMESPACE_BEGIN
 
 class U_COMMON_API EventListener : public UObject {
-public:
+public: 
     virtual ~EventListener();
 
 public:
@@ -62,54 +62,54 @@ public:
  * eventually dequeues the list and calls notifyListener on each
  * listener in the list.</p>
  *
- * <p>Subclasses override acceptsListener and notifyListener
+ * <p>Subclasses override acceptsListener and notifyListener 
  * to add type-safe notification.  AcceptsListener should return
  * true if the listener is of the appropriate type; ICUNotifier
  * itself will ensure the listener is non-null and that the
  * identical listener is not already registered with the Notifier.
- * NotifyListener should cast the listener to the appropriate
+ * NotifyListener should cast the listener to the appropriate 
  * type and call the appropriate method on the listener.
  */
 
 class U_COMMON_API ICUNotifier : public UMemory  {
 private: UVector* listeners;
-
-public:
+         
+public: 
     ICUNotifier(void);
-
+    
     virtual ~ICUNotifier(void);
-
+    
     /**
      * Add a listener to be notified when notifyChanged is called.
      * The listener must not be null. AcceptsListener must return
      * true for the listener.  Attempts to concurrently
      * register the identical listener more than once will be
-     * silently ignored.
+     * silently ignored.  
      */
     virtual void addListener(const EventListener* l, UErrorCode& status);
-
+    
     /**
      * Stop notifying this listener.  The listener must
      * not be null.  Attemps to remove a listener that is
      * not registered will be silently ignored.
      */
     virtual void removeListener(const EventListener* l, UErrorCode& status);
-
+    
     /**
      * ICU doesn't spawn its own threads.  All listeners are notified in
      * the thread of the caller.  Misbehaved listeners can therefore
      * indefinitely block the calling thread.  Callers should beware of
-     * deadlock situations.
+     * deadlock situations.  
      */
     virtual void notifyChanged(void);
-
-protected:
+    
+protected: 
     /**
      * Subclasses implement this to return TRUE if the listener is
      * of the appropriate type.
      */
     virtual UBool acceptsListener(const EventListener& l) const = 0;
-
+    
     /**
      * Subclasses implement this to notify the listener.
      */

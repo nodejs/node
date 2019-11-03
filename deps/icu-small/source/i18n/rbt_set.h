@@ -120,7 +120,7 @@ public:
      * @param status     Output parameter filled in with success or failure status.
      */
     virtual void freeze(UParseError& parseError, UErrorCode& status);
-
+    
     /**
      * Transliterate the given text with the given UTransPosition
      * indices.  Return TRUE if the transliteration should continue

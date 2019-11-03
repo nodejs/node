@@ -37,7 +37,7 @@ U_NAMESPACE_BEGIN
 
 // Useful constants
 
-#define DEFAULT_DIGITS UNICODE_STRING_SIMPLE("0123456789");
+#define DEFAULT_DIGITS UNICODE_STRING_SIMPLE("0123456789")
 static const char gNumberingSystems[] = "numberingSystems";
 static const char gNumberElements[] = "NumberElements";
 static const char gDefault[] = "default";
@@ -72,7 +72,7 @@ NumberingSystem::NumberingSystem() {
      * @draft ICU 4.2
      */
 
-NumberingSystem::NumberingSystem(const NumberingSystem& other)
+NumberingSystem::NumberingSystem(const NumberingSystem& other) 
 :  UObject(other) {
     *this=other;
 }
@@ -128,7 +128,7 @@ NumberingSystem::createInstance(const Locale & inLocale, UErrorCode& status) {
     if ( count > 0 ) { // @numbers keyword was specified in the locale
         U_ASSERT(count < ULOC_KEYWORDS_CAPACITY);
         buffer[count] = '\0'; // Make sure it is null terminated.
-        if ( !uprv_strcmp(buffer,gDefault) || !uprv_strcmp(buffer,gNative) ||
+        if ( !uprv_strcmp(buffer,gDefault) || !uprv_strcmp(buffer,gNative) || 
              !uprv_strcmp(buffer,gTraditional) || !uprv_strcmp(buffer,gFinance)) {
             nsResolved = FALSE;
         }
@@ -159,10 +159,10 @@ NumberingSystem::createInstance(const Locale & inLocale, UErrorCode& status) {
                 u_UCharsToChars(nsName, buffer, count);
                 buffer[count] = '\0'; // Make sure it is null terminated.
                 nsResolved = TRUE;
-            }
+            } 
 
             if (!nsResolved) { // Fallback behavior per TR35 - traditional falls back to native, finance and native fall back to default
-                if (!uprv_strcmp(buffer,gNative) || !uprv_strcmp(buffer,gFinance)) {
+                if (!uprv_strcmp(buffer,gNative) || !uprv_strcmp(buffer,gFinance)) { 
                     uprv_strcpy(buffer,gDefault);
                 } else if (!uprv_strcmp(buffer,gTraditional)) {
                     uprv_strcpy(buffer,gNative);

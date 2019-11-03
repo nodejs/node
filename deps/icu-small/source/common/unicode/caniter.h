@@ -12,6 +12,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/uobject.h"
@@ -21,7 +23,7 @@
  * \file
  * \brief C++ API: Canonical Iterator
  */
-
+ 
 /** Should permutation skip characters with combining class zero
  *  Should be either TRUE or FALSE. This is a compile time option
  *  @stable ICU 2.4
@@ -206,5 +208,7 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_NORMALIZATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

@@ -278,7 +278,7 @@ CollationKey::hashCode() const
 U_NAMESPACE_END
 
 U_CAPI int32_t U_EXPORT2
-ucol_keyHashCode(const uint8_t *key,
+ucol_keyHashCode(const uint8_t *key, 
                        int32_t  length)
 {
     return icu::computeHashCode(key, length);

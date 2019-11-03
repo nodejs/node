@@ -8,7 +8,7 @@
 #define __NUMBER_FORMATIMPL_H__
 
 #include "number_types.h"
-#include "number_stringbuilder.h"
+#include "formatted_string_builder.h"
 #include "number_patternstring.h"
 #include "number_utils.h"
 #include "number_patternmodifier.h"
@@ -35,7 +35,7 @@ class NumberFormatterImpl : public UMemory {
      * Builds and evaluates an "unsafe" MicroPropsGenerator, which is cheaper but can be used only once.
      */
     static int32_t
-    formatStatic(const MacroProps &macros, DecimalQuantity &inValue, NumberStringBuilder &outString,
+    formatStatic(const MacroProps &macros, DecimalQuantity &inValue, FormattedStringBuilder &outString,
                  UErrorCode &status);
 
     /**
@@ -44,14 +44,14 @@ class NumberFormatterImpl : public UMemory {
      * @return The index into the output at which the prefix ends and the suffix starts; in other words,
      *         the prefix length.
      */
-    static int32_t getPrefixSuffixStatic(const MacroProps& macros, int8_t signum,
-                                         StandardPlural::Form plural, NumberStringBuilder& outString,
+    static int32_t getPrefixSuffixStatic(const MacroProps& macros, Signum signum,
+                                         StandardPlural::Form plural, FormattedStringBuilder& outString,
                                          UErrorCode& status);
 
     /**
      * Evaluates the "safe" MicroPropsGenerator created by "fromMacros".
      */
-    int32_t format(DecimalQuantity& inValue, NumberStringBuilder& outString, UErrorCode& status) const;
+    int32_t format(DecimalQuantity& inValue, FormattedStringBuilder& outString, UErrorCode& status) const;
 
     /**
      * Like format(), but saves the result into an output MicroProps without additional processing.
@@ -61,7 +61,7 @@ class NumberFormatterImpl : public UMemory {
     /**
      * Like getPrefixSuffixStatic() but uses the safe compiled object.
      */
-    int32_t getPrefixSuffix(int8_t signum, StandardPlural::Form plural, NumberStringBuilder& outString,
+    int32_t getPrefixSuffix(Signum signum, StandardPlural::Form plural, FormattedStringBuilder& outString,
                             UErrorCode& status) const;
 
     const MicroProps& getRawMicroProps() const {
@@ -73,12 +73,12 @@ class NumberFormatterImpl : public UMemory {
      * This method formats only the main number, not affixes.
      */
     static int32_t writeNumber(const MicroProps& micros, DecimalQuantity& quantity,
-                               NumberStringBuilder& string, int32_t index, UErrorCode& status);
+                               FormattedStringBuilder& string, int32_t index, UErrorCode& status);
 
     /**
      * Adds the affixes.  Intended to be called immediately after formatNumber.
      */
-    static int32_t writeAffixes(const MicroProps& micros, NumberStringBuilder& string, int32_t start,
+    static int32_t writeAffixes(const MicroProps& micros, FormattedStringBuilder& string, int32_t start,
                                 int32_t end, UErrorCode& status);
 
   private:
@@ -109,8 +109,8 @@ class NumberFormatterImpl : public UMemory {
 
     MicroProps& preProcessUnsafe(DecimalQuantity &inValue, UErrorCode &status);
 
-    int32_t getPrefixSuffixUnsafe(int8_t signum, StandardPlural::Form plural,
-                                  NumberStringBuilder& outString, UErrorCode& status);
+    int32_t getPrefixSuffixUnsafe(Signum signum, StandardPlural::Form plural,
+                                  FormattedStringBuilder& outString, UErrorCode& status);
 
     /**
      * If rulesPtr is non-null, return it.  Otherwise, return a PluralRules owned by this object for the
@@ -136,11 +136,11 @@ class NumberFormatterImpl : public UMemory {
     macrosToMicroGenerator(const MacroProps &macros, bool safe, UErrorCode &status);
 
     static int32_t
-    writeIntegerDigits(const MicroProps &micros, DecimalQuantity &quantity, NumberStringBuilder &string,
+    writeIntegerDigits(const MicroProps &micros, DecimalQuantity &quantity, FormattedStringBuilder &string,
                        int32_t index, UErrorCode &status);
 
     static int32_t
-    writeFractionDigits(const MicroProps &micros, DecimalQuantity &quantity, NumberStringBuilder &string,
+    writeFractionDigits(const MicroProps &micros, DecimalQuantity &quantity, FormattedStringBuilder &string,
                         int32_t index, UErrorCode &status);
 };
 

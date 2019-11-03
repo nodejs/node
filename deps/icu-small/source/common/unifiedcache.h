@@ -39,7 +39,7 @@ class U_COMMON_API CacheKeyBase : public UObject {
    /**
     * Copy constructor. Needed to support cloning.
     */
-   CacheKeyBase(const CacheKeyBase &other)
+   CacheKeyBase(const CacheKeyBase &other) 
            : UObject(other), fCreationStatus(other.fCreationStatus), fIsMaster(FALSE) { }
    virtual ~CacheKeyBase();
 
@@ -95,7 +95,7 @@ class U_COMMON_API CacheKeyBase : public UObject {
 
 
 /**
- * Templated version of CacheKeyBase.
+ * Templated version of CacheKeyBase. 
  * A key of type LocaleCacheKey<T> maps to a value of type T.
  */
 template<typename T>
@@ -343,7 +343,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
 
    virtual void handleUnreferencedObject() const;
    virtual ~UnifiedCache();
-
+   
  private:
    UHashtable *fHashtable;
    mutable int32_t fEvictPos;
@@ -353,17 +353,17 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    int32_t fMaxPercentageOfInUse;
    mutable int64_t fAutoEvictedCount;
    SharedObject *fNoValue;
-
+   
    UnifiedCache(const UnifiedCache &other);
    UnifiedCache &operator=(const UnifiedCache &other);
-
+   
    /**
     * Flushes the contents of the cache. If cache values hold references to other
     * cache values then _flush should be called in a loop until it returns FALSE.
-    *
+    * 
     * On entry, gCacheMutex must be held.
     * On exit, those values with are evictable are flushed.
-    *
+    * 
     *  @param all if false flush evictable items only, which are those with no external
     *                    references, plus those that can be safely recreated.<br>
     *            if true, flush all elements. Any values (sharedObjects) with remaining
@@ -373,7 +373,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     *   @return TRUE if any value in cache was flushed or FALSE otherwise.
     */
    UBool _flush(UBool all) const;
-
+   
    /**
     * Gets value out of cache.
     * On entry. gCacheMutex must not be held. value must be NULL. status
@@ -406,10 +406,10 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
             const CacheKeyBase &key,
             const SharedObject *&value,
             UErrorCode &status) const;
-
+    
     /**
      * Places a new value and creationStatus in the cache for the given key.
-     * On entry, gCacheMutex must be held. key must not exist in the cache.
+     * On entry, gCacheMutex must be held. key must not exist in the cache. 
      * On exit, value and creation status placed under key. Soft reference added
      * to value on successful add. On error sets status.
      */
@@ -418,15 +418,15 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
         const SharedObject *value,
         const UErrorCode creationStatus,
         UErrorCode &status) const;
-
+           
     /**
      * Places value and status at key if there is no value at key or if cache
      * entry for key is in progress. Otherwise, it leaves the current value and
      * status there.
-     *
+     * 
      * On entry. gCacheMutex must not be held. Value must be
      * included in the reference count of the object to which it points.
-     *
+     * 
      * On exit, value and status are changed to what was already in the cache if
      * something was there and not in progress. Otherwise, value and status are left
      * unchanged in which case they are placed in the cache on a best-effort basis.
@@ -443,17 +443,17 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
      * On entry, gCacheMutex must be held.
      */
     const UHashElement *_nextElement() const;
-
+   
    /**
     * Return the number of cache items that would need to be evicted
     * to bring usage into conformance with eviction policy.
-    *
+    * 
     * An item corresponds to an entry in the hash table, a hash table element.
-    *
+    * 
     * On entry, gCacheMutex must be held.
     */
    int32_t _computeCountOfItemsToEvict() const;
-
+   
    /**
     * Run an eviction slice.
     * On entry, gCacheMutex must be held.
@@ -461,20 +461,20 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     * 10 entries in the cache round robin style evicting them if they are eligible.
     */
    void _runEvictionSlice() const;
-
+ 
    /**
     * Register a master cache entry. A master key is the first key to create
     * a given  SharedObject value. Subsequent keys whose create function
     * produce referneces to an already existing SharedObject are not masters -
     * they can be evicted and subsequently recreated.
-    *
+    * 
     * On entry, gCacheMutex must be held.
     * On exit, items in use count incremented, entry is marked as a master
     * entry, and value registered with cache so that subsequent calls to
     * addRef() and removeRef() on it correctly interact with the cache.
     */
    void _registerMaster(const CacheKeyBase *theKey, const SharedObject *value) const;
-
+        
    /**
     * Store a value and creation error status in given hash entry.
     * On entry, gCacheMutex must be held. Hash entry element must be in progress.
@@ -494,32 +494,32 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
      * @param value the SharedObject to be acted on.
      */
    void removeSoftRef(const SharedObject *value) const;
-
+   
    /**
     * Increment the hard reference count of the given SharedObject.
     * gCacheMutex must be held by the caller.
     * Update numValuesEvictable on transitions between zero and one reference.
-    *
+    * 
     * @param value The SharedObject to be referenced.
     * @return the hard reference count after the addition.
     */
    int32_t addHardRef(const SharedObject *value) const;
-
+   
   /**
     * Decrement the hard reference count of the given SharedObject.
     * gCacheMutex must be held by the caller.
     * Update numValuesEvictable on transitions between one and zero reference.
-    *
+    * 
     * @param value The SharedObject to be referenced.
     * @return the hard reference count after the removal.
     */
    int32_t removeHardRef(const SharedObject *value) const;
 
-
+   
 #ifdef UNIFIED_CACHE_DEBUG
    void _dumpContents() const;
 #endif
-
+   
    /**
     *  Fetch value and error code from a particular hash entry.
     *  On entry, gCacheMutex must be held. value must be either NULL or must be
@@ -531,19 +531,19 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     */
    void _fetch(const UHashElement *element, const SharedObject *&value,
                        UErrorCode &status) const;
-
+                       
     /**
      * Determine if given hash entry is in progress.
      * On entry, gCacheMutex must be held.
      */
    UBool _inProgress(const UHashElement *element) const;
-
+   
    /**
     * Determine if given hash entry is in progress.
     * On entry, gCacheMutex must be held.
     */
    UBool _inProgress(const SharedObject *theValue, UErrorCode creationStatus) const;
-
+   
    /**
     * Determine if given hash entry is eligible for eviction.
     * On entry, gCacheMutex must be held.

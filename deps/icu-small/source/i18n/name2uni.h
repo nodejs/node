@@ -49,7 +49,7 @@ public:
      * Transliterator API.
      * @return    A copy of the object.
      */
-    virtual Transliterator* clone(void) const;
+    virtual NameUnicodeTransliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

@@ -98,7 +98,7 @@ public:
     /**
      * Transliterator API.
      */
-    virtual Transliterator* clone(void) const;
+    virtual CompoundTransliterator* clone() const;
 
     /**
      * Returns the number of transliterators in this chain.
@@ -192,7 +192,7 @@ private:
                            int32_t numAnonymousRBTs,
                            UParseError& parseError,
                            UErrorCode& status);
-
+    
     CompoundTransliterator(UVector& list,
                            UParseError& parseError,
                            UErrorCode& status);

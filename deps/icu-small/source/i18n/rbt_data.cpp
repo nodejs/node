@@ -51,7 +51,7 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
             new UnicodeString(*(const UnicodeString*)e->value.pointer);
         // Exit out if value could not be created.
         if (value == NULL) {
-		return;
+        	return;
         }
         variableNames.put(*(UnicodeString*)e->key.pointer, value, status);
     }

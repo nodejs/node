@@ -35,7 +35,7 @@ UBool CharsetRecog_UTF8::match(InputText* input, CharsetMatch *results) const {
     int32_t trailBytes = 0;
     int32_t confidence;
 
-    if (input->fRawLength >= 3 &&
+    if (input->fRawLength >= 3 && 
         inputBytes[0] == 0xEF && inputBytes[1] == 0xBB && inputBytes[2] == 0xBF) {
             hasBOM = TRUE;
     }

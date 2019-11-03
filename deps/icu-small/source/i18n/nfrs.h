@@ -66,7 +66,7 @@ private:
     const NFRule * findNormalRule(int64_t number) const;
     const NFRule * findDoubleRule(double number) const;
     const NFRule * findFractionRuleSetRule(double number) const;
-
+    
     friend class NFSubstitution;
 
 private:

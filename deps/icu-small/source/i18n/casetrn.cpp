@@ -90,7 +90,7 @@ UOBJECT_DEFINE_ABSTRACT_RTTI_IMPLEMENTATION(CaseMapTransliterator)
 /**
  * Constructs a transliterator.
  */
-CaseMapTransliterator::CaseMapTransliterator(const UnicodeString &id, UCaseMapFull *map) :
+CaseMapTransliterator::CaseMapTransliterator(const UnicodeString &id, UCaseMapFull *map) : 
     Transliterator(id, 0),
     fMap(map)
 {
@@ -125,7 +125,7 @@ CaseMapTransliterator::CaseMapTransliterator(const CaseMapTransliterator& o) :
 /**
  * Transliterator API.
  */
-/*Transliterator* CaseMapTransliterator::clone(void) const {
+/*CaseMapTransliterator* CaseMapTransliterator::clone() const {
     return new CaseMapTransliterator(*this);
 }*/
 
@@ -133,7 +133,7 @@ CaseMapTransliterator::CaseMapTransliterator(const CaseMapTransliterator& o) :
  * Implements {@link Transliterator#handleTransliterate}.
  */
 void CaseMapTransliterator::handleTransliterate(Replaceable& text,
-                                 UTransPosition& offsets,
+                                 UTransPosition& offsets, 
                                  UBool isIncremental) const
 {
     if (offsets.start >= offsets.limit) {

@@ -208,12 +208,12 @@ void CanonicalIterator::setSource(const UnicodeString &newSource, UErrorCode &st
         goto CleanPartialInitialization;
     }
 
-    // i should initialy be the number of code units at the
+    // i should initialy be the number of code units at the 
     // start of the string
     i = U16_LENGTH(source.char32At(0));
     //int32_t i = 1;
     // find the segments
-    // This code iterates through the source string and
+    // This code iterates through the source string and 
     // extracts segments that end up on a codepoint that
     // doesn't start any decompositions. (Analysis is done
     // on the NFD form - see above).
@@ -241,7 +241,7 @@ void CanonicalIterator::setSource(const UnicodeString &newSource, UErrorCode &st
     for (i = 0; i < current_length; i++) {
         current[i] = 0;
     }
-    // for each segment, get all the combinations that can produce
+    // for each segment, get all the combinations that can produce 
     // it after NFD normalization
     for (i = 0; i < pieces_length; ++i) {
         //if (PROGRESS) printf("SEGMENT\n");
@@ -316,7 +316,7 @@ void U_EXPORT2 CanonicalIterator::permute(UnicodeString &source, UBool skipZeros
         if(U_FAILURE(status)) {
             return;
         }
-        // The upper remove is destructive. The question is do we have to make a copy, or we don't care about the contents
+        // The upper remove is destructive. The question is do we have to make a copy, or we don't care about the contents 
         // of source at this point.
 
         // prefix this character to all of them
@@ -493,9 +493,9 @@ Hashtable *CanonicalIterator::getEquivalents2(Hashtable *fillinResult, const UCh
 }
 
 /**
- * See if the decomposition of cp2 is at segment starting at segmentPos
+ * See if the decomposition of cp2 is at segment starting at segmentPos 
  * (with canonical rearrangment!)
- * If so, take the remainder, and return the equivalents
+ * If so, take the remainder, and return the equivalents 
  */
 Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, const UChar *segment, int32_t segLen, int32_t segmentPos, UErrorCode &status) {
 //Hashtable *CanonicalIterator::extract(UChar32 comp, const UnicodeString &segment, int32_t segLen, int32_t segmentPos, UErrorCode &status) {

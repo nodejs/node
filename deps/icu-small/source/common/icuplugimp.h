@@ -9,7 +9,7 @@
 ******************************************************************************
 *
 *  FILE NAME : icuplugimp.h
-*
+* 
 *  Internal functions for the ICU plugin system
 *
 *   Date         Name        Description
@@ -26,7 +26,7 @@
 #if UCONFIG_ENABLE_PLUGINS
 
 /*========================*/
-/** @{ Library Manipulation
+/** @{ Library Manipulation  
  */
 
 /**
@@ -65,7 +65,7 @@ uplug_findLibrary(void *lib, UErrorCode *status);
  */
 
 /**
- * Initialize the plugins
+ * Initialize the plugins 
  * @param status error result
  * @internal - Internal use only.
  */
@@ -75,12 +75,12 @@ uplug_init(UErrorCode *status);
 /**
  * Get raw plug N
  * @internal - Internal use only
- */
+ */ 
 U_INTERNAL UPlugData* U_EXPORT2
 uplug_getPlugInternal(int32_t n);
 
 /**
- * Get the name of the plugin file.
+ * Get the name of the plugin file. 
  * @internal - Internal use only.
  */
 U_INTERNAL const char* U_EXPORT2

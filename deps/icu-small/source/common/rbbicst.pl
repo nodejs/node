@@ -264,7 +264,7 @@ if ($javaOutput) {
         $n++;
     }
     print " \n";
-
+    
     #
     # Emit constants for char class names
     #
@@ -272,8 +272,8 @@ if ($javaOutput) {
        print "     static final short kRuleSet_$setName = $charClasses{$setName};\n";
     }
     print "\n\n";
-
-
+    
+    
     print "   static class RBBIRuleTableElement { \n";
     print "      short      fAction; \n";
     print "      short      fCharClass; \n";
@@ -291,20 +291,20 @@ if ($javaOutput) {
     print "   } \n";
     print "   }; \n";
     print "  \n";
-
-
+    
+    
     print "    static RBBIRuleTableElement[] gRuleParseStateTable = { \n ";
-    print "      new RBBIRuleTableElement(doNOP, 0, 0,0,  true,   null )     //  0 \n";  #output the unused state 0.
+    print "      new RBBIRuleTableElement(doNOP, 0, 0,0,  true,   null )     //  0 \n";  #output the unused state 0. 
     for ($state=1; $state < $num_states; $state++) {
         print "     , new RBBIRuleTableElement($state_func_name[$state],";
         if ($state_literal_chars[$state] ne "") {
             $c = $state_literal_chars[$state];
-            print("'$c', ");
+            print("'$c', "); 
         }else {
             print " $charClasses{$state_char_class[$state]},";
         }
         print " $states{$state_dest_state[$state]},";
-
+ 
         # The push-state field is optional.  If omitted, fill field with a zero, which flags
         #   the state machine that there is no push state.
         if ($state_push_state[$state] eq "") {
@@ -313,14 +313,14 @@ if ($javaOutput) {
             print " $states{$state_push_state[$state]},";
         }
         print " $state_flag[$state], ";
-
+ 
         # if this is the first row of the table for this state, put out the state name.
         if ($stateNames[$state] ne "") {
             print "  \"$stateNames[$state]\") ";
         } else {
             print "  null ) ";
         }
-
+            
         # Put out a comment showing the number (index) of this state row,
         print "    //  $state ";
         print "\n";
@@ -328,7 +328,7 @@ if ($javaOutput) {
     print " };\n";
 
     print "}; \n";
-
+    
 }
 else
 {
@@ -454,3 +454,6 @@ else
     print "U_NAMESPACE_END\n";
     print "#endif\n";
 }
+
+
+

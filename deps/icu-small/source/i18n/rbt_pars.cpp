@@ -369,10 +369,10 @@ int32_t RuleHalf::parse(const UnicodeString& rule, int32_t pos, int32_t limit, U
     if (cursorOffset > 0 && cursor != cursorOffsetPos) {
         return syntaxError(U_MISPLACED_CURSOR_OFFSET, rule, start, status);
     }
-
+    
     return pos;
 }
-
+ 
 /**
  * Parse a section of one side of a rule, stopping at either
  * the limit, the END_OF_RULE character, an operator, or a
@@ -409,7 +409,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
     int32_t varStart = -1; // Most recent $variableReference
     int32_t varLimit = -1;
     int32_t bufStart = buf.length();
-
+    
     while (pos < limit && !done) {
         // Since all syntax characters are in the BMP, fetching
         // 16-bit code units suffices here.
@@ -437,7 +437,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
             if (U_FAILURE(status)) {
                 return syntaxError(U_MALFORMED_SET, rule, start, status);
             }
-            pos = pp.getIndex();
+            pos = pp.getIndex();                    
             continue;
         }
         // Handle escapes
@@ -505,7 +505,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
         }
 
         switch (c) {
-
+                    
         //------------------------------------------------------
         // Elements allowed within and out of segments
         //------------------------------------------------------
@@ -522,15 +522,15 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 // bufSegStart is the offset in buf to the first
                 // character of the segment we are parsing.
                 int32_t bufSegStart = buf.length();
-
+                
                 // Record segment number now, since nextSegmentNumber
                 // will be incremented during the call to parseSection
                 // if there are nested segments.
                 int32_t segmentNumber = nextSegmentNumber++; // 1-based
-
+                
                 // Parse the segment
                 pos = parseSection(rule, pos, limit, buf, UnicodeString(TRUE, ILLEGAL_SEG, -1), TRUE, status);
-
+                
                 // After parsing a segment, the relevant characters are
                 // in buf, starting at offset bufSegStart.  Extract them
                 // into a string matcher, and replace them with a
@@ -541,7 +541,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 if (m == NULL) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
-
+                
                 // Record and associate object and segment number
                 parser.setSegmentObject(segmentNumber, m, status);
                 buf.truncate(bufSegStart);
@@ -559,20 +559,20 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                     !ICU_Utility::parseChar(rule, iref, SEGMENT_OPEN)) {
                     return syntaxError(U_INVALID_FUNCTION, rule, start, status);
                 }
-
+                
                 Transliterator *t = single->createInstance();
                 delete single;
                 if (t == NULL) {
                     return syntaxError(U_INVALID_FUNCTION, rule, start, status);
                 }
-
+                
                 // bufSegStart is the offset in buf to the first
                 // character of the segment we are parsing.
                 int32_t bufSegStart = buf.length();
-
+                
                 // Parse the segment
                 pos = parseSection(rule, iref, limit, buf, UnicodeString(TRUE, ILLEGAL_FUNC, -1), TRUE, status);
-
+                
                 // After parsing a segment, the relevant characters are
                 // in buf, starting at offset bufSegStart.
                 UnicodeString output;
@@ -582,7 +582,7 @@ int32_t RuleHalf::parseSection(const UnicodeString& rule, int32_t pos, int32_t l
                 if (r == NULL) {
                     return syntaxError(U_MEMORY_ALLOCATION_ERROR, rule, start, status);
                 }
-
+                
                 // Replace the buffer contents with a stand-in
                 buf.truncate(bufSegStart);
                 buf.append(parser.generateStandInFor(r, status));
@@ -864,7 +864,7 @@ TransliteratorParser::parse(const UnicodeString& rules,
 
 /**
  * Return the compound filter parsed by parse().  Caller owns result.
- */
+ */ 
 UnicodeSet* TransliteratorParser::orphanCompoundFilter() {
     UnicodeSet* f = compoundFilter;
     compoundFilter = NULL;
@@ -893,7 +893,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
 
     UBool parsingIDs = TRUE;
     int32_t ruleCount = 0;
-
+    
     while (!dataVector.isEmpty()) {
         delete (TransliterationRuleData*)(dataVector.orphanElementAt(0));
     }
@@ -956,7 +956,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
 
         // keep track of how many rules we've seen
         ++ruleCount;
-
+        
         // We've found the start of a rule or ID.  c is its first
         // character, and pos points past c.
         --pos;
@@ -972,7 +972,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
             }
 
             int32_t p = pos;
-
+            
             if (!parsingIDs) {
                 if (curData != NULL) {
                     if (direction == UTRANS_FORWARD)
@@ -1083,7 +1083,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
         else
             dataVector.insertElementAt(curData, 0, status);
     }
-
+    
     if (U_SUCCESS(status)) {
         // Convert the set vector to an array
         int32_t i, dataVectorSize = dataVector.size();
@@ -1106,12 +1106,12 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
                 data->variables[j] =
                     static_cast<UnicodeFunctor *>(variablesVector.elementAt(j));
             }
-
+            
             data->variableNames.removeAll();
             int32_t p = UHASH_FIRST;
             const UHashElement* he = variableNames.nextElement(p);
             while (he != NULL) {
-                UnicodeString* tempus = (UnicodeString*)(((UnicodeString*)(he->value.pointer))->clone());
+                UnicodeString* tempus = ((UnicodeString*)(he->value.pointer))->clone();
                 if (tempus == NULL) {
                     status = U_MEMORY_ALLOCATION_ERROR;
                     return;
@@ -1129,7 +1129,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
                 (direction == UTRANS_REVERSE && compoundFilterOffset != ruleCount)) {
                 status = U_MISPLACED_COMPOUND_FILTER;
             }
-        }
+        }        
 
         for (i = 0; i < dataVectorSize; i++) {
             TransliterationRuleData* data = (TransliterationRuleData*)dataVector.elementAt(i);
@@ -1149,7 +1149,7 @@ void TransliteratorParser::setVariableRange(int32_t start, int32_t end, UErrorCo
         status = U_MALFORMED_PRAGMA;
         return;
     }
-
+    
     curData->variablesBase = (UChar) start;
     if (dataVector.size() == 0) {
         variableNext = (UChar) start;
@@ -1214,12 +1214,12 @@ UBool TransliteratorParser::resemblesPragma(const UnicodeString& rule, int32_t p
  */
 int32_t TransliteratorParser::parsePragma(const UnicodeString& rule, int32_t pos, int32_t limit, UErrorCode& status) {
     int32_t array[2];
-
+    
     // resemblesPragma() has already returned true, so we
     // know that pos points to /use\s/i; we can skip 4 characters
     // immediately
     pos += 4;
-
+    
     // Here are the pragmas we recognize:
     // use variable range 0xE000 0xEFFF;
     // use maximum backup 16;
@@ -1230,25 +1230,25 @@ int32_t TransliteratorParser::parsePragma(const UnicodeString& rule, int32_t pos
         setVariableRange(array[0], array[1], status);
         return p;
     }
-
+    
     p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_MAXIMUM_BACKUP, -1), array);
     if (p >= 0) {
         pragmaMaximumBackup(array[0]);
         return p;
     }
-
+    
     p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_NFD_RULES, -1), NULL);
     if (p >= 0) {
         pragmaNormalizeRules(UNORM_NFD);
         return p;
     }
-
+    
     p = ICU_Utility::parsePattern(rule, pos, limit, UnicodeString(TRUE, PRAGMA_NFC_RULES, -1), NULL);
     if (p >= 0) {
         pragmaNormalizeRules(UNORM_NFC);
         return p;
     }
-
+    
     // Syntax error: unable to parse pragma
     return -1;
 }
@@ -1345,7 +1345,7 @@ int32_t TransliteratorParser::parseRule(const UnicodeString& rule, int32_t pos, 
         if (left->anchorStart || left->anchorEnd ||
             right->anchorStart || right->anchorEnd) {
             return syntaxError(U_MALFORMED_VARIABLE_DEFINITION, rule, start, status);
-        }
+        } 
         // We allow anything on the right, including an empty string.
         UnicodeString* value = new UnicodeString(right->text);
         // NULL pointer check
@@ -1379,7 +1379,7 @@ int32_t TransliteratorParser::parseRule(const UnicodeString& rule, int32_t pos, 
             syntaxError(U_INTERNAL_TRANSLITERATOR_ERROR, rule, start, status); // will never happen
         }
     }
-
+    
     // If the direction we want doesn't match the rule
     // direction, do nothing.
     if (op != FWDREV_RULE_OP &&
@@ -1477,20 +1477,20 @@ int32_t TransliteratorParser::syntaxError(UErrorCode parseErrorCode,
 {
     parseError.offset = pos;
     parseError.line = 0 ; /* we are not using line numbers */
-
+    
     // for pre-context
     const int32_t LEN = U_PARSE_CONTEXT_LEN - 1;
     int32_t start = uprv_max(pos - LEN, 0);
     int32_t stop  = pos;
-
+    
     rule.extract(start,stop-start,parseError.preContext);
     //null terminate the buffer
     parseError.preContext[stop-start] = 0;
-
+    
     //for post-context
     start = pos;
     stop  = uprv_min(pos + LEN, rule.length());
-
+    
     rule.extract(start,stop-start,parseError.postContext);
     //null terminate the buffer
     parseError.postContext[stop-start]= 0;
@@ -1523,7 +1523,7 @@ UChar TransliteratorParser::parseSet(const UnicodeString& rule,
  */
 UChar TransliteratorParser::generateStandInFor(UnicodeFunctor* adopted, UErrorCode& status) {
     // assert(obj != null);
-
+    
     // Look up previous stand-in, if any.  This is a short list
     // (typical n is 0, 1, or 2); linear search is optimal.
     for (int32_t i=0; i<variablesVector.size(); ++i) {
@@ -1531,7 +1531,7 @@ UChar TransliteratorParser::generateStandInFor(UnicodeFunctor* adopted, UErrorCo
             return (UChar) (curData->variablesBase + i);
         }
     }
-
+    
     if (variableNext >= variableLimit) {
         delete adopted;
         status = U_VARIABLE_RANGE_EXHAUSTED;
