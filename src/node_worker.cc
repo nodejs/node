@@ -254,16 +254,19 @@ void Worker::Run() {
         env_->InitializeInspector(std::move(inspector_parent_handle_));
 #endif
         HandleScope handle_scope(isolate_);
-        AsyncCallbackScope callback_scope(env_.get());
-        env_->async_hooks()->push_async_ids(1, 0);
+        InternalCallbackScope callback_scope(
+            env_.get(),
+            Local<Object>(),
+            { 1, 0 },
+            InternalCallbackScope::kAllowEmptyResource |
+                InternalCallbackScope::kSkipAsyncHooks);
+
         if (!env_->RunBootstrapping().IsEmpty()) {
           CreateEnvMessagePort(env_.get());
           if (is_stopped()) return;
           Debug(this, "Created message port for worker %llu", thread_id_);
           USE(StartExecution(env_.get(), "internal/main/worker_thread"));
         }
-
-        env_->async_hooks()->pop_async_id(1);
 
         Debug(this, "Loaded environment for worker %llu", thread_id_);
       }
