@@ -871,7 +871,7 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
     (trie)->data[_UTRIE2_INDEX_FROM_CP(trie, asciiOffset, c)]
 
 /** Internal next-post-increment: get the next code point (c) and its data. */
-#define _UTRIE2_U16_NEXT(trie, data, src, limit, c, result) { \
+#define _UTRIE2_U16_NEXT(trie, data, src, limit, c, result) UPRV_BLOCK_MACRO_BEGIN { \
     { \
         uint16_t __c2; \
         (c)=*(src)++; \
@@ -885,10 +885,10 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=_UTRIE2_GET_FROM_SUPP((trie), data, (c)); \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal pre-decrement-previous: get the previous code point (c) and its data */
-#define _UTRIE2_U16_PREV(trie, data, start, src, c, result) { \
+#define _UTRIE2_U16_PREV(trie, data, start, src, c, result) UPRV_BLOCK_MACRO_BEGIN { \
     { \
         uint16_t __c2; \
         (c)=*--(src); \
@@ -900,10 +900,10 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=_UTRIE2_GET_FROM_SUPP((trie), data, (c)); \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal UTF-8 next-post-increment: get the next code point's data. */
-#define _UTRIE2_U8_NEXT(trie, ascii, data, src, limit, result) { \
+#define _UTRIE2_U8_NEXT(trie, ascii, data, src, limit, result) UPRV_BLOCK_MACRO_BEGIN { \
     uint8_t __lead=(uint8_t)*(src)++; \
     if(U8_IS_SINGLE(__lead)) { \
         (result)=(trie)->ascii[__lead]; \
@@ -935,10 +935,10 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=(trie)->data[__index>>3]; \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal UTF-8 pre-decrement-previous: get the previous code point's data. */
-#define _UTRIE2_U8_PREV(trie, ascii, data, start, src, result) { \
+#define _UTRIE2_U8_PREV(trie, ascii, data, start, src, result) UPRV_BLOCK_MACRO_BEGIN { \
     uint8_t __b=(uint8_t)*--(src); \
     if(U8_IS_SINGLE(__b)) { \
         (result)=(trie)->ascii[__b]; \
@@ -948,7 +948,7 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
         (src)-=__index&7; \
         (result)=(trie)->data[__index>>3]; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 U_CDECL_END
 

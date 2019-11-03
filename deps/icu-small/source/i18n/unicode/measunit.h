@@ -15,6 +15,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/unistr.h"
@@ -62,7 +64,7 @@ class U_I18N_API MeasureUnit: public UObject {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual UObject* clone() const;
+    virtual MeasureUnit* clone() const;
 
     /**
      * Destructor
@@ -604,16 +606,14 @@ class U_I18N_API MeasureUnit: public UObject {
     static MeasureUnit getPartPerMillion();
 #endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of concentr: percent.
      * Caller owns returned value and must free it.
      * Also see {@link #getPercent()}.
      * @param status ICU error code.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     static MeasureUnit *createPercent(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -624,16 +624,14 @@ class U_I18N_API MeasureUnit: public UObject {
     static MeasureUnit getPercent();
 #endif /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of concentr: permille.
      * Caller owns returned value and must free it.
      * Also see {@link #getPermille()}.
      * @param status ICU error code.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     static MeasureUnit *createPermille(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -878,16 +876,14 @@ class U_I18N_API MeasureUnit: public UObject {
     static MeasureUnit getMegabyte();
 #endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of digital: petabyte.
      * Caller owns returned value and must free it.
      * Also see {@link #getPetabyte()}.
      * @param status ICU error code.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     static MeasureUnit *createPetabyte(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -979,15 +975,31 @@ class U_I18N_API MeasureUnit: public UObject {
      * @draft ICU 64
      */
     static MeasureUnit *createDayPerson(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by value, unit of duration: day-person.
      * Also see {@link #createDayPerson()}.
      * @draft ICU 64
      */
     static MeasureUnit getDayPerson();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of duration: decade.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getDecade()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createDecade(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of duration: decade.
+     * Also see {@link #createDecade()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getDecade();
 #endif /* U_HIDE_DRAFT_API */
 
     /**
@@ -1089,9 +1101,7 @@ class U_I18N_API MeasureUnit: public UObject {
      * @draft ICU 64
      */
     static MeasureUnit *createMonthPerson(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by value, unit of duration: month-person.
      * Also see {@link #createMonthPerson()}.
@@ -1163,9 +1173,7 @@ class U_I18N_API MeasureUnit: public UObject {
      * @draft ICU 64
      */
     static MeasureUnit *createWeekPerson(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by value, unit of duration: week-person.
      * Also see {@link #createWeekPerson()}.
@@ -1201,9 +1209,7 @@ class U_I18N_API MeasureUnit: public UObject {
      * @draft ICU 64
      */
     static MeasureUnit *createYearPerson(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by value, unit of duration: year-person.
      * Also see {@link #createYearPerson()}.
@@ -1430,6 +1436,24 @@ class U_I18N_API MeasureUnit: public UObject {
 
 #ifndef U_HIDE_DRAFT_API
     /**
+     * Returns by pointer, unit of energy: therm-us.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getThermUs()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createThermUs(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of energy: therm-us.
+     * Also see {@link #createThermUs()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getThermUs();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
      * Returns by pointer, unit of force: newton.
      * Caller owns returned value and must free it.
      * Also see {@link #getNewton()}.
@@ -1535,6 +1559,132 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getMegahertz();
 #endif  /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: dot-per-centimeter.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getDotPerCentimeter()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createDotPerCentimeter(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: dot-per-centimeter.
+     * Also see {@link #createDotPerCentimeter()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getDotPerCentimeter();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: dot-per-inch.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getDotPerInch()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createDotPerInch(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: dot-per-inch.
+     * Also see {@link #createDotPerInch()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getDotPerInch();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: em.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getEm()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createEm(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: em.
+     * Also see {@link #createEm()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getEm();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: megapixel.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getMegapixel()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createMegapixel(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: megapixel.
+     * Also see {@link #createMegapixel()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getMegapixel();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: pixel.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getPixel()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createPixel(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: pixel.
+     * Also see {@link #createPixel()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getPixel();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: pixel-per-centimeter.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getPixelPerCentimeter()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createPixelPerCentimeter(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: pixel-per-centimeter.
+     * Also see {@link #createPixelPerCentimeter()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getPixelPerCentimeter();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of graphics: pixel-per-inch.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getPixelPerInch()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createPixelPerInch(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of graphics: pixel-per-inch.
+     * Also see {@link #createPixelPerInch()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getPixelPerInch();
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of length: astronomical-unit.
@@ -2310,16 +2460,14 @@ class U_I18N_API MeasureUnit: public UObject {
     static MeasureUnit getWatt();
 #endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of pressure: atmosphere.
      * Caller owns returned value and must free it.
      * Also see {@link #getAtmosphere()}.
      * @param status ICU error code.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     static MeasureUnit *createAtmosphere(UErrorCode &status);
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -2328,6 +2476,24 @@ class U_I18N_API MeasureUnit: public UObject {
      * @draft ICU 64
      */
     static MeasureUnit getAtmosphere();
+#endif /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of pressure: bar.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getBar()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createBar(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of pressure: bar.
+     * Also see {@link #createBar()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getBar();
 #endif /* U_HIDE_DRAFT_API */
 
     /**
@@ -2437,6 +2603,24 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getMillimeterOfMercury();
 #endif  /* U_HIDE_DRAFT_API */
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of pressure: pascal.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getPascal()}.
+     * @param status ICU error code.
+     * @draft ICU 65
+     */
+    static MeasureUnit *createPascal(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of pressure: pascal.
+     * Also see {@link #createPascal()}.
+     * @draft ICU 65
+     */
+    static MeasureUnit getPascal();
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of pressure: pound-per-square-inch.
@@ -3164,4 +3348,7 @@ private:
 U_NAMESPACE_END
 
 #endif // !UNCONFIG_NO_FORMATTING
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif // __MEASUREUNIT_H__

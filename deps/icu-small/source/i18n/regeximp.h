@@ -123,7 +123,7 @@ enum {
                                //     saved input position, FAIL rather than taking
                                //     the JMP
      URX_LA_START      = 37,   // Starting a LookAround expression.
-                               //   Save InputPos and SP in static data.
+                               //   Save InputPos, SP and active region in static data.
                                //   Operand:  Static data offset for the save
      URX_LA_END        = 38,   // Ending a Lookaround expression.
                                //   Restore InputPos and Stack to saved values.

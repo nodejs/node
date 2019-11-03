@@ -157,13 +157,18 @@ _isKeywordValue(const char* key, const char* value, int32_t value_len)
 }
 
 static void
-_copyExtensions(const Locale& from, Locale* to, bool validate, UErrorCode& errorCode)
+_copyExtensions(const Locale& from, icu::StringEnumeration *keywords,
+                Locale& to, bool validate, UErrorCode& errorCode)
 {
     if (U_FAILURE(errorCode)) { return; }
-    LocalPointer<icu::StringEnumeration> iter(from.createKeywords(errorCode));
-    if (U_FAILURE(errorCode) || iter.isNull()) { return; }
+    LocalPointer<icu::StringEnumeration> ownedKeywords;
+    if (keywords == nullptr) {
+        ownedKeywords.adoptInstead(from.createKeywords(errorCode));
+        if (U_FAILURE(errorCode) || ownedKeywords.isNull()) { return; }
+        keywords = ownedKeywords.getAlias();
+    }
     const char* key;
-    while ((key = iter->next(nullptr, errorCode)) != nullptr) {
+    while ((key = keywords->next(nullptr, errorCode)) != nullptr) {
         CharString value;
         CharStringByteSink sink(&value);
         from.getKeywordValue(key, sink, errorCode);
@@ -176,34 +181,34 @@ _copyExtensions(const Locale& from, Locale* to, bool validate, UErrorCode& error
             errorCode = U_ILLEGAL_ARGUMENT_ERROR;
             return;
         }
-        to->setKeywordValue(key, value.data(), errorCode);
+        to.setKeywordValue(key, value.data(), errorCode);
         if (U_FAILURE(errorCode)) { return; }
     }
 }
 
 void static
-_clearUAttributesAndKeyType(Locale* locale, UErrorCode& errorCode)
+_clearUAttributesAndKeyType(Locale& locale, UErrorCode& errorCode)
 {
     // Clear Unicode attributes
-    locale->setKeywordValue(kAttributeKey, "", errorCode);
+    locale.setKeywordValue(kAttributeKey, "", errorCode);
 
     // Clear all Unicode keyword values
-    LocalPointer<icu::StringEnumeration> iter(locale->createUnicodeKeywords(errorCode));
+    LocalPointer<icu::StringEnumeration> iter(locale.createUnicodeKeywords(errorCode));
     if (U_FAILURE(errorCode) || iter.isNull()) { return; }
     const char* key;
     while ((key = iter->next(nullptr, errorCode)) != nullptr) {
-        locale->setUnicodeKeywordValue(key, nullptr, errorCode);
+        locale.setUnicodeKeywordValue(key, nullptr, errorCode);
     }
 }
 
 static void
-_setUnicodeExtensions(Locale* locale, const CharString& value, UErrorCode& errorCode)
+_setUnicodeExtensions(Locale& locale, const CharString& value, UErrorCode& errorCode)
 {
     // Add the unicode extensions to extensions_
     CharString locale_str("und-u-", errorCode);
     locale_str.append(value, errorCode);
     _copyExtensions(
-        Locale::forLanguageTag(locale_str.data(), errorCode),
+        Locale::forLanguageTag(locale_str.data(), errorCode), nullptr,
         locale, false, errorCode);
 }
 
@@ -235,10 +240,10 @@ LocaleBuilder& LocaleBuilder::setExtension(char key, StringPiece value)
                                      status_);
         return *this;
     }
-    _clearUAttributesAndKeyType(extensions_, status_);
+    _clearUAttributesAndKeyType(*extensions_, status_);
     if (U_FAILURE(status_)) { return *this; }
     if (!value.empty()) {
-        _setUnicodeExtensions(extensions_, value_str, status_);
+        _setUnicodeExtensions(*extensions_, value_str, status_);
     }
     return *this;
 }
@@ -401,6 +406,24 @@ Locale makeBogusLocale() {
   return bogus;
 }
 
+void LocaleBuilder::copyExtensionsFrom(const Locale& src, UErrorCode& errorCode)
+{
+    if (U_FAILURE(errorCode)) { return; }
+    LocalPointer<icu::StringEnumeration> keywords(src.createKeywords(errorCode));
+    if (U_FAILURE(errorCode) || keywords.isNull() || keywords->count(errorCode) == 0) {
+        // Error, or no extensions to copy.
+        return;
+    }
+    if (extensions_ == nullptr) {
+        extensions_ = new Locale();
+        if (extensions_ == nullptr) {
+            status_ = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+    }
+    _copyExtensions(src, keywords.getAlias(), *extensions_, false, errorCode);
+}
+
 Locale LocaleBuilder::build(UErrorCode& errorCode)
 {
     if (U_FAILURE(errorCode)) {
@@ -425,12 +448,21 @@ Locale LocaleBuilder::build(UErrorCode& errorCode)
     }
     Locale product(locale_str.data());
     if (extensions_ != nullptr) {
-        _copyExtensions(*extensions_, &product, true, errorCode);
+        _copyExtensions(*extensions_, nullptr, product, true, errorCode);
     }
     if (U_FAILURE(errorCode)) {
         return makeBogusLocale();
     }
     return product;
+}
+
+UBool LocaleBuilder::copyErrorTo(UErrorCode &outErrorCode) const {
+    if (U_FAILURE(outErrorCode)) {
+        // Do not overwrite the older error code
+        return TRUE;
+    }
+    outErrorCode = status_;
+    return U_FAILURE(outErrorCode);
 }
 
 U_NAMESPACE_END

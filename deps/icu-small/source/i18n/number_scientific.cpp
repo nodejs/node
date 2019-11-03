@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include "number_scientific.h"
 #include "number_utils.h"
-#include "number_stringbuilder.h"
+#include "formatted_string_builder.h"
 #include "unicode/unum.h"
 #include "number_microprops.h"
 
@@ -36,7 +36,7 @@ void ScientificModifier::set(int32_t exponent, const ScientificHandler *handler)
     fHandler = handler;
 }
 
-int32_t ScientificModifier::apply(NumberStringBuilder &output, int32_t /*leftIndex*/, int32_t rightIndex,
+int32_t ScientificModifier::apply(FormattedStringBuilder &output, int32_t /*leftIndex*/, int32_t rightIndex,
                                   UErrorCode &status) const {
     // FIXME: Localized exponent separator location.
     int i = rightIndex;
@@ -123,9 +123,15 @@ void ScientificHandler::processQuantity(DecimalQuantity &quantity, MicroProps &m
     fParent->processQuantity(quantity, micros, status);
     if (U_FAILURE(status)) { return; }
 
+    // Do not apply scientific notation to special doubles
+    if (quantity.isInfinite() || quantity.isNaN()) {
+        micros.modInner = &micros.helpers.emptyStrongModifier;
+        return;
+    }
+
     // Treat zero as if it had magnitude 0
     int32_t exponent;
-    if (quantity.isZero()) {
+    if (quantity.isZeroish()) {
         if (fSettings.fRequireMinInt && micros.rounder.isSignificantDigits()) {
             // Show "00.000E0" on pattern "00.000E0"
             micros.rounder.apply(quantity, fSettings.fEngineeringInterval, status);

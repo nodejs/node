@@ -22,7 +22,7 @@
  * `actualLocale' of size ULOC_FULLNAME_CAPACITY
  */
 #define U_LOCALE_BASED(varname, objname) \
-  LocaleBased varname((objname).validLocale, (objname).actualLocale);
+  LocaleBased varname((objname).validLocale, (objname).actualLocale)
 
 U_NAMESPACE_BEGIN
 

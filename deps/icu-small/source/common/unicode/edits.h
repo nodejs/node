@@ -8,6 +8,9 @@
 #define __EDITS_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
 /**
@@ -159,7 +162,7 @@ public:
      * @return TRUE if U_FAILURE(outErrorCode)
      * @stable ICU 59
      */
-    UBool copyErrorTo(UErrorCode &outErrorCode);
+    UBool copyErrorTo(UErrorCode &outErrorCode) const;
 
     /**
      * How much longer is the new text compared with the old text?
@@ -522,5 +525,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __EDITS_H__

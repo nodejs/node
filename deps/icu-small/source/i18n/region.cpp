@@ -25,7 +25,6 @@
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
 #include "unicode/ures.h"
-#include "unicode/decimfmt.h"
 #include "ucln_in.h"
 #include "cstring.h"
 #include "mutex.h"
@@ -33,6 +32,7 @@
 #include "umutex.h"
 #include "uresimp.h"
 #include "region_impl.h"
+#include "util.h"
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -87,7 +87,6 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
     LocalUHashtablePointer newRegionIDMap(uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, &status));
     LocalUHashtablePointer newNumericCodeMap(uhash_open(uhash_hashLong,uhash_compareLong,NULL,&status));
     LocalUHashtablePointer newRegionAliases(uhash_open(uhash_hashUnicodeString,uhash_compareUnicodeString,NULL,&status));
-    LocalPointer<DecimalFormat> df(new DecimalFormat(status), status);
 
     LocalPointer<UVector> continents(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
     LocalPointer<UVector> groupings(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status), status);
@@ -115,7 +114,6 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
     }
 
     // now, initialize
-    df->setParseIntegerOnly(TRUE);
     uhash_setValueDeleter(newRegionIDMap.getAlias(), deleteRegion);  // regionIDMap owns objs
     uhash_setKeyDeleter(newRegionAliases.getAlias(), uprv_deleteUObject); // regionAliases owns the string keys
 
@@ -192,11 +190,10 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
         r->idStr.extract(0,r->idStr.length(),r->id,sizeof(r->id),US_INV);
         r->fType = URGN_TERRITORY; // Only temporary - figure out the real type later once the aliases are known.
 
-        Formattable result;
-        UErrorCode ps = U_ZERO_ERROR;
-        df->parse(r->idStr,result,ps);
-        if ( U_SUCCESS(ps) ) {
-            r->code = result.getLong(); // Convert string to number
+        int32_t pos = 0;
+        int32_t result = ICU_Utility::parseAsciiInteger(r->idStr, pos);
+        if (pos > 0) {
+            r->code = result; // Convert string to number
             uhash_iput(newNumericCodeMap.getAlias(),r->code,(void *)(r.getAlias()),&status);
             r->fType = URGN_SUBCONTINENT;
         } else {
@@ -230,11 +227,10 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
                 aliasFromRegion->idStr.setTo(*aliasFromStr);
                 aliasFromRegion->idStr.extract(0,aliasFromRegion->idStr.length(),aliasFromRegion->id,sizeof(aliasFromRegion->id),US_INV);
                 uhash_put(newRegionIDMap.getAlias(),(void *)&(aliasFromRegion->idStr),(void *)aliasFromRegion,&status);
-                Formattable result;
-                UErrorCode ps = U_ZERO_ERROR;
-                df->parse(aliasFromRegion->idStr,result,ps);
-                if ( U_SUCCESS(ps) ) {
-                    aliasFromRegion->code = result.getLong(); // Convert string to number
+                int32_t pos = 0;
+                int32_t result = ICU_Utility::parseAsciiInteger(aliasFromRegion->idStr, pos);
+                if ( pos > 0 ) {
+                    aliasFromRegion->code = result; // Convert string to number
                     uhash_iput(newNumericCodeMap.getAlias(),aliasFromRegion->code,(void *)aliasFromRegion,&status);
                 } else {
                     aliasFromRegion->code = -1;
@@ -279,11 +275,10 @@ void U_CALLCONV Region::loadRegionData(UErrorCode &status) {
 
             Region *r = (Region *)uhash_get(newRegionIDMap.getAlias(),(void *)&codeMappingID);
             if ( r ) {
-                Formattable result;
-                UErrorCode ps = U_ZERO_ERROR;
-                df->parse(codeMappingNumber,result,ps);
-                if ( U_SUCCESS(ps) ) {
-                    r->code = result.getLong(); // Convert string to number
+                int32_t pos = 0;
+                int32_t result = ICU_Utility::parseAsciiInteger(codeMappingNumber, pos);
+                if ( pos > 0 ) {
+                    r->code = result; // Convert string to number
                     uhash_iput(newNumericCodeMap.getAlias(),r->code,(void *)r,&status);
                 }
                 LocalPointer<UnicodeString> code3(new UnicodeString(codeMapping3Letter), status);
@@ -516,15 +511,8 @@ Region::getInstance (int32_t code, UErrorCode &status) {
     Region *r = (Region *)uhash_iget(numericCodeMap,code);
 
     if ( !r ) { // Just in case there's an alias that's numeric, try to find it.
-        UnicodeString pat = UNICODE_STRING_SIMPLE("0");
-        LocalPointer<DecimalFormat> df(new DecimalFormat(pat,status), status);
-        if( U_FAILURE(status) ) {
-            return NULL;
-        }
         UnicodeString id;
-        id.remove();
-        FieldPosition posIter;
-        df->format(code,id, posIter, status);
+        ICU_Utility::appendNumber(id, code, 10, 1);
         r = (Region *)uhash_get(regionAliases,&id);
     }
 

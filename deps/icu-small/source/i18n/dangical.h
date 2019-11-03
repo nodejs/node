@@ -66,7 +66,7 @@ class DangiCalendar : public ChineseCalendar {
    * Clone.
    * @internal
    */
-  virtual Calendar* clone() const;
+  virtual DangiCalendar* clone() const;
 
   //----------------------------------------------------------------------
   // Internal methods & astronomical calculations

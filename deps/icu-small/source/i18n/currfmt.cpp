@@ -33,7 +33,7 @@ CurrencyFormat::CurrencyFormat(const CurrencyFormat& other) :
 CurrencyFormat::~CurrencyFormat() {
 }
 
-Format* CurrencyFormat::clone() const {
+CurrencyFormat* CurrencyFormat::clone() const {
     return new CurrencyFormat(*this);
 }
 

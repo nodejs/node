@@ -180,13 +180,13 @@ TransliterationRule::TransliterationRule(TransliterationRule& other) :
     }
 
     if (other.anteContext != NULL) {
-        anteContext = (StringMatcher*) other.anteContext->clone();
+        anteContext = other.anteContext->clone();
     }
     if (other.key != NULL) {
-        key = (StringMatcher*) other.key->clone();
+        key = other.key->clone();
     }
     if (other.postContext != NULL) {
-        postContext = (StringMatcher*) other.postContext->clone();
+        postContext = other.postContext->clone();
     }
     output = other.output->clone();
 }

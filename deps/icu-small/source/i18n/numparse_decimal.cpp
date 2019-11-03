@@ -16,6 +16,7 @@
 #include "unicode/uchar.h"
 #include "putilimp.h"
 #include "number_decimalquantity.h"
+#include "string_segment.h"
 
 using namespace icu;
 using namespace icu::numparse;

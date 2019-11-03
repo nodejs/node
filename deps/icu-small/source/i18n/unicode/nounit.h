@@ -12,10 +12,13 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
-#ifndef U_HIDE_DRAFT_API
 
 #include "unicode/measunit.h"
+
+#ifndef U_HIDE_DRAFT_API
 
 /**
  * \file
@@ -72,7 +75,7 @@ public:
      * have the same class as returned by getDynamicClassID().
      * @draft ICU 60
      */
-    virtual UObject* clone() const;
+    virtual NoUnit* clone() const;
 
     /**
      * Returns a unique class ID for this object POLYMORPHICALLY.
@@ -105,6 +108,8 @@ U_NAMESPACE_END
 
 #endif  /* U_HIDE_DRAFT_API */
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // __NOUNIT_H__
 //eof

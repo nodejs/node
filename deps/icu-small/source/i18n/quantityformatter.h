@@ -26,12 +26,7 @@ class PluralRules;
 class NumberFormat;
 class Formattable;
 class FieldPosition;
-
-namespace number {
-namespace impl {
-class NumberStringBuilder;
-}
-}
+class FormattedStringBuilder;
 
 /**
  * A plural aware formatter that is good for expressing a single quantity and
@@ -129,7 +124,7 @@ public:
 
     /**
      * Formats a quantity and selects its plural form. The output is appended
-     * to a NumberStringBuilder in order to retain field information.
+     * to a FormattedStringBuilder in order to retain field information.
      *
      * @param quantity The number to format.
      * @param fmt The formatter to use to format the number.
@@ -144,7 +139,7 @@ public:
             double quantity,
             const NumberFormat& fmt,
             const PluralRules& rules,
-            number::impl::NumberStringBuilder& output,
+            FormattedStringBuilder& output,
             StandardPlural::Form& pluralForm,
             UErrorCode& status);
 

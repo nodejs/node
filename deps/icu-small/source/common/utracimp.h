@@ -144,10 +144,12 @@ U_CDECL_END
  */
 #define UTRACE_ENTRY(fnNumber) \
     int32_t utraceFnNumber=(fnNumber); \
+UPRV_BLOCK_MACRO_BEGIN { \
     if(utrace_getLevel()>=UTRACE_INFO) { \
         utrace_entry(fnNumber); \
         utraceFnNumber |= UTRACE_TRACED_ENTRY; \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 
 /**
@@ -162,10 +164,12 @@ U_CDECL_END
  */
 #define UTRACE_ENTRY_OC(fnNumber) \
     int32_t utraceFnNumber=(fnNumber); \
+UPRV_BLOCK_MACRO_BEGIN { \
     if(utrace_getLevel()>=UTRACE_OPEN_CLOSE) { \
         utrace_entry(fnNumber); \
         utraceFnNumber |= UTRACE_TRACED_ENTRY; \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement for each exit point of a function that has a UTRACE_ENTRY()
@@ -179,10 +183,11 @@ U_CDECL_END
  *
  * @internal
  */
-#define UTRACE_EXIT() \
-    {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
+#define UTRACE_EXIT() UPRV_BLOCK_MACRO_BEGIN { \
+    if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
         utrace_exit(utraceFnNumber & ~UTRACE_TRACED_ENTRY, UTRACE_EXITV_NONE); \
-    }}
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement for each exit point of a function that has a UTRACE_ENTRY()
@@ -192,25 +197,29 @@ U_CDECL_END
  *
  * @internal
  */
-#define UTRACE_EXIT_VALUE(val) \
-    {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
+#define UTRACE_EXIT_VALUE(val) UPRV_BLOCK_MACRO_BEGIN { \
+    if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
         utrace_exit(utraceFnNumber & ~UTRACE_TRACED_ENTRY, UTRACE_EXITV_I32, val); \
-    }}
+    } \
+} UPRV_BLOCK_MACRO_END
 
-#define UTRACE_EXIT_STATUS(status) \
-    {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
+#define UTRACE_EXIT_STATUS(status) UPRV_BLOCK_MACRO_BEGIN { \
+    if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
         utrace_exit(utraceFnNumber & ~UTRACE_TRACED_ENTRY, UTRACE_EXITV_STATUS, status); \
-    }}
+    } \
+} UPRV_BLOCK_MACRO_END
 
-#define UTRACE_EXIT_VALUE_STATUS(val, status) \
-    {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
+#define UTRACE_EXIT_VALUE_STATUS(val, status) UPRV_BLOCK_MACRO_BEGIN { \
+    if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
         utrace_exit(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (UTRACE_EXITV_I32 | UTRACE_EXITV_STATUS), val, status); \
-    }}
+    } \
+} UPRV_BLOCK_MACRO_END
 
-#define UTRACE_EXIT_PTR_STATUS(ptr, status) \
-    {if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
+#define UTRACE_EXIT_PTR_STATUS(ptr, status) UPRV_BLOCK_MACRO_BEGIN { \
+    if(utraceFnNumber & UTRACE_TRACED_ENTRY) { \
         utrace_exit(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (UTRACE_EXITV_PTR | UTRACE_EXITV_STATUS), ptr, status); \
-    }}
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -220,10 +229,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA0(level, fmt) \
+#define UTRACE_DATA0(level, fmt) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -233,10 +243,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA1(level, fmt, a) \
+#define UTRACE_DATA1(level, fmt, a) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY , (level), (fmt), (a)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -246,10 +257,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA2(level, fmt, a, b) \
+#define UTRACE_DATA2(level, fmt, a, b) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY , (level), (fmt), (a), (b)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -259,10 +271,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA3(level, fmt, a, b, c) \
+#define UTRACE_DATA3(level, fmt, a, b, c) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -272,10 +285,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA4(level, fmt, a, b, c, d) \
+#define UTRACE_DATA4(level, fmt, a, b, c, d) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -285,10 +299,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA5(level, fmt, a, b, c, d, e) \
+#define UTRACE_DATA5(level, fmt, a, b, c, d, e) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d), (e)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -298,10 +313,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA6(level, fmt, a, b, c, d, e, f) \
+#define UTRACE_DATA6(level, fmt, a, b, c, d, e, f) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d), (e), (f)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -311,10 +327,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA7(level, fmt, a, b, c, d, e, f, g) \
+#define UTRACE_DATA7(level, fmt, a, b, c, d, e, f, g) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d), (e), (f), (g)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -324,10 +341,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA8(level, fmt, a, b, c, d, e, f, g, h) \
+#define UTRACE_DATA8(level, fmt, a, b, c, d, e, f, g, h) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d), (e), (f), (g), (h)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /**
  * Trace statement used inside functions that have a UTRACE_ENTRY() statement.
@@ -337,10 +355,11 @@ U_CDECL_END
  * Calls utrace_data() if the level is high enough.
  * @internal
  */
-#define UTRACE_DATA9(level, fmt, a, b, c, d, e, f, g, h, i) \
+#define UTRACE_DATA9(level, fmt, a, b, c, d, e, f, g, h, i) UPRV_BLOCK_MACRO_BEGIN { \
     if(UTRACE_LEVEL(level)) { \
         utrace_data(utraceFnNumber & ~UTRACE_TRACED_ENTRY, (level), (fmt), (a), (b), (c), (d), (e), (f), (g), (h), (i)); \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 #else
 

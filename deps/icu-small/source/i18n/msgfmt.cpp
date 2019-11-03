@@ -436,7 +436,7 @@ MessageFormat::operator==(const Format& rhs) const
 // -------------------------------------
 // Creates a copy of this MessageFormat, the caller owns the copy.
 
-Format*
+MessageFormat*
 MessageFormat::clone() const
 {
     return new MessageFormat(*this);
@@ -813,7 +813,7 @@ MessageFormat::getFormats(int32_t& cnt) const
 
     // Get total required capacity first (it's refreshed on each call).
     int32_t totalCapacity = 0;
-    for (int32_t partIndex = 0; (partIndex = nextTopLevelArgStart(partIndex)) >= 0; ++totalCapacity) {};
+    for (int32_t partIndex = 0; (partIndex = nextTopLevelArgStart(partIndex)) >= 0; ++totalCapacity) {}
 
     MessageFormat* t = const_cast<MessageFormat*> (this);
     cnt = 0;
@@ -1873,7 +1873,7 @@ UBool MessageFormat::DummyFormat::operator==(const Format&) const {
     return TRUE;
 }
 
-Format* MessageFormat::DummyFormat::clone() const {
+MessageFormat::DummyFormat* MessageFormat::DummyFormat::clone() const {
     return new DummyFormat();
 }
 

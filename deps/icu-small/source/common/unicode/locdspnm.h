@@ -12,6 +12,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Provides display names of Locale and its components.
@@ -203,5 +205,7 @@ inline LocaleDisplayNames* LocaleDisplayNames::createInstance(const Locale& loca
 U_NAMESPACE_END
 
 #endif
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif
