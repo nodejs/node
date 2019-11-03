@@ -12,6 +12,7 @@
 #include "numparse_types.h"
 #include "numparse_scientific.h"
 #include "static_unicode_sets.h"
+#include "string_segment.h"
 
 using namespace icu;
 using namespace icu::numparse;
@@ -33,7 +34,8 @@ inline const UnicodeSet& plusSignSet() {
 
 ScientificMatcher::ScientificMatcher(const DecimalFormatSymbols& dfs, const Grouper& grouper)
         : fExponentSeparatorString(dfs.getConstSymbol(DecimalFormatSymbols::kExponentialSymbol)),
-          fExponentMatcher(dfs, grouper, PARSE_FLAG_INTEGER_ONLY | PARSE_FLAG_GROUPING_DISABLED) {
+          fExponentMatcher(dfs, grouper, PARSE_FLAG_INTEGER_ONLY | PARSE_FLAG_GROUPING_DISABLED),
+          fIgnorablesMatcher(PARSE_FLAG_STRICT_IGNORABLES) {
 
     const UnicodeString& minusSign = dfs.getConstSymbol(DecimalFormatSymbols::kMinusSignSymbol);
     if (minusSignSet().contains(minusSign)) {
@@ -63,15 +65,25 @@ bool ScientificMatcher::match(StringSegment& segment, ParsedNumber& result, UErr
 
     // First match the scientific separator, and then match another number after it.
     // NOTE: This is guarded by the smoke test; no need to check fExponentSeparatorString length again.
-    int overlap1 = segment.getCommonPrefixLength(fExponentSeparatorString);
-    if (overlap1 == fExponentSeparatorString.length()) {
+    int32_t initialOffset = segment.getOffset();
+    int32_t overlap = segment.getCommonPrefixLength(fExponentSeparatorString);
+    if (overlap == fExponentSeparatorString.length()) {
         // Full exponent separator match.
 
         // First attempt to get a code point, returning true if we can't get one.
-        if (segment.length() == overlap1) {
+        if (segment.length() == overlap) {
             return true;
         }
-        segment.adjustOffset(overlap1);
+        segment.adjustOffset(overlap);
+
+        // Allow ignorables before the sign.
+        // Note: call site is guarded by the segment.length() check above.
+        // Note: the ignorables matcher should not touch the result.
+        fIgnorablesMatcher.match(segment, result, status);
+        if (segment.length() == 0) {
+            segment.setOffset(initialOffset);
+            return true;
+        }
 
         // Allow a sign, and then try to match digits.
         int8_t exponentSign = 1;
@@ -81,24 +93,37 @@ bool ScientificMatcher::match(StringSegment& segment, ParsedNumber& result, UErr
         } else if (segment.startsWith(plusSignSet())) {
             segment.adjustOffsetByCodePoint();
         } else if (segment.startsWith(fCustomMinusSign)) {
-            // Note: call site is guarded with startsWith, which returns false on empty string
-            int32_t overlap2 = segment.getCommonPrefixLength(fCustomMinusSign);
-            if (overlap2 != fCustomMinusSign.length()) {
-                // Partial custom sign match; un-match the exponent separator.
-                segment.adjustOffset(-overlap1);
+            overlap = segment.getCommonPrefixLength(fCustomMinusSign);
+            if (overlap != fCustomMinusSign.length()) {
+                // Partial custom sign match
+                segment.setOffset(initialOffset);
                 return true;
             }
             exponentSign = -1;
-            segment.adjustOffset(overlap2);
+            segment.adjustOffset(overlap);
         } else if (segment.startsWith(fCustomPlusSign)) {
-            // Note: call site is guarded with startsWith, which returns false on empty string
-            int32_t overlap2 = segment.getCommonPrefixLength(fCustomPlusSign);
-            if (overlap2 != fCustomPlusSign.length()) {
-                // Partial custom sign match; un-match the exponent separator.
-                segment.adjustOffset(-overlap1);
+            overlap = segment.getCommonPrefixLength(fCustomPlusSign);
+            if (overlap != fCustomPlusSign.length()) {
+                // Partial custom sign match
+                segment.setOffset(initialOffset);
                 return true;
             }
-            segment.adjustOffset(overlap2);
+            segment.adjustOffset(overlap);
+        }
+
+        // Return true if the segment is empty.
+        if (segment.length() == 0) {
+            segment.setOffset(initialOffset);
+            return true;
+        }
+
+        // Allow ignorables after the sign.
+        // Note: call site is guarded by the segment.length() check above.
+        // Note: the ignorables matcher should not touch the result.
+        fIgnorablesMatcher.match(segment, result, status);
+        if (segment.length() == 0) {
+            segment.setOffset(initialOffset);
+            return true;
         }
 
         // We are supposed to accept E0 after NaN, so we need to make sure result.quantity is available.
@@ -112,12 +137,12 @@ bool ScientificMatcher::match(StringSegment& segment, ParsedNumber& result, UErr
             // At least one exponent digit was matched.
             result.flags |= FLAG_HAS_EXPONENT;
         } else {
-            // No exponent digits were matched; un-match the exponent separator.
-            segment.adjustOffset(-overlap1);
+            // No exponent digits were matched
+            segment.setOffset(initialOffset);
         }
         return digitsReturnValue;
 
-    } else if (overlap1 == segment.length()) {
+    } else if (overlap == segment.length()) {
         // Partial exponent separator match
         return true;
     }

@@ -742,12 +742,18 @@ uloc_getDisplayName(const char* localeID,
 
 
 /**
- * Gets the specified locale from a list of all available locales.
- * The return value is a pointer to an item of
- * a locale name array.  Both this array and the pointers
- * it contains are owned by ICU and should not be deleted or written through
- * by the caller.  The locale name is terminated by a null pointer.
- * @param n the specific locale name index of the available locale list
+ * Gets the specified locale from a list of available locales.
+ *
+ * This method corresponds to uloc_openAvailableByType called with the
+ * ULOC_AVAILABLE_DEFAULT type argument.
+ *
+ * The return value is a pointer to an item of a locale name array. Both this
+ * array and the pointers it contains are owned by ICU and should not be
+ * deleted or written through by the caller. The locale name is terminated by
+ * a null pointer.
+ *
+ * @param n the specific locale name index of the available locale list;
+ *     should not exceed the number returned by uloc_countAvailable.
  * @return a specified locale name of all available locales
  * @stable ICU 2.0
  */
@@ -761,6 +767,72 @@ uloc_getAvailable(int32_t n);
  * @stable ICU 2.0
  */
 U_STABLE int32_t U_EXPORT2 uloc_countAvailable(void);
+
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Types for uloc_getAvailableByType and uloc_countAvailableByType.
+ *
+ * @draft ICU 65
+ */
+typedef enum ULocAvailableType {
+  /**
+   * Locales that return data when passed to ICU APIs,
+   * but not including legacy or alias locales.
+   *
+   * @draft ICU 65
+   */
+  ULOC_AVAILABLE_DEFAULT,
+
+  /**
+   * Legacy or alias locales that return data when passed to ICU APIs.
+   * Examples of supported legacy or alias locales:
+   *
+   * - iw (alias to he)
+   * - mo (alias to ro)
+   * - zh_CN (alias to zh_Hans_CN)
+   * - sr_BA (alias to sr_Cyrl_BA)
+   * - ars (alias to ar_SA)
+   *
+   * The locales in this set are disjoint from the ones in
+   * ULOC_AVAILABLE_DEFAULT. To get both sets at the same time, use
+   * ULOC_AVAILABLE_WITH_LEGACY_ALIASES.
+   *
+   * @draft ICU 65
+   */
+  ULOC_AVAILABLE_ONLY_LEGACY_ALIASES,
+
+  /**
+   * The union of the locales in ULOC_AVAILABLE_DEFAULT and
+   * ULOC_AVAILABLE_ONLY_LEGACY_ALIAS.
+   *
+   * @draft ICU 65
+   */
+  ULOC_AVAILABLE_WITH_LEGACY_ALIASES,
+
+#ifndef U_HIDE_INTERNAL_API
+  /**
+   * @internal
+   */
+  ULOC_AVAILABLE_COUNT
+#endif
+} ULocAvailableType;
+
+/**
+ * Gets a list of available locales according to the type argument, allowing
+ * the user to access different sets of supported locales in ICU.
+ *
+ * The returned UEnumeration must be closed by the caller.
+ *
+ * @param type Type choice from ULocAvailableType.
+ * @param status Set if an error occurred.
+ * @return a UEnumeration owned by the caller, or nullptr on failure.
+ * @draft ICU 65
+ */
+U_DRAFT UEnumeration* U_EXPORT2
+uloc_openAvailableByType(ULocAvailableType type, UErrorCode* status);
+
+#endif // U_HIDE_DRAFT_API
 
 /**
  *

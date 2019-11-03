@@ -82,7 +82,7 @@ SpoofImpl::SpoofImpl(const SpoofImpl &src, UErrorCode &status)  :
     if (src.fSpoofData != NULL) {
         fSpoofData = src.fSpoofData->addReference();
     }
-    fAllowedCharsSet = static_cast<const UnicodeSet *>(src.fAllowedCharsSet->clone());
+    fAllowedCharsSet = src.fAllowedCharsSet->clone();
     fAllowedLocales = uprv_strdup(src.fAllowedLocales);
     if (fAllowedCharsSet == NULL || fAllowedLocales == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -193,7 +193,7 @@ void SpoofImpl::setAllowedLocales(const char *localesList, UErrorCode &status) {
     }
 
     // Store the updated spoof checker state.
-    tmpSet = static_cast<UnicodeSet *>(allowedChars.clone());
+    tmpSet = allowedChars.clone();
     const char *tmpLocalesList = uprv_strdup(localesList);
     if (tmpSet == NULL || tmpLocalesList == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;

@@ -5,14 +5,9 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "number_stringbuilder.h"
-#include "static_unicode_sets.h"
+#include "formatted_string_builder.h"
+#include "unicode/ustring.h"
 #include "unicode/utf16.h"
-#include "number_utils.h"
-
-using namespace icu;
-using namespace icu::number;
-using namespace icu::number::impl;
 
 namespace {
 
@@ -34,7 +29,10 @@ inline void uprv_memmove2(void* dest, const void* src, size_t len) {
 
 } // namespace
 
-NumberStringBuilder::NumberStringBuilder() {
+
+U_NAMESPACE_BEGIN
+
+FormattedStringBuilder::FormattedStringBuilder() {
 #if U_DEBUG
     // Initializing the memory to non-zero helps catch some bugs that involve
     // reading from an improperly terminated string.
@@ -44,18 +42,18 @@ NumberStringBuilder::NumberStringBuilder() {
 #endif
 }
 
-NumberStringBuilder::~NumberStringBuilder() {
+FormattedStringBuilder::~FormattedStringBuilder() {
     if (fUsingHeap) {
         uprv_free(fChars.heap.ptr);
         uprv_free(fFields.heap.ptr);
     }
 }
 
-NumberStringBuilder::NumberStringBuilder(const NumberStringBuilder &other) {
+FormattedStringBuilder::FormattedStringBuilder(const FormattedStringBuilder &other) {
     *this = other;
 }
 
-NumberStringBuilder &NumberStringBuilder::operator=(const NumberStringBuilder &other) {
+FormattedStringBuilder &FormattedStringBuilder::operator=(const FormattedStringBuilder &other) {
     // Check for self-assignment
     if (this == &other) {
         return *this;
@@ -78,7 +76,7 @@ NumberStringBuilder &NumberStringBuilder::operator=(const NumberStringBuilder &o
             // UErrorCode is not available; fail silently.
             uprv_free(newChars);
             uprv_free(newFields);
-            *this = NumberStringBuilder();  // can't fail
+            *this = FormattedStringBuilder();  // can't fail
             return *this;
         }
 
@@ -97,15 +95,15 @@ NumberStringBuilder &NumberStringBuilder::operator=(const NumberStringBuilder &o
     return *this;
 }
 
-int32_t NumberStringBuilder::length() const {
+int32_t FormattedStringBuilder::length() const {
     return fLength;
 }
 
-int32_t NumberStringBuilder::codePointCount() const {
+int32_t FormattedStringBuilder::codePointCount() const {
     return u_countChar32(getCharPtr() + fZero, fLength);
 }
 
-UChar32 NumberStringBuilder::getFirstCodePoint() const {
+UChar32 FormattedStringBuilder::getFirstCodePoint() const {
     if (fLength == 0) {
         return -1;
     }
@@ -114,7 +112,7 @@ UChar32 NumberStringBuilder::getFirstCodePoint() const {
     return cp;
 }
 
-UChar32 NumberStringBuilder::getLastCodePoint() const {
+UChar32 FormattedStringBuilder::getLastCodePoint() const {
     if (fLength == 0) {
         return -1;
     }
@@ -125,13 +123,13 @@ UChar32 NumberStringBuilder::getLastCodePoint() const {
     return cp;
 }
 
-UChar32 NumberStringBuilder::codePointAt(int32_t index) const {
+UChar32 FormattedStringBuilder::codePointAt(int32_t index) const {
     UChar32 cp;
     U16_GET(getCharPtr() + fZero, 0, index, fLength, cp);
     return cp;
 }
 
-UChar32 NumberStringBuilder::codePointBefore(int32_t index) const {
+UChar32 FormattedStringBuilder::codePointBefore(int32_t index) const {
     int32_t offset = index;
     U16_BACK_1(getCharPtr() + fZero, 0, offset);
     UChar32 cp;
@@ -139,19 +137,15 @@ UChar32 NumberStringBuilder::codePointBefore(int32_t index) const {
     return cp;
 }
 
-NumberStringBuilder &NumberStringBuilder::clear() {
+FormattedStringBuilder &FormattedStringBuilder::clear() {
     // TODO: Reset the heap here?
     fZero = getCapacity() / 2;
     fLength = 0;
     return *this;
 }
 
-int32_t NumberStringBuilder::appendCodePoint(UChar32 codePoint, Field field, UErrorCode &status) {
-    return insertCodePoint(fLength, codePoint, field, status);
-}
-
 int32_t
-NumberStringBuilder::insertCodePoint(int32_t index, UChar32 codePoint, Field field, UErrorCode &status) {
+FormattedStringBuilder::insertCodePoint(int32_t index, UChar32 codePoint, Field field, UErrorCode &status) {
     int32_t count = U16_LENGTH(codePoint);
     int32_t position = prepareForInsert(index, count, status);
     if (U_FAILURE(status)) {
@@ -168,11 +162,7 @@ NumberStringBuilder::insertCodePoint(int32_t index, UChar32 codePoint, Field fie
     return count;
 }
 
-int32_t NumberStringBuilder::append(const UnicodeString &unistr, Field field, UErrorCode &status) {
-    return insert(fLength, unistr, field, status);
-}
-
-int32_t NumberStringBuilder::insert(int32_t index, const UnicodeString &unistr, Field field,
+int32_t FormattedStringBuilder::insert(int32_t index, const UnicodeString &unistr, Field field,
                                     UErrorCode &status) {
     if (unistr.length() == 0) {
         // Nothing to insert.
@@ -186,7 +176,7 @@ int32_t NumberStringBuilder::insert(int32_t index, const UnicodeString &unistr, 
 }
 
 int32_t
-NumberStringBuilder::insert(int32_t index, const UnicodeString &unistr, int32_t start, int32_t end,
+FormattedStringBuilder::insert(int32_t index, const UnicodeString &unistr, int32_t start, int32_t end,
                             Field field, UErrorCode &status) {
     int32_t count = end - start;
     int32_t position = prepareForInsert(index, count, status);
@@ -201,7 +191,7 @@ NumberStringBuilder::insert(int32_t index, const UnicodeString &unistr, int32_t 
 }
 
 int32_t
-NumberStringBuilder::splice(int32_t startThis, int32_t endThis,  const UnicodeString &unistr,
+FormattedStringBuilder::splice(int32_t startThis, int32_t endThis,  const UnicodeString &unistr,
                             int32_t startOther, int32_t endOther, Field field, UErrorCode& status) {
     int32_t thisLength = endThis - startThis;
     int32_t otherLength = endOther - startOther;
@@ -224,12 +214,12 @@ NumberStringBuilder::splice(int32_t startThis, int32_t endThis,  const UnicodeSt
     return count;
 }
 
-int32_t NumberStringBuilder::append(const NumberStringBuilder &other, UErrorCode &status) {
+int32_t FormattedStringBuilder::append(const FormattedStringBuilder &other, UErrorCode &status) {
     return insert(fLength, other, status);
 }
 
 int32_t
-NumberStringBuilder::insert(int32_t index, const NumberStringBuilder &other, UErrorCode &status) {
+FormattedStringBuilder::insert(int32_t index, const FormattedStringBuilder &other, UErrorCode &status) {
     if (this == &other) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -250,7 +240,7 @@ NumberStringBuilder::insert(int32_t index, const NumberStringBuilder &other, UEr
     return count;
 }
 
-void NumberStringBuilder::writeTerminator(UErrorCode& status) {
+void FormattedStringBuilder::writeTerminator(UErrorCode& status) {
     int32_t position = prepareForInsert(fLength, 1, status);
     if (U_FAILURE(status)) {
         return;
@@ -260,7 +250,7 @@ void NumberStringBuilder::writeTerminator(UErrorCode& status) {
     fLength--;
 }
 
-int32_t NumberStringBuilder::prepareForInsert(int32_t index, int32_t count, UErrorCode &status) {
+int32_t FormattedStringBuilder::prepareForInsert(int32_t index, int32_t count, UErrorCode &status) {
     U_ASSERT(index >= 0);
     U_ASSERT(index <= fLength);
     U_ASSERT(count >= 0);
@@ -279,7 +269,7 @@ int32_t NumberStringBuilder::prepareForInsert(int32_t index, int32_t count, UErr
     }
 }
 
-int32_t NumberStringBuilder::prepareForInsertHelper(int32_t index, int32_t count, UErrorCode &status) {
+int32_t FormattedStringBuilder::prepareForInsertHelper(int32_t index, int32_t count, UErrorCode &status) {
     int32_t oldCapacity = getCapacity();
     int32_t oldZero = fZero;
     char16_t *oldChars = getCharPtr();
@@ -342,7 +332,7 @@ int32_t NumberStringBuilder::prepareForInsertHelper(int32_t index, int32_t count
     return fZero + index;
 }
 
-int32_t NumberStringBuilder::remove(int32_t index, int32_t count) {
+int32_t FormattedStringBuilder::remove(int32_t index, int32_t count) {
     // TODO: Reset the heap here?  (If the string after removal can fit on stack?)
     int32_t position = index + fZero;
     uprv_memmove2(getCharPtr() + position,
@@ -355,18 +345,18 @@ int32_t NumberStringBuilder::remove(int32_t index, int32_t count) {
     return position;
 }
 
-UnicodeString NumberStringBuilder::toUnicodeString() const {
+UnicodeString FormattedStringBuilder::toUnicodeString() const {
     return UnicodeString(getCharPtr() + fZero, fLength);
 }
 
-const UnicodeString NumberStringBuilder::toTempUnicodeString() const {
+const UnicodeString FormattedStringBuilder::toTempUnicodeString() const {
     // Readonly-alias constructor:
     return UnicodeString(FALSE, getCharPtr() + fZero, fLength);
 }
 
-UnicodeString NumberStringBuilder::toDebugString() const {
+UnicodeString FormattedStringBuilder::toDebugString() const {
     UnicodeString sb;
-    sb.append(u"<NumberStringBuilder [", -1);
+    sb.append(u"<FormattedStringBuilder [", -1);
     sb.append(toUnicodeString());
     sb.append(u"] [", -1);
     for (int i = 0; i < fLength; i++) {
@@ -419,11 +409,11 @@ UnicodeString NumberStringBuilder::toDebugString() const {
     return sb;
 }
 
-const char16_t *NumberStringBuilder::chars() const {
+const char16_t *FormattedStringBuilder::chars() const {
     return getCharPtr() + fZero;
 }
 
-bool NumberStringBuilder::contentEquals(const NumberStringBuilder &other) const {
+bool FormattedStringBuilder::contentEquals(const FormattedStringBuilder &other) const {
     if (fLength != other.fLength) {
         return false;
     }
@@ -435,136 +425,7 @@ bool NumberStringBuilder::contentEquals(const NumberStringBuilder &other) const 
     return true;
 }
 
-bool NumberStringBuilder::nextFieldPosition(FieldPosition& fp, UErrorCode& status) const {
-    int32_t rawField = fp.getField();
-
-    if (rawField == FieldPosition::DONT_CARE) {
-        return FALSE;
-    }
-
-    if (rawField < 0 || rawField >= UNUM_FIELD_COUNT) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
-    }
-
-    ConstrainedFieldPosition cfpos;
-    cfpos.constrainField(UFIELD_CATEGORY_NUMBER, rawField);
-    cfpos.setState(UFIELD_CATEGORY_NUMBER, rawField, fp.getBeginIndex(), fp.getEndIndex());
-    if (nextPosition(cfpos, 0, status)) {
-        fp.setBeginIndex(cfpos.getStart());
-        fp.setEndIndex(cfpos.getLimit());
-        return true;
-    }
-
-    // Special case: fraction should start after integer if fraction is not present
-    if (rawField == UNUM_FRACTION_FIELD && fp.getEndIndex() == 0) {
-        bool inside = false;
-        int32_t i = fZero;
-        for (; i < fZero + fLength; i++) {
-            if (isIntOrGroup(getFieldPtr()[i]) || getFieldPtr()[i] == UNUM_DECIMAL_SEPARATOR_FIELD) {
-                inside = true;
-            } else if (inside) {
-                break;
-            }
-        }
-        fp.setBeginIndex(i - fZero);
-        fp.setEndIndex(i - fZero);
-    }
-
-    return false;
-}
-
-void NumberStringBuilder::getAllFieldPositions(FieldPositionIteratorHandler& fpih,
-                                               UErrorCode& status) const {
-    ConstrainedFieldPosition cfpos;
-    while (nextPosition(cfpos, 0, status)) {
-        fpih.addAttribute(cfpos.getField(), cfpos.getStart(), cfpos.getLimit());
-    }
-}
-
-// Signal the end of the string using a field that doesn't exist and that is
-// different from UNUM_FIELD_COUNT, which is used for "null number field".
-static constexpr Field kEndField = 0xff;
-
-bool NumberStringBuilder::nextPosition(ConstrainedFieldPosition& cfpos, Field numericField, UErrorCode& /*status*/) const {
-    auto numericCAF = NumFieldUtils::expand(numericField);
-    int32_t fieldStart = -1;
-    Field currField = UNUM_FIELD_COUNT;
-    for (int32_t i = fZero + cfpos.getLimit(); i <= fZero + fLength; i++) {
-        Field _field = (i < fZero + fLength) ? getFieldPtr()[i] : kEndField;
-        // Case 1: currently scanning a field.
-        if (currField != UNUM_FIELD_COUNT) {
-            if (currField != _field) {
-                int32_t end = i - fZero;
-                // Grouping separators can be whitespace; don't throw them out!
-                if (currField != UNUM_GROUPING_SEPARATOR_FIELD) {
-                    end = trimBack(i - fZero);
-                }
-                if (end <= fieldStart) {
-                    // Entire field position is ignorable; skip.
-                    fieldStart = -1;
-                    currField = UNUM_FIELD_COUNT;
-                    i--;  // look at this index again
-                    continue;
-                }
-                int32_t start = fieldStart;
-                if (currField != UNUM_GROUPING_SEPARATOR_FIELD) {
-                    start = trimFront(start);
-                }
-                auto caf = NumFieldUtils::expand(currField);
-                cfpos.setState(caf.category, caf.field, start, end);
-                return true;
-            }
-            continue;
-        }
-        // Special case: coalesce the INTEGER if we are pointing at the end of the INTEGER.
-        if (cfpos.matchesField(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD)
-                && i > fZero
-                // don't return the same field twice in a row:
-                && i - fZero > cfpos.getLimit()
-                && isIntOrGroup(getFieldPtr()[i - 1])
-                && !isIntOrGroup(_field)) {
-            int j = i - 1;
-            for (; j >= fZero && isIntOrGroup(getFieldPtr()[j]); j--) {}
-            cfpos.setState(UFIELD_CATEGORY_NUMBER, UNUM_INTEGER_FIELD, j - fZero + 1, i - fZero);
-            return true;
-        }
-        // Special case: coalesce NUMERIC if we are pointing at the end of the NUMERIC.
-        if (numericField != 0
-                && cfpos.matchesField(numericCAF.category, numericCAF.field)
-                && i > fZero
-                // don't return the same field twice in a row:
-                && (i - fZero > cfpos.getLimit()
-                    || cfpos.getCategory() != numericCAF.category
-                    || cfpos.getField() != numericCAF.field)
-                && isNumericField(getFieldPtr()[i - 1])
-                && !isNumericField(_field)) {
-            int j = i - 1;
-            for (; j >= fZero && isNumericField(getFieldPtr()[j]); j--) {}
-            cfpos.setState(numericCAF.category, numericCAF.field, j - fZero + 1, i - fZero);
-            return true;
-        }
-        // Special case: skip over INTEGER; will be coalesced later.
-        if (_field == UNUM_INTEGER_FIELD) {
-            _field = UNUM_FIELD_COUNT;
-        }
-        // Case 2: no field starting at this position.
-        if (_field == UNUM_FIELD_COUNT || _field == kEndField) {
-            continue;
-        }
-        // Case 3: check for field starting at this position
-        auto caf = NumFieldUtils::expand(_field);
-        if (cfpos.matchesField(caf.category, caf.field)) {
-            fieldStart = i - fZero;
-            currField = _field;
-        }
-    }
-
-    U_ASSERT(currField == UNUM_FIELD_COUNT);
-    return false;
-}
-
-bool NumberStringBuilder::containsField(Field field) const {
+bool FormattedStringBuilder::containsField(Field field) const {
     for (int32_t i = 0; i < fLength; i++) {
         if (field == fieldAt(i)) {
             return true;
@@ -573,27 +434,6 @@ bool NumberStringBuilder::containsField(Field field) const {
     return false;
 }
 
-bool NumberStringBuilder::isIntOrGroup(Field field) {
-    return field == UNUM_INTEGER_FIELD
-        || field == UNUM_GROUPING_SEPARATOR_FIELD;
-}
-
-bool NumberStringBuilder::isNumericField(Field field) {
-    return NumFieldUtils::isNumericField(field);
-}
-
-int32_t NumberStringBuilder::trimBack(int32_t limit) const {
-    return unisets::get(unisets::DEFAULT_IGNORABLES)->spanBack(
-        getCharPtr() + fZero,
-        limit,
-        USET_SPAN_CONTAINED);
-}
-
-int32_t NumberStringBuilder::trimFront(int32_t start) const {
-    return start + unisets::get(unisets::DEFAULT_IGNORABLES)->span(
-        getCharPtr() + fZero + start,
-        fLength - start,
-        USET_SPAN_CONTAINED);
-}
+U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

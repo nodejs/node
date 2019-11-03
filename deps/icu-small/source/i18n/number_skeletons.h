@@ -10,10 +10,10 @@
 #include "number_types.h"
 #include "numparse_types.h"
 #include "unicode/ucharstrie.h"
+#include "string_segment.h"
 
-using icu::numparse::impl::StringSegment;
-
-U_NAMESPACE_BEGIN namespace number {
+U_NAMESPACE_BEGIN
+namespace number {
 namespace impl {
 
 // Forward-declaration

@@ -965,7 +965,7 @@ VTimeZone::VTimeZone(const VTimeZone& source)
     tzurl(source.tzurl), lastmod(source.lastmod),
     olsonzid(source.olsonzid), icutzver(source.icutzver) {
     if (source.tz != NULL) {
-        tz = (BasicTimeZone*)source.tz->clone();
+        tz = source.tz->clone();
     }
     if (source.vtzlines != NULL) {
         UErrorCode status = U_ZERO_ERROR;
@@ -1007,7 +1007,7 @@ VTimeZone::operator=(const VTimeZone& right) {
             tz = NULL;
         }
         if (right.tz != NULL) {
-            tz = (BasicTimeZone*)right.tz->clone();
+            tz = right.tz->clone();
         }
         if (vtzlines != NULL) {
             delete vtzlines;
@@ -1092,7 +1092,7 @@ VTimeZone::createVTimeZoneFromBasicTimeZone(const BasicTimeZone& basic_time_zone
         status = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
-    vtz->tz = (BasicTimeZone *)basic_time_zone.clone();
+    vtz->tz = basic_time_zone.clone();
     if (vtz->tz == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
         delete vtz;
@@ -1177,8 +1177,8 @@ VTimeZone::writeSimple(UDate time, UnicodeString& result, UErrorCode& status) co
     writeSimple(time, writer, status);
 }
 
-TimeZone*
-VTimeZone::clone(void) const {
+VTimeZone*
+VTimeZone::clone() const {
     return new VTimeZone(*this);
 }
 
@@ -1957,7 +1957,7 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
                 && (atzrule = dynamic_cast<const AnnualTimeZoneRule *>(tzt.getTo())) != NULL
                 && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR
             ) {
-                finalDstRule = (AnnualTimeZoneRule*)tzt.getTo()->clone();
+                finalDstRule = atzrule->clone();
             }
             if (dstCount > 0) {
                 if (year == dstStartYear + dstCount
@@ -2008,7 +2008,7 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
                 && (atzrule = dynamic_cast<const AnnualTimeZoneRule *>(tzt.getTo())) != NULL
                 && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR
             ) {
-                finalStdRule = (AnnualTimeZoneRule*)tzt.getTo()->clone();
+                finalStdRule = atzrule->clone();
             }
             if (stdCount > 0) {
                 if (year == stdStartYear + stdCount

@@ -21,6 +21,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/unistr.h"
 #include "unicode/locid.h"
 #include "unicode/formattedvalue.h"
@@ -237,7 +239,7 @@ class U_I18N_API ListFormatter : public UObject{
     UnicodeString& format(const UnicodeString items[], int32_t n_items,
         UnicodeString & appendTo, FieldPositionIterator* posIter,
         UErrorCode& errorCode) const;
-#endif  /* U_HIDE_DRAFT_API */
+#endif // U_HIDE_DRAFT_API
 
 #if !UCONFIG_NO_FORMATTING
 #ifndef U_HIDE_DRAFT_API
@@ -297,5 +299,7 @@ class U_I18N_API ListFormatter : public UObject{
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // __LISTFORMATTER_H__

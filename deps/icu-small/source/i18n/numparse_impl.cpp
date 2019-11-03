@@ -39,7 +39,7 @@ NumberParserImpl::createSimpleParser(const Locale& locale, const UnicodeString& 
     LocalPointer<NumberParserImpl> parser(new NumberParserImpl(parseFlags));
     DecimalFormatSymbols symbols(locale, status);
 
-    parser->fLocalMatchers.ignorables = {unisets::DEFAULT_IGNORABLES};
+    parser->fLocalMatchers.ignorables = {parseFlags};
     IgnorablesMatcher& ignorables = parser->fLocalMatchers.ignorables;
 
     DecimalFormatSymbols dfs(locale, status);
@@ -114,6 +114,7 @@ NumberParserImpl::createParserFromProperties(const number::impl::DecimalFormatPr
         parseFlags |= PARSE_FLAG_STRICT_SEPARATORS;
         parseFlags |= PARSE_FLAG_USE_FULL_AFFIXES;
         parseFlags |= PARSE_FLAG_EXACT_AFFIX;
+        parseFlags |= PARSE_FLAG_STRICT_IGNORABLES;
     } else {
         parseFlags |= PARSE_FLAG_INCLUDE_UNPAIRED_AFFIXES;
     }
@@ -129,8 +130,7 @@ NumberParserImpl::createParserFromProperties(const number::impl::DecimalFormatPr
 
     LocalPointer<NumberParserImpl> parser(new NumberParserImpl(parseFlags));
 
-    parser->fLocalMatchers.ignorables = {
-            isStrict ? unisets::STRICT_IGNORABLES : unisets::DEFAULT_IGNORABLES};
+    parser->fLocalMatchers.ignorables = {parseFlags};
     IgnorablesMatcher& ignorables = parser->fLocalMatchers.ignorables;
 
     //////////////////////

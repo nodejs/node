@@ -1111,7 +1111,7 @@ void TransliteratorParser::parseRules(const UnicodeString& rule,
             int32_t p = UHASH_FIRST;
             const UHashElement* he = variableNames.nextElement(p);
             while (he != NULL) {
-                UnicodeString* tempus = (UnicodeString*)(((UnicodeString*)(he->value.pointer))->clone());
+                UnicodeString* tempus = ((UnicodeString*)(he->value.pointer))->clone();
                 if (tempus == NULL) {
                     status = U_MEMORY_ALLOCATION_ERROR;
                     return;

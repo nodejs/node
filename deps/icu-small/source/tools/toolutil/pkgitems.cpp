@@ -305,7 +305,8 @@ ures_enumDependencies(const char *itemName,
                 break;
             }
             int32_t length;
-            const UChar *alias=res_getString(pResData, res, &length);
+            // No tracing: build tool
+            const UChar *alias=res_getStringNoTrace(pResData, res, &length);
             checkAlias(itemName, res, alias, length, useResSuffix, check, context, pErrorCode);
         }
         break;

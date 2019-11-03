@@ -74,7 +74,7 @@ const char *PersianCalendar::getType() const {
     return "persian";
 }
 
-Calendar* PersianCalendar::clone() const {
+PersianCalendar* PersianCalendar::clone() const {
     return new PersianCalendar(*this);
 }
 

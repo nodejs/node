@@ -87,7 +87,7 @@ StringReplacer::~StringReplacer() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringReplacer::clone() const {
+StringReplacer* StringReplacer::clone() const {
     return new StringReplacer(*this);
 }
 

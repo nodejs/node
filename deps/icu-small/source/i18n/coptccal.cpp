@@ -40,7 +40,7 @@ CopticCalendar::~CopticCalendar()
 {
 }
 
-Calendar*
+CopticCalendar*
 CopticCalendar::clone() const
 {
     return new CopticCalendar(*this);

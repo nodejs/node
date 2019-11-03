@@ -33,6 +33,7 @@
 #include "unicode/gregocal.h"
 #include "unicode/smpdtfmt.h"
 
+#include "cmemory.h"
 #include "gregoimp.h"
 #include "umutex.h"
 
@@ -242,7 +243,7 @@ SimpleTimeZone::operator==(const TimeZone& that) const
 // -------------------------------------
 
 // Called by TimeZone::createDefault() inside a Mutex - be careful.
-TimeZone*
+SimpleTimeZone*
 SimpleTimeZone::clone() const
 {
     return new SimpleTimeZone(*this);
@@ -1083,7 +1084,7 @@ SimpleTimeZone::checkTransitionRules(UErrorCode& status) const {
     if (U_FAILURE(status)) {
         return;
     }
-    static UMutex gLock = U_MUTEX_INITIALIZER;
+    static UMutex gLock;
     umtx_lock(&gLock);
     if (!transitionRulesInitialized) {
         SimpleTimeZone *ncThis = const_cast<SimpleTimeZone*>(this);

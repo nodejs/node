@@ -131,6 +131,8 @@
 
 // Do not conditionalize the following enum with #ifndef U_HIDE_DEPRECATED_API,
 // it is needed for layout of Normalizer object.
+#ifndef U_FORCE_HIDE_DEPRECATED_API
+
 /**
  * Constants for normalization modes.
  * @deprecated ICU 56 Use unorm2.h instead.
@@ -154,6 +156,8 @@ typedef enum {
   /** One more than the highest normalization mode constant. @deprecated ICU 56 Use unorm2.h instead. */
   UNORM_MODE_COUNT
 } UNormalizationMode;
+
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 #ifndef U_HIDE_DEPRECATED_API
 

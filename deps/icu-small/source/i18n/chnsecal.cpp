@@ -51,10 +51,7 @@ static void debug_chnsecal_msg(const char *pat, ...)
 
 
 // --- The cache --
-static icu::UMutex *astroLock() {  // Protects access to gChineseCalendarAstro.
-    static icu::UMutex m = U_MUTEX_INITIALIZER;
-    return &m;
-}
+static icu::UMutex astroLock;
 static icu::CalendarAstronomer *gChineseCalendarAstro = NULL;
 
 // Lazy Creation & Access synchronized by class CalendarCache with a mutex.
@@ -121,7 +118,7 @@ U_NAMESPACE_BEGIN
 //-------------------------------------------------------------------------
 
 
-Calendar* ChineseCalendar::clone() const {
+ChineseCalendar* ChineseCalendar::clone() const {
     return new ChineseCalendar(*this);
 }
 
@@ -538,14 +535,14 @@ int32_t ChineseCalendar::winterSolstice(int32_t gyear) const {
         // PST 1298 with a final result of Dec 14 10:31:59 PST 1299.
         double ms = daysToMillis(Grego::fieldsToDay(gyear, UCAL_DECEMBER, 1));
 
-        umtx_lock(astroLock());
+        umtx_lock(&astroLock);
         if(gChineseCalendarAstro == NULL) {
             gChineseCalendarAstro = new CalendarAstronomer();
             ucln_i18n_registerCleanup(UCLN_I18N_CHINESE_CALENDAR, calendar_chinese_cleanup);
         }
         gChineseCalendarAstro->setTime(ms);
         UDate solarLong = gChineseCalendarAstro->getSunTime(CalendarAstronomer::WINTER_SOLSTICE(), TRUE);
-        umtx_unlock(astroLock());
+        umtx_unlock(&astroLock);
 
         // Winter solstice is 270 degrees solar longitude aka Dongzhi
         cacheValue = (int32_t)millisToDays(solarLong);
@@ -568,14 +565,14 @@ int32_t ChineseCalendar::winterSolstice(int32_t gyear) const {
  */
 int32_t ChineseCalendar::newMoonNear(double days, UBool after) const {
 
-    umtx_lock(astroLock());
+    umtx_lock(&astroLock);
     if(gChineseCalendarAstro == NULL) {
         gChineseCalendarAstro = new CalendarAstronomer();
         ucln_i18n_registerCleanup(UCLN_I18N_CHINESE_CALENDAR, calendar_chinese_cleanup);
     }
     gChineseCalendarAstro->setTime(daysToMillis(days));
     UDate newMoon = gChineseCalendarAstro->getMoonTime(CalendarAstronomer::NEW_MOON(), after);
-    umtx_unlock(astroLock());
+    umtx_unlock(&astroLock);
 
     return (int32_t) millisToDays(newMoon);
 }
@@ -600,14 +597,14 @@ int32_t ChineseCalendar::synodicMonthsBetween(int32_t day1, int32_t day2) const 
  */
 int32_t ChineseCalendar::majorSolarTerm(int32_t days) const {
 
-    umtx_lock(astroLock());
+    umtx_lock(&astroLock);
     if(gChineseCalendarAstro == NULL) {
         gChineseCalendarAstro = new CalendarAstronomer();
         ucln_i18n_registerCleanup(UCLN_I18N_CHINESE_CALENDAR, calendar_chinese_cleanup);
     }
     gChineseCalendarAstro->setTime(daysToMillis(days));
     UDate solarLongitude = gChineseCalendarAstro->getSunLongitude();
-    umtx_unlock(astroLock());
+    umtx_unlock(&astroLock);
 
     // Compute (floor(solarLongitude / (pi/6)) + 2) % 12
     int32_t term = ( ((int32_t)(6 * solarLongitude / CalendarAstronomer::PI)) + 2 ) % 12;

@@ -807,24 +807,24 @@ error:
     return FALSE;
 }
 
-#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) \
-    {   int32_t count = 0; \
-        int32_t i; \
-        for (i = 0; i < trailingLength; i++) { \
-            if (trailing[i] == '-' || trailing[i] == '_') { \
-                count = 0; \
-                if (count > 8) { \
-                    goto error; \
-                } \
-            } else if (trailing[i] == '@') { \
-                break; \
-            } else if (count > 8) { \
+#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) UPRV_BLOCK_MACRO_BEGIN { \
+    int32_t count = 0; \
+    int32_t i; \
+    for (i = 0; i < trailingLength; i++) { \
+        if (trailing[i] == '-' || trailing[i] == '_') { \
+            count = 0; \
+            if (count > 8) { \
                 goto error; \
-            } else { \
-                count++; \
             } \
+        } else if (trailing[i] == '@') { \
+            break; \
+        } else if (count > 8) { \
+            goto error; \
+        } else { \
+            count++; \
         } \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 static void
 _uloc_addLikelySubtags(const char* localeID,

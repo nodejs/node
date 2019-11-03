@@ -1558,10 +1558,8 @@ _appendLDMLExtensionAsKeywords(const char* ldmlext, ExtensionListEntry** appendT
                 return;
             }
 
-            if (!_addAttributeToList(&attrFirst, attr)) {
-                *status = U_ILLEGAL_ARGUMENT_ERROR;
-                return;
-            }
+            // duplicate attribute is ignored, causes no error.
+            _addAttributeToList(&attrFirst, attr);
 
             /* next tag */
             pTag += len;

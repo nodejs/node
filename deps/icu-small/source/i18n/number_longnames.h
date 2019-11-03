@@ -22,6 +22,13 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
         UNumberUnitWidth width,
         UErrorCode& status);
 
+    static UnicodeString getUnitPattern(
+        const Locale& loc,
+        const MeasureUnit& unit,
+        UNumberUnitWidth width,
+        StandardPlural::Form pluralForm,
+        UErrorCode& status);
+
     static LongNameHandler*
     forCurrencyLongNames(const Locale &loc, const CurrencyUnit &currency, const PluralRules *rules,
                          const MicroPropsGenerator *parent, UErrorCode &status);
@@ -34,7 +41,7 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
     void
     processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
 
-    const Modifier* getModifier(int8_t signum, StandardPlural::Form plural) const U_OVERRIDE;
+    const Modifier* getModifier(Signum signum, StandardPlural::Form plural) const U_OVERRIDE;
 
   private:
     SimpleModifier fModifiers[StandardPlural::Form::COUNT];
