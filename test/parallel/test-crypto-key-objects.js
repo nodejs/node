@@ -162,7 +162,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     for (const ciphertext of ciphertexts) {
       for (const key of decryptionKeys) {
         const deciphered = fn(key, ciphertext);
-        assert(plaintext.equals(deciphered));
+        assert.deepStrictEqual(deciphered, plaintext);
       }
     }
   };
