@@ -157,7 +157,7 @@ added: v0.11.4
 * `options` {Object} Options containing connection details. Check
   [`net.createConnection()`][] for the format of the options
 * `callback` {Function} Callback function that receives the created socket
-* Returns: {net.Socket}
+* Returns: {stream.Duplex}
 
 Produces a socket/stream to be used for HTTP requests.
 
@@ -167,6 +167,10 @@ custom agents may override this method in case greater flexibility is desired.
 A socket/stream can be supplied in one of two ways: by returning the
 socket/stream from this function, or by passing the socket/stream to `callback`.
 
+This method is guaranteed to return an instance of the {net.Socket} class,
+a subclass of {stream.Duplex}, unless the user specifies a socket
+type other than {net.Socket}.
+
 `callback` has a signature of `(err, stream)`.
 
 ### agent.keepSocketAlive(socket)
@@ -174,7 +178,7 @@ socket/stream from this function, or by passing the socket/stream to `callback`.
 added: v8.1.0
 -->
 
-* `socket` {net.Socket}
+* `socket` {stream.Duplex}
 
 Called when `socket` is detached from a request and could be persisted by the
 `Agent`. Default behavior is to:
@@ -189,15 +193,15 @@ This method can be overridden by a particular `Agent` subclass. If this
 method returns a falsy value, the socket will be destroyed instead of persisting
 it for use with the next request.
 
-The `socket` argument can be an instance of {stream.Duplex}, a superclass of
-Socket.
+The `socket` argument can be an instance of {net.Socket}, a subclass of
+{stream.Duplex}.
 
 ### agent.reuseSocket(socket, request)
 <!-- YAML
 added: v8.1.0
 -->
 
-* `socket` {net.Socket}
+* `socket` {stream.Duplex}
 * `request` {http.ClientRequest}
 
 Called when `socket` is attached to `request` after being persisted because of
@@ -209,8 +213,8 @@ socket.ref();
 
 This method can be overridden by a particular `Agent` subclass.
 
-The `socket` argument can be an instance of {stream.Duplex}, a superclass of
-Socket.
+The `socket` argument can be an instance of {net.Socket}, a subclass of
+{stream.Duplex}.
 
 ### agent.destroy()
 <!-- YAML
@@ -347,7 +351,7 @@ added: v0.7.0
 -->
 
 * `response` {http.IncomingMessage}
-* `duplex` {stream.Duplex}
+* `socket` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with a `CONNECT` method. If
@@ -481,7 +485,7 @@ once.
 added: v0.5.3
 -->
 
-* `duplex` {stream.Duplex}
+* `socket` {stream.Duplex}
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -503,7 +507,7 @@ added: v0.1.94
 -->
 
 * `response` {http.IncomingMessage}
-* `duplex` {stream.Duplex}
+* `socket` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
@@ -588,7 +592,7 @@ deprecated: v13.0.0
 
 > Stability: 0 - Deprecated. Use [`request.socket`][].
 
-* {net.Socket}
+* {stream.Duplex}
 
 See [`request.socket`][].
 
@@ -816,7 +820,7 @@ Once a socket is assigned to this request and is connected
 added: v0.3.0
 -->
 
-* {net.Socket}
+* {stream.Duplex}
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
@@ -838,7 +842,9 @@ req.once('response', (res) => {
 });
 ```
 
-Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
+This property is guaranteed to be an instance of the {net.Socket} class,
+a subclass of {stream.Duplex}, unless the user specified a socket
+type other than {net.Socket}.
 
 ### request.writableEnded
 <!-- YAML
@@ -953,7 +959,7 @@ changes:
 -->
 
 * `exception` {Error}
-* `duplex` {stream.Duplex}
+* `socket` {stream.Duplex}
 
 If a client connection emits an `'error'` event, it will be forwarded here.
 Listener of this event is responsible for closing/destroying the underlying
@@ -1008,7 +1014,7 @@ added: v0.7.0
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `duplex` {stream.Duplex} Network socket between the server and client
+* `socket` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the tunneling stream (may be empty)
 
 Emitted each time a client requests an HTTP `CONNECT` method. If this event is
@@ -1028,7 +1034,7 @@ sent to the server on that socket.
 added: v0.1.0
 -->
 
-* `duplex` {stream.Duplex}
+* `socket` {stream.Duplex}
 
 This event is emitted when a new TCP stream is established. `socket` is
 typically an object of type [`net.Socket`][]. Usually users will not want to
@@ -1070,7 +1076,7 @@ changes:
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `duplex` {stream.Duplex} Network socket between the server and client
+* `socket` {stream.Duplex} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client requests an HTTP upgrade. Listening to this event
@@ -1261,7 +1267,7 @@ deprecated: v13.0.0
 
 > Stability: 0 - Deprecated. Use [`response.socket`][].
 
-* {net.Socket}
+* {stream.Duplex}
 
 See [`response.socket`][].
 
@@ -1496,7 +1502,7 @@ timed out sockets must be handled explicitly.
 added: v0.3.0
 -->
 
-* {net.Socket}
+* {stream.Duplex}
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
@@ -1513,7 +1519,9 @@ const server = http.createServer((req, res) => {
 }).listen(3000);
 ```
 
-Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
+This property is guaranteed to be an instance of the {net.Socket} class,
+a subclass of {stream.Duplex}, unless the user specified a socket
+type other than {net.Socket}.
 
 ### response.statusCode
 <!-- YAML
@@ -1886,14 +1894,16 @@ Calls `message.connection.setTimeout(msecs, callback)`.
 added: v0.3.0
 -->
 
-* {net.Socket}
+* {stream.Duplex}
 
 The [`net.Socket`][] object associated with the connection.
 
 With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
 client's authentication details.
 
-Socket argument can be an instance of {stream.Duplex}, a superclass of Socket.
+This property is guaranteed to be an instance of the {net.Socket} class,
+a subclass of {stream.Duplex}, unless the user specified a socket
+type other than {net.Socket}.
 
 ### message.statusCode
 <!-- YAML
