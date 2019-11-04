@@ -387,8 +387,10 @@ class CompilationSubject {
 // always has a FunctionBlueprint.
 class Callee {
  public:
-  explicit Callee(Handle<JSFunction> jsfunction) : jsfunction_(jsfunction) {}
-  explicit Callee(FunctionBlueprint const& blueprint) : blueprint_(blueprint) {}
+  explicit Callee(Handle<JSFunction> jsfunction)
+      : jsfunction_(jsfunction), blueprint_() {}
+  explicit Callee(FunctionBlueprint const& blueprint)
+      : jsfunction_(), blueprint_(blueprint) {}
 
   Handle<SharedFunctionInfo> shared(Isolate* isolate) const {
     return blueprint_.has_value()
