@@ -15,8 +15,10 @@ const {
   createPrivateKey,
   KeyObject,
   randomBytes,
+  publicDecrypt,
   publicEncrypt,
-  privateDecrypt
+  privateDecrypt,
+  privateEncrypt
 } = require('crypto');
 
 const fixtures = require('../common/fixtures');
@@ -156,7 +158,16 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert(Buffer.isBuffer(privateDER));
 
   const plaintext = Buffer.from('Hello world', 'utf8');
-  const ciphertexts = [
+  const testDecryption = (fn, ciphertexts, decryptionKeys) => {
+    for (const ciphertext of ciphertexts) {
+      for (const key of decryptionKeys) {
+        const deciphered = fn(key, ciphertext);
+        assert.deepStrictEqual(deciphered, plaintext);
+      }
+    }
+  };
+
+  testDecryption(privateDecrypt, [
     // Encrypt using the public key.
     publicEncrypt(publicKey, plaintext),
     publicEncrypt({ key: publicKey }, plaintext),
@@ -173,20 +184,25 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     // DER-encoded data only.
     publicEncrypt({ format: 'der', type: 'pkcs1', key: publicDER }, plaintext),
     publicEncrypt({ format: 'der', type: 'pkcs1', key: privateDER }, plaintext)
-  ];
-
-  const decryptionKeys = [
+  ], [
     privateKey,
     { format: 'pem', key: privatePem },
     { format: 'der', type: 'pkcs1', key: privateDER }
-  ];
+  ]);
 
-  for (const ciphertext of ciphertexts) {
-    for (const key of decryptionKeys) {
-      const deciphered = privateDecrypt(key, ciphertext);
-      assert(plaintext.equals(deciphered));
-    }
-  }
+  testDecryption(publicDecrypt, [
+    privateEncrypt(privateKey, plaintext)
+  ], [
+    // Decrypt using the public key.
+    publicKey,
+    { format: 'pem', key: publicPem },
+    { format: 'der', type: 'pkcs1', key: publicDER },
+
+    // Decrypt using the private key.
+    privateKey,
+    { format: 'pem', key: privatePem },
+    { format: 'der', type: 'pkcs1', key: privateDER }
+  ]);
 }
 
 {
