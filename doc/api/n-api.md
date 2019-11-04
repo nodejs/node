@@ -727,8 +727,8 @@ is provided which returns a `napi_extended_error_info` structure.
 The format of the `napi_extended_error_info` structure is as follows:
 
 <!-- YAML
-added: v10.6.0
-napiVersion: 4
+added: v8.0.0
+napiVersion: 1
 -->
 
 ```C
@@ -1367,7 +1367,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
-                                              int initial_refcount,
+                                              uint32_t initial_refcount,
                                               napi_ref* result);
 ```
 
@@ -1410,7 +1410,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
-                                           int* result);
+                                           uint32_t* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -1431,7 +1431,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
-                                             int* result);
+                                             uint32_t* result););
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -1838,6 +1838,7 @@ structure, in most cases using a `TypedArray` will suffice.
 #### napi_create_date
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -2517,6 +2518,7 @@ This API returns various properties of a `DataView`.
 #### napi_get_date_value
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -3137,6 +3139,7 @@ This API checks if the `Object` passed in is a buffer.
 ### napi_is_date
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -3803,12 +3806,12 @@ napiVersion: 1
 -->
 
 ```C
-napi_status napi_call_function(napi_env env,
-                               napi_value recv,
-                               napi_value func,
-                               int argc,
-                               const napi_value* argv,
-                               napi_value* result)
+NAPI_EXTERN napi_status napi_call_function(napi_env env,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -4273,6 +4276,7 @@ JavaScript object becomes garbage-collected.
 
 <!-- YAML
 added: v8.0.0
+napiVersion: 5
 -->
 
 ```C
@@ -4539,13 +4543,13 @@ changes:
 -->
 
 ```C
-napi_status napi_make_callback(napi_env env,
-                               napi_async_context async_context,
-                               napi_value recv,
-                               napi_value func,
-                               int argc,
-                               const napi_value* argv,
-                               napi_value* result)
+NAPI_EXTERN napi_status napi_make_callback(napi_env env,
+                                           napi_async_context async_context,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
