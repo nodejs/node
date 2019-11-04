@@ -729,8 +729,8 @@ is provided which returns a `napi_extended_error_info` structure.
 The format of the `napi_extended_error_info` structure is as follows:
 
 <!-- YAML
-added: v10.6.0
-napiVersion: 4
+added: v8.0.0
+napiVersion: 1
 -->
 
 ```C
@@ -1840,6 +1840,7 @@ structure, in most cases using a `TypedArray` will suffice.
 #### napi_create_date
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -2519,6 +2520,7 @@ This API returns various properties of a `DataView`.
 #### napi_get_date_value
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -3139,6 +3141,7 @@ This API checks if the `Object` passed in is a buffer.
 ### napi_is_date
 <!-- YAML
 added: v11.11.0
+napiVersion: 5
 -->
 
 ```C
@@ -4299,6 +4302,7 @@ JavaScript object becomes garbage-collected.
 
 <!-- YAML
 added: v8.0.0
+napiVersion: 5
 -->
 
 ```C
