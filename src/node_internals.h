@@ -200,6 +200,7 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
 class InternalCallbackScope {
  public:
   enum Flags {
+    kNoFlags = 0,
     // Tell the constructor whether its `object` parameter may be empty or not.
     kAllowEmptyResource = 1,
     // Indicates whether 'before' and 'after' hooks should be skipped.
@@ -213,7 +214,7 @@ class InternalCallbackScope {
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,
                         const async_context& asyncContext,
-                        int flags = 0);
+                        int flags = kNoFlags);
   // Utility that can be used by AsyncWrap classes.
   explicit InternalCallbackScope(AsyncWrap* async_wrap, int flags = 0);
   ~InternalCallbackScope();
