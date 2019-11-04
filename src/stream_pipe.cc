@@ -161,6 +161,7 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->is_writing_ = false;
   if (pipe->is_eof_) {
+    HandleScope handle_scope(pipe->env()->isolate());
     InternalCallbackScope callback_scope(pipe,
         InternalCallbackScope::kSkipTaskQueues);
     pipe->ShutdownWritable();
@@ -206,6 +207,7 @@ void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
   pipe->wanted_data_ = suggested_size;
   if (pipe->is_reading_ || pipe->is_closed_)
     return;
+  HandleScope handle_scope(pipe->env()->isolate());
   InternalCallbackScope callback_scope(pipe,
       InternalCallbackScope::kSkipTaskQueues);
   pipe->is_reading_ = true;
