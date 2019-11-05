@@ -7,12 +7,13 @@ const path = require('path');
 
 const releaseReg = /^v\d+\.\d+\.\d+$/;
 
-if (!releaseReg.test(process.version)) {
+// Npm requires crypto support.
+if (!releaseReg.test(process.version) || !common.hasCrypto) {
   common.skip('This test is only for release builds');
 }
 
 {
-  // Verify that npm does not print out a warning when executed
+  // Verify that npm does not print out a warning when executed.
 
   const npmCli = path.join(__dirname, '../../deps/npm/bin/npm-cli.js');
   const npmExec = child_process.spawnSync(process.execPath, [npmCli]);
