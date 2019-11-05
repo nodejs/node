@@ -1090,6 +1090,11 @@ The `slashes` property is a `boolean` with a value of `true` if two ASCII
 forward-slash characters (`/`) are required following the colon in the
 `protocol`.
 
+#### urlObject.socketPath
+
+The `socketPath` properties is a path to Unix Domain Socket file.
+will always be used with `http+unix:` or `http+unix` protocol.
+
 ### url.format(urlObject)
 <!-- YAML
 added: v0.1.25
@@ -1132,6 +1137,11 @@ If `urlObject` is not an object or a string, `url.format()` will throw a
 The formatting process operates as follows:
 
 * A new empty string `result` is created.
+* Verify if `host` or `hostname` or `port` with `socketPath` not to be set
+  if true , an [`ERROR`][] is thrown.
+* Verify if `port` is in valid range. if not , an [`ERROR`][] is thrown.
+* Verify if `socketPath` is set and `protocol` is `http+unix` or `http+unix:` or not,
+  if not , [`ERROR`][] is thrown.
 * If `urlObject.protocol` is a string, it is appended as-is to `result`.
 * Otherwise, if `urlObject.protocol` is not `undefined` and is not a string, an
   [`Error`][] is thrown.
