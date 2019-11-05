@@ -296,7 +296,6 @@ void AfterOpenDir(uv_fs_t* req) {
   }
 
   Environment* env = req_wrap->env();
-  Local<Value> error;
 
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
   DirHandle* handle = DirHandle::New(env, dir);
