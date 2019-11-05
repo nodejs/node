@@ -558,13 +558,6 @@ inline struct node_module* FindModule(struct node_module* list,
   return mp;
 }
 
-node_module* get_internal_module(const char* name) {
-  return FindModule(modlist_internal, name, NM_F_INTERNAL);
-}
-node_module* get_linked_module(const char* name) {
-  return FindModule(modlist_linked, name, NM_F_LINKED);
-}
-
 static Local<Object> InitModule(Environment* env,
                                 node_module* mod,
                                 Local<String> module) {
@@ -592,7 +585,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value module_v(env->isolate(), module);
   Local<Object> exports;
 
-  node_module* mod = get_internal_module(*module_v);
+  node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
   } else if (!strcmp(*module_v, "constants")) {
@@ -625,7 +618,20 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<String> module_name = args[0].As<String>();
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
-  node_module* mod = get_linked_module(*module_name_v);
+  const char* name = *module_name_v;
+  node_module* mod = nullptr;
+
+  // Iterate from here to the nearest non-Worker Environment to see if there's
+  // a linked binding defined locally rather than through the global list.
+  Environment* cur_env = env;
+  while (mod == nullptr && cur_env != nullptr) {
+    Mutex::ScopedLock lock(cur_env->extra_linked_bindings_mutex());
+    mod = FindModule(cur_env->extra_linked_bindings_head(), name, NM_F_LINKED);
+    cur_env = cur_env->worker_parent_env();
+  }
+
+  if (mod == nullptr)
+    mod = FindModule(modlist_linked, name, NM_F_LINKED);
 
   if (mod == nullptr) {
     char errmsg[1024];
