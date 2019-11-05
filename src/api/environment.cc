@@ -319,7 +319,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 
   std::vector<Local<String>> parameters = {
       env->require_string(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
+      env->mark_bootstrap_complete_string()};
   std::vector<Local<Value>> arguments = {
       env->native_module_require(),
       env->NewFunctionTemplate(MarkBootstrapComplete)

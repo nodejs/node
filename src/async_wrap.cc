@@ -314,12 +314,12 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   {
     Local<FunctionTemplate> ctor =
         FunctionTemplate::New(env->isolate());
-    ctor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PromiseWrap"));
+    ctor->SetClassName(env->promise_wrap_string());
     Local<ObjectTemplate> promise_wrap_template = ctor->InstanceTemplate();
     promise_wrap_template->SetInternalFieldCount(
         PromiseWrap::kInternalFieldCount);
     promise_wrap_template->SetAccessor(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "isChainedPromise"),
+        env->ischained_promise_string(),
         PromiseWrap::getIsChainedPromise);
     env->set_promise_wrap_template(promise_wrap_template);
   }
@@ -447,7 +447,7 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
+    tmpl->SetClassName(env->async_wrap_string());
     env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
     env->SetProtoMethod(tmpl, "getProviderType", AsyncWrap::GetProviderType);
@@ -508,7 +508,7 @@ void AsyncWrap::Initialize(Local<Object> target,
               env->async_hooks()->async_ids_stack().GetJSArray()).Check();
 
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "owner_symbol"),
+              env->owner_symbol_string(),
               env->owner_symbol()).Check();
 
   Local<Object> constants = Object::New(isolate);
@@ -552,7 +552,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   // AsyncWrapObject::Initialize() or AsyncWrapObject::GetConstructorTemplate()
   // function.
   {
-    auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
+    auto class_name = env->async_wrap_string();
     auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
     function_template->SetClassName(class_name);
     function_template->Inherit(AsyncWrap::GetConstructorTemplate(env));

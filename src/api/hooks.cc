@@ -47,7 +47,7 @@ int EmitExit(Environment* env) {
   Local<Object> process_object = env->process_object();
   process_object
       ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
+            env->exiting_string(),
             True(env->isolate()))
       .Check();
 

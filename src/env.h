@@ -174,6 +174,7 @@ constexpr size_t kFsStatsBufferLength =
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(async_wrap_string, "AsyncWrap")                                            \
   V(bits_string, "bits")                                                       \
   V(buffer_string, "buffer")                                                   \
   V(bytes_parsed_string, "bytesParsed")                                        \
@@ -226,6 +227,7 @@ constexpr size_t kFsStatsBufferLength =
   V(error_string, "error")                                                     \
   V(exchange_string, "exchange")                                               \
   V(exit_code_string, "exitCode")                                              \
+  V(exiting_string, "_exiting")                                                \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
@@ -259,6 +261,7 @@ constexpr size_t kFsStatsBufferLength =
   V(internal_string, "internal")                                               \
   V(ipv4_string, "IPv4")                                                       \
   V(ipv6_string, "IPv6")                                                       \
+  V(ischained_promise_string, "isChainedPromise")                              \
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
@@ -267,6 +270,7 @@ constexpr size_t kFsStatsBufferLength =
   V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
   V(main_string, "main")                                                       \
+  V(mark_bootstrap_complete_string, "markBootstrapComplete")                   \
   V(max_buffer_string, "maxBuffer")                                            \
   V(message_port_constructor_string, "MessagePort")                            \
   V(message_port_string, "messagePort")                                        \
@@ -304,6 +308,7 @@ constexpr size_t kFsStatsBufferLength =
   V(options_string, "options")                                                 \
   V(order_string, "order")                                                     \
   V(output_string, "output")                                                   \
+  V(owner_symbol_string, "owner_symbol")                                       \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
@@ -320,6 +325,7 @@ constexpr size_t kFsStatsBufferLength =
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
+  V(promise_wrap_string, "PromiseWrap")                                        \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
   V(raw_string, "raw")                                                         \
