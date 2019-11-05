@@ -1010,7 +1010,7 @@ The `'message'` event is triggered when a child process uses
 The message goes through serialization and parsing. The resulting
 message might not be the same as what is originally sent.
 
-If the `serialization` option was set to `advanced` used when spawning the
+If the `serialization` option was set to `'advanced'` used when spawning the
 child process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced Serialization][] for more details.
