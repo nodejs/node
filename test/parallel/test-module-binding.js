@@ -8,7 +8,7 @@ const { readFileSync } = require('fs');
 const { deepEqual, strictEqual } = require('assert');
 
 strictEqual(internalModuleReadJSON('nosuchfile'), undefined);
-deepEqual(internalModuleReadJSON(fixtures.path('empty.txt')), {});
+strictEqual(internalModuleReadJSON(fixtures.path('empty.txt')), '{}');
 strictEqual(internalModuleReadJSON(fixtures.path('empty-with-bom.txt')),
             undefined);
 {
