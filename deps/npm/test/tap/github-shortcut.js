@@ -5,10 +5,7 @@ const BB = require('bluebird')
 const fs = require('graceful-fs')
 const path = require('path')
 
-const mkdirp = require('mkdirp')
-const osenv = require('osenv')
 const requireInject = require('require-inject')
-const rimraf = require('rimraf')
 const test = require('tap').test
 
 const common = require('../common-tap.js')
@@ -20,12 +17,12 @@ const json = {
   version: '0.0.0'
 }
 
-test('setup', function (t) {
-  setup()
-  t.end()
-})
-
 test('github-shortcut', function (t) {
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
   const cloneUrls = [
     ['git://github.com/foo/private.git', 'GitHub shortcuts try git URLs first'],
     ['https://github.com/foo/private.git', 'GitHub shortcuts try HTTPS URLs second'],
@@ -62,23 +59,3 @@ test('github-shortcut', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

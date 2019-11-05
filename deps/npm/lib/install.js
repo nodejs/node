@@ -138,6 +138,10 @@ var validateArgs = require('./install/validate-args.js')
 var saveRequested = require('./install/save.js').saveRequested
 var saveShrinkwrap = require('./install/save.js').saveShrinkwrap
 var audit = require('./install/audit.js')
+var {
+  getPrintFundingReport,
+  getPrintFundingReportJSON
+} = require('./install/fund.js')
 var getSaveType = require('./install/save.js').getSaveType
 var doSerialActions = require('./install/actions.js').doSerial
 var doReverseSerialActions = require('./install/actions.js').doReverseSerial
@@ -240,6 +244,7 @@ function Installer (where, dryrun, args, opts) {
   this.saveOnlyLock = opts.saveOnlyLock
   this.global = opts.global != null ? opts.global : this.where === path.resolve(npm.globalDir, '..')
   this.audit = npm.config.get('audit') && !this.global
+  this.fund = npm.config.get('fund') && !this.global
   this.started = Date.now()
 }
 Installer.prototype = {}
@@ -872,7 +877,9 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   report += ' in ' + ((Date.now() - this.started) / 1000) + 's'
 
   output(report)
-  return auditResult && audit.printInstallReport(auditResult)
+  if (auditResult) {
+    audit.printInstallReport(auditResult)
+  }
 
   function packages (num) {
     return num + ' package' + (num > 1 ? 's' : '')
@@ -894,9 +901,23 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
     if (argument.url) returned += ' (' + argument.email + ')'
     return returned
   }
+
+  const { fund, idealTree } = this
+  const printFundingReport = getPrintFundingReport({
+    fund,
+    idealTree
+  })
+  if (printFundingReport.length) {
+    output(printFundingReport)
+  }
 }
 
 Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
+  const { fund, idealTree } = this
+  const printFundingReport = getPrintFundingReportJSON({
+    fund,
+    idealTree
+  })
   var result = {
     added: [],
     removed: [],
@@ -905,6 +926,7 @@ Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
     failed: [],
     warnings: [],
     audit: auditResult,
+    funding: printFundingReport,
     elapsed: Date.now() - this.started
   }
   var self = this

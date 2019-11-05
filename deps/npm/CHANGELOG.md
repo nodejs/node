@@ -1,3 +1,52 @@
+## 6.13.0 (2019-11-05)
+
+### NEW FEATURES
+
+* [`4414b06d9`](https://github.com/npm/cli/commit/4414b06d944c56bee05ccfb85260055a767ee334)
+  [#273](https://github.com/npm/cli/pull/273)
+  add fund command
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DOCUMENTATION
+
+* [`ae4c74d04`](https://github.com/npm/cli/commit/ae4c74d04f820a0255a92bdfe77ecf97af134fae)
+  [#274](https://github.com/npm/cli/pull/274)
+  migrate existing docs to gatsby
+  ([@claudiahdz](https://github.com/claudiahdz))
+* [`4ff1bb180`](https://github.com/npm/cli/commit/4ff1bb180b1db8c72e51b3d57bd4e268b738e049)
+  [#277](https://github.com/npm/cli/pull/277)
+  updated documentation copy
+  ([@oletizi](https://github.com/oletizi))
+
+### BUG FIXES
+
+* [`e4455409f`](https://github.com/npm/cli/commit/e4455409fe6fe9c198b250b488129171f0b4624a)
+  [#281](https://github.com/npm/cli/pull/281)
+  delete ps1 files on package removal
+  ([@NoDocCat](https://github.com/NoDocCat))
+* [`cd14d4701`](https://github.com/npm/cli/commit/cd14d47014e8c96ffd6a18791e8752028b19d637)
+  [#279](https://github.com/npm/cli/pull/279)
+  update supported node list to remove v6.0, v6.1, v9.0 - v9.2
+  ([@ljharb](https://github.com/ljharb))
+
+### DEPENDENCIES
+
+* [`a37296b20`](https://github.com/npm/cli/commit/a37296b20ca3e19c2bbfa78fedcfe695e03fda69)
+  `pacote@9.5.9`
+* [`d3cb3abe8`](https://github.com/npm/cli/commit/d3cb3abe8cee54bd2624acdcf8043932ef0d660a)
+  `read-cmd-shim@1.0.5`
+
+### TESTING
+
+* [`688cd97be`](https://github.com/npm/cli/commit/688cd97be94ca949719424ff69ff515a68c5caba)
+  [#272](https://github.com/npm/cli/pull/272)
+  use github actions for CI
+  ([@JasonEtco](https://github.com/JasonEtco))
+* [`9a2d8af84`](https://github.com/npm/cli/commit/9a2d8af84f7328f13d8f578cf4b150b9d5f09517)
+  [#240](https://github.com/npm/cli/pull/240)
+  Clean up some flakiness and inconsistency
+  ([@isaacs](https://github.com/isaacs))
+
 ## 6.12.1 (2019-10-29)
 
 ### BUG FIXES

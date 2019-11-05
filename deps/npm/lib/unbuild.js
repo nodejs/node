@@ -78,8 +78,11 @@ function rmBins (pkg, folder, parent, top, cb) {
   const binRoot = top ? npm.bin : path.resolve(parent, '.bin')
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === 'win32') {
-      chain([ [gentlyRm, path.resolve(binRoot, b) + '.cmd', true, folder],
-        [gentlyRm, path.resolve(binRoot, b), true, folder] ], cb)
+      chain([
+        [gentlyRm, path.resolve(binRoot, b) + '.ps1', true, folder],
+        [gentlyRm, path.resolve(binRoot, b) + '.cmd', true, folder],
+        [gentlyRm, path.resolve(binRoot, b), true, folder]
+      ], cb)
     } else {
       gentlyRm(path.resolve(binRoot, b), true, folder, cb)
     }

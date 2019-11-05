@@ -1,11 +1,8 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var Bluebird = require('bluebird')
 var mr = Bluebird.promisify(require('npm-registry-mock'))
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
@@ -29,8 +26,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -199,13 +194,3 @@ test('npm ls --depth=1 --parseable --long', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

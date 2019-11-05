@@ -1,17 +1,18 @@
-.TH "NPM" "1" "October 2019" "" ""
+.TH "NPM" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm\fR \- javascript package manager
-.SH SYNOPSIS
+\fBnpm\fR
+.SH javascript package manager
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm <command> [args]
 .fi
 .RE
-.SH VERSION
+.SS Version
 .P
-6.12.1
-.SH DESCRIPTION
+6\.13\.0
+.SS Description
 .P
 npm is the package manager for the Node JavaScript platform\.  It puts
 modules in place so that node can find them, and manages dependency
@@ -22,7 +23,7 @@ Most commonly, it is used to publish, discover, install, and develop node
 programs\.
 .P
 Run \fBnpm help\fP to get a list of available commands\.
-.SH IMPORTANT
+.SS Important
 .P
 npm is configured to use npm, Inc\.'s public registry at
 https://registry\.npmjs\.org by default\. Use of the npm public registry is
@@ -31,16 +32,16 @@ subject to terms of use available at https://www\.npmjs\.com/policies/terms\.
 You can configure npm to use any compatible registry you like, and even run
 your own registry\. Use of someone else's registry may be governed by their
 terms of use\.
-.SH INTRODUCTION
+.SS Introduction
 .P
 You probably got npm because you want to install stuff\.
 .P
 Use \fBnpm install blerg\fP to install the latest version of "blerg"\.  Check out
-npm help \fBnpm\-install\fP for more info\.  It can do a lot of stuff\.
+\fBnpm\-install\fP \fInpm\-install\fR for more info\.  It can do a lot of stuff\.
 .P
 Use the \fBnpm search\fP command to show everything that's available\.
 Use \fBnpm ls\fP to show everything you've installed\.
-.SH DEPENDENCIES
+.SS Dependencies
 .P
 If a package references to another package with a git URL, npm depends
 on a preinstalled git\.
@@ -55,9 +56,9 @@ not supported by node\-gyp \fIhttps://github\.com/TooTallNate/node\-gyp\fR\|\.
 For more information visit
 the node\-gyp repository \fIhttps://github\.com/TooTallNate/node\-gyp\fR and
 the node\-gyp Wiki \fIhttps://github\.com/TooTallNate/node\-gyp/wiki\fR\|\.
-.SH DIRECTORIES
+.SS Directories
 .P
-See npm help 5 \fBnpm\-folders\fP to learn about where npm puts stuff\.
+See \fBnpm\-folders\fP \fI/docs/configuring\-npm/folders\fR to learn about where npm puts stuff\.
 .P
 In particular, npm has two modes of operation:
 .RS 0
@@ -75,14 +76,14 @@ defaults to the current working directory\.  Packages are installed to
 .P
 Local mode is the default\.  Use \fB\-g\fP or \fB\-\-global\fP on any command to
 operate in global mode instead\.
-.SH DEVELOPER USAGE
+.SS Developer Usage
 .P
 If you're using npm to develop and publish your code, check out the
 following help topics:
 .RS 0
 .IP \(bu 2
 json:
-Make a package\.json file\.  See npm help 5 \fBpackage\.json\fP\|\.
+Make a package\.json file\.  See \fBpackage\.json\fP \fI/docs/configuring\-npm/package\.json\fR\|\.
 .IP \(bu 2
 link:
 For linking your current working code into Node's path, so that you
@@ -102,7 +103,7 @@ publish:
 Use the \fBnpm publish\fP command to upload your code to the registry\.
 
 .RE
-.SH CONFIGURATION
+.SS Configuration
 .P
 npm is extremely configurable\.  It reads its configuration options from
 5 places\.
@@ -135,8 +136,8 @@ lib/utils/config\-defs\.js\.  These must not be changed\.
 
 .RE
 .P
-See npm help 7 \fBnpm\-config\fP for much much more information\.
-.SH CONTRIBUTIONS
+See \fBnpm\-config\fP \fI/docs/using\-npm/config\fR for much much more information\.
+.SS Contributions
 .P
 Patches welcome!
 .P
@@ -151,7 +152,7 @@ Bug tracker \fIhttps://npm\.community/c/bugs\fR
 Support tracker \fIhttps://npm\.community/c/support\fR
 
 .RE
-.SH BUGS
+.SS Bugs
 .P
 When you find issues, please report them:
 .RS 0
@@ -165,30 +166,23 @@ Be sure to follow the template and bug reporting guidelines\. You can also ask
 for help in the support forum \fIhttps://npm\.community/c/support\fR if you're
 unsure if it's actually a bug or are having trouble coming up with a detailed
 reproduction to report\.
-.SH AUTHOR
+.SS Author
 .P
 Isaac Z\. Schlueter \fIhttp://blog\.izs\.me/\fR ::
 isaacs \fIhttps://github\.com/isaacs/\fR ::
 @izs \fIhttps://twitter\.com/izs\fR ::
 i@izs\.me
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help help
+npm help npm\-help
 .IP \(bu 2
-README
+npm help package\-json
 .IP \(bu 2
-npm help 5 package\.json
+npm help npm\-install
 .IP \(bu 2
-npm help install
+npm help npm\-config
 .IP \(bu 2
-npm help config
-.IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
-.IP \(bu 2
-npm help 7 index
+npm help npmrc
 
 .RE
-

@@ -3,8 +3,6 @@ var path = require('path')
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -22,17 +20,17 @@ test('shrinkwrap does not fail on missing optional dependency', function (t) {
   }
 
   mr({port: common.port, mocks: mocks}, function (er, s) {
-    function fail (err) {
-      s.close() // Close on failure to allow node to exit
-      t.fail(err)
-    }
-
+    t.parent.teardown(() => s.close())
     setup(function (err) {
-      if (err) return fail(err)
+      if (err) {
+        throw err
+      }
 
       // Install without the optional dependency
       npm.install('.', function (err) {
-        if (err) return fail(err)
+        if (err) {
+          throw err
+        }
 
         // Pretend the optional dependency was specified, but somehow failed to load:
         json.optionalDependencies = {
@@ -41,7 +39,9 @@ test('shrinkwrap does not fail on missing optional dependency', function (t) {
         writePackage()
 
         npm.commands.shrinkwrap([], true, function (err, results) {
-          if (err) return fail(err)
+          if (err) {
+            throw err
+          }
 
           t.deepEqual(results.dependencies, desired.dependencies)
           s.close()
@@ -50,11 +50,6 @@ test('shrinkwrap does not fail on missing optional dependency', function (t) {
       })
     })
   })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })
 
 var desired = {
@@ -83,19 +78,14 @@ function writePackage () {
 }
 
 function setup (cb) {
-  cleanup()
   mkdirp.sync(pkg)
   writePackage()
   process.chdir(pkg)
 
   var opts = {
     cache: common.cache,
-    registry: common.registry
+    registry: common.registry,
+    cwd: pkg
   }
   npm.load(opts, cb)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }

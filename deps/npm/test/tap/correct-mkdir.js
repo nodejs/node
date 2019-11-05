@@ -5,11 +5,7 @@ var assert = require('assert')
 var requireInject = require('require-inject')
 const common = require('../common-tap.js')
 var cache_dir = common.pkg
-
-if (process.platform === 'win32') {
-  t.plan(0, 'windows does not use correct-mkdir behavior')
-  process.exit(0)
-}
+common.skipIfWindows('windows does not use correct-mkdir behavior')
 
 test('correct-mkdir: no race conditions', function (t) {
   var mock_fs = {}

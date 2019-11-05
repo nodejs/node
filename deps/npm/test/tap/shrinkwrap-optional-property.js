@@ -1,10 +1,7 @@
 var fs = require('fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -16,22 +13,24 @@ test('shrinkwrap adds optional property when optional dependency', function (t) 
   t.plan(1)
 
   mr({port: common.port}, function (er, s) {
-    function fail (err) {
-      s.close() // Close on failure to allow node to exit
-      t.fail(err)
-    }
-
+    t.parent.teardown(() => s.close())
     setup(function (err) {
-      if (err) return fail(err)
+      if (err) {
+        throw err
+      }
 
       // Install with the optional dependency
       npm.install('.', function (err) {
-        if (err) return fail(err)
+        if (err) {
+          throw err
+        }
 
         writePackage()
 
         npm.commands.shrinkwrap([], true, function (err, results) {
-          if (err) return fail(err)
+          if (err) {
+            throw err
+          }
 
           t.deepEqual(results.dependencies, desired.dependencies)
           s.close()
@@ -40,11 +39,6 @@ test('shrinkwrap adds optional property when optional dependency', function (t) 
       })
     })
   })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })
 
 var desired = {
@@ -82,8 +76,6 @@ function writePackage () {
 }
 
 function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
   writePackage()
   process.chdir(pkg)
 
@@ -92,9 +84,4 @@ function setup (cb) {
     registry: common.registry
   }
   npm.load(opts, cb)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }
