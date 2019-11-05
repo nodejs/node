@@ -1043,7 +1043,7 @@ console.log(hash.digest('hex'));
 
 ### hash.copy(\[options\])
 <!-- YAML
-added: REPLACEME
+added: v13.1.0
 -->
 
 * `options` {Object} [`stream.transform` options][]

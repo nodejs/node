@@ -1668,7 +1668,7 @@ the request body should be sent.
 <!-- YAML
 added: v0.1.17
 changes:
-  - version: REPLACEME
+  - version: v13.1.0
     pr-url: https://github.com/nodejs/node/pull/30135
     description: The `readableHighWaterMark` value mirrors that of the socket.
 -->
