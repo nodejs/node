@@ -1,7 +1,8 @@
-.TH "NPM\-LS" "1" "October 2019" "" ""
+.TH "NPM\-LS" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-ls\fR \- List installed packages
-.SH SYNOPSIS
+\fBnpm-ls\fR
+.SH List installed packages
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +11,7 @@ npm ls [[<@scope>/]<pkg> \.\.\.]
 aliases: list, la, ll
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies, in a tree\-structure\.
@@ -22,9 +23,9 @@ For example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@6.12.1 /path/to/npm
-└─┬ init\-package\-json@0\.0\.4
-  └── promzard@0\.1\.5
+    npm@6\.13\.0 /path/to/npm
+    └─┬ init\-package\-json@0\.0\.4
+      └── promzard@0\.1\.5
 .fi
 .RE
 .P
@@ -38,7 +39,7 @@ The tree shown is the logical dependency tree, based on package
 dependencies, not the physical layout of your node_modules folder\.
 .P
 When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
-.SH CONFIGURATION
+.SS Configuration
 .SS json
 .RS 0
 .IP \(bu 2
@@ -128,26 +129,34 @@ Default: false
 .RE
 .P
 Display only dependencies which are linked
-.SH SEE ALSO
+.SS unicode
 .RS 0
 .IP \(bu 2
-npm help config
+Type: Boolean
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
-.IP \(bu 2
-npm help 5 folders
-.IP \(bu 2
-npm help install
-.IP \(bu 2
-npm help link
-.IP \(bu 2
-npm help prune
-.IP \(bu 2
-npm help outdated
-.IP \(bu 2
-npm help update
+Default: true
 
 .RE
+.P
+Whether to represent the tree structure using unicode characters\.
+Set it to false in order to use all\-ansi output\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help npm\-config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help npm\-install
+.IP \(bu 2
+npm help npm\-link
+.IP \(bu 2
+npm help npm\-prune
+.IP \(bu 2
+npm help npm\-outdated
+.IP \(bu 2
+npm help npm\-update
 
+.RE

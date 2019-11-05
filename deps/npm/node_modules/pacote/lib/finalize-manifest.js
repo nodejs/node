@@ -83,6 +83,7 @@ function Manifest (pkg, fromTarball, fullMetadata) {
   this.os = pkg.os || fromTarball.os
   this.dependencies = pkg.dependencies || {}
   this.optionalDependencies = pkg.optionalDependencies || {}
+  this.peerDependenciesMeta = pkg.peerDependenciesMeta || {}
   this.devDependencies = pkg.devDependencies || {}
   const bundled = (
     pkg.bundledDependencies ||

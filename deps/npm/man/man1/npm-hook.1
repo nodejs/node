@@ -1,7 +1,8 @@
-.TH "NPM\-HOOK" "1" "October 2019" "" ""
+.TH "NPM\-HOOK" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-hook\fR \- Manage registry hooks
-.SH SYNOPSIS
+\fBnpm-hook\fR
+.SH Manage registry hooks
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,7 +12,7 @@ npm hook update <id> <url> [secret]
 npm hook rm <id>
 .fi
 .RE
-.SH EXAMPLE
+.SS Example
 .P
 Add a hook to watch a package for changes:
 .P
@@ -68,7 +69,7 @@ Remove a hook:
 $ npm hook rm id\-deadbeef
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Allows you to manage npm
 hooks \fIhttps://blog\.npmjs\.org/post/145260155635/introducing\-hooks\-get\-notifications\-of\-npm\fR,
@@ -89,7 +90,7 @@ that particular hook\.
 .P
 The shared secret will be sent along to the URL endpoint so you can verify the
 request came from your own configured hook\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 "Introducing Hooks" blog post \fIhttps://blog\.npmjs\.org/post/145260155635/introducing\-hooks\-get\-notifications\-of\-npm\fR

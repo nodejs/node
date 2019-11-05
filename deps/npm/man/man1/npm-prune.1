@@ -1,14 +1,15 @@
-.TH "NPM\-PRUNE" "1" "October 2019" "" ""
+.TH "NPM\-PRUNE" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-prune\fR \- Remove extraneous packages
-.SH SYNOPSIS
+\fBnpm-prune\fR
+.SH Remove extraneous packages
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm prune [[<@scope>/]<pkg>\.\.\.] [\-\-production] [\-\-dry\-run] [\-\-json]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command removes "extraneous" packages\.  If a package name is
 provided, then only packages matching one of the supplied names are
@@ -33,14 +34,13 @@ this command with the \fB\-\-production\fP flag\.
 .P
 If you've disabled package\-locks then extraneous modules will not be removed
 and it's up to you to run \fBnpm prune\fP from time\-to\-time to remove them\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help uninstall
+npm help npm\-uninstall
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
-npm help ls
+npm help npm\-ls
 
 .RE
-

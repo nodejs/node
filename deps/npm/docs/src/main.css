@@ -1,0 +1,167 @@
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+[hidden] {
+  display: none;
+}
+
+html {
+  font-family: 'Poppins', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom Styles */
+
+p, li {
+	font-size: 15px;
+	line-height: 1.7;
+	font-weight: 300;
+}
+
+p {
+	padding: 10px 0;
+}
+
+ul {
+	padding: 10px 0;
+}
+
+strong {
+	font-weight: bold;
+	color: #cc33ff;
+}
+
+li {
+	list-style-type: disc;
+	list-style-position: inside;
+	padding: 8px 0;
+}
+
+.documentation h1 {
+	font-size: 42px;
+	font-weight: 600;
+	padding: 30px 0 10px;
+}
+
+.documentation h2 {
+	font-size: 22px;
+	font-weight: 300;
+}
+
+.documentation h3 {
+	color: #cc33ff;
+	font-size: 22px;
+	padding: 30px 0 5px;
+	font-weight: 500;
+}
+
+.documentation h4 {
+	font-weight: 600;
+	padding: 20px 0 5px;
+}
+
+.documentation p {
+	display: inline-block;	
+}
+
+/* overriding some prism background styles */
+:not(pre) > code[class*="language-"], pre[class*="language-"] {
+	border-radius: 4px;
+	background-color: #413844;
+	font-size: 13px;
+}
+
+/* in text code styling */
+:not(pre) > code[class*="language-text"] {
+	background-color: #cc8bd81a;
+	color: #413844;
+	padding: 2px 6px;
+	border-radius: 0;
+	font-size: 14px;
+	font-weight: bold;
+	border-radius: 1px;
+	display: inline-block;
+}
+
+a > code[class*="language-text"], .documentation a {
+	color: #fb3b49;
+	font-weight: 600;
+}
+
+p > code[class*="language-text"]  {
+	display: inline-block;
+}
+
+.documentation h1::before {
+	content: url("data:image/svg+xml,%3Csvg id='Layer_1' data-name='Layer 1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 27 26'%3E%3Cdefs%3E%3Cstyle%3E.cls-1,.cls-2,.cls-3%7Bstroke-miterlimit:10;stroke-width:0.48px;%7D.cls-1%7Bfill:url(%23linear-gradient);stroke:url(%23linear-gradient-2);%7D.cls-2%7Bfill:url(%23linear-gradient-3);stroke:url(%23linear-gradient-4);%7D.cls-3%7Bfill:url(%23linear-gradient-5);stroke:url(%23linear-gradient-6);%7D%3C/style%3E%3ClinearGradient id='linear-gradient' x1='18.13' y1='13.48' x2='25.6' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='0.37' stop-color='%23fb8719'/%3E%3Cstop offset='0.51' stop-color='%23fa8420'/%3E%3Cstop offset='0.61' stop-color='%23f9802c'/%3E%3Cstop offset='0.69' stop-color='%23f7793d'/%3E%3Cstop offset='0.76' stop-color='%23f47053'/%3E%3Cstop offset='0.82' stop-color='%23f1656e'/%3E%3Cstop offset='0.87' stop-color='%23ed578f'/%3E%3Cstop offset='0.92' stop-color='%23e948b5'/%3E%3Cstop offset='0.97' stop-color='%23e437de'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='linear-gradient-2' x1='17.89' y1='13.48' x2='25.84' y2='13.48' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb8817'/%3E%3Cstop offset='1' stop-color='%23e02aff'/%3E%3C/linearGradient%3E%3ClinearGradient id='linear-gradient-3' x1='1' y1='17.84' x2='18.69' y2='17.84' xlink:href='%23linear-gradient'/%3E%3ClinearGradient id='linear-gradient-4' x1='0.76' y1='17.84' x2='18.93' y2='17.84' xlink:href='%23linear-gradient-2'/%3E%3ClinearGradient id='linear-gradient-5' x1='1' y1='7.33' x2='20.48' y2='7.33' xlink:href='%23linear-gradient'/%3E%3ClinearGradient id='linear-gradient-6' x1='0.76' y1='7.33' x2='20.72' y2='7.33' xlink:href='%23linear-gradient-2'/%3E%3C/defs%3E%3Ctitle%3Ebox%3C/title%3E%3Cpath class='cls-1' d='M18.53,24.24a.28.28,0,0,1-.34-.41L25,14.06l-5-11a.28.28,0,1,1,.5-.23L25.58,14a.28.28,0,0,1,0,.28l-6.91,9.9A.28.28,0,0,1,18.53,24.24Z'/%3E%3Cpath class='cls-2' d='M18.53,24.24a.28.28,0,0,1-.14,0l-12-1.15A.28.28,0,0,1,6.16,23L1,11.81a.28.28,0,1,1,.5-.23l5.07,11L18,23.68,13,13a.28.28,0,1,1,.5-.23l5.12,11.12A.28.28,0,0,1,18.53,24.24Z'/%3E%3Cpath class='cls-3' d='M13.4,13.12a.25.25,0,0,1-.14,0L1.25,12a.28.28,0,0,1-.2-.44L8,1.64a.28.28,0,0,1,.25-.12l12,1.18a.28.28,0,0,1,.2.44L13.51,13A.25.25,0,0,1,13.4,13.12Z'/%3E%3C/svg%3E");
+	position: relative;
+	display: inline-block;
+	padding-right: 8px;
+	top: 3px;
+	width: 28px;
+}
+
+.active-sidebar-link {
+	background-color: #ffebff;
+}
+
+.active-navbar-link {
+	border-bottom: 3px solid #cc33ff;
+}
+
+.header-link-class {
+	margin-left: -24px;
+}
+
+.disabled-body {
+	overflow: hidden;
+}

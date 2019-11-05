@@ -1,7 +1,8 @@
-.TH "NPMRC" "5" "October 2019" "" ""
+.TH "NPMRC" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpmrc\fR \- The npm config files
-.SH DESCRIPTION
+\fBnpmrc\fR
+.SH The npm config files
+.SS Description
 .P
 npm gets its config settings from the command line, environment
 variables, and \fBnpmrc\fP files\.
@@ -9,8 +10,8 @@ variables, and \fBnpmrc\fP files\.
 The \fBnpm config\fP command can be used to update and edit the contents
 of the user and global npmrc files\.
 .P
-For a list of available configuration options, see npm help 7 config\.
-.SH FILES
+For a list of available configuration options, see npm\-config \fI/docs/using\-npm/config\fR\|\.
+.SS Files
 .P
 The four relevant files are:
 .RS 0
@@ -92,18 +93,17 @@ consistent across updates\.  Set fields in here using the \fB\|\./configure\fP
 script that comes with npm\.  This is primarily for distribution
 maintainers to override default configs in a standard and consistent
 manner\.
-.SH SEE ALSO
+.SS See also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
+.IP \(bu 2
+npm help npm\-config
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 package\.json
+npm help package\-json
 .IP \(bu 2
 npm help npm
 
 .RE
-

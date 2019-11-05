@@ -1,7 +1,8 @@
-.TH "NPM\-CONFIG" "1" "October 2019" "" ""
+.TH "NPM\-CONFIG" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-config\fR \- Manage the npm configuration files
-.SH SYNOPSIS
+\fBnpm-config\fR
+.SH Manage the npm configuration files
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -16,19 +17,19 @@ npm set <key> <value> [\-g|\-\-global]
 aliases: c
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 npm gets its config settings from the command line, environment
 variables, \fBnpmrc\fP files, and in some cases, the \fBpackage\.json\fP file\.
 .P
-See npm help 5 npmrc for more information about the npmrc files\.
+See npmrc \fI/docs/configuring\-npm/npmrc\fR for more information about the npmrc files\.
 .P
-See npm help 7 \fBnpm\-config\fP for a more thorough discussion of the mechanisms
+See config \fI/docs/using\-npm/config\fR for a more thorough discussion of the mechanisms
 involved\.
 .P
 The \fBnpm config\fP command can be used to update and edit the contents
 of the user and global npmrc files\.
-.SH Sub\-commands
+.SS Sub\-commands
 .P
 Config supports the following sub\-commands:
 .SS set
@@ -80,18 +81,17 @@ npm config edit
 .P
 Opens the config file in an editor\.  Use the \fB\-\-global\fP flag to edit the
 global config\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
-npm help 7 config
+npm help npm\-config
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\-json
 .IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
 npm help npm
 
 .RE
-
