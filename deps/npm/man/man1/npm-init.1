@@ -1,7 +1,8 @@
-.TH "NPM\-INIT" "1" "October 2019" "" ""
+.TH "NPM\-INIT" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-init\fR \- create a package\.json file
-.SH SYNOPSIS
+\fBnpm-init\fR
+.SH create a package\.json file
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +11,7 @@ npm init <@scope> (same as `npx <@scope>/create`)
 npm init [<@scope>/]<name> (same as `npx [<@scope>/]create\-<name>`)
 .fi
 .RE
-.SH EXAMPLES
+.SS Examples
 .P
 Create a new React\-based project using \fBcreate\-react\-app\fP \fIhttps://npm\.im/create\-react\-app\fR:
 .P
@@ -46,12 +47,12 @@ Generate it without having it ask any questions:
 $ npm init \-y
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 \fBnpm init <initializer>\fP can be used to set up a new or existing npm package\.
 .P
 \fBinitializer\fP in this case is an npm package named \fBcreate\-<initializer>\fP, which
-will be installed by npm help \fBnpx\fP \fIhttps://npm\.im/npx\fR, and then have its main bin
+will be installed by \fBnpx\fP \fIhttps://npm\.im/npx\fR, and then have its main bin
 executed \-\- presumably creating or updating \fBpackage\.json\fP and running any other
 initialization\-related operations\.
 .P
@@ -76,16 +77,15 @@ existing fields, dependencies, and options selected\. It is strictly additive, s
 it will keep any fields and values that were already set\. You can also use
 \fB\-y\fP/\fB\-\-yes\fP to skip the questionnaire altogether\. If you pass \fB\-\-scope\fP, it
 will create a scoped package\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 https://github\.com/isaacs/init\-package\-json
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\-json
 .IP \(bu 2
-npm help version
+npm help npm\-version
 .IP \(bu 2
-npm help 7 scope
+npm help scope
 
 .RE
-

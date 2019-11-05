@@ -216,17 +216,15 @@ exports.readBinLink = function (path) {
 
 exports.skipIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test not available on windows'
-  console.log('ok 1 # skip ' + why)
+  require('tap').plan(0, why)
   process.exit(0)
 }
 
 exports.pendIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test is pending further changes on windows'
-  console.log('not ok 1 # todo ' + why)
+  require('tap').fail(' ', { todo: why, diagnostic: false })
   process.exit(0)
 }
 

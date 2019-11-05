@@ -3,7 +3,6 @@
 const common = require('../common-tap.js')
 const test = require('tap').test
 const fs = require('fs')
-const osenv = require('osenv')
 const pkg = common.pkg
 
 fs.writeFileSync(pkg + '/package.json', JSON.stringify({
@@ -58,7 +57,7 @@ test(function (t) {
         HOME: process.env.HOME,
         Path: process.env.PATH,
         PATH: process.env.PATH,
-        USERPROFILE: osenv.home()
+        USERPROFILE: process.env.USERPROFILE
       }
     }, function (err, code, stdout, stderr) {
       t.comment(stdout)

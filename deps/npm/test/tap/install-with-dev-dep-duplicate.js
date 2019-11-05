@@ -1,10 +1,7 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -42,13 +39,19 @@ test('prefers version from dependencies over devDependencies', function (t) {
 
   mr({ port: common.port }, function (er, s) {
     setup(function (err) {
-      if (err) return t.fail(err)
+      if (err) {
+        throw err
+      }
 
       npm.install('.', function (err) {
-        if (err) return t.fail(err)
+        if (err) {
+          throw err
+        }
 
         npm.commands.ls([], true, function (err, _, results) {
-          if (err) return t.fail(err)
+          if (err) {
+            throw err
+          }
 
           // these contain full paths so we can't do an exact match
           // with them
@@ -63,14 +66,7 @@ test('prefers version from dependencies over devDependencies', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
 function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -82,9 +78,4 @@ function setup (cb) {
     registry: common.registry
   }
   npm.load(opts, cb)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }

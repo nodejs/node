@@ -1,14 +1,15 @@
-.TH "NPM\-OUTDATED" "1" "October 2019" "" ""
+.TH "NPM\-OUTDATED" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-outdated\fR \- Check for outdated packages
-.SH SYNOPSIS
+\fBnpm-outdated\fR
+.SH Check for outdated packages
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm outdated [[<@scope>/]<pkg> \.\.\.]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command will check the registry to see if any (or, specific) installed
 packages are currently outdated\.
@@ -25,7 +26,7 @@ you're running \fBnpm outdated \-\-global\fP, or the package isn't included in
 Running \fBnpm publish\fP with no special configuration will publish the package
 with a dist\-tag of \fBlatest\fP\|\. This may or may not be the maximum version of
 the package, or the most\-recently published version of the package, depending
-on how the package's developer manages the latest npm help dist\-tag\.
+on how the package's developer manages the latest dist\-tag \fInpm\-dist\-tag\fR\|\.
 .IP \(bu 2
 \fBlocation\fP is where in the dependency tree the package is located\. Note that
 \fBnpm outdated\fP defaults to a depth of 0, so unless you override that, you'll
@@ -90,7 +91,7 @@ will install whatever's tagged as \fBlatest\fP\|\.
 running \fBnpm update\fP will bring it up to spec\.
 
 .RE
-.SH CONFIGURATION
+.SS Configuration
 .SS json
 .RS 0
 .IP \(bu 2
@@ -142,16 +143,15 @@ Type: Int
 .RE
 .P
 Max depth for checking dependency tree\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help update
+npm help npm\-update
 .IP \(bu 2
-npm help dist\-tag
+npm help npm\-dist\-tag
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 
 .RE
-

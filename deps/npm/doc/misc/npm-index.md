@@ -85,6 +85,10 @@ Edit an installed package
 
 Browse an installed package
 
+### npm-fund(1)
+
+Open package repository page in the browser
+
 ### npm-help-search(1)
 
 Search npm help documentation

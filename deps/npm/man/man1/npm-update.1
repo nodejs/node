@@ -1,7 +1,8 @@
-.TH "NPM\-UPDATE" "1" "October 2019" "" ""
+.TH "NPM\-UPDATE" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-update\fR \- Update a package
-.SH SYNOPSIS
+\fBnpm-update\fR
+.SH Update a package
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +11,7 @@ npm update [\-g] [<pkg>\.\.\.]
 aliases: up, upgrade
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command will update all the packages listed to the latest version
 (specified by the \fBtag\fP config), respecting semver\.
@@ -32,7 +33,7 @@ To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
 As of \fBnpm@5\.0\.0\fP, the \fBnpm update\fP will change \fBpackage\.json\fP to save the
 new version as the minimum required dependency\. To get the old behavior,
 use \fBnpm update \-\-no\-save\fP\|\.
-.SH EXAMPLES
+.SS Example
 .P
 IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
 older versions of \fBnpm\fP, you must specify \fB\-\-depth 0\fP to get the behavior
@@ -124,20 +125,19 @@ package that is \fBoutdated\fP \-\- that is, has a version that is different fro
 .P
 NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help install
+npm help npm\-install
 .IP \(bu 2
-npm help outdated
+npm help npm\-outdated
 .IP \(bu 2
-npm help shrinkwrap
+npm help npm\-shrinkwrap
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
-npm help ls
+npm help npm\-ls
 
 .RE
-

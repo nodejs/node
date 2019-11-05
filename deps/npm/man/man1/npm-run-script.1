@@ -1,7 +1,8 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "October 2019" "" ""
+.TH "NPM\-RUN\-SCRIPT" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-run-script\fR \- Run arbitrary package scripts
-.SH SYNOPSIS
+\fBnpm-run-script\fR
+.SH Run arbitrary package scripts
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +11,7 @@ npm run\-script <command> [\-\-silent] [\-\- <args>\.\.\.]
 alias: npm run
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This runs an arbitrary command from a package's \fB"scripts"\fP object\.  If no
 \fB"command"\fP is provided, it will list the available scripts\.  \fBrun[\-script]\fP is
@@ -86,20 +87,19 @@ You can use the \fB\-\-silent\fP flag to prevent showing \fBnpm ERR!\fP output o
 You can use the \fB\-\-if\-present\fP flag to avoid exiting with a non\-zero exit code
 when the script is undefined\. This lets you run potentially undefined scripts
 without breaking the execution chain\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 7 scripts
+npm help scripts
 .IP \(bu 2
-npm help test
+npm help npm\-test
 .IP \(bu 2
-npm help start
+npm help npm\-start
 .IP \(bu 2
-npm help restart
+npm help npm\-restart
 .IP \(bu 2
-npm help stop
+npm help npm\-stop
 .IP \(bu 2
-npm help 7 config
+npm help npm\-config
 
 .RE
-

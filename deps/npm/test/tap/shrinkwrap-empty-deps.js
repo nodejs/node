@@ -2,11 +2,8 @@
 
 const common = require('../common-tap.js')
 const fs = require('fs')
-const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
-const osenv = require('osenv')
 const path = require('path')
-const rimraf = require('rimraf')
 const test = require('tap').test
 
 const pkg = common.pkg
@@ -22,8 +19,6 @@ const json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -61,14 +56,3 @@ test('returns a list of removed items', function (t) {
     )
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
