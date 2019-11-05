@@ -18,7 +18,6 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node_file.h"
 #include "aliased_buffer.h"
 #include "memory_tracker-inl.h"
@@ -787,7 +786,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     size == SearchString(&chars[start], size, "\"main\"") &&
     size == SearchString(&chars[start], size, "\"exports\"") &&
     size == SearchString(&chars[start], size, "\"type\""))) {
-    return;
+    args.GetReturnValue().Set(env->empty_object_string());
   } else {
     Local<String> chars_string =
         String::NewFromUtf8(isolate,
