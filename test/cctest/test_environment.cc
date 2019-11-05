@@ -16,6 +16,7 @@ static void at_exit_callback1(void* arg);
 static void at_exit_callback2(void* arg);
 static void at_exit_callback_ordered1(void* arg);
 static void at_exit_callback_ordered2(void* arg);
+static void at_exit_js(void* arg);
 static std::string cb_1_arg;  // NOLINT(runtime/string)
 
 class EnvironmentTest : public EnvironmentTestFixture {
@@ -91,6 +92,15 @@ TEST_F(EnvironmentTest, AtExitWithArgument) {
   EXPECT_EQ(arg, cb_1_arg);
 }
 
+TEST_F(EnvironmentTest, AtExitRunsJS) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  AtExit(*env, at_exit_js, static_cast<void*>(isolate_));
+  RunAtExit(*env);
+}
+
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -162,4 +172,12 @@ static void at_exit_callback_ordered1(void* arg) {
 static void at_exit_callback_ordered2(void* arg) {
   EXPECT_FALSE(called_cb_ordered_1);
   called_cb_ordered_2 = true;
+}
+
+static void at_exit_js(void* arg) {
+  v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  assert(!obj.IsEmpty());  // Assert VM is still alive.
+  assert(obj->IsObject());
 }
