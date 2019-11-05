@@ -1,7 +1,8 @@
-.TH "NPM\-INSTALL" "1" "October 2019" "" ""
+.TH "NPM\-INSTALL" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-install\fR \- Install a package
-.SH SYNOPSIS
+\fBnpm-install\fR
+.SH Install a package
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -20,25 +21,25 @@ aliases: npm i, npm add
 common options: [\-P|\-\-save\-prod|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-B|\-\-save\-bundle] [\-\-no\-save] [\-\-dry\-run]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command installs a package, and any packages that it depends on\. If the
 package has a package\-lock or shrinkwrap file, the installation of dependencies
 will be driven by that, with an \fBnpm\-shrinkwrap\.json\fP taking precedence if both
-files exist\. See npm help 5 package\-lock\.json and npm help shrinkwrap\.
+files exist\. See package\-lock\.json \fI/docs/configuring\-npm/package\-lock\.json\fR and \fBnpm\-shrinkwrap\fP \fInpm\-shrinkwrap\fR\|\.
 .P
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
-a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
+a) a folder containing a program described by a \fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
 c) a url that resolves to (b)
 .IP \(bu 2
-d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
+d) a \fB<name>@<version>\fP that is published on the registry (see \fBnpm\-registry\fP \fInpm\-registry)\fR with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
+e) a \fB<name>@<tag>\fP (see \fBnpm\-dist\-tag\fP \fInpm\-dist\-tag)\fR that points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
@@ -58,7 +59,7 @@ after packing it up into a tarball (b)\.
   it installs the current package context (ie, the current working
   directory) as a global package\.
   By default, \fBnpm install\fP will install all modules listed as dependencies
-  in npm help 5 \fBpackage\.json\fP\|\.
+  in \fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
@@ -110,7 +111,7 @@ npm install \./package\.tgz
 .IP \(bu 2
 \fBnpm install [<@scope>/]<name>\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
+  \fBnpm\-config\fP \fI/docs/using\-npm/config\fR\|\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the version of the modules tagged as
   \fBlatest\fP on the npm registry\.
   Example:
@@ -150,7 +151,7 @@ Further, if you have an \fBnpm\-shrinkwrap\.json\fP or \fBpackage\-lock\.json\fP
 will be updated as well\.
 \fB<scope>\fP is optional\. The package will be downloaded from the registry
 associated with the specified scope\. If no registry is associated with
-the given scope the default registry is assumed\. See npm help 7 \fBnpm\-scope\fP\|\.
+the given scope the default registry is assumed\. See \fBnpm\-scope\fP \fI/docs/using\-npm/scope\fR\|\.
 Note: if you do not include the @\-symbol on your scope name, npm will
 interpret this as a GitHub repository instead, see below\. Scopes names
 must also be followed by a slash\.
@@ -167,19 +168,12 @@ npm install readable\-stream \-\-save\-exact
 npm install ansi\-regex \-\-save\-bundle
 .fi
 .RE
-
-.RE
-
-.RE
-.P
-.RS 2
-.nf
-**Note**: If there is a file or folder named `<name>` in the current
+.IP \(bu 2
+\fINote*\fR: If there is a file or folder named \fB<name>\fP in the current
 working directory, then it will try to install that, and only try to
 fetch the package by name if it is not valid\.
-.fi
+
 .RE
-.RS 0
 .IP \(bu 2
 \fBnpm install [<@scope>/]<name>@<tag>\fP:
   Install the version of the package that is referenced by the specified tag\.
@@ -189,8 +183,8 @@ fetch the package by name if it is not valid\.
 .P
 .RS 2
 .nf
-    npm install sax@latest
-    npm install @myorg/mypackage@latest
+  npm install sax@latest
+  npm install @myorg/mypackage@latest
 .fi
 .RE
 .IP \(bu 2
@@ -201,22 +195,22 @@ fetch the package by name if it is not valid\.
 .P
 .RS 2
 .nf
-    npm install sax@0\.1\.1
-    npm install @myorg/privatepackage@1\.5\.0
+  npm install sax@0\.1\.1
+  npm install @myorg/privatepackage@1\.5\.0
 .fi
 .RE
 .IP \(bu 2
 \fBnpm install [<@scope>/]<name>@<version range>\fP:
   Install a version of the package matching the specified version range\.  This
-  will follow the same rules for resolving dependencies described in npm help 5 \fBpackage\.json\fP\|\.
+  will follow the same rules for resolving dependencies described in \fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR\|\.
   Note that most version ranges must be put in quotes so that your shell will
   treat it as a single argument\.
   Example:
 .P
 .RS 2
 .nf
-    npm install sax@">=0\.1\.0 <0\.2\.0"
-    npm install @myorg/privatepackage@">=0\.1\.0 <0\.2\.0"
+  npm install sax@">=0\.1\.0 <0\.2\.0"
+  npm install @myorg/privatepackage@">=0\.1\.0 <0\.2\.0"
 .fi
 .RE
 .IP \(bu 2
@@ -292,8 +286,8 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 .P
 .RS 2
 .nf
-    npm install mygithubuser/myproject
-    npm install github:mygithubuser/myproject
+  npm install mygithubuser/myproject
+  npm install github:mygithubuser/myproject
 .fi
 .RE
 .IP \(bu 2
@@ -308,7 +302,7 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 .P
 .RS 2
 .nf
-    npm install gist:101a11beef
+  npm install gist:101a11beef
 .fi
 .RE
 .IP \(bu 2
@@ -328,7 +322,7 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 .P
 .RS 2
 .nf
-    npm install bitbucket:mybitbucketuser/myproject
+  npm install bitbucket:mybitbucketuser/myproject
 .fi
 .RE
 .IP \(bu 2
@@ -348,8 +342,8 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 .P
 .RS 2
 .nf
-    npm install gitlab:mygitlabuser/myproject
-    npm install gitlab:myusr/myproj#semver:^5\.0
+  npm install gitlab:mygitlabuser/myproject
+  npm install gitlab:myusr/myproj#semver:^5\.0
 .fi
 .RE
 
@@ -383,8 +377,12 @@ npm install sax \-\-force
 .fi
 .RE
 .P
+The \fB\-\-no\-fund\fP argument will hide the message displayed at the end of each
+install that aknowledges the number of dependencies looking for funding\.
+See \fBnpm help fund\fP
+.P
 The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
-rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
+rather than locally\.  See npm\-folders \fI/docs/configuring\-npm/folders\fR\|\.
 .P
 The \fB\-\-global\-style\fP argument will cause npm to install the package into
 your local \fBnode_modules\fP folder with the same layout it uses with the
@@ -393,7 +391,7 @@ global \fBnode_modules\fP folder\. Only your direct dependencies will show in
 \fBnode_modules\fP folders\. This obviously will eliminate some deduping\.
 .P
 The \fB\-\-ignore\-scripts\fP argument will cause npm to not execute any
-scripts defined in the package\.json\. See npm help 7 \fBnpm\-scripts\fP\|\.
+scripts defined in the package\.json\. See \fBnpm\-scripts\fP \fI/docs/using\-npm/scripts\fR\|\.
 .P
 The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
 that versions of npm prior to 1\.4, such as the one included with node 0\.8,
@@ -422,11 +420,11 @@ The \fB\-\-only={prod[uction]|dev[elopment]}\fP argument will cause either only
 \fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed regardless of the \fBNODE_ENV\fP\|\.
 .P
 The \fB\-\-no\-audit\fP argument can be used to disable sending of audit reports to
-the configured registries\.  See npm help \fBnpm\-audit\fP for details on what is sent\.
+the configured registries\.  See \fBnpm\-audit\fP \fInpm\-audit\fR for details on what is sent\.
 .P
-See npm help 7 \fBnpm\-config\fP\|\.  Many of the configuration params have some
+See \fBnpm\-config\fP \fI/docs/using\-npm/config\fR\|\.  Many of the configuration params have some
 effect on installation, since that's most of what npm does\.
-.SH ALGORITHM
+.SS Algorithm
 .P
 To install a package, npm uses the following algorithm:
 .P
@@ -478,7 +476,7 @@ privately for itself\. This algorithm is deterministic, but different trees may
 be produced if two dependencies are requested for installation in a different
 order\.
 .P
-See npm help 5 folders for a more detailed description of the specific
+See npm\-folders \fI/docs/configuring\-npm/folders\fR for a more detailed description of the specific
 folder structures that npm creates\.
 .SS Limitations of npm's Install Algorithm
 .P
@@ -508,38 +506,37 @@ To avoid this situation, npm flat\-out refuses to install any
 folder ancestors\.  A more correct, but more complex, solution would be
 to symlink the existing version into the new location\.  If this ever
 affects a real use\-case, it will be investigated\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
-npm help update
+npm help npm\-update
 .IP \(bu 2
-npm help audit
+npm help npm\-audit
 .IP \(bu 2
-npm help link
+npm help npm\-fund
 .IP \(bu 2
-npm help rebuild
+npm help npm\-link
 .IP \(bu 2
-npm help 7 scripts
+npm help npm\-rebuild
 .IP \(bu 2
-npm help build
+npm help scripts
 .IP \(bu 2
-npm help config
+npm help npm\-build
 .IP \(bu 2
-npm help 7 config
+npm help npm\-config
 .IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help dist\-tag
+npm help npm\-dist\-tag
 .IP \(bu 2
-npm help uninstall
+npm help npm\-uninstall
 .IP \(bu 2
-npm help shrinkwrap
+npm help npm\-shrinkwrap
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\-json
 
 .RE
-

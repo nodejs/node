@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.5.9"></a>
+## [9.5.9](https://github.com/npm/pacote/compare/v9.5.8...v9.5.9) (2019-10-29)
+
+
+### Bug Fixes
+
+* include peerDependenciesMeta in manifest ([7a400d3](https://github.com/npm/pacote/commit/7a400d3)), closes [/github.com/npm/cli/pull/224#issuecomment-547666807](https://github.com//github.com/npm/cli/pull/224/issues/issuecomment-547666807)
+
+
+
 <a name="9.5.8"></a>
 ## [9.5.8](https://github.com/npm/pacote/compare/v9.5.7...v9.5.8) (2019-08-20)
 

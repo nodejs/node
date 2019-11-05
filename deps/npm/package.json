@@ -1,5 +1,5 @@
 {
-  "version": "6.12.1",
+  "version": "6.13.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -110,14 +110,14 @@
     "once": "~1.4.0",
     "opener": "^1.5.1",
     "osenv": "^0.1.5",
-    "pacote": "^9.5.8",
+    "pacote": "^9.5.9",
     "path-is-inside": "~1.0.2",
     "promise-inflight": "~1.0.1",
     "qrcode-terminal": "^0.12.0",
     "query-string": "^6.8.2",
     "qw": "~1.0.1",
     "read": "~1.0.7",
-    "read-cmd-shim": "^1.0.4",
+    "read-cmd-shim": "^1.0.5",
     "read-installed": "~4.0.3",
     "read-package-json": "^2.1.0",
     "read-package-tree": "^5.3.1",
@@ -291,7 +291,7 @@
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
-    "prepare": "node bin/npm-cli.js rebuild && node bin/npm-cli.js --no-audit --no-timing prune --prefix=. --no-global && rimraf test/*/*/node_modules && make -j4 doc",
+    "prepare": "node bin/npm-cli.js rebuild && node bin/npm-cli.js --no-audit --no-timing prune --prefix=. --no-global && rimraf test/*/*/node_modules && make -j4 mandocs",
     "preversion": "bash scripts/update-authors.sh && git add AUTHORS && git commit -m \"update AUTHORS\" || true",
     "licenses": "licensee --production --errors-only",
     "tap": "tap -J --timeout 300 --no-esm",

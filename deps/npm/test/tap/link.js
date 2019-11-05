@@ -1,7 +1,5 @@
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var path = require('path')
-var rimraf = require('rimraf')
 var test = require('tap').test
 var lstatSync = require('fs').lstatSync
 var writeFileSync = require('fs').writeFileSync
@@ -72,7 +70,28 @@ var insideInstallJSON = {
 }
 
 test('setup', function (t) {
-  setup()
+  mkdirp.sync(linkRoot)
+  mkdirp.sync(link)
+  writeFileSync(
+    path.join(link, 'package.json'),
+    JSON.stringify(readJSON, null, 2)
+  )
+  mkdirp.sync(linkScoped)
+  writeFileSync(
+    path.join(linkScoped, 'package.json'),
+    JSON.stringify(readScopedJSON, null, 2)
+  )
+  mkdirp.sync(linkInstall)
+  writeFileSync(
+    path.join(linkInstall, 'package.json'),
+    JSON.stringify(installJSON, null, 2)
+  )
+  mkdirp.sync(linkInside)
+  writeFileSync(
+    path.join(linkInside, 'package.json'),
+    JSON.stringify(insideInstallJSON, null, 2)
+  )
+  writeFileSync(configPath, config)
   common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, c, out) {
     t.ifError(err)
     t.equal(c, 0, 'set up ok')
@@ -173,50 +192,14 @@ test('ls the linked packages', function (t) {
 })
 
 test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
+  process.chdir(common.pkg)
   common.npm(['rm', 'foo'], OPTS, function (err, code) {
     t.ifError(err, 'npm removed the linked package without error')
     t.equal(code, 0, 'cleanup foo in local ok')
     common.npm(['rm', '-g', 'foo'], OPTS, function (err, code) {
       t.ifError(err, 'npm removed the global package without error')
       t.equal(code, 0, 'cleanup foo in global ok')
-
-      cleanup()
       t.end()
     })
   })
 })
-
-function cleanup () {
-  rimraf.sync(linkRoot)
-  rimraf.sync(link)
-  rimraf.sync(linkScoped)
-  rimraf.sync(linkInstall)
-  rimraf.sync(linkInside)
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(linkRoot)
-  mkdirp.sync(link)
-  writeFileSync(
-    path.join(link, 'package.json'),
-    JSON.stringify(readJSON, null, 2)
-  )
-  mkdirp.sync(linkScoped)
-  writeFileSync(
-    path.join(linkScoped, 'package.json'),
-    JSON.stringify(readScopedJSON, null, 2)
-  )
-  mkdirp.sync(linkInstall)
-  writeFileSync(
-    path.join(linkInstall, 'package.json'),
-    JSON.stringify(installJSON, null, 2)
-  )
-  mkdirp.sync(linkInside)
-  writeFileSync(
-    path.join(linkInside, 'package.json'),
-    JSON.stringify(insideInstallJSON, null, 2)
-  )
-  writeFileSync(configPath, config)
-}

@@ -143,6 +143,8 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     force: false,
     'format-package-lock': true,
 
+    fund: true,
+
     'fetch-retries': 2,
     'fetch-retry-factor': 10,
     'fetch-retry-mintimeout': 10000,
@@ -284,6 +286,7 @@ exports.types = {
   editor: String,
   'engine-strict': Boolean,
   force: Boolean,
+  fund: Boolean,
   'format-package-lock': Boolean,
   'fetch-retries': Number,
   'fetch-retry-factor': Number,

@@ -1,14 +1,15 @@
-.TH "NPM\-PACK" "1" "October 2019" "" ""
+.TH "NPM\-PACK" "" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-pack\fR \- Create a tarball from a package
-.SH SYNOPSIS
+\fBnpm-pack\fR
+.SH Create a tarball from a package
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm pack [[<@scope>/]<pkg>\.\.\.] [\-\-dry\-run]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 For anything that's installable (that is, a package folder, tarball,
 tarball url, name@tag, name@version, name, or scoped name), this
@@ -23,18 +24,15 @@ If no arguments are supplied, then npm packs the current package folder\.
 .P
 The \fB\-\-dry\-run\fP argument will do everything that pack usually does without
 actually packing anything\. Reports on what would have gone into the tarball\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help cache
+npm help npm\-cache
 .IP \(bu 2
-npm help publish
+npm help npm\-publish
 .IP \(bu 2
-npm help config
+npm help npm\-config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-
