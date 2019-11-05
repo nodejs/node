@@ -868,6 +868,19 @@ inline bool Environment::is_stopping() const {
   return thread_stopper_.is_stopped();
 }
 
+inline std::list<node_module>* Environment::extra_linked_bindings() {
+  return &extra_linked_bindings_;
+}
+
+inline node_module* Environment::extra_linked_bindings_head() {
+  return extra_linked_bindings_.size() > 0 ?
+      &extra_linked_bindings_.front() : nullptr;
+}
+
+inline const Mutex& Environment::extra_linked_bindings_mutex() const {
+  return extra_linked_bindings_mutex_;
+}
+
 inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }

@@ -1069,11 +1069,15 @@ class Environment : public MemoryRetainer {
   inline bool owns_inspector() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
+  Environment* worker_parent_env() const;
   inline void set_worker_context(worker::Worker* context);
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
   inline bool is_stopping() const;
+  inline std::list<node_module>* extra_linked_bindings();
+  inline node_module* extra_linked_bindings_head();
+  inline const Mutex& extra_linked_bindings_mutex() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -1368,6 +1372,9 @@ class Environment : public MemoryRetainer {
       file_handle_read_wrap_freelist_;
 
   worker::Worker* worker_context_ = nullptr;
+
+  std::list<node_module> extra_linked_bindings_;
+  Mutex extra_linked_bindings_mutex_;
 
   static void RunTimers(uv_timer_t* handle);
 

@@ -935,9 +935,10 @@ void Environment::stop_sub_worker_contexts() {
   }
 }
 
-#if HAVE_INSPECTOR
-
-#endif  // HAVE_INSPECTOR
+Environment* Environment::worker_parent_env() const {
+  if (worker_context_ == nullptr) return nullptr;
+  return worker_context_->env();
+}
 
 void MemoryTracker::TrackField(const char* edge_name,
                                const CleanupHookCallback& value,
