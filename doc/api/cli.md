@@ -207,7 +207,7 @@ Enable experimental diagnostic report feature.
 
 ### `--experimental-resolve-self`
 <!-- YAML
-added: REPLACEME
+added: v13.1.0
 -->
 
 Enable experimental support for a package using `require` or `import` to load
@@ -767,7 +767,7 @@ connection problems.
 
 ### `--trace-uncaught`
 <!-- YAML
-added: REPLACEME
+added: v13.1.0
 -->
 
 Print stack traces for uncaught exceptions; usually, the stack trace associated
