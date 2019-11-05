@@ -217,6 +217,7 @@ constexpr size_t kFsStatsBufferLength =
   V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
   V(emit_warning_string, "emitWarning")                                        \
+  V(empty_object_string, "{}")                                                 \
   V(encoding_string, "encoding")                                               \
   V(entries_string, "entries")                                                 \
   V(entry_type_string, "entryType")                                            \
