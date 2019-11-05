@@ -1,14 +1,14 @@
-.TH "NPM\-LOGOUT" "1" "October 2019" "" ""
+.TH "NPM\-LOGOUT" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-logout\fR \- Log out of the registry
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm logout [\-\-registry=<url>] [\-\-scope=<@scope>]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 When logged into a registry that supports token\-based authentication, tell the
 server to end this token's session\. This will invalidate the token everywhere
@@ -20,7 +20,7 @@ the current environment\.
 .P
 If \fB\-\-scope\fP is provided, this will find the credentials for the registry
 connected to that scope, if set\.
-.SH CONFIGURATION
+.SS Configuration
 .SS registry
 .P
 Default: https://registry\.npmjs\.org/
@@ -31,27 +31,22 @@ it takes precedence\.
 .P
 Default: The scope of your current project, if any, otherwise none\.
 .P
-If specified, you will be logged out of the specified scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+If specified, you will be logged out of the specified scope\. See npm help \fBscope\fP\|\.
 .P
 .RS 2
 .nf
 npm logout \-\-scope=@myco
 .fi
 .RE
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help adduser
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
 npm help config
-.IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
 .IP \(bu 2
 npm help whoami
 
 .RE
-

@@ -1,7 +1,7 @@
-.TH "NPM\-VIEW" "1" "October 2019" "" ""
+.TH "NPM\-VIEW" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +10,7 @@ npm view [<@scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
 aliases: info, show, v
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command shows data about a package and prints it to the stream
 referenced by the \fBoutfd\fP config, which defaults to stdout\.
@@ -88,7 +88,7 @@ npm view express contributors\.name contributors\.email
 .P
 "Person" fields are shown as a string if they would be shown as an
 object\.  So, for example, this will show the list of npm contributors in
-the shortened string format\.  (See npm help 5 \fBpackage\.json\fP for more on this\.)
+the shortened string format\.  (See npm help \fBpackage\.json\fP for more on this\.)
 .P
 .RS 2
 .nf
@@ -114,7 +114,7 @@ this:
 npm view connect versions
 .fi
 .RE
-.SH OUTPUT
+.SS Output
 .P
 If only a single string field for a single version is output, then it
 will not be colorized or quoted, so as to enable piping the output to
@@ -127,20 +127,17 @@ will be prefixed with the version it applies to\.
 .P
 If multiple fields are requested, than each of them are prefixed with
 the field name\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help search
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
 npm help docs
 
 .RE
-

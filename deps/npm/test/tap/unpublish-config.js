@@ -2,9 +2,6 @@ var fs = require('graceful-fs')
 var http = require('http')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -18,8 +15,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  mkdirp.sync(pkg)
-
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json), 'utf8'
@@ -63,7 +58,7 @@ test('cursory test of unpublishing with config', function (t) {
           HOME: process.env.HOME,
           Path: process.env.PATH,
           PATH: process.env.PATH,
-          USERPROFILE: osenv.home()
+          USERPROFILE: process.env.USERPROFILE
         }
       },
       function (err, code) {
@@ -72,10 +67,4 @@ test('cursory test of unpublishing with config', function (t) {
       }
     )
   })
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
 })

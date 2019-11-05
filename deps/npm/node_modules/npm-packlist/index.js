@@ -17,6 +17,8 @@ const rootBuiltinRules = Symbol('root-builtin-rules')
 const packageNecessaryRules = Symbol('package-necessary-rules')
 const path = require('path')
 
+const normalizePackageBin = require('npm-normalize-package-bin')
+
 const defaultRules = [
   '.npmignore',
   '.gitignore',
@@ -176,12 +178,11 @@ const npmWalker = Class => class Walker extends Class {
       '!npm-shrinkwrap.json',
       '!@(readme|copying|license|licence|notice|changes|changelog|history){,.*[^~$]}'
     ]
-    if (pkg.bin)
-      if (typeof pkg.bin === "object")
-        for (const key in pkg.bin)
-          rules.push('!' + pkg.bin[key])
-      else
-        rules.push('!' + pkg.bin)
+    if (pkg.bin) {
+      // always an object, because normalized already
+      for (const key in pkg.bin)
+        rules.push('!' + pkg.bin[key])
+    }
 
     const data = rules.filter(f => f).join('\n') + '\n'
     super.onReadIgnoreFile(packageNecessaryRules, data, _=>_)
@@ -216,7 +217,7 @@ const npmWalker = Class => class Walker extends Class {
     if (file === 'package.json')
       try {
         const ig = path.resolve(this.path, file)
-        this.onPackageJson(ig, JSON.parse(data), then)
+        this.onPackageJson(ig, normalizePackageBin(JSON.parse(data)), then)
       } catch (er) {
         // ignore package.json files that are not json
         then()

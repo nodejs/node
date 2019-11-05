@@ -1,14 +1,14 @@
-.TH "NPM\-EXPLORE" "1" "October 2019" "" ""
+.TH "NPM\-EXPLORE" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-explore\fR \- Browse an installed package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm explore <pkg> [ \-\- <command>]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Spawn a subshell in the directory of the installed package specified\.
 .P
@@ -26,7 +26,7 @@ npm explore some\-dependency \-\- git pull origin master
 .P
 Note that the package is \fInot\fR automatically rebuilt afterwards, so be
 sure to use \fBnpm rebuild <pkg>\fP if you make any changes\.
-.SH CONFIGURATION
+.SS Configuration
 .SS shell
 .RS 0
 .IP \(bu 2
@@ -38,10 +38,10 @@ Type: path
 .RE
 .P
 The shell to run for the \fBnpm explore\fP command\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help edit
 .IP \(bu 2
@@ -52,4 +52,3 @@ npm help build
 npm help install
 
 .RE
-

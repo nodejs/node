@@ -1,14 +1,11 @@
 const npm = require('../../lib/npm.js')
 const t = require('tap')
 
-if (process.platform === 'win32') {
-  t.plan(0, 'this is a unix-only thing')
-  process.exit(0)
-}
+const common = require('../common-tap.js')
+
+common.skipIfWindows('this is a unix-only thing')
 
 const errorMessage = require('../../lib/utils/error-message.js')
-
-const common = require('../common-tap.js')
 
 t.plan(1)
 

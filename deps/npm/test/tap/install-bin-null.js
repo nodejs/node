@@ -2,8 +2,6 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -43,8 +41,28 @@ var grandchildPkg = {
 
 var pkgs = [childPkgA, childPkgB, grandchildPkg]
 
+test('setup', t => {
+  mkdirp.sync(pkg)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(parentPkg, null, 2)
+  )
+  pkgs.forEach(function (json) {
+    var pkgPath = path.resolve(pkg, json.name)
+    mkdirp.sync(pkgPath)
+    fs.writeFileSync(
+      path.join(pkgPath, 'package.json'),
+      JSON.stringify(json, null, 2)
+    )
+  })
+  fs.writeFileSync(
+    path.join(pkg, childPkgA.name, 'index.js'),
+    ''
+  )
+  t.end()
+})
+
 test('the grandchild has bin:null', function (t) {
-  setup()
   common.npm(['install'], EXEC_OPTS, function (err, code, stdout, stderr) {
     t.ifErr(err, 'npm link finished without error')
     t.equal(code, 0, 'exited ok')
@@ -53,39 +71,3 @@ test('the grandchild has bin:null', function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(parentPkg, null, 2)
-  )
-  pkgs.forEach(function (json) {
-    process.chdir(mkPkg(json))
-  })
-  fs.writeFileSync(
-    path.join(pkg, childPkgA.name, 'index.js'),
-    ''
-  )
-}
-
-function mkPkg (json) {
-  var pkgPath = path.resolve(pkg, json.name)
-  mkdirp.sync(pkgPath)
-  fs.writeFileSync(
-    path.join(pkgPath, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  return pkgPath
-}

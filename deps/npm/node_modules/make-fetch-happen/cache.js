@@ -169,7 +169,7 @@ module.exports = class Cache {
       cacheTargetStream ? cacheTargetStream.end(done) : done()
     })
     const oldBody = response.body
-    const newBody = through({highWaterMark: fitInMemory && MAX_MEM_SIZE})
+    const newBody = through({highWaterMark: MAX_MEM_SIZE})
     response.body = newBody
     oldBody.once('error', err => newBody.emit('error', err))
     newBody.once('error', err => oldBody.emit('error', err))

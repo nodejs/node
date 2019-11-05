@@ -1,7 +1,7 @@
-.TH "NPM\-SEARCH" "1" "October 2019" "" ""
+.TH "NPM\-SEARCH" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-search\fR \- Search for packages
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +10,7 @@ npm search [\-l|\-\-long] [\-\-json] [\-\-parseable] [\-\-no\-description] [sear
 aliases: s, se, find
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Search the registry for packages matching the search terms\. \fBnpm search\fP
 performs a linear, incremental, lexically\-ordered search through package
@@ -32,7 +32,7 @@ supports standard JavaScript RegExp syntax\. A trailing \fB/\fP will be ignored 
 this case\. (Note that many regular expression characters must be escaped or
 quoted in most shells\.)
 .SS A Note on caching
-.SH CONFIGURATION
+.SS Configuration
 .SS description
 .RS 0
 .IP \(bu 2
@@ -121,18 +121,15 @@ to a different default registry, such as your internal private module
 repository, \fBnpm search\fP will default to that registry when searching\. Pass a
 different registry url such as the default above in order to override this
 setting\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
 npm help view
 
 .RE
-

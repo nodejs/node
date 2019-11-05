@@ -3,22 +3,17 @@ const common = require('../common-tap.js')
 var path = require('path')
 var fs = require('graceful-fs')
 var test = require('tap').test
-var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
-var osenv = require('osenv')
 var npmconf = require('../../lib/config/core.js')
 
 var dir = common.pkg
 var beep = path.resolve(dir, 'beep.pem')
 var npmrc = path.resolve(dir, 'npmrc')
 
-test('setup', function (t) {
-  bootstrap()
-  t.end()
-})
-
 test('can set new cafile when old is gone', function (t) {
   t.plan(5)
+  fs.writeFileSync(npmrc, '')
+  fs.writeFileSync(beep, '')
   npmconf.load({ userconfig: npmrc }, function (error, conf) {
     npmconf.loaded = false
     t.ifError(error)
@@ -40,19 +35,3 @@ test('can set new cafile when old is gone', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function bootstrap () {
-  mkdirp.sync(dir)
-  fs.writeFileSync(npmrc, '')
-  fs.writeFileSync(beep, '')
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(dir)
-}

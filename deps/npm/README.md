@@ -163,4 +163,3 @@ doubt tell you to put the output in a gist or email.
 
 * npm(1)
 * npm-help(1)
-* npm-index(7)

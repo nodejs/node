@@ -1,7 +1,7 @@
-.TH "NPM\-LINK" "1" "October 2019" "" ""
+.TH "NPM\-LINK" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,13 +11,13 @@ npm link [<@scope>/]<pkg>[@<version>]
 alias: npm ln
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Package linking is a two\-step process\.
 .P
 First, \fBnpm link\fP in a package folder will create a symlink in the global folder
 \fB{prefix}/lib/node_modules/<package>\fP that links to the package where the \fBnpm
-link\fP command was executed\. (see npm help 7 \fBnpm\-config\fP for the value of \fBprefix\fP)\. It
+link\fP command was executed\. (see \fBnpm\-config\fP \fInpm\-config\fR for the value of \fBprefix\fP)\. It
 will also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.
 .P
 Next, in some other location, \fBnpm link package\-name\fP will create a
@@ -27,7 +27,7 @@ of the current folder\.
 Note that \fBpackage\-name\fP is taken from \fBpackage\.json\fP,
 not from directory name\.
 .P
-The package name can be optionally prefixed with a scope\. See npm help 7 \fBnpm\-scope\fP\|\.
+The package name can be optionally prefixed with a scope\. See npm help \fBscope\fP\|\.
 The scope must be preceded by an @\-symbol and followed by a slash\.
 .P
 When creating tarballs for \fBnpm publish\fP, the linked packages are
@@ -40,10 +40,10 @@ For example:
 .P
 .RS 2
 .nf
-cd ~/projects/node\-redis    # go into the package directory
-npm link                    # creates global link
-cd ~/projects/node\-bloggy   # go into some other package directory\.
-npm link redis              # link\-install the package
+    cd ~/projects/node\-redis    # go into the package directory
+    npm link                    # creates global link
+    cd ~/projects/node\-bloggy   # go into some other package directory\.
+    npm link redis              # link\-install the package
 .fi
 .RE
 .P
@@ -76,30 +76,26 @@ installation target into your project's \fBnode_modules\fP folder\.
 Note that in this case, you are referring to the directory name, \fBnode\-redis\fP,
 rather than the package name \fBredis\fP\|\.
 .P
-If your linked package is scoped (see npm help 7 \fBnpm\-scope\fP) your link command must
-include that scope, e\.g\.
+If your linked package is scoped (see npm help \fBscope\fP) your link command must include that scope, e\.g\.
 .P
 .RS 2
 .nf
 npm link @myorg/privatepackage
 .fi
 .RE
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 7 developers
+npm help developers
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\.json
 .IP \(bu 2
-npm help install
+npm help npm\- nstall
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

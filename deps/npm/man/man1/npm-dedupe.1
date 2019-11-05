@@ -1,7 +1,7 @@
-.TH "NPM\-DEDUPE" "1" "October 2019" "" ""
+.TH "NPM\-DEDUPE" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-dedupe\fR \- Reduce duplication
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,7 +11,7 @@ npm ddp
 aliases: find\-dupes, ddp
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Searches the local package tree and attempts to simplify the overall
 structure by moving dependencies further up the tree, where they can
@@ -29,7 +29,7 @@ a
 .fi
 .RE
 .P
-In this case, npm help \fBnpm\-dedupe\fP will transform the tree to:
+In this case, \fBnpm dedupe\fP will transform the tree to:
 .P
 .RS 2
 .nf
@@ -58,7 +58,7 @@ Modules
 .P
 Note that this operation transforms the dependency tree, but will never
 result in new modules being installed\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help ls
@@ -68,4 +68,3 @@ npm help update
 npm help install
 
 .RE
-
