@@ -3555,6 +3555,13 @@ v8_component("v8_libbase") {
     "src/base/vlq-base64.h",
   ]
 
+  if (v8_current_cpu == "x64") {
+    sources += ["src/base/x86_64/e_pow.S"]
+  }
+  if (v8_current_cpu == "x86") {
+    sources += ["src/base/x86/e_pow.S"]
+  }
+
   configs = [ ":internal_config_base" ]
 
   public_configs = [ ":libbase_config" ]
