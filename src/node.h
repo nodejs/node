@@ -668,6 +668,17 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
                                v8::Local<v8::Value> module,           \
                                v8::Local<v8::Context> context)
 
+// Allows embedders to add a binding to the current Environment* that can be
+// accessed through process._linkedBinding() in the target Environment and all
+// Worker threads that it creates.
+// In each variant, the registration function needs to be usable at least for
+// the time during which the Environment exists.
+NODE_EXTERN void AddLinkedBinding(Environment* env, const node_module& mod);
+NODE_EXTERN void AddLinkedBinding(Environment* env,
+                                  const char* name,
+                                  addon_context_register_func fn,
+                                  void* priv);
+
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
  */

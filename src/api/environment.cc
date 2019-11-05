@@ -498,4 +498,32 @@ uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
   return env->event_loop();
 }
 
+void AddLinkedBinding(Environment* env, const node_module& mod) {
+  CHECK_NOT_NULL(env);
+  Mutex::ScopedLock lock(env->extra_linked_bindings_mutex());
+
+  node_module* prev_head = env->extra_linked_bindings_head();
+  env->extra_linked_bindings().push_back(mod);
+  if (prev_head != nullptr)
+    prev_head->nm_link = &env->extra_linked_bindings().back();
+}
+
+void AddLinkedBinding(Environment* env,
+                      const char* name,
+                      addon_context_register_func fn,
+                      void* priv) {
+  node_module mod = {
+    NODE_MODULE_VERSION,
+    NM_F_LINKED,
+    nullptr,  // nm_dso_handle
+    nullptr,  // nm_filename
+    nullptr,  // nm_register_func
+    fn,
+    name,
+    priv,
+    nullptr   // nm_link
+  };
+  AddLinkedBinding(env, mod);
+}
+
 }  // namespace node
