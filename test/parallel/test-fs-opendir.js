@@ -91,6 +91,10 @@ assert.throws(function() {
   fs.opendirSync(__filename);
 }, /Error: ENOTDIR: not a directory/);
 
+assert.throws(function() {
+  fs.opendir(__filename);
+}, /TypeError \[ERR_INVALID_CALLBACK\]: Callback must be a function/);
+
 fs.opendir(__filename, common.mustCall(function(e) {
   assert.strictEqual(e.code, 'ENOTDIR');
 }));
