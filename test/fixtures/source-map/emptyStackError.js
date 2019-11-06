@@ -1,14 +1,6 @@
-const ERROR_TEXT = 'emptyStackError';
+"use strict";
 
-function Hello() {
-  Error.stackTraceLimit = 0;
-  throw Error(ERROR_TEXT)
-}
+Error.stackTraceLimit = 0;
+throw new RangeError('emptyStackError');
 
-setImmediate(function () {
-  Hello();
-});
 
-module.exports = {
-  ERROR_TEXT
-};
