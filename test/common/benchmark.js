@@ -18,7 +18,7 @@ function runBenchmark(name, args, env) {
 
   argv.push(name);
 
-  const mergedEnv = Object.assign({}, process.env, env);
+  const mergedEnv = { ...process.env, ...env };
 
   const child = fork(runjs, argv, {
     env: mergedEnv,
