@@ -170,13 +170,14 @@ the ability to import a directory that has an index file.
 
 Please see [customizing esm specifier resolution][] for example usage.
 
-### `--experimental-dual-resolution
+### `--experimental-conditional-exports
 <!-- YAML
 added: REPLACEME
 -->
 
-Enable experimental support for separate resolution paths for `require()` and
-`import`. See [Conditional Exports][] for more information.
+Enable experimental support for the `"require"` and `"ndoe"` conditional
+package export resolutions.
+See [Conditional Exports][] for more information.
 
 ### `--experimental-json-modules`
 <!-- YAML
@@ -1029,7 +1030,7 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--es-module-specifier-resolution`
-* `--experimental-dual-resolution`
+* `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`

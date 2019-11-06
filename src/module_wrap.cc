@@ -954,7 +954,8 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
     Local<Object> target_obj = target.As<Object>();
     bool matched = false;
     Local<Value> conditionalTarget;
-    if (target_obj->HasOwnProperty(context, env->node_string()).FromJust()) {
+    if (env->options()->experimental_conditional_exports &&
+        target_obj->HasOwnProperty(context, env->node_string()).FromJust()) {
       matched = true;
       conditionalTarget =
           target_obj->Get(context, env->node_string()).ToLocalChecked();
