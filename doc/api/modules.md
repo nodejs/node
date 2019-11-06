@@ -232,8 +232,10 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
 2. If X matches this pattern and DIR/name/package.json is a file:
    a. Parse DIR/name/package.json, and look for "exports" field.
    b. If "exports" is null or undefined, GOTO 3.
-   c. If "exports" is a string, or object whose first key does not start with
-      ".", treat it as having that value as its "." object property.
+   c. If "exports" is an object with some keys starting with "." and some keys
+      not starting with ".", throw "invalid config".
+   c. If "exports" is a string, or object with no keys starting with ".", treat
+      it as having that value as its "." object property.
    d. If subpath is "." and "exports" does not have a "." entry, GOTO 3.
    e. Find the longest key in "exports" that the subpath starts with.
    f. If no such key can be found, throw "not found".

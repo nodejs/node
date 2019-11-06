@@ -977,6 +977,36 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
   return Nothing<URL>();
 }
 
+Maybe<bool> IsConditionalExportsMainSugar(Environment* env,
+                                          Local<Value> exports,
+                                          const URL& pjson_url,
+                                          const URL& base) {
+  if (exports->IsString() || exports->IsArray()) return Just(true);
+  if (!exports->IsObject()) return Just(false);
+  Local<Context> context = env->context();
+  Local<Object> exports_obj = exports.As<Object>();
+  Local<Array> keys =
+      exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
+  bool isConditionalSugar = false;
+  for (uint32_t i = 0; i < keys->Length(); ++i) {
+    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
+    Utf8Value key_utf8(env->isolate(), key);
+    bool curIsConditionalSugar = key_utf8.length() == 0 || key_utf8[0] != '.';
+    if (i == 0) {
+      isConditionalSugar = curIsConditionalSugar;
+    } else if (isConditionalSugar != curIsConditionalSugar) {
+      const std::string msg = "Cannot resolve package exports in " +
+        pjson_url.ToFilePath() + ", imported from " + base.ToFilePath() + ". " +
+        "\"exports\" must either be an object of package subpath keys " +
+        "starting with '.', or an object of main entry condition name keys " +
+        "not starting with '.'";
+      node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
+      return Nothing<bool>();
+    }
+  }
+  return Just(isConditionalSugar);
+}
+
 Maybe<URL> PackageMainResolve(Environment* env,
                               const URL& pjson_url,
                               const PackageConfig& pcfg,
@@ -986,7 +1016,11 @@ Maybe<URL> PackageMainResolve(Environment* env,
 
     if (!pcfg.exports.IsEmpty()) {
       Local<Value> exports = pcfg.exports.Get(isolate);
-      if (exports->IsString()) {
+      Maybe<bool> isConditionalExportsMainSugar =
+          IsConditionalExportsMainSugar(env, exports, pjson_url, base);
+      if (isConditionalExportsMainSugar.IsNothing())
+        return Nothing<URL>();
+      if (isConditionalExportsMainSugar.FromJust()) {
         return ResolveExportsTarget(env, pjson_url, exports, "", "", base,
                                     true);
       } else if (exports->IsObject()) {
@@ -1037,7 +1071,11 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Value> exports = pcfg.exports.Get(isolate);
-  if (!exports->IsObject()) {
+  Maybe<bool> isConditionalExportsMainSugar =
+      IsConditionalExportsMainSugar(env, exports, pjson_url, base);
+  if (isConditionalExportsMainSugar.IsNothing())
+    return Nothing<URL>();
+  if (!exports->IsObject() || isConditionalExportsMainSugar.FromJust()) {
     ThrowExportsNotFound(env, pkg_subpath, pjson_url, base);
     return Nothing<URL>();
   }

@@ -397,6 +397,75 @@ package in use in an application, which can cause a number of bugs.
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
 etc. could be defined in other runtimes or tools.
 
+#### Exports Sugar
+
+If the `"."` export is the only export, the `"exports"` field provides sugar
+for this case being the direct `"exports"` field value.
+
+If the `"."` export has a fallback array or string value, then the `"exports"`
+field can be set to this value directly.
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    ".": "./main.js"
+  }
+}
+```
+
+can be written:
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": "./main.js"
+}
+```
+
+When using conditional exports, the rule is that all keys in the object mapping
+must not start with a `"."` otherwise they would be indistinguishable from
+exports subpaths.
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    ".": {
+      "require": "./main.cjs",
+      "default": "./main.js"
+    }
+  }
+}
+```
+
+can be written:
+
+<!-- eslint-skip -->
+```js
+{
+  "exports": {
+    "require": "./main.cjs",
+    "default": "./main.js"
+  }
+}
+```
+
+If writing any exports value that mixes up these two forms, an error will be
+thrown:
+
+<!-- eslint-skip -->
+```js
+{
+  // Throws on resolution!
+  "exports": {
+    "./feature": "./lib/feature.js",
+    "require": "./main.cjs",
+    "default": "./main.js"
+  }
+}
+```
+
 ## <code>import</code> Specifiers
 
 ### Terminology
@@ -947,8 +1016,10 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _pjson_ is **null**, then
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.exports_ is not **null** or **undefined**, then
->    1. If _pjson.exports_ is a String or Array, or an Object whose first key
->       does not start with _"."_, then
+>    1. If _exports_ is an Object with both a key starting with _"."_ and a key
+>       not starting with _"."_, throw a "Invalid Package Configuration" error.
+>    1. If _pjson.exports_ is a String or Array, or an Object containing no
+>       keys starting with _"."_, then
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
 >          _pjson.exports_, _""_).
 >    1. If _pjson.exports_ is an Object containing a _"."_ property, then
@@ -968,8 +1039,9 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. Return _legacyMainURL_.
 
 **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_, _exports_)
-
-> 1. If _exports_ is an Object, then
+> 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
+>    starting with _"."_, throw an "Invalid Package Configuration" error.
+> 1. If _exports_ is an Object and all keys of _exports_ start with _"."_, then
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports\[packagePath\]_.
