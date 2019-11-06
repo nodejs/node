@@ -503,9 +503,9 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
   Mutex::ScopedLock lock(env->extra_linked_bindings_mutex());
 
   node_module* prev_head = env->extra_linked_bindings_head();
-  env->extra_linked_bindings().push_back(mod);
+  env->extra_linked_bindings()->push_back(mod);
   if (prev_head != nullptr)
-    prev_head->nm_link = &env->extra_linked_bindings().back();
+    prev_head->nm_link = &env->extra_linked_bindings()->back();
 }
 
 void AddLinkedBinding(Environment* env,

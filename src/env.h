@@ -1088,9 +1088,9 @@ class Environment : public MemoryRetainer {
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
   inline bool is_stopping() const;
-  inline std::list<node_module>& extra_linked_bindings();
+  inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
-  inline Mutex& extra_linked_bindings_mutex();
+  inline const Mutex& extra_linked_bindings_mutex() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);

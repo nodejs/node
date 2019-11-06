@@ -876,8 +876,8 @@ inline bool Environment::is_stopping() const {
   return thread_stopper_.is_stopped();
 }
 
-inline std::list<node_module>& Environment::extra_linked_bindings() {
-  return extra_linked_bindings_;
+inline std::list<node_module>* Environment::extra_linked_bindings() {
+  return &extra_linked_bindings_;
 }
 
 inline node_module* Environment::extra_linked_bindings_head() {
@@ -885,7 +885,7 @@ inline node_module* Environment::extra_linked_bindings_head() {
       &extra_linked_bindings_.front() : nullptr;
 }
 
-inline Mutex& Environment::extra_linked_bindings_mutex() {
+inline const Mutex& Environment::extra_linked_bindings_mutex() const {
   return extra_linked_bindings_mutex_;
 }
 
