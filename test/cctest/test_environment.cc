@@ -12,6 +12,7 @@ static bool called_cb_1 = false;
 static bool called_cb_2 = false;
 static bool called_cb_ordered_1 = false;
 static bool called_cb_ordered_2 = false;
+static bool called_at_exit_js = false;
 static void at_exit_callback1(void* arg);
 static void at_exit_callback2(void* arg);
 static void at_exit_callback_ordered1(void* arg);
@@ -98,7 +99,9 @@ TEST_F(EnvironmentTest, AtExitRunsJS) {
   Env env {handle_scope, argv};
 
   AtExit(*env, at_exit_js, static_cast<void*>(isolate_));
+  EXPECT_FALSE(called_at_exit_js);
   RunAtExit(*env);
+  EXPECT_TRUE(called_at_exit_js);
 }
 
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
@@ -180,4 +183,5 @@ static void at_exit_js(void* arg) {
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   assert(!obj.IsEmpty());  // Assert VM is still alive.
   assert(obj->IsObject());
+  called_at_exit_js = true;
 }
