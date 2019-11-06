@@ -19,6 +19,8 @@ test-worker-memory: PASS,FLAKY
 test-http2-client-upload: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-client-upload-reject: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30011
+test-http-dump-req-when-res-ends: PASS,FLAKY
 
 [$system==linux]
 
