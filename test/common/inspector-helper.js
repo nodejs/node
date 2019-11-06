@@ -13,14 +13,15 @@ const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
 const TIMEOUT = common.platformTimeout(15 * 1000);
 
-function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
+function spawnChildProcess(inspectorFlags, scriptContents, scriptFile,
+                           childOptions) {
   const args = [].concat(inspectorFlags);
   if (scriptContents) {
     args.push('-e', scriptContents);
   } else {
     args.push(scriptFile);
   }
-  const child = spawn(process.execPath, args);
+  const child = spawn(process.execPath, args, childOptions);
 
   const handler = tearDown.bind(null, child);
   process.on('exit', handler);
@@ -320,7 +321,7 @@ class InspectorSession {
 class NodeInstance extends EventEmitter {
   constructor(inspectorFlags = ['--inspect-brk=0', '--expose-internals'],
               scriptContents = '',
-              scriptFile = _MAINSCRIPT) {
+              scriptFile = _MAINSCRIPT, childOptions = {}) {
     super();
 
     this._scriptPath = scriptFile;
@@ -328,7 +329,7 @@ class NodeInstance extends EventEmitter {
     this._portCallback = null;
     this.portPromise = new Promise((resolve) => this._portCallback = resolve);
     this._process = spawnChildProcess(inspectorFlags, scriptContents,
-                                      scriptFile);
+                                      scriptFile, childOptions);
     this._running = true;
     this._stderrLineCallback = null;
     this._unprocessedStderrLines = [];
