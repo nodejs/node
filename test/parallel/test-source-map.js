@@ -223,6 +223,18 @@ function nextdir() {
   }
 }
 
+// trace.length === 0 .
+{
+  const { ERROR_TEXT } = require('../fixtures/source-map/emptyStackError.js');
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/emptyStackError.js')
+  ]);
+  assert.ok(
+    output.stderr.toString().match(ERROR_TEXT)
+  );
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
