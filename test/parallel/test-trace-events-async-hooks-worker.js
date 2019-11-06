@@ -36,10 +36,10 @@ const proc = cp.spawnSync(
   [ '--trace-event-categories', 'node.async_hooks', '-e', worker ],
   {
     cwd: tmpdir.path,
-    env: { ...process.env, ...{
-      'NODE_DEBUG_NATIVE': 'tracing',
-      'NODE_DEBUG': 'tracing'
-    } }
+    env: { ...process.env,
+           'NODE_DEBUG_NATIVE': 'tracing',
+           'NODE_DEBUG': 'tracing'
+    }
   });
 
 console.log('process exit with signal:', proc.signal);
