@@ -230,7 +230,6 @@ function nextdir() {
     require.resolve('../fixtures/source-map/emptyStackError.js')
   ]);
 
-  console.log(output.stderr.toString());
   assert.ok(
     output.stderr.toString().match('emptyStackError')
   );
