@@ -7,7 +7,7 @@ const path = require('path');
 
 const releaseReg = /^v\d+\.\d+\.\d+$/;
 
-// npm requires crypto support.
+// Npm requires crypto support.
 if (!releaseReg.test(process.version) || !common.hasCrypto) {
   common.skip('This test is only for release builds');
 }
