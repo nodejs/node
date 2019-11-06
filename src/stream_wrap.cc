@@ -78,7 +78,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   // - callback
   // - handle
   sw->InstanceTemplate()->Set(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "oncomplete"),
+      env->oncomplete_string(),
       v8::Null(env->isolate()));
   sw->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "callback"),
       v8::Null(env->isolate()));
