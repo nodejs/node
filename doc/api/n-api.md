@@ -1369,7 +1369,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
-                                              int initial_refcount,
+                                              uint32_t initial_refcount,
                                               napi_ref* result);
 ```
 
@@ -1412,7 +1412,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
-                                           int* result);
+                                           uint32_t* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -1433,7 +1433,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
-                                             int* result);
+                                             uint32_t* result););
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -3832,12 +3832,12 @@ napiVersion: 1
 -->
 
 ```C
-napi_status napi_call_function(napi_env env,
-                               napi_value recv,
-                               napi_value func,
-                               int argc,
-                               const napi_value* argv,
-                               napi_value* result)
+NAPI_EXTERN napi_status napi_call_function(napi_env env,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -4569,13 +4569,13 @@ changes:
 -->
 
 ```C
-napi_status napi_make_callback(napi_env env,
-                               napi_async_context async_context,
-                               napi_value recv,
-                               napi_value func,
-                               int argc,
-                               const napi_value* argv,
-                               napi_value* result)
+NAPI_EXTERN napi_status napi_make_callback(napi_env env,
+                                           napi_async_context async_context,
+                                           napi_value recv,
+                                           napi_value func,
+                                           size_t argc,
+                                           const napi_value* argv,
+                                           napi_value* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
