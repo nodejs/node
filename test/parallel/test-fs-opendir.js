@@ -214,7 +214,6 @@ for (const bufferSize of ['', '1', null]) {
 // Check that when passing a string instead of function - throw an exception
 async function doAsyncIterInvalidCallbackTest() {
   const dir = await fs.promises.opendir(testDir);
-``
   assert.throws(() => dir.close('not function'), invalidCallbackObj);
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
