@@ -139,7 +139,6 @@ class SignalWrap : public HandleWrap {
 
     if (wrap->active_)  {
       wrap->active_ = false;
-      fprintf(stderr, "Stop %d\n", wrap->handle_.signum);
       DecreaseSignalHandlerCount(wrap->handle_.signum);
     }
 
