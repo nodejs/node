@@ -1141,12 +1141,11 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "getServername", GetServername);
   env->SetProtoMethod(t, "setServername", SetServername);
 
-  env->set_tls_wrap_constructor_function(
-      t->GetFunction(env->context()).ToLocalChecked());
+  Local<Function> fn = t->GetFunction(env->context()).ToLocalChecked();
 
-  target->Set(env->context(),
-              tlsWrapString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->set_tls_wrap_constructor_function(fn);
+
+  target->Set(env->context(), tlsWrapString, fn).Check();
 }
 
 }  // namespace node
