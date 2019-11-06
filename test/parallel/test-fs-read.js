@@ -68,6 +68,10 @@ test(new Uint8Array(expected.length),
   }));
 }
 
+assert.throws(() => new fs.Dir(), {
+  code: 'ERR_MISSING_ARGS',
+});
+
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
