@@ -2569,6 +2569,38 @@ napi_status napi_create_arraybuffer(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_is_detached_arraybuffer(napi_env env,
+                                         napi_value value,
+                                         napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+  v8::Isolate* isolate = env->isolate;
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  if (!val->IsObject()) {
+    napi_throw_type_error(env,
+                          "ERR_NAPI_CONS_FUNCTION",
+                          "Value must be an Object");
+    GET_RETURN_STATUS(env);
+  }
+
+  if (!val->IsArrayBuffer()) {
+    *result = v8impl::JsValueFromV8LocalValue(v8::False(isolate));
+    return GET_RETURN_STATUS(env);
+  }
+
+  v8::Local<v8::ArrayBuffer> buffer = v8::Local<v8::ArrayBuffer>::Cast(val);
+
+  if (buffer->GetContents().Data() != nullptr) {
+    *result = v8impl::JsValueFromV8LocalValue(v8::True(isolate));
+  } else {
+    *result = v8impl::JsValueFromV8LocalValue(v8::False(isolate));
+  }
+
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_create_external_arraybuffer(napi_env env,
                                              void* external_data,
                                              size_t byte_length,

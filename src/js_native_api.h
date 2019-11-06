@@ -383,6 +383,9 @@ NAPI_EXTERN napi_status napi_create_arraybuffer(napi_env env,
                                                 size_t byte_length,
                                                 void** data,
                                                 napi_value* result);
+NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
+                                                     napi_value value,
+                                                     bool* result);
 NAPI_EXTERN napi_status
 napi_create_external_arraybuffer(napi_env env,
                                  void* external_data,
