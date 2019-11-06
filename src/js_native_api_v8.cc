@@ -704,7 +704,7 @@ napi_status napi_create_function_with_length(napi_env env,
                                  const char* utf8name,
                                  size_t length,
                                  napi_callback cb,
-                                 size_t params,
+                                 size_t arguments_length,
                                  void* callback_data,
                                  napi_value* result) {
   NAPI_PREAMBLE(env);
@@ -724,7 +724,7 @@ napi_status napi_create_function_with_length(napi_env env,
       v8::Function::New(context,
                         v8impl::FunctionCallbackWrapper::Invoke,
                         cbdata,
-                        params);
+                        arguments_length);
   CHECK_MAYBE_EMPTY(env, maybe_function, napi_generic_failure);
 
   return_value = scope.Escape(maybe_function.ToLocalChecked());
@@ -759,7 +759,7 @@ napi_status napi_define_class_with_length(napi_env env,
                               const char* utf8name,
                               size_t length,
                               napi_callback constructor,
-                              size_t params,
+                              size_t arguments_length,
                               void* callback_data,
                               size_t property_count,
                               const napi_property_descriptor* properties,
@@ -786,7 +786,7 @@ napi_status napi_define_class_with_length(napi_env env,
       v8impl::FunctionCallbackWrapper::Invoke,
       cbdata,
       signature,
-      params);
+      arguments_length);
 
   v8::Local<v8::String> name_string;
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);

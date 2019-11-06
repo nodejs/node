@@ -3990,18 +3990,18 @@ napi_create_function_with_length(napi_env env,
                                  napi_value* result);
 ```
 
-- `[in] env`: The environment that the API is invoked under.
-- `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
+* `[in] env`: The environment that the API is invoked under.
+* `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
 within JavaScript as the new function object's `name` property.
-- `[in] length`: The length of the `utf8name` in bytes, or
+* `[in] length`: The length of the `utf8name` in bytes, or
 `NAPI_AUTO_LENGTH` if it is null-terminated.
-- `[in] cb`: The native function which should be called when this function
+* `[in] cb`: The native function which should be called when this function
 object is invoked.
-- `[in] arguments_length`: The number of arguments passed to the native
-  function.
-- `[in] data`: User-provided data context. This will be passed back into the
+* `[in] arguments_length`: The number of arguments that will be passed to
+function.
+* `[in] data`: User-provided data context. This will be passed back into the
 function when invoked later.
-- `[out] result`: `napi_value` representing the JavaScript function object for
+* `[out] result`: `napi_value` representing the JavaScript function object for
 the newly created function.
 
 Returns `napi_ok` if the API succeeded.
@@ -4009,13 +4009,6 @@ Returns `napi_ok` if the API succeeded.
 This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
 *from* JavaScript.
-
-The newly created function is not automatically visible from script after this
-call. Instead, a property must be explicitly set on any object that is visible
-to JavaScript, in order for the function to be accessible from script.
-
-The string passed to `require()` is the name of the target in `binding.gyp`
-responsible for creating the `.node` file.
 
 Any non-`NULL` data which is passed to this API via the `data` parameter can
 be associated with the resulting JavaScript function (which is returned in the
@@ -4261,37 +4254,37 @@ napi_define_class_with_length(napi_env env,
                               napi_value* result);
 ```
 
- - `[in] env`: The environment that the API is invoked under.
- - `[in] utf8name`: Name of the JavaScript constructor function; this is
+* `[in] env`: The environment that the API is invoked under.
+* `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
+* `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
 if it is null-terminated.
- - `[in] constructor`: Callback function that handles constructing instances
-   of the class. (This should be a static method on the class, not an actual
-   C++ constructor function.)
- - `[in] arguments_length`: The number of arguments passed to the native
-   function that is the constructor of the class.
- - `[in] data`: Optional data to be passed to the constructor callback as
-   the `data` property of the callback info.
- - `[in] property_count`: Number of items in the `properties` array argument.
- - `[in] properties`: Array of property descriptors describing static and
-   instance data properties, accessors, and methods on the class
-   See `napi_property_descriptor`.
- - `[out] result`: A `napi_value` representing the constructor function for
-   the class.
+* `[in] constructor`: Callback function that handles constructing instances of
+ the class. (This should be a static method on the class, not an actual C++
+ constructor function.)
+* `[in] arguments_length`: The number of arguments that will be passed to
+function.
+* `[in] data`: Optional data to be passed to the constructor callback as the
+`data` property of the callback info.
+* `[in] property_count`: Number of items in the `properties` array argument.
+* `[in] properties`: Array of property descriptors describing static and
+instance data properties, accessors, and methods on the class. See
+`napi_property_descriptor`.
+* `[out] result`: A `napi_value` representing the constructor function for the
+class.
 
 Returns `napi_ok` if the API succeeded.
 
 Defines a JavaScript class that corresponds to a C++ class, including:
- - A JavaScript constructor function that has the class name and invokes the
-   provided C++ constructor callback.
- - Properties on the constructor function corresponding to _static_ data
-   properties, accessors, and methods of the C++ class (defined by
-   property descriptors with the `napi_static` attribute).
- - Properties on the constructor function's `prototype` object corresponding to
-   _non-static_ data properties, accessors, and methods of the C++ class
-   (defined by property descriptors without the `napi_static` attribute).
+* A JavaScript constructor function that has the class name and invokes the
+provided C++ constructor callback.
+* Properties on the constructor function corresponding to _static_ data
+properties, accessors, and methods of the C++ class (defined by property
+descriptors with the `napi_static` attribute).
+* Properties on the constructor function's `prototype` object corresponding to
+_non-static_ data properties, accessors, and methods of the C++ class (defined
+by property descriptors without the `napi_static` attribute).
 
 The C++ constructor callback should be a static method on the class that calls
 the actual class constructor, then wraps the new C++ instance in a JavaScript
@@ -5393,7 +5386,6 @@ This API may only be called from the main thread.
 [`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
 [`napi_create_external_arraybuffer`]: #n_api_napi_create_external_arraybuffer
-[`napi_create_function`]: #n_api_napi_create_function
 [`napi_create_range_error`]: #n_api_napi_create_range_error
 [`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
