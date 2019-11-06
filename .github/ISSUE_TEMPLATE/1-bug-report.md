@@ -15,7 +15,7 @@ repo. https://github.com/nodejs/help
 Please fill in as much of the template below as you're able.
 
 Version: output of `node -v`
-Platform: output of `uname -a` (UNIX), or version and 32 or 64-bit (Windows)
+Platform: output of `uname -a` (UNIX), or output of `"$([Environment]::OSVersion | ForEach-Object VersionString) $(if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" })"` in PowerShell console (Windows)
 Subsystem: if known, please specify affected core module name
 -->
 
