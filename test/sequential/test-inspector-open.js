@@ -14,7 +14,7 @@ if (process.env.BE_CHILD)
   return beChild();
 
 const child = fork(__filename,
-                   { env: Object.assign({}, process.env, { BE_CHILD: 1 }) });
+                   { env: { ...process.env, BE_CHILD: 1 } });
 
 child.once('message', common.mustCall((msg) => {
   assert.strictEqual(msg.cmd, 'started');
