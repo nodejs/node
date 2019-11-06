@@ -1366,7 +1366,7 @@ if (typeof Symbol !== 'undefined') {
   const arr = new Array(101).fill();
   const obj = { a: { a: { a: { a: 1 } } } };
 
-  const oldOptions = {...util.inspect.defaultOptions};
+  const oldOptions = { ...util.inspect.defaultOptions };
 
   // Set single option through property assignment.
   util.inspect.defaultOptions.maxArrayLength = null;
