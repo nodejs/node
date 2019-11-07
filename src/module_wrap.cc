@@ -1008,9 +1008,9 @@ Maybe<bool> IsConditionalExportsMainSugar(Environment* env,
     } else if (isConditionalSugar != curIsConditionalSugar) {
       const std::string msg = "Cannot resolve package exports in " +
         pjson_url.ToFilePath() + ", imported from " + base.ToFilePath() + ". " +
-        "\"exports\" must either be an object of package subpath keys " +
-        "starting with '.', or an object of main entry condition name keys " +
-        "not starting with '.'";
+        "\"exports\" cannot contain some keys starting with '.' and some not." +
+        " The exports object must either be an object of package subpath keys" +
+        " or an object of main entry condition name keys only.";
       node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
       return Nothing<bool>();
     }

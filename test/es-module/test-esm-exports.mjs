@@ -116,9 +116,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
     assertStartsWith(err.message, (isRequire ? 'Invalid package' :
       'Cannot resolve'));
-    assertIncludes(err.message, '"exports" must either be an object of ' +
-        'package subpath keys starting with \'.\', or an object of main ' +
-        'entry condition name keys not starting with \'.\'');
+    assertIncludes(err.message, '"exports" cannot contain some keys starting ' +
+    'with \'.\' and some not. The exports object must either be an object of ' +
+    'package subpath keys or an object of main entry condition name keys ' +
+    'only.');
   }));
 });
 
