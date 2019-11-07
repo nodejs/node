@@ -5,7 +5,6 @@
 
 #include "async_wrap.h"
 #include "stream_base.h"
-#include "v8.h"
 
 namespace node {
 
