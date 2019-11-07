@@ -24,7 +24,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "v8.h"
 #include "uv.h"
 #include "node_mutex.h"
 #include <vector>
@@ -32,6 +31,10 @@
 #ifdef __POSIX__
 #include <pthread.h>
 #endif
+
+namespace v8 {
+class Isolate;
+}
 
 namespace node {
 

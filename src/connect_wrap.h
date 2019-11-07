@@ -3,12 +3,17 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "req_wrap-inl.h"
 #include "async_wrap.h"
-#include "v8.h"
+
+namespace v8 {
+class Object;
+template <class T> class Local;
+}  // namespace v8
 
 namespace node {
+
+class Environment;
 
 class ConnectWrap : public ReqWrap<uv_connect_t> {
  public:

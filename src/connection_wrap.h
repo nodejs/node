@@ -4,7 +4,11 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "stream_wrap.h"
-#include "v8.h"
+
+namespace v8 {
+class Object;
+template <class T> class Local;
+}  // namespace v8
 
 namespace node {
 

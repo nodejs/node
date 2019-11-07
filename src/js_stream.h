@@ -5,7 +5,14 @@
 
 #include "async_wrap.h"
 #include "stream_base.h"
-#include "v8.h"
+
+namespace v8 {
+class Context;
+class Object;
+class Value;
+template <class T> class Local;
+template <typename T> class FunctionCallbackInfo;
+}  // namespace v8
 
 namespace node {
 
