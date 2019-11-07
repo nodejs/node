@@ -373,10 +373,6 @@ Node.js and the browser can be written:
 }
 ```
 
-When an exports target condition object is provided like the above, the first
-matching key in the object that is supported by the current environment will
-be resolved.
-
 When resolving the `"."` export, if no matching target is found, the `"main"`
 will be used as the final fallback.
 
