@@ -175,7 +175,7 @@ Please see [customizing esm specifier resolution][] for example usage.
 added: REPLACEME
 -->
 
-Enable experimental support for the `"require"` and `"ndoe"` conditional
+Enable experimental support for the `"require"` and `"node"` conditional
 package export resolutions.
 See [Conditional Exports][] for more information.
 
