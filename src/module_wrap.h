@@ -6,10 +6,12 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include "node_url.h"
-#include "base_object-inl.h"
+#include "base_object.h"
 
 namespace node {
+
+class Environment;
+
 namespace loader {
 
 enum ScriptType : int {

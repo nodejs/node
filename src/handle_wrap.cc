@@ -23,7 +23,6 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "node.h"
 
 namespace node {
 
