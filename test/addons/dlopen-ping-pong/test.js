@@ -19,5 +19,5 @@ assert.strictEqual(module.exports.ping(), 'pong');
 // Check that after the addon is loaded with
 // process.dlopen() a require() call fails.
 console.log('require:', `./build/${common.buildType}/binding`);
-const re = /^Error: Module did not self-register: '.*\/binding\.node'\.$/;
+const re = /^Error: Module did not self-register: '.*[\\\/]binding\.node'\.$/;
 assert.throws(() => require(`./build/${common.buildType}/binding`), re);
