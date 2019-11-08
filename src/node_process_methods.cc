@@ -109,7 +109,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 2);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
@@ -148,7 +148,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
-  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetBackingStore()->Data());
 
   fields[0] = (t / NANOS_PER_SEC) >> 32;
   fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
@@ -157,7 +157,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
 
 static void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab = args[0].As<BigUint64Array>()->Buffer();
-  uint64_t* fields = static_cast<uint64_t*>(ab->GetContents().Data());
+  uint64_t* fields = static_cast<uint64_t*>(ab->GetBackingStore()->Data());
   fields[0] = uv_hrtime();
 }
 
@@ -204,7 +204,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 4);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = rss;
   fields[1] = v8_heap_stats.total_heap_size();
@@ -301,7 +301,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 16);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
