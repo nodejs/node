@@ -116,6 +116,7 @@ function nextdir() {
   );
 }
 
+// base64 encoding error does not crash application.
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
@@ -131,6 +132,7 @@ function nextdir() {
   assert.strictEqual(sourceMap.data, null);
 }
 
+// JSON error does not crash application.
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
