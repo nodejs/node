@@ -119,7 +119,7 @@ platforms. This is true regardless of entries in the table below.
 | macOS            | x64              | >= 10.11                        | Tier 1       |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
 | AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
-| FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12       |
+| FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
 <em id="fn1">1</em>: GCC 6 is not provided on the base platform, users will
   need the
@@ -152,6 +152,10 @@ platforms. This is true regardless of entries in the table below.
 are provided. However, tests in our infrastructure only run on WoW64.
 Furthermore, compiling on x86 Windows is currently considered Experimental and
 may not be possible.
+
+<em id="fn7">7</em>: FreeBSD 12.0 system's compiler is clang 6.0.1 but
+FreeBSD 12.1's is the 8.0.1 version. In both cases, other LLVM versions
+are provided via the system's package manager up to 9.0.
 
 ### Supported toolchains
 
