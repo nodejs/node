@@ -11,14 +11,6 @@
 #define NAPI_EXPERIMENTAL
 #include "node_api.h"
 
-namespace v8 {
-class Context;
-class Object;
-class Value;
-template <class T> class Local;
-template <typename T> class FunctionCallbackInfo;
-}  // namespace v8
-
 enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.
   NM_F_LINKED = 1 << 1,

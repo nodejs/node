@@ -32,10 +32,6 @@
 #include <pthread.h>
 #endif
 
-namespace v8 {
-class Isolate;
-}
-
 namespace node {
 
 class Watchdog {
