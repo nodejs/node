@@ -300,7 +300,7 @@ jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addo
 
 .PHONY: tooltest
 tooltest:
-	@$(PYTHON) test/tools/test-js2c.py
+	@$(PYTHON) -m unittest discover -s ./test/tools
 
 .PHONY: coverage-run-js
 coverage-run-js:
