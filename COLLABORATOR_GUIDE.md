@@ -172,8 +172,9 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-All pull requests must pass continuous integration tests on the
-[project CI server](https://ci.nodejs.org/).
+All pull requests must pass continuous integration tests. Code changes must pass
+on [project CI server](https://ci.nodejs.org/). Pull requests that only change
+documentation and comments can use Travis CI results.
 
 Do not land any pull requests without passing (green or yellow) CI runs. If
 there are CI failures unrelated to the change in the pull request, try "Resume
@@ -186,10 +187,6 @@ everything else.
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
 targets on all supported platforms.
-
-* [`node-test-pull-request-lite-pipeline`](https://ci.nodejs.org/job/node-test-pull-request-lite-pipeline/)
-runs the linter job. It also runs the tests on a very fast host. This is useful
-for changes that only affect comments or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
