@@ -57,13 +57,13 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   table.set(0, f1);
   builder.addFunction('call0', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_index, table_index0
       ])
       .exportFunc();
   builder.addFunction('call1', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_index, table_index1
       ])
       .exportFunc();

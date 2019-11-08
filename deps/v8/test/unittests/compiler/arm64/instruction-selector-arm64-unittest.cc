@@ -41,16 +41,15 @@ std::ostream& operator<<(std::ostream& os, const Shift& shift) {
 
 // Helper to build Int32Constant or Int64Constant depending on the given
 // machine type.
-Node* BuildConstant(
-    InstructionSelectorTest::StreamBuilder& m,  // NOLINT(runtime/references)
-    MachineType type, int64_t value) {
+Node* BuildConstant(InstructionSelectorTest::StreamBuilder* m, MachineType type,
+                    int64_t value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Constant(static_cast<int32_t>(value));
+      return m->Int32Constant(static_cast<int32_t>(value));
       break;
 
     case MachineRepresentation::kWord64:
-      return m.Int64Constant(value);
+      return m->Int64Constant(value);
       break;
 
     default:
@@ -373,8 +372,6 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
      MachineType::Uint32()},
 };
 
-}  // namespace
-
 
 // -----------------------------------------------------------------------------
 // Logical instructions.
@@ -464,9 +461,8 @@ TEST_P(InstructionSelectorLogicalTest, ShiftByImmediate) {
     TRACED_FORRANGE(int, imm, 0, ((type == MachineType::Int32()) ? 31 : 63)) {
       StreamBuilder m(this, type, type, type);
       m.Return((m.*dpi.constructor)(
-          m.Parameter(0),
-          (m.*shift.mi.constructor)(m.Parameter(1),
-                                    BuildConstant(m, type, imm))));
+          m.Parameter(0), (m.*shift.mi.constructor)(
+                              m.Parameter(1), BuildConstant(&m, type, imm))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
@@ -480,7 +476,7 @@ TEST_P(InstructionSelectorLogicalTest, ShiftByImmediate) {
       StreamBuilder m(this, type, type, type);
       m.Return((m.*dpi.constructor)(
           (m.*shift.mi.constructor)(m.Parameter(1),
-                                    BuildConstant(m, type, imm)),
+                                    BuildConstant(&m, type, imm)),
           m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -521,7 +517,7 @@ TEST_P(InstructionSelectorAddSubTest, ImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, type, type);
     m.Return(
-        (m.*dpi.mi.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
+        (m.*dpi.mi.constructor)(m.Parameter(0), BuildConstant(&m, type, imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
@@ -540,7 +536,7 @@ TEST_P(InstructionSelectorAddSubTest, NegImmediateOnRight) {
     if (imm == 0) continue;
     StreamBuilder m(this, type, type);
     m.Return(
-        (m.*dpi.mi.constructor)(m.Parameter(0), BuildConstant(m, type, -imm)));
+        (m.*dpi.mi.constructor)(m.Parameter(0), BuildConstant(&m, type, -imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.negate_arch_opcode, s[0]->arch_opcode());
@@ -568,9 +564,8 @@ TEST_P(InstructionSelectorAddSubTest, ShiftByImmediateOnRight) {
     TRACED_FORRANGE(int, imm, 0, ((type == MachineType::Int32()) ? 31 : 63)) {
       StreamBuilder m(this, type, type, type);
       m.Return((m.*dpi.mi.constructor)(
-          m.Parameter(0),
-          (m.*shift.mi.constructor)(m.Parameter(1),
-                                    BuildConstant(m, type, imm))));
+          m.Parameter(0), (m.*shift.mi.constructor)(
+                              m.Parameter(1), BuildConstant(&m, type, imm))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
@@ -1156,7 +1151,7 @@ TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnLeft) {
 
 struct TestAndBranch {
   MachInst<std::function<Node*(InstructionSelectorTest::StreamBuilder&, Node*,
-                               uint32_t mask)>>
+                               uint64_t mask)>>
       mi;
   FlagsCondition cond;
 };
@@ -1274,6 +1269,92 @@ TEST_P(InstructionSelectorTestAndBranchTest, TestAndBranch32) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorTestAndBranchTest,
                          ::testing::ValuesIn(kTestAndBranchMatchers32));
+
+// TODO(arm64): Add the missing Word32BinaryNot test cases from the 32-bit
+// version.
+const TestAndBranch kTestAndBranchMatchers64[] = {
+    // Branch on the result of Word64And directly.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x, uint64_t mask)
+          -> Node* { return m.Word64And(x, m.Int64Constant(mask)); },
+      "if (x and mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(x, m.Int64Constant(mask)),
+                             m.Int64Constant(0));
+      },
+      "if not (x and mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x, uint64_t mask)
+          -> Node* { return m.Word64And(m.Int64Constant(mask), x); },
+      "if (mask and x)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(m.Int64Constant(mask), x),
+                             m.Int64Constant(0));
+      },
+      "if not (mask and x)", kArm64TestAndBranch, MachineType::Int64()},
+     kEqual},
+    // Branch on the result of '(x and mask) == mask'. This tests that a bit is
+    // set rather than cleared which is why conditions are inverted.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(x, m.Int64Constant(mask)),
+                             m.Int64Constant(mask));
+      },
+      "if ((x and mask) == mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Int64Constant(mask),
+                             m.Word64And(x, m.Int64Constant(mask)));
+      },
+      "if (mask == (x and mask))", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    // Same as above but swap 'mask' and 'x'.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(m.Int64Constant(mask), x),
+                             m.Int64Constant(mask));
+      },
+      "if ((mask and x) == mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Int64Constant(mask),
+                             m.Word64And(m.Int64Constant(mask), x));
+      },
+      "if (mask == (mask and x))", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual}};
+
+using InstructionSelectorTestAndBranchTest64 =
+    InstructionSelectorTestWithParam<TestAndBranch>;
+
+TEST_P(InstructionSelectorTestAndBranchTest64, TestAndBranch64) {
+  const TestAndBranch inst = GetParam();
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = uint64_t{1} << bit;
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    RawMachineLabel a, b;
+    m.Branch(inst.mi.constructor(m, m.Parameter(0), mask), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(inst.cond, s[0]->flags_condition());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorTestAndBranchTest64,
+                         ::testing::ValuesIn(kTestAndBranchMatchers64));
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
@@ -2035,7 +2116,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
   {
     StreamBuilder m(this, type, type, type);
     Node* n =
-        (m.*mdpi.sub_constructor)(BuildConstant(m, type, 0), m.Parameter(0));
+        (m.*mdpi.sub_constructor)(BuildConstant(&m, type, 0), m.Parameter(0));
     m.Return((m.*mdpi.mul_constructor)(n, m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -2046,7 +2127,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
   {
     StreamBuilder m(this, type, type, type);
     Node* n =
-        (m.*mdpi.sub_constructor)(BuildConstant(m, type, 0), m.Parameter(1));
+        (m.*mdpi.sub_constructor)(BuildConstant(&m, type, 0), m.Parameter(1));
     m.Return((m.*mdpi.mul_constructor)(m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -2578,6 +2659,22 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
   }
 }
 
+TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithWord32Sar) {
+  // Test the mod 32 behaviour of Word32Sar by iterating up to 33.
+  TRACED_FORRANGE(int32_t, imm, 0, 33) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Word32Sar(m.Parameter(0), m.Int32Constant(imm))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Sbfx, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(imm & 0x1f, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(32 - (imm & 0x1f), s.ToInt32(s[0]->InputAt(2)));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Memory access instructions.
 
@@ -2938,7 +3035,8 @@ TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
     // Compare with 0 are turned into tst instruction.
     if (imm == 0) continue;
     StreamBuilder m(this, type, type);
-    m.Return((m.*cmp.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
+    m.Return(
+        (m.*cmp.constructor)(m.Parameter(0), BuildConstant(&m, type, imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
@@ -2953,7 +3051,8 @@ TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
     // Compare with 0 are turned into tst instruction.
     if (imm == 0) continue;
     StreamBuilder m(this, type, type);
-    m.Return((m.*cmp.constructor)(BuildConstant(m, type, imm), m.Parameter(0)));
+    m.Return(
+        (m.*cmp.constructor)(BuildConstant(&m, type, imm), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
@@ -3507,6 +3606,33 @@ const IntegerCmp kBinopCmpZeroRightInstructions[] = {
      kNotEqual,
      kNotEqual}};
 
+const IntegerCmp kBinop64CmpZeroRightInstructions[] = {
+    {{&RawMachineAssembler::Word64Equal, "Word64Equal", kArm64Cmp,
+      MachineType::Int64()},
+     kEqual,
+     kEqual},
+    {{&RawMachineAssembler::Word64NotEqual, "Word64NotEqual", kArm64Cmp,
+      MachineType::Int64()},
+     kNotEqual,
+     kNotEqual},
+    {{&RawMachineAssembler::Int64LessThan, "Int64LessThan", kArm64Cmp,
+      MachineType::Int64()},
+     kNegative,
+     kNegative},
+    {{&RawMachineAssembler::Int64GreaterThanOrEqual, "Int64GreaterThanOrEqual",
+      kArm64Cmp, MachineType::Int64()},
+     kPositiveOrZero,
+     kPositiveOrZero},
+    {{&RawMachineAssembler::Uint64LessThanOrEqual, "Uint64LessThanOrEqual",
+      kArm64Cmp, MachineType::Int64()},
+     kEqual,
+     kEqual},
+    {{&RawMachineAssembler::Uint64GreaterThan, "Uint64GreaterThan", kArm64Cmp,
+      MachineType::Int64()},
+     kNotEqual,
+     kNotEqual},
+};
+
 const IntegerCmp kBinopCmpZeroLeftInstructions[] = {
     {{&RawMachineAssembler::Word32Equal, "Word32Equal", kArm64Cmp32,
       MachineType::Int32()},
@@ -4019,7 +4145,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
     int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
-      uint32_t msk = (1 << width) - 1;
+      uint32_t msk = (1u << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(msk)));
@@ -4035,7 +4161,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
     int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
-      uint32_t msk = (1 << width) - 1;
+      uint32_t msk = (1u << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(
           m.Word32And(m.Int32Constant(msk),
@@ -4282,7 +4408,7 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const r =
-        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1 << (31 - shift)) - 1)),
+        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1u << (31 - shift)) - 1)),
                     m.Int32Constant(shift + 1));
     m.Return(r);
     Stream s = m.Build();
@@ -4531,6 +4657,34 @@ TEST_F(InstructionSelectorTest, CompareAgainstZero32) {
   }
 }
 
+TEST_F(InstructionSelectorTest, CompareAgainstZero64) {
+  TRACED_FOREACH(IntegerCmp, cmp, kBinop64CmpZeroRightInstructions) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    Node* const param = m.Parameter(0);
+    RawMachineLabel a, b;
+    m.Branch((m.*cmp.mi.constructor)(param, m.Int64Constant(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
+    if (cmp.cond == kNegative || cmp.cond == kPositiveOrZero) {
+      EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+      EXPECT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ((cmp.cond == kNegative) ? kNotEqual : kEqual,
+                s[0]->flags_condition());
+      EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(63, s.ToInt32(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ(cmp.cond, s[0]->flags_condition());
+    }
+  }
+}
+
 TEST_F(InstructionSelectorTest, CompareFloat64HighLessThanZero64) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
   Node* const param = m.Parameter(0);
@@ -4615,18 +4769,18 @@ namespace {
 // Then checks that the correct number of kArm64Poke and kArm64PokePair were
 // generated.
 void TestPokePair(
-    InstructionSelectorTest::StreamBuilder& m,  // NOLINT(runtime/references)
+    InstructionSelectorTest::StreamBuilder* m,  // NOLINT(runtime/references)
     Zone* zone,
-    MachineSignature::Builder& builder,  // NOLINT(runtime/references)
+    MachineSignature::Builder* builder,  // NOLINT(runtime/references)
     Node* nodes[], int num_nodes, int expected_poke_pair, int expected_poke) {
   auto call_descriptor =
       InstructionSelectorTest::StreamBuilder::MakeSimpleCallDescriptor(
-          zone, builder.Build());
+          zone, builder->Build());
 
-  m.CallN(call_descriptor, num_nodes, nodes);
-  m.Return(m.UndefinedConstant());
+  m->CallN(call_descriptor, num_nodes, nodes);
+  m->Return(m->UndefinedConstant());
 
-  auto s = m.Build();
+  auto s = m->Build();
   int num_poke_pair = 0;
   int num_poke = 0;
   for (size_t i = 0; i < s.size(); ++i) {
@@ -4664,7 +4818,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt32) {
     // EmitPrepareArguments.
     const int expected_poke = 1 + 1;
 
-    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+    TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);
   }
 
@@ -4684,7 +4838,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt32) {
     const int expected_poke_pair = 2;
     const int expected_poke = 0;
 
-    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+    TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);
   }
 }
@@ -4705,8 +4859,8 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt64) {
   const int expected_poke_pair = 2;
   const int expected_poke = 0;
 
-  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
-               expected_poke);
+  TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
+               expected_poke_pair, expected_poke);
 }
 
 TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat32) {
@@ -4725,8 +4879,8 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat32) {
   const int expected_poke_pair = 2;
   const int expected_poke = 0;
 
-  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
-               expected_poke);
+  TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
+               expected_poke_pair, expected_poke);
 }
 
 TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat64) {
@@ -4745,8 +4899,8 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat64) {
   const int expected_poke_pair = 2;
   const int expected_poke = 0;
 
-  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
-               expected_poke);
+  TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
+               expected_poke_pair, expected_poke);
 }
 
 TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
@@ -4766,7 +4920,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
     const int expected_poke_pair = 0;
     const int expected_poke = 4;
 
-    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+    TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);
   }
 
@@ -4792,7 +4946,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
     // EmitPrepareArguments.
     const int expected_poke = 3 + 1;
 
-    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+    TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);
   }
 }
@@ -4811,10 +4965,11 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
   const int expected_poke = 2;
 
   // Using kArm64PokePair is not currently supported for Simd128.
-  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
-               expected_poke);
+  TestPokePair(&m, zone(), &builder, nodes, arraysize(nodes),
+               expected_poke_pair, expected_poke);
 }
 
+}  // namespace
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

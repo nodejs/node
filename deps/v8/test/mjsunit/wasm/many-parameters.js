@@ -37,7 +37,7 @@ types.forEach((type, type_idx) => {
 
         let body = [];
         for (let i = 0; i < num_params; ++i)
-          body.push(kExprGetLocal, (i + shift) % num_params);
+          body.push(kExprLocalGet, (i + shift) % num_params);
         for (let i = 0; i < num_const_params; ++i)
           body.push(...type_const[type_idx](num_params + i));
         body.push(kExprCallFunction, 0);

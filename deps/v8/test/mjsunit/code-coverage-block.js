@@ -206,21 +206,6 @@ TestCoverage(
 );
 
 TestCoverage(
-"for-await-of statements",
-`
-!async function() {                       // 0000
-  for await (var x of [0,1,2,3]) {        // 0050
-    nop();                                // 0100
-  }                                       // 0150
-}();                                      // 0200
-%PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
- {"start":1,"end":201,"count":1},
- {"start":83,"end":153,"count":4}]
-);
-
-TestCoverage(
 "while and do-while statements",
 `
 function g() {}                           // 0000
@@ -659,20 +644,6 @@ try {                                     // 0200
 );
 
 TestCoverage(
-"await expressions",
-`
-async function f() {                      // 0000
-  await 42;                               // 0050
-  await 42;                               // 0100
-};                                        // 0150
-f();                                      // 0200
-%PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
- {"start":0,"end":151,"count":1}]
-);
-
-TestCoverage(
 "LogicalOrExpression assignment",
 `
 const a = true || 99                      // 0000
@@ -1095,6 +1066,21 @@ f(43);                                    // 0450
  {"start":104,"end":119,"count":0},
  {"start":154,"end":179,"count":0},
  {"start":204,"end":226,"count":1}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9857",
+`function foo() {}`,
+[{"start":0,"end":17,"count":1},
+ {"start":0,"end":17,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9857",
+`function foo() {function bar() {}}; foo()`,
+[{"start":0,"end":41,"count":1},
+ {"start":0,"end":34,"count":1},
+ {"start":16,"end":33,"count":0}]
 );
 
 %DebugToggleBlockCoverage(false);

@@ -5,6 +5,7 @@
 #ifndef V8_DEBUG_DEBUG_H_
 #define V8_DEBUG_DEBUG_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/codegen/source-position-table.h"

@@ -5,6 +5,8 @@
 #ifndef TEST_FUZZER_FUZZER_SUPPORT_H_
 #define TEST_FUZZER_FUZZER_SUPPORT_H_
 
+#include <memory>
+
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 

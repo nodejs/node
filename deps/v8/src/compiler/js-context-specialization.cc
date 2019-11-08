@@ -38,7 +38,7 @@ Reduction JSContextSpecialization::ReduceParameter(Node* node) {
     // Constant-fold the function parameter {node}.
     Handle<JSFunction> function;
     if (closure().ToHandle(&function)) {
-      Node* value = jsgraph()->HeapConstant(function);
+      Node* value = jsgraph()->Constant(JSFunctionRef(broker_, function));
       return Replace(value);
     }
   }

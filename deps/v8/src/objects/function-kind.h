@@ -14,6 +14,7 @@ enum FunctionKind : uint8_t {
   // BEGIN constructable functions
   kNormalFunction,
   kModule,
+  kAsyncModule,
   // BEGIN class constructors
   // BEGIN base constructors
   kBaseConstructor,
@@ -61,7 +62,11 @@ inline bool IsArrowFunction(FunctionKind kind) {
 }
 
 inline bool IsModule(FunctionKind kind) {
-  return kind == FunctionKind::kModule;
+  return IsInRange(kind, FunctionKind::kModule, FunctionKind::kAsyncModule);
+}
+
+inline bool IsAsyncModule(FunctionKind kind) {
+  return kind == FunctionKind::kAsyncModule;
 }
 
 inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
@@ -163,6 +168,8 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "AsyncFunction";
     case FunctionKind::kModule:
       return "Module";
+    case FunctionKind::kAsyncModule:
+      return "AsyncModule";
     case FunctionKind::kClassMembersInitializerFunction:
       return "ClassMembersInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:

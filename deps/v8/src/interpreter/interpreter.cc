@@ -269,7 +269,7 @@ std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals) {
-  return base::make_unique<InterpreterCompilationJob>(
+  return std::make_unique<InterpreterCompilationJob>(
       parse_info, literal, allocator, eager_inner_literals);
 }
 
@@ -277,10 +277,10 @@ std::unique_ptr<UnoptimizedCompilationJob>
 Interpreter::NewSourcePositionCollectionJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator) {
-  auto job = base::make_unique<InterpreterCompilationJob>(parse_info, literal,
-                                                          allocator, nullptr);
+  auto job = std::make_unique<InterpreterCompilationJob>(parse_info, literal,
+                                                         allocator, nullptr);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
-  return std::unique_ptr<UnoptimizedCompilationJob> { static_cast<UnoptimizedCompilationJob*>(job.release()) };
+  return job;
 }
 
 void Interpreter::ForEachBytecode(

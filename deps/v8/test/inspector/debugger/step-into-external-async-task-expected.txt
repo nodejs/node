@@ -2,7 +2,6 @@ Test for step-into remote async task
 Setup debugger agents..
 Pause before stack trace is captured..
 Run stepInto with breakOnAsyncCall flag
-Call pauseOnAsyncCall
 Trigger external async task on another context group
 Dump stack trace
 boo (target.js:1:22)

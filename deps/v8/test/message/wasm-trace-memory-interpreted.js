@@ -3,5 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --no-stress-opt --expose-wasm --trace-wasm-memory --wasm-interpret-all
+// Flags: --experimental-wasm-simd
 
 load("test/message/wasm-trace-memory.js");

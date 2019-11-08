@@ -31,9 +31,9 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
   // We can inline property access to prototypes of all primitives, except
   // the special Oddball ones that have no wrapper counterparts (i.e. Null,
   // Undefined and TheHole).
-  STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_TYPE);
+  STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (map->IsBooleanMap()) return true;
-  if (map->instance_type() < LAST_PRIMITIVE_TYPE) return true;
+  if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   return map->IsJSObjectMap() && !map->is_dictionary_map() &&
          !map->has_named_interceptor() &&
          // TODO(verwaest): Whitelist contexts to which we have access.
@@ -323,8 +323,8 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
-    int descriptor, AccessMode access_mode) const {
-  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
+    InternalIndex descriptor, AccessMode access_mode) const {
+  DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
@@ -351,6 +351,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
                                                                   descriptor));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
+    if (!FLAG_unbox_double_fields) {
+      unrecorded_dependencies.push_back(
+          dependencies()->FieldRepresentationDependencyOffTheRecord(
+              map_ref, descriptor));
+    }
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
@@ -408,9 +413,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     Handle<Map> receiver_map, Handle<Name> name, Handle<Map> map,
-    MaybeHandle<JSObject> holder, int descriptor,
+    MaybeHandle<JSObject> holder, InternalIndex descriptor,
     AccessMode access_mode) const {
-  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
+  DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
@@ -497,8 +502,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   while (true) {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    int const number = descriptors->Search(*name, *map);
-    if (number != DescriptorArray::kNotFound) {
+    InternalIndex const number = descriptors->Search(*name, *map);
+    if (number.is_found()) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore ||
           access_mode == AccessMode::kStoreInLiteral) {
@@ -762,7 +767,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   }
 
   Handle<Map> transition_map(transition, isolate());
-  int const number = transition_map->LastAdded();
+  InternalIndex const number = transition_map->LastAdded();
   PropertyDetails const details =
       transition_map->instance_descriptors().GetDetails(number);
   // Don't bother optimizing stores to read-only properties.
@@ -789,6 +794,12 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
             transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
+    if (!FLAG_unbox_double_fields) {
+      transition_map_ref.SerializeOwnDescriptor(number);
+      unrecorded_dependencies.push_back(
+          dependencies()->FieldRepresentationDependencyOffTheRecord(
+              transition_map_ref, number));
+    }
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).

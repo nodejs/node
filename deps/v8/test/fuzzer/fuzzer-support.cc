@@ -63,7 +63,7 @@ std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
 void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
   DCHECK_NULL(FuzzerSupport::fuzzer_support_);
   FuzzerSupport::fuzzer_support_ =
-      v8::base::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);
+      std::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);
 }
 
 // static

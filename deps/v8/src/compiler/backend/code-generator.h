@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_CODE_GENERATOR_H_
 #define V8_COMPILER_BACKEND_CODE_GENERATOR_H_
 
+#include <memory>
+
 #include "src/base/optional.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/safepoint-table.h"

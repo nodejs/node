@@ -10,7 +10,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierOptimized,
                              kCompilationHintTierBaseline)
@@ -25,7 +25,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_l)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierDefault,
                              kCompilationHintTierDefault)
@@ -46,7 +46,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierDefault,
                              kCompilationHintTierDefault)
@@ -58,7 +58,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
                              kCompilationHintTierDefault,
                              kCompilationHintTierDefault)

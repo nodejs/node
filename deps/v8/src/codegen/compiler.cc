@@ -666,21 +666,25 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
       function->GetIsolate(),
       RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
+  Isolate* isolate = function->GetIsolate();
   DisallowHeapAllocation no_gc;
-  if (osr_offset.IsNone()) {
-    if (function->has_feedback_vector()) {
-      FeedbackVector feedback_vector = function->feedback_vector();
-      feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-          function->shared(), "GetCodeFromOptimizedCodeCache");
-      Code code = feedback_vector.optimized_code();
-
-      if (!code.is_null()) {
-        // Caching of optimized code enabled and optimized code found.
-        DCHECK(!code.marked_for_deoptimization());
-        DCHECK(function->shared().is_compiled());
-        return Handle<Code>(code, feedback_vector.GetIsolate());
-      }
-    }
+  Code code;
+  if (osr_offset.IsNone() && function->has_feedback_vector()) {
+    FeedbackVector feedback_vector = function->feedback_vector();
+    feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
+        function->shared(), "GetCodeFromOptimizedCodeCache");
+    code = feedback_vector.optimized_code();
+  } else if (!osr_offset.IsNone()) {
+    code = function->context()
+               .native_context()
+               .GetOSROptimizedCodeCache()
+               .GetOptimizedCode(shared, osr_offset, isolate);
+  }
+  if (!code.is_null()) {
+    // Caching of optimized code enabled and optimized code found.
+    DCHECK(!code.marked_for_deoptimization());
+    DCHECK(function->shared().is_compiled());
+    return Handle<Code>(code, isolate);
   }
   return MaybeHandle<Code>();
 }
@@ -711,12 +715,15 @@ void InsertCodeIntoOptimizedCodeCache(
   // Cache optimized context-specific code.
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  Handle<Context> native_context(function->context().native_context(),
-                                 function->GetIsolate());
+  Handle<NativeContext> native_context(function->context().native_context(),
+                                       function->GetIsolate());
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), function->GetIsolate());
     FeedbackVector::SetOptimizedCode(vector, code);
+  } else {
+    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
+                                            compilation_info->osr_offset());
   }
 }
 
@@ -1904,6 +1911,12 @@ struct ScriptCompileTimerScope {
       case CacheBehaviour::kConsumeCodeCache:
         return isolate_->counters()->compile_script_with_consume_cache();
 
+      // Note that this only counts the finalization part of streaming, the
+      // actual streaming compile is counted by BackgroundCompileTask into
+      // "compile_script_on_background".
+      case CacheBehaviour::kNoCacheBecauseStreamingSource:
+        return isolate_->counters()->compile_script_streaming_finalization();
+
       case CacheBehaviour::kNoCacheBecauseInlineScript:
         return isolate_->counters()
             ->compile_script_no_cache_because_inline_script();
@@ -1923,9 +1936,6 @@ struct ScriptCompileTimerScope {
       // TODO(leszeks): Consider counting separately once modules are more
       // common.
       case CacheBehaviour::kNoCacheBecauseModule:
-      // TODO(leszeks): Count separately or remove entirely once we have
-      // background compilation.
-      case CacheBehaviour::kNoCacheBecauseStreamingSource:
       case CacheBehaviour::kNoCacheBecauseV8Extension:
       case CacheBehaviour::kNoCacheBecauseExtensionModule:
       case CacheBehaviour::kNoCacheBecausePacScript:

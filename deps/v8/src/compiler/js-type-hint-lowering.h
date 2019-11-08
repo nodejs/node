@@ -134,6 +134,13 @@ class JSTypeHintLowering {
                                           int arg_count, Node* effect,
                                           Node* control,
                                           FeedbackSlot slot) const;
+
+  // Potential reduction of property access and call operations.
+  LoweringResult ReduceGetIteratorOperation(const Operator* op, Node* obj,
+                                            Node* effect, Node* control,
+                                            FeedbackSlot load_slot,
+                                            FeedbackSlot call_slot) const;
+
   // Potential reduction of property access operations.
   LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* obj,
                                           Node* effect, Node* control,

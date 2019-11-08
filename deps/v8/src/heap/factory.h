@@ -74,7 +74,8 @@ class WeakCell;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
-enum class SharedFlag : uint32_t;
+enum class SharedFlag : uint8_t;
+enum class InitializedFlag : uint8_t;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
@@ -107,14 +108,12 @@ enum FunctionMode {
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory {
  public:
-  Handle<Oddball> NewOddball(
-      Handle<Map> map, const char* to_string, Handle<Object> to_number,
-      const char* type_of, byte kind,
-      AllocationType allocation = AllocationType::kReadOnly);
+  Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
+                             Handle<Object> to_number, const char* type_of,
+                             byte kind);
 
   // Marks self references within code generation.
-  Handle<Oddball> NewSelfReferenceMarker(
-      AllocationType allocation = AllocationType::kOld);
+  Handle<Oddball> NewSelfReferenceMarker();
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
@@ -140,8 +139,7 @@ class V8_EXPORT_PRIVATE Factory {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a property array initialized with undefined values.
-  Handle<PropertyArray> NewPropertyArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+  Handle<PropertyArray> NewPropertyArray(int length);
   // Tries allocating a fixed array initialized with undefined values.
   // In case of an allocation failure (OOM) an empty handle is returned.
   // The caller has to manually signal an
@@ -156,24 +154,20 @@ class V8_EXPORT_PRIVATE Factory {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
-  Handle<FixedArray> NewUninitializedFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArray> NewUninitializedFixedArray(int length);
 
   // Allocates a closure feedback cell array whose feedback cells are
   // initialized with undefined values.
-  Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(
-      int num_slots, AllocationType allocation = AllocationType::kYoung);
+  Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(int num_slots);
 
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
   Handle<FeedbackVector> NewFeedbackVector(
       Handle<SharedFunctionInfo> shared,
-      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
-      AllocationType allocation = AllocationType::kYoung);
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
 
   // Allocates a clean embedder data array with given capacity.
-  Handle<EmbedderDataArray> NewEmbedderDataArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+  Handle<EmbedderDataArray> NewEmbedderDataArray(int length);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
@@ -183,20 +177,17 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
-  Handle<FixedArrayBase> NewFixedDoubleArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArrayBase> NewFixedDoubleArray(int length);
 
   // Allocate a new fixed double array with hole values.
-  Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(
-      int size, AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
 
   // Allocates a FeedbackMedata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
       int slot_count, int feedback_cell_count,
       AllocationType allocation = AllocationType::kOld);
 
-  Handle<FrameArray> NewFrameArray(
-      int number_of_frames, AllocationType allocation = AllocationType::kYoung);
+  Handle<FrameArray> NewFrameArray(int number_of_frames);
 
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
@@ -222,10 +213,6 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a new Tuple2 struct.
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
-
-  // Create a new Tuple3 struct.
-  Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                           Handle<Object> value3, AllocationType allocation);
 
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
@@ -451,11 +438,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
-  Handle<Script> NewScript(Handle<String> source,
-                           AllocationType allocation = AllocationType::kOld);
-  Handle<Script> NewScriptWithId(
-      Handle<String> source, int script_id,
-      AllocationType allocation = AllocationType::kOld);
+  Handle<Script> NewScript(Handle<String> source);
+  Handle<Script> NewScriptWithId(Handle<String> source, int script_id);
   Handle<Script> CloneScript(Handle<Script> script);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
@@ -479,8 +463,7 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<JSReceiver> thenable, Handle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
-  Handle<Foreign> NewForeign(
-      Address addr, AllocationType allocation = AllocationType::kYoung);
+  Handle<Foreign> NewForeign(Address addr);
 
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
@@ -498,9 +481,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
 
-  Handle<DescriptorArray> NewDescriptorArray(
-      int number_of_entries, int slack = 0,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<DescriptorArray> NewDescriptorArray(int number_of_entries,
+                                             int slack = 0);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 
@@ -537,21 +519,18 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
-  Handle<FixedArray> CopyFixedArrayAndGrow(
-      Handle<FixedArray> array, int grow_by,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
+                                           int grow_by);
 
-  Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(
-      Handle<WeakFixedArray> array, int grow_by,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(Handle<WeakFixedArray> array,
+                                                   int grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
       Handle<WeakArrayList> array, int grow_by,
       AllocationType allocation = AllocationType::kYoung);
 
-  Handle<PropertyArray> CopyPropertyArrayAndGrow(
-      Handle<PropertyArray> array, int grow_by,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<PropertyArray> CopyPropertyArrayAndGrow(Handle<PropertyArray> array,
+                                                 int grow_by);
 
   Handle<FixedArray> CopyFixedArrayUpTo(
       Handle<FixedArray> array, int new_len,
@@ -567,32 +546,28 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
-  Handle<Object> NewNumber(double value,
-                           AllocationType allocation = AllocationType::kYoung);
-
-  Handle<Object> NewNumberFromInt(
-      int32_t value, AllocationType allocation = AllocationType::kYoung);
-  Handle<Object> NewNumberFromUint(
-      uint32_t value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<Object> NewNumberFromSize(
-      size_t value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<Object> NewNumberFromInt64(
-      int64_t value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<HeapNumber> NewHeapNumber(
-      double value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<HeapNumber> NewHeapNumberFromBits(
-      uint64_t bits, AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<Object> NewNumber(double value);
+  Handle<Object> NewNumberFromInt(int32_t value);
+  Handle<Object> NewNumberFromUint(uint32_t value);
+  inline Handle<Object> NewNumberFromSize(size_t value);
+  inline Handle<Object> NewNumberFromInt64(int64_t value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<HeapNumber> NewHeapNumber(double value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
 
   // Creates heap number object with not yet set value field.
-  Handle<HeapNumber> NewHeapNumber(
-      AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<HeapNumber> NewHeapNumber();
 
   // Creates a new HeapNumber in read-only space if possible otherwise old
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
 
-  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN(
-      AllocationType allocation = AllocationType::kYoung);
+  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
@@ -609,8 +584,7 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung);
   // JSObject without a prototype.
-  Handle<JSObject> NewJSObjectWithNullProto(
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<JSObject> NewJSObjectWithNullProto();
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);
@@ -644,8 +618,7 @@ class V8_EXPORT_PRIVATE Factory {
   // object will have dictionary elements.
   Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
       Handle<HeapObject> prototype, Handle<NameDictionary> properties,
-      Handle<FixedArrayBase> elements,
-      AllocationType allocation = AllocationType::kYoung);
+      Handle<FixedArrayBase> elements);
 
   // JS arrays are pretenured when allocated by the parser.
 
@@ -692,20 +665,27 @@ class V8_EXPORT_PRIVATE Factory {
       v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
-      SharedFlag shared, AllocationType allocation = AllocationType::kYoung);
+      std::shared_ptr<BackingStore> backing_store,
+      AllocationType allocation = AllocationType::kYoung);
+
+  MaybeHandle<JSArrayBuffer> NewJSArrayBufferAndBackingStore(
+      size_t byte_length, InitializedFlag initialized,
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<JSArrayBuffer> NewJSSharedArrayBuffer(
+      std::shared_ptr<BackingStore> backing_store);
 
   static void TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,
                                          size_t* element_size);
 
   // Creates a new JSTypedArray with the specified buffer.
-  Handle<JSTypedArray> NewJSTypedArray(
-      ExternalArrayType type, Handle<JSArrayBuffer> buffer, size_t byte_offset,
-      size_t length, AllocationType allocation = AllocationType::kYoung);
+  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
+                                       Handle<JSArrayBuffer> buffer,
+                                       size_t byte_offset, size_t length);
 
-  Handle<JSDataView> NewJSDataView(
-      Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
+                                   size_t byte_offset, size_t byte_length);
 
   Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value, bool done);
   Handle<JSAsyncFromSyncIterator> NewJSAsyncFromSyncIterator(
@@ -922,10 +902,8 @@ class V8_EXPORT_PRIVATE Factory {
   // Converts the given ToPrimitive hint to it's string representation.
   Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
 
-  Handle<JSPromise> NewJSPromiseWithoutHook(
-      AllocationType allocation = AllocationType::kYoung);
-  Handle<JSPromise> NewJSPromise(
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<JSPromise> NewJSPromiseWithoutHook();
+  Handle<JSPromise> NewJSPromise();
 
   Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
 
@@ -1034,8 +1012,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       Handle<Map> map, Handle<FixedArrayBase> elements,
-      Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
-      AllocationType allocation);
+      Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);

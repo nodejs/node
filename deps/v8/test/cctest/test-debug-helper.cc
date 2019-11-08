@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/spaces.h"
 #include "test/cctest/cctest.h"
 #include "tools/debug_helper/debug-helper.h"
@@ -61,6 +62,10 @@ void CheckProp(const d::ObjectProperty& property, const char* expected_type,
   CHECK(*reinterpret_cast<TValue*>(property.address) == expected_value);
 }
 
+bool StartsWith(std::string full_string, std::string prefix) {
+  return full_string.substr(0, prefix.size()) == prefix;
+}
+
 }  // namespace
 
 TEST(GetObjectProperties) {
@@ -68,12 +73,13 @@ TEST(GetObjectProperties) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext context;
-  d::Roots roots{0, 0, 0, 0};  // We don't know the heap roots.
+  // Claim we don't know anything about the heap layout.
+  d::HeapAddresses heap_addresses{0, 0, 0, 0};
 
   v8::Local<v8::Value> v = CompileRun("42");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   d::ObjectPropertiesResultPtr props =
-      d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+      d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kSmi);
   CHECK(props->brief == std::string("42 (0x2a)"));
   CHECK(props->type == std::string("v8::internal::Smi"));
@@ -81,7 +87,7 @@ TEST(GetObjectProperties) {
 
   v = CompileRun("[\"a\", \"bc\"]");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::JSArray"));
   CHECK_EQ(props->num_properties, 4);
@@ -92,9 +98,9 @@ TEST(GetObjectProperties) {
   CheckProp(*props->properties[3], "v8::internal::Object", "length",
             static_cast<i::Tagged_t>(IntToSmi(2)));
 
-  // We need to supply a root address for decompression before reading the
+  // We need to supply some valid address for decompression before reading the
   // elements from the JSArray.
-  roots.any_heap_pointer = o->ptr();
+  heap_addresses.any_heap_pointer = o->ptr();
 
   i::Tagged_t properties_or_hash =
       *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address);
@@ -106,32 +112,39 @@ TEST(GetObjectProperties) {
   // any ability to read memory.
   {
     MemoryFailureRegion failure(0, UINTPTR_MAX);
-    props = d::GetObjectProperties(properties_or_hash, &ReadMemory, roots);
+    props =
+        d::GetObjectProperties(properties_or_hash, &ReadMemory, heap_addresses);
     CHECK(props->type_check_result ==
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
     CHECK(props->type == std::string("v8::internal::HeapObject"));
     CHECK_EQ(props->num_properties, 1);
     CheckProp(*props->properties[0], "v8::internal::Map", "map");
-    CHECK(std::string(props->brief).substr(0, 21) ==
-          std::string("maybe EmptyFixedArray"));
+    // "maybe" prefix indicates that GetObjectProperties recognized the offset
+    // within the page as matching a known object, but didn't know whether the
+    // object is on the right page. This response can only happen in builds
+    // without pointer compression, because otherwise heap addresses would be at
+    // deterministic locations within the heap reservation.
+    CHECK(COMPRESS_POINTERS_BOOL
+              ? StartsWith(props->brief, "EmptyFixedArray")
+              : StartsWith(props->brief, "maybe EmptyFixedArray"));
 
-    // Provide a heap root so the API can be more sure.
-    roots.read_only_space =
+    // Provide a heap first page so the API can be more sure.
+    heap_addresses.read_only_space_first_page =
         reinterpret_cast<uintptr_t>(reinterpret_cast<i::Isolate*>(isolate)
                                         ->heap()
                                         ->read_only_space()
                                         ->first_page());
-    props = d::GetObjectProperties(properties_or_hash, &ReadMemory, roots);
+    props =
+        d::GetObjectProperties(properties_or_hash, &ReadMemory, heap_addresses);
     CHECK(props->type_check_result ==
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
     CHECK(props->type == std::string("v8::internal::HeapObject"));
     CHECK_EQ(props->num_properties, 1);
     CheckProp(*props->properties[0], "v8::internal::Map", "map");
-    CHECK(std::string(props->brief).substr(0, 15) ==
-          std::string("EmptyFixedArray"));
+    CHECK(StartsWith(props->brief, "EmptyFixedArray"));
   }
 
-  props = d::GetObjectProperties(elements, &ReadMemory, roots);
+  props = d::GetObjectProperties(elements, &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::FixedArray"));
   CHECK_EQ(props->num_properties, 3);
@@ -142,9 +155,10 @@ TEST(GetObjectProperties) {
             d::PropertyKind::kArrayOfKnownSize, 2);
 
   // Get the second string value from the FixedArray.
-  i::Tagged_t second_string_address = *reinterpret_cast<i::Tagged_t*>(
-      props->properties[2]->address + sizeof(i::Tagged_t));
-  props = d::GetObjectProperties(second_string_address, &ReadMemory, roots);
+  i::Tagged_t second_string_address =
+      reinterpret_cast<i::Tagged_t*>(props->properties[2]->address)[1];
+  props = d::GetObjectProperties(second_string_address, &ReadMemory,
+                                 heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::SeqOneByteString"));
   CHECK_EQ(props->num_properties, 4);
@@ -162,18 +176,38 @@ TEST(GetObjectProperties) {
   // its properties should match what we read last time.
   d::ObjectPropertiesResultPtr props2;
   {
+    heap_addresses.read_only_space_first_page = 0;
     uintptr_t map_address =
         d::GetObjectProperties(
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address),
-            &ReadMemory, roots)
+            &ReadMemory, heap_addresses)
             ->properties[0]
             ->address;
     MemoryFailureRegion failure(map_address, map_address + i::Map::kSize);
-    props2 = d::GetObjectProperties(second_string_address, &ReadMemory, roots,
-                                    "v8::internal::String");
-    CHECK(props2->type_check_result == d::TypeCheckResult::kUsedTypeHint);
-    CHECK(props2->type == std::string("v8::internal::String"));
-    CHECK_EQ(props2->num_properties, 3);
+    props2 = d::GetObjectProperties(second_string_address, &ReadMemory,
+                                    heap_addresses, "v8::internal::String");
+    if (COMPRESS_POINTERS_BOOL) {
+      // The first page of each heap space can be automatically detected when
+      // pointer compression is active, so we expect to use known maps instead
+      // of the type hint.
+      CHECK_EQ(props2->type_check_result, d::TypeCheckResult::kKnownMapPointer);
+      CHECK(props2->type == std::string("v8::internal::SeqOneByteString"));
+      CHECK_EQ(props2->num_properties, 4);
+      CheckProp(*props2->properties[3], "char", "chars",
+                d::PropertyKind::kArrayOfKnownSize, 2);
+      CHECK_EQ(props2->num_guessed_types, 0);
+    } else {
+      CHECK_EQ(props2->type_check_result, d::TypeCheckResult::kUsedTypeHint);
+      CHECK(props2->type == std::string("v8::internal::String"));
+      CHECK_EQ(props2->num_properties, 3);
+
+      // The type hint we provided was the abstract class String, but
+      // GetObjectProperties should have recognized that the Map pointer looked
+      // like the right value for a SeqOneByteString.
+      CHECK_EQ(props2->num_guessed_types, 1);
+      CHECK(std::string(props2->guessed_types[0]) ==
+            std::string("v8::internal::SeqOneByteString"));
+    }
     CheckProp(*props2->properties[0], "v8::internal::Map", "map",
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
     CheckProp(*props2->properties[1], "uint32_t", "hash_field",
@@ -183,7 +217,7 @@ TEST(GetObjectProperties) {
 
   // Try a weak reference.
   props2 = d::GetObjectProperties(second_string_address | kWeakHeapObjectMask,
-                                  &ReadMemory, roots);
+                                  &ReadMemory, heap_addresses);
   std::string weak_ref_prefix = "weak ref to ";
   CHECK(weak_ref_prefix + props->brief == props2->brief);
   CHECK(props2->type_check_result == d::TypeCheckResult::kUsedMap);
@@ -201,9 +235,8 @@ TEST(GetObjectProperties) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
-  CHECK(std::string(props->brief).substr(0, 38) ==
-        std::string("\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  CHECK(StartsWith(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
 
   // Cause a failure when reading the "second" pointer within the top-level
   // ConsString.
@@ -211,15 +244,15 @@ TEST(GetObjectProperties) {
     CheckProp(*props->properties[4], "v8::internal::String", "second");
     uintptr_t second_address = props->properties[4]->address;
     MemoryFailureRegion failure(second_address, second_address + 4);
-    props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
-    CHECK(std::string(props->brief).substr(0, 40) ==
-          std::string("\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
+    props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+    CHECK(
+        StartsWith(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
   }
 
   // Build a very long string.
   v = CompileRun("'a'.repeat(1000)");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(std::string(props->brief).substr(79, 7) == std::string("aa...\" "));
 }
 

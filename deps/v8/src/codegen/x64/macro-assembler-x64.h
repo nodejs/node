@@ -152,8 +152,26 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Roundsd, roundsd)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
+  AVX_OP(Sqrtpd, sqrtpd)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
+  AVX_OP(Pshufb, pshufb)
+  AVX_OP(Paddusb, paddusb)
+  AVX_OP(Psignd, psignd)
+  AVX_OP(Pand, pand)
+  AVX_OP(Por, por)
+  AVX_OP(Pxor, pxor)
+  AVX_OP(Psubd, psubd)
+  AVX_OP(Pslld, pslld)
+  AVX_OP(Psrad, psrad)
+  AVX_OP(Psrld, psrld)
+  AVX_OP(Paddd, paddd)
+  AVX_OP(Pmulld, pmulld)
+  AVX_OP(Pminsd, pminsd)
+  AVX_OP(Pminud, pminud)
+  AVX_OP(Pmaxsd, pmaxsd)
+  AVX_OP(Pmaxud, pmaxud)
+  AVX_OP(Pcmpgtd, pcmpgtd)
 
 #undef AVX_OP
 
@@ -314,6 +332,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // Convert smi to word-size sign-extended value.
+  void SmiUntag(Register reg);
+  // Requires dst != src
   void SmiUntag(Register dst, Register src);
   void SmiUntag(Register dst, Operand src);
 
@@ -365,13 +385,21 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+  void Pinsrw(XMMRegister dst, Register src, int8_t imm8);
+  void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
+  void Pinsrb(XMMRegister dst, Register src, int8_t imm8);
+  void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
 
   void Psllq(XMMRegister dst, byte imm8);
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
+
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
@@ -414,7 +442,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // stack check, do it before calling this function because this function may
 // write into the newly allocated space. It may also overwrite the given
 // register's value, in the version that takes a register.
-#ifdef V8_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   void AllocateStackSpace(Register bytes_scratch);
   void AllocateStackSpace(int bytes);
 #else
@@ -647,10 +675,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                           const ParameterCount& expected,
                           const ParameterCount& actual, InvokeFlag flag);
 
-  // On function call, call into the debugger if necessary.
-  void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+  // On function call, call into the debugger.
+  void CallDebugOnFunctionCall(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
@@ -665,6 +693,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register reg);
+  // Requires dst != src
   void SmiTag(Register dst, Register src);
 
   // Simple comparison of smis.  Both sides must be known smis to use these,
@@ -917,7 +947,7 @@ inline Operand NativeContextOperand() {
 
 // Provides access to exit frame stack space (not GCed).
 inline Operand StackSpaceOperand(int index) {
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   const int kShaddowSpace = 4;
   return Operand(rsp, (index + kShaddowSpace) * kSystemPointerSize);
 #else

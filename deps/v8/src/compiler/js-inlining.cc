@@ -321,7 +321,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
 
     // TODO(turbofan): We might consider to eagerly create the feedback vector
     // in such a case (in {DetermineCallContext} below) eventually.
-    FeedbackCellRef cell(FeedbackCellRef(broker(), p.feedback_cell()));
+    FeedbackCellRef cell(broker(), p.feedback_cell());
     if (!cell.value().IsFeedbackVector()) return base::nullopt;
 
     return SharedFunctionInfoRef(broker(), p.shared_info());
@@ -413,11 +413,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* exception_target = nullptr;
   NodeProperties::IsExceptionalCall(node, &exception_target);
 
-  // JSInliningHeuristic has already filtered candidates without a
-  // BytecodeArray by calling SharedFunctionInfoRef::IsInlineable. For the ones
-  // passing the IsInlineable check, The broker holds a reference to the
-  // bytecode array, which prevents it from getting flushed.
-  // Therefore, the following check should always hold true.
+  // JSInliningHeuristic has already filtered candidates without a BytecodeArray
+  // by calling SharedFunctionInfoRef::IsInlineable. For the ones passing the
+  // IsInlineable check, the broker holds a reference to the bytecode array,
+  // which prevents it from getting flushed.  Therefore, the following check
+  // should always hold true.
   CHECK(shared_info->is_compiled());
 
   if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
@@ -428,17 +428,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   TRACE("Inlining " << *shared_info << " into " << outer_shared_info
                     << ((exception_target != nullptr) ? " (inside try-block)"
                                                       : ""));
-  // Determine the targets feedback vector and its context.
+  // Determine the target's feedback vector and its context.
   Node* context;
   FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
-
-  if (FLAG_concurrent_inlining &&
-      !shared_info->IsSerializedForCompilation(feedback_vector)) {
-    // TODO(neis): Should this be a broker message?
-    TRACE("Missed opportunity to inline a function ("
-          << *shared_info << " with " << feedback_vector << ")");
-    return NoChange();
-  }
+  CHECK(shared_info->IsSerializedForCompilation(feedback_vector));
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.

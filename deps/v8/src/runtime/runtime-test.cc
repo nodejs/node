@@ -32,6 +32,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -676,6 +677,47 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+int FixedArrayLenFromSize(int size) {
+  return Min((size - FixedArray::kHeaderSize) / kTaggedSize,
+             FixedArray::kMaxRegularLength);
+}
+
+void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+  NewSpace* space = heap->new_space();
+  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
+  while (space_remaining > 0) {
+    int length = FixedArrayLenFromSize(space_remaining);
+    if (length > 0) {
+      Handle<FixedArray> padding =
+          isolate->factory()->NewFixedArray(length, AllocationType::kYoung);
+      DCHECK(heap->new_space()->Contains(*padding));
+      space_remaining -= padding->Size();
+    } else {
+      // Not enough room to create another fixed array. Create a filler.
+      heap->CreateFillerObjectAt(*heap->new_space()->allocation_top_address(),
+                                 space_remaining, ClearRecordedSlots::kNo);
+      break;
+    }
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  HandleScope scope(isolate);
+  Heap* heap = isolate->heap();
+  NewSpace* space = heap->new_space();
+  PauseAllocationObserversScope pause_observers(heap);
+  AlwaysAllocateScope always_allocate(heap);
+  do {
+    FillUpOneNewSpacePage(isolate, heap);
+  } while (space->AddFreshPage());
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
@@ -1008,7 +1050,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionId) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmExceptionPackage, exception, 0);
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 1);
   Handle<Object> tag =
       WasmExceptionPackage::GetExceptionTag(isolate, exception);
@@ -1024,7 +1066,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionId) {
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmExceptionPackage, exception, 0);
   Handle<Object> values_obj =
       WasmExceptionPackage::GetExceptionValues(isolate, exception);
   CHECK(values_obj->IsFixedArray());  // Only called with correct input.
@@ -1107,20 +1149,22 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
 RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsMapIteratorLookupChainIntact());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsMapIteratorLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_SetIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsSetIteratorLookupChainIntact());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsSetIteratorLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(
-      isolate->IsStringIteratorLookupChainIntact());
+      Protectors::IsStringIteratorLookupChainIntact(isolate));
 }
 
 // Take a compiled wasm module and serialize it into an array buffer, which is
@@ -1132,17 +1176,22 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
 
   wasm::NativeModule* native_module = module_obj->native_module();
   wasm::WasmSerializer wasm_serializer(native_module);
-  size_t compiled_size = wasm_serializer.GetSerializedNativeModuleSize();
-  void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
-  Handle<JSArrayBuffer> array_buffer =
-      isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
-  JSArrayBuffer::Setup(array_buffer, isolate, false, array_data, compiled_size);
-  if (!array_data ||
-      !wasm_serializer.SerializeNativeModule(
-          {reinterpret_cast<uint8_t*>(array_data), compiled_size})) {
-    return ReadOnlyRoots(isolate).undefined_value();
+  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
+
+  MaybeHandle<JSArrayBuffer> result =
+      isolate->factory()->NewJSArrayBufferAndBackingStore(
+          byte_length, InitializedFlag::kUninitialized);
+
+  Handle<JSArrayBuffer> array_buffer;
+  if (result.ToHandle(&array_buffer) &&
+      wasm_serializer.SerializeNativeModule(
+          {reinterpret_cast<uint8_t*>(array_buffer->backing_store()),
+           byte_length})) {
+    return *array_buffer;
   }
-  return *array_buffer;
+
+  // Error. Return undefined.
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // Take an array buffer and attempt to reconstruct a compiled wasm module.
@@ -1210,7 +1259,8 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   int instance_count = 0;
-  WeakArrayList weak_instance_list = module_obj->weak_instance_list();
+  WeakArrayList weak_instance_list =
+      module_obj->script().wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list.length(); ++i) {
     if (weak_instance_list.Get(i)->IsWeak()) instance_count++;
   }
@@ -1224,6 +1274,22 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   if (!instance->has_debug_info()) return Object();
   uint64_t num = instance->debug_info().NumInterpretedCalls();
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, argument, 0);
+  Handle<WasmModuleObject> module;
+  if (argument->IsWasmInstanceObject()) {
+    module = handle(Handle<WasmInstanceObject>::cast(argument)->module_object(),
+                    isolate);
+  } else if (argument->IsWasmModuleObject()) {
+    module = Handle<WasmModuleObject>::cast(argument);
+  }
+  size_t num_spaces =
+      module->native_module()->GetNumberOfCodeSpacesForTesting();
+  return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
 RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {

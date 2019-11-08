@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"

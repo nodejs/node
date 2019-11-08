@@ -944,7 +944,7 @@ TEST(ExtensionsRegistration) {
                                    "test4", "test5", "test6", "test7"};
   for (const char* name : extension_names) {
     v8::RegisterExtension(
-        v8::base::make_unique<v8::Extension>(name, kSimpleExtensionSource));
+        std::make_unique<v8::Extension>(name, kSimpleExtensionSource));
   }
   std::vector<JoinableThread*> threads;
   threads.reserve(kNThreads);

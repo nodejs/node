@@ -22,7 +22,7 @@ import os.path
 import re
 import sys
 
-# TODO(clemensh): Extend to tests.
+# TODO(clemensb): Extend to tests.
 DEFAULT_INPUT = ['base', 'src']
 DEFAULT_GN_FILE = 'BUILD.gn'
 MY_DIR = os.path.dirname(os.path.realpath(__file__))

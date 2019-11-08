@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Tier-up behavior differs between slow and fast paths in functional
-// RegExp.prototype.replace.
-// Flags: --regexp-tier-up --allow-natives-syntax --no-force-slow-path
+// Tier-up behavior differs between slow and fast paths in
+// RegExp.prototype.replace with a function as an argument.
+// Flags: --regexp-tier-up --regexp-tier-up-ticks=1
+// Flags: --allow-natives-syntax --no-force-slow-path --no-regexp-interpret-all
 
 const kLatin1 = true;
 const kUnicode = false;
@@ -86,6 +87,18 @@ function f() { return "x"; }
 re_g = /\w2/g;
 CheckRegexpNotYetCompiled(re_g);
 subject.replace(re_g, f);
+assertTrue(!%RegexpHasBytecode(re_g, kLatin1) &&
+            %RegexpHasNativeCode(re_g, kLatin1));
+assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&
+            !%RegexpHasNativeCode(re_g, kUnicode));
+
+// Testing eager tier-up for very long strings.
+let dna = "ATCG".repeat(251);
+
+re_g = />.*\n|\n/;
+CheckRegexpNotYetCompiled(re_g);
+
+dna = dna.replace(re_g,"");
 assertTrue(!%RegexpHasBytecode(re_g, kLatin1) &&
             %RegexpHasNativeCode(re_g, kLatin1));
 assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&

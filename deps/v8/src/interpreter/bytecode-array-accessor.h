@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_ACCESSOR_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_ACCESSOR_H_
 
+#include <memory>
+
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"

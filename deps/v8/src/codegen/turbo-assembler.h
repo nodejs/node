@@ -5,6 +5,8 @@
 #ifndef V8_CODEGEN_TURBO_ASSEMBLER_H_
 #define V8_CODEGEN_TURBO_ASSEMBLER_H_
 
+#include <memory>
+
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-arch.h"
@@ -100,7 +102,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
-#if V8_OS_WIN
+#if V8_TARGET_OS_WIN
   // Minimum page size. We must touch memory once per page when expanding the
   // stack, to avoid access violations.
   static constexpr int kStackPageSize = 4 * KB;

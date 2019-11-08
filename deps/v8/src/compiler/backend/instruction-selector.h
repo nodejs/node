@@ -502,15 +502,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                  FeedbackSource const& feedback,
                                  Node* frame_state);
 
-  void EmitTableSwitch(
-      const SwitchInfo& sw,
-      InstructionOperand& index_operand);  // NOLINT(runtime/references)
-  void EmitLookupSwitch(
-      const SwitchInfo& sw,
-      InstructionOperand& value_operand);  // NOLINT(runtime/references)
-  void EmitBinarySearchSwitch(
-      const SwitchInfo& sw,
-      InstructionOperand& value_operand);  // NOLINT(runtime/references)
+  void EmitTableSwitch(const SwitchInfo& sw,
+                       InstructionOperand const& index_operand);
+  void EmitLookupSwitch(const SwitchInfo& sw,
+                        InstructionOperand const& value_operand);
+  void EmitBinarySearchSwitch(const SwitchInfo& sw,
+                              InstructionOperand const& value_operand);
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);

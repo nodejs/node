@@ -44,7 +44,7 @@ function instantiate(buffer, ffi) {
   let builder = new WasmModuleBuilder();
   builder.addFunction(undefined, kSig_i_i)
       .addLocals({i32_count: 1})
-      .addBody([kExprGetLocal, 0, kExprSetLocal, 1, kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalSet, 1, kExprLocalGet, 1])
       .exportAs('main');
 
   var buffer = builder.toBuffer(debug);
@@ -67,7 +67,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     builder.addFunction(undefined, makeSig_r_x(p.type, p.type))
         .addLocals(p.locals)
-        .addBody([kExprGetLocal, 0, kExprSetLocal, 1, kExprGetLocal, 1])
+        .addBody([kExprLocalGet, 0, kExprLocalSet, 1, kExprLocalGet, 1])
         .exportAs('main');
 
     var buffer = builder.toBuffer(debug);
@@ -81,10 +81,10 @@ function instantiate(buffer, ffi) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('add', kSig_i_ii).addBody([
-    kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add
+    kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add
   ]);
   builder.addFunction('main', kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, 0])
       .exportAs('main');
 
   var instance = builder.instantiate();
@@ -96,11 +96,11 @@ function instantiate(buffer, ffi) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('add', kSig_i_ii).addBody([
-    kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add
+    kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add
   ]);
   builder.addFunction('main', kSig_i_iii)
       .addBody([
-        kExprGetLocal, 1, kExprGetLocal, 2, kExprGetLocal, 0, kExprCallIndirect,
+        kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 0, kExprCallIndirect,
         0, kTableZero
       ])
       .exportAs('main');
@@ -117,7 +117,7 @@ function instantiate(buffer, ffi) {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
   builder.addFunction('load', kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportAs('load');
   builder.addDataSegment(0, [9, 9, 9, 9]);
 

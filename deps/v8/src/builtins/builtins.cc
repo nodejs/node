@@ -88,14 +88,16 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 }  // namespace
 
 BailoutId Builtins::GetContinuationBailoutId(Name name) {
-  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC);
+  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
+         Builtins::KindOf(name) == TFS);
   return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
 }
 
 Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
   int builtin_index = id.ToInt() - BailoutId::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
-         Builtins::KindOf(builtin_index) == TFC);
+         Builtins::KindOf(builtin_index) == TFC ||
+         Builtins::KindOf(builtin_index) == TFS);
   return static_cast<Name>(builtin_index);
 }
 
@@ -204,7 +206,7 @@ void Builtins::PrintBuiltinCode() {
                      CStrVector(FLAG_print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      code->Disassemble(builtin_name, os);
+      code->Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
   }

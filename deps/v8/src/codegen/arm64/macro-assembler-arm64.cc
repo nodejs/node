@@ -295,7 +295,9 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
         } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
           Handle<HeapObject> x(
               reinterpret_cast<Address*>(operand.ImmediateValue()));
-          IndirectLoadConstant(rd, x);
+          // TODO(v8:9706): Fix-it! This load will always uncompress the value
+          // even when we are loading a compressed embedded object.
+          IndirectLoadConstant(rd.X(), x);
           return;
         }
       }
@@ -650,7 +652,14 @@ Operand TurboAssembler::MoveImmediateForShiftedOp(const Register& dst,
     // The move was successful; nothing to do here.
   } else {
     // Pre-shift the immediate to the least-significant bits of the register.
-    int shift_low = CountTrailingZeros(imm, reg_size);
+    int shift_low;
+    if (reg_size == 64) {
+      shift_low = base::bits::CountTrailingZeros(imm);
+    } else {
+      DCHECK_EQ(reg_size, 32);
+      shift_low = base::bits::CountTrailingZeros(static_cast<uint32_t>(imm));
+    }
+
     if (mode == kLimitShiftForSP) {
       // When applied to the stack pointer, the subsequent arithmetic operation
       // can use the extend form to shift left by a maximum of four bits. Right
@@ -1456,15 +1465,6 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
-void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
-  AllowDeferredHandleDereference heap_object_check;
-  if (object->IsHeapObject()) {
-    Mov(result, Handle<HeapObject>::cast(object));
-  } else {
-    Mov(result, Operand(Smi::cast(*object)));
-  }
-}
-
 void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
 
 void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
@@ -1923,21 +1923,25 @@ void TurboAssembler::Call(ExternalReference target) {
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
-  STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
-
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  Lsl(builtin_index, builtin_index, kSystemPointerSizeLog2 - kSmiShift);
-#else
-  STATIC_ASSERT(kSmiShiftSize == 31);
-  Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
-#endif
-  Add(builtin_index, builtin_index, IsolateData::builtin_entry_table_offset());
-  Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  if (SmiValuesAre32Bits()) {
+    Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
+    Add(builtin_index, builtin_index,
+        IsolateData::builtin_entry_table_offset());
+    Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Add(builtin_index, kRootRegister,
+          Operand(builtin_index.W(), SXTW, kSystemPointerSizeLog2 - kSmiShift));
+    } else {
+      Add(builtin_index, kRootRegister,
+          Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiShift));
+    }
+    Ldr(builtin_index,
+        MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  }
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
@@ -2207,43 +2211,34 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   Bind(&regular_invoke);
 }
 
-void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
-  Label skip_hook;
-
-  Mov(x4, ExternalReference::debug_hook_on_function_call_address(isolate()));
-  Ldrsb(x4, MemOperand(x4));
-  Cbz(x4, &skip_hook);
-
-  {
-    // Load receiver to pass it later to DebugOnFunctionCall hook.
-    Operand actual_op = actual.is_immediate() ? Operand(actual.immediate())
-                                              : Operand(actual.reg());
-    Mov(x4, actual_op);
-    Ldr(x4, MemOperand(sp, x4, LSL, kSystemPointerSizeLog2));
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-
-    Register expected_reg = padreg;
-    Register actual_reg = padreg;
-    if (expected.is_reg()) expected_reg = expected.reg();
-    if (actual.is_reg()) actual_reg = actual.reg();
-    if (!new_target.is_valid()) new_target = padreg;
-
-    // Save values on stack.
-    SmiTag(expected_reg);
-    SmiTag(actual_reg);
-    Push(expected_reg, actual_reg, new_target, fun);
-    Push(fun, x4);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-
-    // Restore values from stack.
-    Pop(fun, new_target, actual_reg, expected_reg);
-    SmiUntag(actual_reg);
-    SmiUntag(expected_reg);
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  // Load receiver to pass it later to DebugOnFunctionCall hook.
+  if (actual.is_reg()) {
+    Ldr(x4, MemOperand(sp, actual.reg(), LSL, kSystemPointerSizeLog2));
+  } else {
+    Ldr(x4, MemOperand(sp, actual.immediate() << kSystemPointerSizeLog2));
   }
-  Bind(&skip_hook);
+  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+
+  Register expected_reg = padreg;
+  Register actual_reg = padreg;
+  if (expected.is_reg()) expected_reg = expected.reg();
+  if (actual.is_reg()) actual_reg = actual.reg();
+  if (!new_target.is_valid()) new_target = padreg;
+
+  // Save values on stack.
+  SmiTag(expected_reg);
+  SmiTag(actual_reg);
+  Push(expected_reg, actual_reg, new_target, fun);
+  Push(fun, x4);
+  CallRuntime(Runtime::kDebugOnFunctionCall);
+
+  // Restore values from stack.
+  Pop(fun, new_target, actual_reg, expected_reg);
+  SmiUntag(actual_reg);
+  SmiUntag(expected_reg);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
@@ -2256,7 +2251,13 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(x3));
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  Label debug_hook, continue_after_hook;
+  {
+    Mov(x4, ExternalReference::debug_hook_on_function_call_address(isolate()));
+    Ldrsb(x4, MemOperand(x4));
+    Cbnz(x4, &debug_hook);
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -2284,6 +2285,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       JumpCodeObject(code);
     }
   }
+  B(&done);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  B(&continue_after_hook);
 
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.
@@ -2636,7 +2643,7 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
   Register temp = temps.AcquireX();
   DCHECK(!AreAliased(obj, temp));
   LoadRoot(temp, index);
-  Cmp(obj, temp);
+  CmpTagged(obj, temp);
 }
 
 void MacroAssembler::JumpIfRoot(const Register& obj, RootIndex index,
@@ -2669,20 +2676,20 @@ void MacroAssembler::JumpIfIsInRange(const Register& value,
 
 void TurboAssembler::LoadTaggedPointerField(const Register& destination,
                                             const MemOperand& field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  DecompressTaggedPointer(destination, field_operand);
-#else
-  Ldr(destination, field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedPointer(destination, field_operand);
+  } else {
+    Ldr(destination, field_operand);
+  }
 }
 
 void TurboAssembler::LoadAnyTaggedField(const Register& destination,
                                         const MemOperand& field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  DecompressAnyTagged(destination, field_operand);
-#else
-  Ldr(destination, field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressAnyTagged(destination, field_operand);
+  } else {
+    Ldr(destination, field_operand);
+  }
 }
 
 void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
@@ -2691,33 +2698,31 @@ void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
 
 void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  RecordComment("[ StoreTagged");
-  Str(value.W(), dst_field_operand);
-  RecordComment("]");
-#else
-  Str(value, dst_field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    Str(value.W(), dst_field_operand);
+  } else {
+    Str(value, dst_field_operand);
+  }
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  Ldrsw(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const Register& source) {
   RecordComment("[ DecompressTaggedSigned");
-  Sxtw(destination, source);
+  Mov(destination.W(), source.W());
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  Ldrsw(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
@@ -2725,57 +2730,22 @@ void TurboAssembler::DecompressTaggedPointer(const Register& destination,
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const Register& source) {
   RecordComment("[ DecompressTaggedPointer");
-  Add(destination, kRootRegister, Operand(source, SXTW));
+  Add(destination, kRootRegister, Operand(source, UXTW));
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
-  Ldrsw(destination, field_operand);
-  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
-    UseScratchRegisterScope temps(this);
-    // Branchlessly compute |masked_root|:
-    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
-    Register masked_root = temps.AcquireX();
-    // Sign extend tag bit to entire register.
-    Sbfx(masked_root, destination, 0, kSmiTagSize);
-    And(masked_root, masked_root, kRootRegister);
-    // Now this add operation will either leave the value unchanged if it is a
-    // smi or add the isolate root if it is a heap object.
-    Add(destination, masked_root, destination);
-  } else {
-    Label done;
-    JumpIfSmi(destination, &done);
-    Add(destination, kRootRegister, destination);
-    bind(&done);
-  }
+  Ldr(destination.W(), field_operand);
+  Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
-    UseScratchRegisterScope temps(this);
-    // Branchlessly compute |masked_root|:
-    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
-    Register masked_root = temps.AcquireX();
-    // Sign extend tag bit to entire register.
-    Sbfx(masked_root, source, 0, kSmiTagSize);
-    And(masked_root, masked_root, kRootRegister);
-    // Now this add operation will either leave the value unchanged if it is a
-    // smi or add the isolate root if it is a heap object.
-    Add(destination, masked_root, Operand(source, SXTW));
-  } else {
-    Label done;
-    Sxtw(destination, source);
-    JumpIfSmi(destination, &done);
-    Add(destination, kRootRegister, destination);
-    bind(&done);
-  }
+  Add(destination, kRootRegister, Operand(source, UXTW));
   RecordComment("]");
 }
 

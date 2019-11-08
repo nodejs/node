@@ -1791,7 +1791,7 @@ TEST(HeapNumberAlignment) {
 
     AlignOldSpace(required_alignment, offset);
     Handle<Object> number_old =
-        factory->NewNumber(1.000321, AllocationType::kOld);
+        factory->NewNumber<AllocationType::kOld>(1.000321);
     CHECK(number_old->IsHeapNumber());
     CHECK(heap->InOldSpace(*number_old));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
@@ -3663,9 +3663,58 @@ TEST(DeferredHandles) {
   DeferredHandleScope deferred(isolate);
   DummyVisitor visitor;
   isolate->handle_scope_implementer()->Iterate(&visitor);
-  delete deferred.Detach();
+  deferred.Detach();
 }
 
+static void TestFillersFromDeferredHandles(bool promote) {
+  // We assume that the fillers can only arise when left-trimming arrays.
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
+
+  const size_t n = 10;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(n);
+
+  if (promote) {
+    // Age the array so it's ready for promotion on next GC.
+    CcTest::CollectGarbage(NEW_SPACE);
+  }
+  CHECK(Heap::InYoungGeneration(*array));
+
+  DeferredHandleScope deferred_scope(isolate);
+
+  // Trim the array three times to different sizes so all kinds of fillers are
+  // created and tracked by the deferred handles.
+  Handle<FixedArrayBase> filler_1 = Handle<FixedArrayBase>(*array, isolate);
+  Handle<FixedArrayBase> filler_2 =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_1, 1), isolate);
+  Handle<FixedArrayBase> filler_3 =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_2, 2), isolate);
+  Handle<FixedArrayBase> tail =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_3, 3), isolate);
+
+  std::unique_ptr<DeferredHandles> deferred_handles(deferred_scope.Detach());
+
+  // GC should retain the trimmed array but drop all of the three fillers.
+  CcTest::CollectGarbage(NEW_SPACE);
+  if (promote) {
+    CHECK(heap->InOldSpace(*tail));
+  } else {
+    CHECK(Heap::InYoungGeneration(*tail));
+  }
+  CHECK_EQ(n - 6, (*tail).length());
+  CHECK(!filler_1->IsHeapObject());
+  CHECK(!filler_2->IsHeapObject());
+  CHECK(!filler_3->IsHeapObject());
+}
+
+TEST(DoNotEvacuateFillersFromDeferredHandles) {
+  TestFillersFromDeferredHandles(false /*promote*/);
+}
+
+TEST(DoNotPromoteFillersFromDeferredHandles) {
+  TestFillersFromDeferredHandles(true /*promote*/);
+}
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   if (!FLAG_incremental_marking) return;
@@ -5269,34 +5318,6 @@ TEST(ScriptIterator) {
   CHECK_EQ(0, script_count);
 }
 
-
-TEST(SharedFunctionInfoIterator) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  LocalContext context;
-
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-
-  int sfi_count = 0;
-  {
-    HeapObjectIterator it(heap);
-    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-      if (!obj.IsSharedFunctionInfo()) continue;
-      sfi_count++;
-    }
-  }
-
-  {
-    SharedFunctionInfo::GlobalIterator iterator(isolate);
-    while (!iterator.Next().is_null()) sfi_count--;
-  }
-
-  CHECK_EQ(0, sfi_count);
-}
-
 // This is the same as Factory::NewByteArray, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateByteArrayForTest(
@@ -5314,6 +5335,11 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
   ByteArray::cast(result).set_length(length);
   ByteArray::cast(result).clear_padding();
   return result;
+}
+
+bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {
+  return heap->code_space()->EnsureLinearAllocationArea(
+      size_in_bytes, AllocationOrigin::kRuntime);
 }
 
 HEAP_TEST(Regress587004) {
@@ -5995,6 +6021,173 @@ TEST(UncommitUnusedLargeObjectMemory) {
   CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
 }
 
+template <RememberedSetType direction>
+static size_t GetRememberedSetSize(HeapObject obj) {
+  size_t count = 0;
+  auto chunk = MemoryChunk::FromHeapObject(obj);
+  RememberedSet<direction>::Iterate(
+      chunk,
+      [&count](MaybeObjectSlot slot) {
+        count++;
+        return KEEP_SLOT;
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  return count;
+}
+
+TEST(RememberedSet_InsertOnWriteBarrier) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  HandleScope scope(isolate);
+
+  // Allocate an object in old space.
+  Handle<FixedArray> arr = factory->NewFixedArray(3, AllocationType::kOld);
+
+  // Add into 'arr' references to young objects.
+  {
+    HandleScope scope_inner(isolate);
+    Handle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);
+    arr->set(1, *number);
+    arr->set(2, *number);
+    Handle<Object> number_other = factory->NewHeapNumber(24);
+    arr->set(2, *number_other);
+  }
+  // Remembered sets track *slots* pages with cross-generational pointers, so
+  // must have recorded three of them each exactly once.
+  CHECK_EQ(3, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+}
+
+TEST(RememberedSet_InsertInLargePage) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  HandleScope scope(isolate);
+
+  // Allocate an object in Large space.
+  const int count = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  Handle<FixedArray> arr = factory->NewFixedArray(count, AllocationType::kOld);
+  CHECK(heap->lo_space()->Contains(*arr));
+  CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+
+  // Create OLD_TO_NEW references from the large object so that the
+  // corresponding slots end up in different SlotSets.
+  {
+    HandleScope short_lived(isolate);
+    Handle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);
+    arr->set(count - 1, *number);
+  }
+  CHECK_EQ(2, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+}
+
+TEST(RememberedSet_InsertOnPromotingObjectToOld) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  HandleScope scope(isolate);
+
+  // Create a young object and age it one generation inside the new space.
+  Handle<FixedArray> arr = factory->NewFixedArray(1);
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CHECK(Heap::InYoungGeneration(*arr));
+
+  // Add into 'arr' a reference to an object one generation younger.
+  {
+    HandleScope scope_inner(isolate);
+    Handle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);
+  }
+
+  // Promote 'arr' into old, its element is still in new, the old to new
+  // refs are inserted into the remembered sets during GC.
+  CcTest::CollectGarbage(i::NEW_SPACE);
+
+  CHECK(heap->InOldSpace(*arr));
+  CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+}
+
+TEST(RememberedSet_RemoveStaleOnScavenge) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  HandleScope scope(isolate);
+
+  // Allocate an object in old space and add into it references to young.
+  Handle<FixedArray> arr = factory->NewFixedArray(3, AllocationType::kOld);
+  {
+    HandleScope scope_inner(isolate);
+    Handle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);  // will be trimmed away
+    arr->set(1, *number);  // will be replaced with #undefined
+    arr->set(2, *number);  // will be promoted into old
+  }
+  CHECK_EQ(3, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+
+  // Run scavenger once so the young object becomes ready for promotion on the
+  // next pass.
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  arr->set(1, ReadOnlyRoots(CcTest::heap()).undefined_value());
+  Handle<FixedArrayBase> tail =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*arr, 1), isolate);
+
+  // None of the actions above should have updated the remembered set.
+  CHECK_EQ(3, GetRememberedSetSize<OLD_TO_NEW>(*tail));
+
+  // Run GC to promote the remaining young object and fixup the stale entries in
+  // the remembered set.
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*tail));
+}
+
+// The OLD_TO_OLD remembered set is created temporary by GC and is cleared at
+// the end of the pass. There is no way to observe it so the test only checks
+// that compaction has happened and otherwise relies on code's self-validation.
+TEST(RememberedSet_OldToOld) {
+  if (FLAG_stress_incremental_marking) return;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  HandleScope scope(isolate);
+
+  Handle<FixedArray> arr = factory->NewFixedArray(10, AllocationType::kOld);
+  {
+    HandleScope short_lived(isolate);
+    factory->NewFixedArray(100, AllocationType::kOld);
+  }
+  Handle<Object> ref = factory->NewFixedArray(100, AllocationType::kOld);
+  arr->set(0, *ref);
+
+  // To force compaction of the old space, fill it with garbage and start a new
+  // page (so that the page with 'arr' becomes subject to compaction).
+  {
+    HandleScope short_lived(isolate);
+    heap::SimulateFullSpace(heap->old_space());
+    factory->NewFixedArray(100, AllocationType::kOld);
+  }
+
+  FLAG_manual_evacuation_candidates_selection = true;
+  heap::ForceEvacuationCandidate(Page::FromHeapObject(*arr));
+  const auto prev_location = *arr;
+
+  // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
+  // create OLD_TO_OLD remembered set to track the reference.
+  CcTest::CollectAllGarbage();
+  CHECK_NE(prev_location, *arr);
+}
+
 TEST(RememberedSetRemoveRange) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -6016,59 +6209,64 @@ TEST(RememberedSetRemoveRange) {
   slots[chunk->area_end() - kTaggedSize] = true;
 
   for (auto x : slots) {
-    RememberedSet<OLD_TO_NEW>::Insert(chunk, x.first);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk, x.first);
   }
 
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
                                          start + Page::kPageSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kTaggedSize] = false;
   slots[start + Page::kPageSize - kTaggedSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
                                          start + Page::kPageSize + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + Page::kPageSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->area_end() - kTaggedSize,
                                          chunk->area_end(),
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[chunk->area_end() - kTaggedSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 }
 
 HEAP_TEST(Regress670675) {
@@ -6162,53 +6360,6 @@ HEAP_TEST(Regress5831) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
   CHECK(chunk->owner_identity() != LO_SPACE);
   CHECK(chunk->NeverEvacuate());
-}
-
-TEST(Regress6800) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  const int kRootLength = 1000;
-  Handle<FixedArray> root =
-      isolate->factory()->NewFixedArray(kRootLength, AllocationType::kOld);
-  {
-    HandleScope inner_scope(isolate);
-    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, *new_space_array);
-    }
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
-    }
-  }
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromHeapObject(*root)));
-}
-
-TEST(Regress6800LargeObject) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  const int kRootLength = i::kMaxRegularHeapObjectSize / kTaggedSize;
-  Handle<FixedArray> root =
-      isolate->factory()->NewFixedArray(kRootLength, AllocationType::kOld);
-  CcTest::heap()->lo_space()->Contains(*root);
-  {
-    HandleScope inner_scope(isolate);
-    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, *new_space_array);
-    }
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
-    }
-  }
-  CcTest::CollectGarbage(OLD_SPACE);
-  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromHeapObject(*root)));
 }
 
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
@@ -6631,6 +6782,19 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kWait);
 }
 
+TEST(AllocateExternalBackingStore) {
+  ManualGCScope manual_gc_scope;
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  int initial_ms_count = heap->ms_count();
+  void* result =
+      heap->AllocateExternalBackingStore([](size_t) { return nullptr; }, 10);
+  CHECK_NULL(result);
+  // At least two GCs should happen.
+  CHECK_LE(2, heap->ms_count() - initial_ms_count);
+}
+
 TEST(CodeObjectRegistry) {
   // We turn off compaction to ensure that code is not moving.
   FLAG_never_compact = true;
@@ -6642,11 +6806,13 @@ TEST(CodeObjectRegistry) {
   HandleScope outer_scope(heap->isolate());
   Address code2_address;
   {
+    // Ensure that both code objects end up on the same page.
+    CHECK(HeapTester::CodeEnsureLinearAllocationArea(
+        heap, kMaxRegularHeapObjectSize));
     code1 = DummyOptimizedCode(isolate);
     Handle<Code> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
-    // If this check breaks, change the allocation to ensure that both code
-    // objects are on the same page.
+
     CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
              MemoryChunk::FromHeapObject(*code2));
     CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));

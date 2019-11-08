@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   std::pair<MachineType, const Operator*> InsertDecompressionIfNeeded(
       MachineType type) {
     const Operator* decompress_op = nullptr;
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       switch (type.representation()) {
         case MachineRepresentation::kTaggedPointer:
           type = MachineType::CompressedPointer();
@@ -188,7 +188,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
       MachineRepresentation rep, Node* value) {
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       switch (rep) {
         case MachineRepresentation::kTaggedPointer:
           rep = MachineRepresentation::kCompressedPointer;
@@ -237,7 +237,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value) {
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       DCHECK(AccessBuilder::ForMap().machine_type.IsCompressedPointer());
       value =
           AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), value);
@@ -736,8 +736,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* BitcastTaggedToWord(Node* a) {
       return AddNode(machine()->BitcastTaggedToWord(), a);
   }
-  Node* BitcastTaggedSignedToWord(Node* a) {
-    return AddNode(machine()->BitcastTaggedSignedToWord(), a);
+  Node* BitcastTaggedToWordForTagAndSmiBits(Node* a) {
+    return AddNode(machine()->BitcastTaggedToWordForTagAndSmiBits(), a);
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
       return AddNode(machine()->BitcastMaybeObjectToWord(), a);
@@ -965,8 +965,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Tail call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
-  Node* TailCallN(CallDescriptor* call_descriptor, int input_count,
-                  Node* const* inputs);
+  void TailCallN(CallDescriptor* call_descriptor, int input_count,
+                 Node* const* inputs);
 
   // Type representing C function argument with type info.
   using CFunctionArg = std::pair<MachineType, Node*>;

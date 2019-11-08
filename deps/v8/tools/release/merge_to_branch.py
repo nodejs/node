@@ -47,7 +47,7 @@ class Preparation(Step):
       if self._options.force:
         os.remove(self.Config("ALREADY_MERGING_SENTINEL_FILE"))
       elif self._options.step == 0:  # pragma: no cover
-        self.Die("A merge is already in progress")
+        self.Die("A merge is already in progress. Use -f to continue")
     open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
     self.InitialEnvironmentChecks(self.default_cwd)

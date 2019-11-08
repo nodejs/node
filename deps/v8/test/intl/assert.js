@@ -157,7 +157,7 @@ function assertThrows(code, type_opt, cause_opt) {
       assertInstanceof(e, type_opt);
     }
     if (arguments.length >= 3) {
-      assertEquals(cause_opt, e.type, 'thrown exception type mismatch');
+      assertEquals(cause_opt, e.message, 'thrown exception type mismatch');
     }
     // Success.
     return;

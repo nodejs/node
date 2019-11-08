@@ -71,6 +71,7 @@ static uint64_t RotateRight(uint64_t value, unsigned int rotate,
                             unsigned int width) {
   DCHECK_LE(width, 64);
   rotate &= 63;
+  if (rotate == 0) return value;
   return ((value & ((1ULL << rotate) - 1ULL)) << (width - rotate)) |
          (value >> rotate);
 }
@@ -191,16 +192,16 @@ int64_t Instruction::ImmPCOffset() {
   } else if (BranchType() != UnknownBranchType) {
     // All PC-relative branches.
     // Relative branch offsets are instruction-size-aligned.
-    offset = ImmBranch() << kInstrSizeLog2;
+    offset = ImmBranch() * kInstrSize;
   } else if (IsUnresolvedInternalReference()) {
     // Internal references are always word-aligned.
-    offset = ImmUnresolvedInternalReference() << kInstrSizeLog2;
+    offset = ImmUnresolvedInternalReference() * kInstrSize;
   } else {
     // Load literal (offset from PC).
     DCHECK(IsLdrLiteral());
     // The offset is always shifted by 2 bits, even for loads to 64-bits
     // registers.
-    offset = ImmLLiteral() << kInstrSizeLog2;
+    offset = ImmLLiteral() * kInstrSize;
   }
   return offset;
 }

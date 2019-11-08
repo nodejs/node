@@ -14,7 +14,7 @@ let instance;
   let module = new WasmModuleBuilder();
   module.addImport('mod', 'func', kSig_v_i);
   module.addFunction('main', kSig_v_i)
-    .addBody([kExprGetLocal, 0, kExprCallFunction, 0])
+    .addBody([kExprLocalGet, 0, kExprCallFunction, 0])
     .exportFunc();
   instance = module.instantiate({
     mod: {

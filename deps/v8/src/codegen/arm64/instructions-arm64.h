@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_ARM64_INSTRUCTIONS_ARM64_H_
 #define V8_CODEGEN_ARM64_INSTRUCTIONS_ARM64_H_
 
+#include "src/base/memory.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/arm64/utils-arm64.h"
@@ -82,11 +83,13 @@ enum Reg31Mode { Reg31IsStackPointer, Reg31IsZeroRegister };
 class Instruction {
  public:
   V8_INLINE Instr InstructionBits() const {
-    return *reinterpret_cast<const Instr*>(this);
+    // Usually this is aligned, but when de/serializing that's not guaranteed.
+    return base::ReadUnalignedValue<Instr>(reinterpret_cast<Address>(this));
   }
 
   V8_INLINE void SetInstructionBits(Instr new_instr) {
-    *reinterpret_cast<Instr*>(this) = new_instr;
+    // Usually this is aligned, but when de/serializing that's not guaranteed.
+    base::WriteUnalignedValue(reinterpret_cast<Address>(this), new_instr);
   }
 
   int Bit(int pos) const { return (InstructionBits() >> pos) & 1; }
@@ -96,7 +99,9 @@ class Instruction {
   }
 
   int32_t SignedBits(int msb, int lsb) const {
-    int32_t bits = *(reinterpret_cast<const int32_t*>(this));
+    // Usually this is aligned, but when de/serializing that's not guaranteed.
+    int32_t bits =
+        base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(this));
     return signed_bitextract_32(msb, lsb, bits);
   }
 
@@ -125,7 +130,8 @@ class Instruction {
   // formed from ImmPCRelLo and ImmPCRelHi.
   int ImmPCRel() const {
     DCHECK(IsPCRelAddressing());
-    int offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
+    int offset = (static_cast<uint32_t>(ImmPCRelHi()) << ImmPCRelLo_width) |
+                 ImmPCRelLo();
     int width = ImmPCRelLo_width + ImmPCRelHi_width;
     return signed_bitextract_32(width - 1, 0, offset);
   }
@@ -404,7 +410,7 @@ class Instruction {
   void SetImmLLiteral(Instruction* source);
 
   uintptr_t LiteralAddress() {
-    int offset = ImmLLiteral() << kLoadLiteralScaleLog2;
+    int offset = ImmLLiteral() * kLoadLiteralScale;
     return reinterpret_cast<uintptr_t>(this) + offset;
   }
 

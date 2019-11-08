@@ -43,10 +43,12 @@ constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + kSystemPointerSize;
 constexpr int32_t kConstantStackSpace = 0;
 
+inline int GetStackSlotOffset(uint32_t index) {
+  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+}
+
 inline MemOperand GetStackSlot(uint32_t index) {
-  int32_t offset =
-      kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
-  return MemOperand(fp, -offset);
+  return MemOperand(fp, -GetStackSlotOffset(index));
 }
 
 inline MemOperand GetInstanceOperand() {
@@ -396,6 +398,38 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
+}
+
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  int max_stp_offset = -liftoff::GetStackSlotOffset(index + count - 1);
+  if (count <= 20 && IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
+    // Special straight-line code for up to 20 slots. Generates one
+    // instruction per two slots (<= 10 instructions total).
+    for (; count > 1; count -= 2) {
+      STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
+      stp(xzr, xzr, liftoff::GetStackSlot(index + count - 1));
+    }
+    DCHECK(count == 0 || count == 1);
+    if (count) str(xzr, liftoff::GetStackSlot(index));
+  } else {
+    // General case for bigger counts (7 instructions).
+    // Use x0 for start address (inclusive), x1 for end address (exclusive).
+    Push(x1, x0);
+    Sub(x0, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
+    Sub(x1, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
+
+    Label loop;
+    bind(&loop);
+    str(xzr, MemOperand(x0, /* offset */ kSystemPointerSize, PostIndex));
+    cmp(x0, x1);
+    b(&loop, ne);
+
+    Pop(x0, x1);
+  }
 }
 
 #define I32_BINOP(name, instruction)                             \

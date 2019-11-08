@@ -168,8 +168,8 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   for (int i = 0; i < length; i++) {
     int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Object key = table->get(index);
+    uint32_t index_value;
     if (convert == GetKeysConversion::kConvertToString) {
-      uint32_t index_value;
       if (key.ToArrayIndex(&index_value)) {
         // Avoid trashing the Number2String cache if indices get very large.
         bool use_cache = i < kMaxStringTableEntries;
@@ -177,6 +177,8 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
       } else {
         CHECK(key.IsName());
       }
+    } else if (convert == GetKeysConversion::kNoNumbers) {
+      DCHECK(!key.ToArrayIndex(&index_value));
     }
     result->set(i, key);
   }
@@ -957,22 +959,19 @@ OrderedHashTableHandler<SmallOrderedNameDictionary,
                         OrderedNameDictionary>::Allocate(Isolate* isolate,
                                                          int capacity);
 
-#if !defined(V8_OS_WIN)
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
-    Handle<HeapObject> table, Handle<Object> key) {
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
   if (SmallTable::Is(table)) {
-    return SmallTable::Delete(Handle<SmallTable>::cast(table), key);
+    return SmallTable::Delete(isolate, *Handle<SmallTable>::cast(table), *key);
   }
 
   DCHECK(LargeTable::Is(table));
   // Note: Once we migrate to the a big hash table, we never migrate
   // down to a smaller hash table.
-  return LargeTable::Delete(Handle<LargeTable>::cast(table), key);
+  return LargeTable::Delete(isolate, *Handle<LargeTable>::cast(table), *key);
 }
-#endif
 
-#if !defined(V8_OS_WIN)
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::HasKey(
     Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
@@ -983,7 +982,6 @@ bool OrderedHashTableHandler<SmallTable, LargeTable>::HasKey(
   DCHECK(LargeTable::Is(table));
   return LargeTable::HasKey(isolate, LargeTable::cast(*table), *key);
 }
-#endif
 
 template bool
 OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::HasKey(
@@ -991,6 +989,18 @@ OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::HasKey(
 template bool
 OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::HasKey(
     Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+
+template bool
+OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::Delete(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+template bool
+OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::Delete(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+template bool
+OrderedHashTableHandler<SmallOrderedNameDictionary,
+                        OrderedNameDictionary>::Delete(Isolate* isolate,
+                                                       Handle<HeapObject> table,
+                                                       Handle<Object> key);
 
 MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
     Isolate* isolate, Handle<SmallOrderedHashMap> table) {

@@ -25,12 +25,12 @@ function generateBuilder(add_memory, import_sig) {
     // Add the memory if we expect a module builder with memory and load/store.
     builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
     builder.addFunction('load', kSig_i_i)
-        .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+        .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
         .exportFunc();
     builder.addFunction('store', kSig_i_ii)
         .addBody([
-          kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-          kExprGetLocal, 1
+          kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
+          kExprLocalGet, 1
         ])
         .exportFunc();
   }
@@ -83,14 +83,14 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   builder.addMemory(kPages, kPages, true);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
-      kExprGetLocal, 0,     // --
-      kExprGetLocal, 1,     // --
+      kExprLocalGet, 0,     // --
+      kExprLocalGet, 1,     // --
       kExprI32StoreMem, 0, 0, // --
     ])                      // --
     .exportFunc();
   builder.addFunction("load", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,     // --
+      kExprLocalGet, 0,     // --
       kExprI32LoadMem, 0, 0, // --
     ])                      // --
     .exportFunc();
@@ -103,14 +103,14 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   builder.addMemory(kPages, kPages, true);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
-      kExprGetLocal, 0,     // --
-      kExprGetLocal, 1,     // --
+      kExprLocalGet, 0,     // --
+      kExprLocalGet, 1,     // --
       kExprCallFunction, 0, // --
     ])                      // --
     .exportFunc();
   builder.addFunction("load", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,     // --
+      kExprLocalGet, 0,     // --
       kExprI32LoadMem, 0, 0, // --
     ])                      // --
     .exportFunc();
@@ -152,7 +152,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   // Function to invoke the imported function and add 1 to the result.
   first_module.addFunction('plus_one', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                   // -
+        kExprLocalGet, 0,                   // -
         kExprCallFunction, other_fn_idx,    // call the imported function
         kExprI32Const, 1,                   // -
         kExprI32Add,                        // add 1 to the result
@@ -185,7 +185,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   // Function to invoke the imported function and add 1 to the result.
   first_module.addFunction('plus_one', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                   // -
+        kExprLocalGet, 0,                   // -
         kExprCallFunction, other_fn_idx,    // call the imported function
         kExprI32Const, 1,                   // -
         kExprI32Add,                        // add 1 to the result
@@ -221,14 +221,14 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   // Function to invoke the imported function and add 1 to the result.
   first_module.addFunction('sandwich', kSig_i_iii)
       .addBody([
-        kExprGetLocal, 0,                   // param0 (index)
-        kExprGetLocal, 1,                   // param1 (first_value)
+        kExprLocalGet, 0,                   // param0 (index)
+        kExprLocalGet, 1,                   // param1 (first_value)
         kExprI32StoreMem, 0, 0,             // store value in first_instance
-        kExprGetLocal, 0,                   // param0 (index)
-        kExprGetLocal, 2,                   // param2 (second_value)
+        kExprLocalGet, 0,                   // param0 (index)
+        kExprLocalGet, 2,                   // param2 (second_value)
         kExprCallFunction, other_fn_idx,    // call the imported function
         kExprDrop,                          // drop the return value
-        kExprGetLocal, 0,                   // param0 (index)
+        kExprLocalGet, 0,                   // param0 (index)
         kExprI32LoadMem, 0, 0,              // load from first_instance
         kExprReturn                         // -
       ])
@@ -263,14 +263,14 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   builder.addMemory(kPages, kPages, true);
   builder.addFunction("store", kSig_v_ii)
     .addBody([
-      kExprGetLocal, 0,     // --
-      kExprGetLocal, 1,     // --
+      kExprLocalGet, 0,     // --
+      kExprLocalGet, 1,     // --
       kExprI32StoreMem, 0, 0, // --
     ])                      // --
     .exportFunc();
   builder.addFunction("load", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,     // --
+      kExprLocalGet, 0,     // --
       kExprI32LoadMem, 0, 0, // --
     ])                      // --
     .exportFunc();
@@ -308,9 +308,9 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   var sig_index = builder.addType(kSig_v_ii);
   builder.addFunction("store", kSig_v_iii)
     .addBody([
-      kExprGetLocal, 1,
-      kExprGetLocal, 2,
-      kExprGetLocal, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprLocalGet, 0,
       kExprCallIndirect, sig_index, kTableZero,
     ]).exportFunc();
 

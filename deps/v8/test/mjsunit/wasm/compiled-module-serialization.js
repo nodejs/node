@@ -17,11 +17,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprI32LoadMem, 0, 0,
       kExprI32Const, 1,
       kExprCallIndirect, signature, kTableZero,
-      kExprGetLocal,0,
+      kExprLocalGet,0,
       kExprI32LoadMem,0, 0,
       kExprCallFunction, 0,
       kExprI32Add
@@ -31,7 +31,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // return mem[i] + some_value();
   builder.addFunction("_wrap_writer", signature)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallFunction, 1]);
   builder.appendToTable([2, 3]);
 
@@ -175,13 +175,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addGlobal(kWasmI32, true);
   builder.addFunction("read", kSig_i_v)
     .addBody([
-      kExprGetGlobal, 0])
+      kExprGlobalGet, 0])
     .exportFunc();
 
   builder.addFunction("write", kSig_v_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprSetGlobal, 0])
+      kExprLocalGet, 0,
+      kExprGlobalSet, 0])
     .exportFunc();
 
   var wire_bytes = builder.toBuffer();
@@ -213,7 +213,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
     builder.addFunction("main", kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0,   // --
+        kExprLocalGet, 0,   // --
         kExprCallIndirect, sig_index1, kTableZero])  // --
       .exportAs("main");
 
@@ -234,7 +234,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,   // --
+      kExprLocalGet, 0,   // --
       kExprCallIndirect, sig_index2, kTableZero])  // --
     .exportAs("main");
 
@@ -293,7 +293,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     const builder = new WasmModuleBuilder();
     builder.addMemory(1, 1);
     builder.addFunction('main', kSig_i_i)
-        .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+        .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
         .exportFunc();
     const wire_bytes = builder.toBuffer();
     const module = new WebAssembly.Module(wire_bytes);
@@ -364,7 +364,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                         kExprBlock, kWasmStmt,
                           kExprBlock, kWasmStmt,
                             kExprBlock, kWasmStmt,
-                              kExprGetLocal, 0,
+                              kExprLocalGet, 0,
                               kExprBrTable, 6, 0, 1, 2, 3, 4, 5, 6,
                             kExprEnd,
                             kExprI32Const, 3,

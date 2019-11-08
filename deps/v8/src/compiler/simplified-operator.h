@@ -876,12 +876,18 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
       Type type, AllocationType allocation = AllocationType::kYoung,
       AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse);
 
+  const Operator* LoadMessage();
+  const Operator* StoreMessage();
+
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
 
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
+
+  // load-stack-argument [base + index]
+  const Operator* LoadStackArgument();
 
   // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);

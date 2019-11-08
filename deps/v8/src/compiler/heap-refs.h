@@ -29,7 +29,6 @@ class NativeContext;
 class ScriptContextTable;
 
 namespace compiler {
-
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
@@ -95,10 +94,12 @@ enum class OddballType : uint8_t {
   V(PropertyCell)                  \
   V(SharedFunctionInfo)            \
   V(SourceTextModule)              \
+  V(TemplateObjectDescription)     \
   /* Subtypes of Object */         \
   V(HeapObject)
 
 class CompilationDependencies;
+struct FeedbackSource;
 class JSHeapBroker;
 class ObjectData;
 class PerIsolateCompilerCache;
@@ -163,8 +164,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
  private:
   friend class FunctionTemplateInfoRef;
   friend class JSArrayData;
-  friend class JSGlobalProxyRef;
-  friend class JSGlobalProxyData;
+  friend class JSGlobalObjectData;
+  friend class JSGlobalObjectRef;
   friend class JSHeapBroker;
   friend class JSObjectData;
   friend class StringData;
@@ -329,8 +330,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
   int InitialMapInstanceSizeWithMinSlack() const;
-
-  bool IsSerializedForCompilation() const;
 };
 
 class JSRegExpRef : public JSObjectRef {
@@ -344,6 +343,8 @@ class JSRegExpRef : public JSObjectRef {
   ObjectRef source() const;
   ObjectRef flags() const;
   ObjectRef last_index() const;
+
+  void SerializeAsRegExpBoilerplate();
 };
 
 class HeapNumberRef : public HeapObjectRef {
@@ -496,7 +497,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   double invocation_count() const;
 
   void Serialize();
-  ObjectRef get(FeedbackSlot slot) const;
   FeedbackCellRef GetClosureFeedbackCell(int index) const;
 };
 
@@ -535,6 +535,9 @@ class AllocationSiteRef : public HeapObjectRef {
   //
   // If PointsToLiteral() is false, then IsFastLiteral() is also false.
   bool IsFastLiteral() const;
+
+  void SerializeBoilerplate();
+
   // We only serialize boilerplate if IsFastLiteral is true.
   base::Optional<JSObjectRef> boilerplate() const;
 
@@ -585,7 +588,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
-  bool IsMapOfTargetGlobalProxy() const;
   bool is_abandoned_prototype_map() const;
 
   OddballType oddball_type() const;
@@ -609,15 +611,15 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   // Concerning the underlying instance_descriptors:
   void SerializeOwnDescriptors();
-  void SerializeOwnDescriptor(int descriptor_index);
-  bool serialized_own_descriptor(int descriptor_index) const;
-  MapRef FindFieldOwner(int descriptor_index) const;
-  PropertyDetails GetPropertyDetails(int descriptor_index) const;
-  NameRef GetPropertyKey(int descriptor_index) const;
-  FieldIndex GetFieldIndexFor(int descriptor_index) const;
-  ObjectRef GetFieldType(int descriptor_index) const;
-  bool IsUnboxedDoubleField(int descriptor_index) const;
-  ObjectRef GetStrongValue(int descriptor_number) const;
+  void SerializeOwnDescriptor(InternalIndex descriptor_index);
+  bool serialized_own_descriptor(InternalIndex descriptor_index) const;
+  MapRef FindFieldOwner(InternalIndex descriptor_index) const;
+  PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
+  NameRef GetPropertyKey(InternalIndex descriptor_index) const;
+  FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const;
+  ObjectRef GetFieldType(InternalIndex descriptor_index) const;
+  bool IsUnboxedDoubleField(InternalIndex descriptor_index) const;
+  ObjectRef GetStrongValue(InternalIndex descriptor_number) const;
 
   void SerializeRootMap();
   base::Optional<MapRef> FindRootMap() const;
@@ -727,7 +729,6 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   Address handler_table_address() const;
   int handler_table_size() const;
 
-  bool IsSerializedForCompilation() const;
   void SerializeForCompilation();
 };
 
@@ -769,7 +770,8 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, is_safe_to_skip_arguments_adaptor) \
   V(bool, IsInlineable)                      \
   V(int, StartPosition)                      \
-  V(bool, is_compiled)
+  V(bool, is_compiled)                       \
+  V(bool, IsUserJavaScript)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
@@ -791,7 +793,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   // wraps the retrieval of the template object and creates it if
   // necessary.
   JSArrayRef GetTemplateObject(
-      ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
+      TemplateObjectDescriptionRef description, FeedbackSource const& source,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   void SerializeFunctionTemplateInfo();
@@ -826,7 +828,7 @@ class JSTypedArrayRef : public JSObjectRef {
 
   bool is_on_heap() const;
   size_t length() const;
-  void* external_pointer() const;
+  void* data_ptr() const;
 
   void Serialize();
   bool serialized() const;
@@ -845,6 +847,13 @@ class SourceTextModuleRef : public HeapObjectRef {
   base::Optional<CellRef> GetCell(int cell_index) const;
 };
 
+class TemplateObjectDescriptionRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(TemplateObjectDescription, HeapObjectRef)
+
+  Handle<TemplateObjectDescription> object() const;
+};
+
 class CellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
@@ -859,13 +868,8 @@ class JSGlobalObjectRef : public JSObjectRef {
   DEFINE_REF_CONSTRUCTOR(JSGlobalObject, JSObjectRef)
 
   Handle<JSGlobalObject> object() const;
-};
 
-class JSGlobalProxyRef : public JSObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(JSGlobalProxy, JSObjectRef)
-
-  Handle<JSGlobalProxy> object() const;
+  bool IsDetached() const;
 
   // If {serialize} is false:
   //   If the property is known to exist as a property cell (on the global
@@ -877,6 +881,13 @@ class JSGlobalProxyRef : public JSObjectRef {
   base::Optional<PropertyCellRef> GetPropertyCell(
       NameRef const& name, SerializationPolicy policy =
                                SerializationPolicy::kAssumeSerialized) const;
+};
+
+class JSGlobalProxyRef : public JSObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSGlobalProxy, JSObjectRef)
+
+  Handle<JSGlobalProxy> object() const;
 };
 
 class CodeRef : public HeapObjectRef {

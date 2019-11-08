@@ -189,6 +189,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   CopyRegListToFrame(masm, x1, FrameDescription::double_registers_offset(),
                      saved_double_registers, x2, x3, kDoubleRegistersOffset);
 
+  // Mark the stack as not iterable for the CPU profiler which won't be able to
+  // walk the stack without the return address.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.AcquireX();
+    __ Mov(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ strb(xzr, MemOperand(is_iterable));
+  }
+
   // Remove the saved registers from the stack.
   DCHECK_EQ(kSavedRegistersAreaSize % kXRegSize, 0);
   __ Drop(kSavedRegistersAreaSize / kXRegSize);
@@ -250,6 +259,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
   RestoreRegList(masm, saved_double_registers, x1,
                  FrameDescription::double_registers_offset());
+
+  {
+    UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.AcquireX();
+    Register one = x4;
+    __ Mov(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ Mov(one, Operand(1));
+    __ strb(one, MemOperand(is_iterable));
+  }
 
   // TODO(all): ARM copies a lot (if not all) of the last output frame onto the
   // stack, then pops it all into registers. Here, we try to load it directly

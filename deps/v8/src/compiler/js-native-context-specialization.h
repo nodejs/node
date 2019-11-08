@@ -101,10 +101,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                  base::Optional<NameRef> static_name,
                                  Node* value, FeedbackSource const& source,
                                  AccessMode access_mode);
-  Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
-                                       FeedbackSource const& source,
-                                       NameRef const& name,
-                                       AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& processed,
                               AccessMode access_mode, Node* key = nullptr);
@@ -207,6 +203,12 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
 
+  // Attach a pair of success and exception paths on a given control path.
+  // The exception is joined to the Merge+Phi+EffectPhi nodes while the success
+  // path is returned.
+  Node* AppendExceptionHandling(Node* effect, Node* control, Node* merge,
+                                Node* phi, Node* effect_phi);
+
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
@@ -218,11 +220,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   ElementAccessFeedback const& TryRefineElementAccessFeedback(
       ElementAccessFeedback const& feedback, Node* receiver,
       Node* effect) const;
-
-  void FilterMapsAndGetPropertyAccessInfos(
-      NamedAccessFeedback const& feedback, AccessMode access_mode,
-      Node* receiver, Node* effect,
-      ZoneVector<PropertyAccessInfo>* access_infos);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
   bool InferReceiverMaps(Node* receiver, Node* effect,

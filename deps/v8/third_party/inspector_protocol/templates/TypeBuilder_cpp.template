@@ -385,7 +385,6 @@ void DispatcherImpl::{{command.name}}(int callId, const String& method, const Pr
       {% endif %}
     return;
     {% else %}
-    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
     std::unique_ptr<{{command_name_title}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId, method, message));
     m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}

@@ -533,7 +533,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   table.set(0, fun1);
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_index, table_index
       ])
       .exportFunc();
@@ -554,7 +554,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   table.set(0, fun);
   builder.addFunction('main', kSig_v_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_index, table_index,
         kExprDrop
       ])

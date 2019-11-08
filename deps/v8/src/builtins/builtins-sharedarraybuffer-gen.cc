@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <typename T>
-using TNode = compiler::TNode<T>;
 
 class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -255,7 +253,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &u64);
 
   TNode<Number> value_integer = ToInteger_Inline(CAST(context), CAST(value));
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
@@ -338,7 +336,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,
@@ -444,8 +442,10 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* old_value_word32 = TruncateTaggedToWord32(context, old_value_integer);
-  Node* new_value_word32 = TruncateTaggedToWord32(context, new_value_integer);
+  TNode<Word32T> old_value_word32 =
+      TruncateTaggedToWord32(context, old_value_integer);
+  TNode<Word32T> new_value_word32 =
+      TruncateTaggedToWord32(context, new_value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,
@@ -571,7 +571,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,

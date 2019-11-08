@@ -202,9 +202,14 @@ class V8_EXPORT_PRIVATE CompilationCache {
   void MarkCompactPrologue();
 
   // Enable/disable compilation cache. Used by debugger to disable compilation
-  // cache during debugging to make sure new scripts are always compiled.
-  void Enable();
-  void Disable();
+  // cache during debugging so that eval and new scripts are always compiled.
+  // TODO(bmeurer, chromium:992277): The RegExp cache cannot be enabled and/or
+  // disabled, since it doesn't affect debugging. However ideally the other
+  // caches should also be always on, even in the presence of the debugger,
+  // but at this point there are too many unclear invariants, and so I decided
+  // to just fix the pressing performance problem for RegExp individually first.
+  void EnableScriptAndEval();
+  void DisableScriptAndEval();
 
  private:
   explicit CompilationCache(Isolate* isolate);
@@ -215,7 +220,9 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
 
-  bool IsEnabled() const { return FLAG_compilation_cache && enabled_; }
+  bool IsEnabledScriptAndEval() const {
+    return FLAG_compilation_cache && enabled_script_and_eval_;
+  }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -227,8 +234,8 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCacheRegExp reg_exp_;
   CompilationSubCache* subcaches_[kSubCacheCount];
 
-  // Current enable state of the compilation cache.
-  bool enabled_;
+  // Current enable state of the compilation cache for scripts and eval.
+  bool enabled_script_and_eval_;
 
   friend class Isolate;
 

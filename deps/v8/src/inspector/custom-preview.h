@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_CUSTOM_PREVIEW_H_
 #define V8_INSPECTOR_CUSTOM_PREVIEW_H_
 
+#include <memory>
+
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/protocol/Runtime.h"
 

@@ -37,10 +37,10 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, PostTaskOrder) {
   base::Semaphore semaphore(0);
 
   std::unique_ptr<TestTask> task1 =
-      base::make_unique<TestTask>([&] { order.push_back(1); });
+      std::make_unique<TestTask>([&] { order.push_back(1); });
   std::unique_ptr<TestTask> task2 =
-      base::make_unique<TestTask>([&] { order.push_back(2); });
-  std::unique_ptr<TestTask> task3 = base::make_unique<TestTask>([&] {
+      std::make_unique<TestTask>([&] { order.push_back(2); });
+  std::unique_ptr<TestTask> task3 = std::make_unique<TestTask>([&] {
     order.push_back(3);
     semaphore.Signal();
   });
@@ -65,27 +65,27 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, PostTaskOrderMultipleWorkers) {
   std::vector<int> order;
   std::atomic_int count{0};
 
-  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
     base::MutexGuard guard(&vector_lock);
     order.push_back(1);
     count++;
   });
-  std::unique_ptr<TestTask> task2 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task2 = std::make_unique<TestTask>([&] {
     base::MutexGuard guard(&vector_lock);
     order.push_back(2);
     count++;
   });
-  std::unique_ptr<TestTask> task3 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task3 = std::make_unique<TestTask>([&] {
     base::MutexGuard guard(&vector_lock);
     order.push_back(3);
     count++;
   });
-  std::unique_ptr<TestTask> task4 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task4 = std::make_unique<TestTask>([&] {
     base::MutexGuard guard(&vector_lock);
     order.push_back(4);
     count++;
   });
-  std::unique_ptr<TestTask> task5 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task5 = std::make_unique<TestTask>([&] {
     base::MutexGuard guard(&vector_lock);
     order.push_back(5);
     count++;
@@ -123,7 +123,7 @@ class FakeClock {
     // PostTask will cause the condition variable WaitFor() call to be notified
     // early, rather than waiting for the real amount of time. WaitFor() listens
     // to the system clock and not our FakeClock.
-    runner->PostTask(base::make_unique<TestTask>([] {}));
+    runner->PostTask(std::make_unique<TestTask>([] {}));
   }
 
  private:
@@ -140,13 +140,13 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, PostDelayedTaskOrder) {
   base::Semaphore task1_semaphore(0);
   base::Semaphore task3_semaphore(0);
 
-  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
     order.push_back(1);
     task1_semaphore.Signal();
   });
   std::unique_ptr<TestTask> task2 =
-      base::make_unique<TestTask>([&] { order.push_back(2); });
-  std::unique_ptr<TestTask> task3 = base::make_unique<TestTask>([&] {
+      std::make_unique<TestTask>([&] { order.push_back(2); });
+  std::unique_ptr<TestTask> task3 = std::make_unique<TestTask>([&] {
     order.push_back(3);
     task3_semaphore.Signal();
   });
@@ -181,15 +181,15 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, PostDelayedTaskOrder2) {
   base::Semaphore task2_semaphore(0);
   base::Semaphore task3_semaphore(0);
 
-  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
     order.push_back(1);
     task1_semaphore.Signal();
   });
-  std::unique_ptr<TestTask> task2 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task2 = std::make_unique<TestTask>([&] {
     order.push_back(2);
     task2_semaphore.Signal();
   });
-  std::unique_ptr<TestTask> task3 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task3 = std::make_unique<TestTask>([&] {
     order.push_back(3);
     task3_semaphore.Signal();
   });
@@ -230,15 +230,15 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, PostAfterTerminate) {
   base::Semaphore task2_semaphore(0);
   base::Semaphore task3_semaphore(0);
 
-  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
     order.push_back(1);
     task1_semaphore.Signal();
   });
-  std::unique_ptr<TestTask> task2 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task2 = std::make_unique<TestTask>([&] {
     order.push_back(2);
     task2_semaphore.Signal();
   });
-  std::unique_ptr<TestTask> task3 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task3 = std::make_unique<TestTask>([&] {
     order.push_back(3);
     task3_semaphore.Signal();
   });
@@ -281,7 +281,7 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, RunsTasksOnCurrentThread) {
 
   EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
 
-  std::unique_ptr<TestTask> task1 = base::make_unique<TestTask>([&] {
+  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
     EXPECT_TRUE(runner.RunsTasksOnCurrentThread());
     semaphore.Signal();
   });

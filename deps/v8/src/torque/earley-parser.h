@@ -6,6 +6,7 @@
 #define V8_TORQUE_EARLEY_PARSER_H_
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/base/optional.h"
@@ -82,6 +83,7 @@ enum class ParseResultHolderBase::TypeId {
   kTypeswitchCase,
   kStdVectorOfTypeswitchCase,
   kStdVectorOfIdentifierPtr,
+  kOptionalClassBody,
 
   kJsonValue,
   kJsonMember,
@@ -248,7 +250,7 @@ class Symbol {
   size_t rule_number() const { return rules_.size(); }
 
   void AddRule(const Rule& rule) {
-    rules_.push_back(base::make_unique<Rule>(rule));
+    rules_.push_back(std::make_unique<Rule>(rule));
     rules_.back()->SetLeftHandSide(this);
   }
 

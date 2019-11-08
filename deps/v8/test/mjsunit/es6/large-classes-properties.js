@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// This gets very slow with stress flags, and triggers optimization anyway:
+// Flags: --nostress-opt --noalways-opt
 
 (function testLargeClassesProperties(){
   // This is to test for dictionary mode when there more than

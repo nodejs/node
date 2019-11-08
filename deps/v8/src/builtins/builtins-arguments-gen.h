@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
+// TODO(v8:9396): these declarations pollute the v8::internal scope.
 using CodeAssemblerState = compiler::CodeAssemblerState;
 using CodeAssemblerLabel = compiler::CodeAssemblerLabel;
 
@@ -19,19 +19,25 @@ class ArgumentsBuiltinsAssembler : public CodeStubAssembler {
   explicit ArgumentsBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* EmitFastNewStrictArguments(Node* context, Node* function);
-  Node* EmitFastNewSloppyArguments(Node* context, Node* function);
-  Node* EmitFastNewRestParameter(Node* context, Node* function);
+  TNode<JSObject> EmitFastNewStrictArguments(TNode<Context> context,
+                                             TNode<JSFunction> function);
+  TNode<JSObject> EmitFastNewSloppyArguments(TNode<Context> context,
+                                             TNode<JSFunction> function);
+  TNode<JSObject> EmitFastNewRestParameter(TNode<Context> context,
+                                           TNode<JSFunction> function);
 
  private:
+  struct ArgumentsAllocationResult {
+    TNode<JSObject> arguments_object;
+    TNode<FixedArray> elements;
+    TNode<FixedArray> parameter_map;
+  };
   // Allocates an an arguments (either rest, strict or sloppy) together with the
   // FixedArray elements for the arguments and a parameter map (for sloppy
-  // arguments only). A tuple is returned with pointers to the arguments object,
-  // the elements and parameter map in the form:
-  // <argument object, arguments FixedArray, parameter map or nullptr>
-  std::tuple<Node*, Node*, Node*> AllocateArgumentsObject(
-      Node* map, Node* arguments, Node* mapped_arguments,
-      ParameterMode param_mode, int base_size);
+  // arguments only, or empty TNode<> otherwise).
+  ArgumentsAllocationResult AllocateArgumentsObject(
+      TNode<Map> map, TNode<BInt> arguments, TNode<BInt> mapped_arguments,
+      int base_size);
 
   // For Rest parameters and Strict arguments, the copying of parameters from
   // the stack into the arguments object is straight-forward and shares much of
@@ -40,11 +46,9 @@ class ArgumentsBuiltinsAssembler : public CodeStubAssembler {
   // and then copies |rest_count| arguments from the stack frame pointed to by
   // |frame_ptr| starting from |first_arg|. |arg_count| == |first_arg| +
   // |rest_count|.
-  Node* ConstructParametersObjectFromArgs(Node* map, Node* frame_ptr,
-                                          Node* arg_count, Node* first_arg,
-                                          Node* rest_count,
-                                          ParameterMode param_mode,
-                                          int base_size);
+  TNode<JSObject> ConstructParametersObjectFromArgs(
+      TNode<Map> map, TNode<RawPtrT> frame_ptr, TNode<BInt> arg_count,
+      TNode<BInt> first_arg, TNode<BInt> rest_count, int base_size);
 };
 
 }  // namespace internal

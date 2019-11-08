@@ -17,7 +17,7 @@ namespace internal {
 
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-    Handle<Object> options_obj) {
+    Handle<Object> options_obj, const char* service) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -31,15 +31,14 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   if (options_obj->IsUndefined(isolate)) {
     options = factory->NewJSObjectWithNullProto();
   } else {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, options,
-        Object::ToObject(isolate, options_obj, "Intl.JSV8BreakIterator"),
-        JSV8BreakIterator);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                               Object::ToObject(isolate, options_obj, service),
+                               JSV8BreakIterator);
   }
 
   // Extract locale string
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.JSV8BreakIterator");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSV8BreakIterator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -49,7 +48,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
 
   // Extract type from options
   Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
-      isolate, options, "type", "Intl.v8BreakIterator",
+      isolate, options, "type", service,
       {"word", "character", "sentence", "line"},
       {Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE}, Type::WORD);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSV8BreakIterator>());

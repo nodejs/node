@@ -250,12 +250,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
   void BuildThrowIfHole(Variable* variable);
 
-  // Build jump to targets[value], where
-  // start_index <= value < start_index + size.
-  void BuildIndexedJump(
-      Register value, size_t start_index, size_t size,
-      ZoneVector<BytecodeLabel>& targets);  // NOLINT(runtime/references)
-
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();
   void BuildNewLocalBlockContext(Scope* scope);
@@ -307,10 +301,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
-  void BuildPrivateBrandCheck(Property* property, Register object);
+  void BuildPrivateBrandCheck(Property* property, Register object,
+                              MessageTemplate tmpl);
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
+  void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
+                           Register home_object);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);

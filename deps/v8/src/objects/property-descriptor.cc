@@ -58,7 +58,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   if (map.is_dictionary_map()) return false;
   Handle<DescriptorArray> descs =
       Handle<DescriptorArray>(map.instance_descriptors(), isolate);
-  for (int i = 0; i < map.NumberOfOwnDescriptors(); i++) {
+  for (InternalIndex i : map.IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Name key = descs->GetKey(i);
     Handle<Object> value;

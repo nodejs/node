@@ -20,9 +20,6 @@ function help() {
   print("      e.g. !jlh(\"key\") or !jlh(\"this->receiver_\")");
   print("  !job(address_or_taggedint)");
   print("      prints object at the address, e.g. !job(0x235cb869f9)");
-  print("  !jobs(start_address, count)");
-  print("      prints 'count' objects from a continuous range of Object");
-  print("      pointers, e.g. !jobs(0x5f7270, 42)");
   print("  !jst() or !jst");
   print("      prints javascript stack (output goes into the console)");
   print("  !jsbp() or !jsbp");
@@ -53,6 +50,11 @@ function help() {
   print("  !where(address)");
   print("      prints name of the space and address of the MemoryChunk the");
   print("      'address' is from, e.g. !where(0x235cb869f9)");
+  print("  !rs(chunk_address, set_id = 0)");
+  print("      prints slots from the remembered set in the MemoryChunk. If");
+  print("      'chunk_address' isn't specified, prints for all chunks in the");
+  print("      old space; 'set_id' should match RememberedSetType enum,");
+  print("      e.g. !rs, !rs 0x2fb14780000, !rs(0x2fb14780000, 1)");
   print("");
 
   print("--------------------------------------------------------------------");
@@ -114,14 +116,6 @@ function print(s) {
   host.diagnostics.debugLog(s + "\n");
 }
 
-function print_filtered(obj, filter) {
-  for (let line of obj) {
-    if (!filter || line.indexOf(filter) != -1) {
-      print(line);
-    }
-  }
-}
-
 function inspect(s) {
   for (let k of Reflect.ownKeys(s)) {
     // Attempting to print either of:
@@ -140,10 +134,23 @@ function hex(number) {
 /*=============================================================================
   Utils (postmortem and live)
 =============================================================================*/
-// WinDbg wraps large integers into objects that fail isInteger test (and,
-// consequently fail isSafeInteger test even if the original value was a safe
-// integer). I cannot figure out how to extract the original value from the
-// wrapper object so doing it via conversion to a string. Brrr. Ugly.
+// WinDbg wraps large integers (0x80000000+) into an object of library type that
+// fails isInteger test (and, consequently fail isSafeInteger test even if the
+// original value was a safe integer).
+// However, that library type does have a set of methods on it which you can use
+// to force conversion:
+// .asNumber() / .valueOf(): Performs conversion to JavaScript number.
+// Throws if the ordinal part of the 64-bit number does not pack into JavaScript
+// number without loss of precision.
+// .convertToNumber(): Performs conversion to JavaScript number.
+// Does NOT throw if the ordinal part of the 64-bit number does not pack into
+// JavaScript number. This will simply result in loss of precision.
+// The library will also add these methods to the prototype for the standard
+// number prototype. Meaning you can always .asNumber() / .convertToNumber() to
+// get either JavaScript number or the private Int64 type into a JavaScript
+// number.
+// We could use the conversion functions but it seems that doing the conversion
+// via toString is just as good and slightly more generic...
 function int(val) {
   if (typeof val === 'number') {
     return Number.isInteger(val) ? val : undefined;
@@ -192,6 +199,26 @@ function get_register(name) {
          .Registers.User[name];
 }
 
+// JS doesn't do bitwise operations on large integers, so let's do it ourselves
+// using hex string representation.
+function bitwise_and(l, r) {
+  l = hex(l);
+  let l_length = l.length;
+  r = hex(r);
+  let r_length = r.length;
+  let res = "";
+  let length = Math.min(l_length, r_length) - 2;  // to account for "0x"
+  for (let i = 1; i <= length; i++) {
+    res = (parseInt(l[l_length - i], 16) & parseInt(r[r_length - i], 16))
+          .toString(16) + res;
+  }
+  return parseInt(res, 16);
+}
+
+
+/*=============================================================================
+  Script setup
+=============================================================================*/
 // In debug builds v8 code is compiled into v8.dll, and in release builds
 // the code is compiled directly into the executable. If you are debugging some
 // other embedder, run !set_module and provide the module name to use.
@@ -209,8 +236,17 @@ function module_name(use_this_module) {
                  return m.Name.indexOf("\\v8.dll") !== -1;
                 });
 
-    if (v8)  {
+    let v8_test = host.namespace.Debugger.State.DebuggerVariables.curprocess
+                  .Modules.Where(
+                      function(m) {
+                      return m.Name.indexOf("\\v8_for_testing.dll") !== -1;
+                      });
+
+    if (v8.Count() > 0) {
       module_name_cache = "v8";
+    }
+    else if (v8_test.Count() > 0) {
+      module_name_cache = "v8_for_testing";
     }
     else {
       for (let exe_name in known_exes) {
@@ -219,7 +255,7 @@ function module_name(use_this_module) {
                     function(m) {
                       return m.Name.indexOf(`\\${exe_name}.exe`) !== -1;
                     });
-        if (exe) {
+        if (exe.Count() > 0) {
             module_name_cache = exe_name;
             break;
         }
@@ -234,6 +270,25 @@ function module_name(use_this_module) {
   return module_name_cache;
 };
 
+let using_ptr_compr = false;
+let isolate_address = 0;
+function set_isolate_address(addr, ptr_compr) {
+  isolate_address = addr;
+
+  if (typeof ptr_compr === 'undefined') {
+    ptr_compr = (bitwise_and(isolate_address, 0xffffffff) == 0);
+  }
+  using_ptr_compr = ptr_compr;
+
+  if (using_ptr_compr) {
+    print("The target is using pointer compression.");
+  }
+}
+
+
+/*=============================================================================
+  Wrappers around V8's printing functions and other utils for live-debugging
+=============================================================================*/
 function make_call(fn) {
   if (!supports_call_command()) {
     print("ERROR: This command is supported in live sessions only!");
@@ -249,16 +304,8 @@ function make_call(fn) {
   return output;
 }
 
-
-/*=============================================================================
-  Wrappers around V8's printing functions and other utils for live-debugging
-=============================================================================*/
-
-/*-----------------------------------------------------------------------------
-  'address' should be an int (so in hex must include '0x' prefix).
------------------------------------------------------------------------------*/
 function print_object(address) {
-  let output = make_call(`_v8_internal_Print_Object(${address})`);
+  let output = make_call(`_v8_internal_Print_Object(${decomp(address)})`);
 
   // skip the first few lines with meta info of .call command
   let skip_line = true;
@@ -273,41 +320,11 @@ function print_object(address) {
   }
 }
 
-/*-----------------------------------------------------------------------------
-  'handle_to_object' should be a name of a Handle which can be a local
-  variable or it can be a member variable like "this->receiver_".
------------------------------------------------------------------------------*/
 function print_object_from_handle(handle_to_object) {
   let handle = host.evaluateExpression(handle_to_object);
   let location = handle.location_;
-  let pobj = poi(location.address);
+  let pobj = poi(location.address);  // handles use uncompressed pointers
   print_object(pobj);
-}
-
-/*-----------------------------------------------------------------------------
-  'start_address' should be an int (so in hex must include '0x' prefix), it can
-  point at any continuous memory that contains Object pointers.
------------------------------------------------------------------------------*/
-function print_objects_array(start_address, count) {
-  const ptr_size = pointer_size();
-  let ctl = host.namespace.Debugger.Utility.Control;
-  let addr_int = start_address;
-  for (let i = 0; i < count; i++) {
-    const addr_hex = hex(addr_int);
-
-    // TODO: Tried using createPointerObject but it throws unknown exception
-    // from ChakraCore. Why?
-    //let obj = host.createPointerObject(addr_hex, module, "void*");
-
-    let output = ctl.ExecuteCommand(`dp ${addr_hex} l1`);
-    let item = "";
-    for (item of output) {} // 005f7270  34604101
-    let deref = `0x${item.split(" ").pop()}`;
-    print(`${addr_hex} -> ${deref}`);
-    print_object(deref);
-
-    addr_int += ptr_size;
-  }
 }
 
 function print_js_stack() {
@@ -323,21 +340,47 @@ function set_user_js_bp() {
 /*=============================================================================
   Managed heap related functions (live and post-mortem debugging)
 =============================================================================*/
-let isolate_address = 0;
-function set_isolate_address(addr) {
-  isolate_address = addr;
+/*-----------------------------------------------------------------------------
+    Pointer compression
+-----------------------------------------------------------------------------*/
+function tagged_size() {
+  return using_ptr_compr ? 4 : pointer_size();
 }
 
+function get_compressed_ptr_base() {
+  if (!using_ptr_compr) return 0;
+
+  return isolate_address;
+}
+
+function decomp(value) {
+  if (value > 0xffffffff) return value;
+  return get_compressed_ptr_base() + value;
+}
+
+// Adjust for possible pointer compression ('address' is assumed to be on the
+// managed heap).
+function poim(address) {
+  try {
+    // readMemoryValues throws if cannot read from 'address'.
+    return host.memory.readMemoryValues(decomp(address), 1, tagged_size())[0];
+  }
+  catch (e){}
+}
+
+/*-----------------------------------------------------------------------------
+    Exploring objects
+-----------------------------------------------------------------------------*/
 function is_map(addr) {
   let address = int(addr);
   if (!Number.isSafeInteger(address) || address % 2 == 0) return false;
 
   // the first field in all objects, including maps, is a map pointer, but for
   // maps the pointer is always the same - the meta map that points to itself.
-  const map_addr = int(poi(address - 1));
+  const map_addr = int(poim(address - 1));
   if (!Number.isSafeInteger(map_addr)) return false;
 
-  const map_map_addr = int(poi(map_addr - 1));
+  const map_map_addr = int(poim(map_addr - 1));
   if (!Number.isSafeInteger(map_map_addr)) return false;
 
   return (map_addr === map_map_addr);
@@ -348,12 +391,12 @@ function is_likely_object(addr) {
   if (!Number.isSafeInteger(address) || address % 2 == 0) return false;
 
   // the first field in all objects must be a map pointer
-  return is_map(poi(address - 1));
+  return is_map(poim(address - 1));
 }
 
 function find_object_near(aligned_addr, max_distance, step_op) {
   if (!step_op) {
-    const step = pointer_size();
+    const step = tagged_size();
     const prev =
       find_object_near(aligned_addr, max_distance, x => x - step);
     const next =
@@ -364,14 +407,14 @@ function find_object_near(aligned_addr, max_distance, step_op) {
     return (addr - prev <= next - addr) ? prev : next;
   }
 
-  let maybe_map_addr = poi(aligned_addr);
+  let maybe_map_addr = poim(aligned_addr);
   let iters = 0;
   while (maybe_map_addr && iters < max_distance) {
     if (is_map(maybe_map_addr)) {
       return aligned_addr;
     }
     aligned_addr = step_op(aligned_addr);
-    maybe_map_addr = poi(aligned_addr);
+    maybe_map_addr = poim(aligned_addr);
     iters++;
   }
 }
@@ -379,7 +422,7 @@ function find_object_near(aligned_addr, max_distance, step_op) {
 function find_object_prev(addr, max_distance) {
   if (!Number.isSafeInteger(int(addr))) return;
 
-  const ptr_size = pointer_size();
+  const ptr_size = tagged_size();
   const aligned_addr = addr - (addr % ptr_size);
   return find_object_near(aligned_addr, max_distance, x => x - ptr_size);
 }
@@ -387,7 +430,7 @@ function find_object_prev(addr, max_distance) {
 function find_object_next(addr, max_distance) {
   if (!Number.isSafeInteger(int(addr))) return;
 
-  const ptr_size = pointer_size();
+  const ptr_size = tagged_size();
   const aligned_addr = addr - (addr % ptr_size) + ptr_size;
   return find_object_near(aligned_addr, max_distance, x => x + ptr_size);
 }
@@ -400,7 +443,7 @@ function print_object_prev(addr, max_slots = 100) {
   }
   else {
     print(
-      `found object: ${hex(obj_addr + 1)} : ${hex(poi(obj_addr))}`);
+      `found object: ${hex(obj_addr + 1)} : ${hex(poim(obj_addr))}`);
   }
 }
 
@@ -412,7 +455,7 @@ function print_object_next(addr, max_slots = 100) {
   }
   else {
     print(
-      `found object: ${hex(obj_addr + 1)} : ${hex(poi(obj_addr))}`);
+      `found object: ${hex(obj_addr + 1)} : ${hex(poim(obj_addr))}`);
   }
 }
 
@@ -422,10 +465,11 @@ function print_objects_in_range(start, end){
   if (!Number.isSafeInteger(int(start)) || !Number.isSafeInteger(int(end))) {
     return;
   }
-
   const ptr_size = pointer_size();
+  if (start < ptr_size || end <= start) return;
+
   let iters = (end - start) / ptr_size;
-  let cur = start;
+  let cur = start - ptr_size;
   print(`===============================================`);
   print(`objects in range ${hex(start)} - ${hex(end)}`);
   print(`===============================================`);
@@ -434,7 +478,7 @@ function print_objects_in_range(start, end){
     let obj = find_object_next(cur, iters);
     if (obj) {
       count++;
-      print(`${hex(obj + 1)} : ${hex(poi(obj))}`);
+      print(`${hex(obj + 1)} : ${hex(poim(obj))}`);
       iters  = (end - cur) / ptr_size;
     }
     cur = obj + ptr_size;
@@ -454,10 +498,10 @@ function print_objects_tree(root, depth_limit) {
   let path = [];
 
   function impl(obj, depth, depth_limit) {
-    const ptr_size = pointer_size();
+    const ptr_size = tagged_size();
     // print the current object and its map pointer
     const this_obj =
-      `${" ".repeat(2 * depth)}${hex(obj)} : ${hex(poi(obj - 1))}`;
+      `${" ".repeat(2 * depth)}${hex(obj)} : ${hex(poim(obj - 1))}`;
     const cutoff = depth_limit && depth == depth_limit - 1;
     print(`${this_obj}${cutoff ? " (...)" : ""}`);
     if (cutoff) return;
@@ -472,7 +516,7 @@ function print_objects_tree(root, depth_limit) {
     let seen = new Set(path);
     while (!is_likely_object(cur + 1) && iter < 100) {
       iter++;
-      let field = poi(cur);
+      let field = poim(cur);
       if (is_likely_object(field)) {
         if (seen.has(field)) {
           print(
@@ -491,7 +535,7 @@ function print_objects_tree(root, depth_limit) {
 }
 
 /*-----------------------------------------------------------------------------
-    Memory in each Space is organized into a linked list of memory chunks
+    Memory spaces
 -----------------------------------------------------------------------------*/
 const NEVER_EVACUATE = 1 << 7; // see src\heap\spaces.h
 
@@ -564,12 +608,6 @@ function find_chunk(address) {
   return undefined;
 }
 
-/*-----------------------------------------------------------------------------
-    Print memory chunks from spaces in the current Heap
-      'isolate_address' should be an int (so in hex must include '0x' prefix).
-      'space': space separated string containing "all", "old", "new", "map",
-               "code", "ro [readonly]", "lo [large]", "nlo [newlarge]"
------------------------------------------------------------------------------*/
 function print_memory(space = "all") {
   if (isolate_address == 0) {
     print("Please call !set_iso(isolate_address) first.");
@@ -622,16 +660,13 @@ function print_memory(space = "all") {
   }
 }
 
-/*-----------------------------------------------------------------------------
-    'isolate_address' and 'address' should be ints (so in hex must include '0x'
-    prefix).
------------------------------------------------------------------------------*/
 function print_owning_space(address) {
   if (isolate_address == 0) {
     print("Please call !set_iso(isolate_address) first.");
     return;
   }
 
+  address = decomp(address);
   let c = find_chunk(address);
   if (c) {
       print(`${hex(address)} is in ${c.space} (chunk: ${hex(c.address)})`);
@@ -642,7 +677,7 @@ function print_owning_space(address) {
 }
 
 /*-----------------------------------------------------------------------------
-
+    Handles
 -----------------------------------------------------------------------------*/
 function print_handles_data(print_handles = false) {
   if (isolate_address == 0) {
@@ -705,6 +740,9 @@ function print_handles_data(print_handles = false) {
   }
 }
 
+/*-----------------------------------------------------------------------------
+    dp
+-----------------------------------------------------------------------------*/
 function pad_right(addr) {
   let addr_hex = hex(addr);
   return `${addr_hex}${" ".repeat(pointer_size() * 2 + 2 - addr_hex.length)}`;
@@ -721,25 +759,108 @@ function dp(addr, count = 10) {
     return;
   }
 
-  const ptr_size = pointer_size();
+  const ptr_size = tagged_size();
   let aligned_addr = addr - (addr % ptr_size);
-  let val = poi(aligned_addr);
+  let val = poim(aligned_addr);
   let iter = 0;
   while (val && iter < count) {
-    const augm_map = is_map(val) ? "map" : "";
-    const augm_obj = is_likely_object(val) && !is_map(val) ? "obj" : "";
-    const augm_other = !is_map(val) && !is_likely_object(val) ? "val" : "";
-    let c = find_chunk(val);
+    const map = is_map(val);
+    const obj = is_likely_object(val) && !map;
+
+    const augm_map = map ? "map" : "";
+    const augm_obj = obj ? "obj" : "";
+    const augm_other = !map && !obj ? "val" : "";
+
+    let c = find_chunk(decomp(val));
     const augm_space = c ? ` in ${c.space}` : "";
     const augm = `${augm_map}${augm_obj}${augm_other}${augm_space}`;
 
-    print(`${pad_right(aligned_addr)} ${pad_right(val)}   ${augm}`);
+    const full_ptr = using_ptr_compr ?
+        pad_right((map || obj) ? decomp(val) : val) : "";
+    print(`${pad_right(aligned_addr)} ${pad_right(val)} ${full_ptr}   ${augm}`);
 
     aligned_addr += ptr_size;
-    val = poi(aligned_addr);
+    val = poim(aligned_addr);
     iter++;
   }
 }
+
+/*-----------------------------------------------------------------------------
+    Remembered Sets
+-----------------------------------------------------------------------------*/
+// set ids: 0 = OLD_TO_NEW, 1 = 0 = OLD_TO_OLD
+function print_remembered_set(chunk_addr, set_id = 0) {
+  if (!chunk_addr) {
+    if (isolate_address == 0) {
+      print("Please call !set_iso(isolate_address) or provide chunk address.");
+      return;
+    }
+
+    let iso = cast(isolate_address, "v8::internal::Isolate");
+    let h = iso.heap_;
+    let chunks = [];
+    get_chunks_space('old', h.old_space_.memory_chunk_list_.front_, chunks);
+    get_chunks_space('lo', h.lo_space_.memory_chunk_list_.front_, chunks);
+    for (let c of chunks) {
+      try {
+        print_remembered_set(c.address);
+      }
+      catch (e) {
+        print(`failed to process chunk ${hex(c.address)} due to ${e.message}`);
+      }
+    }
+    return;
+  }
+
+  print(`Remembered set in chunk ${hex(chunk_addr)}`);
+  let chunk = cast(chunk_addr, "v8::internal::MemoryChunk");
+
+  // chunk.slot_set_ is an array of SlotSet's. For standard pages there is 0 or
+  // 1 item in the array, but for large pages there will be more.
+  const page_size = 256 * 1024;
+  const sets_count = Math.floor((chunk.size_ + page_size - 1) / page_size);
+  let rs = chunk.slot_set_[set_id];
+  if (rs.isNull) {
+    print(`  <empty>`);
+    return;
+  }
+  if (rs[0].page_start_ != chunk_addr) {
+    print(`page_start_ [${hex(rs.page_start_)}] doesn't match chunk_addr!`);
+    return;
+  }
+
+  const ptr_size = tagged_size();
+  let count = 0;
+  for (let s = 0; s < sets_count; s++){
+    const buckets_count = rs[s].buckets_.Count();
+    for (let b = 0; b < buckets_count; b++) {
+      let bucket = rs[s].buckets_[b];
+      if (bucket.isNull) continue;
+      // there are 32 cells in each bucket, cell's size is 32 bits
+      print(`  bucket ${hex(bucket.address.asNumber())}:`);
+      const first_cell = bucket.address.asNumber();
+      for (let c = 0; c < 32; c++) {
+        let cell = host.memory.readMemoryValues(
+          first_cell + c * 4, 1, 4 /*size to read*/)[0];
+        if (cell == 0) continue;
+        let mask = 1;
+        for (let bit = 0; bit < 32; bit++){
+          if (cell & mask) {
+            count++;
+            const slot_offset = (b * 32 * 32 + c * 32 + bit) * ptr_size;
+            const slot = rs[s].page_start_ + slot_offset;
+            print(`    ${hex(slot)} -> ${hex(poim(slot))}`);
+          }
+          mask = mask << 1;
+        }
+      }
+    }
+  }
+
+  if (count == 0) print(`  <empty>`);
+  else print(`  ${count} remembered pointers in chunk ${hex(chunk_addr)}`);
+}
+
 
 /*=============================================================================
   Initialize short aliased names for the most common commands
@@ -749,7 +870,6 @@ function initializeScript() {
       new host.functionAlias(help, "help"),
       new host.functionAlias(print_object_from_handle, "jlh"),
       new host.functionAlias(print_object, "job"),
-      new host.functionAlias(print_objects_array, "jobs"),
       new host.functionAlias(print_js_stack, "jst"),
 
       new host.functionAlias(set_isolate_address, "set_iso"),
@@ -757,6 +877,7 @@ function initializeScript() {
       new host.functionAlias(print_memory, "mem"),
       new host.functionAlias(print_owning_space, "where"),
       new host.functionAlias(print_handles_data, "handles"),
+      new host.functionAlias(print_remembered_set, "rs"),
 
       new host.functionAlias(print_object_prev, "jo_prev"),
       new host.functionAlias(print_object_next, "jo_next"),

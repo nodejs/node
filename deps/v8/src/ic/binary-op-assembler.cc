@@ -9,21 +9,19 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
-Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
-                                                  Node* rhs, Node* slot_id,
-                                                  Node* feedback_vector,
-                                                  bool rhs_is_smi) {
+TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
+    TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
   // Shared entry for floating point addition.
   Label do_fadd(this), if_lhsisnotnumber(this, Label::kDeferred),
       check_rhsisoddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
       call_add_stub(this), end(this), bigint(this, Label::kDeferred);
-  VARIABLE(var_fadd_lhs, MachineRepresentation::kFloat64);
-  VARIABLE(var_fadd_rhs, MachineRepresentation::kFloat64);
-  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Float64T, var_fadd_lhs);
+  TVARIABLE(Float64T, var_fadd_rhs);
+  TVARIABLE(Smi, var_type_feedback);
+  TVARIABLE(Object, var_result);
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(this);
@@ -32,13 +30,14 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   // both Smi and Number operations, so this path should not be marked as
   // Deferred.
   Label if_lhsisnotsmi(this,
-                       rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                       rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
   Branch(TaggedIsNotSmi(lhs), &if_lhsisnotsmi, &if_lhsissmi);
 
   BIND(&if_lhsissmi);
   {
     Comment("lhs is Smi");
-    if (!rhs_is_smi) {
+    TNode<Smi> lhs_smi = CAST(lhs);
+    if (!rhs_known_smi) {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -46,10 +45,11 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       BIND(&if_rhsisnotsmi);
       {
         // Check if the {rhs} is a HeapNumber.
-        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+        TNode<HeapObject> rhs_heap_object = CAST(rhs);
+        GotoIfNot(IsHeapNumber(rhs_heap_object), &check_rhsisoddball);
 
-        var_fadd_lhs.Bind(SmiToFloat64(lhs));
-        var_fadd_rhs.Bind(LoadHeapNumberValue(rhs));
+        var_fadd_lhs = SmiToFloat64(lhs_smi);
+        var_fadd_rhs = LoadHeapNumberValue(rhs_heap_object);
         Goto(&do_fadd);
       }
 
@@ -62,21 +62,21 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       // is for AddSmi operation. For the normal Add operation, we want to fast
       // path both Smi and Number operations, so this path should not be marked
       // as Deferred.
+      TNode<Smi> rhs_smi = CAST(rhs);
       Label if_overflow(this,
-                        rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
-      TNode<Smi> smi_result = TrySmiAdd(CAST(lhs), CAST(rhs), &if_overflow);
+                        rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
+      TNode<Smi> smi_result = TrySmiAdd(lhs_smi, rhs_smi, &if_overflow);
       // Not overflowed.
       {
-        var_type_feedback.Bind(
-            SmiConstant(BinaryOperationFeedback::kSignedSmall));
-        var_result.Bind(smi_result);
+        var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
+        var_result = smi_result;
         Goto(&end);
       }
 
       BIND(&if_overflow);
       {
-        var_fadd_lhs.Bind(SmiToFloat64(lhs));
-        var_fadd_rhs.Bind(SmiToFloat64(rhs));
+        var_fadd_lhs = SmiToFloat64(lhs_smi);
+        var_fadd_rhs = SmiToFloat64(rhs_smi);
         Goto(&do_fadd);
       }
     }
@@ -85,9 +85,10 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   BIND(&if_lhsisnotsmi);
   {
     // Check if {lhs} is a HeapNumber.
-    GotoIfNot(IsHeapNumber(lhs), &if_lhsisnotnumber);
+    TNode<HeapObject> lhs_heap_object = CAST(lhs);
+    GotoIfNot(IsHeapNumber(lhs_heap_object), &if_lhsisnotnumber);
 
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -95,29 +96,30 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       BIND(&if_rhsisnotsmi);
       {
         // Check if the {rhs} is a HeapNumber.
-        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+        TNode<HeapObject> rhs_heap_object = CAST(rhs);
+        GotoIfNot(IsHeapNumber(rhs_heap_object), &check_rhsisoddball);
 
-        var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
-        var_fadd_rhs.Bind(LoadHeapNumberValue(rhs));
+        var_fadd_lhs = LoadHeapNumberValue(lhs_heap_object);
+        var_fadd_rhs = LoadHeapNumberValue(rhs_heap_object);
         Goto(&do_fadd);
       }
 
       BIND(&if_rhsissmi);
     }
     {
-      var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
-      var_fadd_rhs.Bind(SmiToFloat64(rhs));
+      var_fadd_lhs = LoadHeapNumberValue(lhs_heap_object);
+      var_fadd_rhs = SmiToFloat64(CAST(rhs));
       Goto(&do_fadd);
     }
   }
 
   BIND(&do_fadd);
   {
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
     TNode<Float64T> value =
         Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
     TNode<HeapNumber> result = AllocateHeapNumberWithValue(value);
-    var_result.Bind(result);
+    var_result = result;
     Goto(&end);
   }
 
@@ -125,7 +127,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
     Label if_lhsisoddball(this), if_lhsisnotoddball(this);
-    TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
+    TNode<Uint16T> lhs_instance_type = LoadInstanceType(CAST(lhs));
     TNode<BoolT> lhs_is_oddball =
         InstanceTypeEqual(lhs_instance_type, ODDBALL_TYPE);
     Branch(lhs_is_oddball, &if_lhsisoddball, &if_lhsisnotoddball);
@@ -135,39 +137,40 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       GotoIf(TaggedIsSmi(rhs), &call_with_oddball_feedback);
 
       // Check if {rhs} is a HeapNumber.
-      Branch(IsHeapNumber(rhs), &call_with_oddball_feedback,
+      Branch(IsHeapNumber(CAST(rhs)), &call_with_oddball_feedback,
              &check_rhsisoddball);
     }
 
     BIND(&if_lhsisnotoddball);
     {
+      // Check if the {rhs} is a smi, and exit the string and bigint check early
+      // if it is.
+      GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
+      TNode<HeapObject> rhs_heap_object = CAST(rhs);
+
       Label lhs_is_string(this), lhs_is_bigint(this);
       GotoIf(IsStringInstanceType(lhs_instance_type), &lhs_is_string);
       GotoIf(IsBigIntInstanceType(lhs_instance_type), &lhs_is_bigint);
       Goto(&call_with_any_feedback);
 
       BIND(&lhs_is_bigint);
-      {
-        GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
-        Branch(IsBigInt(rhs), &bigint, &call_with_any_feedback);
-      }
+      Branch(IsBigInt(rhs_heap_object), &bigint, &call_with_any_feedback);
 
       BIND(&lhs_is_string);
-      // Check if the {rhs} is a smi, and exit the string check early if it is.
-      GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
+      {
+        TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs_heap_object);
 
-      TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
+        // Exit unless {rhs} is a string. Since {lhs} is a string we no longer
+        // need an Oddball check.
+        GotoIfNot(IsStringInstanceType(rhs_instance_type),
+                  &call_with_any_feedback);
 
-      // Exit unless {rhs} is a string. Since {lhs} is a string we no longer
-      // need an Oddball check.
-      GotoIfNot(IsStringInstanceType(rhs_instance_type),
-                &call_with_any_feedback);
+        var_type_feedback = SmiConstant(BinaryOperationFeedback::kString);
+        var_result =
+            CallBuiltin(Builtins::kStringAdd_CheckNone, context, lhs, rhs);
 
-      var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kString));
-      var_result.Bind(
-          CallBuiltin(Builtins::kStringAdd_CheckNone, context, lhs, rhs));
-
-      Goto(&end);
+        Goto(&end);
+      }
     }
   }
 
@@ -175,7 +178,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   {
     // Check if rhs is an oddball. At this point we know lhs is either a
     // Smi or number or oddball and rhs is not a number or Smi.
-    TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
+    TNode<Uint16T> rhs_instance_type = LoadInstanceType(CAST(rhs));
     TNode<BoolT> rhs_is_oddball =
         InstanceTypeEqual(rhs_instance_type, ODDBALL_TYPE);
     GotoIf(rhs_is_oddball, &call_with_oddball_feedback);
@@ -186,59 +189,58 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   {
     // Both {lhs} and {rhs} are of BigInt type.
     Label bigint_too_big(this);
-    var_result.Bind(
-        CallBuiltin(Builtins::kBigIntAddNoThrow, context, lhs, rhs));
+    var_result = CallBuiltin(Builtins::kBigIntAddNoThrow, context, lhs, rhs);
     // Check for sentinel that signals BigIntTooBig exception.
     GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
 
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
     Goto(&end);
 
     BIND(&bigint_too_big);
     {
       // Update feedback to prevent deopt loop.
       UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                     feedback_vector, slot_id);
+                     maybe_feedback_vector, slot_id);
       ThrowRangeError(context, MessageTemplate::kBigIntTooBig);
     }
   }
 
   BIND(&call_with_oddball_feedback);
   {
-    var_type_feedback.Bind(
-        SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumberOrOddball);
     Goto(&call_add_stub);
   }
 
   BIND(&call_with_any_feedback);
   {
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kAny);
     Goto(&call_add_stub);
   }
 
   BIND(&call_add_stub);
   {
-    var_result.Bind(CallBuiltin(Builtins::kAdd, context, lhs, rhs));
+    var_result = CallBuiltin(Builtins::kAdd, context, lhs, rhs);
     Goto(&end);
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
   return var_result.value();
 }
 
-Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
-    Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,
+TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
+    TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
     const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-    Operation op, bool rhs_is_smi) {
+    Operation op, bool rhs_known_smi) {
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred),
       if_bigint(this, Label::kDeferred);
-  VARIABLE(var_float_lhs, MachineRepresentation::kFloat64);
-  VARIABLE(var_float_rhs, MachineRepresentation::kFloat64);
-  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Float64T, var_float_lhs);
+  TVARIABLE(Float64T, var_float_rhs);
+  TVARIABLE(Smi, var_type_feedback);
+  TVARIABLE(Object, var_result);
 
   Label if_lhsissmi(this);
   // If rhs is known to be an Smi (in the SubSmi, MulSmi, DivSmi, ModSmi
@@ -246,25 +248,28 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   // operation, we want to fast path both Smi and Number operations, so this
   // path should not be marked as Deferred.
   Label if_lhsisnotsmi(this,
-                       rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                       rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
   Branch(TaggedIsNotSmi(lhs), &if_lhsisnotsmi, &if_lhsissmi);
 
   // Check if the {lhs} is a Smi or a HeapObject.
   BIND(&if_lhsissmi);
   {
     Comment("lhs is Smi");
-    if (!rhs_is_smi) {
+    TNode<Smi> lhs_smi = CAST(lhs);
+    if (!rhs_known_smi) {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
       BIND(&if_rhsisnotsmi);
       {
         // Check if {rhs} is a HeapNumber.
-        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+        TNode<HeapObject> rhs_heap_object = CAST(rhs);
+        GotoIfNot(IsHeapNumber(rhs_heap_object), &check_rhsisoddball);
 
         // Perform a floating point operation.
-        var_float_lhs.Bind(SmiToFloat64(lhs));
-        var_float_rhs.Bind(LoadHeapNumberValue(rhs));
+        var_float_lhs = SmiToFloat64(lhs_smi);
+        var_float_rhs = LoadHeapNumberValue(rhs_heap_object);
         Goto(&do_float_operation);
       }
 
@@ -273,7 +278,7 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
     {
       Comment("perform smi operation");
-      var_result.Bind(smiOperation(lhs, rhs, &var_type_feedback));
+      var_result = smiOperation(lhs_smi, CAST(rhs), &var_type_feedback);
       Goto(&end);
     }
   }
@@ -282,9 +287,10 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   {
     Comment("lhs is not Smi");
     // Check if the {lhs} is a HeapNumber.
-    GotoIfNot(IsHeapNumber(lhs), &if_lhsisnotnumber);
+    TNode<HeapObject> lhs_heap_object = CAST(lhs);
+    GotoIfNot(IsHeapNumber(lhs_heap_object), &if_lhsisnotnumber);
 
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -292,11 +298,12 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
       BIND(&if_rhsisnotsmi);
       {
         // Check if the {rhs} is a HeapNumber.
-        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+        TNode<HeapObject> rhs_heap_object = CAST(rhs);
+        GotoIfNot(IsHeapNumber(rhs_heap_object), &check_rhsisoddball);
 
         // Perform a floating point operation.
-        var_float_lhs.Bind(LoadHeapNumberValue(lhs));
-        var_float_rhs.Bind(LoadHeapNumberValue(rhs));
+        var_float_lhs = LoadHeapNumberValue(lhs_heap_object);
+        var_float_rhs = LoadHeapNumberValue(rhs_heap_object);
         Goto(&do_float_operation);
       }
 
@@ -305,19 +312,19 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
     {
       // Perform floating point operation.
-      var_float_lhs.Bind(LoadHeapNumberValue(lhs));
-      var_float_rhs.Bind(SmiToFloat64(rhs));
+      var_float_lhs = LoadHeapNumberValue(lhs_heap_object);
+      var_float_rhs = SmiToFloat64(CAST(rhs));
       Goto(&do_float_operation);
     }
   }
 
   BIND(&do_float_operation);
   {
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
-    Node* lhs_value = var_float_lhs.value();
-    Node* rhs_value = var_float_rhs.value();
-    Node* value = floatOperation(lhs_value, rhs_value);
-    var_result.Bind(AllocateHeapNumberWithValue(value));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
+    TNode<Float64T> lhs_value = var_float_lhs.value();
+    TNode<Float64T> rhs_value = var_float_rhs.value();
+    TNode<Float64T> value = floatOperation(lhs_value, rhs_value);
+    var_result = AllocateHeapNumberWithValue(value);
     Goto(&end);
   }
 
@@ -325,7 +332,7 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
     Label if_left_bigint(this), if_left_oddball(this);
-    TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
+    TNode<Uint16T> lhs_instance_type = LoadInstanceType(CAST(lhs));
     GotoIf(IsBigIntInstanceType(lhs_instance_type), &if_left_bigint);
     TNode<BoolT> lhs_is_oddball =
         InstanceTypeEqual(lhs_instance_type, ODDBALL_TYPE);
@@ -338,18 +345,18 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
       BIND(&if_rhsissmi);
       {
-        var_type_feedback.Bind(
-            SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+        var_type_feedback =
+            SmiConstant(BinaryOperationFeedback::kNumberOrOddball);
         Goto(&call_stub);
       }
 
       BIND(&if_rhsisnotsmi);
       {
         // Check if {rhs} is a HeapNumber.
-        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+        GotoIfNot(IsHeapNumber(CAST(rhs)), &check_rhsisoddball);
 
-        var_type_feedback.Bind(
-            SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+        var_type_feedback =
+            SmiConstant(BinaryOperationFeedback::kNumberOrOddball);
         Goto(&call_stub);
       }
     }
@@ -357,7 +364,7 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     BIND(&if_left_bigint);
     {
       GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
-      Branch(IsBigInt(rhs), &if_bigint, &call_with_any_feedback);
+      Branch(IsBigInt(CAST(rhs)), &if_bigint, &call_with_any_feedback);
     }
   }
 
@@ -365,39 +372,38 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   {
     // Check if rhs is an oddball. At this point we know lhs is either a
     // Smi or number or oddball and rhs is not a number or Smi.
-    TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
+    TNode<Uint16T> rhs_instance_type = LoadInstanceType(CAST(rhs));
     GotoIf(IsBigIntInstanceType(rhs_instance_type), &if_bigint);
     TNode<BoolT> rhs_is_oddball =
         InstanceTypeEqual(rhs_instance_type, ODDBALL_TYPE);
     GotoIfNot(rhs_is_oddball, &call_with_any_feedback);
 
-    var_type_feedback.Bind(
-        SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumberOrOddball);
     Goto(&call_stub);
   }
 
   // This handles the case where at least one input is a BigInt.
   BIND(&if_bigint);
   {
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
     if (op == Operation::kAdd) {
-      var_result.Bind(CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs));
+      var_result = CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs);
     } else {
-      var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                  SmiConstant(op)));
+      var_result = CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
+                               SmiConstant(op));
     }
     Goto(&end);
   }
 
   BIND(&call_with_any_feedback);
   {
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kAny);
     Goto(&call_stub);
   }
 
   BIND(&call_stub);
   {
-    Node* result;
+    TNode<Object> result;
     switch (op) {
       case Operation::kSubtract:
         result = CallBuiltin(Builtins::kSubtract, context, lhs, rhs);
@@ -414,34 +420,35 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
       default:
         UNREACHABLE();
     }
-    var_result.Bind(result);
+    var_result = result;
     Goto(&end);
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
+  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_id);
   return var_result.value();
 }
 
-Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
-                                                       Node* rhs, Node* slot_id,
-                                                       Node* feedback_vector,
-                                                       bool rhs_is_smi) {
-  auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
+TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
+    TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
+  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
+                         TVariable<Smi>* var_type_feedback) {
     Label end(this);
     TVARIABLE(Number, var_result);
     // If rhs is known to be an Smi (for SubSmi) we want to fast path Smi
     // operation. For the normal Sub operation, we want to fast path both
     // Smi and Number operations, so this path should not be marked as Deferred.
     Label if_overflow(this,
-                      rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
-    var_result = TrySmiSub(CAST(lhs), CAST(rhs), &if_overflow);
-    var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+                      rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
+    var_result = TrySmiSub(lhs, rhs, &if_overflow);
+    *var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
     Goto(&end);
 
     BIND(&if_overflow);
     {
-      var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+      *var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
       TNode<Float64T> value = Float64Sub(SmiToFloat64(lhs), SmiToFloat64(rhs));
       var_result = AllocateHeapNumberWithValue(value);
       Goto(&end);
@@ -450,91 +457,97 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     BIND(&end);
     return var_result.value();
   };
-  auto floatFunction = [=](Node* lhs, Node* rhs) {
+  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Sub(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
-      Operation::kSubtract, rhs_is_smi);
+      context, lhs, rhs, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kSubtract, rhs_known_smi);
 }
 
-Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
-                                                       Node* rhs, Node* slot_id,
-                                                       Node* feedback_vector,
-                                                       bool rhs_is_smi) {
-  auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    TNode<Number> result = SmiMul(CAST(lhs), CAST(rhs));
-    var_type_feedback->Bind(SelectSmiConstant(
+TNode<Object> BinaryOpAssembler::Generate_MultiplyWithFeedback(
+    TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
+  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
+                         TVariable<Smi>* var_type_feedback) {
+    TNode<Number> result = SmiMul(lhs, rhs);
+    *var_type_feedback = SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber));
+        BinaryOperationFeedback::kNumber);
     return result;
   };
-  auto floatFunction = [=](Node* lhs, Node* rhs) {
+  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Mul(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
-      Operation::kMultiply, rhs_is_smi);
+      context, lhs, rhs, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kMultiply, rhs_known_smi);
 }
 
-Node* BinaryOpAssembler::Generate_DivideWithFeedback(
-    Node* context, Node* dividend, Node* divisor, Node* slot_id,
-    Node* feedback_vector, bool rhs_is_smi) {
-  auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Object> BinaryOpAssembler::Generate_DivideWithFeedback(
+    TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
+  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
+                         TVariable<Smi>* var_type_feedback) {
+    TVARIABLE(Object, var_result);
     // If rhs is known to be an Smi (for DivSmi) we want to fast path Smi
     // operation. For the normal Div operation, we want to fast path both
     // Smi and Number operations, so this path should not be marked as Deferred.
-    Label bailout(this, rhs_is_smi ? Label::kDeferred : Label::kNonDeferred),
+    Label bailout(this, rhs_known_smi ? Label::kDeferred : Label::kNonDeferred),
         end(this);
-    var_result.Bind(TrySmiDiv(CAST(lhs), CAST(rhs), &bailout));
-    var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    var_result = TrySmiDiv(lhs, rhs, &bailout);
+    *var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
     Goto(&end);
 
     BIND(&bailout);
     {
-      var_type_feedback->Bind(
-          SmiConstant(BinaryOperationFeedback::kSignedSmallInputs));
+      *var_type_feedback =
+          SmiConstant(BinaryOperationFeedback::kSignedSmallInputs);
       TNode<Float64T> value = Float64Div(SmiToFloat64(lhs), SmiToFloat64(rhs));
-      var_result.Bind(AllocateHeapNumberWithValue(value));
+      var_result = AllocateHeapNumberWithValue(value);
       Goto(&end);
     }
 
     BIND(&end);
     return var_result.value();
   };
-  auto floatFunction = [=](Node* lhs, Node* rhs) {
+  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Div(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, dividend, divisor, slot_id, feedback_vector, smiFunction,
-      floatFunction, Operation::kDivide, rhs_is_smi);
+      context, dividend, divisor, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kDivide, rhs_known_smi);
 }
 
-Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
-    Node* context, Node* dividend, Node* divisor, Node* slot_id,
-    Node* feedback_vector, bool rhs_is_smi) {
-  auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
-    TNode<Number> result = SmiMod(CAST(lhs), CAST(rhs));
-    var_type_feedback->Bind(SelectSmiConstant(
+TNode<Object> BinaryOpAssembler::Generate_ModulusWithFeedback(
+    TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
+  auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
+                         TVariable<Smi>* var_type_feedback) {
+    TNode<Number> result = SmiMod(lhs, rhs);
+    *var_type_feedback = SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber));
+        BinaryOperationFeedback::kNumber);
     return result;
   };
-  auto floatFunction = [=](Node* lhs, Node* rhs) {
+  auto floatFunction = [=](TNode<Float64T> lhs, TNode<Float64T> rhs) {
     return Float64Mod(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, dividend, divisor, slot_id, feedback_vector, smiFunction,
-      floatFunction, Operation::kModulus, rhs_is_smi);
+      context, dividend, divisor, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kModulus, rhs_known_smi);
 }
 
-Node* BinaryOpAssembler::Generate_ExponentiateWithFeedback(
-    Node* context, Node* base, Node* exponent, Node* slot_id,
-    Node* feedback_vector, bool rhs_is_smi) {
+TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
+    TNode<Context> context, TNode<Object> base, TNode<Object> exponent,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
+    bool rhs_known_smi) {
   // We currently don't optimize exponentiation based on feedback.
   TNode<Smi> dummy_feedback = SmiConstant(BinaryOperationFeedback::kAny);
-  UpdateFeedback(dummy_feedback, feedback_vector, slot_id);
+  UpdateFeedback(dummy_feedback, maybe_feedback_vector, slot_id);
   return CallBuiltin(Builtins::kExponentiate, context, base, exponent);
 }
 

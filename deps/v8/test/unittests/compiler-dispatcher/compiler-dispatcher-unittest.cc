@@ -12,7 +12,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -205,7 +204,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), true));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), true));
     sem_.Wait();
   }
 
@@ -216,7 +215,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), false));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), false));
   }
 
   void RunForegroundTasks() {

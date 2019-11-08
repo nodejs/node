@@ -99,8 +99,6 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
-      'V8 Linux - noembed': 'release_x86_noembed',
-      'V8 Linux - noembed - debug': 'debug_x86_noembed',
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
@@ -162,7 +160,6 @@
           'debug_simulate_arm64_no_snap',
       'V8 Linux - arm64 - sim - gc stress': 'debug_simulate_arm64',
       # Mips.
-      'V8 Mips - builder': 'release_mips_no_snap_no_i18n',
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
       # IBM.
@@ -197,7 +194,6 @@
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
       'v8_ios_simulator': 'release_x64_ios_simulator',
-      'v8_linux_noembed_rel_ng': 'release_x86_noembed_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_optional_rel_ng': 'release_x86_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
@@ -253,7 +249,6 @@
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
-      'v8_mips_compile_rel': 'release_mips_no_snap_no_i18n',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg': 'debug_simulate_arm',
@@ -434,7 +429,7 @@
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_msvc': [
-      'release_bot', 'x64', 'msvc'],
+      'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'release_x64_fuchsia': [
@@ -515,8 +510,6 @@
     # Debug configs for x86.
     'debug_x86': [
       'debug_bot', 'x86'],
-    'debug_x86_noembed': [
-      'debug_bot', 'x86', 'v8_no_enable_embedded_builtins'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
@@ -535,10 +528,6 @@
     # Release configs for x86.
     'release_x86': [
       'release_bot', 'x86'],
-    'release_x86_noembed': [
-      'release_bot', 'x86', 'v8_no_enable_embedded_builtins'],
-    'release_x86_noembed_trybot': [
-      'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
@@ -568,11 +557,6 @@
     'release_x86_verify_csa': [
       'release_bot', 'x86', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
-
-    # Release configs for mips.
-    'release_mips_no_snap_no_i18n': [
-      'release', 'mips', 'no_sysroot', 'static', 'v8_no_i18n',
-      'v8_snapshot_none'],
   },
 
   'mixins': {
@@ -648,8 +632,7 @@
     },
 
     'gcc': {
-      # TODO(machenbach): Remove cxx11 restriction when updating gcc version.
-      'gn_args': 'is_clang=false use_cxx11=true',
+      'gn_args': 'is_clang=false',
     },
 
     'gcmole': {
@@ -685,28 +668,14 @@
       'gn_args': 'symbol_level=1',
     },
 
-    'mips': {
-      'mixins': ['mips_bundled_toolchain'],
-      'gn_args': 'target_cpu="mips"',
-    },
-
-    'mips_bundled_toolchain': {
-      'gn_args': 'custom_toolchain="tools/toolchain:mips-bundled" '
-                 'ldso_path="tools/mips_toolchain/sysroot/usr/lib/ld.so.1" '
-                 'gcc_target_rpath="tools/mips_toolchain/sysroot/usr/lib:'
-                 'tools/mips_toolchain/mips-mti-linux-gnu/lib:\$ORIGIN/."',
-    },
-
     'msan': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_msan=true msan_track_origins=2 '
-                  'use_prebuilt_instrumented_libraries=true'),
+      'gn_args': 'is_msan=true msan_track_origins=2',
     },
 
     'msan_no_origins': {
       'mixins': ['v8_enable_test_features'],
-      'gn_args': ('is_msan=true msan_track_origins=0 '
-                  'use_prebuilt_instrumented_libraries=true'),
+      'gn_args': 'is_msan=true msan_track_origins=0',
     },
 
     'msvc': {
@@ -715,6 +684,10 @@
 
     'no_custom_libcxx': {
       'gn_args': 'use_custom_libcxx=false',
+    },
+
+    'no_goma': {
+      'gn_args': 'use_goma=false',
     },
 
     'no_sysroot': {
@@ -731,6 +704,10 @@
 
     'release_bot': {
       'mixins': ['release', 'static', 'goma'],
+    },
+
+    'release_bot_no_goma': {
+      'mixins': ['release', 'static', 'no_goma'],
     },
 
     'release_trybot': {
@@ -803,10 +780,6 @@
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
-    'v8_no_enable_embedded_builtins': {
-      'gn_args': 'v8_enable_embedded_builtins=false',
-    },
-
     'v8_enable_lite_mode': {
       'gn_args': 'v8_enable_lite_mode=true',
     },
@@ -852,9 +825,9 @@
       'gn_args': 'v8_use_external_startup_data=false',
     },
 
-    'v8_snapshot_none': {
-      'gn_args': 'v8_use_snapshot=false',
-    },
+    # TODO(https://crbug.com/v8/8531): Remove this config and all bots, since
+    #                                  no-snapshot was deprecated and removed.
+    'v8_snapshot_none': {},
 
     'v8_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=true',

@@ -51,7 +51,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   }
 
   RegList list = kJSCallerSaved & ~exclusions;
-  bytes += NumRegs(list) * kPointerSize;
+  bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == kSaveFPRegs) {
     bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
@@ -76,7 +76,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   RegList list = kJSCallerSaved & ~exclusions;
   MultiPush(list);
-  bytes += NumRegs(list) * kPointerSize;
+  bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == kSaveFPRegs) {
     MultiPushDoubles(kCallerSavedDoubles);
@@ -107,7 +107,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   RegList list = kJSCallerSaved & ~exclusions;
   MultiPop(list);
-  bytes += NumRegs(list) * kPointerSize;
+  bytes += NumRegs(list) * kSystemPointerSize;
 
   return bytes;
 }
@@ -116,8 +116,8 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
-  const uint32_t offset =
-      FixedArray::kHeaderSize + constant_index * kPointerSize - kHeapObjectTag;
+  const uint32_t offset = FixedArray::kHeaderSize +
+                          constant_index * kSystemPointerSize - kHeapObjectTag;
 
   CHECK(is_uint19(offset));
   DCHECK_NE(destination, r0);
@@ -258,7 +258,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::Drop(int count) {
   if (count > 0) {
-    int total = count * kPointerSize;
+    int total = count * kSystemPointerSize;
     if (is_uint12(total)) {
       la(sp, MemOperand(sp, total));
     } else if (is_int20(total)) {
@@ -270,7 +270,7 @@ void TurboAssembler::Drop(int count) {
 }
 
 void TurboAssembler::Drop(Register count, Register scratch) {
-  ShiftLeftP(scratch, count, Operand(kPointerSizeLog2));
+  ShiftLeftP(scratch, count, Operand(kSystemPointerSizeLog2));
   AddP(sp, sp, scratch);
 }
 
@@ -367,12 +367,12 @@ void TurboAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
 
 void TurboAssembler::MultiPush(RegList regs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
-  int16_t stack_offset = num_to_push * kPointerSize;
+  int16_t stack_offset = num_to_push * kSystemPointerSize;
 
   SubP(location, location, Operand(stack_offset));
   for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
-      stack_offset -= kPointerSize;
+      stack_offset -= kSystemPointerSize;
       StoreP(ToRegister(i), MemOperand(location, stack_offset));
     }
   }
@@ -384,7 +384,7 @@ void TurboAssembler::MultiPop(RegList regs, Register location) {
   for (int16_t i = 0; i < Register::kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
       LoadP(ToRegister(i), MemOperand(location, stack_offset));
-      stack_offset += kPointerSize;
+      stack_offset += kSystemPointerSize;
     }
   }
   AddP(location, location, Operand(stack_offset));
@@ -439,13 +439,13 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   // Although the object register is tagged, the offset is relative to the start
-  // of the object, so so offset must be a multiple of kPointerSize.
-  DCHECK(IsAligned(offset, kPointerSize));
+  // of the object, so so offset must be a multiple of kSystemPointerSize.
+  DCHECK(IsAligned(offset, kSystemPointerSize));
 
   lay(dst, MemOperand(object, offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand(kPointerSize - 1));
+    AndP(r0, dst, Operand(kSystemPointerSize - 1));
     beq(&ok, Label::kNear);
     stop();
     bind(&ok);
@@ -632,7 +632,7 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
     Push(r14, fp);
     fp_delta = 0;
   }
-  la(fp, MemOperand(sp, fp_delta * kPointerSize));
+  la(fp, MemOperand(sp, fp_delta * kSystemPointerSize));
 }
 
 void TurboAssembler::PopCommonFrame(Register marker_reg) {
@@ -653,7 +653,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
     Push(r14, fp, cp);
     fp_delta = 1;
   }
-  la(fp, MemOperand(sp, fp_delta * kPointerSize));
+  la(fp, MemOperand(sp, fp_delta * kSystemPointerSize));
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
@@ -1082,9 +1082,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
   // Set up the frame structure on the stack.
-  DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
-  DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
-  DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
+  DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
+  DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
+  DCHECK_EQ(0 * kSystemPointerSize, ExitFrameConstants::kCallerFPOffset);
   DCHECK_GT(stack_space, 0);
 
   // This is an opportunity to build a frame to wrap
@@ -1117,7 +1117,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     // since the sp slot and code slot were pushed after the fp.
   }
 
-  lay(sp, MemOperand(sp, -stack_space * kPointerSize));
+  lay(sp, MemOperand(sp, -stack_space * kSystemPointerSize));
 
   // Allocate and align the frame preparing for calling the runtime
   // function.
@@ -1127,11 +1127,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     ClearRightImm(sp, sp, Operand(3));  // equivalent to &= -8
   }
 
-  lay(sp, MemOperand(sp, -kNumRequiredStackFrameSlots * kPointerSize));
+  lay(sp, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
   StoreP(MemOperand(sp), Operand::Zero(), r0);
   // Set the exit frame sp value to point just before the return address
   // location.
-  lay(r1, MemOperand(sp, kStackFrameSPSlot * kPointerSize));
+  lay(r1, MemOperand(sp, kStackFrameSPSlot * kSystemPointerSize));
   StoreP(r1, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
@@ -1184,7 +1184,8 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 
   if (argument_count.is_valid()) {
     if (!argument_count_is_length) {
-      ShiftLeftP(argument_count, argument_count, Operand(kPointerSizeLog2));
+      ShiftLeftP(argument_count, argument_count,
+                 Operand(kSystemPointerSizeLog2));
     }
     la(sp, MemOperand(sp, argument_count));
   }
@@ -1211,22 +1212,24 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 #endif
 
   // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We AddP kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
+  // after we drop current frame. We AddP kSystemPointerSize to count the
+  // receiver argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  ShiftLeftP(dst_reg, caller_args_count_reg, Operand(kPointerSizeLog2));
+  ShiftLeftP(dst_reg, caller_args_count_reg, Operand(kSystemPointerSizeLog2));
   AddP(dst_reg, fp, dst_reg);
   AddP(dst_reg, dst_reg,
-       Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+       Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
 
   Register src_reg = caller_args_count_reg;
-  // Calculate the end of source area. +kPointerSize is for the receiver.
+  // Calculate the end of source area. +kSystemPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
-    ShiftLeftP(src_reg, callee_args_count.reg(), Operand(kPointerSizeLog2));
+    ShiftLeftP(src_reg, callee_args_count.reg(),
+               Operand(kSystemPointerSizeLog2));
     AddP(src_reg, sp, src_reg);
-    AddP(src_reg, src_reg, Operand(kPointerSize));
+    AddP(src_reg, src_reg, Operand(kSystemPointerSize));
   } else {
-    mov(src_reg, Operand((callee_args_count.immediate() + 1) * kPointerSize));
+    mov(src_reg,
+        Operand((callee_args_count.immediate() + 1) * kSystemPointerSize));
     AddP(src_reg, src_reg, sp);
   }
 
@@ -1253,10 +1256,10 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   }
   LoadRR(r1, tmp_reg);
   bind(&loop);
-  LoadP(tmp_reg, MemOperand(src_reg, -kPointerSize));
-  StoreP(tmp_reg, MemOperand(dst_reg, -kPointerSize));
-  lay(src_reg, MemOperand(src_reg, -kPointerSize));
-  lay(dst_reg, MemOperand(dst_reg, -kPointerSize));
+  LoadP(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
+  StoreP(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
+  lay(src_reg, MemOperand(src_reg, -kSystemPointerSize));
+  lay(dst_reg, MemOperand(dst_reg, -kSystemPointerSize));
   BranchOnCount(r1, &loop);
 
   // Leave current frame.
@@ -1342,12 +1345,12 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     if (actual.is_reg()) {
-      LoadRR(r6, actual.reg());
+      ShiftLeftP(r6, actual.reg(), Operand(kSystemPointerSizeLog2));
+      LoadP(r6, MemOperand(sp, r6));
     } else {
-      mov(r6, Operand(actual.immediate()));
+      LoadP(r6, MemOperand(sp, actual.immediate() << kSystemPointerSizeLog2),
+            ip);
     }
-    ShiftLeftP(r6, r6, Operand(kPointerSizeLog2));
-    LoadP(r6, MemOperand(sp, r6));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     if (expected.is_reg()) {
@@ -1470,8 +1473,8 @@ void MacroAssembler::MaybeDropFrames() {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize);
 
   // Link the current handler as the next handler.
   Move(r7,
@@ -1486,13 +1489,13 @@ void MacroAssembler::PushStackHandler() {
 
   // Copy the old handler into the next handler slot.
   MoveChar(MemOperand(sp, StackHandlerConstants::kNextOffset), MemOperand(r7),
-           Operand(kPointerSize));
+           Operand(kSystemPointerSize));
   // Set this new handler as the current one.
   StoreP(sp, MemOperand(r7));
 }
 
 void MacroAssembler::PopStackHandler() {
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
 
   // Pop the Next Handler into r3 and store it into Handler Address reference.
@@ -1839,18 +1842,19 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots;
-  if (frame_alignment > kPointerSize) {
+  if (frame_alignment > kSystemPointerSize) {
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
     LoadRR(scratch, sp);
-    lay(sp, MemOperand(sp, -(stack_passed_arguments + 1) * kPointerSize));
+    lay(sp, MemOperand(sp, -(stack_passed_arguments + 1) * kSystemPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
-    StoreP(scratch, MemOperand(sp, (stack_passed_arguments)*kPointerSize));
+    StoreP(scratch,
+           MemOperand(sp, (stack_passed_arguments)*kSystemPointerSize));
   } else {
     stack_space += stack_passed_arguments;
   }
-  lay(sp, MemOperand(sp, (-stack_space) * kPointerSize));
+  lay(sp, MemOperand(sp, (-stack_space) * kSystemPointerSize));
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -1940,11 +1944,11 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
-  if (ActivationFrameAlignment() > kPointerSize) {
+  if (ActivationFrameAlignment() > kSystemPointerSize) {
     // Load the original stack pointer (pre-alignment) from the stack
-    LoadP(sp, MemOperand(sp, stack_space * kPointerSize));
+    LoadP(sp, MemOperand(sp, stack_space * kSystemPointerSize));
   } else {
-    la(sp, MemOperand(sp, stack_space * kPointerSize));
+    la(sp, MemOperand(sp, stack_space * kSystemPointerSize));
   }
 }
 
@@ -1962,20 +1966,20 @@ void TurboAssembler::CheckPageFlag(
     uint32_t shifted_mask = mask;
     // Determine the byte offset to be tested
     if (mask <= 0x80) {
-      byte_offset = kPointerSize - 1;
+      byte_offset = kSystemPointerSize - 1;
     } else if (mask < 0x8000) {
-      byte_offset = kPointerSize - 2;
+      byte_offset = kSystemPointerSize - 2;
       shifted_mask = mask >> 8;
     } else if (mask < 0x800000) {
-      byte_offset = kPointerSize - 3;
+      byte_offset = kSystemPointerSize - 3;
       shifted_mask = mask >> 16;
     } else {
-      byte_offset = kPointerSize - 4;
+      byte_offset = kSystemPointerSize - 4;
       shifted_mask = mask >> 24;
     }
 #if V8_TARGET_LITTLE_ENDIAN
     // Reverse the byte_offset if emulating on little endian platform
-    byte_offset = kPointerSize - byte_offset - 1;
+    byte_offset = kSystemPointerSize - byte_offset - 1;
 #endif
     tm(MemOperand(scratch, MemoryChunk::kFlagsOffset + byte_offset),
        Operand(shifted_mask));
@@ -3415,12 +3419,12 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
 
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   intptr_t value = static_cast<intptr_t>(smi.ptr());
-#if V8_TARGET_ARCH_S390X
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  llilf(dst, Operand(value));
+#else
   DCHECK_EQ(value & 0xFFFFFFFF, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
   llihf(dst, Operand(value >> 32));
-#else
-  llilf(dst, Operand(value));
 #endif
 }
 
@@ -3456,16 +3460,16 @@ void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
 }
 
 void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
-#if V8_TARGET_ARCH_S390X
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  // CFI takes 32-bit immediate.
+  cfi(src1, Operand(smi));
+#else
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     cih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     cgr(src1, scratch);
   }
-#else
-  // CFI takes 32-bit immediate.
-  cfi(src1, Operand(smi));
 #endif
 }
 
@@ -4154,7 +4158,7 @@ void TurboAssembler::ShiftRightArith(Register dst, Register src, Register val) {
 // Clear right most # of bits
 void TurboAssembler::ClearRightImm(Register dst, Register src,
                                    const Operand& val) {
-  int numBitsToClear = val.immediate() % (kPointerSize * 8);
+  int numBitsToClear = val.immediate() % (kSystemPointerSize * 8);
 
   // Try to use RISBG if possible
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
@@ -4342,14 +4346,19 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  ShiftLeftP(builtin_index, builtin_index,
+             Operand(kSystemPointerSizeLog2 - kSmiShift));
+#else
   ShiftRightArithP(builtin_index, builtin_index,
                    Operand(kSmiShift - kSystemPointerSizeLog2));
+#endif
   AddP(builtin_index, builtin_index,
        Operand(IsolateData::builtin_entry_table_offset()));
   LoadP(builtin_index, MemOperand(kRootRegister, builtin_index));
@@ -4427,7 +4436,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
 
   Label return_label;
   larl(r14, &return_label);  // Generate the return addr of call later.
-  StoreP(r14, MemOperand(sp, kStackFrameRASlot * kPointerSize));
+  StoreP(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
 
   // zLinux ABI requires caller's frame to have sufficient space for callee
   // preserved regsiter save area.

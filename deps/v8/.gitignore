@@ -79,8 +79,6 @@
 /tools/jsfunfuzz/jsfunfuzz
 /tools/jsfunfuzz/jsfunfuzz.tar.gz
 /tools/luci-go
-/tools/mips_toolchain
-/tools/mips_toolchain.tar.gz
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client

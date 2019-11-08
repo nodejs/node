@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --verify-heap
+// Flags: --verify-heap --expose-gc
 
 function __f_3(f) {
   arguments.__defineGetter__('length', f);
@@ -13,6 +13,7 @@ function __f_4() { return "boom"; }
 __v_4 = [];
 __v_13 = "";
 
-for (var i = 0; i < 12800; ++i) {
+for (var i = 0; i < 128; ++i) {
   __v_13 +=  __v_4.__proto__ = __f_3(__f_4);
 }
+gc();

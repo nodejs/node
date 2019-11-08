@@ -299,10 +299,8 @@ void AppendMethodCall(Isolate* isolate, Handle<StackTraceFrame> frame,
   }
 }
 
-void SerializeJSStackFrame(
-    Isolate* isolate, Handle<StackTraceFrame> frame,
-    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
-) {
+void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+                           IncrementalStringBuilder* builder) {
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
 
   const bool is_toplevel = StackTraceFrame::IsToplevel(frame);
@@ -316,96 +314,91 @@ void SerializeJSStackFrame(
   const bool is_method_call = !(is_toplevel || is_constructor);
 
   if (is_async) {
-    builder.AppendCString("async ");
+    builder->AppendCString("async ");
   }
   if (is_promise_all) {
-    builder.AppendCString("Promise.all (index ");
-    builder.AppendInt(StackTraceFrame::GetPromiseAllIndex(frame));
-    builder.AppendCString(")");
+    builder->AppendCString("Promise.all (index ");
+    builder->AppendInt(StackTraceFrame::GetPromiseAllIndex(frame));
+    builder->AppendCString(")");
     return;
   }
   if (is_method_call) {
-    AppendMethodCall(isolate, frame, &builder);
+    AppendMethodCall(isolate, frame, builder);
   } else if (is_constructor) {
-    builder.AppendCString("new ");
+    builder->AppendCString("new ");
     if (IsNonEmptyString(function_name)) {
-      builder.AppendString(Handle<String>::cast(function_name));
+      builder->AppendString(Handle<String>::cast(function_name));
     } else {
-      builder.AppendCString("<anonymous>");
+      builder->AppendCString("<anonymous>");
     }
   } else if (IsNonEmptyString(function_name)) {
-    builder.AppendString(Handle<String>::cast(function_name));
+    builder->AppendString(Handle<String>::cast(function_name));
   } else {
-    AppendFileLocation(isolate, frame, &builder);
+    AppendFileLocation(isolate, frame, builder);
     return;
   }
 
-  builder.AppendCString(" (");
-  AppendFileLocation(isolate, frame, &builder);
-  builder.AppendCString(")");
+  builder->AppendCString(" (");
+  AppendFileLocation(isolate, frame, builder);
+  builder->AppendCString(")");
 }
 
-void SerializeAsmJsWasmStackFrame(
-    Isolate* isolate, Handle<StackTraceFrame> frame,
-    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
-) {
+void SerializeAsmJsWasmStackFrame(Isolate* isolate,
+                                  Handle<StackTraceFrame> frame,
+                                  IncrementalStringBuilder* builder) {
   // The string should look exactly as the respective javascript frame string.
   // Keep this method in line to
   // JSStackFrame::ToString(IncrementalStringBuilder&).
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
 
   if (IsNonEmptyString(function_name)) {
-    builder.AppendString(Handle<String>::cast(function_name));
-    builder.AppendCString(" (");
+    builder->AppendString(Handle<String>::cast(function_name));
+    builder->AppendCString(" (");
   }
 
-  AppendFileLocation(isolate, frame, &builder);
+  AppendFileLocation(isolate, frame, builder);
 
-  if (IsNonEmptyString(function_name)) builder.AppendCString(")");
+  if (IsNonEmptyString(function_name)) builder->AppendCString(")");
 
   return;
 }
 
-void SerializeWasmStackFrame(
-    Isolate* isolate, Handle<StackTraceFrame> frame,
-    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
-) {
+void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+                             IncrementalStringBuilder* builder) {
   Handle<Object> module_name = StackTraceFrame::GetWasmModuleName(frame);
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
   const bool has_name = !module_name->IsNull() || !function_name->IsNull();
   if (has_name) {
     if (module_name->IsNull()) {
-      builder.AppendString(Handle<String>::cast(function_name));
+      builder->AppendString(Handle<String>::cast(function_name));
     } else {
-      builder.AppendString(Handle<String>::cast(module_name));
+      builder->AppendString(Handle<String>::cast(module_name));
       if (!function_name->IsNull()) {
-        builder.AppendCString(".");
-        builder.AppendString(Handle<String>::cast(function_name));
+        builder->AppendCString(".");
+        builder->AppendString(Handle<String>::cast(function_name));
       }
     }
-    builder.AppendCString(" (");
+    builder->AppendCString(" (");
   }
 
   const int wasm_func_index = StackTraceFrame::GetLineNumber(frame);
 
-  builder.AppendCString("wasm-function[");
-  builder.AppendInt(wasm_func_index);
-  builder.AppendCString("]:");
+  builder->AppendCString("wasm-function[");
+  builder->AppendInt(wasm_func_index);
+  builder->AppendCString("]:");
 
   char buffer[16];
   SNPrintF(ArrayVector(buffer), "0x%x",
            StackTraceFrame::GetColumnNumber(frame));
-  builder.AppendCString(buffer);
+  builder->AppendCString(buffer);
 
-  if (has_name) builder.AppendCString(")");
+  if (has_name) builder->AppendCString(")");
 }
 
 }  // namespace
 
-void SerializeStackTraceFrame(
-    Isolate* isolate, Handle<StackTraceFrame> frame,
-    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
-) {
+void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+                              IncrementalStringBuilder* builder) {
   // Ordering here is important, as AsmJs frames are also marked as Wasm.
   if (StackTraceFrame::IsAsmJsWasm(frame)) {
     SerializeAsmJsWasmStackFrame(isolate, frame, builder);
@@ -419,7 +412,7 @@ void SerializeStackTraceFrame(
 MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
                                              Handle<StackTraceFrame> frame) {
   IncrementalStringBuilder builder(isolate);
-  SerializeStackTraceFrame(isolate, frame, builder);
+  SerializeStackTraceFrame(isolate, frame, &builder);
   return builder.Finish();
 }
 

@@ -526,7 +526,6 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
     source_out() << "  USE(" << parameter0 << ");\n";
 
     for (size_t i = 1; i < signature.parameter_names.size(); ++i) {
-      const std::string& parameter_name = signature.parameter_names[i]->value;
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -534,8 +533,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::k"
-                   << CamelifyString(parameter_name) << "));\n";
+                   << ">(Parameter(Descriptor::ParameterIndex<" << (i - 1)
+                   << ">()));\n";
       source_out() << "  USE(" << var << ");\n";
     }
   }
@@ -1008,48 +1007,40 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
 #if defined(DEBUG)
   do_check = true;
 #endif
-  if (do_check) {
-    // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
-    // Torque allows and handles two types of expressions in the if protocol
-    // automagically, ones that return TNode<BoolT> and those that use the
-    // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
-    // handle this is embedded in the expression handling and to it's not
-    // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
-    // isn't trivial up-front. Secondly, on failure, the assert text should be
-    // the corresponding Torque code, not the -gen.cc code, which would be the
-    // case when using CSA_ASSERT_XXX.
-    Block* true_block = assembler().NewBlock(assembler().CurrentStack());
-    Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
-    GenerateExpressionBranch(stmt->expression, true_block, false_block);
+  Block* resume_block;
 
-    assembler().Bind(false_block);
-
-    assembler().Emit(AbortInstruction{
-        AbortInstruction::Kind::kAssertionFailure,
-        "Torque assert '" + FormatAssertSource(stmt->source) + "' failed"});
-
-    assembler().Bind(true_block);
-  } else {
-    // Visit the expression so bindings only used in asserts are marked
-    // as such. Otherwise they might be wrongly reported as unused bindings
-    // in release builds.
-    stmt->expression->VisitAllSubExpressions([](Expression* expression) {
-      if (auto id = IdentifierExpression::DynamicCast(expression)) {
-        ValueBindingsManager::Get().TryLookup(id->name->value);
-      } else if (auto call = CallExpression::DynamicCast(expression)) {
-        for (Identifier* label : call->labels) {
-          LabelBindingsManager::Get().TryLookup(label->value);
-        }
-        // TODO(szuend): In case the call expression resolves to a macro
-        //               callable, mark the macro as used as well.
-      } else if (auto call = CallMethodExpression::DynamicCast(expression)) {
-        for (Identifier* label : call->labels) {
-          LabelBindingsManager::Get().TryLookup(label->value);
-        }
-        // TODO(szuend): Mark the underlying macro as used.
-      }
-    });
+  if (!do_check) {
+    Block* unreachable_block = assembler().NewBlock(assembler().CurrentStack());
+    resume_block = assembler().NewBlock(assembler().CurrentStack());
+    assembler().Goto(resume_block);
+    assembler().Bind(unreachable_block);
   }
+
+  // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
+  // Torque allows and handles two types of expressions in the if protocol
+  // automagically, ones that return TNode<BoolT> and those that use the
+  // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
+  // handle this is embedded in the expression handling and to it's not
+  // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
+  // isn't trivial up-front. Secondly, on failure, the assert text should be
+  // the corresponding Torque code, not the -gen.cc code, which would be the
+  // case when using CSA_ASSERT_XXX.
+  Block* true_block = assembler().NewBlock(assembler().CurrentStack());
+  Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
+  GenerateExpressionBranch(stmt->expression, true_block, false_block);
+
+  assembler().Bind(false_block);
+
+  assembler().Emit(AbortInstruction{
+      AbortInstruction::Kind::kAssertionFailure,
+      "Torque assert '" + FormatAssertSource(stmt->source) + "' failed"});
+
+  assembler().Bind(true_block);
+
+  if (!do_check) {
+    assembler().Bind(resume_block);
+  }
+
   return TypeOracle::GetVoidType();
 }
 
@@ -1214,16 +1205,16 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
     result.names.push_back(initializer.name);
     Expression* e = initializer.expression;
     const Field& field = class_type->LookupField(initializer.name->value);
-    auto field_index = field.index;
+    bool has_index = field.index.has_value();
     if (SpreadExpression* s = SpreadExpression::DynamicCast(e)) {
-      if (!field_index) {
+      if (!has_index) {
         ReportError(
             "spread expressions can only be used to initialize indexed class "
             "fields ('",
             initializer.name->value, "' is not)");
       }
       e = s->spreadee;
-    } else if (field_index) {
+    } else if (has_index) {
       ReportError("the indexed class field '", initializer.name->value,
                   "' must be initialized with a spread operator");
     }
@@ -1261,7 +1252,7 @@ void ImplementationVisitor::InitializeClass(
 void ImplementationVisitor::InitializeFieldFromSpread(
     VisitResult object, const Field& field,
     const InitializerResults& initializer_results) {
-  NameAndType index = (*field.index)->name_and_type;
+  const NameAndType& index = *field.index;
   VisitResult iterator =
       initializer_results.field_value_map.at(field.name_and_type.name);
   VisitResult length = initializer_results.field_value_map.at(index.name);
@@ -1289,15 +1280,14 @@ VisitResult ImplementationVisitor::AddVariableObjectSize(
         }
         VisitResult index_field_size =
             VisitResult(TypeOracle::GetConstInt31Type(), "kTaggedSize");
-        VisitResult initializer_value = initializer_results.field_value_map.at(
-            (*current_field->index)->name_and_type.name);
+        VisitResult initializer_value =
+            initializer_results.field_value_map.at(current_field->index->name);
         Arguments args;
         args.parameters.push_back(object_size);
         args.parameters.push_back(initializer_value);
         args.parameters.push_back(index_field_size);
-        object_size =
-            GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
-                         {(*current_field->index)->name_and_type.type}, false);
+        object_size = GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
+                                   {current_field->index->type}, false);
       }
       ++current_field;
     }
@@ -1860,12 +1850,12 @@ LocationReference ImplementationVisitor::GetLocationReference(
         {
           StackScope length_scope(this);
           // Get a reference to the length
-          const Field* index_field = field.index.value();
+          const NameAndType& index_field = field.index.value();
           GenerateCopy(object_result);
-          assembler().Emit(CreateFieldReferenceInstruction{
-              object_result.type(), index_field->name_and_type.name});
+          assembler().Emit(CreateFieldReferenceInstruction{object_result.type(),
+                                                           index_field.name});
           VisitResult length_reference(
-              TypeOracle::GetReferenceType(index_field->name_and_type.type),
+              TypeOracle::GetReferenceType(index_field.type),
               assembler().TopRange(2));
 
           // Load the length from the reference and convert it to intptr
@@ -2670,13 +2660,34 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
   }
 }
 
-void ImplementationVisitor::GenerateBuiltinDefinitions(
+std::string MachineTypeString(const Type* type) {
+  if (type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+    return "MachineType::TaggedSigned()";
+  }
+  if (type->IsSubtypeOf(TypeOracle::GetHeapObjectType())) {
+    return "MachineType::TaggedPointer()";
+  }
+  if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return "MachineType::AnyTagged()";
+  }
+  return "MachineTypeOf<" + type->GetGeneratedTNodeTypeName() + ">::value";
+}
+
+void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
     const std::string& output_directory) {
-  std::stringstream new_contents_stream;
-  std::string file_name = "builtin-definitions-tq.h";
+  std::stringstream builtin_definitions;
+  std::string builtin_definitions_file_name = "builtin-definitions-tq.h";
+
+  // This file contains plain interface descriptor definitions and has to be
+  // included in the middle of interface-descriptors.h. Thus it is not a normal
+  // header file and uses the .inc suffix instead of the .h suffix.
+  std::stringstream interface_descriptors;
+  std::string interface_descriptors_file_name = "interface-descriptors-tq.inc";
   {
-    IncludeGuardScope include_guard(new_contents_stream, file_name);
-    new_contents_stream
+    IncludeGuardScope builtin_definitions_include_guard(
+        builtin_definitions, builtin_definitions_file_name);
+
+    builtin_definitions
         << "\n"
            "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, "
            "ASM) "
@@ -2684,40 +2695,67 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
-      size_t firstParameterIndex = 1;
-      bool declareParameters = true;
       if (builtin->IsStub()) {
-        new_contents_stream << "TFS(" << builtin->ExternalName();
+        builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
+                            << builtin->ExternalName();
+        std::string descriptor_name = builtin->ExternalName() + "Descriptor";
+        constexpr size_t kFirstNonContextParameter = 1;
+        size_t parameter_count =
+            builtin->parameter_names().size() - kFirstNonContextParameter;
+
+        interface_descriptors << "class " << descriptor_name
+                              << " : public TorqueInterfaceDescriptor<"
+                              << parameter_count << "> {\n";
+        interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
+                              << descriptor_name
+                              << ", TorqueInterfaceDescriptor)\n";
+
+        interface_descriptors << "  MachineType ReturnType() override {\n";
+        interface_descriptors
+            << "    return "
+            << MachineTypeString(builtin->signature().return_type) << ";\n";
+        interface_descriptors << "  }\n";
+
+        interface_descriptors << "  std::array<MachineType, " << parameter_count
+                              << "> ParameterTypes() override {\n";
+        interface_descriptors << "    return {";
+        for (size_t i = kFirstNonContextParameter;
+             i < builtin->parameter_names().size(); ++i) {
+          bool last = i + 1 == builtin->parameter_names().size();
+          const Type* type = builtin->signature().parameter_types.types[i];
+          interface_descriptors << MachineTypeString(type)
+                                << (last ? "" : ", ");
+        }
+        interface_descriptors << "};\n";
+
+        interface_descriptors << "  }\n";
+        interface_descriptors << "};\n\n";
       } else {
-        new_contents_stream << "TFJ(" << builtin->ExternalName();
+        builtin_definitions << "TFJ(" << builtin->ExternalName();
         if (builtin->IsVarArgsJavaScript()) {
-          new_contents_stream
+          builtin_definitions
               << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
-          declareParameters = false;
         } else {
           DCHECK(builtin->IsFixedArgsJavaScript());
           // FixedArg javascript builtins need to offer the parameter
           // count.
           int parameter_count =
               static_cast<int>(builtin->signature().ExplicitCount());
-          new_contents_stream << ", " << parameter_count;
+          builtin_definitions << ", " << parameter_count;
           // And the receiver is explicitly declared.
-          new_contents_stream << ", kReceiver";
-          firstParameterIndex = builtin->signature().implicit_count;
+          builtin_definitions << ", kReceiver";
+          for (size_t i = builtin->signature().implicit_count;
+               i < builtin->parameter_names().size(); ++i) {
+            Identifier* parameter = builtin->parameter_names()[i];
+            builtin_definitions << ", k" << CamelifyString(parameter->value);
+          }
         }
       }
-      if (declareParameters) {
-        for (size_t i = firstParameterIndex;
-             i < builtin->parameter_names().size(); ++i) {
-          Identifier* parameter = builtin->parameter_names()[i];
-          new_contents_stream << ", k" << CamelifyString(parameter->value);
-        }
-      }
-      new_contents_stream << ") \\\n";
+      builtin_definitions << ") \\\n";
     }
-    new_contents_stream << "\n";
+    builtin_definitions << "\n";
 
-    new_contents_stream
+    builtin_definitions
         << "#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V) \\\n";
     for (const BuiltinPointerType* type :
          TypeOracle::AllBuiltinPointerTypes()) {
@@ -2728,13 +2766,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
             SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
         ReportError("unable to find any builtin with type \"", *type, "\"");
       }
-      new_contents_stream << "  V(" << type->function_pointer_type_id() << ","
+      builtin_definitions << "  V(" << type->function_pointer_type_id() << ","
                           << example_builtin->ExternalName() << ")\\\n";
     }
-    new_contents_stream << "\n";
+    builtin_definitions << "\n";
   }
-  std::string new_contents(new_contents_stream.str());
-  WriteFile(output_directory + "/" + file_name, new_contents);
+  WriteFile(output_directory + "/" + builtin_definitions_file_name,
+            builtin_definitions.str());
+  WriteFile(output_directory + "/" + interface_descriptors_file_name,
+            interface_descriptors.str());
 }
 
 namespace {
@@ -2894,40 +2934,8 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
  private:
   std::ostream& out_;
 };
+
 }  // namespace
-
-void ImplementationVisitor::GenerateInstanceTypes(
-    const std::string& output_directory) {
-  std::stringstream header;
-  std::string file_name = "instance-types-tq.h";
-  {
-    IncludeGuardScope(header, file_name);
-
-    header << "#define TORQUE_DEFINED_INSTANCE_TYPES(V) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (type->IsExtern()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      header << "  V(" << type_name << ") \\\n";
-    }
-    header << "\n\n";
-
-    header << "#define TORQUE_STRUCT_LIST_GENERATOR(V, _) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (type->IsExtern()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      std::string variable_name = SnakeifyString(type->name());
-      header << "  V(_, " << type_name << ", " << type->name() << ", "
-             << variable_name << ") \\\n";
-    }
-    header << "\n";
-  }
-  std::string output_header_path = output_directory + "/" + file_name;
-  WriteFile(output_header_path, header.str());
-}
 
 void ImplementationVisitor::GenerateCppForInternalClasses(
     const std::string& output_directory) {
@@ -3148,7 +3156,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   if (type_->IsInstantiatedAbstractClass()) {
     // This is a hack to prevent wrong instance type checks.
     inl_ << "  // Instance check omitted because class is annotated with "
-            "@dirtyInstantiatedAbstractClass.\n";
+         << ANNOTATION_INSTANTIATED_ABSTRACT_CLASS << ".\n";
   } else {
     inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
   }
@@ -3241,7 +3249,8 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   const std::string offset = "k" + CamelifyString(name) + "Offset";
   base::Optional<const ClassType*> class_type = field_type->ClassSupertype();
 
-  std::string type = class_type ? (*class_type)->name() : "Object";
+  std::string type =
+      class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
 
   // Generate declarations in header.
   if (!class_type && field_type != TypeOracle::GetObjectType()) {
@@ -3302,7 +3311,6 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
   {
     IncludeGuardScope header_guard(header, basename + ".h");
-    header << "#include \"src/objects/heap-number.h\"\n";
     header << "#include \"src/objects/objects.h\"\n";
     header << "#include \"src/objects/smi.h\"\n";
     header << "#include \"torque-generated/field-offsets-tq.h\"\n";
@@ -3314,9 +3322,11 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope inline_header_guard(inline_header, basename + "-inl.h");
     inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     inline_header << "#include \"src/objects/js-promise.h\"\n";
+    inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
     inline_header << "#include \"src/objects/module.h\"\n";
     inline_header << "#include \"src/objects/objects-inl.h\"\n";
-    inline_header << "#include \"src/objects/script.h\"\n\n";
+    inline_header << "#include \"src/objects/script.h\"\n";
+    inline_header << "#include \"src/objects/shared-function-info.h\"\n\n";
     IncludeObjectMacrosScope inline_header_macros(inline_header);
     NamespaceScope inline_header_namespaces(inline_header, {"v8", "internal"});
 
@@ -3328,6 +3338,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
     implementation << "#include \"src/objects/js-generator-inl.h\"\n";
     implementation << "#include \"src/objects/js-regexp-inl.h\"\n";
+    implementation << "#include \"src/objects/js-weak-refs-inl.h\"\n";
     implementation
         << "#include \"src/objects/js-regexp-string-iterator-inl.h\"\n";
     implementation << "#include \"src/objects/literal-objects-inl.h\"\n";
@@ -3346,7 +3357,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     // Generate forward declarations for every class.
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      header << "class " << type->name() << ";\n";
+      header << "class " << type->GetGeneratedTNodeTypeName() << ";\n";
     }
 
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
@@ -3439,13 +3450,13 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) return;
 
   if (f.index) {
-    if ((*f.index)->name_and_type.type != TypeOracle::GetSmiType()) {
+    if (f.index->type != TypeOracle::GetSmiType()) {
       ReportError("Non-SMI values are not (yet) supported as indexes.");
     }
     // We already verified the index field because it was listed earlier, so we
     // can assume it's safe to read here.
     cc_contents << "  for (int i = 0; i < TaggedField<Smi, " << class_name
-                << "::k" << CamelifyString((*f.index)->name_and_type.name)
+                << "::k" << CamelifyString(f.index->name)
                 << "Offset>::load(o).value(); ++i) {\n";
   } else {
     cc_contents << "  {\n";

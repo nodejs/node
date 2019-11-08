@@ -1166,7 +1166,7 @@ void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
     DCHECK(kMipsLwrOffset <= 3 && kMipsLwlOffset <= 3);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 3);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
     if (rd != source.rm()) {
       lwr(rd, MemOperand(source.rm(), source.offset() + kMipsLwrOffset));
       lwl(rd, MemOperand(source.rm(), source.offset() + kMipsLwlOffset));
@@ -1201,7 +1201,7 @@ void TurboAssembler::Usw(Register rd, const MemOperand& rs) {
     DCHECK(kMipsSwrOffset <= 3 && kMipsSwlOffset <= 3);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 3);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
     swr(rd, MemOperand(source.rm(), source.offset() + kMipsSwrOffset));
     swl(rd, MemOperand(source.rm(), source.offset() + kMipsSwlOffset));
   }
@@ -1216,7 +1216,7 @@ void TurboAssembler::Ulh(Register rd, const MemOperand& rs) {
     DCHECK_EQ(kArchVariant, kMips64r2);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     if (source.rm() == scratch) {
@@ -1250,7 +1250,7 @@ void TurboAssembler::Ulhu(Register rd, const MemOperand& rs) {
     DCHECK_EQ(kArchVariant, kMips64r2);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     if (source.rm() == scratch) {
@@ -1286,7 +1286,7 @@ void TurboAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
     DCHECK_EQ(kArchVariant, kMips64r2);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 1);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
 
     if (scratch != rd) {
       mov(scratch, rd);
@@ -1314,7 +1314,7 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
     DCHECK(kMipsLdrOffset <= 7 && kMipsLdlOffset <= 7);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 7);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
     if (rd != source.rm()) {
       ldr(rd, MemOperand(source.rm(), source.offset() + kMipsLdrOffset));
       ldl(rd, MemOperand(source.rm(), source.offset() + kMipsLdlOffset));
@@ -1349,7 +1349,7 @@ void TurboAssembler::Usd(Register rd, const MemOperand& rs) {
     DCHECK(kMipsSdrOffset <= 7 && kMipsSdlOffset <= 7);
     MemOperand source = rs;
     // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
-    AdjustBaseAndOffset(source, OffsetAccessType::TWO_ACCESSES, 7);
+    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
     sdr(rd, MemOperand(source.rm(), source.offset() + kMipsSdrOffset));
     sdl(rd, MemOperand(source.rm(), source.offset() + kMipsSdlOffset));
   }
@@ -1411,91 +1411,91 @@ void TurboAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 
 void TurboAssembler::Lb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lb(rd, source);
 }
 
 void TurboAssembler::Lbu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lbu(rd, source);
 }
 
 void TurboAssembler::Sb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   sb(rd, source);
 }
 
 void TurboAssembler::Lh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lh(rd, source);
 }
 
 void TurboAssembler::Lhu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lhu(rd, source);
 }
 
 void TurboAssembler::Sh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   sh(rd, source);
 }
 
 void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lw(rd, source);
 }
 
 void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   lwu(rd, source);
 }
 
 void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   sw(rd, source);
 }
 
 void TurboAssembler::Ld(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   ld(rd, source);
 }
 
 void TurboAssembler::Sd(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   sd(rd, source);
 }
 
 void TurboAssembler::Lwc1(FPURegister fd, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   lwc1(fd, tmp);
 }
 
 void TurboAssembler::Swc1(FPURegister fs, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   swc1(fs, tmp);
 }
 
 void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   ldc1(fd, tmp);
 }
 
 void TurboAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   sdc1(fs, tmp);
 }
 
@@ -3362,18 +3362,18 @@ Register TurboAssembler::GetRtAsRegisterHelper(const Operand& rt,
   return r2;
 }
 
-bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset,
+bool TurboAssembler::CalculateOffset(Label* L, int32_t* offset,
                                      OffsetSize bits) {
   if (!is_near(L, bits)) return false;
-  offset = GetOffset(offset, L, bits);
+  *offset = GetOffset(*offset, L, bits);
   return true;
 }
 
-bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
-                                     Register& scratch, const Operand& rt) {
+bool TurboAssembler::CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
+                                     Register* scratch, const Operand& rt) {
   if (!is_near(L, bits)) return false;
-  scratch = GetRtAsRegisterHelper(rt, scratch);
-  offset = GetOffset(offset, L, bits);
+  *scratch = GetRtAsRegisterHelper(rt, *scratch);
+  *offset = GetOffset(*offset, L, bits);
   return true;
 }
 
@@ -3392,23 +3392,23 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
     BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
         bc(offset);
         break;
       case eq:
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           // Pre R6 beq is used here to make the code patchable. Otherwise bc
           // should be used which has no condition field so is not patchable.
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           beq(rs, scratch, offset);
           nop();
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
           beqzc(rs, offset);
         } else {
           // We don't want any other register but scratch clobbered.
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           beqc(rs, scratch, offset);
         }
@@ -3417,16 +3417,16 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           // Pre R6 bne is used here to make the code patchable. Otherwise we
           // should not generate any instruction.
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           bne(rs, scratch, offset);
           nop();
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
           bnezc(rs, offset);
         } else {
           // We don't want any other register but scratch clobbered.
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           bnec(rs, scratch, offset);
         }
@@ -3438,14 +3438,14 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           bltzc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
           bgtzc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bltc(scratch, rs, offset);
@@ -3454,17 +3454,17 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       case greater_equal:
         // rs >= rt
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           blezc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
           bgezc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bgec(rs, scratch, offset);
@@ -3475,14 +3475,14 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           bgtzc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
           bltzc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bltc(rs, scratch, offset);
@@ -3491,17 +3491,17 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       case less_equal:
         // rs <= rt
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           bgezc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
           blezc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bgec(scratch, rs, offset);
@@ -3514,14 +3514,14 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
             return false;
           bnezc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
           bnezc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bltuc(scratch, rs, offset);
@@ -3530,17 +3530,17 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       case Ugreater_equal:
         // rs >= rt
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
             return false;
           beqzc(scratch, offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bgeuc(rs, scratch, offset);
@@ -3551,13 +3551,13 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
             return false;
           bnezc(scratch, offset);
         } else if (IsZero(rt)) {
           break;  // No code needs to be emitted.
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bltuc(rs, scratch, offset);
@@ -3566,17 +3566,17 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       case Uless_equal:
         // rs <= rt
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset26, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26, &scratch, rt))
             return false;
           bc(offset);
         } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset21)) return false;
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
           beqzc(rs, offset);
         } else {
-          if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
           bgeuc(scratch, rs, offset);
@@ -3858,7 +3858,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
   DCHECK((cond == cc_always && is_int26(offset)) || is_int16(offset));
   switch (cond) {
     case cc_always:
-      if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+      if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
       balc(offset);
       break;
     case eq:
@@ -3880,11 +3880,11 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
           return false;
         bltzalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
         bgtzalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3896,14 +3896,14 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     case greater_equal:
       // rs >= rt
       if (rs.code() == rt.rm().code()) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
           return false;
         blezalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
         bgezalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3917,11 +3917,11 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
           return false;
         bgtzalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
         bltzalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -3933,14 +3933,14 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     case less_equal:
       // rs <= r2
       if (rs.code() == rt.rm().code()) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
           return false;
         bgezalc(scratch, offset);
       } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, offset, OffsetSize::kOffset16)) return false;
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
         blezalc(rs, offset);
       } else {
         if (!is_near(L, bits)) return false;
@@ -4202,10 +4202,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void TurboAssembler::Jump(const ExternalReference& reference) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, reference);
-  Jump(scratch);
+  li(t9, reference);
+  Jump(t9);
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.
@@ -4284,7 +4282,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 

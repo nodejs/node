@@ -7,8 +7,8 @@
 
 #include "src/objects/heap-number.h"
 
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(HeapNumber, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(HeapNumber, PrimitiveHeapObject)
 
 CAST_ACCESSOR(HeapNumber)
 

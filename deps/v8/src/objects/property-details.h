@@ -112,7 +112,19 @@ class Representation {
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
     if (!FLAG_modify_field_representation_inplace) return false;
-    return (IsSmi() || IsHeapObject()) && other.IsTagged();
+    return (IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
+            IsHeapObject()) &&
+           other.IsTagged();
+  }
+
+  // Return the most generic representation that this representation can be
+  // changed to in-place. If in-place representation changes are disabled, then
+  // this will return the current representation.
+  Representation MostGenericInPlaceChange() const {
+    if (!FLAG_modify_field_representation_inplace) return *this;
+    // Everything but unboxed doubles can be in-place changed to Tagged.
+    if (FLAG_unbox_double_fields && IsDouble()) return Representation::Double();
+    return Representation::Tagged();
   }
 
   bool is_more_general_than(const Representation& other) const {

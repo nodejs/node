@@ -51,7 +51,7 @@ var kV8MaxPages = 32767;
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("foo", kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprI32LoadMem, 0, 0])
       .exportAs("foo");
     i1 = builder.instantiate();
@@ -63,7 +63,7 @@ var kV8MaxPages = 32767;
     builder.addImportedMemory("fil", "imported_mem");
     builder.addFunction("bar", kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprI32LoadMem, 0, 0])
       .exportAs("bar");
     i2 = builder.instantiate({fil: {imported_mem: i1.exports.exported_mem}});
@@ -89,11 +89,11 @@ var kV8MaxPages = 32767;
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("gaz", "mine");
   builder.addFunction("load", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   var offset;
   let instance = builder.instantiate({gaz: {mine: memory}});
@@ -119,11 +119,11 @@ var kV8MaxPages = 32767;
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("mine", "dog", 0, 20);
   builder.addFunction("load", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   var offset;
   let instance = builder.instantiate({mine: {dog: memory}});
@@ -157,11 +157,11 @@ var kV8MaxPages = 32767;
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("mine", "fro");
   builder.addFunction("load", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   var offset;
   let instance = builder.instantiate({mine: {fro: memory}});
@@ -187,7 +187,7 @@ var kV8MaxPages = 32767;
   assertEquals(2*kPageSize, memory.buffer.byteLength);
   let builder = new WasmModuleBuilder();
   builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
   builder.addImportedMemory("cat", "mine");
   let instance = builder.instantiate({cat: {mine: memory}});
@@ -217,7 +217,7 @@ var kV8MaxPages = 32767;
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance = builder.instantiate({fur: {
       imported_mem: exp_instance.exports.exported_mem}});
@@ -238,7 +238,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportAs("mem_size");
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+    .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var module = new WebAssembly.Module(builder.toBuffer());
   var instances = [];
@@ -279,7 +279,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+    .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {
@@ -344,7 +344,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+    .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 10; i++) {
@@ -379,7 +379,7 @@ var kV8MaxPages = 32767;
     builder.addMemory(1, kSpecMaxPages, true);
     builder.exportMemoryAs("exported_mem");
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance_1 = builder.instantiate();
   }
@@ -387,7 +387,7 @@ var kV8MaxPages = 32767;
     let builder = new WasmModuleBuilder();
     builder.addImportedMemory("doo", "imported_mem");
     builder.addFunction("grow", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
     instance_2 = builder.instantiate({
       doo: {imported_mem: instance_1.exports.exported_mem}});
@@ -407,7 +407,7 @@ var kV8MaxPages = 32767;
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+    .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   instance = builder.instantiate();
   assertEquals(kPageSize, instance.exports.exported_mem.buffer.byteLength);

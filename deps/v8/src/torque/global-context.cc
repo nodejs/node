@@ -19,7 +19,7 @@ GlobalContext::GlobalContext(Ast ast)
   CurrentSourcePosition::Scope current_source_position(
       SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
   default_namespace_ =
-      RegisterDeclarable(base::make_unique<Namespace>(kBaseNamespaceName));
+      RegisterDeclarable(std::make_unique<Namespace>(kBaseNamespaceName));
 }
 
 TargetArchitecture::TargetArchitecture(bool force_32bit)

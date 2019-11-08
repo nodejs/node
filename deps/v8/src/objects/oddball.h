@@ -5,8 +5,7 @@
 #ifndef V8_OBJECTS_ODDBALL_H_
 #define V8_OBJECTS_ODDBALL_H_
 
-#include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions-tq.h"
+#include "src/objects/primitive-heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 // The Oddball describes objects null, undefined, true, and false.
-class Oddball : public TorqueGeneratedOddball<Oddball, HeapObject> {
+class Oddball : public TorqueGeneratedOddball<Oddball, PrimitiveHeapObject> {
  public:
   // [to_number_raw]: Cached raw to_number computed at startup.
   inline void set_to_number_raw_as_bits(uint64_t bits);

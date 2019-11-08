@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-// Superclass for all objects with instance type {JS_ARGUMENTS_TYPE}
+// Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
 class JSArgumentsObject
     : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
  public:
@@ -25,15 +25,16 @@ class JSArgumentsObject
 };
 
 // Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
-// Note that the instance type {JS_ARGUMENTS_TYPE} does _not_ guarantee the
-// below layout, the in-object properties might have transitioned to dictionary
-// mode already. Only use the below layout with the specific initial maps.
+// Note that the instance type {JS_ARGUMENTS_OBJECT_TYPE} does _not_ guarantee
+// the below layout, the in-object properties might have transitioned to
+// dictionary mode already. Only use the below layout with the specific initial
+// maps.
 class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
       JSObject::kHeaderSize,
-      TORQUE_GENERATED_JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
+      TORQUE_GENERATED_JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
 
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
@@ -50,7 +51,7 @@ class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
  public:
   DEFINE_FIELD_OFFSET_CONSTANTS(
       JSArgumentsObjectWithLength::kSize,
-      TORQUE_GENERATED_JSSLOPPY_ARGUMENTS_OBJECT_FIELDS)
+      TORQUE_GENERATED_JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
 
   // Indices of in-object properties.
   static const int kCalleeIndex = kLengthIndex + 1;

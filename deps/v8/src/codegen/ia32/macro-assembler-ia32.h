@@ -237,6 +237,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
   void Psraw(XMMRegister dst, uint8_t shift);
   void Psrlw(XMMRegister dst, uint8_t shift);
+  void Psrlq(XMMRegister dst, uint8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -258,6 +259,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
+  AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -278,6 +282,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   AVX_OP3_XO(Packsswb, packsswb)
   AVX_OP3_XO(Packuswb, packuswb)
+  AVX_OP3_XO(Paddusb, paddusb)
   AVX_OP3_XO(Pcmpeqb, pcmpeqb)
   AVX_OP3_XO(Pcmpeqw, pcmpeqw)
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)
@@ -294,9 +299,40 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Xorpd, xorpd)
   AVX_OP3_XO(Sqrtss, sqrtss)
   AVX_OP3_XO(Sqrtsd, sqrtsd)
+  AVX_OP3_XO(Orpd, orpd)
+  AVX_OP3_XO(Andnpd, andnpd)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
+
+// Only use this macro when dst and src1 is the same in SSE case.
+#define AVX_PACKED_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, dst_type src1, src_type src2) {        \
+    if (CpuFeatures::IsSupported(AVX)) {                               \
+      CpuFeatureScope scope(this, AVX);                                \
+      v##name(dst, src1, src2);                                        \
+    } else {                                                           \
+      DCHECK_EQ(dst, src1);                                            \
+      name(dst, src2);                                                 \
+    }                                                                  \
+  }
+#define AVX_PACKED_OP3(macro_name, name)                               \
+  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
+  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
+
+  AVX_PACKED_OP3(Addpd, addpd)
+  AVX_PACKED_OP3(Subpd, subpd)
+  AVX_PACKED_OP3(Mulpd, mulpd)
+  AVX_PACKED_OP3(Divpd, divpd)
+  AVX_PACKED_OP3(Cmpeqpd, cmpeqpd)
+  AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
+  AVX_PACKED_OP3(Cmpltpd, cmpltpd)
+  AVX_PACKED_OP3(Cmplepd, cmplepd)
+  AVX_PACKED_OP3(Minpd, minpd)
+  AVX_PACKED_OP3(Maxpd, maxpd)
+  AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
+#undef AVX_PACKED_OP3
+#undef AVX_PACKED_OP3_WITH_TYPE
 
 // Non-SSE2 instructions.
 #define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
@@ -529,11 +565,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                           const ParameterCount& expected,
                           const ParameterCount& actual, InvokeFlag flag);
 
-  // On function call, call into the debugger if necessary.
+  // On function call, call into the debugger.
   // This may clobber ecx.
-  void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+  void CallDebugOnFunctionCall(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.

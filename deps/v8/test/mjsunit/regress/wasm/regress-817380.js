@@ -8,7 +8,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder1 = new WasmModuleBuilder();
 builder1.addFunction('mul', kSig_i_ii)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Mul])
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul])
     .exportFunc();
 const mul = builder1.instantiate().exports.mul;
 const table = new WebAssembly.Table({

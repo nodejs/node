@@ -196,7 +196,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   bool is_dictionary_map = transition_map->is_dictionary_map();
 #ifdef DEBUG
   if (!is_dictionary_map) {
-    int descriptor = transition_map->LastAdded();
+    InternalIndex descriptor = transition_map->LastAdded();
     Handle<DescriptorArray> descriptors(transition_map->instance_descriptors(),
                                         isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);

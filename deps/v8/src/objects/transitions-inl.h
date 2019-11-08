@@ -64,6 +64,10 @@ Name TransitionArray::GetKey(int transition_number) {
       Get(ToKeyIndex(transition_number))->GetHeapObjectAssumeStrong());
 }
 
+Name TransitionArray::GetKey(InternalIndex index) {
+  return GetKey(index.as_int());
+}
+
 Name TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
@@ -95,7 +99,7 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 // static
 PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
   DCHECK(!IsSpecialTransition(name.GetReadOnlyRoots(), name));
-  int descriptor = target.LastAdded();
+  InternalIndex descriptor = target.LastAdded();
   DescriptorArray descriptors = target.instance_descriptors();
   // Transitions are allowed only for the last added property.
   DCHECK(descriptors.GetKey(descriptor).Equals(name));
@@ -108,7 +112,7 @@ PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
 
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
-  int descriptor = transition.LastAdded();
+  InternalIndex descriptor = transition.LastAdded();
   return transition.instance_descriptors().GetKey(descriptor);
 }
 

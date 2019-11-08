@@ -9,6 +9,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-dotprinter.h"
 #include "src/regexp/regexp-interpreter.h"
@@ -574,7 +575,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
           // match.
           // We need to reset the tier up to start over with compilation.
           if (FLAG_regexp_tier_up) {
-            regexp->ResetTierUp();
+            regexp->ResetLastTierUpTick();
           }
           is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
           EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
@@ -599,6 +600,20 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
   }
 #endif
+
+  // For very long subject strings, the regexp interpreter is currently much
+  // slower than the jitted code execution. If the tier-up strategy is turned
+  // on, we want to avoid this performance penalty so we eagerly tier-up if the
+  // subject string length is equal or greater than the given heuristic value.
+  if (FLAG_regexp_tier_up &&
+      subject->length() >= JSRegExp::kTierUpForSubjectLengthValue) {
+    regexp->MarkTierUpForNextExec();
+    if (FLAG_trace_regexp_tier_up) {
+      PrintF(
+          "Forcing tier-up for very long strings in "
+          "RegExpImpl::IrregexpExec\n");
+    }
+  }
 
   // Prepare space for the return values.
   int required_registers = RegExp::IrregexpPrepare(isolate, regexp, subject);
@@ -860,14 +875,15 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
       OFStream os(trace_scope.file());
       Handle<Code> c(Code::cast(result.code), isolate);
       auto pattern_cstring = pattern->ToCString();
-      c->Disassemble(pattern_cstring.get(), os);
+      c->Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (FLAG_print_regexp_bytecode &&
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
       Handle<ByteArray> bytecode(ByteArray::cast(result.code), isolate);
       auto pattern_cstring = pattern->ToCString();
-      IrregexpInterpreter::Disassemble(*bytecode, pattern_cstring.get());
+      RegExpBytecodeDisassemble(bytecode->GetDataStartAddress(),
+                                bytecode->length(), pattern_cstring.get());
     }
   }
 

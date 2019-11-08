@@ -6,6 +6,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
+#include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -38,21 +39,39 @@ IsolateAllocator::~IsolateAllocator() {
 }
 
 #if V8_TARGET_ARCH_64_BIT
+
+namespace {
+
+// "IsolateRootBiasPage" is an optional region before the 4Gb aligned
+// reservation. This "IsolateRootBiasPage" page is supposed to be used for
+// storing part of the Isolate object when Isolate::isolate_root_bias() is
+// not zero.
+inline size_t GetIsolateRootBiasPageSize(
+    v8::PageAllocator* platform_page_allocator) {
+  return RoundUp(Isolate::isolate_root_bias(),
+                 platform_page_allocator->AllocatePageSize());
+}
+
+}  // namespace
+
 Address IsolateAllocator::InitReservation() {
   v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
 
-  // Reserve a 4Gb region so that the middle is 4Gb aligned.
-  // The VirtualMemory API does not support such an constraint so we have to
-  // implement it manually here.
-  size_t reservation_size = kPtrComprHeapReservationSize;
-  size_t base_alignment = kPtrComprIsolateRootAlignment;
+  const size_t kIsolateRootBiasPageSize =
+      GetIsolateRootBiasPageSize(platform_page_allocator);
+
+  // Reserve a |4Gb + kIsolateRootBiasPageSize| region such as that the
+  // resevation address plus |kIsolateRootBiasPageSize| is 4Gb aligned.
+  const size_t reservation_size =
+      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize;
+  const size_t base_alignment = kPtrComprIsolateRootAlignment;
 
   const int kMaxAttempts = 4;
   for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
     Address hint = RoundDown(reinterpret_cast<Address>(
                                  platform_page_allocator->GetRandomMmapAddr()),
-                             base_alignment) +
-                   kPtrComprIsolateRootBias;
+                             base_alignment) -
+                   kIsolateRootBiasPageSize;
 
     // Within this reservation there will be a sub-region with proper alignment.
     VirtualMemory padded_reservation(platform_page_allocator,
@@ -60,12 +79,11 @@ Address IsolateAllocator::InitReservation() {
                                      reinterpret_cast<void*>(hint));
     if (!padded_reservation.IsReserved()) break;
 
-    // Find such a sub-region inside the reservation that it's middle is
-    // |base_alignment|-aligned.
+    // Find properly aligned sub-region inside the reservation.
     Address address =
-        RoundUp(padded_reservation.address() + kPtrComprIsolateRootBias,
+        RoundUp(padded_reservation.address() + kIsolateRootBiasPageSize,
                 base_alignment) -
-        kPtrComprIsolateRootBias;
+        kIsolateRootBiasPageSize;
     CHECK(padded_reservation.InVM(address, reservation_size));
 
 #if defined(V8_OS_FUCHSIA)
@@ -98,16 +116,16 @@ Address IsolateAllocator::InitReservation() {
       if (!reservation.IsReserved()) break;
 
       // The reservation could still be somewhere else but we can accept it
-      // if the reservation has the required alignment.
-      Address aligned_address =
-          RoundUp(reservation.address() + kPtrComprIsolateRootBias,
+      // if it has the required alignment.
+      Address address =
+          RoundUp(reservation.address() + kIsolateRootBiasPageSize,
                   base_alignment) -
-          kPtrComprIsolateRootBias;
+          kIsolateRootBiasPageSize;
 
-      if (reservation.address() == aligned_address) {
+      if (reservation.address() == address) {
         reservation_ = std::move(reservation);
         CHECK_EQ(reservation_.size(), reservation_size);
-        return aligned_address;
+        return address;
       }
     }
   }
@@ -116,21 +134,26 @@ Address IsolateAllocator::InitReservation() {
   return kNullAddress;
 }
 
-void IsolateAllocator::CommitPagesForIsolate(Address heap_address) {
-  CHECK(reservation_.InVM(heap_address, kPtrComprHeapReservationSize));
+void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
+  v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
 
-  Address isolate_root = heap_address + kPtrComprIsolateRootBias;
+  const size_t kIsolateRootBiasPageSize =
+      GetIsolateRootBiasPageSize(platform_page_allocator);
+
+  Address isolate_root = heap_reservation_address + kIsolateRootBiasPageSize;
   CHECK(IsAligned(isolate_root, kPtrComprIsolateRootAlignment));
 
-  v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
+  CHECK(reservation_.InVM(
+      heap_reservation_address,
+      kPtrComprHeapReservationSize + kIsolateRootBiasPageSize));
 
   // Simplify BoundedPageAllocator's life by configuring it to use same page
   // size as the Heap will use (MemoryChunk::kPageSize).
   size_t page_size = RoundUp(size_t{1} << kPageSizeBits,
                              platform_page_allocator->AllocatePageSize());
 
-  page_allocator_instance_ = base::make_unique<base::BoundedPageAllocator>(
-      platform_page_allocator, heap_address, kPtrComprHeapReservationSize,
+  page_allocator_instance_ = std::make_unique<base::BoundedPageAllocator>(
+      platform_page_allocator, isolate_root, kPtrComprHeapReservationSize,
       page_size);
   page_allocator_ = page_allocator_instance_.get();
 
@@ -139,7 +162,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_address) {
 
   // Inform the bounded page allocator about reserved pages.
   {
-    Address reserved_region_address = RoundDown(isolate_address, page_size);
+    Address reserved_region_address = isolate_root;
     size_t reserved_region_size =
         RoundUp(isolate_end, page_size) - reserved_region_address;
 
@@ -163,10 +186,8 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_address) {
                                       PageAllocator::kReadWrite));
 
     if (Heap::ShouldZapGarbage()) {
-      for (Address address = committed_region_address;
-           address < committed_region_size; address += kSystemPointerSize) {
-        base::Memory<Address>(address) = static_cast<Address>(kZapValue);
-      }
+      MemsetPointer(reinterpret_cast<Address*>(committed_region_address),
+                    kZapValue, committed_region_size / kSystemPointerSize);
     }
   }
   isolate_memory_ = reinterpret_cast<void*>(isolate_address);

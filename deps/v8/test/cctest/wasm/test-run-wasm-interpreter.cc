@@ -278,7 +278,7 @@ TEST(Breakpoint_I32Add) {
   static const int kNumBreakpoints = 3;
   byte code[] = {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
   std::unique_ptr<int[]> offsets =
-      Find(code, sizeof(code), kNumBreakpoints, kExprGetLocal, kExprGetLocal,
+      Find(code, sizeof(code), kNumBreakpoints, kExprLocalGet, kExprLocalGet,
            kExprI32Add);
 
   WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);

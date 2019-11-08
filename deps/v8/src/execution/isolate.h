@@ -1163,86 +1163,7 @@ class Isolate final : private HiddenFactory {
 
 #endif  // V8_INTL_SUPPORT
 
-  static const int kProtectorValid = 1;
-  static const int kProtectorInvalid = 0;
-
-  inline bool IsArrayConstructorIntact();
-
-  // The version with an explicit context parameter can be used when
-  // Isolate::context is not set up, e.g. when calling directly into C++ from
-  // CSA.
-  bool IsNoElementsProtectorIntact(Context context);
-  V8_EXPORT_PRIVATE bool IsNoElementsProtectorIntact();
-
   bool IsArrayOrObjectOrStringPrototype(Object object);
-
-  inline bool IsTypedArraySpeciesLookupChainIntact();
-
-  // Check that the @@species protector is intact, which guards the lookup of
-  // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
-  // %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
-  inline bool IsPromiseSpeciesLookupChainIntact();
-
-  bool IsIsConcatSpreadableLookupChainIntact();
-  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
-  inline bool IsStringLengthOverflowIntact();
-  inline bool IsArrayIteratorLookupChainIntact();
-
-  // The MapIterator protector protects the original iteration behaviors of
-  // Map.prototype.keys(), Map.prototype.values(), and Set.prototype.entries().
-  // It does not protect the original iteration behavior of
-  // Map.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %MapIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %IteratorPrototype%. Note that this also invalidates the
-  //   SetIterator protector (see below).
-  inline bool IsMapIteratorLookupChainIntact();
-
-  // The SetIterator protector protects the original iteration behavior of
-  // Set.prototype.keys(), Set.prototype.values(), Set.prototype.entries(),
-  // and Set.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %SetIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %SetPrototype% OR %IteratorPrototype%. This means that
-  //   setting Symbol.iterator on a MapIterator object can also invalidate the
-  //   SetIterator protector, and vice versa, setting Symbol.iterator on a
-  //   SetIterator object can also invalidate the MapIterator. This is an over-
-  //   approximation for the sake of simplicity.
-  inline bool IsSetIteratorLookupChainIntact();
-
-  // The StringIteratorProtector protects the original string iteration behavior
-  // for primitive strings. As long as the StringIteratorProtector is valid,
-  // iterating over a primitive string is guaranteed to be unobservable from
-  // user code and can thus be cut short. More specifically, the protector gets
-  // invalidated as soon as either String.prototype[Symbol.iterator] or
-  // String.prototype[Symbol.iterator]().next is modified. This guarantee does
-  // not apply to string objects (as opposed to primitives), since they could
-  // define their own Symbol.iterator.
-  // String.prototype itself does not need to be protected, since it is
-  // non-configurable and non-writable.
-  inline bool IsStringIteratorLookupChainIntact();
-
-  // Make sure we do check for detached array buffers.
-  inline bool IsArrayBufferDetachingIntact();
-
-  // Disable promise optimizations if promise (debug) hooks have ever been
-  // active, because those can observe promises.
-  bool IsPromiseHookProtectorIntact();
-
-  // Make sure a lookup of "resolve" on the %Promise% intrinsic object
-  // yeidls the initial Promise.resolve method.
-  bool IsPromiseResolveLookupChainIntact();
-
-  // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method. In addition this
-  // protector also guards the negative lookup of "then" on the intrinsic
-  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
-  // undefined without triggering any side-effects.
-  bool IsPromiseThenLookupChainIntact();
-  bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1258,24 +1179,6 @@ class Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
-
-  // The `protector_name` C string must be statically allocated.
-  void TraceProtectorInvalidation(const char* protector_name);
-
-  void InvalidateArrayConstructorProtector();
-  void InvalidateTypedArraySpeciesProtector();
-  void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
-  void InvalidatePromiseSpeciesProtector();
-  void InvalidateIsConcatSpreadableProtector();
-  void InvalidateStringLengthOverflowProtector();
-  void InvalidateArrayIteratorProtector();
-  void InvalidateMapIteratorProtector();
-  void InvalidateSetIteratorProtector();
-  void InvalidateStringIteratorProtector();
-  void InvalidateArrayBufferDetachingProtector();
-  V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
-  void InvalidatePromiseResolveProtector();
-  void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1406,6 +1309,8 @@ class Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
+  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+
   std::vector<Object>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
@@ -1513,6 +1418,11 @@ class Isolate final : private HiddenFactory {
   bool HasPrepareStackTraceCallback() const;
 
   void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
+  void AddCrashKey(CrashKeyId id, const std::string& value) {
+    if (add_crash_key_callback_) {
+      add_crash_key_callback_(id, value);
+    }
+  }
 
   void SetRAILMode(RAILMode rail_mode);
 

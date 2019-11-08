@@ -38,7 +38,10 @@ namespace internal {
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
- * The stack will have the following structure:
+ * The stack will have the following structure
+ *  - fp[112]  Address regexp     (address of the JSRegExp object; unused in
+ *                                native code, passed to match signature of
+ *                                the interpreter)
  *  - fp[108] Isolate* isolate   (address of the current isolate)
  *  - fp[104] direct_call        (if 1, direct call from JavaScript code,
  *                                if 0, call through the runtime system).
@@ -85,7 +88,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */
@@ -204,7 +208,7 @@ void RegExpMacroAssemblerS390::CheckGreedyLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ CmpP(current_input_offset(), MemOperand(backtrack_stackpointer(), 0));
   __ bne(&backtrack_non_equal);
-  __ AddP(backtrack_stackpointer(), Operand(kPointerSize));
+  __ AddP(backtrack_stackpointer(), Operand(kSystemPointerSize));
 
   BranchOrBacktrack(al, on_equal);
   __ bind(&backtrack_non_equal);
@@ -635,11 +639,11 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   //    Requires us to save the callee-preserved registers r6-r13
   //    General convention is to also save r14 (return addr) and
   //    sp/r15 as well in a single STM/STMG
-  __ StoreMultipleP(r6, sp, MemOperand(sp, 6 * kPointerSize));
+  __ StoreMultipleP(r6, sp, MemOperand(sp, 6 * kSystemPointerSize));
 
   // Load stack parameters from caller stack frame
-  __ LoadMultipleP(r7, r9,
-                   MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+  __ LoadMultipleP(
+      r7, r9, MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
   // r7 = capture array size
   // r8 = stack area base
   // r9 = direct call
@@ -654,7 +658,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   // Set frame pointer in space for it if this is not a direct call
   // from generated code.
   __ LoadRR(frame_pointer(), sp);
-  __ lay(sp, MemOperand(sp, -10 * kPointerSize));
+  __ lay(sp, MemOperand(sp, -10 * kSystemPointerSize));
   __ mov(r1, Operand::Zero());  // success counter
   __ LoadRR(r0, r1);            // offset of location
   __ StoreMultipleP(r0, r9, MemOperand(sp, 0));
@@ -672,7 +676,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   __ ble(&stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
-  __ CmpLogicalP(r2, Operand(num_registers_ * kPointerSize));
+  __ CmpLogicalP(r2, Operand(num_registers_ * kSystemPointerSize));
   __ bge(&stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
@@ -688,7 +692,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ lay(sp, MemOperand(sp, (-num_registers_ * kPointerSize)));
+  __ lay(sp, MemOperand(sp, (-num_registers_ * kSystemPointerSize)));
   // Load string end.
   __ LoadP(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
   // Load input start.
@@ -731,12 +735,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     // Fill saved registers with initial value = start offset - 1
     if (num_saved_registers_ > 8) {
       // One slot beyond address of register 0.
-      __ lay(r3, MemOperand(frame_pointer(), kRegisterZero + kPointerSize));
+      __ lay(r3,
+             MemOperand(frame_pointer(), kRegisterZero + kSystemPointerSize));
       __ Load(r4, Operand(num_saved_registers_));
       Label init_loop;
       __ bind(&init_loop);
-      __ StoreP(r1, MemOperand(r3, -kPointerSize));
-      __ lay(r3, MemOperand(r3, -kPointerSize));
+      __ StoreP(r1, MemOperand(r3, -kSystemPointerSize));
+      __ lay(r3, MemOperand(r3, -kSystemPointerSize));
       __ BranchOnCount(r4, &init_loop);
     } else {
       for (int i = 0; i < num_saved_registers_; i++) {
@@ -871,7 +876,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   // Skip sp past regexp registers and local variables..
   __ LoadRR(sp, frame_pointer());
   // Restore registers r6..r15.
-  __ LoadMultipleP(r6, sp, MemOperand(sp, 6 * kPointerSize));
+  __ LoadMultipleP(r6, sp, MemOperand(sp, 6 * kSystemPointerSize));
 
   __ b(r14);
 
@@ -1087,17 +1092,19 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   // Code of self.
   __ mov(r3, Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
-  __ lay(r2, MemOperand(sp, kStackFrameRASlot * kPointerSize));
+  __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
 
   __ mov(ip, Operand(stack_guard_check));
   __ StoreReturnAddressAndCall(ip);
 
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-    __ LoadP(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
+    __ LoadP(
+        sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kSystemPointerSize)));
   } else {
-    __ la(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+    __ la(sp,
+          MemOperand(sp, (kNumRequiredStackFrameSlots * kSystemPointerSize)));
   }
 
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
@@ -1106,7 +1113,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
 // Helper function for reading a value out of a stack frame.
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
-  DCHECK_EQ(kPointerSize, sizeof(T));
+  DCHECK_EQ(kSystemPointerSize, sizeof(T));
 #ifdef V8_TARGET_ARCH_S390X
   return reinterpret_cast<T&>(Memory<uint64_t>(re_frame + frame_offset));
 #else
@@ -1140,7 +1147,7 @@ MemOperand RegExpMacroAssemblerS390::register_location(int register_index) {
     num_registers_ = register_index + 1;
   }
   return MemOperand(frame_pointer(),
-                    kRegisterZero - register_index * kPointerSize);
+                    kRegisterZero - register_index * kSystemPointerSize);
 }
 
 void RegExpMacroAssemblerS390::CheckPosition(int cp_offset,
@@ -1200,7 +1207,7 @@ void RegExpMacroAssemblerS390::SafeCallTarget(Label* name) {
 void RegExpMacroAssemblerS390::Push(Register source) {
   DCHECK(source != backtrack_stackpointer());
   __ lay(backtrack_stackpointer(),
-         MemOperand(backtrack_stackpointer(), -kPointerSize));
+         MemOperand(backtrack_stackpointer(), -kSystemPointerSize));
   __ StoreP(source, MemOperand(backtrack_stackpointer()));
 }
 
@@ -1208,7 +1215,7 @@ void RegExpMacroAssemblerS390::Pop(Register target) {
   DCHECK(target != backtrack_stackpointer());
   __ LoadP(target, MemOperand(backtrack_stackpointer()));
   __ la(backtrack_stackpointer(),
-        MemOperand(backtrack_stackpointer(), kPointerSize));
+        MemOperand(backtrack_stackpointer(), kSystemPointerSize));
 }
 
 void RegExpMacroAssemblerS390::CheckPreemption() {
@@ -1235,13 +1242,15 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   __ mov(code_pointer(), Operand(function));
   Label ret;
   __ larl(r14, &ret);
-  __ StoreP(r14, MemOperand(sp, kStackFrameRASlot * kPointerSize));
+  __ StoreP(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   __ b(code_pointer());
   __ bind(&ret);
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-    __ LoadP(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
+    __ LoadP(
+        sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kSystemPointerSize)));
   } else {
-    __ la(sp, MemOperand(sp, (kNumRequiredStackFrameSlots * kPointerSize)));
+    __ la(sp,
+          MemOperand(sp, (kNumRequiredStackFrameSlots * kSystemPointerSize)));
   }
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }

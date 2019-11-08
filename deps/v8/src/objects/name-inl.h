@@ -9,6 +9,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -98,6 +99,10 @@ DEF_GETTER(Name, IsPrivateName, bool) {
 
 bool Name::AsArrayIndex(uint32_t* index) {
   return IsString() && String::cast(*this).AsArrayIndex(index);
+}
+
+bool Name::AsIntegerIndex(size_t* index) {
+  return IsString() && String::cast(*this).AsIntegerIndex(index);
 }
 
 // static

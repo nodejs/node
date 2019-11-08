@@ -293,6 +293,10 @@ bool FunctionLiteral::requires_brand_initialization() const {
   return outer->AsClassScope()->brand() != nullptr;
 }
 
+bool FunctionLiteral::private_name_lookup_skips_outer_class() const {
+  return scope()->private_name_lookup_skips_outer_class();
+}
+
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name),
@@ -886,7 +890,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber(number_, AllocationType::kOld);
+      return isolate->factory()->NewNumber<AllocationType::kOld>(number_);
     case kString:
       return string_->string();
     case kSymbol:

@@ -714,12 +714,12 @@ struct ControlBase {
   F(RefFunc, uint32_t function_index, Value* result)                          \
   F(Drop, const Value& value)                                                 \
   F(DoReturn, Vector<Value> values)                                           \
-  F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)        \
-  F(SetLocal, const Value& value, const LocalIndexImmediate<validate>& imm)   \
-  F(TeeLocal, const Value& value, Value* result,                              \
+  F(LocalGet, Value* result, const LocalIndexImmediate<validate>& imm)        \
+  F(LocalSet, const Value& value, const LocalIndexImmediate<validate>& imm)   \
+  F(LocalTee, const Value& value, Value* result,                              \
     const LocalIndexImmediate<validate>& imm)                                 \
-  F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)      \
-  F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm) \
+  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)      \
+  F(GlobalSet, const Value& value, const GlobalIndexImmediate<validate>& imm) \
   F(TableGet, const Value& index, Value* result,                              \
     const TableIndexImmediate<validate>& imm)                                 \
   F(TableSet, const Value& index, const Value& value,                         \
@@ -910,8 +910,8 @@ class WasmDecoder : public Decoder {
           length = OpcodeLength(decoder, pc);
           depth++;
           break;
-        case kExprSetLocal:  // fallthru
-        case kExprTeeLocal: {
+        case kExprLocalSet:  // fallthru
+        case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(decoder, pc);
           if (assigned->length() > 0 &&
               imm.index < static_cast<uint32_t>(assigned->length())) {
@@ -1045,8 +1045,8 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const byte* pc, BranchTableImmediate<validate>& imm,
                 size_t block_depth) {
-    if (!VALIDATE(imm.table_count < kV8MaxWasmFunctionSize)) {
-      errorf(pc + 1, "invalid table count (> max function size): %u",
+    if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
+      errorf(pc + 1, "invalid table count (> max br_table size): %u",
              imm.table_count);
       return false;
     }
@@ -1069,11 +1069,13 @@ class WasmDecoder : public Decoder {
       case kExprI32x4ReplaceLane:
         num_lanes = 4;
         break;
-      case kExprI16x8ExtractLane:
+      case kExprI16x8ExtractLaneS:
+      case kExprI16x8ExtractLaneU:
       case kExprI16x8ReplaceLane:
         num_lanes = 8;
         break;
-      case kExprI8x16ExtractLane:
+      case kExprI8x16ExtractLaneS:
+      case kExprI8x16ExtractLaneU:
       case kExprI8x16ReplaceLane:
         num_lanes = 16;
         break;
@@ -1252,8 +1254,8 @@ class WasmDecoder : public Decoder {
         BranchDepthImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-      case kExprGetGlobal:
-      case kExprSetGlobal: {
+      case kExprGlobalGet:
+      case kExprGlobalSet: {
         GlobalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
@@ -1291,9 +1293,9 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
 
-      case kExprSetLocal:
-      case kExprTeeLocal:
-      case kExprGetLocal: {
+      case kExprLocalGet:
+      case kExprLocalSet:
+      case kExprLocalTee: {
         LocalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
@@ -1458,19 +1460,19 @@ class WasmDecoder : public Decoder {
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       case kExprTableGet:
-      case kExprTeeLocal:
+      case kExprLocalTee:
       case kExprMemoryGrow:
         return {1, 1};
-      case kExprSetLocal:
-      case kExprSetGlobal:
+      case kExprLocalSet:
+      case kExprGlobalSet:
       case kExprDrop:
       case kExprBrIf:
       case kExprBrTable:
       case kExprIf:
       case kExprRethrow:
         return {1, 0};
-      case kExprGetLocal:
-      case kExprGetGlobal:
+      case kExprLocalGet:
+      case kExprGlobalGet:
       case kExprI32Const:
       case kExprI64Const:
       case kExprF32Const:
@@ -2125,28 +2127,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len = 1 + imm.length;
           break;
         }
-        case kExprGetLocal: {
+        case kExprLocalGet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto* value = Push(imm.type);
-          CALL_INTERFACE_IF_REACHABLE(GetLocal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalGet, value, imm);
           len = 1 + imm.length;
           break;
         }
-        case kExprSetLocal: {
+        case kExprLocalSet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto value = Pop(0, local_type_vec_[imm.index]);
-          CALL_INTERFACE_IF_REACHABLE(SetLocal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalSet, value, imm);
           len = 1 + imm.length;
           break;
         }
-        case kExprTeeLocal: {
+        case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto value = Pop(0, local_type_vec_[imm.index]);
           auto* result = Push(value.type);
-          CALL_INTERFACE_IF_REACHABLE(TeeLocal, value, result, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalTee, value, result, imm);
           len = 1 + imm.length;
           break;
         }
@@ -2155,15 +2157,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CALL_INTERFACE_IF_REACHABLE(Drop, value);
           break;
         }
-        case kExprGetGlobal: {
+        case kExprGlobalGet: {
           GlobalIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
           auto* result = Push(imm.type);
-          CALL_INTERFACE_IF_REACHABLE(GetGlobal, result, imm);
+          CALL_INTERFACE_IF_REACHABLE(GlobalGet, result, imm);
           break;
         }
-        case kExprSetGlobal: {
+        case kExprGlobalSet: {
           GlobalIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
@@ -2173,7 +2175,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           auto value = Pop(0, imm.type);
-          CALL_INTERFACE_IF_REACHABLE(SetGlobal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(GlobalSet, value, imm);
           break;
         }
         case kExprTableGet: {
@@ -2447,15 +2449,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               TRACE_PART("[%d]", imm.value);
               break;
             }
-            case kExprGetLocal:
-            case kExprSetLocal:
-            case kExprTeeLocal: {
+            case kExprLocalGet:
+            case kExprLocalSet:
+            case kExprLocalTee: {
               LocalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
               TRACE_PART("[%u]", imm.index);
               break;
             }
-            case kExprGetGlobal:
-            case kExprSetGlobal: {
+            case kExprGlobalGet:
+            case kExprGlobalSet: {
               GlobalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
               TRACE_PART("[%u]", imm.index);
               break;
@@ -2700,8 +2702,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         break;
       }
       case kExprI32x4ExtractLane:
-      case kExprI16x8ExtractLane:
-      case kExprI8x16ExtractLane: {
+      case kExprI16x8ExtractLaneS:
+      case kExprI16x8ExtractLaneU:
+      case kExprI8x16ExtractLaneS:
+      case kExprI8x16ExtractLaneU: {
         len = SimdExtractLane(opcode, kWasmI32);
         break;
       }

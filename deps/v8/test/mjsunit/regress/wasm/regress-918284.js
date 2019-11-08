@@ -14,7 +14,7 @@ builder.addFunction(undefined, kSig_i_i)
     kExprElse,   // @15
       kExprI32Const, 1,
       kExprEnd,   // @18
-    kExprTeeLocal, 0,
+    kExprLocalTee, 0,
     kExprI32Popcnt
 ]);
 builder.instantiate();

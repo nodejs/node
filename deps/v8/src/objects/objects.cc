@@ -65,6 +65,7 @@
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/property-details.h"
 #include "src/utils/identity-map.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
@@ -1770,7 +1771,7 @@ bool Object::IterationHasObservableEffects() {
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
-  if (!isolate->IsArrayIteratorLookupChainIntact()) return true;
+  if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return true;
 
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.
@@ -1781,7 +1782,7 @@ bool Object::IterationHasObservableEffects() {
   // the prototype. This could have different results if the prototype has been
   // changed.
   if (IsHoleyElementsKind(array_kind) &&
-      isolate->IsNoElementsProtectorIntact()) {
+      Protectors::IsNoElementsIntact(isolate)) {
     return false;
   }
   return true;
@@ -2188,7 +2189,8 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
-    return Context::SizeFor(Context::unchecked_cast(*this).length());
+    return Context::SizeFor(
+        Context::unchecked_cast(*this).synchronized_length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
@@ -2378,7 +2380,7 @@ bool HeapObject::IsExternal(Isolate* isolate) const {
 
 void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
-  for (int i = 0; i < length; i++) {
+  for (InternalIndex i : InternalIndex::Range(length)) {
     PropertyDetails details = GetDetails(i);
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == kField) {
@@ -3717,7 +3719,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       DescriptorArray::Allocate(isolate, size, slack);
 
   if (attributes != NONE) {
-    for (int i = 0; i < size; ++i) {
+    for (InternalIndex i : InternalIndex::Range(size)) {
       MaybeObject value_or_field_type = desc->GetValue(i);
       Name key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
@@ -3737,7 +3739,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       descriptors->Set(i, key, value_or_field_type, details);
     }
   } else {
-    for (int i = 0; i < size; ++i) {
+    for (InternalIndex i : InternalIndex::Range(size)) {
       descriptors->CopyFrom(i, *desc);
     }
   }
@@ -3760,21 +3762,17 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
   Handle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, size, slack);
 
-  for (int i = 0; i < size; ++i) {
+  for (InternalIndex i : InternalIndex::Range(size)) {
     Name key = src->GetKey(i);
     PropertyDetails details = src->GetDetails(i);
+    Representation new_representation = details.representation();
 
     DCHECK(!key.IsPrivateName());
     DCHECK(details.IsEnumerable());
     DCHECK_EQ(details.kind(), kData);
-
-    // Ensure the ObjectClone property details are NONE, and that all source
-    // details did not contain DONT_ENUM.
-    PropertyDetails new_details(kData, NONE, details.location(),
-                                details.constness(), details.representation(),
-                                details.field_index());
-    // Do not propagate the field type of normal object fields from the
-    // original descriptors since FieldType changes don't create new maps.
+    // If the new representation is an in-place changeable field, make it
+    // generic as possible (under in-place changes) to avoid type confusion if
+    // the source representation changes after this feedback has been collected.
     MaybeObject type = src->GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
@@ -3783,13 +3781,15 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
       // need to generalize the descriptors here. That will also enable
       // us to skip the defensive copying of the target map whenever a
       // CloneObjectIC misses.
-      if (FLAG_modify_field_representation_inplace &&
-          (new_details.representation().IsSmi() ||
-           new_details.representation().IsHeapObject())) {
-        new_details =
-            new_details.CopyWithRepresentation(Representation::Tagged());
-      }
+      new_representation = new_representation.MostGenericInPlaceChange();
     }
+
+    // Ensure the ObjectClone property details are NONE, and that all source
+    // details did not contain DONT_ENUM.
+    PropertyDetails new_details(kData, NONE, details.location(),
+                                details.constness(), new_representation,
+                                details.field_index());
+
     descriptors->Set(i, key, type, new_details);
   }
 
@@ -3799,7 +3799,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
 }
 
 bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
-  for (int i = 0; i < nof_descriptors; i++) {
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     if (GetKey(i) != desc.GetKey(i) || GetValue(i) != desc.GetValue(i)) {
       return false;
     }
@@ -3816,8 +3816,7 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
 
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
-                                          Handle<Object> value,
-                                          AllocationType allocation) {
+                                          Handle<Object> value) {
   if (index < array->length()) {
     array->set(index, *value);
     return array;
@@ -3827,7 +3826,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array =
-      isolate->factory()->NewUninitializedFixedArray(capacity, allocation);
+      isolate->factory()->NewUninitializedFixedArray(capacity);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
@@ -4147,12 +4146,10 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
 
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                   int nof_descriptors,
-                                                  int slack,
-                                                  AllocationType allocation) {
+                                                  int slack) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
-             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      allocation);
+             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack);
 }
 
 void DescriptorArray::Initialize(EnumCache enum_cache,
@@ -4174,8 +4171,8 @@ void DescriptorArray::ClearEnumCache() {
   set_enum_cache(GetReadOnlyRoots().empty_enum_cache());
 }
 
-void DescriptorArray::Replace(int index, Descriptor* descriptor) {
-  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index));
+void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
+  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
   Set(index, descriptor);
 }
 
@@ -4193,7 +4190,7 @@ void DescriptorArray::InitializeOrChangeEnumCache(
   }
 }
 
-void DescriptorArray::CopyFrom(int index, DescriptorArray src) {
+void DescriptorArray::CopyFrom(InternalIndex index, DescriptorArray src) {
   PropertyDetails details = src.GetDetails(index);
   Set(index, src.GetKey(index), src.GetValue(index), details);
 }
@@ -4304,7 +4301,7 @@ bool DescriptorArray::IsEqualTo(DescriptorArray other) {
   if (number_of_all_descriptors() != other.number_of_all_descriptors()) {
     return false;
   }
-  for (int i = 0; i < number_of_descriptors(); ++i) {
+  for (InternalIndex i : InternalIndex::Range(number_of_descriptors())) {
     if (GetKey(i) != other.GetKey(i)) return false;
     if (GetDetails(i).AsSmi() != other.GetDetails(i).AsSmi()) return false;
     if (GetValue(i) != other.GetValue(i)) return false;
@@ -4507,6 +4504,7 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   value |= length << String::ArrayIndexLengthBits::kShift;
 
   DCHECK_EQ(value & String::kIsNotArrayIndexMask, 0);
+  DCHECK_EQ(value & String::kIsNotIntegerIndexMask, 0);
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
             Name::ContainsCachedArrayIndex(value));
   return value;
@@ -4659,8 +4657,26 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // directly.
   if (type() == Script::TYPE_WASM) {
     DCHECK_LE(0, position);
-    return WasmModuleObject::cast(wasm_module_object())
-        .GetPositionInfo(static_cast<uint32_t>(position), info);
+    wasm::NativeModule* native_module = wasm_native_module();
+    const wasm::WasmModule* module = native_module->module();
+    if (source_mapping_url().IsString()) {
+      if (module->functions.size() == 0) return false;
+      info->line = 0;
+      info->column = position;
+      info->line_start = module->functions[0].code.offset();
+      info->line_end = module->functions.back().code.end_offset();
+      return true;
+    }
+    int func_index = GetContainingWasmFunction(module, position);
+    if (func_index < 0) return false;
+
+    const wasm::WasmFunction& function = module->functions[func_index];
+
+    info->line = func_index;
+    info->column = position - function.code.offset();
+    info->line_start = function.code.offset();
+    info->line_end = function.code.end_offset();
+    return true;
   }
 
   if (line_ends().IsUndefined()) {
@@ -4972,26 +4988,8 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
   index_ = 0;
 }
 
-SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
-    : isolate_(isolate),
-      script_iterator_(isolate),
-      noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
-      sfi_iterator_(isolate, script_iterator_.Next()) {}
-
-SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
-  HeapObject next = noscript_sfi_iterator_.Next();
-  if (!next.is_null()) return SharedFunctionInfo::cast(next);
-  for (;;) {
-    next = sfi_iterator_.Next();
-    if (!next.is_null()) return SharedFunctionInfo::cast(next);
-    Script next_script = script_iterator_.Next();
-    if (next_script.is_null()) return SharedFunctionInfo();
-    sfi_iterator_.Reset(isolate_, next_script);
-  }
-}
-
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
-                                   Handle<Object> script_object,
+                                   Handle<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
   if (shared->script() == *script_object) return;
@@ -5020,30 +5018,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     }
 #endif
     list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
-
-    // Remove shared function info from root array.
-    WeakArrayList noscript_list =
-        isolate->heap()->noscript_shared_function_infos();
-    CHECK(noscript_list.RemoveOne(MaybeObjectHandle::Weak(shared)));
   } else {
     DCHECK(shared->script().IsScript());
-    Handle<WeakArrayList> list =
-        isolate->factory()->noscript_shared_function_infos();
-
-#ifdef DEBUG
-    if (FLAG_enable_slow_asserts) {
-      WeakArrayList::Iterator iterator(*list);
-      for (HeapObject next = iterator.Next(); !next.is_null();
-           next = iterator.Next()) {
-        DCHECK_NE(next, *shared);
-      }
-    }
-#endif  // DEBUG
-
-    list =
-        WeakArrayList::AddToEnd(isolate, list, MaybeObjectHandle::Weak(shared));
-
-    isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
 
     // Remove shared function info from old script's list.
     Script old_script = Script::cast(shared->script());
@@ -5354,6 +5330,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
       shared_info->set_outer_scope_info(*outer_scope->scope_info());
+      shared_info->set_private_name_lookup_skips_outer_class(
+          lit->scope()->private_name_lookup_skips_outer_class());
     }
   }
 
@@ -5669,9 +5647,10 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   // Fast path: "length" is the first fast property of arrays. Since it's not
   // configurable, it's guaranteed to be the first in the descriptor array.
   if (!map.is_dictionary_map()) {
-    DCHECK(map.instance_descriptors().GetKey(0) ==
+    InternalIndex first(0);
+    DCHECK(map.instance_descriptors().GetKey(first) ==
            array->GetReadOnlyRoots().length_string());
-    return map.instance_descriptors().GetDetails(0).IsReadOnly();
+    return map.instance_descriptors().GetDetails(first).IsReadOnly();
   }
 
   Isolate* isolate = array->GetIsolate();
@@ -5927,17 +5906,25 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   // 8. Let then be Get(resolution, "then").
   MaybeHandle<Object> then;
-  if (isolate->IsPromiseThenLookupChainIntact(
-          Handle<JSReceiver>::cast(resolution))) {
+  Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(resolution));
+
+  // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
+  // initial %PromisePrototype% yields the initial method. In addition this
+  // protector also guards the negative lookup of "then" on the intrinsic
+  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
+  // undefined without triggering any side-effects.
+  if (receiver->IsJSPromise() &&
+      isolate->IsInAnyContext(receiver->map().prototype(),
+                              Context::PROMISE_PROTOTYPE_INDEX) &&
+      Protectors::IsPromiseThenLookupChainIntact(isolate)) {
     // We can skip the "then" lookup on {resolution} if its [[Prototype]]
     // is the (initial) Promise.prototype and the Promise#then protector
     // is intact, as that guards the lookup path for the "then" property
     // on JSPromise instances which have the (initial) %PromisePrototype%.
     then = isolate->promise_then();
   } else {
-    then =
-        JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(resolution),
-                                isolate->factory()->then_string());
+    then = JSReceiver::GetProperty(isolate, receiver,
+                                   isolate->factory()->then_string());
   }
 
   // 9. If then is an abrupt completion, then
@@ -6151,27 +6138,40 @@ bool JSRegExp::ShouldProduceBytecode() {
 }
 
 // An irregexp is considered to be marked for tier up if the tier-up ticks value
-// is not zero. An atom is not subject to tier-up implementation, so the tier-up
-// ticks value is not set.
+// reaches zero. An atom is not subject to tier-up implementation, so the
+// tier-up ticks value is not set.
 bool JSRegExp::MarkedForTierUp() {
   DCHECK(data().IsFixedArray());
-  if (TypeTag() == JSRegExp::ATOM) {
+  if (TypeTag() == JSRegExp::ATOM || !FLAG_regexp_tier_up) {
     return false;
   }
-  return Smi::ToInt(DataAt(kIrregexpTierUpTicksIndex)) != 0;
+  return Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) == 0;
 }
 
-void JSRegExp::ResetTierUp() {
+void JSRegExp::ResetLastTierUpTick() {
   DCHECK(FLAG_regexp_tier_up);
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex, Smi::kZero);
+  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::FromInt(tier_up_ticks));
+}
+
+void JSRegExp::TierUpTick() {
+  DCHECK(FLAG_regexp_tier_up);
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
+  if (tier_up_ticks == 0) {
+    return;
+  }
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::FromInt(tier_up_ticks - 1));
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(FLAG_regexp_tier_up);
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex,
-                               Smi::FromInt(1));
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::kZero);
 }
 
 namespace {
@@ -6938,7 +6938,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     if (entry < 0) {
       // Copy old optimized code map and append one new entry.
       new_literals_map = isolate->factory()->CopyWeakFixedArrayAndGrow(
-          old_literals_map, kLiteralEntryLength, AllocationType::kOld);
+          old_literals_map, kLiteralEntryLength);
       entry = old_literals_map->length();
     }
   }
@@ -7312,8 +7312,13 @@ Handle<NumberDictionary> NumberDictionary::Set(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
     Handle<Object> value, Handle<JSObject> dictionary_holder,
     PropertyDetails details) {
-  dictionary->UpdateMaxNumberKey(key, dictionary_holder);
-  return AtPut(isolate, dictionary, key, value, details);
+  // We could call Set with empty dictionaries. UpdateMaxNumberKey doesn't
+  // expect empty dictionaries so make sure to call AtPut that correctly handles
+  // them by creating new dictionary when required.
+  Handle<NumberDictionary> new_dictionary =
+      AtPut(isolate, dictionary, key, value, details);
+  new_dictionary->UpdateMaxNumberKey(key, dictionary_holder);
+  return new_dictionary;
 }
 
 void NumberDictionary::CopyValuesTo(FixedArray elements) {
@@ -7898,9 +7903,6 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
                                             Handle<PropertyCell> cell,
                                             Handle<Object> new_value) {
   if (cell->value() != *new_value) {
-    if (FLAG_trace_protector_invalidation) {
-      isolate->TraceProtectorInvalidation(cell_name);
-    }
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);

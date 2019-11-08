@@ -99,6 +99,10 @@ Node* GraphAssembler::IntPtrEqual(Node* left, Node* right) {
 }
 
 Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(ChangeTaggedToCompressed(left),
+                       ChangeTaggedToCompressed(right));
+  }
   return WordEqual(left, right);
 }
 
@@ -232,10 +236,10 @@ Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
                               current_effect_, current_control_);
 }
 
-Node* GraphAssembler::BitcastTaggedSignedToWord(Node* value) {
+Node* GraphAssembler::BitcastTaggedToWordForTagAndSmiBits(Node* value) {
   return current_effect_ =
-             graph()->NewNode(machine()->BitcastTaggedSignedToWord(), value,
-                              current_effect_, current_control_);
+             graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(),
+                              value, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {

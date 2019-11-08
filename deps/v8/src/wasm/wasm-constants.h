@@ -81,6 +81,7 @@ enum SectionCode : int8_t {
   // to be consistent.
   kNameSectionCode,              // Name section (encoded as a string)
   kSourceMappingURLSectionCode,  // Source Map URL section
+  kDebugInfoSectionCode,         // DWARF section .debug_info
   kCompilationHintsSectionCode,  // Compilation hints section
 
   // Helper values

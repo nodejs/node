@@ -295,3 +295,12 @@
 
   assertEquals(1, new C().fn());
 }
+
+{
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      #a() { }
+    }
+  }, TypeError);
+}

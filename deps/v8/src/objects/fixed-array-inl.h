@@ -240,7 +240,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
 
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
-    Name entry = array->GetKey(sort_index);
+    Name entry = array->GetKey(InternalIndex(sort_index));
     uint32_t current_hash = entry.hash_field();
     if (current_hash != hash) {
       if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
@@ -272,7 +272,7 @@ int LinearSearch(T* array, Name name, int valid_entries,
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
-      Name entry = array->GetKey(sorted_index);
+      Name entry = array->GetKey(InternalIndex(sorted_index));
       uint32_t current_hash = entry.hash_field();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
@@ -286,7 +286,7 @@ int LinearSearch(T* array, Name name, int valid_entries,
     DCHECK_LE(valid_entries, array->number_of_entries());
     DCHECK_NULL(out_insertion_index);  // Not supported here.
     for (int number = 0; number < valid_entries; number++) {
-      if (array->GetKey(number) == name) return number;
+      if (array->GetKey(InternalIndex(number)) == name) return number;
     }
     return T::kNotFound;
   }

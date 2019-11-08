@@ -10,20 +10,20 @@ function addFunctions(builder) {
   let sig_index = builder.addType(kSig_i_ii);
   let mul = builder.addFunction("mul", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Mul        // --
     ]);
   let add = builder.addFunction("add", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Add        // --
     ]);
   let sub = builder.addFunction("sub", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Sub        // --
     ]);
   return {mul: mul, add: add, sub: sub};
@@ -45,7 +45,7 @@ function addMain(builder) {
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprI32Const, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallIndirect, 0, kTableZero])
     .exportAs("main");
 }
@@ -53,7 +53,7 @@ function addMain(builder) {
 let id = (() => {  // identity exported function
   let builder = new WasmModuleBuilder();
   builder.addFunction("id", kSig_i_i)
-    .addBody([kExprGetLocal, 0])
+    .addBody([kExprLocalGet, 0])
     .exportAs("id");
   let module = new WebAssembly.Module(builder.toBuffer());
   return (new WebAssembly.Instance(builder.toModule())).exports.id;
@@ -125,8 +125,8 @@ let id = (() => {  // identity exported function
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 15,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -254,14 +254,14 @@ let id = (() => {  // identity exported function
     builder.addImportedTable("x", "table", 1, kMaxTableSize);
     builder.addFunction("add", index_i_ii)
       .addBody([
-        kExprGetLocal, 0,
-        kExprGetLocal, 1,
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
         kExprI32Add]);
     builder.addFunction("main", index_i_i)
       .addBody([
         kExprI32Const, 5,
         kExprI32Const, 5,
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
     builder.addElementSegment(0, 0, false, [0]);

@@ -17,7 +17,7 @@ function testSelect2(type) {
     var builder = new WasmModuleBuilder();
 
     builder.addFunction("select", makeSig_r_xx(type, type))
-      .addBody([kExprGetLocal, which])
+      .addBody([kExprLocalGet, which])
       .exportFunc()
 
     var select = builder.instantiate().exports.select;
@@ -79,7 +79,7 @@ function testSelect10(t) {
 
     var builder = new WasmModuleBuilder();
     builder.addFunction("select", makeSig([t,t,t,t,t,t,t,t,t,t], [t]))
-      .addBody([kExprGetLocal, which])
+      .addBody([kExprLocalGet, which])
       .exportFunc();
 
     var select = builder.instantiate().exports.select;

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-datetime-style
-
 // Checks for security holes introduced by Object.property overrides.
 // For example:
 // Object.defineProperty(Array.prototype, 'locale', {

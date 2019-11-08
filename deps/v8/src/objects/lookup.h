@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
-  inline int descriptor_number() const;
+  inline InternalIndex descriptor_number() const;
   inline int dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(Isolate* isolate,

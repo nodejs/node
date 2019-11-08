@@ -194,17 +194,17 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
   WasmModuleBuilder builder(zone);
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 1, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 1, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   builder.WriteTo(&buffer);
@@ -317,17 +317,17 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
                     WasmInitExpr(WasmInitExpr::kGlobalIndex, 12));
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 1, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 1, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   builder.WriteTo(&buffer);
@@ -442,7 +442,7 @@ STREAM_TEST(TestErrorInCodeSectionDetectedByModuleDecoder) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -481,7 +481,7 @@ STREAM_TEST(TestErrorInCodeSectionDetectedByStreamingDecoder) {
   uint8_t code[] = {
       U32V_1(26),                 // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -520,7 +520,7 @@ STREAM_TEST(TestErrorInCodeSectionDetectedByCompiler) {
   uint8_t code[] = {
       U32V_1(4),                  // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   uint8_t invalid_code[] = {
@@ -679,7 +679,7 @@ STREAM_TEST(TestAbortAfterFunctionGotCompiled1) {
   uint8_t code[] = {
       U32V_1(4),                  // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -713,7 +713,7 @@ STREAM_TEST(TestAbortAfterFunctionGotCompiled2) {
   uint8_t code[] = {
       U32V_1(4),                  // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -745,7 +745,7 @@ STREAM_TEST(TestAbortAfterCodeSection1) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -781,7 +781,7 @@ STREAM_TEST(TestAbortAfterCodeSection2) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -815,7 +815,7 @@ STREAM_TEST(TestAbortAfterCompilationError1) {
   uint8_t code[] = {
       U32V_1(4),                  // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   uint8_t invalid_code[] = {
@@ -857,7 +857,7 @@ STREAM_TEST(TestAbortAfterCompilationError2) {
   uint8_t code[] = {
       U32V_1(4),                  // !!! invalid body size !!!
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   uint8_t invalid_code[] = {
@@ -934,7 +934,7 @@ STREAM_TEST(TestModuleWithMultipleFunctions) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -970,7 +970,7 @@ STREAM_TEST(TestModuleWithDataSection) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {
@@ -1016,7 +1016,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   builder.AddImport(ArrayVector("Test"), sigs.i_iii());
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
   builder.WriteTo(&buffer);
@@ -1047,7 +1047,7 @@ STREAM_TEST(TestModuleWithErrorAfterDataSection) {
       U32V_1(1),                            // functions count
       U32V_1(4),                            // body size
       U32V_1(0),                            // locals count
-      kExprGetLocal,                        // some code
+      kExprLocalGet,                        // some code
       0,                                    // some code
       kExprEnd,                             // some code
       kDataSectionCode,                     // section code
@@ -1133,7 +1133,7 @@ STREAM_TEST(TestSetModuleCompiledCallback) {
   uint8_t code[] = {
       U32V_1(4),                  // body size
       U32V_1(0),                  // locals count
-      kExprGetLocal, 0, kExprEnd  // body
+      kExprLocalGet, 0, kExprEnd  // body
   };
 
   const uint8_t bytes[] = {

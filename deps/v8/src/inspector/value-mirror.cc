@@ -372,8 +372,7 @@ class PrimitiveValueMirror final : public ValueMirror {
             .setType(m_type)
             .setDescription(descriptionForPrimitiveType(context, m_value))
             .setOverflow(false)
-            .setProperties(
-                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
     if (m_value->IsNull())
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
@@ -438,8 +437,7 @@ class NumberMirror final : public ValueMirror {
             .setType(RemoteObject::TypeEnum::Number)
             .setDescription(description(&unserializable))
             .setOverflow(false)
-            .setProperties(
-                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
   }
 
@@ -496,8 +494,7 @@ class BigIntMirror final : public ValueMirror {
             .setType(RemoteObject::TypeEnum::Bigint)
             .setDescription(descriptionForBigInt(context, m_value))
             .setOverflow(false)
-            .setProperties(
-                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
   }
 
@@ -656,8 +653,7 @@ class FunctionMirror final : public ValueMirror {
             .setType(RemoteObject::TypeEnum::Function)
             .setDescription(descriptionForFunction(context, m_value))
             .setOverflow(false)
-            .setProperties(
-                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
   }
 
@@ -939,7 +935,7 @@ class ObjectMirror final : public ValueMirror {
       v8::Local<v8::Context> context, bool forEntry,
       bool generatePreviewForTable, int* nameLimit, int* indexLimit,
       std::unique_ptr<ObjectPreview>* result) const {
-    auto properties = v8::base::make_unique<protocol::Array<PropertyPreview>>();
+    auto properties = std::make_unique<protocol::Array<PropertyPreview>>();
     std::unique_ptr<protocol::Array<EntryPreview>> entriesPreview;
     bool overflow = false;
 
@@ -996,8 +992,7 @@ class ObjectMirror final : public ValueMirror {
         if (forEntry) {
           overflow = true;
         } else {
-          entriesPreview =
-              v8::base::make_unique<protocol::Array<EntryPreview>>();
+          entriesPreview = std::make_unique<protocol::Array<EntryPreview>>();
           for (const auto& entry : entries) {
             std::unique_ptr<ObjectPreview> valuePreview;
             entry.value->buildEntryPreview(context, nameLimit, indexLimit,
@@ -1545,11 +1540,11 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
                                           const String16& subtype) {
   // TODO(alph): description and length retrieval should move to embedder.
   if (subtype == "node") {
-    return v8::base::make_unique<ObjectMirror>(
-        value, subtype, descriptionForNode(context, value));
+    return std::make_unique<ObjectMirror>(value, subtype,
+                                          descriptionForNode(context, value));
   }
   if (subtype == "error") {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Error,
         descriptionForError(context, value.As<v8::Object>(),
                             ErrorType::kClient));
@@ -1562,14 +1557,14 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
     if (object->Get(context, toV8String(isolate, "length"))
             .ToLocal(&lengthValue)) {
       if (lengthValue->IsInt32()) {
-        return v8::base::make_unique<ObjectMirror>(
+        return std::make_unique<ObjectMirror>(
             value, RemoteObject::SubtypeEnum::Array,
             descriptionForCollection(isolate, object,
                                      lengthValue.As<v8::Int32>()->Value()));
       }
     }
   }
-  return v8::base::make_unique<ObjectMirror>(
+  return std::make_unique<ObjectMirror>(
       value,
       descriptionForObject(context->GetIsolate(), value.As<v8::Object>()));
 }
@@ -1577,26 +1572,26 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
 std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
                                                  v8::Local<v8::Value> value) {
   if (value->IsNull()) {
-    return v8::base::make_unique<PrimitiveValueMirror>(
+    return std::make_unique<PrimitiveValueMirror>(
         value, RemoteObject::TypeEnum::Object);
   }
   if (value->IsBoolean()) {
-    return v8::base::make_unique<PrimitiveValueMirror>(
+    return std::make_unique<PrimitiveValueMirror>(
         value, RemoteObject::TypeEnum::Boolean);
   }
   if (value->IsNumber()) {
-    return v8::base::make_unique<NumberMirror>(value.As<v8::Number>());
+    return std::make_unique<NumberMirror>(value.As<v8::Number>());
   }
   v8::Isolate* isolate = context->GetIsolate();
   if (value->IsString()) {
-    return v8::base::make_unique<PrimitiveValueMirror>(
+    return std::make_unique<PrimitiveValueMirror>(
         value, RemoteObject::TypeEnum::String);
   }
   if (value->IsBigInt()) {
-    return v8::base::make_unique<BigIntMirror>(value.As<v8::BigInt>());
+    return std::make_unique<BigIntMirror>(value.As<v8::BigInt>());
   }
   if (value->IsSymbol()) {
-    return v8::base::make_unique<SymbolMirror>(value.As<v8::Symbol>());
+    return std::make_unique<SymbolMirror>(value.As<v8::Symbol>());
   }
   auto clientSubtype = (value->IsUndefined() || value->IsObject())
                            ? clientFor(context)->valueSubtype(value)
@@ -1606,121 +1601,121 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
     return clientMirror(context, value, subtype);
   }
   if (value->IsUndefined()) {
-    return v8::base::make_unique<PrimitiveValueMirror>(
+    return std::make_unique<PrimitiveValueMirror>(
         value, RemoteObject::TypeEnum::Undefined);
   }
   if (value->IsRegExp()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Regexp,
         descriptionForRegExp(isolate, value.As<v8::RegExp>()));
   }
   if (value->IsProxy()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Proxy, "Proxy");
   }
   if (value->IsFunction()) {
-    return v8::base::make_unique<FunctionMirror>(value);
+    return std::make_unique<FunctionMirror>(value);
   }
   if (value->IsDate()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Date,
         descriptionForDate(context, value.As<v8::Date>()));
   }
   if (value->IsPromise()) {
     v8::Local<v8::Promise> promise = value.As<v8::Promise>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         promise, RemoteObject::SubtypeEnum::Promise,
         descriptionForObject(isolate, promise));
   }
   if (value->IsNativeError()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Error,
         descriptionForError(context, value.As<v8::Object>(),
                             ErrorType::kNative));
   }
   if (value->IsMap()) {
     v8::Local<v8::Map> map = value.As<v8::Map>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Map,
         descriptionForCollection(isolate, map, map->Size()));
   }
   if (value->IsSet()) {
     v8::Local<v8::Set> set = value.As<v8::Set>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Set,
         descriptionForCollection(isolate, set, set->Size()));
   }
   if (value->IsWeakMap()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Weakmap,
         descriptionForObject(isolate, value.As<v8::Object>()));
   }
   if (value->IsWeakSet()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Weakset,
         descriptionForObject(isolate, value.As<v8::Object>()));
   }
   if (value->IsMapIterator() || value->IsSetIterator()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Iterator,
         descriptionForObject(isolate, value.As<v8::Object>()));
   }
   if (value->IsGeneratorObject()) {
     v8::Local<v8::Object> object = value.As<v8::Object>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         object, RemoteObject::SubtypeEnum::Generator,
         descriptionForObject(isolate, object));
   }
   if (value->IsTypedArray()) {
     v8::Local<v8::TypedArray> array = value.As<v8::TypedArray>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Typedarray,
         descriptionForCollection(isolate, array, array->Length()));
   }
   if (value->IsArrayBuffer()) {
     v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Arraybuffer,
         descriptionForCollection(isolate, buffer, buffer->ByteLength()));
   }
   if (value->IsSharedArrayBuffer()) {
     v8::Local<v8::SharedArrayBuffer> buffer = value.As<v8::SharedArrayBuffer>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Arraybuffer,
         descriptionForCollection(isolate, buffer, buffer->ByteLength()));
   }
   if (value->IsDataView()) {
     v8::Local<v8::DataView> view = value.As<v8::DataView>();
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Dataview,
         descriptionForCollection(isolate, view, view->ByteLength()));
   }
   V8InternalValueType internalType =
       v8InternalValueTypeFrom(context, v8::Local<v8::Object>::Cast(value));
   if (value->IsArray() && internalType == V8InternalValueType::kScopeList) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, "internal#scopeList",
         descriptionForScopeList(value.As<v8::Array>()));
   }
   if (value->IsObject() && internalType == V8InternalValueType::kEntry) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, "internal#entry",
         descriptionForEntry(context, value.As<v8::Object>()));
   }
   if (value->IsObject() && internalType == V8InternalValueType::kScope) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, "internal#scope",
         descriptionForScope(context, value.As<v8::Object>()));
   }
   size_t length = 0;
   if (value->IsArray() || isArrayLike(context, value, &length)) {
     length = value->IsArray() ? value.As<v8::Array>()->Length() : length;
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Array,
         descriptionForCollection(isolate, value.As<v8::Object>(), length));
   }
   if (value->IsObject()) {
-    return v8::base::make_unique<ObjectMirror>(
+    return std::make_unique<ObjectMirror>(
         value, descriptionForObject(isolate, value.As<v8::Object>()));
   }
   return nullptr;

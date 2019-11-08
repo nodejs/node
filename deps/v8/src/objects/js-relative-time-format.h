@@ -107,7 +107,7 @@ class JSRelativeTimeFormat : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSRELATIVE_TIME_FORMAT_FIELDS)
+                                TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FIELDS)
 
  private:
   static Style getStyle(const char* str);

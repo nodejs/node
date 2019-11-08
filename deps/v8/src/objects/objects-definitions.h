@@ -32,15 +32,7 @@ namespace internal {
 // instance_types that are less than those of all other types:
 // HeapObject::Size, HeapObject::IterateBody, the typeof operator, and
 // Object::IsString.
-//
-// NOTE: Everything following JS_PRIMITIVE_WRAPPER_TYPE is considered a
-// JSObject for GC purposes. The first four entries here have typeof
-// 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-//
-// NOTE: List had to be split into two, because of conditional item(s) from
-// INTL namespace. They can't just be appended to the end, because of the
-// checks we do in tests (expecting JS_FUNCTION_TYPE to be last).
-#define INSTANCE_TYPE_LIST_BEFORE_INTL(V)                \
+#define INSTANCE_TYPE_LIST_BASE(V)                       \
   V(INTERNALIZED_STRING_TYPE)                            \
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                   \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                   \
@@ -58,191 +50,11 @@ namespace internal {
   V(SLICED_ONE_BYTE_STRING_TYPE)                         \
   V(THIN_ONE_BYTE_STRING_TYPE)                           \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
-  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
-                                                         \
-  V(SYMBOL_TYPE)                                         \
-  V(HEAP_NUMBER_TYPE)                                    \
-  V(BIGINT_TYPE)                                         \
-  V(ODDBALL_TYPE)                                        \
-                                                         \
-  V(MAP_TYPE)                                            \
-  V(CODE_TYPE)                                           \
-  V(FOREIGN_TYPE)                                        \
-  V(BYTE_ARRAY_TYPE)                                     \
-  V(BYTECODE_ARRAY_TYPE)                                 \
-  V(FREE_SPACE_TYPE)                                     \
-                                                         \
-  V(FIXED_DOUBLE_ARRAY_TYPE)                             \
-  V(FEEDBACK_METADATA_TYPE)                              \
-  V(FILLER_TYPE)                                         \
-                                                         \
-  V(ACCESS_CHECK_INFO_TYPE)                              \
-  V(ACCESSOR_INFO_TYPE)                                  \
-  V(ACCESSOR_PAIR_TYPE)                                  \
-  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                        \
-  V(ALLOCATION_MEMENTO_TYPE)                             \
-  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
-  V(ASM_WASM_DATA_TYPE)                                  \
-  V(ASYNC_GENERATOR_REQUEST_TYPE)                        \
-  V(CLASS_POSITIONS_TYPE)                                \
-  V(DEBUG_INFO_TYPE)                                     \
-  V(ENUM_CACHE_TYPE)                                     \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                         \
-  V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                    \
-  V(INTERCEPTOR_INFO_TYPE)                               \
-  V(INTERPRETER_DATA_TYPE)                               \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                           \
-  V(PROMISE_CAPABILITY_TYPE)                             \
-  V(PROMISE_REACTION_TYPE)                               \
-  V(PROTOTYPE_INFO_TYPE)                                 \
-  V(SCRIPT_TYPE)                                         \
-  V(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE)         \
-  V(SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE)                  \
-  V(STACK_FRAME_INFO_TYPE)                               \
-  V(STACK_TRACE_FRAME_TYPE)                              \
-  V(TEMPLATE_OBJECT_DESCRIPTION_TYPE)                    \
-  V(TUPLE2_TYPE)                                         \
-  V(TUPLE3_TYPE)                                         \
-  V(WASM_CAPI_FUNCTION_DATA_TYPE)                        \
-  V(WASM_DEBUG_INFO_TYPE)                                \
-  V(WASM_EXCEPTION_TAG_TYPE)                             \
-  V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                    \
-  V(WASM_INDIRECT_FUNCTION_TABLE_TYPE)                   \
-  V(WASM_JS_FUNCTION_DATA_TYPE)                          \
-                                                         \
-  V(CALLABLE_TASK_TYPE)                                  \
-  V(CALLBACK_TASK_TYPE)                                  \
-  V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)              \
-  V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)               \
-  V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)              \
-                                                         \
-  TORQUE_DEFINED_INSTANCE_TYPES(V)                       \
-                                                         \
-  V(SOURCE_TEXT_MODULE_TYPE)                             \
-  V(SYNTHETIC_MODULE_TYPE)                               \
-                                                         \
-  V(ALLOCATION_SITE_TYPE)                                \
-  V(EMBEDDER_DATA_ARRAY_TYPE)                            \
-                                                         \
-  V(FIXED_ARRAY_TYPE)                                    \
-  V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                 \
-  V(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)                    \
-  V(HASH_TABLE_TYPE)                                     \
-  V(ORDERED_HASH_MAP_TYPE)                               \
-  V(ORDERED_HASH_SET_TYPE)                               \
-  V(ORDERED_NAME_DICTIONARY_TYPE)                        \
-  V(NAME_DICTIONARY_TYPE)                                \
-  V(GLOBAL_DICTIONARY_TYPE)                              \
-  V(NUMBER_DICTIONARY_TYPE)                              \
-  V(SIMPLE_NUMBER_DICTIONARY_TYPE)                       \
-  V(STRING_TABLE_TYPE)                                   \
-  V(EPHEMERON_HASH_TABLE_TYPE)                           \
-  V(SCOPE_INFO_TYPE)                                     \
-  V(SCRIPT_CONTEXT_TABLE_TYPE)                           \
-                                                         \
-  V(AWAIT_CONTEXT_TYPE)                                  \
-  V(BLOCK_CONTEXT_TYPE)                                  \
-  V(CATCH_CONTEXT_TYPE)                                  \
-  V(DEBUG_EVALUATE_CONTEXT_TYPE)                         \
-  V(EVAL_CONTEXT_TYPE)                                   \
-  V(FUNCTION_CONTEXT_TYPE)                               \
-  V(MODULE_CONTEXT_TYPE)                                 \
-  V(NATIVE_CONTEXT_TYPE)                                 \
-  V(SCRIPT_CONTEXT_TYPE)                                 \
-  V(WITH_CONTEXT_TYPE)                                   \
-                                                         \
-  V(WEAK_FIXED_ARRAY_TYPE)                               \
-  V(TRANSITION_ARRAY_TYPE)                               \
-                                                         \
-  V(CALL_HANDLER_INFO_TYPE)                              \
-  V(CELL_TYPE)                                           \
-  V(CODE_DATA_CONTAINER_TYPE)                            \
-  V(DESCRIPTOR_ARRAY_TYPE)                               \
-  V(FEEDBACK_CELL_TYPE)                                  \
-  V(FEEDBACK_VECTOR_TYPE)                                \
-  V(LOAD_HANDLER_TYPE)                                   \
-  V(PREPARSE_DATA_TYPE)                                  \
-  V(PROPERTY_ARRAY_TYPE)                                 \
-  V(PROPERTY_CELL_TYPE)                                  \
-  V(SHARED_FUNCTION_INFO_TYPE)                           \
-  V(SMALL_ORDERED_HASH_MAP_TYPE)                         \
-  V(SMALL_ORDERED_HASH_SET_TYPE)                         \
-  V(SMALL_ORDERED_NAME_DICTIONARY_TYPE)                  \
-  V(STORE_HANDLER_TYPE)                                  \
-  V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)          \
-  V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)             \
-  V(WEAK_ARRAY_LIST_TYPE)                                \
-  V(WEAK_CELL_TYPE)                                      \
-                                                         \
-  V(JS_PROXY_TYPE)                                       \
-  V(JS_GLOBAL_OBJECT_TYPE)                               \
-  V(JS_GLOBAL_PROXY_TYPE)                                \
-  V(JS_MODULE_NAMESPACE_TYPE)                            \
-  V(JS_SPECIAL_API_OBJECT_TYPE)                          \
-  V(JS_PRIMITIVE_WRAPPER_TYPE)                           \
-  V(JS_API_OBJECT_TYPE)                                  \
-  V(JS_OBJECT_TYPE)                                      \
-                                                         \
-  V(JS_ARGUMENTS_TYPE)                                   \
-  V(JS_ARRAY_BUFFER_TYPE)                                \
-  V(JS_ARRAY_ITERATOR_TYPE)                              \
-  V(JS_ARRAY_TYPE)                                       \
-  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                    \
-  V(JS_ASYNC_FUNCTION_OBJECT_TYPE)                       \
-  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                      \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                    \
-  V(JS_DATE_TYPE)                                        \
-  V(JS_ERROR_TYPE)                                       \
-  V(JS_GENERATOR_OBJECT_TYPE)                            \
-  V(JS_MAP_TYPE)                                         \
-  V(JS_MAP_KEY_ITERATOR_TYPE)                            \
-  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                      \
-  V(JS_MAP_VALUE_ITERATOR_TYPE)                          \
-  V(JS_MESSAGE_OBJECT_TYPE)                              \
-  V(JS_PROMISE_TYPE)                                     \
-  V(JS_REGEXP_TYPE)                                      \
-  V(JS_REGEXP_STRING_ITERATOR_TYPE)                      \
-  V(JS_SET_TYPE)                                         \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                      \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                          \
-  V(JS_STRING_ITERATOR_TYPE)                             \
-  V(JS_WEAK_REF_TYPE)                                    \
-  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)         \
-  V(JS_FINALIZATION_GROUP_TYPE)                          \
-  V(JS_WEAK_MAP_TYPE)                                    \
-  V(JS_WEAK_SET_TYPE)                                    \
-  V(JS_TYPED_ARRAY_TYPE)                                 \
-  V(JS_DATA_VIEW_TYPE)
+  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
 
-#define INSTANCE_TYPE_LIST_AFTER_INTL(V) \
-  V(WASM_EXCEPTION_TYPE)                 \
-  V(WASM_GLOBAL_TYPE)                    \
-  V(WASM_INSTANCE_TYPE)                  \
-  V(WASM_MEMORY_TYPE)                    \
-  V(WASM_MODULE_TYPE)                    \
-  V(WASM_TABLE_TYPE)                     \
-  V(JS_BOUND_FUNCTION_TYPE)              \
-  V(JS_FUNCTION_TYPE)
-
-#ifdef V8_INTL_SUPPORT
-#define INSTANCE_TYPE_LIST(V)          \
-  INSTANCE_TYPE_LIST_BEFORE_INTL(V)    \
-  V(JS_INTL_V8_BREAK_ITERATOR_TYPE)    \
-  V(JS_INTL_COLLATOR_TYPE)             \
-  V(JS_INTL_DATE_TIME_FORMAT_TYPE)     \
-  V(JS_INTL_LIST_FORMAT_TYPE)          \
-  V(JS_INTL_LOCALE_TYPE)               \
-  V(JS_INTL_NUMBER_FORMAT_TYPE)        \
-  V(JS_INTL_PLURAL_RULES_TYPE)         \
-  V(JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JS_INTL_SEGMENT_ITERATOR_TYPE)     \
-  V(JS_INTL_SEGMENTER_TYPE)            \
-  INSTANCE_TYPE_LIST_AFTER_INTL(V)
-#else
-#define INSTANCE_TYPE_LIST(V)       \
-  INSTANCE_TYPE_LIST_BEFORE_INTL(V) \
-  INSTANCE_TYPE_LIST_AFTER_INTL(V)
-#endif  // V8_INTL_SUPPORT
+#define INSTANCE_TYPE_LIST(V) \
+  INSTANCE_TYPE_LIST_BASE(V)  \
+  TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(V)
 
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
@@ -290,11 +102,20 @@ namespace internal {
 // code for the class including allocation and garbage collection routines,
 // casts and predicates.  All you need to define is the class, methods and
 // object verification routines.  Easy, no?
-//
-// Note that for subtle reasons related to the ordering or numerical values of
-// type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
-// manually.
-#define STRUCT_LIST_GENERATOR(V, _)                                            \
+#define STRUCT_LIST_GENERATOR_BASE(V, _)                                       \
+  V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask,  \
+    promise_fulfill_reaction_job_task)                                         \
+  V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,    \
+    promise_reject_reaction_job_task)                                          \
+  V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
+  V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \
+  V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask,  \
+    promise_resolve_thenable_job_task)                                         \
+  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                      \
+    function_template_info)                                                    \
+  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
+  V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
+  V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
   V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)             \
   V(_, ACCESSOR_INFO_TYPE, AccessorInfo, accessor_info)                        \
   V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                        \
@@ -309,13 +130,10 @@ namespace internal {
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
-  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                      \
-    function_template_info)                                                    \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
-  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                     \
@@ -328,8 +146,6 @@ namespace internal {
   V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)             \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
-  V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
-  V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
   V(_, WASM_CAPI_FUNCTION_DATA_TYPE, WasmCapiFunctionData,                     \
     wasm_capi_function_data)                                                   \
   V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                   \
@@ -338,32 +154,24 @@ namespace internal {
     wasm_exported_function_data)                                               \
   V(_, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,           \
     wasm_indirect_function_table)                                              \
-  V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)  \
-  V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
-  V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \
-  V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask,  \
-    promise_fulfill_reaction_job_task)                                         \
-  V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,    \
-    promise_reject_reaction_job_task)                                          \
-  V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask,  \
-    promise_resolve_thenable_job_task)
+  V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)
+
+#define STRUCT_LIST_GENERATOR(V, _) \
+  STRUCT_LIST_GENERATOR_BASE(V, _)  \
+  TORQUE_STRUCT_LIST_GENERATOR(V, _)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
 
 // Produces (NAME, Name, name) entries.
-#define STRUCT_LIST(V)                          \
-  STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V) \
-  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
+#define STRUCT_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
 #define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
   V(Map, name##_map, Name##Map)
 
 // Produces (Map, struct_name_map, StructNameMap) entries
-#define STRUCT_MAPS_LIST(V)                          \
-  STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V) \
-  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
+#define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
 // The following macros define list of allocation size objects and list of

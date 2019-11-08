@@ -124,10 +124,8 @@ Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
                                                Handle<FixedArray> stack_trace);
 
 class IncrementalStringBuilder;
-void SerializeStackTraceFrame(
-    Isolate* isolate, Handle<StackTraceFrame> frame,
-    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
-);
+void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+                              IncrementalStringBuilder* builder);
 MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
                                              Handle<StackTraceFrame> frame);
 

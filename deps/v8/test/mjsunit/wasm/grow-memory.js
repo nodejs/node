@@ -10,28 +10,28 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function genMemoryGrowBuilder() {
   var builder = new WasmModuleBuilder();
   builder.addFunction("grow_memory", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
       .exportFunc();
   builder.addFunction("load", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   builder.addFunction("load16", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem16U, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem16U, 0, 0])
       .exportFunc();
   builder.addFunction("store16", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem16, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem16, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   builder.addFunction("load8", kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem8U, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem8U, 0, 0])
       .exportFunc();
   builder.addFunction("store8", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem8, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem8, 0, 0,
+                kExprLocalGet, 1])
       .exportFunc();
   return builder;
 }

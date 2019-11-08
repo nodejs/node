@@ -100,5 +100,8 @@ v8_component("v8_debug_helper") {
     configs += [ "//third_party/icu:icu_config" ]
   }
 
+  remove_configs = [ "//build/config/compiler:no_rtti" ]
+  configs += [ "//build/config/compiler:rtti" ]
+
   public_configs = [ ":external_config" ]
 }

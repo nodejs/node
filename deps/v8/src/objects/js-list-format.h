@@ -104,7 +104,7 @@ class JSListFormat : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSLIST_FORMAT_FIELDS)
+                                TORQUE_GENERATED_JS_LIST_FORMAT_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
 };

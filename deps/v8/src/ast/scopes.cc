@@ -40,7 +40,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
-                               bool* was_added) {
+                               IsStaticFlag is_static_flag, bool* was_added) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -51,8 +51,9 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   if (*was_added) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
-    Variable* variable = new (zone) Variable(
-        scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
+    Variable* variable =
+        new (zone) Variable(scope, name, mode, kind, initialization_flag,
+                            maybe_assigned_flag, is_static_flag);
     p->value = variable;
   }
   return reinterpret_cast<Variable*>(p->value);
@@ -102,6 +103,9 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
+  private_name_lookup_skips_outer_class_ =
+      outer_scope->is_class_scope() &&
+      outer_scope->AsClassScope()->IsParsingHeritage();
   outer_scope_->AddInnerScope(this);
 }
 
@@ -140,20 +144,43 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
-    : Scope(zone, outer_scope, CLASS_SCOPE) {
+ClassScope::ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous)
+    : Scope(zone, outer_scope, CLASS_SCOPE),
+      rare_data_and_is_parsing_heritage_(nullptr),
+      is_anonymous_class_(is_anonymous) {
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+ClassScope::ClassScope(Isolate* isolate, Zone* zone,
+                       AstValueFactory* ast_value_factory,
                        Handle<ScopeInfo> scope_info)
-    : Scope(zone, CLASS_SCOPE, scope_info) {
+    : Scope(zone, CLASS_SCOPE, scope_info),
+      rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
   if (scope_info->HasClassBrand()) {
     Variable* brand =
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
     DCHECK_NOT_NULL(brand);
     EnsureRareData()->brand = brand;
+  }
+
+  // If the class variable is context-allocated and its index is
+  // saved for deserialization, deserialize it.
+  if (scope_info->HasSavedClassVariableIndex()) {
+    int index = scope_info->SavedClassVariableContextLocalIndex();
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, scope_info->ContextLocalCount());
+    String name = scope_info->ContextLocalName(index);
+    DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
+    DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
+              InitializationFlag::kNeedsInitialization);
+    DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
+              MaybeAssignedFlag::kMaybeAssigned);
+    Variable* var = DeclareClassVariable(
+        ast_value_factory, ast_value_factory->GetString(handle(name, isolate)),
+        kNoSourcePosition);
+    var->AllocateTo(VariableLocation::CONTEXT,
+                    Context::MIN_CONTEXT_SLOTS + index);
   }
 }
 
@@ -171,6 +198,8 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
   set_language_mode(scope_info->language_mode());
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
+  private_name_lookup_skips_outer_class_ =
+      scope_info->PrivateNameLookupSkipsOuterClass();
   // We don't really need to use the preparsed scope data; this is just to
   // shorten the recursion in SetMustUsePreparseData.
   must_use_preparsed_scope_data_ = true;
@@ -222,6 +251,7 @@ void DeclarationScope::SetDefaults() {
   has_this_reference_ = false;
   has_this_declaration_ =
       (is_function_scope() && !is_arrow_scope()) || is_module_scope();
+  needs_private_name_context_chain_recalc_ = false;
   has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -269,6 +299,8 @@ void Scope::SetDefaults() {
   force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
+
+  private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
 }
@@ -343,8 +375,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
     } else if (scope_info.scope_type() == CLASS_SCOPE) {
-      outer_scope = new (zone)
-          ClassScope(zone, ast_value_factory, handle(scope_info, isolate));
+      outer_scope = new (zone) ClassScope(isolate, zone, ast_value_factory,
+                                          handle(scope_info, isolate));
     } else if (scope_info.scope_type() == BLOCK_SCOPE) {
       if (scope_info.is_declaration_scope()) {
         outer_scope = new (zone)
@@ -546,7 +578,8 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
-    info->consumed_preparse_data()->RestoreScopeAllocationData(scope);
+    info->consumed_preparse_data()->RestoreScopeAllocationData(
+        scope, info->ast_value_factory());
   }
 
   if (!scope->AllocateVariables(info)) return false;
@@ -787,11 +820,13 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  IsStaticFlag is_static_flag;
 
   {
     location = VariableLocation::CONTEXT;
     index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                        &init_flag, &maybe_assigned_flag);
+                                        &init_flag, &maybe_assigned_flag,
+                                        &is_static_flag);
     found = index >= 0;
   }
 
@@ -816,9 +851,9 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   bool was_added;
-  Variable* var =
-      cache->variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
-                                init_flag, maybe_assigned_flag, &was_added);
+  Variable* var = cache->variables_.Declare(
+      zone(), this, name, mode, NORMAL_VARIABLE, init_flag, maybe_assigned_flag,
+      IsStaticFlag::kNotStatic, &was_added);
   DCHECK(was_added);
   var->AllocateTo(location, index);
   return var;
@@ -1047,7 +1082,7 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
   bool was_added;
   return cache->variables_.Declare(
       zone(), this, name, VariableMode::kDynamicGlobal, kind,
-      kCreatedInitialized, kNotAssigned, &was_added);
+      kCreatedInitialized, kNotAssigned, IsStaticFlag::kNotStatic, &was_added);
   // TODO(neis): Mark variable as maybe-assigned?
 }
 
@@ -1165,9 +1200,9 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
 
-  ClassScope* closest_class_scope = GetClassScope();
-  if (closest_class_scope != nullptr &&
-      !closest_class_scope->ResolvePrivateNames(info)) {
+  PrivateNameScopeIterator private_name_scope_iter(this);
+  if (!private_name_scope_iter.Done() &&
+      !private_name_scope_iter.GetScope()->ResolvePrivateNames(info)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
   }
@@ -1177,7 +1212,7 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
     return false;
   }
 
-  // // Don't allocate variables of preparsed scopes.
+  // Don't allocate variables of preparsed scopes.
   if (!was_lazily_parsed()) AllocateVariablesRecursively();
 
   return true;
@@ -1252,17 +1287,6 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
   }
 
   return result;
-}
-
-ClassScope* Scope::GetClassScope() {
-  Scope* scope = this;
-  while (scope != nullptr && !scope->is_class_scope()) {
-    scope = scope->outer_scope();
-  }
-  if (scope != nullptr && scope->is_class_scope()) {
-    return scope->AsClassScope();
-  }
-  return nullptr;
 }
 
 DeclarationScope* Scope::GetDeclarationScope() {
@@ -1688,11 +1712,17 @@ void Scope::Print(int n) {
   if (is_declaration_scope() && AsDeclarationScope()->NeedsHomeObject()) {
     Indent(n1, "// scope needs home object\n");
   }
+  if (private_name_lookup_skips_outer_class()) {
+    Indent(n1, "// scope skips outer class for #-names\n");
+  }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
     if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
+    if (scope->needs_private_name_context_chain_recalc()) {
+      Indent(n1, "// needs #-name context chain recalc\n");
+    }
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -1729,14 +1759,23 @@ void Scope::Print(int n) {
 
   if (is_class_scope()) {
     ClassScope* class_scope = AsClassScope();
-    if (class_scope->rare_data_ != nullptr) {
+    if (class_scope->GetRareData() != nullptr) {
       PrintMap(n1, "// private name vars:\n",
-               &(class_scope->rare_data_->private_name_map), true, function);
+               &(class_scope->GetRareData()->private_name_map), true, function);
       Variable* brand = class_scope->brand();
       if (brand != nullptr) {
         Indent(n1, "// brand var:\n");
         PrintVar(n1, brand);
       }
+    }
+    if (class_scope->class_variable() != nullptr) {
+      Indent(n1, "// class var");
+      PrintF("%s%s:\n",
+             class_scope->class_variable()->is_used() ? ", used" : ", unused",
+             class_scope->should_save_class_variable_index()
+                 ? ", index saved"
+                 : ", index not saved");
+      PrintVar(n1, class_scope->class_variable());
     }
   }
 
@@ -1780,9 +1819,9 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
   bool was_added;
-  Variable* var =
-      variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
-                         kCreatedInitialized, kNotAssigned, &was_added);
+  Variable* var = variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
+                                     kCreatedInitialized, kNotAssigned,
+                                     IsStaticFlag::kNotStatic, &was_added);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
@@ -2103,8 +2142,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (mode == VariableMode::kTemporary) return false;
   if (is_catch_scope()) return true;
   if (is_script_scope() || is_eval_scope()) {
-    if (IsLexicalVariableMode(mode) ||
-        IsPrivateMethodOrAccessorVariableMode(mode)) {
+    if (IsLexicalVariableMode(mode)) {
       return true;
     }
   }
@@ -2308,6 +2346,47 @@ void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
   }
 }
 
+void DeclarationScope::RecalcPrivateNameContextChain() {
+  // The outermost scope in a class heritage expression is marked to skip the
+  // class scope during private name resolution. It is possible, however, that
+  // either the class scope won't require a Context and ScopeInfo, or the
+  // outermost scope in the heritage position won't. Simply copying the bit from
+  // full parse into the ScopeInfo will break lazy compilation. In the former
+  // case the scope that is marked to skip its outer scope will incorrectly skip
+  // a different class scope than the one we intended to skip. In the latter
+  // case variables resolved through an inner scope will incorrectly check the
+  // class scope since we lost the skip bit from the outermost heritage scope.
+  //
+  // This method fixes both cases by, in outermost to innermost order, copying
+  // the value of the skip bit from outer scopes that don't require a Context.
+  DCHECK(needs_private_name_context_chain_recalc_);
+  this->ForEach([](Scope* scope) {
+    Scope* outer = scope->outer_scope();
+    if (!outer) return Iteration::kDescend;
+    if (!outer->NeedsContext()) {
+      scope->private_name_lookup_skips_outer_class_ =
+          outer->private_name_lookup_skips_outer_class();
+    }
+    if (!scope->is_function_scope() ||
+        scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      return Iteration::kDescend;
+    }
+    return Iteration::kContinue;
+  });
+}
+
+void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
+  DCHECK_EQ(GetClosureScope(), this);
+  DeclarationScope* scope;
+  for (scope = this; scope != nullptr;
+       scope = scope->outer_scope() != nullptr
+                   ? scope->outer_scope()->GetClosureScope()
+                   : nullptr) {
+    if (scope->needs_private_name_context_chain_recalc_) return;
+    scope->needs_private_name_context_chain_recalc_ = true;
+  }
+}
+
 // static
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
@@ -2318,6 +2397,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
     outer_scope = scope->outer_scope_->scope_info_;
   }
 
+  if (scope->needs_private_name_context_chain_recalc()) {
+    scope->RecalcPrivateNameContextChain();
+  }
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
 
   // The debugger expects all shared function infos to contain a scope info.
@@ -2359,14 +2441,20 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
-                                         VariableMode mode, bool* was_added) {
+                                         VariableMode mode,
+                                         IsStaticFlag is_static_flag,
+                                         bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
       zone(), this, name, mode, NORMAL_VARIABLE,
       InitializationFlag::kNeedsInitialization,
-      MaybeAssignedFlag::kMaybeAssigned, was_added);
+      MaybeAssignedFlag::kMaybeAssigned, is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
-  } else if (IsComplementaryAccessorPair(result->mode(), mode)) {
+    has_static_private_methods_ |=
+        (result->is_static() &&
+         IsPrivateMethodOrAccessorVariableMode(result->mode()));
+  } else if (IsComplementaryAccessorPair(result->mode(), mode) &&
+             result->is_static_flag() == is_static_flag) {
     *was_added = true;
     result->set_mode(VariableMode::kPrivateGetterAndSetter);
   }
@@ -2375,38 +2463,42 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
-  if (rare_data_ == nullptr) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr) {
     return nullptr;
   }
-  return rare_data_->private_name_map.Lookup(name);
+  return rare_data->private_name_map.Lookup(name);
 }
 
 UnresolvedList::Iterator ClassScope::GetUnresolvedPrivateNameTail() {
-  if (rare_data_ == nullptr) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr) {
     return UnresolvedList::Iterator();
   }
-  return rare_data_->unresolved_private_names.end();
+  return rare_data->unresolved_private_names.end();
 }
 
 void ClassScope::ResetUnresolvedPrivateNameTail(UnresolvedList::Iterator tail) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.end() == tail) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr ||
+      rare_data->unresolved_private_names.end() == tail) {
     return;
   }
 
   bool tail_is_empty = tail == UnresolvedList::Iterator();
   if (tail_is_empty) {
     // If the saved tail is empty, the list used to be empty, so clear it.
-    rare_data_->unresolved_private_names.Clear();
+    rare_data->unresolved_private_names.Clear();
   } else {
-    rare_data_->unresolved_private_names.Rewind(tail);
+    rare_data->unresolved_private_names.Rewind(tail);
   }
 }
 
 void ClassScope::MigrateUnresolvedPrivateNameTail(
     AstNodeFactory* ast_node_factory, UnresolvedList::Iterator tail) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.end() == tail) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr ||
+      rare_data->unresolved_private_names.end() == tail) {
     return;
   }
   UnresolvedList migrated_names;
@@ -2415,9 +2507,9 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
   // migrate everything after the head.
   bool tail_is_empty = tail == UnresolvedList::Iterator();
   UnresolvedList::Iterator it =
-      tail_is_empty ? rare_data_->unresolved_private_names.begin() : tail;
+      tail_is_empty ? rare_data->unresolved_private_names.begin() : tail;
 
-  for (; it != rare_data_->unresolved_private_names.end(); ++it) {
+  for (; it != rare_data->unresolved_private_names.end(); ++it) {
     VariableProxy* proxy = *it;
     VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
     migrated_names.Add(copy);
@@ -2425,20 +2517,11 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
 
   // Replace with the migrated copies.
   if (tail_is_empty) {
-    rare_data_->unresolved_private_names.Clear();
+    rare_data->unresolved_private_names.Clear();
   } else {
-    rare_data_->unresolved_private_names.Rewind(tail);
+    rare_data->unresolved_private_names.Rewind(tail);
   }
-  rare_data_->unresolved_private_names.Append(std::move(migrated_names));
-}
-
-void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
-  // During a reparse, already_resolved_ may be true here, because
-  // the class scope is deserialized while the function scope inside may
-  // be new.
-  DCHECK(!proxy->is_resolved());
-  DCHECK(proxy->IsPrivateName());
-  EnsureRareData()->unresolved_private_names.Add(proxy);
+  rare_data->unresolved_private_names.Append(std::move(migrated_names));
 }
 
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
@@ -2450,8 +2533,10 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                          &init_flag, &maybe_assigned_flag);
+  IsStaticFlag is_static_flag;
+  int index =
+      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode, &init_flag,
+                                  &maybe_assigned_flag, &is_static_flag);
   if (index < 0) {
     return nullptr;
   }
@@ -2463,7 +2548,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
   bool was_added;
-  Variable* var = DeclarePrivateName(name, mode, &was_added);
+  Variable* var = DeclarePrivateName(name, mode, is_static_flag, &was_added);
   DCHECK(was_added);
   var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;
@@ -2472,15 +2557,14 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
-  for (Scope* scope = this; !scope->is_script_scope();
-       scope = scope->outer_scope_) {
-    if (!scope->is_class_scope()) continue;  // Only search in class scopes
-    ClassScope* class_scope = scope->AsClassScope();
+  for (PrivateNameScopeIterator scope_iter(this); !scope_iter.Done();
+       scope_iter.Next()) {
+    ClassScope* scope = scope_iter.GetScope();
     // Try finding it in the private name map first, if it can't be found,
     // try the deseralized scope info.
-    Variable* var = class_scope->LookupLocalPrivateName(proxy->raw_name());
-    if (var == nullptr && !class_scope->scope_info_.is_null()) {
-      var = class_scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
+    Variable* var = scope->LookupLocalPrivateName(proxy->raw_name());
+    if (var == nullptr && !scope->scope_info_.is_null()) {
+      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
     }
     if (var != nullptr) {
       return var;
@@ -2490,22 +2574,24 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
 }
 
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.is_empty()) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return true;
   }
 
-  UnresolvedList& list = rare_data_->unresolved_private_names;
+  UnresolvedList& list = rare_data->unresolved_private_names;
   for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
+      // It's only possible to fail to resolve private names here if
+      // this is at the top level or the private name is accessed through eval.
+      DCHECK(info->is_eval() || outer_scope_->is_script_scope());
       Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
           loc.beg_pos, loc.end_pos,
           MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
       return false;
     } else {
-      var->set_is_used();
       proxy->BindTo(var);
     }
   }
@@ -2517,20 +2603,20 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
 }
 
 VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.is_empty()) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return nullptr;
   }
 
-  ClassScope* outer_class_scope =
-      outer_scope_ == nullptr ? nullptr : outer_scope_->GetClassScope();
-  UnresolvedList& unresolved = rare_data_->unresolved_private_names;
-  bool has_private_names = rare_data_->private_name_map.capacity() > 0;
+  PrivateNameScopeIterator private_name_scope_iter(this);
+  private_name_scope_iter.Next();
+  UnresolvedList& unresolved = rare_data->unresolved_private_names;
+  bool has_private_names = rare_data->private_name_map.capacity() > 0;
 
   // If the class itself does not have private names, nor does it have
-  // an outer class scope, then we are certain any private name access
+  // an outer private name scope, then we are certain any private name access
   // inside cannot be resolved.
-  if (!has_private_names && outer_class_scope == nullptr &&
+  if (!has_private_names && private_name_scope_iter.Done() &&
       !unresolved.is_empty()) {
     return unresolved.first();
   }
@@ -2548,21 +2634,27 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
       if (var != nullptr) {
         var->set_is_used();
         proxy->BindTo(var);
+        // If the variable being accessed is a static private method, we need to
+        // save the class variable in the context to check that the receiver is
+        // the class during runtime.
+        has_explicit_static_private_methods_access_ |=
+            (var->is_static() &&
+             IsPrivateMethodOrAccessorVariableMode(var->mode()));
       }
     }
 
     // If the current scope does not have declared private names,
     // try looking from the outer class scope later.
     if (var == nullptr) {
-      // There's no outer class scope so we are certain that the variable
+      // There's no outer private name scope so we are certain that the variable
       // cannot be resolved later.
-      if (outer_class_scope == nullptr) {
+      if (private_name_scope_iter.Done()) {
         return proxy;
       }
 
-      // The private name may be found later in the outer class scope,
-      // so push it to the outer sopce.
-      outer_class_scope->AddUnresolvedPrivateName(proxy);
+      // The private name may be found later in the outer private name scope, so
+      // push it to the outer sopce.
+      private_name_scope_iter.AddUnresolvedPrivateName(proxy);
     }
 
     proxy = next;
@@ -2573,19 +2665,77 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
 }
 
 Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                           IsStaticFlag is_static_flag,
                                            int class_token_pos) {
-  DCHECK_IMPLIES(rare_data_ != nullptr, rare_data_->brand == nullptr);
+  DCHECK_IMPLIES(GetRareData() != nullptr, GetRareData()->brand == nullptr);
   bool was_added;
   Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
                             VariableMode::kConst, NORMAL_VARIABLE,
                             InitializationFlag::kNeedsInitialization,
                             MaybeAssignedFlag::kMaybeAssigned, &was_added);
   DCHECK(was_added);
+  brand->set_is_static_flag(is_static_flag);
   brand->ForceContextAllocation();
   brand->set_is_used();
   EnsureRareData()->brand = brand;
   brand->set_initializer_position(class_token_pos);
   return brand;
+}
+
+Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
+                                           const AstRawString* name,
+                                           int class_token_pos) {
+  DCHECK_NULL(class_variable_);
+  bool was_added;
+  class_variable_ =
+      Declare(zone(), name == nullptr ? ast_value_factory->dot_string() : name,
+              VariableMode::kConst, NORMAL_VARIABLE,
+              InitializationFlag::kNeedsInitialization,
+              MaybeAssignedFlag::kMaybeAssigned, &was_added);
+  DCHECK(was_added);
+  class_variable_->set_initializer_position(class_token_pos);
+  return class_variable_;
+}
+
+PrivateNameScopeIterator::PrivateNameScopeIterator(Scope* start)
+    : start_scope_(start), current_scope_(start) {
+  if (!start->is_class_scope() || start->AsClassScope()->IsParsingHeritage()) {
+    Next();
+  }
+}
+
+void PrivateNameScopeIterator::Next() {
+  DCHECK(!Done());
+  Scope* inner = current_scope_;
+  Scope* scope = inner->outer_scope();
+  while (scope != nullptr) {
+    if (scope->is_class_scope()) {
+      if (!inner->private_name_lookup_skips_outer_class()) {
+        current_scope_ = scope;
+        return;
+      }
+      skipped_any_scopes_ = true;
+    }
+    inner = scope;
+    scope = scope->outer_scope();
+  }
+  current_scope_ = nullptr;
+}
+
+void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
+  // During a reparse, current_scope_->already_resolved_ may be true here,
+  // because the class scope is deserialized while the function scope inside may
+  // be new.
+  DCHECK(!proxy->is_resolved());
+  DCHECK(proxy->IsPrivateName());
+  GetScope()->EnsureRareData()->unresolved_private_names.Add(proxy);
+  // Any closure scope that contain uses of private names that skips over a
+  // class scope due to heritage expressions need private name context chain
+  // recalculation, since not all scopes require a Context or ScopeInfo. See
+  // comment in DeclarationScope::RecalcPrivateNameContextChain.
+  if (V8_UNLIKELY(skipped_any_scopes_)) {
+    start_scope_->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
 }
 
 }  // namespace internal

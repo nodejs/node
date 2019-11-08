@@ -36,7 +36,7 @@
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
-
+#include <memory>
 #include <set>
 
 #include "src/codegen/assembler.h"
@@ -1560,7 +1560,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand& src,  // NOLINT(runtime/references)
+      MemOperand* src,
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 

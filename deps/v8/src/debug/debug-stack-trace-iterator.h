@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_STACK_TRACE_ITERATOR_H_
 #define V8_DEBUG_DEBUG_STACK_TRACE_ITERATOR_H_
 
+#include <memory>
+
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/frames.h"

@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/instruction-scheduler.h"
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/execution/isolate.h"
 

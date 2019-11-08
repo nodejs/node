@@ -20,7 +20,7 @@ namespace regexp {
           otherwise return False;
       return True;
     }
-    const matchIndices = RegExpExec(context, receiver, str);
+    const matchIndices = RegExpExec(receiver, str);
     return SelectBooleanConstant(matchIndices != Null);
   }
 

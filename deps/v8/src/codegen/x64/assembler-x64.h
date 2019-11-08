@@ -39,6 +39,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/codegen/assembler.h"
@@ -155,7 +156,9 @@ enum ScaleFactor : int8_t {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_system_pointer_size = (kSystemPointerSize == 8) ? times_8 : times_4,
+
+  times_half_system_pointer_size = times_4,
+  times_system_pointer_size = times_8,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
 };
 
@@ -513,11 +516,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movq_string(Register dst, const StringConstantBase* str);
 
-  // Loads a 64-bit immediate into a register.
+  // Loads a 64-bit immediate into a register, potentially using the constant
+  // pool.
   void movq(Register dst, int64_t value) { movq(dst, Immediate64(value)); }
   void movq(Register dst, uint64_t value) {
     movq(dst, Immediate64(static_cast<int64_t>(value)));
   }
+
+  // Loads a 64-bit immediate into a register without using the constant pool.
+  void movq_imm64(Register dst, int64_t value);
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, Operand src);
@@ -531,11 +538,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movsxlq(Register dst, Operand src);
 
   // Repeated moves.
-
   void repmovsb();
   void repmovsw();
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
+
+  // Repeated store of quadwords (fill RCX quadwords at [RDI] with RAX).
+  void repstosq();
 
   // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(Address value, RelocInfo::Mode rmode);
@@ -1295,6 +1304,36 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
+  void vfmadd231ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmaps(0xb8, dst, src1, src2);
+  }
+  void vfmadd231ps(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vfmaps(0xb8, dst, src1, src2);
+  }
+  void vfnmadd231ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmaps(0xbc, dst, src1, src2);
+  }
+  void vfnmadd231ps(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vfmaps(0xbc, dst, src1, src2);
+  }
+  void vfmaps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vfmaps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+
+  void vfmadd231pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmapd(0xb8, dst, src1, src2);
+  }
+  void vfmadd231pd(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vfmapd(0xb8, dst, src1, src2);
+  }
+  void vfnmadd231pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vfmapd(0xbc, dst, src1, src2);
+  }
+  void vfnmadd231pd(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vfmapd(0xbc, dst, src1, src2);
+  }
+  void vfmapd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vfmapd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+
   void vmovd(XMMRegister dst, Register src);
   void vmovd(XMMRegister dst, Operand src);
   void vmovd(Register dst, XMMRegister src);
@@ -1330,7 +1369,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_SP_3(vsqrt, 0x51)
+  // vsqrtpd is defined by sqrtpd in SSE2_INSTRUCTION_LIST
+  AVX_S_3(vsqrt, 0x51)
+  AVX_3(vsqrtps, 0x51, vps)
   AVX_S_3(vadd, 0x58)
   AVX_S_3(vsub, 0x5c)
   AVX_S_3(vmul, 0x59)

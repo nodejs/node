@@ -193,8 +193,8 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
     v8::ArrayBuffer::Contents contents = ab->Externalize();
-    heap->isolate()->array_buffer_allocator()->Free(contents.Data(),
-                                                    contents.ByteLength());
+    contents.Deleter()(contents.Data(), contents.ByteLength(),
+                       contents.DeleterData());
   }
 }
 

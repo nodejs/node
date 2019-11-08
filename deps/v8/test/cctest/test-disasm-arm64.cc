@@ -1888,6 +1888,8 @@ TEST(system_pauth) {
   COMPARE(paciasp(), "paciasp");
   COMPARE(autia1716(), "autia1716");
   COMPARE(autiasp(), "autiasp");
+
+  CLEANUP();
 }
 
 TEST_(debug) {

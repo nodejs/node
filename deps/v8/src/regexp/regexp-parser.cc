@@ -84,6 +84,9 @@ void RegExpParser::Advance() {
       ReportError(CStrVector(
           MessageFormatter::TemplateString(MessageTemplate::kStackOverflow)));
     } else if (zone()->excess_allocation()) {
+      if (FLAG_correctness_fuzzer_suppressions) {
+        FATAL("Aborting on excess zone allocation");
+      }
       ReportError(CStrVector("Regular expression too large"));
     } else {
       current_ = ReadNext<true>();

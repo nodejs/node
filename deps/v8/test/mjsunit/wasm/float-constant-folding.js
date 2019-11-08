@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print("F32: sNaN - 0 = qNaN");
   var builder = new WasmModuleBuilder();
   builder.addFunction("F32Sub0", kSig_i_i).addBody(
-      [ kExprGetLocal, 0, kExprF32ReinterpretI32, kExprF32Const, 0x00, 0x00,
+      [ kExprLocalGet, 0, kExprF32ReinterpretI32, kExprF32Const, 0x00, 0x00,
           0x00, 0x00, // 0.0
           kExprF32Sub, kExprI32ReinterpretF32, ]).exportFunc();
   var module = builder.instantiate();
@@ -23,7 +23,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   builder.addFunction("F32Sub0", kSig_i_i).addBody(
       [ kExprF32Const, 0x00, 0x00, 0x00, 0x80, // 0.0
-      kExprGetLocal, 0, kExprF32ReinterpretI32, kExprF32Sub,
+      kExprLocalGet, 0, kExprF32ReinterpretI32, kExprF32Sub,
           kExprI32ReinterpretF32, ]).exportFunc();
   var module = builder.instantiate();
   // F32Sub0(signalling_NaN)

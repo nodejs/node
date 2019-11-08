@@ -92,12 +92,15 @@ function test6() {
 }
 
 function test_with_optimization(f) {
-  // Run tests in a loop to make sure that inlined Array() constructor runs out
-  // of new space memory and must fall back on runtime impl.
   %PrepareFunctionForOptimization(f);
-  for (i = 0; i < 25000; ++i) f();
+  for (i = 0; i < 3; ++i) f();
+  // Cause the inlined Array() constructor to fall back to the runtime impl.
+  %SimulateNewspaceFull();
+  f();
   %OptimizeFunctionOnNextCall(f);
-  for (i = 0; i < 25000; ++i) f(); // Make sure GC happens
+  f();
+  %SimulateNewspaceFull();  // Make sure GC happens.
+  f();
 }
 
 test_with_optimization(test1);

@@ -144,7 +144,3 @@ assertEquals(
 assertEquals(
     'ar',
     (new Intl.ListFormat(['xyz', 'ar'])).resolvedOptions().locale);
-
-assertEquals(
-    'ar',
-    (new Intl.ListFormat(['i-default', 'ar'])).resolvedOptions().locale);

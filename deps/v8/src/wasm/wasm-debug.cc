@@ -184,7 +184,7 @@ class InterpreterHandle {
                       argument_values.begin());
     bool finished = false;
     while (!finished) {
-      // TODO(clemensh): Add occasional StackChecks.
+      // TODO(clemensb): Add occasional StackChecks.
       WasmInterpreter::State state = ContinueExecution(thread);
       switch (state) {
         case WasmInterpreter::State::PAUSED:
@@ -277,9 +277,10 @@ class InterpreterHandle {
     if (isolate_->debug()->break_points_active()) {
       Handle<WasmModuleObject> module_object(
           GetInstanceObject()->module_object(), isolate_);
+      Handle<Script> script(module_object->script(), isolate_);
       int position = GetTopPosition(module_object);
       Handle<FixedArray> breakpoints;
-      if (WasmModuleObject::CheckBreakPoints(isolate_, module_object, position)
+      if (WasmModuleObject::CheckBreakPoints(isolate_, script, position)
               .ToHandle(&breakpoints)) {
         // We hit one or several breakpoints. Clear stepping, notify the
         // listeners and return.
@@ -318,7 +319,8 @@ class InterpreterHandle {
     DCHECK_LT(0, thread->GetFrameCount());
 
     auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
-    return module_object->GetFunctionOffset(frame->function()->func_index) +
+    return GetWasmFunctionOffset(module_object->module(),
+                                 frame->function()->func_index) +
            frame->pc();
   }
 
@@ -502,9 +504,11 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo debug_info) {
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   DCHECK(!instance->has_debug_info());
   Factory* factory = instance->GetIsolate()->factory();
+  Handle<Cell> stack_cell = factory->NewCell(factory->empty_fixed_array());
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(
       factory->NewStruct(WASM_DEBUG_INFO_TYPE, AllocationType::kOld));
   debug_info->set_wasm_instance(*instance);
+  debug_info->set_interpreter_reference_stack(*stack_cell);
   instance->set_debug_info(*debug_info);
   return debug_info;
 }
@@ -524,6 +528,7 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   return interp_handle->raw()->interpreter();
 }
 
+// static
 void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
                                   int func_index, int offset) {
   Isolate* isolate = debug_info->GetIsolate();
@@ -533,6 +538,18 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
   handle->interpreter()->SetBreakpoint(func, offset, true);
 }
 
+// static
+void WasmDebugInfo::ClearBreakpoint(Handle<WasmDebugInfo> debug_info,
+                                    int func_index, int offset) {
+  Isolate* isolate = debug_info->GetIsolate();
+  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
+  // TODO(leese): If there are no more breakpoints left it would be good to
+  // undo redirecting to the interpreter.
+  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
+  handle->interpreter()->SetBreakpoint(func, offset, false);
+}
+
+// static
 void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
                                           Vector<int> func_indexes) {
   Isolate* isolate = debug_info->GetIsolate();
@@ -635,8 +652,8 @@ Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
   if (index == -1) {
     index = static_cast<int32_t>(map->FindOrInsert(*sig));
     if (index == entries->length()) {
-      entries = isolate->factory()->CopyFixedArrayAndGrow(
-          entries, entries->length(), AllocationType::kOld);
+      entries =
+          isolate->factory()->CopyFixedArrayAndGrow(entries, entries->length());
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index).IsUndefined(isolate));

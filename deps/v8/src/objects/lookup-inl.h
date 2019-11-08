@@ -10,6 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
@@ -136,11 +137,11 @@ void LookupIterator::UpdateProtector() {
   }
 }
 
-int LookupIterator::descriptor_number() const {
+InternalIndex LookupIterator::descriptor_number() const {
   DCHECK(!IsElement());
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
-  return number_;
+  return InternalIndex(number_);
 }
 
 int LookupIterator::dictionary_entry() const {

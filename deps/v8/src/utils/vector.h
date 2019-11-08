@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iterator>
+#include <memory>
 
 #include "src/common/checks.h"
 #include "src/common/globals.h"

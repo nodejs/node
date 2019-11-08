@@ -11,7 +11,6 @@
 #include "src/utils/version.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -943,154 +942,6 @@ TEST(MemoryWithOOBEmptyDataSegment) {
   Cleanup();
 }
 
-// Utility to free the allocated memory for a buffer that is manually
-// externalized in a test.
-struct ManuallyExternalizedBuffer {
-  Isolate* isolate_;
-  Handle<JSArrayBuffer> buffer_;
-  void* allocation_base_;
-  size_t allocation_length_;
-  bool const should_free_;
-
-  ManuallyExternalizedBuffer(JSArrayBuffer buffer, Isolate* isolate)
-      : isolate_(isolate),
-        buffer_(buffer, isolate),
-        allocation_base_(buffer.allocation_base()),
-        allocation_length_(buffer.allocation_length()),
-        should_free_(!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
-            buffer.backing_store())) {
-    if (!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
-            buffer.backing_store())) {
-      v8::Utils::ToLocal(buffer_)->Externalize();
-    }
-  }
-  ~ManuallyExternalizedBuffer() {
-    if (should_free_) {
-      buffer_->FreeBackingStoreFromMainThread();
-    }
-  }
-};
-
-TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
-  {
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    HandleScope scope(isolate);
-    TestSignatures sigs;
-    v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
-
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-    ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(6)), WASM_DROP,
-                   WASM_MEMORY_SIZE};
-    EMIT_CODE_WITH_END(f, code);
-
-    ZoneBuffer buffer(&zone);
-    builder->WriteTo(&buffer);
-    testing::SetupIsolateForWasmModule(isolate);
-    ErrorThrower thrower(isolate, "Test");
-    const Handle<WasmInstanceObject> instance =
-        CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
-            .ToHandleChecked();
-    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
-
-    // Fake the Embedder flow by externalizing the array buffer.
-    ManuallyExternalizedBuffer buffer1(memory_object->array_buffer(), isolate);
-
-    // Grow using the API.
-    uint32_t result = WasmMemoryObject::Grow(isolate, memory_object, 4);
-    CHECK_EQ(16, result);
-    CHECK(buffer1.buffer_->was_detached());  // growing always detaches
-    CHECK_EQ(0, buffer1.buffer_->byte_length());
-
-    CHECK_NE(*buffer1.buffer_, memory_object->array_buffer());
-
-    // Fake the Embedder flow by externalizing the array buffer.
-    ManuallyExternalizedBuffer buffer2(memory_object->array_buffer(), isolate);
-
-    // Grow using an internal WASM bytecode.
-    result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
-    CHECK_EQ(26, result);
-    CHECK(buffer2.buffer_->was_detached());  // growing always detaches
-    CHECK_EQ(0, buffer2.buffer_->byte_length());
-    CHECK_NE(*buffer2.buffer_, memory_object->array_buffer());
-  }
-  Cleanup();
-}
-
-TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
-  {
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    HandleScope scope(isolate);
-    Handle<JSArrayBuffer> buffer;
-    CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
-    Handle<WasmMemoryObject> mem_obj =
-        WasmMemoryObject::New(isolate, buffer, 100);
-    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
-    int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
-    CHECK_EQ(16, result);
-    constexpr bool is_wasm_memory = true;
-    const JSArrayBuffer::Allocation allocation{contents.AllocationBase(),
-                                               contents.AllocationLength(),
-                                               contents.Data(), is_wasm_memory};
-    JSArrayBuffer::FreeBackingStore(isolate, allocation);
-  }
-  Cleanup();
-}
-
-TEST(Run_WasmModule_Buffer_Externalized_Detach) {
-  {
-    // Regression test for
-    // https://bugs.chromium.org/p/chromium/issues/detail?id=731046
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    HandleScope scope(isolate);
-    Handle<JSArrayBuffer> buffer;
-    CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
-    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
-    wasm::DetachMemoryBuffer(isolate, buffer, true);
-    constexpr bool is_wasm_memory = true;
-    const JSArrayBuffer::Allocation allocation{contents.AllocationBase(),
-                                               contents.AllocationLength(),
-                                               contents.Data(), is_wasm_memory};
-    JSArrayBuffer::FreeBackingStore(isolate, allocation);
-  }
-  Cleanup();
-}
-
-TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
-  // Regresion test for https://crbug.com/813876
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  HandleScope scope(isolate);
-  Handle<JSArrayBuffer> buffer;
-  CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize).ToHandle(&buffer));
-  Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
-  auto contents = v8::Utils::ToLocal(buffer)->Externalize();
-  WasmMemoryObject::Grow(isolate, mem, 0);
-  constexpr bool is_wasm_memory = true;
-  JSArrayBuffer::FreeBackingStore(
-      isolate, JSArrayBuffer::Allocation(contents.AllocationBase(),
-                                         contents.AllocationLength(),
-                                         contents.Data(), is_wasm_memory));
-  // Make sure we can write to the buffer without crashing
-  uint32_t* int_buffer =
-      reinterpret_cast<uint32_t*>(mem->array_buffer().backing_store());
-  int_buffer[0] = 0;
-}
-
-#if V8_TARGET_ARCH_64_BIT
-TEST(Run_WasmModule_Reclaim_Memory) {
-  // Make sure we can allocate memories without running out of address space.
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  Handle<JSArrayBuffer> buffer;
-  for (int i = 0; i < 256; ++i) {
-    HandleScope scope(isolate);
-    CHECK(NewArrayBuffer(isolate, kWasmPageSize).ToHandle(&buffer));
-  }
-}
-#endif
-
 TEST(AtomicOpDisassembly) {
   {
     EXPERIMENTAL_FLAG_SCOPE(threads);
@@ -1118,12 +969,15 @@ TEST(AtomicOpDisassembly) {
 
     ErrorThrower thrower(isolate, "Test");
     auto enabled_features = WasmFeaturesFromIsolate(isolate);
-    MaybeHandle<WasmModuleObject> module_object =
-        isolate->wasm_engine()->SyncCompile(
-            isolate, enabled_features, &thrower,
-            ModuleWireBytes(buffer.begin(), buffer.end()));
+    Handle<WasmModuleObject> module_object =
+        isolate->wasm_engine()
+            ->SyncCompile(isolate, enabled_features, &thrower,
+                          ModuleWireBytes(buffer.begin(), buffer.end()))
+            .ToHandleChecked();
+    NativeModule* native_module = module_object->native_module();
+    ModuleWireBytes wire_bytes(native_module->wire_bytes());
 
-    module_object.ToHandleChecked()->DisassembleFunction(0);
+    DisassembleWasmFunction(native_module->module(), wire_bytes, 0);
   }
   Cleanup();
 }

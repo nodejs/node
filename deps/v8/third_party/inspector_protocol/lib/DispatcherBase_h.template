@@ -128,8 +128,9 @@ private:
 class InternalResponse : public Serializable {
     PROTOCOL_DISALLOW_COPY(InternalResponse);
 public:
-    static std::unique_ptr<InternalResponse> createResponse(int callId, std::unique_ptr<Serializable> params);
-    static std::unique_ptr<InternalResponse> createNotification(const String& notification, std::unique_ptr<Serializable> params = nullptr);
+    static std::unique_ptr<Serializable> createResponse(int callId, std::unique_ptr<Serializable> params);
+    static std::unique_ptr<Serializable> createNotification(const String& notification, std::unique_ptr<Serializable> params = nullptr);
+    static std::unique_ptr<Serializable> createErrorResponse(int callId, DispatchResponse::ErrorCode code, const String& message);
 
     String serializeToJSON() override;
     std::vector<uint8_t> serializeToBinary() override;

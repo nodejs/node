@@ -21,11 +21,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PreparseData, HeapObject)
-
-CAST_ACCESSOR(PreparseData)
-INT_ACCESSORS(PreparseData, data_length, kDataLengthOffset)
-INT_ACCESSORS(PreparseData, children_length, kInnerLengthOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PreparseData)
 
 int PreparseData::inner_start_offset() const {
   return InnerOffset(data_length());
@@ -84,26 +80,9 @@ void PreparseData::set_child(int index, PreparseData value,
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData, UncompiledData)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData, UncompiledData)
-CAST_ACCESSOR(UncompiledData)
-ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
-INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
-INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
-
-void UncompiledData::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-         FIELD_SIZE(kOptionalPaddingOffset));
-}
-
-CAST_ACCESSOR(UncompiledDataWithoutPreparseData)
-
-CAST_ACCESSOR(UncompiledDataWithPreparseData)
-ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
-          kPreparseDataOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 
 DEF_GETTER(HeapObject, IsUncompiledData, bool) {
   return IsUncompiledDataWithoutPreparseData(isolate) ||
@@ -124,7 +103,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
+ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
           kScriptOrDebugInfoOffset)
 
 INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
@@ -229,6 +208,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_safe_to_skip_arguments_adaptor,
                     SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+                    private_name_lookup_skips_outer_class,
+                    SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;
@@ -613,12 +595,11 @@ void SharedFunctionInfo::ClearPreparseData() {
   Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
-  heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,
-                                 no_gc);
+  heap->NotifyObjectLayoutChange(data, no_gc);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
-                UncompiledData::kSize);
+                UncompiledData::kHeaderSize);
   data.synchronized_set_map(
       GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
 
@@ -644,7 +625,6 @@ void UncompiledData::Initialize(
       data, data.RawField(UncompiledData::kInferredNameOffset), inferred_name);
   data.set_start_position(start_position);
   data.set_end_position(end_position);
-  data.clear_padding();
 }
 
 void UncompiledDataWithPreparseData::Initialize(
@@ -672,16 +652,16 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data().IsWasmCapiFunctionData();
 }
 
-Object SharedFunctionInfo::script() const {
-  Object maybe_script = script_or_debug_info();
+HeapObject SharedFunctionInfo::script() const {
+  HeapObject maybe_script = script_or_debug_info();
   if (maybe_script.IsDebugInfo()) {
     return DebugInfo::cast(maybe_script).script();
   }
   return maybe_script;
 }
 
-void SharedFunctionInfo::set_script(Object script) {
-  Object maybe_debug_info = script_or_debug_info();
+void SharedFunctionInfo::set_script(HeapObject script) {
+  HeapObject maybe_debug_info = script_or_debug_info();
   if (maybe_debug_info.IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info).set_script(script);
   } else {

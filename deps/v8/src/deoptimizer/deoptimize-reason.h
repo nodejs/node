@@ -48,7 +48,6 @@ namespace internal {
   V(NotASymbol, "not a Symbol")                                                \
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
-  V(ReceiverNotAGlobalProxy, "receiver was not a global proxy")                \
   V(Smi, "Smi")                                                                \
   V(Unknown, "(unknown)")                                                      \
   V(ValueMismatch, "value mismatch")                                           \

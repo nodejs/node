@@ -9,6 +9,7 @@
 
 #include "src/base/bits.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -113,6 +114,10 @@ class MachineType {
   }
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
+  }
+  constexpr static MachineRepresentation TaggedRepresentation() {
+    return (kTaggedSize == 4) ? MachineRepresentation::kWord32
+                              : MachineRepresentation::kWord64;
   }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
@@ -239,71 +244,79 @@ class MachineType {
   // pointer flag is enabled. Otherwise, they returned the corresponding tagged
   // one.
   constexpr static MachineRepresentation RepCompressedTagged() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineRepresentation::kCompressed;
-#else
-    return MachineRepresentation::kTagged;
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineRepresentation::kCompressed;
+    } else {
+      return MachineRepresentation::kTagged;
+    }
   }
   constexpr static MachineRepresentation RepCompressedTaggedSigned() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineRepresentation::kCompressedSigned;
-#else
-    return MachineRepresentation::kTaggedSigned;
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineRepresentation::kCompressedSigned;
+    } else {
+      return MachineRepresentation::kTaggedSigned;
+    }
   }
   constexpr static MachineRepresentation RepCompressedTaggedPointer() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineRepresentation::kCompressedPointer;
-#else
-    return MachineRepresentation::kTaggedPointer;
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineRepresentation::kCompressedPointer;
+    } else {
+      return MachineRepresentation::kTaggedPointer;
+    }
+  }
+
+  constexpr static MachineType TypeRawTagged() {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineType::Int32();
+    } else {
+      return MachineType::Pointer();
+    }
   }
 
   constexpr static MachineType TypeCompressedTagged() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineType::AnyCompressed();
-#else
-    return MachineType::AnyTagged();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineType::AnyCompressed();
+    } else {
+      return MachineType::AnyTagged();
+    }
   }
   constexpr static MachineType TypeCompressedTaggedSigned() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineType::CompressedSigned();
-#else
-    return MachineType::TaggedSigned();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineType::CompressedSigned();
+    } else {
+      return MachineType::TaggedSigned();
+    }
   }
   constexpr static MachineType TypeCompressedTaggedPointer() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineType::CompressedPointer();
-#else
-    return MachineType::TaggedPointer();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return MachineType::CompressedPointer();
+    } else {
+      return MachineType::TaggedPointer();
+    }
   }
 
   constexpr bool IsCompressedTagged() const {
-#ifdef V8_COMPRESS_POINTERS
-    return IsCompressed();
-#else
-    return IsTagged();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return IsCompressed();
+    } else {
+      return IsTagged();
+    }
   }
 
   constexpr bool IsCompressedTaggedSigned() const {
-#ifdef V8_COMPRESS_POINTERS
-    return IsCompressedSigned();
-#else
-    return IsTaggedSigned();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return IsCompressedSigned();
+    } else {
+      return IsTaggedSigned();
+    }
   }
 
   constexpr bool IsCompressedTaggedPointer() const {
-#ifdef V8_COMPRESS_POINTERS
-    return IsCompressedPointer();
-#else
-    return IsTaggedPointer();
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      return IsCompressedPointer();
+    } else {
+      return IsTaggedPointer();
+    }
   }
 
   static MachineType TypeForRepresentation(const MachineRepresentation& rep,
@@ -405,11 +418,11 @@ inline bool IsAnyCompressed(MachineRepresentation rep) {
 }
 
 inline bool IsAnyCompressedTagged(MachineRepresentation rep) {
-#ifdef V8_COMPRESS_POINTERS
-  return IsAnyCompressed(rep);
-#else
-  return IsAnyTagged(rep);
-#endif
+  if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+    return IsAnyCompressed(rep);
+  } else {
+    return IsAnyTagged(rep);
+  }
 }
 
 // Gets the log2 of the element size in bytes of the machine type.
@@ -431,7 +444,6 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-      return kSystemPointerSizeLog2;
     case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:

@@ -141,6 +141,12 @@ class ActualScript : public V8DebuggerScript {
                     static_cast<int>(pos), static_cast<int>(substringLength));
     return String16(buffer.get(), substringLength);
   }
+  v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const override {
+    v8::HandleScope scope(m_isolate);
+    auto script = this->script();
+    if (!script->IsWasm()) return v8::Nothing<v8::MemorySpan<const uint8_t>>();
+    return v8::Just(v8::debug::WasmScript::Cast(*script)->Bytecode());
+  }
   int startLine() const override { return m_startLine; }
   int startColumn() const override { return m_startColumn; }
   int endLine() const override { return m_endLine; }
@@ -281,9 +287,8 @@ class ActualScript : public V8DebuggerScript {
     m_startLine = script->LineOffset();
     m_startColumn = script->ColumnOffset();
     std::vector<int> lineEnds = script->LineEnds();
-    CHECK(lineEnds.size());
-    int source_length = lineEnds[lineEnds.size() - 1];
     if (lineEnds.size()) {
+      int source_length = lineEnds[lineEnds.size() - 1];
       m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
       if (lineEnds.size() > 1) {
         m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
@@ -355,6 +360,9 @@ class WasmVirtualScript : public V8DebuggerScript {
   String16 source(size_t pos, size_t len) const override {
     return m_wasmTranslation->GetSource(m_id, m_functionIndex)
         .substring(pos, len);
+  }
+  v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const override {
+    return v8::Nothing<v8::MemorySpan<const uint8_t>>();
   }
   int startLine() const override {
     return m_wasmTranslation->GetStartLine(m_id, m_functionIndex);
@@ -462,17 +470,17 @@ class WasmVirtualScript : public V8DebuggerScript {
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
     v8::Isolate* isolate, v8::Local<v8::debug::Script> scriptObj,
     bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client) {
-  return v8::base::make_unique<ActualScript>(isolate, scriptObj, isLiveEdit,
-                                             agent, client);
+  return std::make_unique<ActualScript>(isolate, scriptObj, isLiveEdit, agent,
+                                        client);
 }
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
     v8::Isolate* isolate, WasmTranslation* wasmTranslation,
     v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
     String16 url, int functionIndex) {
-  return v8::base::make_unique<WasmVirtualScript>(
-      isolate, wasmTranslation, underlyingScript, std::move(id), std::move(url),
-      functionIndex);
+  return std::make_unique<WasmVirtualScript>(isolate, wasmTranslation,
+                                             underlyingScript, std::move(id),
+                                             std::move(url), functionIndex);
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,

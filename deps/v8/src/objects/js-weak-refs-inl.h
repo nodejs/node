@@ -17,37 +17,20 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(WeakCell, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroup, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroupCleanupIterator, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroupCleanupIterator)
 
 ACCESSORS(JSFinalizationGroup, native_context, NativeContext,
           kNativeContextOffset)
 ACCESSORS(JSFinalizationGroup, cleanup, Object, kCleanupOffset)
-ACCESSORS(JSFinalizationGroup, active_cells, Object, kActiveCellsOffset)
-ACCESSORS(JSFinalizationGroup, cleared_cells, Object, kClearedCellsOffset)
+ACCESSORS(JSFinalizationGroup, active_cells, HeapObject, kActiveCellsOffset)
+ACCESSORS(JSFinalizationGroup, cleared_cells, HeapObject, kClearedCellsOffset)
 ACCESSORS(JSFinalizationGroup, key_map, Object, kKeyMapOffset)
 SMI_ACCESSORS(JSFinalizationGroup, flags, kFlagsOffset)
 ACCESSORS(JSFinalizationGroup, next, Object, kNextOffset)
 CAST_ACCESSOR(JSFinalizationGroup)
-
-ACCESSORS(WeakCell, finalization_group, Object, kFinalizationGroupOffset)
-ACCESSORS(WeakCell, target, HeapObject, kTargetOffset)
-ACCESSORS(WeakCell, holdings, Object, kHoldingsOffset)
-ACCESSORS(WeakCell, next, Object, kNextOffset)
-ACCESSORS(WeakCell, prev, Object, kPrevOffset)
-ACCESSORS(WeakCell, key, Object, kKeyOffset)
-ACCESSORS(WeakCell, key_list_next, Object, kKeyListNextOffset)
-ACCESSORS(WeakCell, key_list_prev, Object, kKeyListPrevOffset)
-CAST_ACCESSOR(WeakCell)
-
-CAST_ACCESSOR(JSWeakRef)
-ACCESSORS(JSWeakRef, target, HeapObject, kTargetOffset)
-
-ACCESSORS(JSFinalizationGroupCleanupIterator, finalization_group,
-          JSFinalizationGroup, kFinalizationGroupOffset)
-CAST_ACCESSOR(JSFinalizationGroupCleanupIterator)
 
 void JSFinalizationGroup::Register(
     Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,
@@ -101,7 +84,7 @@ bool JSFinalizationGroup::Unregister(
     Handle<ObjectHashTable> key_map =
         handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
     Object value = key_map->Lookup(unregister_token);
-    Object undefined = ReadOnlyRoots(isolate).undefined_value();
+    HeapObject undefined = ReadOnlyRoots(isolate).undefined_value();
     while (value.IsWeakCell()) {
       WeakCell weak_cell = WeakCell::cast(value);
       weak_cell.RemoveFromFinalizationGroupCells(isolate);

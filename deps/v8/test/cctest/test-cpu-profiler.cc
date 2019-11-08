@@ -54,8 +54,8 @@
 #include "src/tracing/trace-event.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
-#include "perfetto/trace/trace.pb.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "protos/perfetto/trace/trace.pb.h"
 #endif
 
 namespace v8 {

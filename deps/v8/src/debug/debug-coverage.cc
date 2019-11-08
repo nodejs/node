@@ -577,11 +577,15 @@ struct SharedFunctionInfoAndCount {
   // Sort by:
   // - start, ascending.
   // - end, descending.
-  // - count, ascending.
+  // - info.is_toplevel() first
+  // - count, descending.
   bool operator<(const SharedFunctionInfoAndCount& that) const {
     if (this->start != that.start) return this->start < that.start;
     if (this->end != that.end) return this->end > that.end;
-    return this->count < that.count;
+    if (this->info.is_toplevel() != that.info.is_toplevel()) {
+      return this->info.is_toplevel();
+    }
+    return this->count > that.count;
   }
 
   SharedFunctionInfo info;
@@ -653,12 +657,30 @@ std::unique_ptr<Coverage> Coverage::Collect(
 
       // Find the correct outer function based on start position.
       //
-      // This is not robust when considering two functions with identical source
-      // ranges. In this case, it is unclear which function is the inner / outer
-      // function. Above, we ensure that such functions are sorted in ascending
-      // `count` order, so at least our `parent_is_covered` optimization below
-      // should be fine.
-      // TODO(jgruber): Consider removing the optimization.
+      // This is, in general, not robust when considering two functions with
+      // identical source ranges; then the notion of inner and outer is unclear.
+      // Identical source ranges arise when the source range of top-most entity
+      // (e.g. function) in the script is identical to the whole script, e.g.
+      // <script>function foo() {}<script>. The script has its own shared
+      // function info, which has the same source range as the SFI for `foo`.
+      // Node.js creates an additional wrapper for scripts (again with identical
+      // source range) and those wrappers will have a call count of zero even if
+      // the wrapped script was executed (see v8:9212). We mitigate this issue
+      // by sorting top-level SFIs first among SFIs with the same source range:
+      // This ensures top-level SFIs are processed first. If a top-level SFI has
+      // a non-zero call count, it gets recorded due to `function_is_relevant`
+      // below (e.g. script wrappers), while top-level SFIs with zero call count
+      // do not get reported (this ensures node's extra wrappers do not get
+      // reported). If two SFIs with identical source ranges get reported, we
+      // report them in decreasing order of call count, as in all known cases
+      // this corresponds to the nesting order. In the case of the script tag
+      // example above, we report the zero call count of `foo` last. As it turns
+      // out, embedders started to rely on functions being reported in nesting
+      // order.
+      // TODO(jgruber):  Investigate whether it is possible to remove node's
+      // extra  top-level wrapper script, or change its source range, or ensure
+      // that it follows the invariant that nesting order is descending count
+      // order for SFIs with identical source ranges.
       while (!nesting.empty() && functions->at(nesting.back()).end <= start) {
         nesting.pop_back();
       }

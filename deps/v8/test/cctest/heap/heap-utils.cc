@@ -98,10 +98,14 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       allocate_memory = free_memory;
       length = FixedArrayLenFromSize(allocate_memory);
       if (length <= 0) {
-        // Not enough room to create another fixed array. Let's create a filler.
-        if (free_memory > (2 * kTaggedSize)) {
+        // Not enough room to create another FixedArray, so create a filler.
+        if (allocation == i::AllocationType::kOld) {
           heap->CreateFillerObjectAt(
               *heap->old_space()->allocation_top_address(), free_memory,
+              ClearRecordedSlots::kNo);
+        } else {
+          heap->CreateFillerObjectAt(
+              *heap->new_space()->allocation_top_address(), free_memory,
               ClearRecordedSlots::kNo);
         }
         break;
@@ -127,8 +131,9 @@ void AllocateAllButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   if (new_linear_size == 0) return;
   std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
       space->heap(), new_linear_size, i::AllocationType::kYoung);
-  if (out_handles != nullptr)
+  if (out_handles != nullptr) {
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
+  }
 }
 
 void FillCurrentPage(v8::internal::NewSpace* space,
@@ -144,8 +149,9 @@ bool FillUpOnePage(v8::internal::NewSpace* space,
   if (space_remaining == 0) return false;
   std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
       space->heap(), space_remaining, i::AllocationType::kYoung);
-  if (out_handles != nullptr)
+  if (out_handles != nullptr) {
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
+  }
   return true;
 }
 

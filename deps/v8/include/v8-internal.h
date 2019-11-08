@@ -112,6 +112,8 @@ using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 using PlatformSmiTagging = SmiTagging<kApiTaggedSize>;
 #endif
 
+// TODO(ishell): Consinder adding kSmiShiftBits = kSmiShiftSize + kSmiTagSize
+// since it's used much more often than the inividual constants.
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 const int kSmiMinValue = static_cast<int>(PlatformSmiTagging::kSmiMinValue);
@@ -327,14 +329,11 @@ class Internals {
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
   static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprIsolateRootBias =
-      kPtrComprHeapReservationSize / 2;
   static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
 
   V8_INLINE static internal::Address GetRootFromOnHeapAddress(
       internal::Address addr) {
-    return (addr + kPtrComprIsolateRootBias) &
-           -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+    return addr & -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
   }
 
   V8_INLINE static internal::Address DecompressTaggedAnyField(
@@ -380,6 +379,10 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
+
+// A base class for backing stores, which is needed due to vagaries of
+// how static casts work with std::shared_ptr.
+class BackingStoreBase {};
 
 }  // namespace internal
 }  // namespace v8

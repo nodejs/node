@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
+#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 
@@ -15,8 +16,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
@@ -117,8 +116,8 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 // ES6 #sec-get-%typedarray%.prototype.bytelength
 TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.byteLength";
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
@@ -135,8 +134,8 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
 // ES6 #sec-get-%typedarray%.prototype.byteoffset
 TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.byteOffset";
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
@@ -153,8 +152,8 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
 // ES6 #sec-get-%typedarray%.prototype.length
 TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.length";
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
@@ -318,8 +317,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Grab pointers and byte lengths we need later on.
 
-  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayBackingStore(target);
-  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayBackingStore(source);
+  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayDataPtr(target);
+  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayDataPtr(source);
 
   TNode<Int32T> source_el_kind = LoadElementsKind(source);
   TNode<Int32T> target_el_kind = LoadElementsKind(target);
@@ -538,13 +537,83 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(
   return IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield);
 }
 
+void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
+    TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
+  offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
+                      offset);
+  if (COMPRESS_POINTERS_BOOL) {
+    TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
+    TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
+    // TODO(v8:9706): Add a way to directly use kRootRegister value.
+    TNode<IntPtrT> isolate_root =
+        IntPtrSub(full_base, ChangeInt32ToIntPtr(compressed_base));
+    // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
+    DCHECK_EQ(
+        isolate()->isolate_root(),
+        JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
+    // See JSTypedArray::SetOnHeapDataPtr() for details.
+    offset = Unsigned(IntPtrAdd(offset, isolate_root));
+  }
+
+  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, base);
+  StoreObjectFieldNoWriteBarrier<UintPtrT>(
+      holder, JSTypedArray::kExternalPointerOffset, offset);
+}
+
+void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
+    TNode<JSTypedArray> holder, TNode<RawPtrT> base, TNode<UintPtrT> offset) {
+  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kBasePointerOffset,
+                                 SmiConstant(0));
+
+  base = RawPtrAdd(base, Signed(offset));
+  StoreObjectFieldNoWriteBarrier<RawPtrT>(
+      holder, JSTypedArray::kExternalPointerOffset, base);
+}
+
+void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
+    TNode<Context> context, TNode<JSTypedArray> typed_array,
+    TNode<Smi> index_node, TNode<Object> value, ElementsKind elements_kind) {
+  TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+      StoreElement(data_ptr, elements_kind, index_node, SmiToInt32(CAST(value)),
+                   SMI_PARAMETERS);
+      break;
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+      StoreElement(data_ptr, elements_kind, index_node,
+                   TruncateTaggedToWord32(context, value), SMI_PARAMETERS);
+      break;
+    case FLOAT32_ELEMENTS:
+      StoreElement(data_ptr, elements_kind, index_node,
+                   TruncateFloat64ToFloat32(LoadHeapNumberValue(CAST(value))),
+                   SMI_PARAMETERS);
+      break;
+    case FLOAT64_ELEMENTS:
+      StoreElement(data_ptr, elements_kind, index_node,
+                   LoadHeapNumberValue(CAST(value)), SMI_PARAMETERS);
+      break;
+    case BIGUINT64_ELEMENTS:
+    case BIGINT64_ELEMENTS:
+      StoreElement(data_ptr, elements_kind, index_node,
+                   UncheckedCast<BigInt>(value), SMI_PARAMETERS);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 // ES #sec-get-%typedarray%.prototype.set
 TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.set";
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CodeStubArguments args(
-      this,
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
+  CodeStubArguments args(this, argc);
 
   Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
       if_offset_is_out_of_bounds(this, Label::kDeferred),
@@ -618,7 +687,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag
 TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Label if_receiverisheapobject(this), return_undefined(this);
   Branch(TaggedIsSmi(receiver), &return_undefined, &if_receiverisheapobject);
 
@@ -645,12 +714,12 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
 #undef TYPED_ARRAY_CASE
   };
 
-  // We offset the dispatch by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND, so
-  // that this can be turned into a non-sparse table switch for ideal
-  // performance.
+  // We offset the dispatch by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND, so that
+  // this can be turned into a non-sparse table switch for ideal performance.
   BIND(&if_receiverisheapobject);
+  TNode<HeapObject> receiver_heap_object = CAST(receiver);
   TNode<Int32T> elements_kind =
-      Int32Sub(LoadElementsKind(receiver),
+      Int32Sub(LoadElementsKind(receiver_heap_object),
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
   Switch(elements_kind, &return_undefined, elements_kinds, elements_kind_labels,
          kTypedElementsKindCount);
@@ -710,8 +779,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   TNode<IntPtrT> length = ChangeInt32ToIntPtr(
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   // 2. Let items be the List of arguments passed to this function.
-  CodeStubArguments args(this, length, nullptr, INTPTR_PARAMETERS,
-                         CodeStubArguments::ReceiverMode::kHasReceiver);
+  CodeStubArguments args(this, length);
 
   Label if_not_constructor(this, Label::kDeferred),
       if_detached(this, Label::kDeferred);
@@ -737,10 +805,10 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        BuildFastLoop(
+        BuildFastLoop<IntPtrT>(
             IntPtrConstant(0), length,
-            [&](Node* index) {
-              TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
+            [&](TNode<IntPtrT> index) {
+              TNode<Object> item = args.AtIndex(index);
               Node* value =
                   PrepareValueForWriteToTypedArray(item, kind, context);
 
@@ -752,12 +820,11 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
               // GC may move backing store in ToNumber, thus load backing
               // store everytime in this loop.
-              TNode<RawPtrT> backing_store =
-                  LoadJSTypedArrayBackingStore(new_typed_array);
-              StoreElement(backing_store, kind, index, value,
-                           INTPTR_PARAMETERS);
+              TNode<RawPtrT> data_ptr =
+                  LoadJSTypedArrayDataPtr(new_typed_array);
+              StoreElement(data_ptr, kind, index, value, INTPTR_PARAMETERS);
             },
-            1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+            1, IndexAdvanceMode::kPost);
       });
 
   // 8. Return newObj.
@@ -773,6 +840,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
 // ES6 #sec-%typedarray%.from
 TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label check_iterator(this), from_array_like(this), fast_path(this),
@@ -782,9 +851,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       if_iterator_fn_not_callable(this, Label::kDeferred),
       if_detached(this, Label::kDeferred);
 
-  CodeStubArguments args(
-      this,
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
+  CodeStubArguments args(this, argc);
   TNode<Object> source = args.GetOptionalArgumentValue(0);
 
   // 5. If thisArg is present, let T be thisArg; else let T be undefined.
@@ -866,7 +933,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
     GotoIfNot(
         TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                    SmiConstant(Isolate::kProtectorValid)),
+                    SmiConstant(Protectors::kProtectorValid)),
         &check_iterator);
 
     // Source is a TypedArray with unmodified iterator behavior. Use the
@@ -950,15 +1017,15 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Int32T> elements_kind = LoadElementsKind(target_obj.value());
 
   // 7e/13 : Copy the elements
-  BuildFastLoop(
+  BuildFastLoop<Smi>(
       SmiConstant(0), final_length.value(),
-      [&](Node* index) {
+      [&](TNode<Smi> index) {
         TNode<Object> const k_value =
             GetProperty(context, final_source.value(), index);
 
         TNode<Object> const mapped_value =
-            CAST(CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
-                        k_value, index));
+            CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
+                   k_value, index);
 
         DispatchTypedArrayByElementsKind(
             elements_kind,
@@ -974,13 +1041,12 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
               // GC may move backing store in map_fn, thus load backing
               // store in each iteration of this loop.
-              TNode<RawPtrT> backing_store =
-                  LoadJSTypedArrayBackingStore(target_obj.value());
-              StoreElement(backing_store, kind, index, final_value,
-                           SMI_PARAMETERS);
+              TNode<RawPtrT> data_ptr =
+                  LoadJSTypedArrayDataPtr(target_obj.value());
+              StoreElement(data_ptr, kind, index, final_value, SMI_PARAMETERS);
             });
       },
-      1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+      1, IndexAdvanceMode::kPost);
 
   args.PopAndReturn(target_obj.value());
 

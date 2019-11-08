@@ -33,7 +33,7 @@ def preprocess(input):
       break;
 
   input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
-      r' _GeNeRaTeS00_/*\1@*/', input)
+      r'_GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*',
       r' _CoNsExP_/*\1@*/', input)
   input = re.sub(r'\notherwise',

@@ -241,7 +241,7 @@ class MachineRepresentationInferrer {
                 MachineType::PointerRepresentation();
             break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kBitcastTaggedSignedToWord:
+          case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -437,7 +437,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord64);
             break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kBitcastTaggedSignedToWord:
+          case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
             break;
@@ -461,7 +461,7 @@ class MachineRepresentationChecker {
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
-            if (Is64()) {
+            if (Is64() && !COMPRESS_POINTERS_BOOL) {
               CheckValueInputIsTaggedOrPointer(node, 0);
               CheckValueInputIsTaggedOrPointer(node, 1);
               if (!is_stub_) {
@@ -1007,6 +1007,13 @@ class MachineRepresentationChecker {
         return IsAnyCompressed(actual);
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
+        // TODO(tebbi): At the moment, the machine graph doesn't contain
+        // reliable information if a node is kTaggedSigned, kTaggedPointer or
+        // kTagged, and often this is context-dependent. We should at least
+        // check for obvious violations: kTaggedSigned where we expect
+        // kTaggedPointer and the other way around, but at the moment, this
+        // happens in dead code.
+        return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kFloat32:

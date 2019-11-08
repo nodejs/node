@@ -47,7 +47,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     kFixedRegister,
     kSlot,
     kFixedSlot,
-    kExplicit,
     kImmediate,
     kNone,
     kConstant,
@@ -74,17 +73,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   };
 
   static TestOperand Same() { return TestOperand(kSameAsFirst); }
-
-  static TestOperand ExplicitReg(int index) {
-    TestOperandType type = kExplicit;
-    return TestOperand(type, index);
-  }
-
-  static TestOperand ExplicitFPReg(int index,
-                                   MachineRepresentation rep = kFloat64) {
-    TestOperandType type = kExplicit;
-    return TestOperand(type, index, rep);
-  }
 
   static TestOperand Reg(VReg vreg, int index = kNoValue) {
     TestOperandType type = (index == kNoValue) ? kRegister : kFixedRegister;

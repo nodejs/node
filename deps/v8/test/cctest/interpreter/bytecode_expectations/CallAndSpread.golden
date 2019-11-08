@@ -65,9 +65,9 @@ handlers: [
 snippet: "
   Math.max(0, ...[1, 2, 3], 4);
 "
-frame size: 9
+frame size: 8
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 94
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
@@ -80,14 +80,10 @@ bytecodes: [
                 B(Star), R(3),
   /*   49 S> */ B(CreateArrayLiteral), U8(4), U8(5), U8(37),
                 B(Star), R(7),
-                B(GetIterator), R(7), U8(6),
-                B(Star), R(8),
-                B(CallProperty0), R(8), R(7), U8(8),
-                B(Mov), R(0), R(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
+                B(GetIterator), R(7), U8(6), U8(8),
                 B(Star), R(6),
                 B(LdaNamedProperty), R(6), U8(5), U8(10),
+                B(Mov), R(0), R(2),
                 B(Star), R(5),
                 B(CallProperty0), R(5), R(6), U8(19),
                 B(Star), R(7),
