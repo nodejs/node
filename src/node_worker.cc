@@ -623,7 +623,9 @@ void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
 
 Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(resource_limits_));
-  memcpy(ab->GetContents().Data(), resource_limits_, sizeof(resource_limits_));
+  memcpy(ab->GetBackingStore()->Data(),
+         resource_limits_,
+         sizeof(resource_limits_));
   return Float64Array::New(ab, 0, kTotalResourceLimitCount);
 }
 

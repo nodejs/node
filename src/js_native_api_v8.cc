@@ -2562,7 +2562,7 @@ napi_status napi_create_arraybuffer(napi_env env,
   // Optionally return a pointer to the buffer's data, to avoid another call to
   // retrieve it.
   if (data != nullptr) {
-    *data = buffer->GetContents().Data();
+    *data = buffer->GetBackingStore()->Data();
   }
 
   *result = v8impl::JsValueFromV8LocalValue(buffer);
@@ -2608,15 +2608,15 @@ napi_status napi_get_arraybuffer_info(napi_env env,
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  v8::ArrayBuffer::Contents contents =
-      value.As<v8::ArrayBuffer>()->GetContents();
+  std::shared_ptr<v8::BackingStore> backing_store =
+      value.As<v8::ArrayBuffer>()->GetBackingStore();
 
   if (data != nullptr) {
-    *data = contents.Data();
+    *data = backing_store->Data();
   }
 
   if (byte_length != nullptr) {
-    *byte_length = contents.ByteLength();
+    *byte_length = backing_store->ByteLength();
   }
 
   return napi_clear_last_error(env);
@@ -2747,9 +2747,15 @@ napi_status napi_get_typedarray_info(napi_env env,
     *length = array->Length();
   }
 
-  v8::Local<v8::ArrayBuffer> buffer = array->Buffer();
+  v8::Local<v8::ArrayBuffer> buffer;
+  if (data != nullptr || arraybuffer != nullptr) {
+    // Calling Buffer() may have the side effect of allocating the buffer,
+    // so only do this when it’s needed.
+    buffer = array->Buffer();
+  }
+
   if (data != nullptr) {
-    *data = static_cast<uint8_t*>(buffer->GetContents().Data()) +
+    *data = static_cast<uint8_t*>(buffer->GetBackingStore()->Data()) +
             array->ByteOffset();
   }
 
@@ -2821,9 +2827,15 @@ napi_status napi_get_dataview_info(napi_env env,
     *byte_length = array->ByteLength();
   }
 
-  v8::Local<v8::ArrayBuffer> buffer = array->Buffer();
+  v8::Local<v8::ArrayBuffer> buffer;
+  if (data != nullptr || arraybuffer != nullptr) {
+    // Calling Buffer() may have the side effect of allocating the buffer,
+    // so only do this when it’s needed.
+    buffer = array->Buffer();
+  }
+
   if (data != nullptr) {
-    *data = static_cast<uint8_t*>(buffer->GetContents().Data()) +
+    *data = static_cast<uint8_t*>(buffer->GetBackingStore()->Data()) +
             array->ByteOffset();
   }
 
@@ -3015,6 +3027,7 @@ napi_status napi_detach_arraybuffer(napi_env env, napi_value arraybuffer) {
       env, value->IsArrayBuffer(), napi_arraybuffer_expected);
 
   v8::Local<v8::ArrayBuffer> it = value.As<v8::ArrayBuffer>();
+  // TODO(addaleax): Remove the first condition once we have V8 8.0.
   RETURN_STATUS_IF_FALSE(
       env, it->IsExternal(), napi_detachable_arraybuffer_expected);
   RETURN_STATUS_IF_FALSE(

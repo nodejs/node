@@ -297,12 +297,19 @@ Maybe<bool> Message::Serialize(Environment* env,
     // Currently, we support ArrayBuffers and MessagePorts.
     if (entry->IsArrayBuffer()) {
       Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
-      // If we cannot render the ArrayBuffer unusable in this Isolate and
-      // take ownership of its memory, copying the buffer will have to do.
-      if (!ab->IsDetachable() || ab->IsExternal() ||
-          !env->isolate_data()->uses_node_allocator()) {
+      // If we cannot render the ArrayBuffer unusable in this Isolate,
+      // copying the buffer will have to do.
+      // Note that we can currently transfer ArrayBuffers even if they were
+      // not allocated by Node’s ArrayBufferAllocator in the first place,
+      // because we pass the underlying v8::BackingStore around rather than
+      // raw data *and* an Isolate with a non-default ArrayBuffer allocator
+      // is always going to outlive any Workers it creates, and so will its
+      // allocator along with it.
+      // TODO(addaleax): Eventually remove the IsExternal() condition,
+      // see https://github.com/nodejs/node/pull/30339#issuecomment-552225353
+      // for details.
+      if (!ab->IsDetachable() || ab->IsExternal())
         continue;
-      }
       if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
           array_buffers.end()) {
         ThrowDataCloneException(
@@ -362,7 +369,9 @@ Maybe<bool> Message::Serialize(Environment* env,
   for (Local<ArrayBuffer> ab : array_buffers) {
     // If serialization succeeded, we render it inaccessible in this Isolate.
     std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-    ab->Externalize(backing_store);
+    // TODO(addaleax): This can/should be dropped once we have V8 8.0.
+    if (!ab->IsExternal())
+      ab->Externalize(backing_store);
     ab->Detach();
 
     array_buffers_.emplace_back(std::move(backing_store));

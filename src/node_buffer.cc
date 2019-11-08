@@ -192,16 +192,13 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
-  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
+  return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
+      ui->ByteOffset();
 }
 
 
 char* Data(Local<Object> obj) {
-  CHECK(obj->IsArrayBufferView());
-  Local<ArrayBufferView> ui = obj.As<ArrayBufferView>();
-  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
-  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
+  return Data(obj.As<Value>());
 }
 
 
@@ -1060,13 +1057,13 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
   Local<ArrayBuffer> buf = dest->Buffer();
   char* write_result =
-      static_cast<char*>(buf->GetContents().Data()) + dest->ByteOffset();
+      static_cast<char*>(buf->GetBackingStore()->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
   // results = [ read, written ]
   Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
   uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->GetContents().Data()) +
+      static_cast<char*>(result_arr->Buffer()->GetBackingStore()->Data()) +
       result_arr->ByteOffset());
 
   int nchars;
