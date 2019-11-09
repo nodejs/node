@@ -161,7 +161,7 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 added: v12.0.0
 -->
 
-Sets the resolution algorithm for resolving ES modulespecifiers. Valid options
+Sets the resolution algorithm for resolving ES module specifiers. Valid options
 are `explicit` and `node`.
 
 The default is `explicit`, which requires providing the full path to a
