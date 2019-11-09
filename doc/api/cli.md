@@ -186,6 +186,14 @@ added: v12.9.0
 
 Enable experimental JSON support for the ES Module loader.
 
+### `--experimental-modules`
+<!-- YAML
+added: v8.5.0
+-->
+
+Enable latest experimental modules features (currently
+`--experimental-conditional-exports` and `--experimental-self-resolve`).
+
 ### `--experimental-policy`
 <!-- YAML
 added: v11.8.0
@@ -1025,6 +1033,7 @@ Node.js options that are allowed are:
 * `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
+* `--experimental-modules`
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-report`

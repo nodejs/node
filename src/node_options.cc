@@ -304,6 +304,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
   AddAlias("--loader", "--experimental-loader");
+  AddAlias("--experimental-modules", { "--experimental-conditional-exports",
+                                       "--experimental-resolve-self" });
   AddOption("--experimental-conditional-exports",
             "experimental support for conditional exports targets",
             &EnvironmentOptions::experimental_conditional_exports,
