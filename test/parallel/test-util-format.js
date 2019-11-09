@@ -160,6 +160,66 @@ assert.strictEqual(util.format('%s', () => 5), '() => 5');
     util.format('%s', new Foobar(5)),
     'Foobar [ <5 empty items>, aaa: true ]'
   );
+
+  // Subclassing:
+  class B extends Foo {}
+
+  function C() {}
+  C.prototype.toString = function() {
+    return 'Custom';
+  };
+
+  function D() {
+    C.call(this);
+  }
+  D.prototype = Object.create(C.prototype);
+
+  assert.strictEqual(
+    util.format('%s', new B()),
+    'Bar'
+  );
+  assert.strictEqual(
+    util.format('%s', new C()),
+    'Custom'
+  );
+  assert.strictEqual(
+    util.format('%s', new D()),
+    'Custom'
+  );
+
+  D.prototype.constructor = D;
+  assert.strictEqual(
+    util.format('%s', new D()),
+    'Custom'
+  );
+
+  D.prototype.constructor = null;
+  assert.strictEqual(
+    util.format('%s', new D()),
+    'Custom'
+  );
+
+  D.prototype.constructor = { name: 'Foobar' };
+  assert.strictEqual(
+    util.format('%s', new D()),
+    'Custom'
+  );
+
+  Object.defineProperty(D.prototype, 'constructor', {
+    get() {
+      throw new Error();
+    },
+    configurable: true
+  });
+  assert.strictEqual(
+    util.format('%s', new D()),
+    'Custom'
+  );
+
+  assert.strictEqual(
+    util.format('%s', Object.create(null)),
+    '[Object: null prototype] {}'
+  );
 }
 
 // JSON format specifier
