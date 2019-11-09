@@ -628,9 +628,9 @@ CommonJS and ES module instances of the package:
    package, it would be used like this:
 
     ```js
-    import date from 'date';
-    const someDate = new date();
-    // someDate contains state; date does not
+    import Date from 'date';
+    const someDate = new Date();
+    // someDate contains state; Date does not
     ```
 
    The `new` keyword isn’t required; a package’s function can return a new
@@ -1223,7 +1223,7 @@ _defaultEnv_ is the conditional environment name priority array,
 >    1. Throw a _Module Not Found_ error.
 > 1. If _pjson.exports_ is not **null** or **undefined**, then
 >    1. If _exports_ is an Object with both a key starting with _"."_ and a key
->       not starting with _"."_, throw a "Invalid Package Configuration" error.
+>       not starting with _"."_, throw an "Invalid Package Configuration" error.
 >    1. If _pjson.exports_ is a String or Array, or an Object containing no
 >       keys starting with _"."_, then
 >       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,

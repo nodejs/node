@@ -168,9 +168,9 @@ The default is `explicit`, which requires providing the full path to a
 module. The `node` mode will enable support for optional file extensions and
 the ability to import a directory that has an index file.
 
-Please see [customizing esm specifier resolution][] for example usage.
+Please see [customizing ESM specifier resolution][] for example usage.
 
-### `--experimental-conditional-exports
+### `--experimental-conditional-exports`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1321,17 +1321,17 @@ greater than `4` (its current default value). For more information, see the
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[Conditional Exports]: esm.html#esm_conditional_exports
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
-[customizing esm specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
+[context-aware]: addons.html#addons_context_aware_addons
+[customizing ESM specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [experimental ECMAScript Module]: esm.html#esm_resolve_hook
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
-[context-aware]: addons.html#addons_context_aware_addons
-[Conditional Exports]: esm.html#esm_conditional_exports
