@@ -1348,7 +1348,7 @@ index file use the `node` mode.
 ```bash
 $ node index.mjs
 success!
-$ node index #Failure!
+$ node index # Failure!
 Error: Cannot find module
 $ node --es-module-specifier-resolution=node index
 success!
