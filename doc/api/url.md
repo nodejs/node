@@ -1185,6 +1185,11 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: v11.14.0
+    pr-url: https://github.com/nodejs/node/pull/26941
+    description: The `pathname` property on the returned URL object is now `/`
+                 when there is no path and the protocol scheme is `ws:` or
+                 `wss:`.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
