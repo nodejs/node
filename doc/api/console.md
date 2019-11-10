@@ -490,17 +490,6 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.markTimeline(\[label\])
-<!-- YAML
-added: v8.0.0
--->
-
-* `label` {string} **Default:** `'default'`
-
-This method does not display anything unless used in the inspector. The
-`console.markTimeline()` method is the deprecated form of
-[`console.timeStamp()`][].
-
 ### console.profile(\[label\])
 <!-- YAML
 added: v8.0.0
@@ -546,27 +535,6 @@ This method does not display anything unless used in the inspector. The
 `console.timeStamp()` method adds an event with the label `'label'` to the
 **Timeline** panel of the inspector.
 
-### console.timeline(\[label\])
-<!-- YAML
-added: v8.0.0
--->
-
-* `label` {string} **Default:** `'default'`
-
-This method does not display anything unless used in the inspector. The
-`console.timeline()` method is the deprecated form of [`console.time()`][].
-
-### console.timelineEnd(\[label\])
-<!-- YAML
-added: v8.0.0
--->
-
-* `label` {string} **Default:** `'default'`
-
-This method does not display anything unless used in the inspector. The
-`console.timelineEnd()` method is the deprecated form of
-[`console.timeEnd()`][].
-
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
@@ -574,7 +542,6 @@ This method does not display anything unless used in the inspector. The
 [`console.profileEnd()`]: #console_console_profileend_label
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
-[`console.timeStamp()`]: #console_console_timestamp_label
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format_args
