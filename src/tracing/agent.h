@@ -14,7 +14,7 @@
 namespace v8 {
 class ConvertableToTraceFormat;
 class TracingController;
-}
+}  // namespace v8
 
 namespace node {
 namespace tracing {
