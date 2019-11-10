@@ -1907,14 +1907,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // call in OnStreamAfterWrite() immediately provides data. If that does
     // happen, we concatenate the data we received with the already-stored
     // pending input data, slicing off the already processed part.
-    AllocatedBuffer new_buf = env()->AllocateManaged(
-        stream_buf_.len - stream_buf_offset_ + nread);
-    memcpy(new_buf.data(),
-           stream_buf_.base + stream_buf_offset_,
-           stream_buf_.len - stream_buf_offset_);
-    memcpy(new_buf.data() + stream_buf_.len - stream_buf_offset_,
-           buf.data(),
-           nread);
+    size_t pending_len = stream_buf_.len - stream_buf_offset_;
+    AllocatedBuffer new_buf = env()->AllocateManaged(pending_len + nread);
+    memcpy(new_buf.data(), stream_buf_.base + stream_buf_offset_, pending_len);
+    memcpy(new_buf.data() + pending_len, buf.data(), nread);
     buf = std::move(new_buf);
     nread = buf.size();
     stream_buf_offset_ = 0;
