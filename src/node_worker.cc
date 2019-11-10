@@ -270,26 +270,18 @@ void Worker::Run() {
     auto cleanup_env = OnScopeLeave([&]() {
       if (!env_) return;
       env_->set_can_call_into_js(false);
-      Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,
-          Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
 
       {
-        Context::Scope context_scope(env_->context());
-        {
-          Mutex::ScopedLock lock(mutex_);
-          stopped_ = true;
-          this->env_ = nullptr;
-        }
-        env_->set_stopping(true);
-        env_->stop_sub_worker_contexts();
-        env_->RunCleanup();
-        RunAtExit(env_.get());
-
-        // This call needs to be made while the `Environment` is still alive
-        // because we assume that it is available for async tracking in the
-        // NodePlatform implementation.
-        platform_->DrainTasks(isolate_);
+        Mutex::ScopedLock lock(mutex_);
+        stopped_ = true;
+        this->env_ = nullptr;
       }
+
+      // TODO(addaleax): Try moving DisallowJavascriptExecutionScope into
+      // FreeEnvironment().
+      Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,
+          Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+      env_.reset();
     });
 
     if (is_stopped()) return;

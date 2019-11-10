@@ -112,7 +112,8 @@ int NodeMainInstance::Run() {
   HandleScope handle_scope(isolate_);
 
   int exit_code = 0;
-  std::unique_ptr<Environment> env = CreateMainEnvironment(&exit_code);
+  DeleteFnPtr<Environment, FreeEnvironment> env =
+      CreateMainEnvironment(&exit_code);
 
   CHECK_NOT_NULL(env);
   Context::Scope context_scope(env->context());
@@ -151,10 +152,7 @@ int NodeMainInstance::Run() {
     exit_code = EmitExit(env.get());
   }
 
-  env->set_can_call_into_js(false);
-  env->stop_sub_worker_contexts();
   ResetStdio();
-  env->RunCleanup();
 
   // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
   // make sense here.
@@ -169,10 +167,6 @@ int NodeMainInstance::Run() {
   }
 #endif
 
-  RunAtExit(env.get());
-
-  per_process::v8_platform.DrainVMTasks(isolate_);
-
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif
@@ -182,8 +176,8 @@ int NodeMainInstance::Run() {
 
 // TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
 // and the environment creation routine in workers somehow.
-std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
-    int* exit_code) {
+DeleteFnPtr<Environment, FreeEnvironment>
+NodeMainInstance::CreateMainEnvironment(int* exit_code) {
   *exit_code = 0;  // Reset the exit code to 0
 
   HandleScope handle_scope(isolate_);
@@ -208,14 +202,14 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   CHECK(!context.IsEmpty());
   Context::Scope context_scope(context);
 
-  std::unique_ptr<Environment> env = std::make_unique<Environment>(
+  DeleteFnPtr<Environment, FreeEnvironment> env { new Environment(
       isolate_data_.get(),
       context,
       args_,
       exec_args_,
       static_cast<Environment::Flags>(Environment::kIsMainThread |
                                       Environment::kOwnsProcessState |
-                                      Environment::kOwnsInspector));
+                                      Environment::kOwnsInspector)) };
   env->InitializeLibuv(per_process::v8_is_profiling);
   env->InitializeDiagnostics();
 

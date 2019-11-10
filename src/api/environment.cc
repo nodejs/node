@@ -355,7 +355,23 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 }
 
 void FreeEnvironment(Environment* env) {
-  env->RunCleanup();
+  {
+    // TODO(addaleax): This should maybe rather be in a SealHandleScope.
+    HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
+    env->set_stopping(true);
+    env->stop_sub_worker_contexts();
+    env->RunCleanup();
+    RunAtExit(env);
+  }
+
+  // This call needs to be made while the `Environment` is still alive
+  // because we assume that it is available for async tracking in the
+  // NodePlatform implementation.
+  MultiIsolatePlatform* platform = env->isolate_data()->platform();
+  if (platform != nullptr)
+    platform->DrainTasks(env->isolate());
+
   delete env;
 }
 

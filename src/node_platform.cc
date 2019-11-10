@@ -421,6 +421,7 @@ void PerIsolatePlatformData::RunForegroundTask(uv_timer_t* handle) {
 
 void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
+  if (!per_isolate) return;
 
   do {
     // Worker tasks aren't associated with an Isolate.
@@ -489,12 +490,14 @@ std::shared_ptr<PerIsolatePlatformData>
 NodePlatform::ForNodeIsolate(Isolate* isolate) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   auto data = per_isolate_[isolate];
-  CHECK(data.second);
+  CHECK_NOT_NULL(data.first);
   return data.second;
 }
 
 bool NodePlatform::FlushForegroundTasks(Isolate* isolate) {
-  return ForNodeIsolate(isolate)->FlushForegroundTasksInternal();
+  std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
+  if (!per_isolate) return false;
+  return per_isolate->FlushForegroundTasksInternal();
 }
 
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {
