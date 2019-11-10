@@ -862,6 +862,34 @@ will throw an error. If `original` is a function but its last argument is not
 an error-first callback, it will still be passed an error-first
 callback as its last argument.
 
+Using `promisify()` on class methods or other methods that use `this` may not
+work as expected unless handled specially:
+
+```js
+const util = require('util');
+
+class Foo {
+  constructor() {
+    this.a = 42;
+  }
+
+  bar(callback) {
+    callback(null, this.a);
+  }
+}
+
+const foo = new Foo();
+
+const naiveBar = util.promisify(foo.bar);
+// TypeError: Cannot read property 'a' of undefined
+// naiveBar().then(a => console.log(a));
+
+naiveBar.call(foo).then((a) => console.log(a)); // '42'
+
+const bindBar = naiveBar.bind(foo);
+bindBar().then((a) => console.log(a)); // '42'
+```
+
 ### Custom promisified functions
 
 Using the `util.promisify.custom` symbol one can override the return value of
