@@ -305,7 +305,10 @@ Maybe<bool> Message::Serialize(Environment* env,
       // raw data *and* an Isolate with a non-default ArrayBuffer allocator
       // is always going to outlive any Workers it creates, and so will its
       // allocator along with it.
-      if (!ab->IsDetachable())
+      // TODO(addaleax): Eventually remove the IsExternal() condition,
+      // see https://github.com/nodejs/node/pull/30339#issuecomment-552225353
+      // for details.
+      if (!ab->IsDetachable() || ab->IsExternal())
         continue;
       if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
           array_buffers.end()) {
