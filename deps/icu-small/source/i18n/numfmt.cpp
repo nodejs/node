@@ -569,7 +569,7 @@ NumberFormat::format(const Formattable& obj,
     if(arg.wasCurrency() && u_strcmp(iso, getCurrency())) {
       // trying to format a different currency.
       // Right now, we clone.
-      LocalPointer<NumberFormat> cloneFmt((NumberFormat*)this->clone());
+      LocalPointer<NumberFormat> cloneFmt(this->clone());
       cloneFmt->setCurrency(iso, status);
       // next line should NOT recurse, because n is numeric whereas obj was a wrapper around currency amount.
       return cloneFmt->format(*n, appendTo, pos, status);
@@ -624,7 +624,7 @@ NumberFormat::format(const Formattable& obj,
     if(arg.wasCurrency() && u_strcmp(iso, getCurrency())) {
       // trying to format a different currency.
       // Right now, we clone.
-      LocalPointer<NumberFormat> cloneFmt((NumberFormat*)this->clone());
+      LocalPointer<NumberFormat> cloneFmt(this->clone());
       cloneFmt->setCurrency(iso, status);
       // next line should NOT recurse, because n is numeric whereas obj was a wrapper around currency amount.
       return cloneFmt->format(*n, appendTo, posIter, status);
@@ -986,15 +986,19 @@ static UBool haveService() {
 URegistryKey U_EXPORT2
 NumberFormat::registerFactory(NumberFormatFactory* toAdopt, UErrorCode& status)
 {
-  ICULocaleService *service = getNumberFormatService();
-  if (service) {
-	  NFFactory *tempnnf = new NFFactory(toAdopt);
-	  if (tempnnf != NULL) {
-		  return service->registerFactory(tempnnf, status);
-	  }
-  }
-  status = U_MEMORY_ALLOCATION_ERROR;
-  return NULL;
+    if (U_FAILURE(status)) {
+        delete toAdopt;
+        return nullptr;
+    }
+    ICULocaleService *service = getNumberFormatService();
+    if (service) {
+        NFFactory *tempnnf = new NFFactory(toAdopt);
+        if (tempnnf != NULL) {
+            return service->registerFactory(tempnnf, status);
+        }
+    }
+    status = U_MEMORY_ALLOCATION_ERROR;
+    return NULL;
 }
 
 // -------------------------------------
@@ -1055,7 +1059,7 @@ NumberFormat::createInstance(const Locale& loc, UNumberFormatStyle kind, UErrorC
     if (U_FAILURE(status)) {
         return NULL;
     }
-    NumberFormat *result = static_cast<NumberFormat *>((*shared)->clone());
+    NumberFormat *result = (*shared)->clone();
     shared->removeRef();
     if (result == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -1362,7 +1366,7 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
         // TODO: Bad hash key usage, see ticket #8504.
         int32_t hashKey = desiredLocale.hashCode();
 
-        static icu::UMutex nscacheMutex = U_MUTEX_INITIALIZER;
+        static UMutex nscacheMutex;
         Mutex lock(&nscacheMutex);
         ns = (NumberingSystem *)uhash_iget(NumberingSystem_cache, hashKey);
         if (ns == NULL) {

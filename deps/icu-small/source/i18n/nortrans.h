@@ -44,7 +44,7 @@ class NormalizationTransliterator : public Transliterator {
      * Transliterator API.
      * @return    A copy of the object.
      */
-    virtual Transliterator* clone(void) const;
+    virtual NormalizationTransliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

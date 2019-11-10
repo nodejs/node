@@ -98,7 +98,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
     return NULL;
   }
 
-  static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
+  static UMutex gGenderMetaLock;
   const GenderInfo* result = NULL;
   const char* key = locale.getName();
   {

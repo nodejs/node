@@ -872,7 +872,7 @@ CollationIterator::previousCE(UVector32 &offsets, UErrorCode &errorCode) {
             // consistent with forward iteration.
             while(offsets.size() <= ceBuffer.length) {
                 offsets.addElement(limitOffset, errorCode);
-            };
+            }
         }
         return ceBuffer.get(--ceBuffer.length);
     } else {
@@ -932,7 +932,7 @@ CollationIterator::previousCEUnsafe(UChar32 c, UVector32 &offsets, UErrorCode &e
         offset = getOffset();
         while(offsets.size() < ceBuffer.length) {
             offsets.addElement(offset, errorCode);
-        };
+        }
     }
     U_ASSERT(offsets.size() == ceBuffer.length);
     // End offset corresponding to just after the unsafe-backwards segment.

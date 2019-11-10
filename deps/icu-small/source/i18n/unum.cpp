@@ -135,6 +135,11 @@ unum_open(  UNumberFormatStyle    style,
         *status = U_MEMORY_ALLOCATION_ERROR;
     }
 
+    if (U_FAILURE(*status) && retVal != NULL) {
+        delete retVal;
+        retVal = NULL;
+    }
+
     return reinterpret_cast<UNumberFormat *>(retVal);
 }
 

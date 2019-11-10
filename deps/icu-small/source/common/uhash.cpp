@@ -119,13 +119,14 @@ static const float RESIZE_POLICY_RATIO_TABLE[6] = {
 
 /* This macro expects a UHashTok.pointer as its keypointer and
    valuepointer parameters */
-#define HASH_DELETE_KEY_VALUE(hash, keypointer, valuepointer) \
-            if (hash->keyDeleter != NULL && keypointer != NULL) { \
-                (*hash->keyDeleter)(keypointer); \
-            } \
-            if (hash->valueDeleter != NULL && valuepointer != NULL) { \
-                (*hash->valueDeleter)(valuepointer); \
-            }
+#define HASH_DELETE_KEY_VALUE(hash, keypointer, valuepointer) UPRV_BLOCK_MACRO_BEGIN { \
+    if (hash->keyDeleter != NULL && keypointer != NULL) { \
+        (*hash->keyDeleter)(keypointer); \
+    } \
+    if (hash->valueDeleter != NULL && valuepointer != NULL) { \
+        (*hash->valueDeleter)(valuepointer); \
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /*
  * Constants for hinting whether a key or value is an integer

@@ -65,9 +65,20 @@ U_CFUNC void
 ucln_common_registerCleanup(ECleanupCommonType type,
                             cleanupFunc *func)
 {
+    // Thread safety messiness: From ticket 10295, calls to registerCleanup() may occur
+    // concurrently. Although such cases should be storing the same value, they raise errors
+    // from the thread sanity checker. Doing the store within a mutex avoids those.
+    // BUT that can trigger a recursive entry into std::call_once() in umutex.cpp when this code,
+    // running from the call_once function, tries to grab the ICU global mutex, which
+    // re-enters the mutex init path. So, work-around by special casing UCLN_COMMON_MUTEX, not
+    // using the ICU global mutex for it.
+    //
+    // No other point in ICU uses std::call_once().
+
     U_ASSERT(UCLN_COMMON_START < type && type < UCLN_COMMON_COUNT);
-    if (UCLN_COMMON_START < type && type < UCLN_COMMON_COUNT)
-    {
+    if (type == UCLN_COMMON_MUTEX) {
+        gCommonCleanupFunctions[type] = func;
+    } else if (UCLN_COMMON_START < type && type < UCLN_COMMON_COUNT)  {
         icu::Mutex m;     // See ticket 10295 for discussion.
         gCommonCleanupFunctions[type] = func;
     }

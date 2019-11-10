@@ -400,7 +400,7 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSetStringSpan &otherStri
     if(otherStringSpan.pSpanNotSet==&otherStringSpan.spanSet) {
         pSpanNotSet=&spanSet;
     } else {
-        pSpanNotSet=(UnicodeSet *)otherStringSpan.pSpanNotSet->clone();
+        pSpanNotSet=otherStringSpan.pSpanNotSet->clone();
     }
 
     // Allocate a block of meta data.
@@ -436,7 +436,7 @@ void UnicodeSetStringSpan::addToSpanNotSet(UChar32 c) {
         if(spanSet.contains(c)) {
             return;  // Nothing to do.
         }
-        UnicodeSet *newSet=(UnicodeSet *)spanSet.cloneAsThawed();
+        UnicodeSet *newSet=spanSet.cloneAsThawed();
         if(newSet==NULL) {
             return;  // Out of memory.
         } else {

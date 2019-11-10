@@ -58,7 +58,7 @@ UppercaseTransliterator::UppercaseTransliterator(const UppercaseTransliterator& 
 /**
  * Transliterator API.
  */
-Transliterator* UppercaseTransliterator::clone(void) const {
+UppercaseTransliterator* UppercaseTransliterator::clone() const {
     return new UppercaseTransliterator(*this);
 }
 

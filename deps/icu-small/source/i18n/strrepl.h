@@ -111,7 +111,7 @@ class StringReplacer : public UnicodeFunctor, public UnicodeReplacer {
     /**
      * Implement UnicodeFunctor
      */
-    virtual UnicodeFunctor* clone() const;
+    virtual StringReplacer* clone() const;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeReplacer* pointer

@@ -18,6 +18,9 @@
 #define __UCHARSTRIEBUILDER_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/stringtriebuilder.h"
 #include "unicode/ucharstrie.h"
 #include "unicode/unistr.h"
@@ -183,5 +186,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __UCHARSTRIEBUILDER_H__

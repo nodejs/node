@@ -631,7 +631,7 @@ static const char *getEncodingName(const char *encoding) {
     if (!(enc = ucnv_getStandardName(encoding, "MIME", &err))) {
         err = U_ZERO_ERROR;
         if (!(enc = ucnv_getStandardName(encoding, "IANA", &err))) {
-            ;
+            // do nothing
         }
     }
 
