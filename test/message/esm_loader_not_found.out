@@ -11,8 +11,8 @@ Error: Cannot find package 'i-dont-exist' imported from *
     at Loader.import (internal/modules/esm/loader.js:*:*)
     at internal/process/esm_loader.js:*:*
     at Object.initializeLoader (internal/process/esm_loader.js:*:*)
-    at runMainESM (internal/bootstrap/pre_execution.js:*:*)
-    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at runMainESM (internal/modules/run_main.js:*:*)
+    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
     at internal/main/run_main_module.js:*:* {
   code: 'ERR_MODULE_NOT_FOUND'
 }

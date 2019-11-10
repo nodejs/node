@@ -9,4 +9,4 @@ Thrown at:
     at Module._extensions..js (internal/modules/cjs/loader.js:*:*)
     at Module.load (internal/modules/cjs/loader.js:*:*)
     at Module._load (internal/modules/cjs/loader.js:*:*)
-    at Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at executeUserEntryPoint (internal/modules/run_main.js:*:*)

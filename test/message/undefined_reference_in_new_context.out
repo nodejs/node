@@ -13,4 +13,4 @@ ReferenceError: foo is not defined
     at *..js (internal/modules/cjs/loader.js:*)
     at Module.load (internal/modules/cjs/loader.js:*)
     at Function.Module._load (internal/modules/cjs/loader.js:*:*)
-    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
