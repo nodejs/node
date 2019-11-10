@@ -61,7 +61,8 @@ class NodeMainInstance {
 
   // TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
   // and the environment creation routine in workers somehow.
-  std::unique_ptr<Environment> CreateMainEnvironment(int* exit_code);
+  DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
+      int* exit_code);
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
