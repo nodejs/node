@@ -2,6 +2,10 @@
 const common = require('../common.js');
 
 const types = [
+  'BigUInt64LE',
+  'BigUInt64BE',
+  'BigInt64LE',
+  'BigInt64BE',
   'UInt8',
   'UInt16LE',
   'UInt16BE',
@@ -32,11 +36,17 @@ const INT8 = 0x7f;
 const INT16 = 0x7fff;
 const INT32 = 0x7fffffff;
 const INT48 = 0x7fffffffffff;
+const INT64 = 0x7fffffffffffffffn;
 const UINT8 = 0xff;
 const UINT16 = 0xffff;
 const UINT32 = 0xffffffff;
+const UINT64 = 0xffffffffffffffffn;
 
 const mod = {
+  writeBigInt64BE: INT64,
+  writeBigInt64LE: INT64,
+  writeBigUInt64BE: UINT64,
+  writeBigUInt64LE: UINT64,
   writeInt8: INT8,
   writeInt16BE: INT16,
   writeInt16LE: INT16,
@@ -67,10 +77,21 @@ function main({ n, buf, type }) {
 
   if (!/\d/.test(fn))
     benchSpecialInt(buff, fn, n);
+  else if (/BigU?Int/.test(fn))
+    benchBigInt(buff, fn, BigInt(n));
   else if (/Int/.test(fn))
     benchInt(buff, fn, n);
   else
     benchFloat(buff, fn, n);
+}
+
+function benchBigInt(buff, fn, n) {
+  const m = mod[fn];
+  bench.start();
+  for (var i = 0n; i !== n; i++) {
+    buff[fn](i & m, 0);
+  }
+  bench.end(Number(n));
 }
 
 function benchInt(buff, fn, n) {
