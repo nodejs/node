@@ -813,8 +813,9 @@ void Environment::SetImmediateThreadsafe(Fn&& cb, CallbackFlags::Flags flags) {
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_threadsafe_.Push(std::move(callback));
+    if (task_queues_async_initialized_)
+      uv_async_send(&task_queues_async_);
   }
-  uv_async_send(&task_queues_async_);
 }
 
 template <typename Fn>
@@ -824,8 +825,9 @@ void Environment::RequestInterrupt(Fn&& cb) {
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_interrupts_.Push(std::move(callback));
+    if (task_queues_async_initialized_)
+      uv_async_send(&task_queues_async_);
   }
-  uv_async_send(&task_queues_async_);
   RequestInterruptFromV8();
 }
 
@@ -858,11 +860,11 @@ inline bool Environment::is_main_thread() const {
 }
 
 inline bool Environment::owns_process_state() const {
-  return flags_ & kOwnsProcessState;
+  return flags_ & EnvironmentFlags::kOwnsProcessState;
 }
 
 inline bool Environment::owns_inspector() const {
-  return flags_ & kOwnsInspector;
+  return flags_ & EnvironmentFlags::kOwnsInspector;
 }
 
 inline uint64_t Environment::thread_id() const {
@@ -1176,6 +1178,7 @@ void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
 inline void Environment::RegisterFinalizationGroupForCleanup(
     v8::Local<v8::FinalizationGroup> group) {
   cleanup_finalization_groups_.emplace_back(isolate(), group);
+  DCHECK(task_queues_async_initialized_);
   uv_async_send(&task_queues_async_);
 }
 
