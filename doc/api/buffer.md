@@ -1529,6 +1529,47 @@ deprecated: v8.0.0
 
 The `buf.parent` property is a deprecated alias for `buf.buffer`.
 
+### buf.readBigInt64BE(offset)
+### buf.readBigInt64LE(offset)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
+* Returns: {bigint}
+
+Reads a signed 64-bit integer from `buf` at the specified `offset` with
+the specified endian format (`readBigInt64BE()` returns big endian,
+`readBigInt64LE()` returns little endian).
+
+Integers read from a `Buffer` are interpreted as two's complement signed values.
+
+### buf.readBigUInt64BE(offset)
+### buf.readBigUInt64LE(offset)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
+* Returns: {bigint}
+
+Reads an unsigned 64-bit integer from `buf` at the specified `offset` with
+specified endian format (`readBigUInt64BE()` returns big endian,
+`readBigUInt64LE()` returns little endian).
+
+```js
+const buf = Buffer.from([0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff]);
+
+console.log(buf.readBigUInt64BE(0));
+// Prints: 4294967295n
+
+console.log(buf.readBigUInt64LE(0));
+// Prints: 18446744069414584320n
+```
+
+
 ### buf.readDoubleBE(offset)
 ### buf.readDoubleLE(offset)
 <!-- YAML
@@ -2130,6 +2171,56 @@ const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 
 console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 // Prints: 12 bytes: ½ + ¼ = ¾
+```
+
+### buf.writeBigInt64BE(value, offset)
+### buf.writeBigInt64LE(value, offset)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {bigint} Number to be written to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
+* Returns: {integer} `offset` plus the number of bytes written.
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeBigInt64BE()` writes big endian, `writeBigInt64LE()` writes little
+endian).
+
+`value` is interpreted and written as a two's complement signed integer.
+
+```js
+const buf = Buffer.allocUnsafe(8);
+
+buf.writeBigInt64BE(0x0102030405060708n, 0);
+
+console.log(buf);
+// Prints: <Buffer 01 02 03 04 05 06 07 08>
+```
+
+### buf.writeBigUInt64BE(value, offset)
+### buf.writeBigUInt64LE(value, offset)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {bigint} Number to be written to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
+* Returns: {integer} `offset` plus the number of bytes written.
+
+Writes `value` to `buf` at the specified `offset` with specified endian
+format (`writeBigUInt64BE()` writes big endian, `writeBigUInt64LE()` writes
+little endian).
+
+```js
+const buf = Buffer.allocUnsafe(8);
+
+buf.writeBigUInt64LE(0xdecafafecacefaden, 0);
+
+console.log(buf);
+// Prints: <Buffer de fa ce ca fe fa ca de>
 ```
 
 ### buf.writeDoubleBE(value, offset)
