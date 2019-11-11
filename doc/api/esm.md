@@ -443,41 +443,15 @@ referenced by the ES module entry point are evaluated as ES modules.
 
 When an application is using a package that provides both CommonJS and ES module
 sources, there is a risk of certain bugs if both versions of the package get
-loaded (for example, because one version is imported by the application and the
-other version is required by one of the application’s dependencies). Such a
-package might look like this:
-
-<!-- eslint-skip -->
-```js
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "main": "./pkg.cjs",
-  "exports": {
-    ".": "./pkg.cjs",
-    "./module": "./pkg.mjs"
-  }
-}
-```
-
-In this example, `require('pkg')` always resolves to `pkg.cjs`, including in
-versions of Node.js where ES modules are unsupported. In Node.js where ES
-modules are supported, `import 'pkg/module'` references `pkg.mjs`.
-
-The potential for bugs comes from the fact that the `pkg` created by `const pkg
+loaded. This potential comes from the fact that the `pkg` created by `const pkg
 = require('pkg')` is not the same as the `pkg` created by `import pkg from
-'pkg/module'`. This is the “dual package hazard,” where two versions of the same
-package can be loaded within the same runtime environment. While it is unlikely
-that an application or package would intentionally load both versions directly,
-it is common for an application to load one version while a dependency of the
-application loads the other version. This hazard can happen because Node.js
-supports intermixing CommonJS and ES modules, and can lead to unexpected
-behavior.
-
-The hazard is also present when [Conditional Exports][] with the
-`--experimental-conditional-exports` flag are used. In that case, instead of
-`'pkg'` and `'pkg/module'` as in the example above, both `require` and `import`
-would use `'pkg'`. The hazard is the same.
+'pkg'` (or an alternative main path like `'pkg/module'`). This is the “dual
+package hazard,” where two versions of the same package can be loaded within the
+same runtime environment. While it is unlikely that an application or package
+would intentionally load both versions directly, it is common for an application
+to load one version while a dependency of the application loads the other
+version. This hazard can happen because Node.js supports intermixing CommonJS
+and ES modules, and can lead to unexpected behavior.
 
 If the package main export is a constructor, an `instanceof` comparison of
 instances created by the two versions returns `false`, and if the export is an
