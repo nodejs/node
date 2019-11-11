@@ -153,9 +153,9 @@ are provided. However, tests in our infrastructure only run on WoW64.
 Furthermore, compiling on x86 Windows is currently considered Experimental and
 may not be possible.
 
-<em id="fn7">7</em>: FreeBSD 12.0 system's compiler is clang 6.0.1 but
-FreeBSD 12.1's is the 8.0.1 version. In both cases, other LLVM versions
-are provided via the system's package manager up to 9.0.
+<em id="fn7">7</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
+FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are provided
+via the system's package manager, including Clang 9.0.
 
 ### Supported toolchains
 
