@@ -59,8 +59,6 @@ class NodeMainInstance {
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
-  // TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
-  // and the environment creation routine in workers somehow.
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
       int* exit_code);
 

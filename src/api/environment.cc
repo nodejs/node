@@ -7,6 +7,10 @@
 #include "node_v8_platform-inl.h"
 #include "uv.h"
 
+#if HAVE_INSPECTOR
+#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+#endif
+
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
@@ -332,26 +336,40 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
                                const char* const* argv,
                                int exec_argc,
                                const char* const* exec_argv) {
+  return CreateEnvironment(
+      isolate_data, context,
+      std::vector<std::string>(argv, argv + argc),
+      std::vector<std::string>(exec_argv, exec_argv + exec_argc));
+}
+
+Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    Local<Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
   // TODO(addaleax): This is a much better place for parsing per-Environment
   // options than the global parse call.
-  std::vector<std::string> args(argv, argv + argc);
-  std::vector<std::string> exec_args(exec_argv, exec_argv + exec_argc);
-  // TODO(addaleax): Provide more sensible flags, in an embedder-accessible way.
   Environment* env = new Environment(
       isolate_data,
       context,
       args,
       exec_args,
-      static_cast<Environment::Flags>(Environment::kOwnsProcessState |
-                                      Environment::kOwnsInspector));
-  env->InitializeLibuv(per_process::v8_is_profiling);
+      flags,
+      thread_id);
+  if (flags & EnvironmentFlags::kOwnsProcessState) {
+    env->set_abort_on_uncaught_exception(false);
+  }
+
   if (env->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
     return nullptr;
   }
+
   return env;
 }
 
@@ -374,6 +392,58 @@ void FreeEnvironment(Environment* env) {
     platform->DrainTasks(env->isolate());
 
   delete env;
+}
+
+InspectorParentHandle::~InspectorParentHandle() {}
+
+// Hide the internal handle class from the public API.
+#if HAVE_INSPECTOR
+struct InspectorParentHandleImpl : public InspectorParentHandle {
+  std::unique_ptr<inspector::ParentInspectorHandle> impl;
+
+  explicit InspectorParentHandleImpl(
+      std::unique_ptr<inspector::ParentInspectorHandle>&& impl)
+    : impl(std::move(impl)) {}
+};
+#endif
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env,
+    ThreadId thread_id,
+    const char* url) {
+  CHECK_NOT_NULL(env);
+  CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
+#if HAVE_INSPECTOR
+  return std::make_unique<InspectorParentHandleImpl>(
+      env->inspector_agent()->GetParentHandle(thread_id.id, url));
+#else
+  return {};
+#endif
+}
+
+void LoadEnvironment(Environment* env) {
+  USE(LoadEnvironment(env, {}));
+}
+
+MaybeLocal<Value> LoadEnvironment(
+    Environment* env,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+  env->InitializeLibuv(per_process::v8_is_profiling);
+  env->InitializeDiagnostics();
+
+#if HAVE_INSPECTOR
+  if (inspector_parent_handle) {
+    env->InitializeInspector(
+        std::move(static_cast<InspectorParentHandleImpl*>(
+            inspector_parent_handle.get())->impl));
+  } else {
+    env->InitializeInspector({});
+  }
+#endif
+
+  // TODO(joyeecheung): Allow embedders to customize the entry
+  // point more directly without using _third_party_main.js
+  return StartExecution(env);
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
@@ -590,6 +660,12 @@ void AddLinkedBinding(Environment* env,
     nullptr   // nm_link
   };
   AddLinkedBinding(env, mod);
+}
+
+static std::atomic<uint64_t> next_thread_id{0};
+
+ThreadId AllocateEnvironmentThreadId() {
+  return ThreadId { next_thread_id++ };
 }
 
 }  // namespace node

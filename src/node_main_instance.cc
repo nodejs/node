@@ -174,8 +174,6 @@ int NodeMainInstance::Run() {
   return exit_code;
 }
 
-// TODO(joyeecheung): align this with the CreateEnvironment exposed in node.h
-// and the environment creation routine in workers somehow.
 DeleteFnPtr<Environment, FreeEnvironment>
 NodeMainInstance::CreateMainEnvironment(int* exit_code) {
   *exit_code = 0;  // Reset the exit code to 0
@@ -202,26 +200,18 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
   CHECK(!context.IsEmpty());
   Context::Scope context_scope(context);
 
-  DeleteFnPtr<Environment, FreeEnvironment> env { new Environment(
+  DeleteFnPtr<Environment, FreeEnvironment> env { CreateEnvironment(
       isolate_data_.get(),
       context,
       args_,
       exec_args_,
-      static_cast<Environment::Flags>(Environment::kOwnsProcessState |
-                                      Environment::kOwnsInspector)) };
-  env->InitializeLibuv(per_process::v8_is_profiling);
-  env->InitializeDiagnostics();
+      EnvironmentFlags::kDefaultFlags) };
 
-  // TODO(joyeecheung): when we snapshot the bootstrapped context,
-  // the inspector and diagnostics setup should after after deserialization.
-#if HAVE_INSPECTOR
-  *exit_code = env->InitializeInspector({});
-#endif
   if (*exit_code != 0) {
     return env;
   }
 
-  if (env->RunBootstrapping().IsEmpty()) {
+  if (env == nullptr) {
     *exit_code = 1;
   }
 
