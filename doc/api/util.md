@@ -862,9 +862,8 @@ will throw an error. If `original` is a function but its last argument is not
 an error-first callback, it will still be passed an error-first
 callback as its last argument.
 
-Due to the way JavaScript Context works using `promisify()` on class methods
-or other methods that use `this` from the context may not work as expected
-unless handled specially:
+Using `promisify()` on class methods or other methods that use `this` may not
+work as expected unless handled specially:
 
 ```js
 const util = require('util');
