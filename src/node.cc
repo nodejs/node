@@ -405,12 +405,16 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
 }
 
-MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
+MaybeLocal<Value> StartExecution(Environment* env) {
   // To allow people to extend Node in different ways, this hook allows
   // one to drop a file lib/_third_party_main.js into the build
   // directory which will be executed instead of Node's normal loading.
   if (NativeModuleEnv::Exists("_third_party_main")) {
     return StartExecution(env, "internal/main/run_third_party_main");
+  }
+
+  if (env->worker_context() != nullptr) {
+    return StartExecution(env, "internal/main/worker_thread");
   }
 
   std::string first_argv;
@@ -449,15 +453,6 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
   }
 
   return StartExecution(env, "internal/main/eval_stdin");
-}
-
-void LoadEnvironment(Environment* env) {
-  CHECK(env->is_main_thread());
-  // TODO(joyeecheung): Not all of the execution modes in
-  // StartMainThreadExecution() make sense for embedders. Pick the
-  // useful ones out, and allow embedders to customize the entry
-  // point more directly without using _third_party_main.js
-  USE(StartMainThreadExecution(env));
 }
 
 #ifdef __POSIX__

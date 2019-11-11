@@ -893,11 +893,11 @@ inline bool Environment::is_main_thread() const {
 }
 
 inline bool Environment::owns_process_state() const {
-  return flags_ & kOwnsProcessState;
+  return flags_ & EnvironmentFlags::kOwnsProcessState;
 }
 
 inline bool Environment::owns_inspector() const {
-  return flags_ & kOwnsInspector;
+  return flags_ & EnvironmentFlags::kOwnsInspector;
 }
 
 bool Environment::filehandle_close_warning() const {

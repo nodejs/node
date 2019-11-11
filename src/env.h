@@ -859,12 +859,6 @@ class Environment : public MemoryRetainer {
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();
 
-  enum Flags {
-    kNoFlags = 0,
-    kOwnsProcessState = 1 << 1,
-    kOwnsInspector = 1 << 2,
-  };
-
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
@@ -883,8 +877,8 @@ class Environment : public MemoryRetainer {
               v8::Local<v8::Context> context,
               const std::vector<std::string>& args,
               const std::vector<std::string>& exec_args,
-              Flags flags = Flags(),
-              uint64_t thread_id = kNoThreadId);
+              EnvironmentFlags::Flags flags,
+              ThreadId thread_id);
   ~Environment() override;
 
   void InitializeLibuv(bool start_profiler_idle_notifier);
@@ -1055,9 +1049,6 @@ class Environment : public MemoryRetainer {
 
   inline bool has_serialized_options() const;
   inline void set_has_serialized_options(bool has_serialized_options);
-
-  static uint64_t AllocateThreadId();
-  static constexpr uint64_t kNoThreadId = -1;
 
   inline bool is_main_thread() const;
   inline bool owns_process_state() const;
@@ -1342,7 +1333,7 @@ class Environment : public MemoryRetainer {
   bool has_serialized_options_ = false;
 
   std::atomic_bool can_call_into_js_ { true };
-  Flags flags_;
+  uint64_t flags_;
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 

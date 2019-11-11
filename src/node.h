@@ -384,18 +384,66 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     ArrayBufferAllocator* allocator = nullptr);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
-// TODO(addaleax): Add an official variant using STL containers, and move
-// per-Environment options parsing here.
+struct ThreadId {
+  uint64_t id = static_cast<uint64_t>(-1);
+};
+NODE_EXTERN ThreadId AllocateEnvironmentThreadId();
+
+namespace EnvironmentFlags {
+enum Flags : uint64_t {
+  kNoFlags = 0,
+  // Use the default behaviour for Node.js instances.
+  kDefaultFlags = 1 << 0,
+  // Controls whether this Environment is allowed to affect per-process state
+  // (e.g. cwd, process title, uid, etc.).
+  // This is set when using kDefaultFlags.
+  kOwnsProcessState = 1 << 1,
+  // Set if this Environment instance is associated with the global inspector
+  // handling code (i.e. listening on SIGUSR1).
+  // This is set when using kDefaultFlags.
+  kOwnsInspector = 1 << 2
+};
+}  // namespace EnvironmentFlags
+
+// TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
+// It is recommended to use the second variant taking a flags argument.
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
                                            const char* const* exec_argv);
+NODE_EXTERN Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    v8::Local<v8::Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
+    ThreadId thread_id = {} /* allocates a thread id automatically */);
 
+struct InspectorParentHandle {
+  virtual ~InspectorParentHandle();
+};
+// Returns a handle that can be passed to `LoadEnvironment()`, making the
+// child Environment accessible to the inspector as if it were a Node.js Worker.
+// `child_thread_id` can be created using `AllocateEnvironmentThreadId()`
+// and then later passed on to `CreateEnvironment()` to create the child
+// Environment.
+// This method should not be called while the parent Environment is active
+// on another thread.
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    const char* child_url);
+
+// TODO(addaleax): Deprecate this in favour of the MaybeLocal<> overload
+// and provide a more flexible approach than third_party_main.
 NODE_EXTERN void LoadEnvironment(Environment* env);
+NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
+    Environment* env,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // This may return nullptr if context is not associated with a Node instance.
