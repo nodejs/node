@@ -189,6 +189,12 @@ Build". It is in the left navigation of the relevant `node-test-pull-request`
 job. It will preserve all the green results from the current job but re-run
 everything else.
 
+Some of the CI Jobs may require `GIT_REMOTE_REF` which is the remote portion
+of Git refspec. To specify the branch this way `refs/heads/BRANCH` is used
+(i.e for `master` -> `refs/heads/master`).
+For pull requests it will look like `refs/pull/PR_NUMBER/head`
+(i.e. for PR#42 -> `refs/pull/42/head`).
+
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
