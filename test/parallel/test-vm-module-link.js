@@ -97,11 +97,11 @@ async function circular2() {
     `,
     './a.mjs': `
       export * from './b.mjs';
-      export var fromA;
+      export const fromA;
     `,
     './b.mjs': `
       export * from './a.mjs';
-      export var fromB;
+      export const fromB;
     `
   };
   const moduleMap = new Map();
