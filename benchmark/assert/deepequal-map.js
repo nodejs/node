@@ -24,7 +24,7 @@ function benchmark(method, n, values, values2) {
   const deepCopy = JSON.parse(JSON.stringify(values2 ? values2 : values));
   const expected = new Map(deepCopy);
   bench.start();
-  for (var i = 0; i < n; ++i) {
+  for (let i = 0; i < n; ++i) {
     method(actual, expected);
   }
   bench.end(n);
@@ -32,7 +32,7 @@ function benchmark(method, n, values, values2) {
 
 function main({ n, len, method, strict }) {
   const array = Array(len).fill(1);
-  var values, values2;
+  let values, values2;
 
   switch (method) {
     case '':
