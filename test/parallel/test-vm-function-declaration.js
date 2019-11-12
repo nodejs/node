@@ -28,17 +28,19 @@ const o = vm.createContext({ console });
 
 // Function declaration and expression should both be copied to the
 // sandboxed context.
-let code = 'var a = function() {};\n';
+let code = 'let a = function() {};\n';
 code += 'function b(){}\n';
+code += 'var c = function() {};\n';
 
 // Grab the global b function as the completion value, to ensure that
 // we are getting the global function, and not some other thing
 code += '(function(){return this})().b;\n';
 
 const res = vm.runInContext(code, o, 'test');
-
 assert.strictEqual(typeof res, 'function');
 assert.strictEqual(res.name, 'b');
 assert.strictEqual(typeof o.a, 'function');
 assert.strictEqual(typeof o.b, 'function');
+assert.strictEqual(typeof o.c, 'function');
+
 assert.strictEqual(res, o.b);
