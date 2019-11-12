@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const code =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 const worker =
 `const { Worker } = require('worker_threads');
 const worker = new Worker('${code}',
