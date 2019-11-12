@@ -1183,13 +1183,9 @@ class Environment : public MemoryRetainer {
   // cb will be called as cb(env) on the next event loop iteration.
   // keep_alive will be kept alive between now and after the callback has run.
   template <typename Fn>
-  inline void SetImmediate(Fn&& cb,
-                           v8::Local<v8::Object> keep_alive =
-                               v8::Local<v8::Object>());
+  inline void SetImmediate(Fn&& cb);
   template <typename Fn>
-  inline void SetUnrefImmediate(Fn&& cb,
-                                v8::Local<v8::Object> keep_alive =
-                                    v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(Fn&& cb);
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -1260,9 +1256,7 @@ class Environment : public MemoryRetainer {
 
  private:
   template <typename Fn>
-  inline void CreateImmediate(Fn&& cb,
-                              v8::Local<v8::Object> keep_alive,
-                              bool ref);
+  inline void CreateImmediate(Fn&& cb, bool ref);
 
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1410,14 +1404,11 @@ class Environment : public MemoryRetainer {
   template <typename Fn>
   class NativeImmediateCallbackImpl final : public NativeImmediateCallback {
    public:
-    NativeImmediateCallbackImpl(Fn&& callback,
-                                v8::Global<v8::Object>&& keep_alive,
-                                bool refed);
+    NativeImmediateCallbackImpl(Fn&& callback, bool refed);
     void Call(Environment* env) override;
 
    private:
     Fn callback_;
-    v8::Global<v8::Object> keep_alive_;
   };
 
   std::unique_ptr<NativeImmediateCallback> native_immediate_callbacks_head_;
