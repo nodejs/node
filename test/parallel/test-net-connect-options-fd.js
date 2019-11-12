@@ -15,7 +15,7 @@ tmpdir.refresh();
 
 function testClients(getSocketOpt, getConnectOpt, getConnectCb) {
   const cloneOptions = (index) =>
-    Object.assign({}, getSocketOpt(index), getConnectOpt(index));
+    ({ ...getSocketOpt(index), ...getConnectOpt(index) });
   return [
     net.connect(cloneOptions(0), getConnectCb(0)),
     net.connect(cloneOptions(1))
