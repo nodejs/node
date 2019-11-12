@@ -64,7 +64,7 @@ const expectedEnv = { foo: 'bar' };
 
   argsLists.forEach((args) => {
     const cp = fork(fixtures.path('child-process-echo-options.js'), args, {
-      env: Object.assign({}, process.env, expectedEnv)
+      env: { ...process.env, ...expectedEnv }
     });
 
     cp.on(
