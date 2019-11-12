@@ -138,7 +138,9 @@ icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
                                                       status));
     icu::UnicodeString pattern;
     if (U_SUCCESS(status))
-      pattern = generator->getBestPattern(skeleton, status);
+      pattern = generator->getBestPattern(skeleton,
+                                          UDATPG_MATCH_HOUR_FIELD_LENGTH,
+                                          status);
 
     date_format = new icu::SimpleDateFormat(pattern, icu_locale, status);
     if (U_SUCCESS(status)) {
