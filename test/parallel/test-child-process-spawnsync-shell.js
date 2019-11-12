@@ -37,7 +37,7 @@ assert.strictEqual(command.stdout.toString().trim(), 'bar');
 
 // Verify that the environment is properly inherited
 const env = cp.spawnSync(`"${process.execPath}" -pe process.env.BAZ`, {
-  env: Object.assign({}, process.env, { BAZ: 'buzz' }),
+  env: { ...process.env, BAZ: 'buzz' },
   shell: true
 });
 
