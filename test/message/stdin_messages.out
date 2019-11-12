@@ -48,7 +48,7 @@ Error: hello
     at endReadableNT (_stream_readable.js:*:*)
 100
 [stdin]:1
-var x = 100; y = x;
+let x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
@@ -64,13 +64,13 @@ ReferenceError: y is not defined
     at endReadableNT (_stream_readable.js:*:*)
 
 [stdin]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
 (Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 [stdin]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
 (Use `node --trace-uncaught ...` to show where the exception was thrown)
