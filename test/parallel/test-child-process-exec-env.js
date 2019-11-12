@@ -45,7 +45,7 @@ if (!common.isWindows) {
   child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
 } else {
   child = exec('set',
-               { env: Object.assign({}, process.env, { 'HELLO': 'WORLD' }) },
+               { env: { ...process.env, 'HELLO': 'WORLD' } },
                after);
 }
 

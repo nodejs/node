@@ -16,10 +16,11 @@ if (process.env.CHILD) {
   return tls.createServer({});
 }
 
-const env = Object.assign({}, process.env, {
+const env = {
+  ...process.env,
   CHILD: 'yes',
   NODE_EXTRA_CA_CERTS: `${fixtures.fixturesDir}/no-such-file-exists-🐢`,
-});
+};
 
 const opts = {
   env: env,

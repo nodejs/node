@@ -55,7 +55,7 @@ switch (process.argv[2]) {
 
     // Test the NODE_PENDING_DEPRECATION environment var.
     fork(__filename, ['env'], {
-      env: Object.assign({}, process.env, { NODE_PENDING_DEPRECATION: 1 }),
+      env: { ...process.env, NODE_PENDING_DEPRECATION: 1 },
       execArgv: ['--expose-internals'],
       silent: true
     }).on('exit', common.mustCall((code) => {

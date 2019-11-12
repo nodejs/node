@@ -41,7 +41,7 @@ if (process.argv[2] === 'child') {
 
   const testFixturesDir = fixtures.path(path.basename(__filename, '.js'));
 
-  const env = Object.assign({}, process.env);
+  const env = { ...process.env };
   // Unset NODE_PATH.
   delete env.NODE_PATH;
 
