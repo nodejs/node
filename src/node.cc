@@ -344,7 +344,8 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
 
   // Make sure that no request or handle is created during bootstrap -
   // if necessary those should be done in pre-execution.
-  // TODO(joyeecheung): print handles/requests before aborting
+  // Usually, doing so would trigger the checks present in the ReqWrap and
+  // HandleWrap classes, so this is only a consistency check.
   CHECK(req_wrap_queue()->IsEmpty());
   CHECK(handle_wrap_queue()->IsEmpty());
 

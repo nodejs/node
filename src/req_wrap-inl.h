@@ -10,6 +10,7 @@
 namespace node {
 
 ReqWrapBase::ReqWrapBase(Environment* env) {
+  CHECK(env->has_run_bootstrapping_code());
   env->req_wrap_queue()->PushBack(this);
 }
 
