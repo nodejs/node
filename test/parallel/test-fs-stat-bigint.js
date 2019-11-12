@@ -13,6 +13,10 @@ tmpdir.refresh();
 
 let testIndex = 0;
 
+// It's possible that the file stats are updated between the two statSync()
+// calls so allow for a small difference.
+const allowableDelta = 5;
+
 function getFilename() {
   const filename = path.join(tmpdir.path, `test-file-${++testIndex}`);
   fs.writeFileSync(filename, 'test');
@@ -26,8 +30,8 @@ function verifyStats(bigintStats, numStats) {
       const time = val.getTime();
       const time2 = bigintStats[key].getTime();
       assert(
-        Math.abs(time - time2) < 2,
-        `difference of ${key}.getTime() should < 2.\n` +
+        Math.abs(time - time2) < allowableDelta,
+        `difference of ${key}.getTime() should < ${allowableDelta}.\n` +
         `Number version ${time}, BigInt version ${time2}n`);
     } else if (key === 'mode') {
       assert.strictEqual(bigintStats[key], BigInt(val));
@@ -65,17 +69,14 @@ function verifyStats(bigintStats, numStats) {
       const nsFromBigInt = bigintStats[nsKey];
       const msFromBigIntNs = Number(nsFromBigInt / (10n ** 6n));
       const msFromNum = numStats[key];
-      // The difference between the millisecond-precision values should be
-      // smaller than 2
+
       assert(
-        Math.abs(msFromNum - Number(msFromBigInt)) < 2,
+        Math.abs(msFromNum - Number(msFromBigInt)) < allowableDelta,
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${key} = ${msFromBigInt}n`);
-      // The difference between the millisecond-precision value and the
-      // nanosecond-precision value scaled down to milliseconds should be
-      // smaller than 2
+
       assert(
-        Math.abs(msFromNum - Number(msFromBigIntNs)) < 2,
+        Math.abs(msFromNum - Number(msFromBigIntNs)) < allowableDelta,
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${nsKey} = ${nsFromBigInt}n` +
         ` = ${msFromBigIntNs}ms`);
