@@ -26,4 +26,4 @@ require('../common');
 // has a setter interceptor in strict mode.
 // https://github.com/nodejs/node-v0.x-archive/issues/6235
 
-require('vm').runInNewContext('"use strict"; var v = 1; v = 2');
+require('vm').runInNewContext('"use strict"; let v = 1; v = 2');
