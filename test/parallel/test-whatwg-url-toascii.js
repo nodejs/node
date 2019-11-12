@@ -43,7 +43,7 @@ function makeURL(type, input) {
 }
 
 function runTests(tests) {
-  for(var i = 0, l = tests.length; i < l; i++) {
+  for(let i = 0, l = tests.length; i < l; i++) {
     let hostTest = tests[i]
     if (typeof hostTest === "string") {
       continue // skip comments
