@@ -358,13 +358,16 @@ The `writable.cork()` method forces all written data to be buffered in memory.
 The buffered data will be flushed when either the [`stream.uncork()`][] or
 [`stream.end()`][stream-end] methods are called.
 
-The primary intent of `writable.cork()` is to avoid a situation where writing
-many small chunks of data to a stream do not cause a backup in the internal
-buffer that would have an adverse impact on performance. In such situations,
-implementations that implement the `writable._writev()` method can perform
-buffered writes in a more optimized manner.
+The primary intent of `writable.cork()` is to accommodate a situation in which
+several small chunks are written to the stream in rapid succession. Instead of
+immediately forwarding them to the underlying destination, `writable.cork()`
+buffers all the chunks until `writable.uncork()` is called, which will pass them
+all to `writable._writev()`, if present. This prevents a head-of-line blocking
+situation where data is being buffered while waiting for the first small chunk
+to be processed. However, use of `writable.cork()` without implementing
+`writable._writev()` may have an adverse effect on throughput.
 
-See also: [`writable.uncork()`][].
+See also: [`writable.uncork()`][], [`writable._writev()`][stream-_writev].
 
 ##### `writable.destroy([error])`
 <!-- YAML
