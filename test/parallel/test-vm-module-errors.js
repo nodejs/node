@@ -182,13 +182,11 @@ async function checkExecution() {
   await (async () => {
     const m = new SourceTextModule('throw new Error();');
     await m.link(common.mustNotCall());
-    const evaluatePromise = m.evaluate();
-    await evaluatePromise.catch(() => {});
-    assert.strictEqual(m.status, 'errored');
     try {
-      await evaluatePromise;
+      await m.evaluate();
     } catch (err) {
       assert.strictEqual(m.error, err);
+      assert.strictEqual(m.status, 'errored');
       return;
     }
     assert.fail('Missing expected exception');

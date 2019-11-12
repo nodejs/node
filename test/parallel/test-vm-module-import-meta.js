@@ -7,14 +7,16 @@ const assert = require('assert');
 const { SourceTextModule } = require('vm');
 
 async function testBasic() {
-  const m = new SourceTextModule('import.meta;', {
+  const m = new SourceTextModule('globalThis.importMeta = import.meta;', {
     initializeImportMeta: common.mustCall((meta, module) => {
       assert.strictEqual(module, m);
       meta.prop = 42;
     })
   });
   await m.link(common.mustNotCall());
-  const { result } = await m.evaluate();
+  await m.evaluate();
+  const result = globalThis.importMeta;
+  delete globalThis.importMeta;
   assert.strictEqual(typeof result, 'object');
   assert.strictEqual(Object.getPrototypeOf(result), null);
   assert.strictEqual(result.prop, 42);

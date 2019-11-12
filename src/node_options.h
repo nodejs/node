@@ -186,6 +186,7 @@ class PerIsolateOptions : public Options {
   bool no_node_snapshot = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
+  bool experimental_top_level_await = false;
   std::string report_signal = "SIGUSR2";
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
@@ -418,6 +419,8 @@ class OptionsParser {
   // An implied option is composed of the information on where to store a
   // specific boolean value (if another specific option is encountered).
   struct Implication {
+    OptionType type;
+    std::string name;
     std::shared_ptr<BaseOptionField> target_field;
     bool target_value;
   };

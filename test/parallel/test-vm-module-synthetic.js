@@ -2,7 +2,7 @@
 
 // Flags: --experimental-vm-modules
 
-require('../common');
+const common = require('../common');
 const { SyntheticModule, SourceTextModule } = require('vm');
 const assert = require('assert');
 
@@ -24,6 +24,17 @@ const assert = require('assert');
     assert.strictEqual(m.namespace.getX(), 1);
     s.setExport('x', 42);
     assert.strictEqual(m.namespace.getX(), 42);
+  }
+
+  {
+    const s = new SyntheticModule([], () => {
+      const p = Promise.reject();
+      p.catch(() => {});
+      return p;
+    });
+
+    await s.link(common.mustNotCall());
+    assert.strictEqual(await s.evaluate(), undefined);
   }
 
   for (const invalidName of [1, Symbol.iterator, {}, [], null, true, 0]) {

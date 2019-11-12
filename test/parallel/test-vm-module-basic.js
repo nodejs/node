@@ -26,26 +26,26 @@ const util = require('util');
   assert.strictEqual(m.status, 'unlinked');
   await m.link(common.mustNotCall());
   assert.strictEqual(m.status, 'linked');
-  const result = await m.evaluate();
+  assert.strictEqual(await m.evaluate(), undefined);
   assert.strictEqual(m.status, 'evaluated');
-  assert.strictEqual(Object.getPrototypeOf(result), null);
   assert.deepStrictEqual(context, {
     foo: 'bar',
     baz: 'bar',
     typeofProcess: 'undefined'
   });
-  assert.strictEqual(result.result, 'function');
 }());
 
 (async () => {
-  const m = new SourceTextModule(
-    'global.vmResult = "foo"; Object.prototype.toString.call(process);'
-  );
+  const m = new SourceTextModule(`
+    global.vmResultFoo = "foo";
+    global.vmResultTypeofProcess = Object.prototype.toString.call(process);
+  `);
   await m.link(common.mustNotCall());
-  const { result } = await m.evaluate();
-  assert.strictEqual(global.vmResult, 'foo');
-  assert.strictEqual(result, '[object process]');
-  delete global.vmResult;
+  await m.evaluate();
+  assert.strictEqual(global.vmResultFoo, 'foo');
+  assert.strictEqual(global.vmResultTypeofProcess, '[object process]');
+  delete global.vmResultFoo;
+  delete global.vmResultTypeofProcess;
 })();
 
 (async () => {

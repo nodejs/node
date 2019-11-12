@@ -375,7 +375,13 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  args.GetReturnValue().Set(result.ToLocalChecked());
+  // If TLA is enabled, `result` is the evaluation's promise.
+  // Otherwise, `result` is the last evaluated value of the module,
+  // which could be a promise, which would result in it being incorrectly
+  // unwrapped when the higher level code awaits the evaluation.
+  if (env->isolate_data()->options()->experimental_top_level_await) {
+    args.GetReturnValue().Set(result.ToLocalChecked());
+  }
 }
 
 void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
@@ -387,13 +393,17 @@ void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
   Local<Module> module = obj->module_.Get(isolate);
 
   switch (module->GetStatus()) {
-    default:
+    case v8::Module::Status::kUninstantiated:
+    case v8::Module::Status::kInstantiating:
       return env->ThrowError(
-          "cannot get namespace, Module has not been instantiated");
+          "cannot get namespace, module has not been instantiated");
     case v8::Module::Status::kInstantiated:
     case v8::Module::Status::kEvaluating:
     case v8::Module::Status::kEvaluated:
+    case v8::Module::Status::kErrored:
       break;
+    default:
+      UNREACHABLE();
   }
 
   Local<Value> result = module->GetModuleNamespace();
@@ -616,19 +626,19 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
   TryCatchScope try_catch(env);
   Local<Function> synthetic_evaluation_steps =
       obj->synthetic_evaluation_steps_.Get(isolate);
+  obj->synthetic_evaluation_steps_.Reset();
   MaybeLocal<Value> ret = synthetic_evaluation_steps->Call(context,
       obj->object(), 0, nullptr);
   if (ret.IsEmpty()) {
     CHECK(try_catch.HasCaught());
   }
-  obj->synthetic_evaluation_steps_.Reset();
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     CHECK(!try_catch.Message().IsEmpty());
     CHECK(!try_catch.Exception().IsEmpty());
     try_catch.ReThrow();
     return MaybeLocal<Value>();
   }
-  return ret;
+  return Undefined(isolate);
 }
 
 void ModuleWrap::SetSyntheticExport(const FunctionCallbackInfo<Value>& args) {
