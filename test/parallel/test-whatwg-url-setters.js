@@ -52,7 +52,7 @@ function runURLSettersTests(all_test_cases) {
       test(function() {
         const url = new URL(test_case.href);
         url[attribute_to_be_set] = test_case.new_value;
-        for (let attribute in test_case.expected) {
+        for (const attribute in test_case.expected) {
           assert_equals(url[attribute], test_case.expected[attribute])
         }
       }, `URL: ${name}`);
