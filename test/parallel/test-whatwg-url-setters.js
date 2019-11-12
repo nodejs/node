@@ -43,7 +43,7 @@ function runURLSettersTests(all_test_cases) {
     }
     const test_cases = all_test_cases[attribute_to_be_set];
     for(let i = 0, l = test_cases.length; i < l; i++) {
-      let test_case = test_cases[i];
+      const test_case = test_cases[i];
       let name = `Setting <${test_case.href}>.${attribute_to_be_set}` +
                  ` = '${test_case.new_value}'`;
       if ("comment" in test_case) {
