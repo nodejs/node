@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include "base_object-inl.h"
+#include "base_object.h"
 
 namespace node {
 
