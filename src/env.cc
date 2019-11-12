@@ -970,7 +970,7 @@ void Environment::Exit(int exit_code) {
     DisposePlatform();
     exit(exit_code);
   } else {
-    worker_context_->Exit(exit_code);
+    worker_context()->Exit(exit_code);
   }
 }
 
@@ -984,8 +984,8 @@ void Environment::stop_sub_worker_contexts() {
 }
 
 Environment* Environment::worker_parent_env() const {
-  if (worker_context_ == nullptr) return nullptr;
-  return worker_context_->env();
+  if (worker_context() == nullptr) return nullptr;
+  return worker_context()->env();
 }
 
 void MemoryTracker::TrackField(const char* edge_name,

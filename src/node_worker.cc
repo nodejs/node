@@ -183,6 +183,7 @@ class WorkerThreadData {
       CHECK(isolate_data_);
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
+      isolate_data_->set_worker_context(w_);
     }
 
     Mutex::ScopedLock lock(w_->mutex_);
@@ -317,7 +318,6 @@ void Worker::Run() {
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
         env_->set_abort_on_uncaught_exception(false);
-        env_->set_worker_context(this);
 
         env_->InitializeLibuv(start_profiler_idle_notifier_);
       }
