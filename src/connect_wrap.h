@@ -8,8 +8,6 @@
 
 namespace node {
 
-class Environment;
-
 class ConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   ConnectWrap(Environment* env,

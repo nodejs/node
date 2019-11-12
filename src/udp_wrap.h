@@ -30,7 +30,6 @@
 
 namespace node {
 
-class AsyncWrap;
 class Environment;
 
 class UDPWrap: public HandleWrap {
