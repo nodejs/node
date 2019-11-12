@@ -18,7 +18,7 @@ const path = require('path');
 const enable = `require("trace_events").createTracing(
 { categories: ["node.async_hooks"] }).enable();`;
 const code =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 
 const tmpdir = require('../common/tmpdir');
 const filename = path.join(tmpdir.path, 'node_trace.1.log');
