@@ -970,6 +970,11 @@ an `Http2Stream`.
 added: v8.4.0
 -->
 
+* `type` {integer} The frame type.
+* `code` {integer} The error code.
+* `id` {integer} The stream id (or `0` if the frame isn't associated with a
+  stream).
+
 The `'frameError'` event is emitted when an error occurs while attempting to
 send a frame. When invoked, the handler function will receive an integer
 argument identifying the frame type, and an integer argument identifying the
@@ -984,11 +989,15 @@ added: v8.4.0
 The `'timeout'` event is emitted after no activity is received for this
 `Http2Stream` within the number of milliseconds set using
 `http2stream.setTimeout()`.
+Its listener does not expect any arguments.
 
 #### Event: `'trailers'`
 <!-- YAML
 added: v8.4.0
 -->
+
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
 
 The `'trailers'` event is emitted when a block of headers associated with
 trailing header fields is received. The listener callback is passed the
