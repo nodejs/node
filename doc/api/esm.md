@@ -36,8 +36,8 @@ initial input, or when referenced by `import` statements within ES module code:
 * Files ending in `.js` when the nearest parent `package.json` file contains a
   top-level field `"type"` with a value of `"module"`.
 
-* Strings passed in as an argument to `--eval` or `--print`, or piped to
-  `node` via `STDIN`, with the flag `--input-type=module`.
+* Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
+  with the flag `--input-type=module`.
 
 Node.js will treat as CommonJS all other forms of input, such as `.js` files
 where the nearest parent `package.json` file contains no top-level `"type"`
@@ -52,8 +52,8 @@ or when referenced by `import` statements within ES module code:
 * Files ending in `.js` when the nearest parent `package.json` file contains a
   top-level field `"type"` with a value of `"commonjs"`.
 
-* Strings passed in as an argument to `--eval` or `--print`, or piped to
-  `node` via `STDIN`, with the flag `--input-type=commonjs`.
+* Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
+  via `STDIN`, with the flag `--input-type=commonjs`.
 
 ### `package.json` `"type"` field
 
@@ -159,9 +159,9 @@ package scope:
 
 ### `--input-type` flag
 
-Strings passed in as an argument to `--eval` or `--print` (or `-e` or `-p`), or
-piped to `node` via `STDIN`, will be treated as ES modules when the
-`--input-type=module` flag is set.
+Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
+`STDIN`, will be treated as ES modules when the `--input-type=module` flag is
+set.
 
 ```sh
 node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
@@ -1076,6 +1076,32 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
+## Experimental Top-Level `await`
+
+When the `--experimental-top-level-await` flag is provided, `await` may be used
+in the top level (outside of async functions) within modules. This implements
+the [ECMAScript Top-Level `await` proposal][].
+
+Assuming an `a.mjs` with
+
+<!-- eslint-skip -->
+```js
+export const five = await Promise.resolve(5);
+```
+
+And a `b.mjs` with
+
+```js
+import { five } from './a.mjs';
+
+console.log(five); // Logs `5`
+```
+
+```bash
+node b.mjs # fails
+node --experimental-top-level-await b.mjs # works
+```
+
 ## Experimental Loaders
 
 **Note: This API is currently being redesigned and will still change.**
@@ -1779,6 +1805,7 @@ success!
 [Conditional Exports]: #esm_conditional_exports
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
+[ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [Terminology]: #esm_terminology
