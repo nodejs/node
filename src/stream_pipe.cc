@@ -71,6 +71,7 @@ void StreamPipe::Unpipe() {
   // Delay the JS-facing part with SetImmediate, because this might be from
   // inside the garbage collector, so we can’t run JS here.
   HandleScope handle_scope(env()->isolate());
+  BaseObjectPtr<StreamPipe> strong_ref{this};
   env()->SetImmediate([this](Environment* env) {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
@@ -105,7 +106,7 @@ void StreamPipe::Unpipe() {
             .IsNothing()) {
       return;
     }
-  }, object());
+  });
 }
 
 uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {

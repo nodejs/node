@@ -1582,7 +1582,8 @@ void Http2Session::MaybeScheduleWrite() {
     HandleScope handle_scope(env()->isolate());
     Debug(this, "scheduling write");
     flags_ |= SESSION_STATE_WRITE_SCHEDULED;
-    env()->SetImmediate([this](Environment* env) {
+    BaseObjectPtr<Http2Session> strong_ref{this};
+    env()->SetImmediate([this, strong_ref](Environment* env) {
       if (session_ == nullptr || !(flags_ & SESSION_STATE_WRITE_SCHEDULED)) {
         // This can happen e.g. when a stream was reset before this turn
         // of the event loop, in which case SendPendingData() is called early,
@@ -1595,7 +1596,7 @@ void Http2Session::MaybeScheduleWrite() {
       HandleScope handle_scope(env->isolate());
       InternalCallbackScope callback_scope(this);
       SendPendingData();
-    }, object());
+    });
   }
 }
 
@@ -2043,7 +2044,8 @@ void Http2Stream::Destroy() {
 
   // Wait until the start of the next loop to delete because there
   // may still be some pending operations queued for this stream.
-  env()->SetImmediate([this](Environment* env) {
+  BaseObjectPtr<Http2Stream> strong_ref{this};
+  env()->SetImmediate([this, strong_ref](Environment* env) {
     // Free any remaining outgoing data chunks here. This should be done
     // here because it's possible for destroy to have been called while
     // we still have queued outbound writes.
@@ -2057,9 +2059,11 @@ void Http2Stream::Destroy() {
     // We can destroy the stream now if there are no writes for it
     // already on the socket. Otherwise, we'll wait for the garbage collector
     // to take care of cleaning up.
-    if (session() == nullptr || !session()->HasWritesOnSocketForStream(this))
-      delete this;
-  }, object());
+    if (session() == nullptr || !session()->HasWritesOnSocketForStream(this)) {
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    }
+  });
 
   statistics_.end_time = uv_hrtime();
   session_->statistics_.stream_average_duration =
