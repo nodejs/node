@@ -746,13 +746,9 @@ inline void IsolateData::set_options(
 }
 
 template <typename Fn>
-void Environment::CreateImmediate(Fn&& cb,
-                                  v8::Local<v8::Object> keep_alive,
-                                  bool ref) {
+void Environment::CreateImmediate(Fn&& cb, bool ref) {
   auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
-      std::move(cb),
-      v8::Global<v8::Object>(isolate(), keep_alive),
-      ref);
+      std::move(cb), ref);
   NativeImmediateCallback* prev_tail = native_immediate_callbacks_tail_;
 
   native_immediate_callbacks_tail_ = callback.get();
@@ -765,8 +761,8 @@ void Environment::CreateImmediate(Fn&& cb,
 }
 
 template <typename Fn>
-void Environment::SetImmediate(Fn&& cb, v8::Local<v8::Object> keep_alive) {
-  CreateImmediate(std::move(cb), keep_alive, true);
+void Environment::SetImmediate(Fn&& cb) {
+  CreateImmediate(std::move(cb), true);
 
   if (immediate_info()->ref_count() == 0)
     ToggleImmediateRef(true);
@@ -774,8 +770,8 @@ void Environment::SetImmediate(Fn&& cb, v8::Local<v8::Object> keep_alive) {
 }
 
 template <typename Fn>
-void Environment::SetUnrefImmediate(Fn&& cb, v8::Local<v8::Object> keep_alive) {
-  CreateImmediate(std::move(cb), keep_alive, false);
+void Environment::SetUnrefImmediate(Fn&& cb) {
+  CreateImmediate(std::move(cb), false);
 }
 
 Environment::NativeImmediateCallback::NativeImmediateCallback(bool refed)
@@ -797,10 +793,9 @@ void Environment::NativeImmediateCallback::set_next(
 
 template <typename Fn>
 Environment::NativeImmediateCallbackImpl<Fn>::NativeImmediateCallbackImpl(
-    Fn&& callback, v8::Global<v8::Object>&& keep_alive, bool refed)
+    Fn&& callback, bool refed)
   : NativeImmediateCallback(refed),
-    callback_(std::move(callback)),
-    keep_alive_(std::move(keep_alive)) {}
+    callback_(std::move(callback)) {}
 
 template <typename Fn>
 void Environment::NativeImmediateCallbackImpl<Fn>::Call(Environment* env) {
