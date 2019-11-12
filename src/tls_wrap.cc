@@ -320,9 +320,10 @@ void TLSWrap::EncOut() {
         // its not clear if it is always correct. Not calling Done() could block
         // data flow, so for now continue to call Done(), just do it in the next
         // tick.
-        env()->SetImmediate([this](Environment* env) {
+        BaseObjectPtr<TLSWrap> strong_ref{this};
+        env()->SetImmediate([this, strong_ref](Environment* env) {
           InvokeQueued(0);
-        }, object());
+        });
       }
     }
     return;
@@ -353,9 +354,10 @@ void TLSWrap::EncOut() {
     HandleScope handle_scope(env()->isolate());
 
     // Simulate asynchronous finishing, TLS cannot handle this at the moment.
-    env()->SetImmediate([this](Environment* env) {
+    BaseObjectPtr<TLSWrap> strong_ref{this};
+    env()->SetImmediate([this, strong_ref](Environment* env) {
       OnStreamAfterWrite(nullptr, 0);
-    }, object());
+    });
   }
 }
 
@@ -730,9 +732,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
       StreamWriteResult res =
           underlying_stream()->Write(bufs, count, send_handle);
       if (!res.async) {
-        env()->SetImmediate([this](Environment* env) {
+        BaseObjectPtr<TLSWrap> strong_ref{this};
+        env()->SetImmediate([this, strong_ref](Environment* env) {
           OnStreamAfterWrite(current_empty_write_, 0);
-        }, object());
+        });
       }
       return 0;
     }

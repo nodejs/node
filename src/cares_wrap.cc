@@ -627,8 +627,6 @@ class QueryWrap : public AsyncWrap {
     } else {
       Parse(response_data_->host.get());
     }
-
-    delete this;
   }
 
   void* MakeCallbackPointer() {
@@ -686,9 +684,13 @@ class QueryWrap : public AsyncWrap {
   }
 
   void QueueResponseCallback(int status) {
-    env()->SetImmediate([this](Environment*) {
+    BaseObjectPtr<QueryWrap> strong_ref{this};
+    env()->SetImmediate([this, strong_ref](Environment*) {
       AfterResponse();
-    }, object());
+
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    });
 
     channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
     channel_->ModifyActivityQueryCount(-1);
