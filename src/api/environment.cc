@@ -345,8 +345,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
       context,
       args,
       exec_args,
-      static_cast<Environment::Flags>(Environment::kIsMainThread |
-                                      Environment::kOwnsProcessState |
+      static_cast<Environment::Flags>(Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
   env->InitializeLibuv(per_process::v8_is_profiling);
   if (env->RunBootstrapping().IsEmpty()) {

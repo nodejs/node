@@ -889,7 +889,7 @@ inline void Environment::set_has_serialized_options(bool value) {
 }
 
 inline bool Environment::is_main_thread() const {
-  return flags_ & kIsMainThread;
+  return worker_context() == nullptr;
 }
 
 inline bool Environment::owns_process_state() const {

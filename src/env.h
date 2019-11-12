@@ -859,7 +859,6 @@ class Environment : public MemoryRetainer {
 
   enum Flags {
     kNoFlags = 0,
-    kIsMainThread = 1 << 0,
     kOwnsProcessState = 1 << 1,
     kOwnsInspector = 1 << 2,
   };
