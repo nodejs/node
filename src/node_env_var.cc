@@ -255,6 +255,7 @@ Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
+  CHECK(env->has_run_bootstrapping_code());
   if (property->IsSymbol()) {
     return info.GetReturnValue().SetUndefined();
   }
@@ -270,6 +271,7 @@ static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
+  CHECK(env->has_run_bootstrapping_code());
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
   // warnings have been emitted. It should be called last after other
   // conditions leading to a warning have been met.
@@ -303,6 +305,7 @@ static void EnvSetter(Local<Name> property,
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
+  CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
     int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
     if (rc != -1) info.GetReturnValue().Set(rc);
@@ -312,6 +315,7 @@ static void EnvQuery(Local<Name> property,
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
+  CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
     env->env_vars()->Delete(env->isolate(), property.As<String>());
   }
@@ -323,6 +327,7 @@ static void EnvDeleter(Local<Name> property,
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
+  CHECK(env->has_run_bootstrapping_code());
 
   info.GetReturnValue().Set(
       env->env_vars()->Enumerate(env->isolate()));
