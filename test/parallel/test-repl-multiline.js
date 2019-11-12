@@ -5,7 +5,7 @@ const assert = require('assert');
 const repl = require('repl');
 const inputStream = new ArrayStream();
 const outputStream = new ArrayStream();
-const input = ['var foo = {', '};', 'foo;'];
+const input = ['const foo = {', '};', 'foo;'];
 let output = '';
 
 outputStream.write = (data) => { output += data.replace('\r', ''); };
