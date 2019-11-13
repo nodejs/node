@@ -20,9 +20,13 @@
  */
 #include "http_parser.h"
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+
+/* 8 gb */
+static const int64_t kBytes = 8LL << 30;
 
 static const char data[] =
     "POST /joyent/http-parser HTTP/1.1\r\n"
@@ -38,7 +42,7 @@ static const char data[] =
     "Referer: https://github.com/joyent/http-parser\r\n"
     "Connection: keep-alive\r\n"
     "Transfer-Encoding: chunked\r\n"
-    "Cache-Control: max-age=0\r\n\r\nb\r\nhello world\r\n0\r\n\r\n";
+    "Cache-Control: max-age=0\r\n\r\nb\r\nhello world\r\n0\r\n";
 static const size_t data_len = sizeof(data) - 1;
 
 static int on_info(http_parser* p) {
@@ -67,13 +71,13 @@ int bench(int iter_count, int silent) {
   int err;
   struct timeval start;
   struct timeval end;
-  float rps;
 
   if (!silent) {
     err = gettimeofday(&start, NULL);
     assert(err == 0);
   }
 
+  fprintf(stderr, "req_len=%d\n", (int) data_len);
   for (i = 0; i < iter_count; i++) {
     size_t parsed;
     http_parser_init(&parser, HTTP_REQUEST);
@@ -83,17 +87,27 @@ int bench(int iter_count, int silent) {
   }
 
   if (!silent) {
+    double elapsed;
+    double bw;
+    double total;
+
     err = gettimeofday(&end, NULL);
     assert(err == 0);
 
     fprintf(stdout, "Benchmark result:\n");
 
-    rps = (float) (end.tv_sec - start.tv_sec) +
-          (end.tv_usec - start.tv_usec) * 1e-6f;
-    fprintf(stdout, "Took %f seconds to run\n", rps);
+    elapsed = (double) (end.tv_sec - start.tv_sec) +
+              (end.tv_usec - start.tv_usec) * 1e-6f;
 
-    rps = (float) iter_count / rps;
-    fprintf(stdout, "%f req/sec\n", rps);
+    total = (double) iter_count * data_len;
+    bw = (double) total / elapsed;
+
+    fprintf(stdout, "%.2f mb | %.2f mb/s | %.2f req/sec | %.2f s\n",
+        (double) total / (1024 * 1024),
+        bw / (1024 * 1024),
+        (double) iter_count / elapsed,
+        elapsed);
+
     fflush(stdout);
   }
 
@@ -101,11 +115,14 @@ int bench(int iter_count, int silent) {
 }
 
 int main(int argc, char** argv) {
+  int64_t iterations;
+
+  iterations = kBytes / (int64_t) data_len;
   if (argc == 2 && strcmp(argv[1], "infinite") == 0) {
     for (;;)
-      bench(5000000, 1);
+      bench(iterations, 1);
     return 0;
   } else {
-    return bench(5000000, 0);
+    return bench(iterations, 0);
   }
 }

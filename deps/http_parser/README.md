@@ -148,7 +148,7 @@ callback in a threadsafe manner. This allows `http_parser` to be used in
 multi-threaded contexts.
 
 Example:
-```
+```c
  typedef struct {
   socket_t sock;
   void* buffer;
@@ -184,7 +184,7 @@ void http_parser_thread(socket_t sock) {
  parser supplied to callback functions */
  parser->data = my_data;
 
- http_parser_settings settings; / * set up callbacks */
+ http_parser_settings settings; /* set up callbacks */
  settings.on_url = my_url_callback;
 
  /* execute parser */
