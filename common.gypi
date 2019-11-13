@@ -73,9 +73,6 @@
     # TODO(refack): make v8-perfetto happen
     'v8_use_perfetto': 0,
 
-    'v8_enable_pointer_compression': 0,
-    'v8_enable_31bit_smis_on_64bit_arch': 0,
-
     ##### end V8 defaults #####
 
     'conditions': [
