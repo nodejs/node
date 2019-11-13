@@ -39,6 +39,10 @@ struct napi_env__ {
   inline void Unref() { if ( --refs == 0) delete this; }
 
   virtual bool can_call_into_js() const { return true; }
+  virtual v8::Maybe<bool> mark_arraybuffer_as_untransferable(
+      v8::Local<v8::ArrayBuffer> ab) const {
+    return v8::Just(true);
+  }
 
   template <typename T, typename U>
   void CallIntoModule(T&& call, U&& handle_exception) {
