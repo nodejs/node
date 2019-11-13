@@ -118,8 +118,9 @@ const enoughTestCpu = Array.isArray(cpus) &&
 
 const rootDir = isWindows ? 'c:\\' : '/';
 
-const buildType = process.config.target_defaults.default_configuration;
-
+const buildType = process.config.target_defaults ?
+  process.config.target_defaults.default_configuration :
+  'Release';
 
 // If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
