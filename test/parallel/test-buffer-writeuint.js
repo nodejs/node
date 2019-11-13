@@ -170,7 +170,7 @@ const assert = require('assert');
   });
 
   // Test 1 to 6 bytes.
-  for (let i = 1; i < 6; i++) {
+  for (let i = 1; i <= 6; i++) {
     const range = i < 5 ? `= ${val - 1}` : ` 2 ** ${i * 8}`;
     const received = i > 4 ?
       String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1_') :
