@@ -229,6 +229,18 @@ MaybeLocal<Uint8Array> New(Environment* env,
   return ui;
 }
 
+MaybeLocal<Uint8Array> New(Isolate* isolate,
+                           Local<ArrayBuffer> ab,
+                           size_t byte_offset,
+                           size_t length) {
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) {
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Uint8Array>();
+  }
+  return New(env, ab, byte_offset, length);
+}
+
 
 MaybeLocal<Object> New(Isolate* isolate,
                        Local<String> string,
