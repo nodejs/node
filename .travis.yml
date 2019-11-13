@@ -1,9 +1,3 @@
-x-ccache-setup-steps: &ccache-setup-steps
-  - export CCACHE_NOSTATS=1
-  - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
-  - export CC='ccache gcc-6'
-  - export CXX='ccache g++-6'
-
 os: linux
 language: cpp
 # Currently this file can only support one PYTHON_VERSION.
@@ -16,7 +10,7 @@ env:
 jobs:
   include:
     - stage: "Compile"
-      name: "Compile V8"
+      name: "Compile Node.js"
       cache: ccache
       addons:
         apt:
@@ -24,25 +18,16 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-      install: *ccache-setup-steps
+      install:
+        - export CCACHE_NOSTATS=1
+        - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+        - export CC='ccache gcc-6'
+        - export CXX='ccache g++-6'
       script:
         - pyenv global ${PYTHON_VERSION}
         - ./configure
-        - make -j2 -C out V=1 v8
-
-    - name: "Compile Node.js"
-      cache: ccache
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      install: *ccache-setup-steps
-      script:
-        - pyenv global ${PYTHON_VERSION}
-        - ./configure
-        - make -j2 V=1
+        - timeout --preserve-status 45m make -j2 V=1
+      before_cache:
         - cp out/Release/node /home/travis/.ccache
         - cp out/Release/cctest /home/travis/.ccache
 
