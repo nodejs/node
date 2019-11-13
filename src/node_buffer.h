@@ -65,6 +65,12 @@ NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
                                            char* data,
                                            size_t len);
 
+// Creates a Buffer instance over an existing ArrayBuffer.
+NODE_EXTERN v8::MaybeLocal<v8::Uint8Array> New(v8::Isolate* isolate,
+                                               v8::Local<v8::ArrayBuffer> ab,
+                                               size_t byte_offset,
+                                               size_t length);
+
 // This is verbose to be explicit with inline commenting
 static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {
   // Asking to seek too far into the buffer
