@@ -51,6 +51,35 @@ class EnvironmentTest : public EnvironmentTestFixture {
 //   CHECK(result->IsString());
 // }
 
+TEST_F(EnvironmentTest, LoadEnvironmentWithCallback) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  bool called_cb = false;
+  node::LoadEnvironment(*env,
+                        [&](const node::StartExecutionCallbackInfo& info)
+                            -> v8::MaybeLocal<v8::Value> {
+    called_cb = true;
+
+    CHECK(info.process_object->IsObject());
+    CHECK(info.native_require->IsFunction());
+
+    v8::Local<v8::Value> argv0 = info.process_object->Get(
+        context,
+        v8::String::NewFromOneByte(
+            isolate_,
+            reinterpret_cast<const uint8_t*>("argv0"),
+            v8::NewStringType::kNormal).ToLocalChecked()).ToLocalChecked();
+    CHECK(argv0->IsString());
+
+    return info.process_object;
+  });
+
+  CHECK(called_cb);
+}
+
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -188,9 +217,6 @@ static void at_exit_js(void* arg) {
   called_at_exit_js = true;
 }
 
-// TODO(addaleax): Re-enable this test once it is possible to initialize the
-// Environment properly.
-/*
 TEST_F(EnvironmentTest, SetImmediateCleanup) {
   int called = 0;
   int called_unref = 0;
@@ -199,6 +225,12 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
     const v8::HandleScope handle_scope(isolate_);
     const Argv argv;
     Env env {handle_scope, argv};
+
+    node::LoadEnvironment(*env,
+                          [&](const node::StartExecutionCallbackInfo& info)
+                              -> v8::MaybeLocal<v8::Value> {
+      return v8::Object::New(isolate_);
+    });
 
     (*env)->SetImmediate([&](node::Environment* env_arg) {
       EXPECT_EQ(env_arg, *env);
@@ -212,7 +244,7 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
 
   EXPECT_EQ(called, 1);
   EXPECT_EQ(called_unref, 0);
-}*/
+}
 
 static char hello[] = "hello";
 

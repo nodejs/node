@@ -73,6 +73,7 @@
 #include "node_version.h"  // NODE_MODULE_VERSION
 
 #include <memory>
+#include <functional>
 
 // We cannot use __POSIX__ in this header because that's only defined when
 // building Node.js.
@@ -438,12 +439,20 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     ThreadId child_thread_id,
     const char* child_url);
 
-// TODO(addaleax): Deprecate this in favour of the MaybeLocal<> overload
-// and provide a more flexible approach than third_party_main.
+struct StartExecutionCallbackInfo {
+  v8::Local<v8::Object> process_object;
+  v8::Local<v8::Function> native_require;
+};
+
+using StartExecutionCallback =
+    std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
+
+// TODO(addaleax): Deprecate this in favour of the MaybeLocal<> overload.
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle);
+    StartExecutionCallback cb,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // This may return nullptr if context is not associated with a Node instance.
