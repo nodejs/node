@@ -346,6 +346,11 @@ parser.add_option('--enable-trace-maps',
     dest='trace_maps',
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
 
+parser.add_option('--experimental-enable-pointer-compression',
+    action='store_true',
+    dest='enable_pointer_compression',
+    help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -1192,6 +1197,8 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
+  o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
+  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
