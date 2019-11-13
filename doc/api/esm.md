@@ -184,6 +184,8 @@ unspecified.
 
 ### Package Entry Points
 
+#### <code>package.json</code> <code>"main"</code>
+
 The `package.json` `"main"` field defines the entry point for a package,
 whether the package is included into CommonJS via `require` or into an ES
 module via `import`.
@@ -219,7 +221,12 @@ The `"main"` field can point to exactly one file, regardless of whether the
 package is referenced via `require` (in a CommonJS context) or `import` (in an
 ES module context).
 
-### Package Exports
+[Package Exports][] provide an alternative to `"main"` where the package main
+entry point can be defined while also encapsulating the package, preventing any
+other entry points besides those defined in `"exports"`. If package entry points
+are defined in both `"main"` and `"exports"`, the latter takes precedence.
+
+#### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
 Custom subpath aliasing and encapsulation can be provided through the
@@ -1385,6 +1392,7 @@ success!
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[Package Exports]: #esm_package_exports
 [Terminology]: #esm_terminology
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
