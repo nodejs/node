@@ -225,6 +225,16 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+enum OptionEnvvarSettings {
+  kAllowedInEnvironment,
+  kDisallowedInEnvironment
+};
+
+NODE_EXTERN int ProcessGlobalArgs(std::vector<std::string>* args,
+                      std::vector<std::string>* exec_args,
+                      std::vector<std::string>* errors,
+                      OptionEnvvarSettings settings);
+
 class NodeArrayBufferAllocator;
 
 // An ArrayBuffer::Allocator class with some Node.js-specific tweaks. If you do
