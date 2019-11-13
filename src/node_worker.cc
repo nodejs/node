@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using node::options_parser::kDisallowedInEnvironment;
+using node::kDisallowedInEnvironment;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
