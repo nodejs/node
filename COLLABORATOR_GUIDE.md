@@ -176,6 +176,13 @@ All pull requests must pass continuous integration tests. Code changes must pass
 on [project CI server](https://ci.nodejs.org/). Pull requests that only change
 documentation and comments can use Travis CI results.
 
+Travis CI jobs have a fixed running time limit that building Node.js sometimes
+exceeds. If the `Compile Node.js` Travis CI job has timed out it will fail after
+around 45 minutes. The exit code will be 143, indicating that a `SIGTERM` signal
+terminated the `make` command. When this happens, restart the timed out job. It
+will reuse built artifacts from the previous timed-out run, and thus take less
+time to complete.
+
 Do not land any pull requests without passing (green or yellow) CI runs. If
 there are CI failures unrelated to the change in the pull request, try "Resume
 Build". It is in the left navigation of the relevant `node-test-pull-request`
