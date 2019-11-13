@@ -350,10 +350,8 @@ MaybeLocal<Object> New(Isolate* isolate,
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Object>();
   }
-  Local<Object> obj;
-  if (Buffer::New(env, data, length, callback, hint).ToLocal(&obj))
-    return handle_scope.Escape(obj);
-  return Local<Object>();
+  return handle_scope.EscapeMaybe(
+      Buffer::New(env, data, length, callback, hint));
 }
 
 
@@ -371,6 +369,12 @@ MaybeLocal<Object> New(Environment* env,
   }
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
+  if (ab->SetPrivate(env->context(),
+                     env->arraybuffer_untransferable_private_symbol(),
+                     True(env->isolate())).IsNothing()) {
+    callback(data, hint);
+    return Local<Object>();
+  }
   MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
   CallbackInfo::New(env->isolate(), ab, callback, data, hint);
