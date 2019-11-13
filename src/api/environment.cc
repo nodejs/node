@@ -422,11 +422,12 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 }
 
 void LoadEnvironment(Environment* env) {
-  USE(LoadEnvironment(env, {}));
+  USE(LoadEnvironment(env, nullptr, {}));
 }
 
 MaybeLocal<Value> LoadEnvironment(
     Environment* env,
+    StartExecutionCallback cb,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
   env->InitializeLibuv(per_process::v8_is_profiling);
   env->InitializeDiagnostics();
@@ -441,9 +442,7 @@ MaybeLocal<Value> LoadEnvironment(
   }
 #endif
 
-  // TODO(joyeecheung): Allow embedders to customize the entry
-  // point more directly without using _third_party_main.js
-  return StartExecution(env);
+  return StartExecution(env, cb);
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {

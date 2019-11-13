@@ -372,6 +372,7 @@ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
       performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
 }
 
+static
 MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
   CHECK_NOT_NULL(main_script_id);
@@ -392,17 +393,31 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
           ->GetFunction(env->context())
           .ToLocalChecked()};
 
-  InternalCallbackScope callback_scope(
-    env,
-    Object::New(env->isolate()),
-    { 1, 0 },
-    InternalCallbackScope::kSkipAsyncHooks);
-
   return scope.EscapeMaybe(
       ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
 }
 
-MaybeLocal<Value> StartExecution(Environment* env) {
+MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+  InternalCallbackScope callback_scope(
+      env,
+      Object::New(env->isolate()),
+      { 1, 0 },
+      InternalCallbackScope::kSkipAsyncHooks);
+
+  if (cb != nullptr) {
+    EscapableHandleScope scope(env->isolate());
+
+    if (StartExecution(env, "internal/bootstrap/environment").IsEmpty())
+      return {};
+
+    StartExecutionCallbackInfo info = {
+      env->process_object(),
+      env->native_module_require(),
+    };
+
+    return scope.EscapeMaybe(cb(info));
+  }
+
   // To allow people to extend Node in different ways, this hook allows
   // one to drop a file lib/_third_party_main.js into the build
   // directory which will be executed instead of Node's normal loading.
