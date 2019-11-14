@@ -359,10 +359,12 @@ The buffered data will be flushed when either the [`stream.uncork()`][] or
 [`stream.end()`][stream-end] methods are called.
 
 The primary intent of `writable.cork()` is to accommodate a situation in which
-it is more performant to write several small chunks to the internal buffer rather
-than drain them immediately to the underlying destination. In such situations,
-implementations that implement the `writable._writev()` method can perform
-buffered writes in a more optimized manner.
+it is more performant to write several small chunks to the internal buffer
+rather than drain them immediately to the underlying destination. Such
+buffering is usually inadvisable as the buffer can rapidly consume available
+memory, but where memory needs have been carefully considered, implementations
+that implement the `writable._writev()` method can perform buffered writes in
+a more optimized manner.
 
 See also: [`writable.uncork()`][].
 
