@@ -184,6 +184,18 @@ unspecified.
 
 ### Package Entry Points
 
+There are two fields that can define entry points for a package: `"main"` and
+`"exports"`. The `"main"` field is supported in all versions of Node.js, but its
+capabilities are limited: it only defines the main entry point of the package.
+The `"exports"` field can also be used to define the main entry point of the
+package, as well as other defined entry points; and the package can be
+encapsulated, so that extra effort is required to reference files within the
+package that aren’t the defined public API. `"exports"` can also map an entry
+point to different files per environment, for example for all environments
+versus browser environments; and with `--experimental-conditional-exports`
+`"exports"` can define separate files for Node.js CommonJS and ES module
+environments.
+
 #### <code>package.json</code> <code>"main"</code>
 
 The `package.json` `"main"` field defines the entry point for a package,
@@ -224,7 +236,10 @@ ES module context).
 [Package Exports][] provide an alternative to `"main"` where the package main
 entry point can be defined while also encapsulating the package, preventing any
 other entry points besides those defined in `"exports"`. If package entry points
-are defined in both `"main"` and `"exports"`, the latter takes precedence.
+are defined in both `"main"` and `"exports"`, the latter takes precedence in
+versions of Node.js that support `"exports"`. [Conditional Exports][] can also
+be used within `"exports"` to define different package entry points per
+environment.
 
 #### Package Exports
 
