@@ -80,9 +80,9 @@ changes:
     description: Added strict mode to the assert module.
 -->
 
-In `strict` mode, `assert` functions use the comparison in the corresponding
-strict functions. For example, [`assert.deepEqual()`][] will behave like
-[`assert.deepStrictEqual()`][].
+In `strict` mode (not to be confused with `"use strict"`), `assert` functions
+use the comparison in the corresponding strict functions. For example,
+[`assert.deepEqual()`][] will behave like [`assert.deepStrictEqual()`][].
 
 In `strict` mode, error messages for objects display a diff. In legacy mode,
 error messages for objects display the objects, often truncated.
