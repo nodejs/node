@@ -83,8 +83,8 @@ changes:
 In `strict` mode, `assert` functions use the comparison in the corresponding
 strict functions. For example, [`assert.deepEqual()`][] will behave like
 [`assert.deepStrictEqual()`][]. This uses the [Strict Equality Comparison][]
-from the ECMAScript spec and does not refer to JavaScript strict mode (`"use strict";`)
-in any way.
+from the ECMAScript spec and does not refer to JavaScript strict
+mode (`"use strict";`) in any way.
 
 In `strict` mode, error messages for objects display a diff. In legacy mode,
 error messages for objects display the objects, often truncated.
