@@ -146,6 +146,18 @@ assert.strictEqual(util.format('%s', () => 5), '() => 5');
 {
   class Foo { toString() { return 'Bar'; } }
   assert.strictEqual(util.format('%s', new Foo()), 'Bar');
+  class B extends Foo {}
+  function C() {}
+  C.prototype.toString = function() { return 'Foo'; };
+
+  function D() { C.call(this); }
+  D.prototype = Object.create(C.prototype);
+  assert.strictEqual(util.format('%s', new B()), 'Bar');
+  assert.strictEqual(util.format('%s', new C()), 'Foo');
+  assert.strictEqual(util.format('%s', new D()), 'Foo');
+
+  D.prototype.constructor = D;
+  assert.strictEqual(util.format('%s', new D()), 'Foo');
   assert.strictEqual(
     util.format('%s', Object.setPrototypeOf(new Foo(), null)),
     '[Foo: null prototype] {}'
