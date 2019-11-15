@@ -172,8 +172,9 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> user_argv;
 
-  inline DebugOptions* get_debug_options();
-  inline const DebugOptions& debug_options() const;
+  inline DebugOptions* get_debug_options() { return &debug_options_; }
+  inline const DebugOptions& debug_options() const { return debug_options_; }
+
   void CheckOptions(std::vector<std::string>* errors) override;
 
  private:
