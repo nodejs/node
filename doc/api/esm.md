@@ -540,16 +540,15 @@ CommonJS, JSON, and Native modules can be used with
 [`module.createRequire()`][].
 
 ```js
-// cjs.js
+// cjs.cjs
 module.exports = 'cjs';
 
 // esm.mjs
 import { createRequire } from 'module';
-import { fileURLToPath as fromURL } from 'url';
 
-const require = createRequire(fromURL(import.meta.url));
+const require = createRequire(import.meta.url);
 
-const cjs = require('./cjs');
+const cjs = require('./cjs.cjs');
 cjs === 'cjs'; // true
 ```
 
