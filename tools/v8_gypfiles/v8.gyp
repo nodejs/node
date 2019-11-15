@@ -108,6 +108,13 @@
     ],
   },
   'includes': ['toolchain.gypi', 'features.gypi'],
+  'target_defaults': {
+    'msvs_settings': {
+      'VCCLCompilerTool': {
+        'AdditionalOptions': ['/utf-8']
+      }
+    },
+  },
   'targets': [
     {
       'target_name': 'run_torque',
