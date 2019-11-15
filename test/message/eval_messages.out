@@ -39,7 +39,7 @@ Error: hello
     at internal/main/eval_string.js:*:*
 100
 [eval]:1
-var x = 100; y = x;
+const x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
@@ -52,13 +52,13 @@ ReferenceError: y is not defined
     at internal/main/eval_string.js:*:*
 
 [eval]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
 (Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 [eval]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
 (Use `node --trace-uncaught ...` to show where the exception was thrown)
