@@ -80,11 +80,9 @@ changes:
     description: Added strict mode to the assert module.
 -->
 
-In `strict` mode, `assert` functions use the comparison in the corresponding
-strict functions. For example, [`assert.deepEqual()`][] will behave like
-[`assert.deepStrictEqual()`][]. This uses the [Strict Equality Comparison][]
-from the ECMAScript spec and does not refer to JavaScript strict
-mode (`"use strict";`) in any way.
+In `strict` mode (not to be confused with `"use strict"`), `assert` functions
+use the comparison in the corresponding strict functions. For example,
+[`assert.deepEqual()`][] will behave like [`assert.deepStrictEqual()`][].
 
 In `strict` mode, error messages for objects display a diff. In legacy mode,
 error messages for objects display the objects, often truncated.
@@ -1321,7 +1319,6 @@ second argument. This might lead to difficult-to-spot errors.
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
 [`strict` mode]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
-[Strict Equality Comparison]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
