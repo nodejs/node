@@ -1310,8 +1310,7 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. Return _"module"_.
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Otherwise,
->    1. If _isMain_ is **true** or _url_ ends in _".js"_, _".json"_ or
->       _".node"_, then
+>    1. If _isMain_ is **true**, then
 >       1. Return _"commonjs"_.
 >    1. Throw an _Unsupported File Extension_ error.
 
