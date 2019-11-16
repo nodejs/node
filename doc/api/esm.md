@@ -574,7 +574,7 @@ This approach is appropriate for any of the following use cases:
 
 A variant of this approach not requiring `--experimental-conditional-exports`
 for consumers could be to add an export, e.g. `"./module"`, to point to an
-all-ES module-syntax version the package. This could be used via `import
+all-ES module-syntax version of the package. This could be used via `import
 'pkg/module'` by users who are certain that the CommonJS version will not be
 loaded anywhere in the application, such as by dependencies; or if the CommonJS
 version can be loaded but doesn’t affect the ES module version (for example,
