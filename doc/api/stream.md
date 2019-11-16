@@ -2534,7 +2534,7 @@ method to accept input and produce output. The `transform._transform()`
 implementation handles the bytes being written, computes an output, then passes
 that output off to the readable portion using the `readable.push()` method.
 
-The `transform.push()` method may be called zero or more times to generate
+The `readable.push()` method may be called zero or more times to generate
 output from a single input chunk, depending on how much is to be output
 as a result of the chunk.
 
