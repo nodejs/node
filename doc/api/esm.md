@@ -685,7 +685,7 @@ execution between the CommonJS and ES module versions of a package.
 
 As with the previous approach, a variant of this approach not requiring
 `--experimental-conditional-exports` for consumers could be to add an export,
-e.g. `"./module"`, to point to an all-ES module-syntax version the package:
+e.g. `"./module"`, to point to an all-ES module-syntax version of the package:
 
 <!-- eslint-skip -->
 ```js
