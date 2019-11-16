@@ -2804,7 +2804,7 @@ method. This will be called when there is no more written data to be consumed,
 but before the [`'end'`][] event is emitted signaling the end of the
 [`Readable`][] stream.
 
-Within the `transform._flush()` implementation, the `readable.push()` method
+Within the `transform._flush()` implementation, the `transform.push()` method
 may be called zero or more times, as appropriate. The `callback` function must
 be called when the flush operation is complete.
 
@@ -2833,7 +2833,7 @@ methods only.
 All `Transform` stream implementations must provide a `_transform()`
 method to accept input and produce output. The `transform._transform()`
 implementation handles the bytes being written, computes an output, then passes
-that output off to the readable portion using the `readable.push()` method.
+that output off to the readable portion using the `transform.push()` method.
 
 The `transform.push()` method may be called zero or more times to generate
 output from a single input chunk, depending on how much is to be output
@@ -2845,7 +2845,7 @@ The `callback` function must be called only when the current chunk is completely
 consumed. The first argument passed to the `callback` must be an `Error` object
 if an error occurred while processing the input or `null` otherwise. If a second
 argument is passed to the `callback`, it will be forwarded on to the
-`readable.push()` method. In other words, the following are equivalent:
+`transform.push()` method. In other words, the following are equivalent:
 
 ```js
 transform.prototype._transform = function(data, encoding, callback) {
