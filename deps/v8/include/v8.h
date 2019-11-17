@@ -1275,8 +1275,9 @@ class V8_EXPORT SealHandleScope {
 
 // --- Special objects ---
 
+
 /**
- * The superclass of objects that can reside on V8's heap.
+ * The superclass of values and API object templates.
  */
 class V8_EXPORT Data {
  private:
@@ -1423,7 +1424,7 @@ class V8_EXPORT UnboundScript {
 /**
  * A compiled JavaScript module, not yet tied to a Context.
  */
-class V8_EXPORT UnboundModuleScript : public Data {
+class V8_EXPORT UnboundModuleScript {
   // Only used as a container for code caching.
 };
 
@@ -1446,7 +1447,7 @@ class V8_EXPORT Location {
 /**
  * A compiled JavaScript module.
  */
-class V8_EXPORT Module : public Data {
+class V8_EXPORT Module {
  public:
   /**
    * The different states a module can be in.
@@ -4644,36 +4645,46 @@ class V8_EXPORT CompiledWasmModule {
 // An instance of WebAssembly.Module.
 class V8_EXPORT WasmModuleObject : public Object {
  public:
-  WasmModuleObject() = delete;
-
   /**
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
+   * TODO(wasm): Merge this with CompiledWasmModule once code sharing is always
+   * enabled.
    */
-  using TransferrableModule = CompiledWasmModule;
+  class TransferrableModule final {
+   public:
+    TransferrableModule(TransferrableModule&& src) = default;
+    TransferrableModule(const TransferrableModule& src) = delete;
+
+    TransferrableModule& operator=(TransferrableModule&& src) = default;
+    TransferrableModule& operator=(const TransferrableModule& src) = delete;
+
+   private:
+    typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
+    friend class WasmModuleObject;
+    explicit TransferrableModule(SharedModule shared_module)
+        : shared_module_(std::move(shared_module)) {}
+    TransferrableModule(OwnedBuffer serialized, OwnedBuffer bytes)
+        : serialized_(std::move(serialized)), wire_bytes_(std::move(bytes)) {}
+
+    SharedModule shared_module_;
+    OwnedBuffer serialized_ = {nullptr, 0};
+    OwnedBuffer wire_bytes_ = {nullptr, 0};
+  };
 
   /**
    * Get an in-memory, non-persistable, and context-independent (meaning,
    * suitable for transfer to another Isolate and Context) representation
    * of this wasm compiled module.
    */
-  V8_DEPRECATED("Use GetCompiledModule")
   TransferrableModule GetTransferrableModule();
 
   /**
    * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a TransferrableModule.
    */
-  V8_DEPRECATED("Use FromCompiledModule")
   static MaybeLocal<WasmModuleObject> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
-
-  /**
-   * Efficiently re-create a WasmModuleObject, without recompiling, from
-   * a CompiledWasmModule.
-   */
-  static MaybeLocal<WasmModuleObject> FromCompiledModule(
-      Isolate* isolate, const CompiledWasmModule&);
 
   /**
    * Get the compiled module for this module object. The compiled module can be
@@ -4697,7 +4708,11 @@ class V8_EXPORT WasmModuleObject : public Object {
   static MaybeLocal<WasmModuleObject> Compile(Isolate* isolate,
                                               const uint8_t* start,
                                               size_t length);
+  static MemorySpan<const uint8_t> AsReference(const OwnedBuffer& buff) {
+    return {buff.buffer.get(), buff.size};
+  }
 
+  WasmModuleObject();
   static void CheckCast(Value* obj);
 };
 
@@ -5053,6 +5068,12 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   bool IsDetachable() const;
 
+  // TODO(913887): fix the use of 'neuter' in the API.
+  V8_DEPRECATED("Use IsDetachable() instead.")
+  inline bool IsNeuterable() const {
+    return IsDetachable();
+  }
+
   /**
    * Detaches this ArrayBuffer and all its views (typed arrays).
    * Detaching sets the byte length of the buffer and all typed arrays to zero,
@@ -5060,6 +5081,10 @@ class V8_EXPORT ArrayBuffer : public Object {
    * ArrayBuffer should have been externalized and must be detachable.
    */
   void Detach();
+
+  // TODO(913887): fix the use of 'neuter' in the API.
+  V8_DEPRECATED("Use Detach() instead.")
+  inline void Neuter() { Detach(); }
 
   /**
    * Make this ArrayBuffer external. The pointer to underlying memory block
@@ -7670,9 +7695,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  V8_DEPRECATE_SOON("Use version taking TracedReferenceBase<v8::Data> argument")
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Value>& ref);
-  void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
 
   /**
    * Called at the beginning of a GC cycle.
@@ -7849,7 +7872,6 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          array_buffer_allocator_shared(),
           external_references(nullptr),
           allow_atomics_wait(true),
           only_terminate_in_safe_scope(false) {}
@@ -7896,7 +7918,6 @@ class V8_EXPORT Isolate {
      * management for the allocator instance.
      */
     ArrayBuffer::Allocator* array_buffer_allocator;
-    std::shared_ptr<ArrayBuffer::Allocator> array_buffer_allocator_shared;
 
     /**
      * Specifies an optional nullptr-terminated array of raw addresses in the
@@ -7917,6 +7938,9 @@ class V8_EXPORT Isolate {
      */
     bool only_terminate_in_safe_scope;
   };
+
+  void SetArrayBufferAllocatorShared(
+      std::shared_ptr<ArrayBuffer::Allocator> allocator);
 
 
   /**
@@ -9192,6 +9216,8 @@ class V8_EXPORT V8 {
    */
   static void SetFlagsFromString(const char* str);
   static void SetFlagsFromString(const char* str, size_t length);
+  V8_DEPRECATED("use size_t version")
+  static void SetFlagsFromString(const char* str, int length);
 
   /**
    * Sets V8 flags from the command line.
