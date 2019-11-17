@@ -2521,3 +2521,53 @@ assert.strictEqual(
       throw err;
   }
 }
+
+{
+  // Filtering
+
+  const filterByValue = { filter(val) { return val !== 'test'; } };
+  assert.strictEqual(util.inspect('test', filterByValue), '[Filtered]');
+  assert.strictEqual(
+    util.inspect({ a: 'test' }, filterByValue),
+    '{ a: [Filtered] }'
+  );
+
+  const filterByKey = { filter(_, key) { return key !== 'a'; } };
+  assert.strictEqual(
+    util.inspect({ a: 'test' }, filterByKey),
+    '{ a: [Filtered] }'
+  );
+
+  const filterPrivateProps = {
+    filter(_, key) {
+      return !(key && (typeof key === 'symbol' || key.startsWith('_')));
+    }
+  };
+
+  assert.strictEqual(util.inspect({
+    _myPrivateVar: 1,
+    myPublicVar: 3,
+    [Symbol('myPrivateVar2')]: 2,
+    myPublicMap: new Map([['_privateNestedVar', 32]]),
+  }, filterPrivateProps), '{\n' +
+  '  _myPrivateVar: [Filtered],\n' +
+  '  myPublicVar: 3,\n' +
+  "  myPublicMap: Map { '_privateNestedVar' => [Filtered] },\n" +
+  '  [Symbol(myPrivateVar2)]: [Filtered]\n' +
+  '}');
+
+  const filterArrayIndex = {
+    filter(_, key) { return key !== 0; },
+  };
+
+  assert.strictEqual(
+    util.inspect(['test1', 'test2'], filterArrayIndex),
+    "[ [Filtered], 'test2' ]"
+  );
+
+  // color support
+  assert.strictEqual(
+    util.inspect('test', { ...filterByValue, colors: true }),
+    '\u001b[31m[Filtered]\u001b[39m'
+  );
+}

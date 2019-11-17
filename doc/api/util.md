@@ -398,6 +398,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30511
+    description: The `filter` option has been added.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
     description: Circular references now include a marker to the reference.
@@ -498,6 +501,11 @@ changes:
     set to `'set'`, only getters with a corresponding setter are inspected.
     This might cause side effects depending on the getter function.
     **Default:** `false`.
+  * `filter` {Function} Will be invoked for each traversed value.
+    If the function returns `false` the value will be redacted.
+    The first value passed to the function is the current value being inspected,
+    the second will be the `key` for this value.
+    `key` will be `undefined` when traversing the root or [`Map`][] / [`WeakMap`][] keys.
 * Returns: {string} The representation of `object`.
 
 The `util.inspect()` method returns a string representation of `object` that is
@@ -647,6 +655,20 @@ assert.strict.equal(
   inspect(o1, { sorted: true }),
   inspect(o2, { sorted: true })
 );
+```
+
+The `filter` option allows redacting output based on key and value.
+```js
+const { inspect } = require('util');
+console.log(inspect({
+  _unwantedProp: 1,
+  unwantedValue: 42
+}, {
+  filter(key, value) {
+    return key !== '_unwantedProp' || value !== 42;
+  }
+}));
+// { _unwantedProp: [Filtered], unwantedValue: [Filtered] }
 ```
 
 `util.inspect()` is a synchronous method intended for debugging. Its maximum
