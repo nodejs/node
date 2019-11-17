@@ -931,6 +931,21 @@ void AsyncHooks::grow_async_ids_stack() {
 uv_key_t Environment::thread_local_env = {};
 
 void Environment::Exit(int exit_code) {
+  if (options()->trace_exit) {
+    HandleScope handle_scope(isolate());
+
+    if (is_main_thread()) {
+      fprintf(stderr, "(node:%d) ", uv_os_getpid());
+    } else {
+      fprintf(stderr, "(node:%d, thread:%llu) ", uv_os_getpid(), thread_id());
+    }
+
+    fprintf(
+        stderr, "WARNING: Exited the environment with code %d\n", exit_code);
+    PrintStackTrace(
+        isolate(),
+        StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed));
+  }
   if (is_main_thread()) {
     stop_sub_worker_contexts();
     DisposePlatform();
