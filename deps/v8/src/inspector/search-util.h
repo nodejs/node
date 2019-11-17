@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_SEARCH_UTIL_H_
 #define V8_INSPECTOR_SEARCH_UTIL_H_
 
+#include <memory>
+
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/string-util.h"
 

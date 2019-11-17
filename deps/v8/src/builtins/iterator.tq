@@ -37,22 +37,45 @@ namespace iterator {
   extern macro IteratorBuiltinsAssembler::IterableToList(
       implicit context: Context)(JSAny, JSAny): JSArray;
 
+  extern macro IteratorBuiltinsAssembler::StringListFromIterable(
+      implicit context: Context)(JSAny): JSArray;
+
   extern builtin IterableToListMayPreserveHoles(implicit context:
                                                     Context)(JSAny, JSAny);
   extern builtin IterableToListWithSymbolLookup(implicit context:
                                                     Context)(JSAny);
 
   transitioning builtin GetIteratorWithFeedback(
-      context: Context, receiver: JSAny, feedbackSlot: Smi,
+      context: Context, receiver: JSAny, loadSlot: Smi, callSlot: Smi,
       feedback: Undefined | FeedbackVector): JSAny {
+    let iteratorMethod: JSAny;
     typeswitch (feedback) {
       case (Undefined): {
-        return GetProperty(receiver, IteratorSymbolConstant());
+        iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
       }
       case (feedback: FeedbackVector): {
-        return LoadIC(
-            context, receiver, IteratorSymbolConstant(), feedbackSlot,
-            feedback);
+        iteratorMethod = LoadIC(
+            context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
+      }
+    }
+    return CallIteratorWithFeedback(
+        context, receiver, iteratorMethod, callSlot, feedback);
+  }
+
+  transitioning builtin CallIteratorWithFeedback(
+      context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
+      feedback: Undefined | FeedbackVector): JSAny {
+    const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
+    CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
+    const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
+        otherwise ThrowCalledNonCallable(iteratorMethod);
+    const iterator: JSAny = Call(context, iteratorCallable, receiver);
+    typeswitch (iterator) {
+      case (JSReceiver): {
+        return iterator;
+      }
+      case (JSPrimitive): {
+        ThrowSymbolIteratorInvalid();
       }
     }
   }

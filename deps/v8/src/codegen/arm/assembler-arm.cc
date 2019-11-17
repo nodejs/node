@@ -40,6 +40,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -452,8 +453,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   AllocationType::kOld);
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
         break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
@@ -4802,15 +4803,17 @@ void Assembler::GrowBuffer() {
   int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
   size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
   MemMove(new_start, buffer_start_, pc_offset());
-  MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          reloc_size);
+  byte* new_reloc_start = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.pos()) + rc_delta);
+  MemMove(new_reloc_start, reloc_info_writer.pos(), reloc_size);
 
   // Switch buffers.
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
-  pc_ += pc_delta;
-  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
-                               reloc_info_writer.last_pc() + pc_delta);
+  pc_ = reinterpret_cast<byte*>(reinterpret_cast<Address>(pc_) + pc_delta);
+  byte* new_last_pc = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
+  reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
@@ -4831,7 +4834,7 @@ void Assembler::dd(uint32_t data) {
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
@@ -4840,7 +4843,7 @@ void Assembler::dq(uint64_t value) {
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint64_t*>(pc_) = value;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
 

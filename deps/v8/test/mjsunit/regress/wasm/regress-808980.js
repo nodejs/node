@@ -10,7 +10,7 @@ let kTableSize = 3;
 var builder = new WasmModuleBuilder();
 var sig_index1 = builder.addType(kSig_i_v);
 builder.addFunction('main', kSig_i_ii).addBody([
-    kExprGetLocal,
+    kExprLocalGet,
     0,
     kExprCallIndirect,
     sig_index1,

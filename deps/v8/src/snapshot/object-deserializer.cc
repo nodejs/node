@@ -60,7 +60,9 @@ void ObjectDeserializer::FlushICache() {
   DCHECK(deserializing_user_code());
   for (Code code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
+#ifndef V8_DISABLE_WRITE_BARRIERS
     WriteBarrierForCode(code);
+#endif
     FlushInstructionCache(code.raw_instruction_start(),
                           code.raw_instruction_size());
   }

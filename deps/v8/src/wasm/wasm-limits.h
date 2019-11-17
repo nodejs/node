@@ -36,6 +36,7 @@ constexpr size_t kV8MaxWasmFunctionLocals = 50000;
 constexpr size_t kV8MaxWasmFunctionParams = 1000;
 constexpr size_t kV8MaxWasmFunctionMultiReturns = 1000;
 constexpr size_t kV8MaxWasmFunctionReturns = 1;
+constexpr size_t kV8MaxWasmFunctionBrTableSize = 65520;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10000000;
 constexpr size_t kV8MaxWasmTableInitEntries = 10000000;

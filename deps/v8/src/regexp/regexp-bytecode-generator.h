@@ -100,6 +100,12 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   int advance_current_offset_;
   int advance_current_end_;
 
+  // Stores jump edges emitted for the bytecode (used by
+  // RegExpBytecodePeepholeOptimization).
+  // Key: jump source (offset in buffer_ where jump destination is stored).
+  // Value: jump destination (offset in buffer_ to jump to).
+  ZoneUnorderedMap<int, int> jump_edges_;
+
   Isolate* isolate_;
 
   static const int kInvalidPC = -1;

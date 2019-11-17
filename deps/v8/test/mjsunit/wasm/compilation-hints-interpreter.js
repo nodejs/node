@@ -19,7 +19,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder1.addImport("otherModule", "getX", kSig_i_v);
   builder1.addFunction("plusX", kSig_i_i)
           .addBody([kExprCallFunction, 0,
-                    kExprGetLocal, 0,
+                    kExprLocalGet, 0,
                     kExprI32Add])
           .setCompilationHint(kCompilationHintStrategyLazy,
                               kCompilationHintTierInterpreter,
@@ -44,7 +44,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder1.addImport("otherModule", "getX", kSig_i_v);
   builder1.addFunction("plusX", kSig_i_i)
           .addBody([kExprCallFunction, 0,
-                    kExprGetLocal, 0,
+                    kExprLocalGet, 0,
                     kExprI32Add])
           .setCompilationHint(kCompilationHintStrategyLazy,
                               kCompilationHintTierInterpreter,
@@ -64,8 +64,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   let sig_i_ii = builder.addType(kSig_i_ii);
   let add = builder.addFunction('add', sig_i_ii)
-                   .addBody([kExprGetLocal, 0,
-                             kExprGetLocal, 1,
+                   .addBody([kExprLocalGet, 0,
+                             kExprLocalGet, 1,
                              kExprI32Add])
                    .setCompilationHint(kCompilationHintStrategyLazy,
                                        kCompilationHintTierInterpreter,
@@ -73,9 +73,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder.appendToTable([add.index]);
   builder.addFunction('main', kSig_i_iii)
          .addBody([// Call indirect #0 with args <#1, #2>.
-                   kExprGetLocal, 1,
-                   kExprGetLocal, 2,
-                   kExprGetLocal, 0,
+                   kExprLocalGet, 1,
+                   kExprLocalGet, 2,
+                   kExprLocalGet, 0,
                    kExprCallIndirect, sig_i_ii, kTableZero])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierInterpreter,
@@ -89,8 +89,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   let sig_i_ii = builder.addType(kSig_i_ii);
   let add = builder.addFunction('add', sig_i_ii)
-                   .addBody([kExprGetLocal, 0,
-                             kExprGetLocal, 1,
+                   .addBody([kExprLocalGet, 0,
+                             kExprLocalGet, 1,
                              kExprI64Add])
                    .setCompilationHint(kCompilationHintStrategyLazy,
                                        kCompilationHintTierInterpreter,
@@ -98,9 +98,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder.appendToTable([add.index]);
   builder.addFunction('main', kSig_i_iii)
          .addBody([// Call indirect #0 with args <#1, #2>.
-                   kExprGetLocal, 1,
-                   kExprGetLocal, 2,
-                   kExprGetLocal, 0,
+                   kExprLocalGet, 1,
+                   kExprLocalGet, 2,
+                   kExprLocalGet, 0,
                    kExprCallIndirect, sig_i_ii, kTableZero])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierInterpreter,

@@ -61,6 +61,7 @@ class Code : public HeapObject {
 #ifdef ENABLE_DISASSEMBLER
   const char* GetName(Isolate* isolate) const;
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
+                                     Isolate* isolate,
                                      Address current_pc = kNullAddress);
 #endif
 

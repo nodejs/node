@@ -111,8 +111,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
           copy->map(isolate).instance_descriptors(isolate), isolate);
-      int limit = copy->map(isolate).NumberOfOwnDescriptors();
-      for (int i = 0; i < limit; i++) {
+      for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(kField, details.location());
         DCHECK_EQ(kData, details.kind());
@@ -595,10 +594,11 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
@@ -632,10 +632,11 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ArrayLiteralHelper>(
@@ -649,11 +650,12 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
   if (vector.is_null()) {
     Handle<JSRegExp> new_regexp;
@@ -663,20 +665,21 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     return *new_regexp;
   }
 
-  // Check if boilerplate exists. If not, create it first.
-  Handle<JSRegExp> boilerplate;
+  // This function assumes that the boilerplate does not yet exist.
+  FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
-  if (!HasBoilerplate(literal_site)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, boilerplate,
-        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
-    if (IsUninitializedLiteralSite(*literal_site)) {
-      PreInitializeLiteralSite(vector, literal_slot);
-      return *boilerplate;
-    }
-    vector->Set(literal_slot, *boilerplate);
+  CHECK(!HasBoilerplate(literal_site));
+
+  Handle<JSRegExp> boilerplate;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, boilerplate,
+      JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
+  if (IsUninitializedLiteralSite(*literal_site)) {
+    PreInitializeLiteralSite(vector, literal_slot);
+    return *boilerplate;
   }
+  vector->Set(literal_slot, *boilerplate);
   return *JSRegExp::Copy(boilerplate);
 }
 

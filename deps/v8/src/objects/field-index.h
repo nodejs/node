@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_H_
 #define V8_OBJECTS_FIELD_INDEX_H_
 
+// TODO(jkummerow): Consider forward-declaring instead.
+#include "src/objects/internal-index.h"
 #include "src/objects/property-details.h"
 #include "src/utils/utils.h"
 
@@ -27,9 +29,10 @@ class FieldIndex final {
       Map map, int index,
       Representation representation = Representation::Tagged());
   static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
-  static inline FieldIndex ForDescriptor(Map map, int descriptor_index);
+  static inline FieldIndex ForDescriptor(Map map,
+                                         InternalIndex descriptor_index);
   static inline FieldIndex ForDescriptor(Isolate* isolate, Map map,
-                                         int descriptor_index);
+                                         InternalIndex descriptor_index);
 
   inline int GetLoadByFieldIndex() const;
 

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ELEMENTS_H_
 
 #include "src/objects/elements-kind.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/keys.h"
 #include "src/objects/objects.h"
 
@@ -50,11 +51,9 @@ class ElementsAccessor {
 
   // Note: this is currently not implemented for string wrapper and
   // typed array elements.
-  virtual bool HasEntry(JSObject holder, uint32_t entry) = 0;
+  virtual bool HasEntry(JSObject holder, InternalIndex entry) = 0;
 
-  // TODO(cbruni): HasEntry and Get should not be exposed publicly with the
-  // entry parameter.
-  virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
+  virtual Handle<Object> Get(Handle<JSObject> holder, InternalIndex entry) = 0;
 
   virtual bool HasAccessors(JSObject holder) = 0;
   virtual uint32_t NumberOfElements(JSObject holder) = 0;
@@ -105,7 +104,8 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  virtual void Set(Handle<JSObject> holder, uint32_t entry, Object value) = 0;
+  virtual void Set(Handle<JSObject> holder, InternalIndex entry,
+                   Object value) = 0;
 
   virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
@@ -178,18 +178,18 @@ class ElementsAccessor {
   // indices are equivalent to entries. In the NumberDictionary
   // ElementsAccessor, entries are mapped to an index using the KeyAt method on
   // the NumberDictionary.
-  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject holder,
-                                    FixedArrayBase backing_store,
-                                    uint32_t index) = 0;
+  virtual InternalIndex GetEntryForIndex(Isolate* isolate, JSObject holder,
+                                         FixedArrayBase backing_store,
+                                         uint32_t index) = 0;
 
-  virtual PropertyDetails GetDetails(JSObject holder, uint32_t entry) = 0;
+  virtual PropertyDetails GetDetails(JSObject holder, InternalIndex entry) = 0;
   virtual void Reconfigure(Handle<JSObject> object,
-                           Handle<FixedArrayBase> backing_store, uint32_t entry,
-                           Handle<Object> value,
+                           Handle<FixedArrayBase> backing_store,
+                           InternalIndex entry, Handle<Object> value,
                            PropertyAttributes attributes) = 0;
 
   // Deletes an element in an object.
-  virtual void Delete(Handle<JSObject> holder, uint32_t entry) = 0;
+  virtual void Delete(Handle<JSObject> holder, InternalIndex entry) = 0;
 
   // NOTE: this method violates the handlified function signature convention:
   // raw pointer parameter |source_holder| in the function that allocates.

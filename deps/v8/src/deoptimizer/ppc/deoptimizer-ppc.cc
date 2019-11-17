@@ -113,6 +113,17 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ stfd(d0, MemOperand(r4, dst_offset));
   }
 
+  // Mark the stack as not iterable for the CPU profiler which won't be able to
+  // walk the stack without the return address.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.Acquire();
+    Register zero = r7;
+    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ li(zero, Operand(0));
+    __ stb(zero, MemOperand(is_iterable));
+  }
+
   // Remove the saved registers from the stack.
   __ addi(sp, sp, Operand(kSavedRegistersAreaSize));
 
@@ -210,12 +221,22 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   {
     UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.Acquire();
+    Register one = r7;
+    __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ li(one, Operand(1));
+    __ stb(one, MemOperand(is_iterable));
+  }
+
+  {
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ pop(scratch);  // get continuation, leave pc on stack
     __ pop(r0);
     __ mtlr(r0);
     __ Jump(scratch);
   }
+
   __ stop();
 }
 

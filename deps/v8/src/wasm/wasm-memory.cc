@@ -566,7 +566,7 @@ MaybeHandle<JSArrayBuffer> AllocateAndSetupArrayBuffer(Isolate* isolate,
 
   WasmMemoryTracker* memory_tracker = isolate->wasm_engine()->memory_tracker();
 
-  // Set by TryAllocateBackingStore or GetEmptyBackingStore
+  // Set by TryAllocateBackingStore.
   void* allocation_base = nullptr;
   size_t allocation_length = 0;
 

@@ -6,6 +6,7 @@
 #define V8_HEAP_SLOT_SET_H_
 
 #include <map>
+#include <memory>
 #include <stack>
 
 #include "src/base/atomic-utils.h"
@@ -21,19 +22,15 @@ namespace internal {
 enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 
 // Data structure for maintaining a set of slots in a standard (non-large)
-// page. The base address of the page must be set with SetPageStart before any
-// operation.
+// page.
 // The data structure assumes that the slots are pointer size aligned and
 // splits the valid slot offset range into kBuckets buckets.
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
 class SlotSet : public Malloced {
  public:
   enum EmptyBucketMode {
-    FREE_EMPTY_BUCKETS,     // An empty bucket will be deallocated immediately.
-    PREFREE_EMPTY_BUCKETS,  // An empty bucket will be unlinked from the slot
-                            // set, but deallocated on demand by a sweeper
-                            // thread.
-    KEEP_EMPTY_BUCKETS      // An empty bucket will be kept.
+    FREE_EMPTY_BUCKETS,  // An empty bucket will be deallocated immediately.
+    KEEP_EMPTY_BUCKETS   // An empty bucket will be kept.
   };
 
   SlotSet() {
@@ -46,15 +43,12 @@ class SlotSet : public Malloced {
     for (int i = 0; i < kBuckets; i++) {
       ReleaseBucket(i);
     }
-    FreeToBeFreedBuckets();
   }
-
-  void SetPageStart(Address page_start) { page_start_ = page_start; }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // AccessMode defines whether there can be concurrent access on the buckets
   // or not.
-  template <AccessMode access_mode = AccessMode::ATOMIC>
+  template <AccessMode access_mode>
   void Insert(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
@@ -138,9 +132,7 @@ class SlotSet : public Malloced {
     DCHECK(current_bucket == end_bucket ||
            (current_bucket < end_bucket && current_cell == 0));
     while (current_bucket < end_bucket) {
-      if (mode == PREFREE_EMPTY_BUCKETS) {
-        PreFreeEmptyBucket(current_bucket);
-      } else if (mode == FREE_EMPTY_BUCKETS) {
+      if (mode == FREE_EMPTY_BUCKETS) {
         ReleaseBucket(current_bucket);
       } else {
         DCHECK(mode == KEEP_EMPTY_BUCKETS);
@@ -152,11 +144,11 @@ class SlotSet : public Malloced {
       current_bucket++;
     }
     // All buckets between start_bucket and end_bucket are cleared.
+    DCHECK(current_bucket == end_bucket);
+    if (current_bucket == kBuckets) return;
     bucket = LoadBucket(&buckets_[current_bucket]);
-    DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
-    if (current_bucket == kBuckets || bucket == nullptr) {
-      return;
-    }
+    DCHECK(current_cell <= end_cell);
+    if (bucket == nullptr) return;
     while (current_cell < end_cell) {
       StoreCell(&bucket[current_cell], 0);
       current_cell++;
@@ -189,7 +181,7 @@ class SlotSet : public Malloced {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  int Iterate(Callback callback, EmptyBucketMode mode) {
+  int Iterate(Address page_start, Callback callback, EmptyBucketMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       Bucket bucket = LoadBucket(&buckets_[bucket_index]);
@@ -205,7 +197,7 @@ class SlotSet : public Malloced {
               int bit_offset = base::bits::CountTrailingZeros(cell);
               uint32_t bit_mask = 1u << bit_offset;
               uint32_t slot = (cell_offset + bit_offset) << kTaggedSizeLog2;
-              if (callback(MaybeObjectSlot(page_start_ + slot)) == KEEP_SLOT) {
+              if (callback(MaybeObjectSlot(page_start + slot)) == KEEP_SLOT) {
                 ++in_bucket_count;
               } else {
                 mask |= bit_mask;
@@ -218,29 +210,10 @@ class SlotSet : public Malloced {
             }
           }
         }
-        if (mode == PREFREE_EMPTY_BUCKETS && in_bucket_count == 0) {
-          PreFreeEmptyBucket(bucket_index);
-        }
         new_count += in_bucket_count;
       }
     }
     return new_count;
-  }
-
-  int NumberOfPreFreedEmptyBuckets() {
-    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-    return static_cast<int>(to_be_freed_buckets_.size());
-  }
-
-  void PreFreeEmptyBuckets() {
-    for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
-      Bucket bucket = LoadBucket(&buckets_[bucket_index]);
-      if (bucket != nullptr) {
-        if (IsEmptyBucket(bucket)) {
-          PreFreeEmptyBucket(bucket_index);
-        }
-      }
-    }
   }
 
   void FreeEmptyBuckets() {
@@ -254,27 +227,22 @@ class SlotSet : public Malloced {
     }
   }
 
-  void FreeToBeFreedBuckets() {
-    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-    while (!to_be_freed_buckets_.empty()) {
-      Bucket top = to_be_freed_buckets_.top();
-      to_be_freed_buckets_.pop();
-      DeleteArray<uint32_t>(top);
-    }
-    DCHECK_EQ(0u, to_be_freed_buckets_.size());
-  }
-
- private:
-  using Bucket = uint32_t*;
   static const int kMaxSlots = (1 << kPageSizeBits) / kTaggedSize;
   static const int kCellsPerBucket = 32;
   static const int kCellsPerBucketLog2 = 5;
+  static const int kCellSizeBytesLog2 = 2;
+  static const int kCellSizeBytes = 1 << kCellSizeBytesLog2;
   static const int kBitsPerCell = 32;
   static const int kBitsPerCellLog2 = 5;
   static const int kBitsPerBucket = kCellsPerBucket * kBitsPerCell;
   static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
   static const int kBuckets = kMaxSlots / kCellsPerBucket / kBitsPerCell;
 
+  static const int kSize = kBuckets * kSystemPointerSize;
+
+  using Bucket = uint32_t*;
+
+ private:
   Bucket AllocateBucket() {
     Bucket result = NewArray<uint32_t>(kCellsPerBucket);
     for (int i = 0; i < kCellsPerBucket; i++) {
@@ -290,15 +258,6 @@ class SlotSet : public Malloced {
     while (current_cell < kCellsPerBucket) {
       StoreCell(&bucket[current_cell], 0);
       current_cell++;
-    }
-  }
-
-  void PreFreeEmptyBucket(int bucket_index) {
-    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
-    if (bucket != nullptr) {
-      base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-      to_be_freed_buckets_.push(bucket);
-      StoreBucket(&buckets_[bucket_index], nullptr);
     }
   }
 
@@ -381,10 +340,10 @@ class SlotSet : public Malloced {
   }
 
   Bucket buckets_[kBuckets];
-  Address page_start_;
-  base::Mutex to_be_freed_buckets_mutex_;
-  std::stack<uint32_t*> to_be_freed_buckets_;
 };
+
+STATIC_ASSERT(std::is_standard_layout<SlotSet>::value);
+STATIC_ASSERT(sizeof(SlotSet) == SlotSet::kSize);
 
 enum SlotType {
   FULL_EMBEDDED_OBJECT_SLOT,
@@ -396,9 +355,9 @@ enum SlotType {
 };
 
 // Data structure for maintaining a list of typed slots in a page.
-// Typed slots can only appear in Code and JSFunction objects, so
+// Typed slots can only appear in Code objects, so
 // the maximum possible offset is limited by the LargePage::kMaxCodePageSize.
-// The implementation is a chain of chunks, where each chunks is an array of
+// The implementation is a chain of chunks, where each chunk is an array of
 // encoded (slot type, slot offset) pairs.
 // There is no duplicate detection and we do not expect many duplicates because
 // typed slots contain V8 internal pointers that are not directly exposed to JS.
@@ -418,17 +377,15 @@ class V8_EXPORT_PRIVATE TypedSlots {
   };
   struct Chunk {
     Chunk* next;
-    TypedSlot* buffer;
-    int32_t capacity;
-    int32_t count;
+    std::vector<TypedSlot> buffer;
   };
-  static const int kInitialBufferSize = 100;
-  static const int kMaxBufferSize = 16 * KB;
-  static int NextCapacity(int capacity) {
+  static const size_t kInitialBufferSize = 100;
+  static const size_t kMaxBufferSize = 16 * KB;
+  static size_t NextCapacity(size_t capacity) {
     return Min(kMaxBufferSize, capacity * 2);
   }
   Chunk* EnsureChunk();
-  Chunk* NewChunk(Chunk* next, int capacity);
+  Chunk* NewChunk(Chunk* next, size_t capacity);
   Chunk* head_ = nullptr;
   Chunk* tail_ = nullptr;
 };
@@ -437,14 +394,9 @@ class V8_EXPORT_PRIVATE TypedSlots {
 // clearing of invalid slots.
 class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
  public:
-  // The PREFREE_EMPTY_CHUNKS indicates that chunks detected as empty
-  // during the iteration are queued in to_be_freed_chunks_, which are
-  // then freed in FreeToBeFreedChunks.
-  enum IterationMode { PREFREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
+  enum IterationMode { FREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
 
   explicit TypedSlotSet(Address page_start) : page_start_(page_start) {}
-
-  ~TypedSlotSet() override;
 
   // Iterate over all slots in the set and for each slot invoke the callback.
   // If the callback returns REMOVE_SLOT then the slot is removed from the set.
@@ -463,11 +415,8 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
     Chunk* previous = nullptr;
     int new_count = 0;
     while (chunk != nullptr) {
-      TypedSlot* buffer = chunk->buffer;
-      int count = chunk->count;
       bool empty = true;
-      for (int i = 0; i < count; i++) {
-        TypedSlot slot = LoadTypedSlot(buffer + i);
+      for (TypedSlot& slot : chunk->buffer) {
         SlotType type = TypeField::decode(slot.type_and_offset);
         if (type != CLEARED_SLOT) {
           uint32_t offset = OffsetField::decode(slot.type_and_offset);
@@ -476,12 +425,12 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
             new_count++;
             empty = false;
           } else {
-            ClearTypedSlot(buffer + i);
+            slot = ClearedTypedSlot();
           }
         }
       }
       Chunk* next = chunk->next;
-      if (mode == PREFREE_EMPTY_CHUNKS && empty) {
+      if (mode == FREE_EMPTY_CHUNKS && empty) {
         // We remove the chunk from the list but let it still point its next
         // chunk to allow concurrent iteration.
         if (previous) {
@@ -489,8 +438,8 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
         } else {
           StoreHead(next);
         }
-        base::MutexGuard guard(&to_be_freed_chunks_mutex_);
-        to_be_freed_chunks_.push(std::unique_ptr<Chunk>(chunk));
+
+        delete chunk;
       } else {
         previous = chunk;
       }
@@ -518,19 +467,11 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
   void StoreHead(Chunk* chunk) {
     base::AsAtomicPointer::Relaxed_Store(&head_, chunk);
   }
-  TypedSlot LoadTypedSlot(TypedSlot* slot) {
-    return TypedSlot{base::AsAtomic32::Relaxed_Load(&slot->type_and_offset)};
-  }
-  void ClearTypedSlot(TypedSlot* slot) {
-    // Order is important here and should match that of LoadTypedSlot.
-    base::AsAtomic32::Relaxed_Store(
-        &slot->type_and_offset,
-        TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0));
+  static TypedSlot ClearedTypedSlot() {
+    return TypedSlot{TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0)};
   }
 
   Address page_start_;
-  base::Mutex to_be_freed_chunks_mutex_;
-  std::stack<std::unique_ptr<Chunk>> to_be_freed_chunks_;
 };
 
 }  // namespace internal

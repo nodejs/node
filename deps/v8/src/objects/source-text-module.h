@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
 #include "src/objects/module.h"
+#include "src/objects/promise.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,6 +29,10 @@ class SourceTextModule
   // kErrored.
   SharedFunctionInfo GetSharedFunctionInfo() const;
 
+  // Whether or not this module is an async module. Set during module creation
+  // and does not change afterwards.
+  DECL_BOOLEAN_ACCESSORS(async)
+
   // Get the SourceTextModuleInfo associated with the code.
   inline SourceTextModuleInfo info() const;
 
@@ -40,6 +45,14 @@ class SourceTextModule
 
   static int ImportIndex(int cell_index);
   static int ExportIndex(int cell_index);
+
+  // Used by builtins to fulfill or reject the promise associated
+  // with async SourceTextModules.
+  static void AsyncModuleExecutionFulfilled(Isolate* isolate,
+                                            Handle<SourceTextModule> module);
+  static void AsyncModuleExecutionRejected(Isolate* isolate,
+                                           Handle<SourceTextModule> module,
+                                           Handle<Object> exception);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
@@ -54,12 +67,54 @@ class SourceTextModule
   friend class Factory;
   friend class Module;
 
+  // Appends a tuple of module and generator to the async parent modules
+  // ArrayList.
+  inline void AddAsyncParentModule(Isolate* isolate,
+                                   Handle<SourceTextModule> module);
+
+  // Returns a SourceTextModule, the
+  // ith parent in depth first traversal order of a given async child.
+  inline Handle<SourceTextModule> GetAsyncParentModule(Isolate* isolate,
+                                                       int index);
+
+  // Returns the number of async parent modules for a given async child.
+  inline int AsyncParentModuleCount();
+
+  inline bool HasPendingAsyncDependencies();
+  inline void IncrementPendingAsyncDependencies();
+  inline void DecrementPendingAsyncDependencies();
+
   // TODO(neis): Don't store those in the module object?
   DECL_INT_ACCESSORS(dfs_index)
   DECL_INT_ACCESSORS(dfs_ancestor_index)
 
-  // Helpers for Instantiate and Evaluate.
+  // Storage for boolean flags.
+  DECL_INT_ACCESSORS(flags)
 
+  // Bits for flags.
+  static const int kAsyncBit = 0;
+  static const int kAsyncEvaluatingBit = 1;
+
+  // async_evaluating, top_level_capability, pending_async_dependencies, and
+  // async_parent_modules are used exclusively during evaluation of async
+  // modules and the modules which depend on them.
+  //
+  // Whether or not this module is async and evaluating or currently evaluating
+  // an async child.
+  DECL_BOOLEAN_ACCESSORS(async_evaluating)
+
+  // The top level promise capability of this module. Will only be defined
+  // for cycle roots.
+  DECL_ACCESSORS(top_level_capability, HeapObject)
+
+  // The number of currently evaluating async dependencies of this module.
+  DECL_INT_ACCESSORS(pending_async_dependencies)
+
+  // The parent modules of a given async dependency, use async_parent_modules()
+  // to retrieve the ArrayList representation.
+  DECL_ACCESSORS(async_parent_modules, ArrayList)
+
+  // Helpers for Instantiate and Evaluate.
   static void CreateExport(Isolate* isolate, Handle<SourceTextModule> module,
                            int cell_index, Handle<FixedArray> names);
   static void CreateIndirectExport(Isolate* isolate,
@@ -95,13 +150,40 @@ class SourceTextModule
                                Handle<SourceTextModule> module, Zone* zone,
                                UnorderedModuleSet* visited);
 
+  // Implementation of spec concrete method Evaluate.
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
+      Isolate* isolate, Handle<SourceTextModule> module);
+
+  // Continued implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
+      Isolate* isolate, Handle<SourceTextModule> module);
+
+  // Implementation of spec abstract operation InnerModuleEvaluation.
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerModuleEvaluation(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
 
   static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status);
+
+  // Implementation of spec GetAsyncCycleRoot.
+  static V8_WARN_UNUSED_RESULT Handle<SourceTextModule> GetAsyncCycleRoot(
+      Isolate* isolate, Handle<SourceTextModule> module);
+
+  // Implementation of spec ExecuteModule is broken up into
+  // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule
+  // for synchronous modules.
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerExecuteAsyncModule(
+      Isolate* isolate, Handle<SourceTextModule> module,
+      Handle<JSPromise> capability);
+
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
+      Isolate* isolate, Handle<SourceTextModule> module);
+
+  // Implementation of spec ExecuteAsyncModule.
+  static void ExecuteAsyncModule(Isolate* isolate,
+                                 Handle<SourceTextModule> module);
 
   static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
 
@@ -169,9 +251,10 @@ class SourceTextModuleInfoEntry
   DECL_INT_ACCESSORS(end_pos)
 
   static Handle<SourceTextModuleInfoEntry> New(
-      Isolate* isolate, Handle<HeapObject> export_name,
-      Handle<HeapObject> local_name, Handle<HeapObject> import_name,
-      int module_request, int cell_index, int beg_pos, int end_pos);
+      Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      Handle<PrimitiveHeapObject> local_name,
+      Handle<PrimitiveHeapObject> import_name, int module_request,
+      int cell_index, int beg_pos, int end_pos);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
 };

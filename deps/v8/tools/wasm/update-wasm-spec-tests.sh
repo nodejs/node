@@ -71,7 +71,7 @@ log_and_run cp -r ${TMP_DIR}/spec/test/js-api/* ${JS_API_TEST_DIR}/tests
 # Generate the proposal tests.
 ###############################################################################
 
-repos='bulk-memory-operations reference-types js-types'
+repos='bulk-memory-operations reference-types js-types JS-BigInt-integration'
 
 for repo in ${repos}; do
   echo "Process ${repo}"

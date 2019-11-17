@@ -216,15 +216,19 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   }
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
-  int length = map->NumberOfOwnDescriptors();
 
   bool stable = true;
 
-  for (int i = 0; i < length; i++) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    HandleScope inner_scope(isolate);
+
     Handle<Name> next_key(descriptors->GetKey(i), isolate);
     Handle<Object> prop_value;
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
+      DCHECK_EQ(from->map(), *map);
+      DCHECK_EQ(*descriptors, map->instance_descriptors());
+
       PropertyDetails details = descriptors->GetDetails(i);
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
@@ -232,7 +236,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           prop_value = handle(descriptors->GetStrongValue(i), isolate);
         } else {
           Representation representation = details.representation();
-          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+          FieldIndex index = FieldIndex::ForPropertyIndex(
+              *map, details.field_index(), representation);
           prop_value = JSObject::FastPropertyAt(from, representation, index);
         }
       } else {
@@ -240,6 +245,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
             isolate, prop_value,
             JSReceiver::GetProperty(isolate, from, next_key), Nothing<bool>());
         stable = from->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -260,7 +266,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           Object::SetProperty(&it, prop_value, StoreOrigin::kNamed,
                               Just(ShouldThrow::kThrowOnError));
       if (result.IsNothing()) return result;
-      if (stable) stable = from->map() == *map;
+      if (stable) {
+        stable = from->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
+      }
     } else {
       if (excluded_properties != nullptr &&
           HasExcludedProperty(excluded_properties, next_key)) {
@@ -1094,8 +1103,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
 
 Maybe<bool> DefinePropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Maybe<ShouldThrow> should_throw,
-    PropertyDescriptor& desc) {  // NOLINT(runtime/references)
+    Maybe<ShouldThrow> should_throw, PropertyDescriptor* desc) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -1116,23 +1124,23 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
-  if (PropertyDescriptor::IsAccessorDescriptor(&desc)) {
+  if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
     descriptor.reset(new v8::PropertyDescriptor(
-        v8::Utils::ToLocal(desc.get()), v8::Utils::ToLocal(desc.set())));
-  } else if (PropertyDescriptor::IsDataDescriptor(&desc)) {
-    if (desc.has_writable()) {
+        v8::Utils::ToLocal(desc->get()), v8::Utils::ToLocal(desc->set())));
+  } else if (PropertyDescriptor::IsDataDescriptor(desc)) {
+    if (desc->has_writable()) {
       descriptor.reset(new v8::PropertyDescriptor(
-          v8::Utils::ToLocal(desc.value()), desc.writable()));
+          v8::Utils::ToLocal(desc->value()), desc->writable()));
     } else {
       descriptor.reset(
-          new v8::PropertyDescriptor(v8::Utils::ToLocal(desc.value())));
+          new v8::PropertyDescriptor(v8::Utils::ToLocal(desc->value())));
     }
   }
-  if (desc.has_enumerable()) {
-    descriptor->set_enumerable(desc.enumerable());
+  if (desc->has_enumerable()) {
+    descriptor->set_enumerable(desc->enumerable());
   }
-  if (desc.has_configurable()) {
-    descriptor->set_configurable(desc.configurable());
+  if (desc->has_configurable()) {
+    descriptor->set_configurable(desc->configurable());
   }
 
   if (it->IsElement()) {
@@ -1166,7 +1174,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
     if (it->state() == LookupIterator::INTERCEPTOR) {
       if (it->HolderIsReceiverOrHiddenPrototype()) {
         Maybe<bool> result = DefinePropertyWithInterceptorInternal(
-            it, it->GetInterceptor(), should_throw, *desc);
+            it, it->GetInterceptor(), should_throw, desc);
         if (result.IsNothing() || result.FromJust()) {
           return result;
         }
@@ -1834,8 +1842,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
   Handle<JSObject> object(JSObject::cast(*receiver), isolate);
-
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   int number_of_own_elements =
       object->GetElementsAccessor()->GetCapacity(*object, object->elements());
@@ -1857,15 +1865,25 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
                  Nothing<bool>());
   }
 
-  bool stable = object->map() == *map;
+  // We may have already lost stability, if CollectValuesOrEntries had
+  // side-effects.
+  bool stable = *map == object->map();
+  if (stable) {
+    *descriptors.location() = map->instance_descriptors().ptr();
+  }
 
-  for (int index = 0; index < number_of_own_descriptors; index++) {
+  for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
+    HandleScope inner_scope(isolate);
+
     Handle<Name> next_key(descriptors->GetKey(index), isolate);
     if (!next_key->IsString()) continue;
     Handle<Object> prop_value;
 
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
+      DCHECK_EQ(object->map(), *map);
+      DCHECK_EQ(*descriptors, map->instance_descriptors());
+
       PropertyDetails details = descriptors->GetDetails(index);
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
@@ -1873,7 +1891,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
           prop_value = handle(descriptors->GetStrongValue(index), isolate);
         } else {
           Representation representation = details.representation();
-          FieldIndex field_index = FieldIndex::ForDescriptor(*map, index);
+          FieldIndex field_index = FieldIndex::ForPropertyIndex(
+              *map, details.field_index(), representation);
           prop_value =
               JSObject::FastPropertyAt(object, representation, field_index);
         }
@@ -1883,6 +1902,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
             JSReceiver::GetProperty(isolate, object, next_key),
             Nothing<bool>());
         stable = object->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -2121,15 +2141,15 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSWeakSet::kSize;
     case JS_PROMISE_TYPE:
       return JSPromise::kSize;
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       return JSRegExp::kSize;
-    case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_REG_EXP_STRING_ITERATOR_TYPE:
       return JSRegExpStringIterator::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
@@ -2138,38 +2158,38 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
       return JSV8BreakIterator::kSize;
-    case JS_INTL_COLLATOR_TYPE:
+    case JS_COLLATOR_TYPE:
       return JSCollator::kSize;
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
       return JSDateTimeFormat::kSize;
-    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
       return JSListFormat::kSize;
-    case JS_INTL_LOCALE_TYPE:
+    case JS_LOCALE_TYPE:
       return JSLocale::kSize;
-    case JS_INTL_NUMBER_FORMAT_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
       return JSNumberFormat::kSize;
-    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_PLURAL_RULES_TYPE:
       return JSPluralRules::kSize;
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
       return JSRelativeTimeFormat::kSize;
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
       return JSSegmentIterator::kSize;
-    case JS_INTL_SEGMENTER_TYPE:
+    case JS_SEGMENTER_TYPE:
       return JSSegmenter::kSize;
 #endif  // V8_INTL_SUPPORT
-    case WASM_GLOBAL_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
       return WasmGlobalObject::kSize;
-    case WASM_INSTANCE_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
       return WasmInstanceObject::kSize;
-    case WASM_MEMORY_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
       return WasmMemoryObject::kSize;
-    case WASM_MODULE_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
       return WasmModuleObject::kSize;
-    case WASM_TABLE_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       return WasmTableObject::kSize;
-    case WASM_EXCEPTION_TYPE:
+    case WASM_EXCEPTION_OBJECT_TYPE:
       return WasmExceptionObject::kSize;
     default:
       UNREACHABLE();
@@ -2377,7 +2397,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JSWeakSet>");
       break;
     }
-    case JS_REGEXP_TYPE: {
+    case JS_REG_EXP_TYPE: {
       accumulator->Add("<JSRegExp");
       JSRegExp regexp = JSRegExp::cast(*this);
       if (regexp.source().IsString()) {
@@ -2506,7 +2526,7 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
   PrintF(file, "[migrating]");
   DescriptorArray o = original_map.instance_descriptors();
   DescriptorArray n = new_map.instance_descriptors();
-  for (int i = 0; i < original_map.NumberOfOwnDescriptors(); i++) {
+  for (InternalIndex i : original_map.IterateOwnDescriptors()) {
     Representation o_r = o.GetDetails(i).representation();
     Representation n_r = n.GetDetails(i).representation();
     if (!o_r.Equals(n_r)) {
@@ -2703,7 +2723,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // number of properties.
   DCHECK(old_nof <= new_nof);
 
-  for (int i = 0; i < old_nof; i++) {
+  for (InternalIndex i : InternalIndex::Range(old_nof)) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     DCHECK_EQ(kData, details.kind());
@@ -2753,7 +2773,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
     }
   }
 
-  for (int i = old_nof; i < new_nof; i++) {
+  for (InternalIndex i : InternalIndex::Range(old_nof, new_nof)) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     DCHECK_EQ(kData, details.kind());
@@ -2776,9 +2796,10 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   Heap* heap = isolate->heap();
 
-  int old_instance_size = old_map->instance_size();
-
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+  // Invalidate slots manually later in case of tagged to untagged translation.
+  // In all other cases the recorded slot remains dereferenceable.
+  heap->NotifyObjectLayoutChange(*object, no_allocation,
+                                 InvalidateRecordedSlots::kNo);
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
@@ -2795,7 +2816,8 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
           index, HeapNumber::cast(value).value_as_bits());
       if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
         // Transition from tagged to untagged slot.
-        heap->ClearRecordedSlot(*object, object->RawField(index.offset()));
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
+        chunk->InvalidateRecordedSlots(*object);
       } else {
 #ifdef DEBUG
         heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
@@ -2809,6 +2831,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   object->SetProperties(*array);
 
   // Create filler object past the new instance size.
+  int old_instance_size = old_map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);
@@ -2851,7 +2874,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
       NameDictionary::New(isolate, property_count);
 
   Handle<DescriptorArray> descs(map->instance_descriptors(isolate), isolate);
-  for (int i = 0; i < real_size; i++) {
+  for (InternalIndex i : InternalIndex::Range(real_size)) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Name> key(descs->GetKey(isolate, i), isolate);
     Handle<Object> value;
@@ -2891,10 +2914,15 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DisallowHeapAllocation no_allocation;
 
   Heap* heap = isolate->heap();
-  int old_instance_size = map->instance_size();
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+
+  // Invalidate slots manually later in case the new map has in-object
+  // properties. If not, it is not possible to store an untagged value
+  // in a recorded slot.
+  heap->NotifyObjectLayoutChange(*object, no_allocation,
+                                 InvalidateRecordedSlots::kNo);
 
   // Resize the object in the heap if necessary.
+  int old_instance_size = map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);
@@ -2914,10 +2942,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // garbage.
   int inobject_properties = new_map->GetInObjectProperties();
   if (inobject_properties) {
-    Heap* heap = isolate->heap();
-    heap->ClearRecordedSlotRange(
-        object->address() + map->GetInObjectPropertyOffset(0),
-        object->address() + new_instance_size);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
+    chunk->InvalidateRecordedSlots(*object);
 
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
@@ -3047,7 +3073,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     Handle<PropertyArray> array =
         isolate->factory()->NewPropertyArray(external);
 
-    for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
       PropertyDetails details = descriptors->GetDetails(i);
       Representation representation = details.representation();
       if (!representation.IsDouble()) continue;
@@ -3344,8 +3370,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   // Allocate the instance descriptor.
-  Handle<DescriptorArray> descriptors = DescriptorArray::Allocate(
-      isolate, instance_descriptor_length, 0, AllocationType::kOld);
+  Handle<DescriptorArray> descriptors =
+      DescriptorArray::Allocate(isolate, instance_descriptor_length, 0);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
@@ -3410,7 +3436,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       }
       current_offset += details.field_width_in_words();
     }
-    descriptors->Set(i, &d);
+    descriptors->Set(InternalIndex(i), &d);
   }
   DCHECK(current_offset == number_of_fields);
 
@@ -3441,6 +3467,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 }
 
 void JSObject::RequireSlowElements(NumberDictionary dictionary) {
+  DCHECK_NE(dictionary,
+            ReadOnlyRoots(GetIsolate()).empty_slow_element_dictionary());
   if (dictionary.requires_slow_elements()) return;
   dictionary.set_requires_slow_elements();
   if (map().is_prototype_map()) {
@@ -3603,8 +3631,7 @@ bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
   DCHECK(!map.is_dictionary_map());
 
   DescriptorArray descriptors = map.instance_descriptors();
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-  for (int i = 0; i < number_of_own_descriptors; i++) {
+  for (InternalIndex i : map.IterateOwnDescriptors()) {
     if (descriptors.GetKey(i).IsPrivate()) continue;
     PropertyDetails details = descriptors.GetDetails(i);
     if (details.IsConfigurable()) return false;
@@ -3709,7 +3736,9 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
            object->HasSlowArgumentsElements());
 
     // Make sure that we never go back to fast case.
-    object->RequireSlowElements(*dictionary);
+    if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
+      object->RequireSlowElements(*dictionary);
+    }
   }
 
   // Do a map transition, other objects with this map may still
@@ -4136,10 +4165,9 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
 Object JSObject::SlowReverseLookup(Object value) {
   if (HasFastProperties()) {
-    int number_of_own_descriptors = map().NumberOfOwnDescriptors();
     DescriptorArray descs = map().instance_descriptors();
     bool value_is_number = value.IsNumber();
-    for (int i = 0; i < number_of_own_descriptors; i++) {
+    for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);
       if (details.location() == kField) {
         DCHECK_EQ(kData, details.kind());
@@ -5187,16 +5215,16 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_COLLATOR_TYPE:
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
-    case JS_INTL_LIST_FORMAT_TYPE:
-    case JS_INTL_LOCALE_TYPE:
-    case JS_INTL_NUMBER_FORMAT_TYPE:
-    case JS_INTL_PLURAL_RULES_TYPE:
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
-    case JS_INTL_SEGMENTER_TYPE:
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_COLLATOR_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
+    case JS_LOCALE_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
+    case JS_PLURAL_RULES_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENTER_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
 #endif
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
@@ -5205,9 +5233,9 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_FINALIZATION_GROUP_TYPE:
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
     case JS_SET_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
@@ -5215,11 +5243,11 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
-    case WASM_GLOBAL_TYPE:
-    case WASM_INSTANCE_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_MODULE_TYPE:
-    case WASM_TABLE_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       return true;
 
     case BIGINT_TYPE:

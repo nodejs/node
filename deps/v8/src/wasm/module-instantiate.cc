@@ -93,7 +93,7 @@ class InstanceBuilder {
   InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                   Handle<WasmModuleObject> module_object,
                   MaybeHandle<JSReceiver> ffi,
-                  MaybeHandle<JSArrayBuffer> memory);
+                  MaybeHandle<JSArrayBuffer> memory_buffer);
 
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build();
@@ -114,7 +114,8 @@ class InstanceBuilder {
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
   MaybeHandle<JSReceiver> ffi_;
-  MaybeHandle<JSArrayBuffer> memory_;
+  MaybeHandle<JSArrayBuffer> memory_buffer_;
+  Handle<WasmMemoryObject> memory_object_;
   Handle<JSArrayBuffer> untagged_globals_;
   Handle<FixedArray> tagged_globals_;
   std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
@@ -165,9 +166,11 @@ class InstanceBuilder {
 
   void SanitizeImports();
 
-  // Find the imported memory buffer if there is one. This is used to see if we
-  // need to recompile with bounds checks before creating the instance.
-  MaybeHandle<JSArrayBuffer> FindImportedMemoryBuffer() const;
+  // Find the imported memory if there is one.
+  bool FindImportedMemory();
+
+  // Allocate the memory.
+  bool AllocateMemory();
 
   // Processes a single imported function.
   bool ProcessImportedFunction(Handle<WasmInstanceObject> instance,
@@ -221,9 +224,6 @@ class InstanceBuilder {
   // Process initialization of globals.
   void InitGlobals(Handle<WasmInstanceObject> instance);
 
-  // Allocate memory for a module instance as a new JSArrayBuffer.
-  Handle<JSArrayBuffer> AllocateMemory(uint32_t initial_pages,
-                                       uint32_t maximum_pages);
 
   bool NeedsWrappers() const;
 
@@ -243,8 +243,9 @@ class InstanceBuilder {
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
-    MaybeHandle<JSArrayBuffer> memory) {
-  InstanceBuilder builder(isolate, thrower, module_object, imports, memory);
+    MaybeHandle<JSArrayBuffer> memory_buffer) {
+  InstanceBuilder builder(isolate, thrower, module_object, imports,
+                          memory_buffer);
   auto instance = builder.Build();
   if (!instance.is_null() && builder.ExecuteStartFunction()) {
     return instance;
@@ -256,14 +257,14 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                                  Handle<WasmModuleObject> module_object,
                                  MaybeHandle<JSReceiver> ffi,
-                                 MaybeHandle<JSArrayBuffer> memory)
+                                 MaybeHandle<JSArrayBuffer> memory_buffer)
     : isolate_(isolate),
       enabled_(module_object->native_module()->enabled_features()),
       module_(module_object->module()),
       thrower_(thrower),
       module_object_(module_object),
       ffi_(ffi),
-      memory_(memory) {
+      memory_buffer_(memory_buffer) {
   sanitized_imports_.reserve(module_->import_table.size());
 }
 
@@ -289,7 +290,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
-  // Allocate the memory array buffer.
+  // Set up the memory buffer and memory objects.
   //--------------------------------------------------------------------------
   uint32_t initial_pages = module_->initial_pages;
   auto initial_pages_counter = SELECT_WASM_COUNTER(
@@ -301,29 +302,41 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         isolate_->counters()->wasm_wasm_max_mem_pages_count();
     max_pages_counter->AddSample(module_->maximum_pages);
   }
-  // Asm.js has memory_ already set at this point, so we don't want to
-  // overwrite it.
-  if (memory_.is_null()) {
-    memory_ = FindImportedMemoryBuffer();
-  }
-  if (!memory_.is_null()) {
-    // Set externally passed ArrayBuffer non detachable.
-    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-    memory->set_is_detachable(false);
 
-    DCHECK_IMPLIES(native_module->use_trap_handler(),
-                   is_asmjs_module(module_) || memory->is_wasm_memory() ||
-                       memory->backing_store() == nullptr);
-  } else if (initial_pages > 0 || native_module->use_trap_handler()) {
-    // We need to unconditionally create a guard region if using trap handlers,
-    // even when the size is zero to prevent null-dereference issues
-    // (e.g. https://crbug.com/769637).
-    // Allocate memory if the initial size is more than 0 pages.
-    memory_ = AllocateMemory(initial_pages, module_->maximum_pages);
-    if (memory_.is_null()) {
-      // failed to allocate memory
-      DCHECK(isolate_->has_pending_exception() || thrower_->error());
-      return {};
+  if (is_asmjs_module(module_)) {
+    Handle<JSArrayBuffer> buffer;
+    if (memory_buffer_.ToHandle(&buffer)) {
+      // asm.js instantiation should have changed the state of the buffer.
+      CHECK(!buffer->is_detachable());
+      CHECK(buffer->is_asmjs_memory());
+    } else {
+      // Use an empty JSArrayBuffer for degenerate asm.js modules.
+      memory_buffer_ = isolate_->factory()->NewJSArrayBufferAndBackingStore(
+          0, InitializedFlag::kUninitialized);
+      if (!memory_buffer_.ToHandle(&buffer)) {
+        thrower_->RangeError("Out of memory: asm.js memory");
+        return {};
+      }
+      buffer->set_is_asmjs_memory(true);
+      buffer->set_is_detachable(false);
+    }
+
+    // The maximum number of pages isn't strictly necessary for memory
+    // objects used for asm.js, as they are never visible, but we might
+    // as well make it accurate.
+    auto maximum_pages = static_cast<uint32_t>(
+        RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
+        wasm::kWasmPageSize);
+    memory_object_ =
+        WasmMemoryObject::New(isolate_, memory_buffer_, maximum_pages);
+  } else {
+    // Actual wasm module must have either imported or created memory.
+    CHECK(memory_buffer_.is_null());
+    if (!FindImportedMemory()) {
+      if (module_->has_memory && !AllocateMemory()) {
+        DCHECK(isolate_->has_pending_exception() || thrower_->error());
+        return {};
+      }
     }
   }
 
@@ -333,33 +346,42 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, module_object_);
-  NativeModuleModificationScope native_modification_scope(native_module);
+
+  //--------------------------------------------------------------------------
+  // Attach the memory to the instance.
+  //--------------------------------------------------------------------------
+  if (module_->has_memory) {
+    DCHECK(!memory_object_.is_null());
+    if (!instance->has_memory_object()) {
+      instance->set_memory_object(*memory_object_);
+    }
+    // Add the instance object to the list of instances for this memory.
+    WasmMemoryObject::AddInstance(isolate_, memory_object_, instance);
+
+    // Double-check the {memory} array buffer matches the instance.
+    Handle<JSArrayBuffer> memory = memory_buffer_.ToHandleChecked();
+    CHECK_EQ(instance->memory_size(), memory->byte_length());
+    CHECK_EQ(instance->memory_start(), memory->backing_store());
+  }
 
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
   uint32_t untagged_globals_buffer_size = module_->untagged_globals_buffer_size;
   if (untagged_globals_buffer_size > 0) {
-    void* backing_store = isolate_->array_buffer_allocator()->Allocate(
-        untagged_globals_buffer_size);
-    if (backing_store == nullptr) {
+    MaybeHandle<JSArrayBuffer> result =
+        isolate_->factory()->NewJSArrayBufferAndBackingStore(
+            untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
+            AllocationType::kOld);
+
+    if (!result.ToHandle(&untagged_globals_)) {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
-    untagged_globals_ = isolate_->factory()->NewJSArrayBuffer(
-        SharedFlag::kNotShared, AllocationType::kOld);
-    constexpr bool is_external = false;
-    constexpr bool is_wasm_memory = false;
-    JSArrayBuffer::Setup(untagged_globals_, isolate_, is_external,
-                         backing_store, untagged_globals_buffer_size,
-                         SharedFlag::kNotShared, is_wasm_memory);
-    if (untagged_globals_.is_null()) {
-      thrower_->RangeError("Out of memory: wasm globals");
-      return {};
-    }
+
+    instance->set_untagged_globals_buffer(*untagged_globals_);
     instance->set_globals_start(
         reinterpret_cast<byte*>(untagged_globals_->backing_store()));
-    instance->set_untagged_globals_buffer(*untagged_globals_);
   }
 
   uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
@@ -425,6 +447,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_indirect_function_tables(*tables);
   }
 
+  NativeModuleModificationScope native_modification_scope(native_module);
+
   //--------------------------------------------------------------------------
   // Process the imports for the module.
   //--------------------------------------------------------------------------
@@ -448,30 +472,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (exceptions_count > 0) {
     InitializeExceptions(instance);
-  }
-
-  //--------------------------------------------------------------------------
-  // Create the WebAssembly.Memory object.
-  //--------------------------------------------------------------------------
-  if (module_->has_memory) {
-    if (!instance->has_memory_object()) {
-      // No memory object exists. Create one.
-      Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-          isolate_, memory_,
-          module_->maximum_pages != 0 ? module_->maximum_pages : -1);
-      instance->set_memory_object(*memory_object);
-    }
-
-    // Add the instance object to the list of instances for this memory.
-    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate_);
-    WasmMemoryObject::AddInstance(isolate_, memory_object, instance);
-
-    if (!memory_.is_null()) {
-      // Double-check the {memory} array buffer matches the instance.
-      Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-      CHECK_EQ(instance->memory_size(), memory->byte_length());
-      CHECK_EQ(instance->memory_start(), memory->backing_store());
-    }
   }
 
   // The bulk memory proposal changes the MVP behavior here; the segments are
@@ -536,7 +536,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Debugging support.
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.
-  WasmModuleObject::SetBreakpointsOnNewInstance(module_object_, instance);
+  WasmModuleObject::SetBreakpointsOnNewInstance(
+      handle(module_object_->script(), isolate_), instance);
 
   //--------------------------------------------------------------------------
   // Create a wrapper for the start function.
@@ -547,7 +548,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<Code> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
             isolate_, function.sig, function.imported);
-    // TODO(clemensh): Don't generate an exported function for the start
+    // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, start_index,
@@ -807,22 +808,21 @@ void InstanceBuilder::SanitizeImports() {
   }
 }
 
-MaybeHandle<JSArrayBuffer> InstanceBuilder::FindImportedMemoryBuffer() const {
+bool InstanceBuilder::FindImportedMemory() {
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (size_t index = 0; index < module_->import_table.size(); index++) {
-    const WasmImport& import = module_->import_table[index];
+    WasmImport import = module_->import_table[index];
 
     if (import.kind == kExternalMemory) {
-      const auto& value = sanitized_imports_[index].value;
-      if (!value->IsWasmMemoryObject()) {
-        return {};
-      }
-      auto memory = Handle<WasmMemoryObject>::cast(value);
-      Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
-      return buffer;
+      auto& value = sanitized_imports_[index].value;
+      if (!value->IsWasmMemoryObject()) return false;
+      memory_object_ = Handle<WasmMemoryObject>::cast(value);
+      memory_buffer_ =
+          Handle<JSArrayBuffer>(memory_object_->array_buffer(), isolate_);
+      return true;
     }
   }
-  return {};
+  return false;
 }
 
 bool InstanceBuilder::ProcessImportedFunction(
@@ -1016,19 +1016,19 @@ bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
                                             Handle<String> module_name,
                                             Handle<String> import_name,
                                             Handle<Object> value) {
-  // Validation should have failed if more than one memory object was
-  // provided.
-  DCHECK(!instance->has_memory_object());
   if (!value->IsWasmMemoryObject()) {
     ReportLinkError("memory import must be a WebAssembly.Memory object",
                     import_index, module_name, import_name);
     return false;
   }
-  auto memory = Handle<WasmMemoryObject>::cast(value);
-  instance->set_memory_object(*memory);
-  Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
+  auto memory_object = Handle<WasmMemoryObject>::cast(value);
+
+  // The imported memory should have been already set up early.
+  CHECK_EQ(instance->memory_object(), *memory_object);
+
+  Handle<JSArrayBuffer> buffer(memory_object_->array_buffer(), isolate_);
   // memory_ should have already been assigned in Build().
-  DCHECK_EQ(*memory_.ToHandleChecked(), *buffer);
+  DCHECK_EQ(*memory_buffer_.ToHandleChecked(), *buffer);
   uint32_t imported_cur_pages =
       static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
   if (imported_cur_pages < module_->initial_pages) {
@@ -1037,7 +1037,7 @@ bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
                         imported_cur_pages);
     return false;
   }
-  int32_t imported_maximum_pages = memory->maximum_pages();
+  int32_t imported_maximum_pages = memory_object_->maximum_pages();
   if (module_->has_maximum_pages) {
     if (imported_maximum_pages < 0) {
       thrower_->LinkError(
@@ -1186,13 +1186,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  if (enabled_.bigint && global.type == kWasmI64) {
-    Handle<BigInt> bigint;
-
-    if (!BigInt::FromObject(isolate_, value).ToHandle(&bigint)) {
-      return false;
-    }
-    WriteGlobalValue(global, bigint->AsInt64());
+  if (enabled_.bigint && global.type == kWasmI64 && value->IsBigInt()) {
+    WriteGlobalValue(global, BigInt::cast(*value).AsInt64());
     return true;
   }
 
@@ -1241,7 +1236,7 @@ void InstanceBuilder::CompileImportWrappers(
   CancelableTaskManager task_manager;
   const int max_background_tasks = GetMaxBackgroundTasks();
   for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = base::make_unique<CompileImportWrapperTask>(
+    auto task = std::make_unique<CompileImportWrapperTask>(
         &task_manager, isolate_->wasm_engine(), isolate_->counters(),
         native_module, &import_wrapper_queue, &cache_scope);
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
@@ -1411,27 +1406,28 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
 }
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
-Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t initial_pages,
-                                                      uint32_t maximum_pages) {
+bool InstanceBuilder::AllocateMemory() {
+  auto initial_pages = module_->initial_pages;
+  auto maximum_pages = module_->has_maximum_pages ? module_->maximum_pages
+                                                  : wasm::max_mem_pages();
   if (initial_pages > max_mem_pages()) {
     thrower_->RangeError("Out of memory: wasm memory too large");
-    return Handle<JSArrayBuffer>::null();
+    return false;
   }
-  const bool is_shared_memory = module_->has_shared_memory && enabled_.threads;
-  Handle<JSArrayBuffer> mem_buffer;
-  if (is_shared_memory) {
-    if (!NewSharedArrayBuffer(isolate_, initial_pages * kWasmPageSize,
-                              maximum_pages * kWasmPageSize)
-             .ToHandle(&mem_buffer)) {
-      thrower_->RangeError("Out of memory: wasm shared memory");
-    }
-  } else {
-    if (!NewArrayBuffer(isolate_, initial_pages * kWasmPageSize)
-             .ToHandle(&mem_buffer)) {
-      thrower_->RangeError("Out of memory: wasm memory");
-    }
+  auto shared = (module_->has_shared_memory && enabled_.threads)
+                    ? SharedFlag::kShared
+                    : SharedFlag::kNotShared;
+
+  MaybeHandle<WasmMemoryObject> result =
+      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared);
+
+  if (!result.ToHandle(&memory_object_)) {
+    thrower_->RangeError("Out of memory: wasm memory");
+    return false;
   }
-  return mem_buffer;
+  memory_buffer_ =
+      Handle<JSArrayBuffer>(memory_object_->array_buffer(), isolate_);
+  return true;
 }
 
 bool InstanceBuilder::NeedsWrappers() const {

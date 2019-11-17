@@ -854,16 +854,18 @@ BUILTIN(DatePrototypeToLocaleDateString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleDateString);
 
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleDateString");
+  const char* method = "Date.prototype.toLocaleDateString";
+  CHECK_RECEIVER(JSDate, date, method);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                       // date
-                   args.atOrUndefined(isolate, 1),             // locales
-                   args.atOrUndefined(isolate, 2),             // options
-                   JSDateTimeFormat::RequiredOption::kDate,    // required
-                   JSDateTimeFormat::DefaultsOption::kDate));  // defaults
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kDate,  // required
+                   JSDateTimeFormat::DefaultsOption::kDate,  // defaults
+                   method));                                 // method
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -872,16 +874,18 @@ BUILTIN(DatePrototypeToLocaleString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleString);
 
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleString");
+  const char* method = "Date.prototype.toLocaleString";
+  CHECK_RECEIVER(JSDate, date, method);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                      // date
-                   args.atOrUndefined(isolate, 1),            // locales
-                   args.atOrUndefined(isolate, 2),            // options
-                   JSDateTimeFormat::RequiredOption::kAny,    // required
-                   JSDateTimeFormat::DefaultsOption::kAll));  // defaults
+                   date,                                    // date
+                   args.atOrUndefined(isolate, 1),          // locales
+                   args.atOrUndefined(isolate, 2),          // options
+                   JSDateTimeFormat::RequiredOption::kAny,  // required
+                   JSDateTimeFormat::DefaultsOption::kAll,  // defaults
+                   method));                                // method
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -890,16 +894,18 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleTimeString);
 
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleTimeString");
+  const char* method = "Date.prototype.toLocaleTimeString";
+  CHECK_RECEIVER(JSDate, date, method);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
-                   date,                                       // date
-                   args.atOrUndefined(isolate, 1),             // locales
-                   args.atOrUndefined(isolate, 2),             // options
-                   JSDateTimeFormat::RequiredOption::kTime,    // required
-                   JSDateTimeFormat::DefaultsOption::kTime));  // defaults
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kTime,  // required
+                   JSDateTimeFormat::DefaultsOption::kTime,  // defaults
+                   method));                                 // method
 }
 #endif  // V8_INTL_SUPPORT
 

@@ -6,6 +6,7 @@
 #define V8_LIBSAMPLER_SAMPLER_H_
 
 #include <atomic>
+#include <memory>
 #include <unordered_map>
 
 #include "include/v8.h"

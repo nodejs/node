@@ -4,7 +4,8 @@
 
 namespace string_substring {
 
-  extern macro SubString(String, intptr, intptr): String;
+  extern macro StringBuiltinsAssembler::SubString(String, intptr, intptr):
+      String;
 
   transitioning macro ToSmiBetweenZeroAnd(implicit context: Context)(
       value: JSAny, limit: Smi): Smi {

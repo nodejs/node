@@ -7,7 +7,6 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
@@ -21,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
-    : zone_(base::make_unique<Zone>(zone_allocator, ZONE_NAME)),
+    : zone_(std::make_unique<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       extension_(nullptr),
       script_scope_(nullptr),
@@ -66,6 +65,7 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_allow_harmony_optional_chaining(FLAG_harmony_optional_chaining);
   set_allow_harmony_nullish(FLAG_harmony_nullish);
   set_allow_harmony_private_methods(FLAG_harmony_private_methods);
+  set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
 }
 
 ParseInfo::ParseInfo(Isolate* isolate)
@@ -129,7 +129,7 @@ std::unique_ptr<ParseInfo> ParseInfo::FromParent(
     const ParseInfo* outer_parse_info, AccountingAllocator* zone_allocator,
     const FunctionLiteral* literal, const AstRawString* function_name) {
   std::unique_ptr<ParseInfo> result =
-      base::make_unique<ParseInfo>(zone_allocator);
+      std::make_unique<ParseInfo>(zone_allocator);
 
   // Replicate shared state of the outer_parse_info.
   result->flags_ = outer_parse_info->flags_;

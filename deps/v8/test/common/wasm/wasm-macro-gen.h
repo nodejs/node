@@ -27,12 +27,14 @@
 #define ACTIVE_NO_INDEX 0
 #define PASSIVE 1
 #define ACTIVE_WITH_INDEX 2
+#define PASSIVE_WITH_ELEMENTS 5
+#define ACTIVE_WITH_ELEMENTS 6
 
 // The table index field in an element segment was repurposed as a flags field.
 // To specify a table index, we have to set the flag value to 2, followed by
 // the table index.
-#define TABLE_INDEX0 U32V_1(ACTIVE_NO_INDEX)
-#define TABLE_INDEX(v) U32V_1(ACTIVE_WITH_INDEX), U32V_1(v)
+#define TABLE_INDEX0 static_cast<byte>(ACTIVE_NO_INDEX)
+#define TABLE_INDEX(v) static_cast<byte>(ACTIVE_WITH_INDEX), U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
 #define ZERO_OFFSET 0
@@ -361,13 +363,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 
-#define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
-#define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
-#define WASM_TEE_LOCAL(index, val) val, kExprTeeLocal, static_cast<byte>(index)
+#define WASM_GET_LOCAL(index) kExprLocalGet, static_cast<byte>(index)
+#define WASM_SET_LOCAL(index, val) val, kExprLocalSet, static_cast<byte>(index)
+#define WASM_TEE_LOCAL(index, val) val, kExprLocalTee, static_cast<byte>(index)
 #define WASM_DROP kExprDrop
-#define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
+#define WASM_GET_GLOBAL(index) kExprGlobalGet, static_cast<byte>(index)
 #define WASM_SET_GLOBAL(index, val) \
-  val, kExprSetGlobal, static_cast<byte>(index)
+  val, kExprGlobalSet, static_cast<byte>(index)
 #define WASM_TABLE_GET(table_index, index) \
   index, kExprTableGet, static_cast<byte>(table_index)
 #define WASM_TABLE_SET(table_index, index, val) \
@@ -442,15 +444,15 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   kExprLoop, kLocalVoid, x, kExprIf, kLocalVoid, y, kExprBr, DEPTH_1, \
       kExprEnd, kExprEnd
 #define WASM_INC_LOCAL(index)                                             \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
-      kExprTeeLocal, static_cast<byte>(index)
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
+      kExprLocalTee, static_cast<byte>(index)
 #define WASM_INC_LOCAL_BYV(index, count)                    \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprTeeLocal, \
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
+      static_cast<byte>(count), kExprI32Add, kExprLocalTee, \
       static_cast<byte>(index)
 #define WASM_INC_LOCAL_BY(index, count)                     \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprSetLocal, \
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
+      static_cast<byte>(count), kExprI32Add, kExprLocalSet, \
       static_cast<byte>(index)
 #define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)
 #define WASM_BINOP(opcode, x, y) x, y, static_cast<byte>(opcode)

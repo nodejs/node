@@ -22,10 +22,8 @@ std::shared_ptr<NativeModule> NewModule(Isolate* isolate) {
   std::shared_ptr<WasmModule> module(new WasmModule);
   bool can_request_more = false;
   size_t size = 16384;
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
+  return isolate->wasm_engine()->NewNativeModule(
       isolate, kAllWasmFeatures, size, can_request_more, std::move(module));
-  native_module->SetRuntimeStubs(isolate);
-  return native_module;
 }
 
 TEST(CacheHit) {

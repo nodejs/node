@@ -11,6 +11,21 @@
 namespace v8 {
 namespace internal {
 
+// Provides garbage collection on invoking |fun_name|(options), where
+// - options is a dictionary like object. See supported properties below.
+// - no parameter refers to options:
+//   {type: 'major', execution: 'sync'}.
+// - truthy parameter that is not setting any options:
+//   {type: 'minor', execution: 'sync'}.
+//
+// Supported options:
+// - type: 'major' or 'minor' for full GC and Scavenge, respectively.
+// - execution: 'sync' or 'async' for synchronous and asynchronous execution,
+// respectively.
+// - Defaults to {type: 'major', execution: 'sync'}.
+//
+// Returns a Promise that resolves when GC is done when asynchronous execution
+// is requested, and undefined otherwise.
 class GCExtension : public v8::Extension {
  public:
   explicit GCExtension(const char* fun_name)

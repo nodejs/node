@@ -217,8 +217,11 @@ void CallPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends()) Find(node->extends());
-  for (int i = 0; i < node->properties()->length(); i++) {
-    Find(node->properties()->at(i)->value());
+  for (int i = 0; i < node->public_members()->length(); i++) {
+    Find(node->public_members()->at(i)->value());
+  }
+  for (int i = 0; i < node->private_members()->length(); i++) {
+    Find(node->private_members()->at(i)->value());
   }
 }
 
@@ -1106,7 +1109,8 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
     PrintIndentedVisit("INSTANCE MEMBERS INITIALIZER",
                        node->instance_members_initializer_function());
   }
-  PrintClassProperties(node->properties());
+  PrintClassProperties(node->private_members());
+  PrintClassProperties(node->public_members());
 }
 
 void AstPrinter::VisitInitializeClassMembersStatement(

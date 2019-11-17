@@ -12,24 +12,18 @@
 namespace v8 {
 namespace base {
 
-char* RelativePath(char** buffer, const char* exec_path, const char* name) {
+std::unique_ptr<char[]> RelativePath(const char* exec_path, const char* name) {
   DCHECK(exec_path);
-  int path_separator = static_cast<int>(strlen(exec_path)) - 1;
-  while (path_separator >= 0 &&
-         !OS::isDirectorySeparator(exec_path[path_separator])) {
-    path_separator--;
+  size_t basename_start = strlen(exec_path);
+  while (basename_start > 0 &&
+         !OS::isDirectorySeparator(exec_path[basename_start - 1])) {
+    --basename_start;
   }
-  if (path_separator >= 0) {
-    int name_length = static_cast<int>(strlen(name));
-    *buffer =
-        reinterpret_cast<char*>(calloc(path_separator + name_length + 2, 1));
-    *buffer[0] = '\0';
-    strncat(*buffer, exec_path, path_separator + 1);
-    strncat(*buffer, name, name_length);
-  } else {
-    *buffer = strdup(name);
-  }
-  return *buffer;
+  size_t name_length = strlen(name);
+  auto buffer = std::make_unique<char[]>(basename_start + name_length + 1);
+  if (basename_start > 0) memcpy(buffer.get(), exec_path, basename_start);
+  memcpy(buffer.get() + basename_start, name, name_length);
+  return buffer;
 }
 
 }  // namespace base

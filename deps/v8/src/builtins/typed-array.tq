@@ -71,11 +71,16 @@ namespace typed_array {
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind): Numeric;
-  extern macro StoreJSTypedArrayElementFromTagged(
+  extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
       Context, JSTypedArray, Smi, JSAny, constexpr ElementsKind);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => JSAny;
   type StoreFn = builtin(Context, JSTypedArray, Smi, JSAny) => JSAny;
+
+  extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
+      JSTypedArray, ByteArray, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
+      JSTypedArray, RawPtr, uintptr): void;
 
   // AttachedJSTypedArray guards that the array's buffer is not detached.
   transient type AttachedJSTypedArray extends JSTypedArray;
@@ -198,7 +203,7 @@ namespace typed_array {
   builtin StoreFixedElement<T: type>(
       context: Context, typedArray: JSTypedArray, index: Smi,
       value: JSAny): JSAny {
-    StoreJSTypedArrayElementFromTagged(
+    typed_array::StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>());
     return Undefined;
   }

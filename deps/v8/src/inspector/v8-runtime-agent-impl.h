@@ -31,6 +31,7 @@
 #ifndef V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 
+#include <memory>
 #include <unordered_map>
 
 #include "src/base/macros.h"
@@ -66,7 +67,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                 Maybe<int> executionContextId, Maybe<bool> returnByValue,
                 Maybe<bool> generatePreview, Maybe<bool> userGesture,
                 Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
-                Maybe<double> timeout,
+                Maybe<double> timeout, Maybe<bool> disableBreaks,
                 std::unique_ptr<EvaluateCallback>) override;
   void awaitPromise(const String16& promiseObjectId, Maybe<bool> returnByValue,
                     Maybe<bool> generatePreview,

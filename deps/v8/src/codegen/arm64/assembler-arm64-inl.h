@@ -54,14 +54,12 @@ inline bool CPURegister::IsSP() const {
 }
 
 inline void CPURegList::Combine(const CPURegList& other) {
-  DCHECK(IsValid());
   DCHECK(other.type() == type_);
   DCHECK(other.RegisterSizeInBits() == size_);
   list_ |= other.list();
 }
 
 inline void CPURegList::Remove(const CPURegList& other) {
-  DCHECK(IsValid());
   if (other.type() == type_) {
     list_ &= ~other.list();
   }
@@ -84,13 +82,12 @@ inline void CPURegList::Remove(const CPURegister& other1,
 }
 
 inline void CPURegList::Combine(int code) {
-  DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ |= (1ULL << code);
+  DCHECK(IsValid());
 }
 
 inline void CPURegList::Remove(int code) {
-  DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ &= ~(1ULL << code);
 }
@@ -309,6 +306,18 @@ Operand Operand::ToExtendedRegister() const {
   DCHECK(IsShiftedRegister());
   DCHECK((shift_ == LSL) && (shift_amount_ <= 4));
   return Operand(reg_, reg_.Is64Bits() ? UXTX : UXTW, shift_amount_);
+}
+
+Operand Operand::ToW() const {
+  if (IsShiftedRegister()) {
+    DCHECK(reg_.Is64Bits());
+    return Operand(reg_.W(), shift(), shift_amount());
+  } else if (IsExtendedRegister()) {
+    DCHECK(reg_.Is64Bits());
+    return Operand(reg_.W(), extend(), shift_amount());
+  }
+  DCHECK(IsImmediate());
+  return *this;
 }
 
 Immediate Operand::immediate_for_heap_object_request() const {
@@ -711,7 +720,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
+      !FLAG_disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);
   }
 }

@@ -41,11 +41,8 @@ class HandleBase {
 
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase that) const {
-    // Dereferencing deferred handles to check object equality is safe.
-    SLOW_DCHECK((this->location_ == nullptr ||
-                 this->IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
-                (that.location_ == nullptr ||
-                 that.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
+    SLOW_DCHECK((this->location_ == nullptr || this->IsDereferenceAllowed()) &&
+                (that.location_ == nullptr || that.IsDereferenceAllowed()));
     if (this->location_ == that.location_) return true;
     if (this->location_ == nullptr || that.location_ == nullptr) return false;
     return *this->location_ == *that.location_;
@@ -59,20 +56,16 @@ class HandleBase {
 
   // Returns the address to where the raw pointer is stored.
   V8_INLINE Address* location() const {
-    SLOW_DCHECK(location_ == nullptr ||
-                IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
+    SLOW_DCHECK(location_ == nullptr || IsDereferenceAllowed());
     return location_;
   }
 
  protected:
-  enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
 #ifdef DEBUG
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const;
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
 #else
   V8_INLINE
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const {
-    return true;
-  }
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
 #endif  // DEBUG
 
   // This uses type Address* as opposed to a pointer type to a typed
@@ -140,7 +133,7 @@ class Handle final : public HandleBase {
   V8_INLINE T operator*() const {
     // unchecked_cast because we rather trust Handle<T> to contain a T than
     // include all the respective -inl.h headers for SLOW_DCHECKs.
-    SLOW_DCHECK(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
+    SLOW_DCHECK(IsDereferenceAllowed());
     return T::unchecked_cast(Object(*location()));
   }
 
@@ -318,7 +311,7 @@ class V8_EXPORT_PRIVATE DeferredHandleScope final {
   // The DeferredHandles object returned stores the Handles created
   // since the creation of this DeferredHandleScope.  The Handles are
   // alive as long as the DeferredHandles object is alive.
-  DeferredHandles* Detach();
+  std::unique_ptr<DeferredHandles> Detach();
   ~DeferredHandleScope();
 
  private:

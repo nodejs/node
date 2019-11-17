@@ -27,22 +27,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
-  if (!array_buffer->is_detachable()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  if (array_buffer->backing_store() == nullptr) {
-    CHECK_EQ(0, array_buffer->byte_length());
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  // Shared array buffers should never be detached.
-  CHECK(!array_buffer->is_shared());
-  DCHECK(!array_buffer->is_external());
-  void* backing_store = array_buffer->backing_store();
-  size_t byte_length = array_buffer->byte_length();
-  array_buffer->set_is_external(true);
-  isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Detach();
-  isolate->array_buffer_allocator()->Free(backing_store, byte_length);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

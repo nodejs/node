@@ -6,5 +6,5 @@ Object.prototype.__defineGetter__('x', function () {
     return -2147483648;
   });
 
-var f = ["x-u-foo"];
+var f = ["en-US"];
 Intl.NumberFormat(f);

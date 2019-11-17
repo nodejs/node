@@ -14,6 +14,7 @@
   V(CompactionFullAbortedPage)                            \
   V(CompactionPartiallyAbortedPage)                       \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)   \
+  V(CompactionPartiallyAbortedPageWithInvalidatedSlots)   \
   V(CompactionPartiallyAbortedPageWithStoreBufferEntries) \
   V(CompactionSpaceDivideMultiplePages)                   \
   V(CompactionSpaceDivideSinglePage)                      \
@@ -102,6 +103,7 @@ class HeapTester {
   // test-heap.cc
   static AllocationResult AllocateByteArrayForTest(Heap* heap, int length,
                                                    AllocationType allocation);
+  static bool CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes);
 
   // test-mark-compact.cc
   static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);

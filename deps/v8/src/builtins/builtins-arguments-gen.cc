@@ -17,38 +17,34 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-
-std::tuple<Node*, Node*, Node*>
-ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
-                                                    Node* arguments_count,
-                                                    Node* parameter_map_count,
-                                                    ParameterMode mode,
-                                                    int base_size) {
+ArgumentsBuiltinsAssembler::ArgumentsAllocationResult
+ArgumentsBuiltinsAssembler::AllocateArgumentsObject(
+    TNode<Map> map, TNode<BInt> arguments_count,
+    TNode<BInt> parameter_map_count, int base_size) {
   // Allocate the parameter object (either a Rest parameter object, a strict
   // argument object or a sloppy arguments object) and the elements/mapped
   // arguments together.
   int elements_offset = base_size;
-  Node* element_count = arguments_count;
+  TNode<BInt> element_count = arguments_count;
   if (parameter_map_count != nullptr) {
     base_size += FixedArray::kHeaderSize;
-    element_count = IntPtrOrSmiAdd(element_count, parameter_map_count, mode);
+    element_count = IntPtrOrSmiAdd(element_count, parameter_map_count);
   }
-  bool empty = IsIntPtrOrSmiConstantZero(arguments_count, mode);
+  bool empty = IsIntPtrOrSmiConstantZero(arguments_count);
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
   TNode<IntPtrT> size =
       empty ? IntPtrConstant(base_size)
-            : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS, mode,
+            : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS,
                                      base_size + FixedArray::kHeaderSize);
   TNode<HeapObject> result = Allocate(size);
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
   StoreObjectField(result, JSArray::kPropertiesOrHashOffset, empty_fixed_array);
-  TNode<Smi> smi_arguments_count = ParameterToTagged(arguments_count, mode);
+  TNode<Smi> smi_arguments_count = BIntToSmi(arguments_count);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
                                  smi_arguments_count);
-  Node* arguments = nullptr;
+  TNode<HeapObject> arguments;
   if (!empty) {
     arguments = InnerAllocate(result, elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
@@ -56,18 +52,17 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
     TNode<Map> fixed_array_map = FixedArrayMapConstant();
     StoreMapNoWriteBarrier(arguments, fixed_array_map);
   }
-  Node* parameter_map = nullptr;
-  if (parameter_map_count != nullptr) {
+  TNode<HeapObject> parameter_map;
+  if (!parameter_map_count.is_null()) {
     TNode<IntPtrT> parameter_map_offset = ElementOffsetFromIndex(
-        arguments_count, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize);
-    parameter_map = InnerAllocate(CAST(arguments), parameter_map_offset);
+        arguments_count, PACKED_ELEMENTS, FixedArray::kHeaderSize);
+    parameter_map = InnerAllocate(arguments, parameter_map_offset);
     StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
                                    parameter_map);
     TNode<Map> sloppy_elements_map = SloppyArgumentsElementsMapConstant();
     StoreMapNoWriteBarrier(parameter_map, sloppy_elements_map);
-    parameter_map_count = ParameterToTagged(parameter_map_count, mode);
     StoreObjectFieldNoWriteBarrier(parameter_map, FixedArray::kLengthOffset,
-                                   parameter_map_count);
+                                   BIntToSmi(parameter_map_count));
   } else {
     if (empty) {
       StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
@@ -77,80 +72,73 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
                                      arguments);
     }
   }
-  return std::tuple<Node*, Node*, Node*>(result, arguments, parameter_map);
+  return {CAST(result), UncheckedCast<FixedArray>(arguments),
+          UncheckedCast<FixedArray>(parameter_map)};
 }
 
-Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
-    Node* map, Node* frame_ptr, Node* arg_count, Node* first_arg,
-    Node* rest_count, ParameterMode param_mode, int base_size) {
+TNode<JSObject> ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
+    TNode<Map> map, TNode<RawPtrT> frame_ptr, TNode<BInt> arg_count,
+    TNode<BInt> first_arg, TNode<BInt> rest_count, int base_size) {
   // Allocate the parameter object (either a Rest parameter object, a strict
   // argument object or a sloppy arguments object) and the elements together and
   // fill in the contents with the arguments above |formal_parameter_count|.
-  Node* result;
-  Node* elements;
-  Node* unused;
-  std::tie(result, elements, unused) =
-      AllocateArgumentsObject(map, rest_count, nullptr, param_mode, base_size);
-  DCHECK_NULL(unused);
-  CodeStubArguments arguments(this, arg_count, frame_ptr, param_mode);
-  VARIABLE(offset, MachineType::PointerRepresentation());
-  offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+  ArgumentsAllocationResult alloc_result =
+      AllocateArgumentsObject(map, rest_count, {}, base_size);
+  DCHECK(alloc_result.parameter_map.is_null());
+  CodeStubArguments arguments(this, arg_count, frame_ptr);
+  TVARIABLE(IntPtrT, offset,
+            IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
   VariableList list({&offset}, zone());
   arguments.ForEach(
       list,
-      [this, elements, &offset](Node* arg) {
-        StoreNoWriteBarrier(MachineRepresentation::kTagged, elements,
-                            offset.value(), arg);
+      [&](TNode<Object> arg) {
+        StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                            alloc_result.elements, offset.value(), arg);
         Increment(&offset, kTaggedSize);
       },
-      first_arg, nullptr, param_mode);
-  return result;
+      first_arg);
+  return alloc_result.arguments_object;
 }
 
-Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
-                                                           Node* function) {
+TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(
+    TNode<Context> context, TNode<JSFunction> function) {
   ParameterMode mode = OptimalParameterMode();
-  Node* zero = IntPtrOrSmiConstant(0, mode);
+  TNode<BInt> zero = BIntConstant(0);
 
-  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
-      CAST(context), UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(context, function);
 
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(JSObject, result);
   Label no_rest_parameters(this), runtime(this, Label::kDeferred),
       done(this, &result);
 
-  Node* rest_count =
-      IntPtrOrSmiSub(info.argument_count, info.formal_parameter_count, mode);
+  TNode<BInt> rest_count =
+      IntPtrOrSmiSub(info.argument_count, info.formal_parameter_count);
   TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> const array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-  GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero, mode),
-         &no_rest_parameters);
+  GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero), &no_rest_parameters);
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
       rest_count, &runtime, JSArray::kSize + FixedArray::kHeaderSize, mode);
 
   // Allocate the Rest JSArray and the elements together and fill in the
   // contents with the arguments above |formal_parameter_count|.
-  result.Bind(ConstructParametersObjectFromArgs(
+  result = ConstructParametersObjectFromArgs(
       array_map, info.frame, info.argument_count, info.formal_parameter_count,
-      rest_count, mode, JSArray::kSize));
+      rest_count, JSArray::kSize);
   Goto(&done);
 
   BIND(&no_rest_parameters);
   {
-    Node* arguments;
-    Node* elements;
-    Node* unused;
-    std::tie(arguments, elements, unused) =
-        AllocateArgumentsObject(array_map, zero, nullptr, mode, JSArray::kSize);
-    result.Bind(arguments);
+    ArgumentsAllocationResult alloc_result =
+        AllocateArgumentsObject(array_map, zero, {}, JSArray::kSize);
+    result = alloc_result.arguments_object;
     Goto(&done);
   }
 
   BIND(&runtime);
   {
-    result.Bind(CallRuntime(Runtime::kNewRestParameter, context, function));
+    result = CAST(CallRuntime(Runtime::kNewRestParameter, context, function));
     Goto(&done);
   }
 
@@ -158,45 +146,41 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   return result.value();
 }
 
-Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
-                                                             Node* function) {
-  VARIABLE(result, MachineRepresentation::kTagged);
+TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(
+    TNode<Context> context, TNode<JSFunction> function) {
+  TVARIABLE(JSObject, result);
   Label done(this, &result), empty(this), runtime(this, Label::kDeferred);
 
   ParameterMode mode = OptimalParameterMode();
   TNode<BInt> zero = BIntConstant(0);
 
-  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
-      CAST(context), UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(context, function);
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
       info.argument_count, &runtime,
       JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
 
   TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const map =
-      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
+  TNode<Map> map = CAST(
+      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
   GotoIf(BIntEqual(info.argument_count, zero), &empty);
 
-  result.Bind(ConstructParametersObjectFromArgs(
-      map, info.frame, info.argument_count, zero, info.argument_count, mode,
-      JSStrictArgumentsObject::kSize));
+  result = ConstructParametersObjectFromArgs(
+      map, info.frame, info.argument_count, zero, info.argument_count,
+      JSStrictArgumentsObject::kSize);
   Goto(&done);
 
   BIND(&empty);
   {
-    Node* arguments;
-    Node* elements;
-    Node* unused;
-    std::tie(arguments, elements, unused) = AllocateArgumentsObject(
-        map, zero, nullptr, mode, JSStrictArgumentsObject::kSize);
-    result.Bind(arguments);
+    ArgumentsAllocationResult alloc_result =
+        AllocateArgumentsObject(map, zero, {}, JSStrictArgumentsObject::kSize);
+    result = alloc_result.arguments_object;
     Goto(&done);
   }
 
   BIND(&runtime);
   {
-    result.Bind(CallRuntime(Runtime::kNewStrictArguments, context, function));
+    result = CAST(CallRuntime(Runtime::kNewStrictArguments, context, function));
     Goto(&done);
   }
 
@@ -204,9 +188,9 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   return result.value();
 }
 
-Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
-                                                             Node* function) {
-  VARIABLE(result, MachineRepresentation::kTagged);
+TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
+    TNode<Context> context, TNode<JSFunction> function) {
+  TVARIABLE(JSObject, result);
 
   ParameterMode mode = OptimalParameterMode();
   TNode<BInt> zero = BIntConstant(0);
@@ -214,8 +198,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
 
-  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
-      CAST(context), UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(context, function);
 
   GotoIf(BIntEqual(info.argument_count, zero), &empty);
 
@@ -224,54 +207,55 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   {
     Comment("Mapped parameter JSSloppyArgumentsObject");
 
-    Node* mapped_count =
-        IntPtrOrSmiMin(info.argument_count, info.formal_parameter_count, mode);
+    TNode<BInt> mapped_count =
+        IntPtrOrSmiMin(info.argument_count, info.formal_parameter_count);
 
-    Node* parameter_map_size =
-        IntPtrOrSmiAdd(mapped_count, IntPtrOrSmiConstant(2, mode), mode);
+    TNode<BInt> parameter_map_size =
+        IntPtrOrSmiAdd(mapped_count, BIntConstant(2));
 
     // Verify that the overall allocation will fit in new space.
-    Node* elements_allocated =
-        IntPtrOrSmiAdd(info.argument_count, parameter_map_size, mode);
+    TNode<BInt> elements_allocated =
+        IntPtrOrSmiAdd(info.argument_count, parameter_map_size);
     GotoIfFixedArraySizeDoesntFitInNewSpace(
         elements_allocated, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize * 2, mode);
 
     TNode<NativeContext> const native_context = LoadNativeContext(context);
-    TNode<Object> const map = LoadContextElement(
-        native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
-    Node* argument_object;
-    Node* elements;
-    Node* map_array;
-    std::tie(argument_object, elements, map_array) =
+    TNode<Map> const map = CAST(LoadContextElement(
+        native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX));
+    ArgumentsAllocationResult alloc_result =
         AllocateArgumentsObject(map, info.argument_count, parameter_map_size,
-                                mode, JSSloppyArgumentsObject::kSize);
-    StoreObjectFieldNoWriteBarrier(
-        argument_object, JSSloppyArgumentsObject::kCalleeOffset, function);
-    StoreFixedArrayElement(CAST(map_array), 0, context, SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(CAST(map_array), 1, elements, SKIP_WRITE_BARRIER);
+                                JSSloppyArgumentsObject::kSize);
+    StoreObjectFieldNoWriteBarrier(alloc_result.arguments_object,
+                                   JSSloppyArgumentsObject::kCalleeOffset,
+                                   function);
+    StoreFixedArrayElement(alloc_result.parameter_map, 0, context,
+                           SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(alloc_result.parameter_map, 1, alloc_result.elements,
+                           SKIP_WRITE_BARRIER);
 
     Comment("Fill in non-mapped parameters");
     TNode<IntPtrT> argument_offset =
-        ElementOffsetFromIndex(info.argument_count, PACKED_ELEMENTS, mode,
+        ElementOffsetFromIndex(info.argument_count, PACKED_ELEMENTS,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     TNode<IntPtrT> mapped_offset =
-        ElementOffsetFromIndex(mapped_count, PACKED_ELEMENTS, mode,
+        ElementOffsetFromIndex(mapped_count, PACKED_ELEMENTS,
                                FixedArray::kHeaderSize - kHeapObjectTag);
-    CodeStubArguments arguments(this, info.argument_count, info.frame, mode);
-    VARIABLE(current_argument, MachineType::PointerRepresentation());
-    current_argument.Bind(arguments.AtIndexPtr(info.argument_count, mode));
+    CodeStubArguments arguments(this, info.argument_count, info.frame);
+    TVARIABLE(RawPtrT, current_argument,
+              arguments.AtIndexPtr(info.argument_count));
     VariableList var_list1({&current_argument}, zone());
-    mapped_offset = UncheckedCast<IntPtrT>(BuildFastLoop(
+    mapped_offset = BuildFastLoop<IntPtrT>(
         var_list1, argument_offset, mapped_offset,
-        [this, elements, &current_argument](Node* offset) {
+        [&](TNode<IntPtrT> offset) {
           Increment(&current_argument, kSystemPointerSize);
           TNode<Object> arg = LoadBufferObject(
-              UncheckedCast<RawPtrT>(current_argument.value()), 0);
-          StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
-                              arg);
+              ReinterpretCast<RawPtrT>(current_argument.value()), 0);
+          StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                              alloc_result.elements, offset, arg);
+          return;
         },
-        -kTaggedSize, INTPTR_PARAMETERS));
+        -kTaggedSize);
 
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
@@ -282,32 +266,32 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     //       MIN_CONTEXT_SLOTS+argument_count-mapped_count
     // We loop from right to left.
     Comment("Fill in mapped parameters");
-    VARIABLE(context_index, OptimalParameterRepresentation());
-    context_index.Bind(IntPtrOrSmiSub(
-        IntPtrOrSmiAdd(IntPtrOrSmiConstant(Context::MIN_CONTEXT_SLOTS, mode),
-                       info.formal_parameter_count, mode),
-        mapped_count, mode));
+    TVARIABLE(
+        BInt, context_index,
+        IntPtrOrSmiSub(IntPtrOrSmiAdd(BIntConstant(Context::MIN_CONTEXT_SLOTS),
+                                      info.formal_parameter_count),
+                       mapped_count));
     TNode<Oddball> the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
     const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);
     TNode<IntPtrT> adjusted_map_array = IntPtrAdd(
-        BitcastTaggedToWord(map_array),
+        BitcastTaggedToWord(alloc_result.parameter_map),
         IntPtrConstant(kParameterMapHeaderSize - FixedArray::kHeaderSize));
     TNode<IntPtrT> zero_offset = ElementOffsetFromIndex(
         zero, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
-    BuildFastLoop(
+    BuildFastLoop<IntPtrT>(
         var_list2, mapped_offset, zero_offset,
-        [=, &context_index](Node* offset) {
-          StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
-                              the_hole);
+        [&](TNode<IntPtrT> offset) {
+          StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                              alloc_result.elements, offset, the_hole);
           StoreNoWriteBarrier(MachineRepresentation::kTagged,
                               adjusted_map_array, offset,
-                              ParameterToTagged(context_index.value(), mode));
-          Increment(&context_index, 1, mode);
+                              BIntToSmi(context_index.value()));
+          Increment(&context_index);
         },
-        -kTaggedSize, INTPTR_PARAMETERS);
+        -kTaggedSize);
 
-    result.Bind(argument_object);
+    result = alloc_result.arguments_object;
     Goto(&done);
   }
 
@@ -318,11 +302,11 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         info.argument_count, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
     TNode<NativeContext> const native_context = LoadNativeContext(context);
-    TNode<Object> const map =
-        LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
-    result.Bind(ConstructParametersObjectFromArgs(
-        map, info.frame, info.argument_count, zero, info.argument_count, mode,
-        JSSloppyArgumentsObject::kSize));
+    TNode<Map> map = CAST(LoadContextElement(
+        native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+    result = ConstructParametersObjectFromArgs(
+        map, info.frame, info.argument_count, zero, info.argument_count,
+        JSSloppyArgumentsObject::kSize);
     StoreObjectFieldNoWriteBarrier(
         result.value(), JSSloppyArgumentsObject::kCalleeOffset, function);
     Goto(&done);
@@ -332,14 +316,11 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   {
     Comment("Empty JSSloppyArgumentsObject");
     TNode<NativeContext> const native_context = LoadNativeContext(context);
-    TNode<Object> const map =
-        LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
-    Node* arguments;
-    Node* elements;
-    Node* unused;
-    std::tie(arguments, elements, unused) = AllocateArgumentsObject(
-        map, zero, nullptr, mode, JSSloppyArgumentsObject::kSize);
-    result.Bind(arguments);
+    TNode<Map> const map = CAST(LoadContextElement(
+        native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+    ArgumentsAllocationResult alloc_result =
+        AllocateArgumentsObject(map, zero, {}, JSSloppyArgumentsObject::kSize);
+    result = alloc_result.arguments_object;
     StoreObjectFieldNoWriteBarrier(
         result.value(), JSSloppyArgumentsObject::kCalleeOffset, function);
     Goto(&done);
@@ -347,7 +328,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
 
   BIND(&runtime);
   {
-    result.Bind(CallRuntime(Runtime::kNewSloppyArguments, context, function));
+    result = CAST(CallRuntime(Runtime::kNewSloppyArguments, context, function));
     Goto(&done);
   }
 

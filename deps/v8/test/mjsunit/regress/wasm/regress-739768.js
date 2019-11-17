@@ -11,7 +11,7 @@ builder0.setName('module_0');
 let sig_index = builder0.addType(kSig_i_v);
 builder0.addFunction('main', kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,  // --
+      kExprLocalGet, 0,  // --
       kExprCallIndirect, sig_index, kTableZero
     ])  // --
     .exportAs('main');

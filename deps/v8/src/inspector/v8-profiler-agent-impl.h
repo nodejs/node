@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8_PROFILER_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_PROFILER_AGENT_IMPL_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/base/macros.h"

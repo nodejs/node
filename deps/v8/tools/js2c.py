@@ -202,18 +202,10 @@ def PrepareSources(source_files, native_type, emit_js):
   Returns:
     An instance of Sources.
   """
+  result = Sources()
   filters = BuildFilterChain()
 
   source_files_and_contents = [(f, ReadFile(f)) for f in source_files]
-
-  # Have a single not-quite-empty source file if there are none present;
-  # otherwise you get errors trying to compile an empty C++ array.
-  # It cannot be empty (or whitespace, which gets trimmed to empty), as
-  # the deserialization code assumes each file is nonempty.
-  if not source_files_and_contents:
-    source_files_and_contents = [("dummy.js", "(function() {})")]
-
-  result = Sources()
 
   for (source, contents) in source_files_and_contents:
     try:
@@ -273,7 +265,9 @@ def BuildMetadata(sources, source_bytes, native_type):
 
   metadata = {
     "builtin_count": len(sources.modules),
-    "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
+    "sources_declaration":
+        SOURCES_DECLARATION % ToCArray(
+          source_bytes if len(source_bytes) != 0 else "\0"),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
     "get_script_source_cases": "".join(get_script_source_cases),

@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   Uses uses() { return Uses(this); }
 
-  // Returns true if {owner} is the user of {this} node.
+  // Returns true if {owner} is the only user of {this} node.
   bool OwnedBy(Node* owner) const {
     return first_use_ && first_use_->from() == owner && !first_use_->next;
   }

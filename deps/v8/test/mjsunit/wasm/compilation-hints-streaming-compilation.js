@@ -11,12 +11,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow2', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierDefault,
@@ -33,12 +33,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow2', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierOptimized,
@@ -59,12 +59,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_f_ff);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow2', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierDefault,
@@ -94,8 +94,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierDefault,
@@ -112,8 +112,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
                              kCompilationHintTierDefault,

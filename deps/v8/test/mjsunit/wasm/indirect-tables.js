@@ -10,20 +10,20 @@ function AddFunctions(builder) {
   let sig_index = builder.addType(kSig_i_ii);
   let mul = builder.addFunction("mul", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Mul        // --
     ]);
   let add = builder.addFunction("add", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Add        // --
     ]);
   let sub = builder.addFunction("sub", sig_index)
     .addBody([
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI32Sub        // --
     ]);
   return {mul: mul, add: add, sub: sub};
@@ -41,8 +41,8 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 33,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -121,8 +121,8 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 33,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -184,8 +184,8 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 55,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -249,11 +249,11 @@ function js_div(a, b) { return (a / b) | 0; }
   let sig_index = builder.addType(kSig_i_v);
   let f = builder.addFunction("f", sig_index)
     .addBody([
-      kExprGetGlobal, g
+      kExprGlobalGet, g
     ]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallIndirect, sig_index, kTableZero])  // --
     .exportAs("main");
   builder.addElementSegment(0, g, true, [f.index]);
@@ -292,7 +292,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,   // --
+      kExprLocalGet, 0,   // --
       kExprCallIndirect, sig_index1, kTableZero])  // --
     .exportAs("main");
 
@@ -311,7 +311,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,   // --
+      kExprLocalGet, 0,   // --
       kExprCallIndirect, sig_index2, kTableZero])  // --
     .exportAs("main");
 
@@ -404,11 +404,11 @@ function js_div(a, b) { return (a / b) | 0; }
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("g", sig_index)
     .addBody([
-      kExprGetGlobal, g
+      kExprGlobalGet, g
     ]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallIndirect, sig_index, kTableZero])  // --
     .exportAs("main");
   builder.addElementSegment(0, g, true, [g]);
@@ -572,7 +572,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let sig_index = builder0.addType(kSig_i_v);
   builder0.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,  // -
+        kExprLocalGet, 0,  // -
         kExprCallIndirect, sig_index, kTableZero
       ])
       .exportAs('main');
@@ -584,7 +584,7 @@ function js_div(a, b) { return (a / b) | 0; }
   // instance1 imports the table and adds a function to it.
   let builder1 = new WasmModuleBuilder();
   builder1.setName('module_1');
-  builder1.addFunction('f', kSig_i_i).addBody([kExprGetLocal, 0]);
+  builder1.addFunction('f', kSig_i_i).addBody([kExprLocalGet, 0]);
   builder1.addImportedTable('z', 'table');
   builder1.addElementSegment(0, 0, false, [0]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
@@ -611,7 +611,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let builder = new WasmModuleBuilder();
   let sig = builder.addType(kSig_i_v);
   builder.addFunction('main', kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprCallIndirect, sig, kTableZero])
+    .addBody([kExprLocalGet, 0, kExprCallIndirect, sig, kTableZero])
     .exportAs('main');
   builder.addImportedMemory('', 'memory', 1);
 
@@ -653,7 +653,7 @@ function js_div(a, b) { return (a / b) | 0; }
     let builder = new WasmModuleBuilder();
     let sig = builder.addType(kSig_i_v);
     builder.addFunction('main', kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprCallIndirect, sig, kTableZero])
+      .addBody([kExprLocalGet, 0, kExprCallIndirect, sig, kTableZero])
       .exportAs('main');
 
     builder.addImportedTable('', 'table');
@@ -711,8 +711,8 @@ function js_div(a, b) { return (a / b) | 0; }
     let builder = new WasmModuleBuilder();
     builder.addFunction("mul", kSig_i_ii)
       .addBody(
-        [kExprGetLocal, 0,
-         kExprGetLocal, 1,
+        [kExprLocalGet, 0,
+         kExprLocalGet, 1,
          kExprI32Mul])
       .exportFunc();
     return builder.instantiate().exports.mul;
@@ -725,8 +725,8 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 33,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -756,8 +756,8 @@ function js_div(a, b) { return (a / b) | 0; }
     let builder = new WasmModuleBuilder();
     builder.addFunction("mul", kSig_i_ii)
       .addBody(
-        [kExprGetLocal, 0,
-         kExprGetLocal, 1,
+        [kExprLocalGet, 0,
+         kExprLocalGet, 1,
          kExprI32Mul])
       .exportFunc();
     return builder.instantiate().exports.mul;
@@ -775,8 +775,8 @@ function js_div(a, b) { return (a / b) | 0; }
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 44,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, kTableZero])  // --
     .exportAs("main");
 
@@ -817,7 +817,7 @@ function js_div(a, b) { return (a / b) | 0; }
     builder.addImport("q", "f1", kSig_i_v);
     builder.addFunction("main", kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();
@@ -879,7 +879,7 @@ function js_div(a, b) { return (a / b) | 0; }
       ]);
     builder.addFunction("main", kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();

@@ -132,6 +132,7 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4UConvertI32x4)             \
   V(F32x4Abs)                       \
   V(F32x4Neg)                       \
+  V(F32x4Sqrt)                      \
   V(F32x4RecipApprox)               \
   V(F32x4RecipSqrtApprox)           \
   V(F32x4Add)                       \
@@ -210,6 +211,7 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LeS)                     \
   V(I8x16LtU)                     \
   V(I8x16LeU)                     \
+  V(S8x16Swizzle)                 \
   V(S8x16Shuffle)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
@@ -940,6 +942,28 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
+    case IrOpcode::kSimd128ReverseBytes: {
+      DCHECK_EQ(1, node->InputCount());
+      bool is_float = ReplacementType(node->InputAt(0)) == SimdType::kFloat32x4;
+      replacements_[node->id()].type =
+          is_float ? SimdType::kFloat32x4 : SimdType::kInt32x4;
+      Node** rep = GetReplacementsWithType(
+          node->InputAt(0),
+          is_float ? SimdType::kFloat32x4 : SimdType::kInt32x4);
+      Node* rep_node[kNumLanes32];
+      for (int i = 0; i < kNumLanes32; ++i) {
+        Node* temp = is_float ? graph()->NewNode(
+                                    machine()->BitcastFloat32ToInt32(), rep[i])
+                              : rep[i];
+        temp = graph()->NewNode(machine()->Word32ReverseBytes(), temp);
+        rep_node[kNumLanes32 - 1 - i] =
+            is_float
+                ? graph()->NewNode(machine()->BitcastInt32ToFloat32(), temp)
+                : temp;
+      }
+      ReplaceNode(node, rep_node, kNumLanes32);
+      break;
+    }
     case IrOpcode::kLoad:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kProtectedLoad: {
@@ -1219,6 +1243,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
   }
       F32X4_UNOP_CASE(Abs)
       F32X4_UNOP_CASE(Neg)
+      F32X4_UNOP_CASE(Sqrt)
 #undef F32X4_UNOP_CASE
     case IrOpcode::kF32x4RecipApprox:
     case IrOpcode::kF32x4RecipSqrtApprox: {
@@ -1366,6 +1391,45 @@ void SimdScalarLowering::LowerNode(Node* node) {
             graph()->NewNode(machine()->Word32Xor(), rep_right[i], tmp2);
       }
       ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kS8x16Swizzle: {
+      DCHECK_EQ(2, node->InputCount());
+      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** indices = GetReplacementsWithType(node->InputAt(1), rep_type);
+      Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
+      Node* stack_slot = graph()->NewNode(
+          machine()->StackSlot(MachineRepresentation::kSimd128));
+
+      // Push all num_lanes values into stack slot.
+      const Operator* store_op = machine()->Store(
+          StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier));
+      Node* effect_input = graph()->start();
+      for (int i = num_lanes - 1; i >= 0; i--) {
+        // We want all the stores to happen first before any of the loads
+        // below, so connect them via effect edge from i-1 to i.
+        Node* store =
+            graph()->NewNode(store_op, stack_slot, mcgraph_->Int32Constant(i),
+                             rep_left[i], effect_input, graph()->start());
+        effect_input = store;
+      }
+
+      for (int i = num_lanes - 1; i >= 0; i--) {
+        // Only select lane when index is < num_lanes, otherwise write 0 to
+        // lane. Use Uint32 to take care of negative indices.
+        Diamond d(graph(), common(),
+                  graph()->NewNode(machine()->Uint32LessThan(), indices[i],
+                                   mcgraph_->Int32Constant(num_lanes)));
+
+        Node* load =
+            graph()->NewNode(machine()->Load(LoadRepresentation::Uint8()),
+                             stack_slot, indices[i], effect_input, d.if_true);
+
+        rep_nodes[i] = d.Phi(MachineRepresentation::kWord8, load,
+                             mcgraph_->Int32Constant(0));
+      }
+
+      ReplaceNode(node, rep_nodes, num_lanes);
       break;
     }
     case IrOpcode::kS8x16Shuffle: {

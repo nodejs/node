@@ -15,7 +15,7 @@ let {session, contextGroup, Protocol} =
     builder.addImportedGlobal('m', 'global', kWasmAnyRef, false);
     builder.addFunction('func', kSig_v_v)
         .addBody([
-          kExprGetGlobal, 0,  //
+          kExprGlobalGet, 0,  //
           kExprDrop,          //
         ])
         .exportAs('main');

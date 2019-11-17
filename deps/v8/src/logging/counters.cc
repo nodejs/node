@@ -551,7 +551,7 @@ base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
   DCHECK(TracingFlags::is_runtime_stats_enabled());
   std::unique_ptr<RuntimeCallStats> new_table =
-      base::make_unique<RuntimeCallStats>();
+      std::make_unique<RuntimeCallStats>();
   RuntimeCallStats* result = new_table.get();
 
   base::MutexGuard lock(&mutex_);

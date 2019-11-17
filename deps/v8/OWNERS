@@ -16,7 +16,8 @@ per-file BUILD.gn=file:COMMON_OWNERS
 per-file DEPS=file:INFRA_OWNERS
 # For Test262 rolls.
 per-file DEPS=mathias@chromium.org
-per-file PRESUBMIT=file:INFRA_OWNERS
+per-file DEPS=syg@chromium.org
+per-file PRESUBMIT.py=file:INFRA_OWNERS
 per-file codereview.settings=file:INFRA_OWNERS
 
 per-file AUTHORS=file:COMMON_OWNERS

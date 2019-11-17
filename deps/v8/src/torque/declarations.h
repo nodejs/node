@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_DECLARATIONS_H_
 #define V8_TORQUE_DECLARATIONS_H_
 
+#include <memory>
 #include <string>
 
 #include "src/torque/declarable.h"

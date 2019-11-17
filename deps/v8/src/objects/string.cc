@@ -113,7 +113,10 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   int old_size = this->Size();
-  isolate->heap()->NotifyObjectLayoutChange(*this, old_size, no_gc);
+  // Slot invalidation is not necessary here: ThinString only stores tagged
+  // value, so it can't store an untagged value in a recorded slot.
+  isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
+                                            InvalidateRecordedSlots::kNo);
   bool one_byte = internalized.IsOneByteRepresentation();
   Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
                              : isolate->factory()->thin_string_map();
@@ -158,7 +161,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
+                                              InvalidateRecordedSlots::kYes);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -184,10 +188,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   isolate->heap()->CreateFillerObjectAt(
       this->address() + new_size, size - new_size,
       has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -232,7 +232,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
+                                              InvalidateRecordedSlots::kYes);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -257,10 +258,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   isolate->heap()->CreateFillerObjectAt(
       this->address() + new_size, size - new_size,
       has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -598,9 +595,8 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
   String source = src;
   int from = f;
   int to = t;
-  while (true) {
+  while (from < to) {
     DCHECK_LE(0, from);
-    DCHECK_LE(from, to);
     DCHECK_LE(to, source.length());
     switch (StringShape(source).full_representation_tag()) {
       case kOneByteStringTag | kExternalStringTag: {
@@ -678,6 +674,7 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
         break;
     }
   }
+  DCHECK_EQ(from, to);
 }
 
 template <typename SourceChar>
@@ -1358,25 +1355,39 @@ uint32_t String::ComputeAndSetHash() {
   return result;
 }
 
-bool String::ComputeArrayIndex(uint32_t* index) {
+bool String::SlowAsArrayIndex(uint32_t* index) {
+  DisallowHeapAllocation no_gc;
   int length = this->length();
+  if (length <= kMaxCachedArrayIndexLength) {
+    Hash();  // Force computation of hash code.
+    uint32_t field = hash_field();
+    if ((field & kIsNotArrayIndexMask) != 0) return false;
+    *index = ArrayIndexValueBits::decode(field);
+    return true;
+  }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   StringCharacterStream stream(*this);
   return StringToArrayIndex(&stream, index);
 }
 
-bool String::SlowAsArrayIndex(uint32_t* index) {
+bool String::SlowAsIntegerIndex(size_t* index) {
   DisallowHeapAllocation no_gc;
-  if (length() <= kMaxCachedArrayIndexLength) {
-    Hash();  // force computation of hash code
+  int length = this->length();
+  if (length <= kMaxCachedArrayIndexLength) {
+    Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) return false;
-    // Isolate the array index form the full hash field.
+    if ((field & kIsNotArrayIndexMask) != 0) {
+      // If it was short but it's not an array index, then it can't be an
+      // integer index either.
+      DCHECK_NE(0, field & kIsNotIntegerIndexMask);
+      return false;
+    }
     *index = ArrayIndexValueBits::decode(field);
     return true;
-  } else {
-    return ComputeArrayIndex(index);
   }
+  if (length == 0 || length > kMaxIntegerIndexSize) return false;
+  StringCharacterStream stream(*this);
+  return StringToArrayIndex(&stream, index);
 }
 
 void String::PrintOn(FILE* file) {

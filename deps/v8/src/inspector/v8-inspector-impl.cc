@@ -439,7 +439,7 @@ protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
   }
   m_cancelToken.reset(new CancelToken());
   v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
-      v8::base::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
+      std::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
   return protocol::Response::OK();
 }
 

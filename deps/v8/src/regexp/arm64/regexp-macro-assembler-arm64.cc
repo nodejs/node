@@ -170,8 +170,11 @@ void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
       }
       case CACHED_MSW: {
         Register to_advance = GetCachedRegister(reg);
-        __ Add(to_advance, to_advance,
-               static_cast<int64_t>(by) << kWRegSizeInBits);
+        // Sign-extend to int64, shift as uint64, cast back to int64.
+        __ Add(
+            to_advance, to_advance,
+            static_cast<int64_t>(static_cast<uint64_t>(static_cast<int64_t>(by))
+                                 << kWRegSizeInBits));
         break;
       }
       default:

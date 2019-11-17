@@ -23,10 +23,9 @@ namespace internal {
 namespace compiler {
 
 // static
-FieldAccess AccessBuilder::ForExternalTaggedValue() {
-  FieldAccess access = {kUntaggedBase,       0,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Any(),         MachineType::AnyTagged(),
+FieldAccess AccessBuilder::ForExternalIntPtr() {
+  FieldAccess access = {kUntaggedBase,      0,           MaybeHandle<Name>(),
+                        MaybeHandle<Map>(), Type::Any(), MachineType::IntPtr(),
                         kNoWriteBarrier};
   return access;
 }
@@ -109,7 +108,6 @@ FieldAccess AccessBuilder::ForJSObjectElements() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForJSObjectInObjectProperty(const MapRef& map,
                                                        int index) {
@@ -184,7 +182,6 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
       kPointerWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
@@ -295,7 +292,6 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
       kFullWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectParametersAndRegisters() {
@@ -478,7 +474,6 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForJSIteratorResultDone() {
   FieldAccess access = {
@@ -488,7 +483,6 @@ FieldAccess AccessBuilder::ForJSIteratorResultDone() {
       kFullWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForJSIteratorResultValue() {
@@ -539,7 +533,6 @@ FieldAccess AccessBuilder::ForJSRegExpSource() {
       kFullWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForFixedArrayLength() {
@@ -600,7 +593,6 @@ FieldAccess AccessBuilder::ForMapBitField3() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForMapDescriptors() {
   FieldAccess access = {
@@ -611,7 +603,6 @@ FieldAccess AccessBuilder::ForMapDescriptors() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForMapInstanceType() {
   FieldAccess access = {
@@ -620,7 +611,6 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
       kNoWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForMapPrototype() {
@@ -810,7 +800,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorString() {
 // static
 FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
   FieldAccess access = {kTaggedBase,
-                        JSStringIterator::kNextIndexOffset,
+                        JSStringIterator::kIndexOffset,
                         Handle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kStringLengthType,
@@ -829,7 +819,6 @@ FieldAccess AccessBuilder::ForArgumentsLength() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForArgumentsCallee() {
   FieldAccess access = {
@@ -839,7 +828,6 @@ FieldAccess AccessBuilder::ForArgumentsCallee() {
       kFullWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForFixedArraySlot(
@@ -851,7 +839,6 @@ FieldAccess AccessBuilder::ForFixedArraySlot(
                         write_barrier_kind};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForCellValue() {
@@ -937,7 +924,7 @@ ElementAccess AccessBuilder::ForStackArgument() {
   ElementAccess access = {
       kUntaggedBase,
       CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
-      Type::NonInternal(), MachineType::AnyTagged(),
+      Type::NonInternal(), MachineType::Pointer(),
       WriteBarrierKind::kNoWriteBarrier};
   return access;
 }

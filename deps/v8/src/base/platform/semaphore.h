@@ -12,7 +12,7 @@
 #endif
 
 #if V8_OS_MACOSX
-#include <mach/semaphore.h>  // NOLINT
+#include <dispatch/dispatch.h>  // NOLINT
 #elif V8_OS_POSIX
 #include <semaphore.h>  // NOLINT
 #endif
@@ -50,7 +50,7 @@ class V8_BASE_EXPORT Semaphore final {
   bool WaitFor(const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
 
 #if V8_OS_MACOSX
-  using NativeHandle = semaphore_t;
+  using NativeHandle = dispatch_semaphore_t;
 #elif V8_OS_POSIX
   using NativeHandle = sem_t;
 #elif V8_OS_WIN

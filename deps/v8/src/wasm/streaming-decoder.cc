@@ -4,7 +4,6 @@
 
 #include "src/wasm/streaming-decoder.h"
 
-#include "src/base/template-utils.h"
 #include "src/handles/handles.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
@@ -364,14 +363,14 @@ StreamingDecoder::DecodeModuleHeader::Next(StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeModuleHeader\n");
   streaming->ProcessModuleHeader();
   if (!streaming->ok()) return nullptr;
-  return base::make_unique<DecodeSectionID>(streaming->module_offset());
+  return std::make_unique<DecodeSectionID>(streaming->module_offset());
 }
 
 std::unique_ptr<StreamingDecoder::DecodingState>
 StreamingDecoder::DecodeSectionID::Next(StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeSectionID: %s section\n",
                   SectionName(static_cast<SectionCode>(id_)));
-  return base::make_unique<DecodeSectionLength>(id_, module_offset_);
+  return std::make_unique<DecodeSectionLength>(id_, module_offset_);
 }
 
 std::unique_ptr<StreamingDecoder::DecodingState>
@@ -391,7 +390,7 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
     streaming->ProcessSection(buf);
     if (!streaming->ok()) return nullptr;
     // There is no payload, we go to the next section immediately.
-    return base::make_unique<DecodeSectionID>(streaming->module_offset_);
+    return std::make_unique<DecodeSectionID>(streaming->module_offset_);
   } else {
     if (section_id_ == SectionCode::kCodeSectionCode) {
       // Explicitly check for multiple code sections as module decoder never
@@ -404,9 +403,9 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
       streaming->code_section_processed_ = true;
       // We reached the code section. All functions of the code section are put
       // into the same SectionBuffer.
-      return base::make_unique<DecodeNumberOfFunctions>(buf);
+      return std::make_unique<DecodeNumberOfFunctions>(buf);
     }
-    return base::make_unique<DecodeSectionPayload>(buf);
+    return std::make_unique<DecodeSectionPayload>(buf);
   }
 }
 
@@ -415,7 +414,7 @@ StreamingDecoder::DecodeSectionPayload::Next(StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeSectionPayload\n");
   streaming->ProcessSection(section_buffer_);
   if (!streaming->ok()) return nullptr;
-  return base::make_unique<DecodeSectionID>(streaming->module_offset());
+  return std::make_unique<DecodeSectionID>(streaming->module_offset());
 }
 
 std::unique_ptr<StreamingDecoder::DecodingState>
@@ -434,14 +433,14 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     if (payload_buf.size() != bytes_consumed_) {
       return streaming->Error("not all code section bytes were used");
     }
-    return base::make_unique<DecodeSectionID>(streaming->module_offset());
+    return std::make_unique<DecodeSectionID>(streaming->module_offset());
   }
 
   DCHECK_GE(kMaxInt, value_);
   streaming->StartCodeSection(static_cast<int>(value_),
                               streaming->section_buffers_.back());
   if (!streaming->ok()) return nullptr;
-  return base::make_unique<DecodeFunctionLength>(
+  return std::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
       value_);
 }
@@ -464,7 +463,7 @@ StreamingDecoder::DecodeFunctionLength::NextWithValue(
     return streaming->Error("not enough code section bytes");
   }
 
-  return base::make_unique<DecodeFunctionBody>(
+  return std::make_unique<DecodeFunctionBody>(
       section_buffer_, buffer_offset_ + bytes_consumed_, value_,
       num_remaining_functions_, streaming->module_offset());
 }
@@ -477,14 +476,14 @@ StreamingDecoder::DecodeFunctionBody::Next(StreamingDecoder* streaming) {
 
   size_t end_offset = buffer_offset_ + function_body_length_;
   if (num_remaining_functions_ > 0) {
-    return base::make_unique<DecodeFunctionLength>(section_buffer_, end_offset,
-                                                   num_remaining_functions_);
+    return std::make_unique<DecodeFunctionLength>(section_buffer_, end_offset,
+                                                  num_remaining_functions_);
   }
   // We just read the last function body. Continue with the next section.
   if (end_offset != section_buffer_->length()) {
     return streaming->Error("not all code section bytes were used");
   }
-  return base::make_unique<DecodeSectionID>(streaming->module_offset());
+  return std::make_unique<DecodeSectionID>(streaming->module_offset());
 }
 
 StreamingDecoder::StreamingDecoder(

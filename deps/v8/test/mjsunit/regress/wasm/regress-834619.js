@@ -29,7 +29,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     builder.addTable(kWasmAnyFunc, 4);
     builder.addFunction("main", kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();

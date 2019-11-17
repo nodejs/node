@@ -27,21 +27,16 @@ namespace typed_array_createtypedarray {
       isOnHeap: constexpr bool, map: Map, buffer: JSArrayBuffer,
       byteOffset: uintptr, byteLength: uintptr, length: uintptr): JSTypedArray {
     let elements: ByteArray;
-    let externalPointer: RawPtr;
-    let basePointer: ByteArray | Smi;
     if constexpr (isOnHeap) {
       elements = AllocateByteArray(byteLength);
-      basePointer = elements;
-      externalPointer = PointerConstant(kExternalPointerForOnHeapArray);
     } else {
-      basePointer = Convert<Smi>(0);
+      elements = kEmptyByteArray;
 
       // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
       // platforms are self-limiting, because we can't allocate an array bigger
       // than our 32-bit arithmetic range anyway. 64 bit platforms could
       // theoretically have an offset up to 2^35 - 1.
-      const backingStore: RawPtr = buffer.backing_store;
-      externalPointer = backingStore + Convert<intptr>(byteOffset);
+      const backingStore: uintptr = Convert<uintptr>(buffer.backing_store);
 
       // Assert no overflow has occurred. Only assert if the mock array buffer
       // allocator is NOT used. When the mock array buffer is used, impossibly
@@ -49,9 +44,7 @@ namespace typed_array_createtypedarray {
       // and this assertion to fail.
       assert(
           IsMockArrayBufferAllocatorFlag() ||
-          Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
-
-      elements = kEmptyByteArray;
+          (backingStore + byteOffset) >= backingStore);
     }
 
     // We can't just build the new object with "new JSTypedArray" here because
@@ -64,8 +57,16 @@ namespace typed_array_createtypedarray {
     typedArray.byte_offset = byteOffset;
     typedArray.byte_length = byteLength;
     typedArray.length = length;
-    typedArray.external_pointer = externalPointer;
-    typedArray.base_pointer = basePointer;
+    if constexpr (isOnHeap) {
+      typed_array::SetJSTypedArrayOnHeapDataPtr(
+          typedArray, elements, byteOffset);
+    } else {
+      typed_array::SetJSTypedArrayOffHeapDataPtr(
+          typedArray, buffer.backing_store, byteOffset);
+      assert(
+          typedArray.data_ptr ==
+          (buffer.backing_store + Convert<intptr>(byteOffset)));
+    }
     SetupTypedArrayEmbedderFields(typedArray);
     return typedArray;
   }

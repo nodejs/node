@@ -491,8 +491,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
   if (script->type() == Script::TYPE_WASM) {
-    return WasmModuleObject::cast(script->wasm_module_object())
-        .GetFunctionOffset(line);
+    return GetWasmFunctionOffset(script->wasm_native_module()->module(), line);
   }
 
   Script::InitLineEnds(script);
@@ -823,19 +822,6 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
           "LiveEdit failed: FRAME_RESTART_IS_NOT_SUPPORTED"));
     case v8::debug::LiveEditResult::OK:
       return ReadOnlyRoots(isolate).undefined_value();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PerformSideEffectCheckForObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kSideEffects);
-  if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

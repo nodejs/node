@@ -10,7 +10,6 @@
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -75,29 +74,23 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
   DCHECK(!instance_object_->has_memory_object());
-  DCHECK_IMPLIES(test_module_->origin == kWasmOrigin,
-                 size % kWasmPageSize == 0);
+  uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
+  uint32_t maximum_pages = (test_module_->maximum_pages != 0)
+                               ? test_module_->maximum_pages
+                               : initial_pages;
   test_module_->has_memory = true;
-  uint32_t max_size =
-      (test_module_->maximum_pages != 0) ? test_module_->maximum_pages : size;
-  uint32_t alloc_size = RoundUp(size, kWasmPageSize);
-  Handle<JSArrayBuffer> new_buffer;
-  if (shared == SharedFlag::kShared) {
-    CHECK(NewSharedArrayBuffer(isolate_, alloc_size, max_size)
-              .ToHandle(&new_buffer));
-  } else {
-    CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
-  }
-  CHECK(!new_buffer.is_null());
-  mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
-  mem_size_ = size;
-  CHECK(size == 0 || mem_start_);
-  memset(mem_start_, 0, size);
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =
-      WasmMemoryObject::New(isolate_, new_buffer, max_size);
+      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared)
+          .ToHandleChecked();
   instance_object_->set_memory_object(*memory_object);
+
+  mem_start_ =
+      reinterpret_cast<byte*>(memory_object->array_buffer().backing_store());
+  mem_size_ = size;
+  CHECK(size == 0 || mem_start_);
+
   WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
   // TODO(wasm): Delete the following two lines when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
@@ -328,7 +321,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  native_module->SetRuntimeStubs(isolate_);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
@@ -487,7 +479,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       OFStream os(tracing_scope.file());
 
-      code->Disassemble("wasm wrapper", os);
+      code->Disassemble("wasm wrapper", os, isolate);
     }
 #endif
   }

@@ -10,6 +10,15 @@ let invalidNumberingSystem = [
   "finance",
   "native",
   "traditio",
+  "abc-defghi",
+];
+
+let illFormedNumberingSystem = [
+  "",
+  "i",
+  "ij",
+  "abcdefghi",
+  "abc-ab",
 ];
 
 // https://tc39.github.io/ecma402/#table-numbering-system-digits
@@ -45,11 +54,21 @@ let locales = [
 
 
 invalidNumberingSystem.forEach(function(numberingSystem) {
+  locales.forEach(function(base) {
+    var df;
+    assertDoesNotThrow(
+        () => df = new Intl.NumberFormat([base], {numberingSystem}));
+    assertEquals(
+        (new Intl.NumberFormat([base])).resolvedOptions().numberingSystem,
+        df.resolvedOptions().numberingSystem);
+  });
+});
+
+illFormedNumberingSystem.forEach(function(numberingSystem) {
   assertThrows(
       () => new Intl.NumberFormat(["en"], {numberingSystem}),
       RangeError);
-}
-);
+});
 
 let value = 1234567.89;
 validNumberingSystem.forEach(function(numberingSystem) {

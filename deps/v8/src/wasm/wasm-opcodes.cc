@@ -147,11 +147,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(Drop, "drop")
     CASE_OP(Select, "select")
     CASE_OP(SelectWithType, "select")
-    CASE_OP(GetLocal, "local.get")
-    CASE_OP(SetLocal, "local.set")
-    CASE_OP(TeeLocal, "local.tee")
-    CASE_OP(GetGlobal, "global.get")
-    CASE_OP(SetGlobal, "global.set")
+    CASE_OP(LocalGet, "local.get")
+    CASE_OP(LocalSet, "local.set")
+    CASE_OP(LocalTee, "local.tee")
+    CASE_OP(GlobalGet, "global.get")
+    CASE_OP(GlobalSet, "global.set")
     CASE_OP(TableGet, "table.get")
     CASE_OP(TableSet, "table.set")
     CASE_ALL_OP(Const, "const")
@@ -222,6 +222,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMD_OP(Splat, "splat")
     CASE_SIMD_OP(Neg, "neg")
     CASE_F64x2_OP(Neg, "neg")
+    CASE_F64x2_OP(Sqrt, "sqrt")
+    CASE_F32x4_OP(Sqrt, "sqrt")
     CASE_I64x2_OP(Neg, "neg")
     CASE_SIMD_OP(Eq, "eq")
     CASE_F64x2_OP(Eq, "eq")
@@ -272,7 +274,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(ReplaceLane, "replace_lane")
     CASE_I64x2_OP(ExtractLane, "extract_lane")
     CASE_I64x2_OP(ReplaceLane, "replace_lane")
-    CASE_SIMDI_OP(ExtractLane, "extract_lane")
+    CASE_I32x4_OP(ExtractLane, "extract_lane")
+    CASE_SIGN_OP(I16x8, ExtractLane, "extract_lane")
+    CASE_SIGN_OP(I8x16, ExtractLane, "extract_lane")
     CASE_SIMDI_OP(ReplaceLane, "replace_lane")
     CASE_SIGN_OP(SIMDI, Min, "min")
     CASE_SIGN_OP(I64x2, Min, "min")
@@ -302,6 +306,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Xor, "xor")
     CASE_S128_OP(Not, "not")
     CASE_S128_OP(Select, "select")
+    CASE_S8x16_OP(Swizzle, "swizzle")
     CASE_S8x16_OP(Shuffle, "shuffle")
     CASE_S1x2_OP(AnyTrue, "any_true")
     CASE_S1x2_OP(AllTrue, "all_true")
@@ -311,6 +316,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x8_OP(AllTrue, "all_true")
     CASE_S1x16_OP(AnyTrue, "any_true")
     CASE_S1x16_OP(AllTrue, "all_true")
+    CASE_F64x2_OP(Qfma, "qfma")
+    CASE_F64x2_OP(Qfms, "qfms")
+    CASE_F32x4_OP(Qfma, "qfma")
+    CASE_F32x4_OP(Qfms, "qfms")
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
@@ -489,7 +498,7 @@ constexpr const FunctionSig* kCachedSigs[] = {
 // gcc 4.7 - 4.9 has a bug which causes the constexpr attribute to get lost when
 // passing functions (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892). Hence
 // encapsulate these constexpr functions in functors.
-// TODO(clemensh): Remove this once we require gcc >= 5.0.
+// TODO(clemensb): Remove this once we require gcc >= 5.0.
 
 struct GetShortOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {

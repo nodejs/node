@@ -9,7 +9,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -198,7 +197,7 @@ TEST_F(BackgroundCompileTaskTest, CompileOnBackgroundThread) {
       NewBackgroundCompileTask(isolate(), shared));
 
   base::Semaphore semaphore(0);
-  auto background_task = base::make_unique<CompileTask>(task.get(), &semaphore);
+  auto background_task = std::make_unique<CompileTask>(task.get(), &semaphore);
 
   V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(background_task));
   semaphore.Wait();

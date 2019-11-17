@@ -31,7 +31,7 @@ class ArrayBufferCollector {
   //
   // FreeAllocations() potentially triggers a background task for processing.
   void QueueOrFreeGarbageAllocations(
-      std::vector<JSArrayBuffer::Allocation> allocations);
+      std::vector<std::shared_ptr<BackingStore>> allocations);
 
   // Calls FreeAllocations() on a background thread.
   void FreeAllocations();
@@ -45,7 +45,7 @@ class ArrayBufferCollector {
 
   Heap* const heap_;
   base::Mutex allocations_mutex_;
-  std::vector<std::vector<JSArrayBuffer::Allocation>> allocations_;
+  std::vector<std::vector<std::shared_ptr<BackingStore>>> allocations_;
 };
 
 }  // namespace internal

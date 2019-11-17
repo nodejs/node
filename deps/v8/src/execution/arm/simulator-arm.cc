@@ -12,6 +12,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/memory.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -899,16 +901,14 @@ int Simulator::ReadW(int32_t addr) {
   // check the alignment here.
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<intptr_t>(addr);
 }
 
 int Simulator::ReadExW(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::Word);
   GlobalMonitor::Get()->NotifyLoadExcl_Locked(addr, &global_monitor_processor_);
-  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<intptr_t>(addr);
 }
 
 void Simulator::WriteW(int32_t addr, int value) {
@@ -917,8 +917,7 @@ void Simulator::WriteW(int32_t addr, int value) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-  *ptr = value;
+  base::WriteUnalignedValue<intptr_t>(addr, value);
 }
 
 int Simulator::WriteExW(int32_t addr, int value) {
@@ -926,8 +925,7 @@ int Simulator::WriteExW(int32_t addr, int value) {
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Word) &&
       GlobalMonitor::Get()->NotifyStoreExcl_Locked(
           addr, &global_monitor_processor_)) {
-    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-    *ptr = value;
+    base::WriteUnalignedValue<intptr_t>(addr, value);
     return 0;
   } else {
     return 1;
@@ -939,8 +937,7 @@ uint16_t Simulator::ReadHU(int32_t addr) {
   // check the alignment here.
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<uint16_t>(addr);
 }
 
 int16_t Simulator::ReadH(int32_t addr) {
@@ -948,16 +945,14 @@ int16_t Simulator::ReadH(int32_t addr) {
   // check the alignment here.
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<int16_t>(addr);
 }
 
 uint16_t Simulator::ReadExHU(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::HalfWord);
   GlobalMonitor::Get()->NotifyLoadExcl_Locked(addr, &global_monitor_processor_);
-  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<uint16_t>(addr);
 }
 
 void Simulator::WriteH(int32_t addr, uint16_t value) {
@@ -966,8 +961,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-  *ptr = value;
+  base::WriteUnalignedValue(addr, value);
 }
 
 void Simulator::WriteH(int32_t addr, int16_t value) {
@@ -976,8 +970,7 @@ void Simulator::WriteH(int32_t addr, int16_t value) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-  *ptr = value;
+  base::WriteUnalignedValue(addr, value);
 }
 
 int Simulator::WriteExH(int32_t addr, uint16_t value) {
@@ -985,8 +978,7 @@ int Simulator::WriteExH(int32_t addr, uint16_t value) {
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::HalfWord) &&
       GlobalMonitor::Get()->NotifyStoreExcl_Locked(
           addr, &global_monitor_processor_)) {
-    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-    *ptr = value;
+    base::WriteUnalignedValue(addr, value);
     return 0;
   } else {
     return 1;
@@ -996,39 +988,34 @@ int Simulator::WriteExH(int32_t addr, uint16_t value) {
 uint8_t Simulator::ReadBU(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<uint8_t>(addr);
 }
 
 int8_t Simulator::ReadB(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<int8_t>(addr);
 }
 
 uint8_t Simulator::ReadExBU(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::Byte);
   GlobalMonitor::Get()->NotifyLoadExcl_Locked(addr, &global_monitor_processor_);
-  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-  return *ptr;
+  return base::ReadUnalignedValue<uint8_t>(addr);
 }
 
 void Simulator::WriteB(int32_t addr, uint8_t value) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-  *ptr = value;
+  base::WriteUnalignedValue(addr, value);
 }
 
 void Simulator::WriteB(int32_t addr, int8_t value) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
-  *ptr = value;
+  base::WriteUnalignedValue(addr, value);
 }
 
 int Simulator::WriteExB(int32_t addr, uint8_t value) {
@@ -1036,8 +1023,7 @@ int Simulator::WriteExB(int32_t addr, uint8_t value) {
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Byte) &&
       GlobalMonitor::Get()->NotifyStoreExcl_Locked(
           addr, &global_monitor_processor_)) {
-    uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-    *ptr = value;
+    base::WriteUnalignedValue(addr, value);
     return 0;
   } else {
     return 1;
@@ -1049,16 +1035,14 @@ int32_t* Simulator::ReadDW(int32_t addr) {
   // check the alignment here.
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoad(addr);
-  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-  return ptr;
+  return reinterpret_cast<int32_t*>(addr);
 }
 
 int32_t* Simulator::ReadExDW(int32_t addr) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::DoubleWord);
   GlobalMonitor::Get()->NotifyLoadExcl_Locked(addr, &global_monitor_processor_);
-  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-  return ptr;
+  return reinterpret_cast<int32_t*>(addr);
 }
 
 void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
@@ -1067,9 +1051,8 @@ void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   local_monitor_.NotifyStore(addr);
   GlobalMonitor::Get()->NotifyStore_Locked(addr, &global_monitor_processor_);
-  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-  *ptr++ = value1;
-  *ptr = value2;
+  base::WriteUnalignedValue(addr, value1);
+  base::WriteUnalignedValue(addr + sizeof(value1), value2);
 }
 
 int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
@@ -1077,9 +1060,8 @@ int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::DoubleWord) &&
       GlobalMonitor::Get()->NotifyStoreExcl_Locked(
           addr, &global_monitor_processor_)) {
-    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-    *ptr++ = value1;
-    *ptr = value2;
+    base::WriteUnalignedValue(addr, value1);
+    base::WriteUnalignedValue(addr + sizeof(value1), value2);
     return 0;
   } else {
     return 1;
@@ -1291,9 +1273,9 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
         if (shift_amount == 0) {
           *carry_out = c_flag_;
         } else {
-          result <<= (shift_amount - 1);
+          result = static_cast<uint32_t>(result) << (shift_amount - 1);
           *carry_out = (result < 0);
-          result <<= 1;
+          result = static_cast<uint32_t>(result) << 1;
         }
         break;
       }
@@ -1316,9 +1298,7 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
         if (shift_amount == 0) {
           *carry_out = c_flag_;
         } else {
-          uint32_t left = static_cast<uint32_t>(result) >> shift_amount;
-          uint32_t right = static_cast<uint32_t>(result) << (32 - shift_amount);
-          result = right | left;
+          result = base::bits::RotateRight32(result, shift_amount);
           *carry_out = (static_cast<uint32_t>(result) >> 31) != 0;
         }
         break;
@@ -1358,9 +1338,9 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
         if (shift_amount == 0) {
           *carry_out = c_flag_;
         } else if (shift_amount < 32) {
-          result <<= (shift_amount - 1);
+          result = static_cast<uint32_t>(result) << (shift_amount - 1);
           *carry_out = (result < 0);
-          result <<= 1;
+          result = static_cast<uint32_t>(result) << 1;
         } else if (shift_amount == 32) {
           *carry_out = (result & 1) == 1;
           result = 0;
@@ -1395,9 +1375,8 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
         if (shift_amount == 0) {
           *carry_out = c_flag_;
         } else {
-          uint32_t left = static_cast<uint32_t>(result) >> shift_amount;
-          uint32_t right = static_cast<uint32_t>(result) << (32 - shift_amount);
-          result = right | left;
+          // Avoid undefined behavior. Rotating by multiples of 32 is no-op.
+          result = base::bits::RotateRight32(result, shift_amount & 31);
           *carry_out = (static_cast<uint32_t>(result) >> 31) != 0;
         }
         break;
@@ -1580,6 +1559,34 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int32_t arg0, int32_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int32_t arg0, int32_t arg1,
                                                      void* arg2);
 
+// Separate for fine-grained UBSan blacklisting. Casting any given C++
+// function to {SimulatorRuntimeCall} is undefined behavior; but since
+// the target function can indeed be any function that's exposed via
+// the "fast C call" mechanism, we can't reconstruct its signature here.
+int64_t UnsafeGenericFunctionCall(intptr_t function, int32_t arg0, int32_t arg1,
+                                  int32_t arg2, int32_t arg3, int32_t arg4,
+                                  int32_t arg5, int32_t arg6, int32_t arg7,
+                                  int32_t arg8, int32_t arg9) {
+  SimulatorRuntimeCall target =
+      reinterpret_cast<SimulatorRuntimeCall>(function);
+  return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+}
+void UnsafeDirectApiCall(intptr_t function, int32_t arg0) {
+  SimulatorRuntimeDirectApiCall target =
+      reinterpret_cast<SimulatorRuntimeDirectApiCall>(function);
+  target(arg0);
+}
+void UnsafeProfilingApiCall(intptr_t function, int32_t arg0, int32_t arg1) {
+  SimulatorRuntimeProfilingApiCall target =
+      reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
+  target(arg0, Redirection::ReverseRedirection(arg1));
+}
+void UnsafeDirectGetterCall(intptr_t function, int32_t arg0, int32_t arg1) {
+  SimulatorRuntimeDirectGetterCall target =
+      reinterpret_cast<SimulatorRuntimeDirectGetterCall>(function);
+  target(arg0, arg1);
+}
+
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
 void Simulator::SoftwareInterrupt(Instruction* instr) {
@@ -1710,9 +1717,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        SimulatorRuntimeDirectApiCall target =
-            reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
-        target(arg0);
+        UnsafeDirectApiCall(external, arg0);
       } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1723,9 +1728,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        SimulatorRuntimeProfilingApiCall target =
-            reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-        target(arg0, Redirection::ReverseRedirection(arg1));
+        UnsafeProfilingApiCall(external, arg0, arg1);
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1736,9 +1739,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        SimulatorRuntimeDirectGetterCall target =
-            reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-        target(arg0, arg1);
+        UnsafeDirectGetterCall(external, arg0, arg1);
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -1757,14 +1758,12 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // builtin call.
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
                redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
-        SimulatorRuntimeCall target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
               "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
-              reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-              arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+              reinterpret_cast<void*>(external), arg0, arg1, arg2, arg3, arg4,
+              arg5, arg6, arg7, arg8, arg9);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
@@ -1772,7 +1771,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         int64_t result =
-            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            UnsafeGenericFunctionCall(external, arg0, arg1, arg2, arg3, arg4,
+                                      arg5, arg6, arg7, arg8, arg9);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -1938,7 +1938,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             // Rn field to encode it.
             // Format(instr, "mul'cond's 'rn, 'rm, 'rs");
             int rd = rn;  // Remap the rn field to the Rd register.
-            int32_t alu_out = rm_val * rs_val;
+            int32_t alu_out = base::MulWithWraparound(rm_val, rs_val);
             set_register(rd, alu_out);
             if (instr->HasS()) {
               SetNZFlags(alu_out);
@@ -1952,13 +1952,13 @@ void Simulator::DecodeType01(Instruction* instr) {
               // Rn field to encode the Rd register and the Rd field to encode
               // the Rn register.
               // Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
-              int32_t mul_out = rm_val * rs_val;
-              int32_t result = acc_value + mul_out;
+              int32_t mul_out = base::MulWithWraparound(rm_val, rs_val);
+              int32_t result = base::AddWithWraparound(acc_value, mul_out);
               set_register(rn, result);
             } else {
               // Format(instr, "mls'cond's 'rn, 'rm, 'rs, 'rd");
-              int32_t mul_out = rm_val * rs_val;
-              int32_t result = acc_value - mul_out;
+              int32_t mul_out = base::MulWithWraparound(rm_val, rs_val);
+              int32_t result = base::SubWithWraparound(acc_value, mul_out);
               set_register(rn, result);
             }
           }
@@ -2096,7 +2096,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn], -'rm");
             DCHECK(!instr->HasW());
             addr = rn_val;
-            rn_val -= rm_val;
+            rn_val = base::SubWithWraparound(rn_val, rm_val);
             set_register(rn, rn_val);
             break;
           }
@@ -2104,13 +2104,13 @@ void Simulator::DecodeType01(Instruction* instr) {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn], +'rm");
             DCHECK(!instr->HasW());
             addr = rn_val;
-            rn_val += rm_val;
+            rn_val = base::AddWithWraparound(rn_val, rm_val);
             set_register(rn, rn_val);
             break;
           }
           case db_x: {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn, -'rm]'w");
-            rn_val -= rm_val;
+            rn_val = base::SubWithWraparound(rn_val, rm_val);
             addr = rn_val;
             if (instr->HasW()) {
               set_register(rn, rn_val);
@@ -2119,7 +2119,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           }
           case ib_x: {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn, +'rm]'w");
-            rn_val += rm_val;
+            rn_val = base::AddWithWraparound(rn_val, rm_val);
             addr = rn_val;
             if (instr->HasW()) {
               set_register(rn, rn_val);
@@ -2139,7 +2139,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn], #-'off8");
             DCHECK(!instr->HasW());
             addr = rn_val;
-            rn_val -= imm_val;
+            rn_val = base::SubWithWraparound(rn_val, imm_val);
             set_register(rn, rn_val);
             break;
           }
@@ -2147,13 +2147,13 @@ void Simulator::DecodeType01(Instruction* instr) {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn], #+'off8");
             DCHECK(!instr->HasW());
             addr = rn_val;
-            rn_val += imm_val;
+            rn_val = base::AddWithWraparound(rn_val, imm_val);
             set_register(rn, rn_val);
             break;
           }
           case db_x: {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn, #-'off8]'w");
-            rn_val -= imm_val;
+            rn_val = base::SubWithWraparound(rn_val, imm_val);
             addr = rn_val;
             if (instr->HasW()) {
               set_register(rn, rn_val);
@@ -2162,7 +2162,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           }
           case ib_x: {
             // Format(instr, "'memop'cond'sign'h 'rd, ['rn, #+'off8]'w");
-            rn_val += imm_val;
+            rn_val = base::AddWithWraparound(rn_val, imm_val);
             addr = rn_val;
             if (instr->HasW()) {
               set_register(rn, rn_val);
@@ -2328,7 +2328,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       case SUB: {
         // Format(instr, "sub'cond's 'rd, 'rn, 'shift_rm");
         // Format(instr, "sub'cond's 'rd, 'rn, 'imm");
-        alu_out = rn_val - shifter_operand;
+        alu_out = base::SubWithWraparound(rn_val, shifter_operand);
         set_register(rd, alu_out);
         if (instr->HasS()) {
           SetNZFlags(alu_out);
@@ -2341,7 +2341,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       case RSB: {
         // Format(instr, "rsb'cond's 'rd, 'rn, 'shift_rm");
         // Format(instr, "rsb'cond's 'rd, 'rn, 'imm");
-        alu_out = shifter_operand - rn_val;
+        alu_out = base::SubWithWraparound(shifter_operand, rn_val);
         set_register(rd, alu_out);
         if (instr->HasS()) {
           SetNZFlags(alu_out);
@@ -2354,7 +2354,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       case ADD: {
         // Format(instr, "add'cond's 'rd, 'rn, 'shift_rm");
         // Format(instr, "add'cond's 'rd, 'rn, 'imm");
-        alu_out = rn_val + shifter_operand;
+        alu_out = base::AddWithWraparound(rn_val, shifter_operand);
         set_register(rd, alu_out);
         if (instr->HasS()) {
           SetNZFlags(alu_out);
@@ -2367,7 +2367,8 @@ void Simulator::DecodeType01(Instruction* instr) {
       case ADC: {
         // Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
         // Format(instr, "adc'cond's 'rd, 'rn, 'imm");
-        alu_out = rn_val + shifter_operand + GetCarry();
+        alu_out = base::AddWithWraparound(
+            base::AddWithWraparound(rn_val, shifter_operand), GetCarry());
         set_register(rd, alu_out);
         if (instr->HasS()) {
           SetNZFlags(alu_out);
@@ -2380,7 +2381,9 @@ void Simulator::DecodeType01(Instruction* instr) {
       case SBC: {
         //        Format(instr, "sbc'cond's 'rd, 'rn, 'shift_rm");
         //        Format(instr, "sbc'cond's 'rd, 'rn, 'imm");
-        alu_out = (rn_val - shifter_operand) - (GetCarry() ? 0 : 1);
+        alu_out = base::SubWithWraparound(
+            base::SubWithWraparound(rn_val, shifter_operand),
+            (GetCarry() ? 0 : 1));
         set_register(rd, alu_out);
         if (instr->HasS()) {
           SetNZFlags(alu_out);
@@ -2430,7 +2433,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         if (instr->HasS()) {
           // Format(instr, "cmp'cond 'rn, 'shift_rm");
           // Format(instr, "cmp'cond 'rn, 'imm");
-          alu_out = rn_val - shifter_operand;
+          alu_out = base::SubWithWraparound(rn_val, shifter_operand);
           SetNZFlags(alu_out);
           SetCFlag(!BorrowFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
@@ -2447,7 +2450,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         if (instr->HasS()) {
           // Format(instr, "cmn'cond 'rn, 'shift_rm");
           // Format(instr, "cmn'cond 'rn, 'imm");
-          alu_out = rn_val + shifter_operand;
+          alu_out = base::AddWithWraparound(rn_val, shifter_operand);
           SetNZFlags(alu_out);
           SetCFlag(CarryFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
@@ -2937,7 +2940,7 @@ void Simulator::DecodeType3(Instruction* instr) {
           } else {
             // sbfx - signed bitfield extract.
             int32_t rm_val = get_register(instr->RmValue());
-            int32_t extr_val = rm_val << (31 - msbit);
+            int32_t extr_val = static_cast<uint32_t>(rm_val) << (31 - msbit);
             extr_val = extr_val >> (31 - widthminus1);
             set_register(instr->RdValue(), extr_val);
           }
@@ -2969,7 +2972,7 @@ void Simulator::DecodeType3(Instruction* instr) {
         return;
       } else {
         // Format(instr, "'memop'cond'b 'rd, ['rn, +'shift_rm]'w");
-        addr = rn_val + shifter_operand;
+        addr = base::AddWithWraparound(rn_val, shifter_operand);
         if (instr->HasW()) {
           set_register(rn, addr);
         }
@@ -3010,7 +3013,8 @@ void Simulator::DecodeType4(Instruction* instr) {
 
 void Simulator::DecodeType5(Instruction* instr) {
   // Format(instr, "b'l'cond 'target");
-  int off = (instr->SImmed24Value() << 2);
+  int off =
+      static_cast<int>(static_cast<uint32_t>(instr->SImmed24Value()) << 2);
   intptr_t pc_address = get_pc();
   if (instr->HasLink()) {
     set_register(lr, pc_address + kInstrSize);
@@ -3259,14 +3263,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       if (instr->SzValue() == 0x1) {
         double dn_value = get_double_from_d_register(vn).get_scalar();
         double dm_value = get_double_from_d_register(vm).get_scalar();
-        double dd_value = dn_value / dm_value;
+        double dd_value = base::Divide(dn_value, dm_value);
         div_zero_vfp_flag_ = (dm_value == 0);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
         float sn_value = get_float_from_s_register(n).get_scalar();
         float sm_value = get_float_from_s_register(m).get_scalar();
-        float sd_value = sn_value / sm_value;
+        float sd_value = base::Divide(sn_value, sm_value);
         div_zero_vfp_flag_ = (sm_value == 0);
         sd_value = canonicalizeNaN(sd_value);
         set_s_register_from_float(d, sd_value);
@@ -3594,10 +3598,22 @@ int VFPConversionSaturate(double val, bool unsigned_res) {
 
 int32_t Simulator::ConvertDoubleToInt(double val, bool unsigned_integer,
                                       VFPRoundingMode mode) {
-  // TODO(jkummerow): These casts are undefined behavior if the integral
-  // part of {val} does not fit into the destination type.
-  int32_t result =
-      unsigned_integer ? static_cast<uint32_t>(val) : static_cast<int32_t>(val);
+  int32_t result;
+  if (unsigned_integer) {
+    // The FastD2UI helper does not have the rounding behavior we want here
+    // (it doesn't guarantee any particular rounding, and it doesn't check
+    // for or handle overflow), so do the conversion by hand.
+    using limits = std::numeric_limits<uint32_t>;
+    if (val > limits::max()) {
+      result = limits::max();
+    } else if (!(val >= 0)) {  // Negation to catch NaNs.
+      result = 0;
+    } else {
+      result = static_cast<uint32_t>(val);
+    }
+  } else {
+    result = FastD2IChecked(val);
+  }
 
   inv_op_vfp_flag_ = get_inv_op_vfp_flag(mode, val, unsigned_integer);
 
@@ -3617,7 +3633,9 @@ int32_t Simulator::ConvertDoubleToInt(double val, bool unsigned_integer,
           result += val_sign;
         } else if (abs_diff == 0.5) {
           // Round to even if exactly halfway.
-          result = ((result % 2) == 0) ? result : result + val_sign;
+          result = ((result % 2) == 0)
+                       ? result
+                       : base::AddWithWraparound(result, val_sign);
         }
         break;
       }
@@ -3873,7 +3891,11 @@ void Neg(Simulator* simulator, int Vd, int Vm) {
   T src[kElems];
   simulator->get_neon_register<T, SIZE>(Vm, src);
   for (int i = 0; i < kElems; i++) {
-    src[i] = -src[i];
+    if (src[i] != std::numeric_limits<T>::min()) {
+      src[i] = -src[i];
+    } else {
+      // The respective minimum (negative) value maps to itself.
+    }
   }
   simulator->set_neon_register<T, SIZE>(Vd, src);
 }
@@ -3998,6 +4020,17 @@ void Sub(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->set_neon_register<T, SIZE>(Vd, src1);
 }
 
+namespace {
+uint32_t Multiply(uint32_t a, uint32_t b) { return a * b; }
+uint8_t Multiply(uint8_t a, uint8_t b) { return a * b; }
+// 16-bit integers are special due to C++'s implicit conversion rules.
+// See https://bugs.llvm.org/show_bug.cgi?id=25580.
+uint16_t Multiply(uint16_t a, uint16_t b) {
+  uint32_t result = static_cast<uint32_t>(a) * static_cast<uint32_t>(b);
+  return static_cast<uint16_t>(result);
+}
+}  // namespace
+
 template <typename T, int SIZE>
 void Mul(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kElems = SIZE / sizeof(T);
@@ -4005,7 +4038,7 @@ void Mul(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->get_neon_register<T, SIZE>(Vn, src1);
   simulator->get_neon_register<T, SIZE>(Vm, src2);
   for (int i = 0; i < kElems; i++) {
-    src1[i] *= src2[i];
+    src1[i] = Multiply(src1[i], src2[i]);
   }
   simulator->set_neon_register<T, SIZE>(Vd, src1);
 }
@@ -4090,7 +4123,8 @@ void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
       if (shift_value >= size) {
         src[i] = 0;
       } else {
-        src[i] <<= shift_value;
+        using unsignedT = typename std::make_unsigned<T>::type;
+        src[i] = static_cast<unsignedT>(src[i]) << shift_value;
       }
     } else {
       // If the shift value is greater/equal than size, always end up with -1.
@@ -5721,7 +5755,7 @@ void Simulator::Execute() {
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
+      icount_ = base::AddWithWraparound(icount_, 1);
       InstructionDecode(instr);
       program_counter = get_pc();
     }
@@ -5730,7 +5764,7 @@ void Simulator::Execute() {
     // we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
+      icount_ = base::AddWithWraparound(icount_, 1);
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
         ArmDebugger dbg(this);
         dbg.Debug();

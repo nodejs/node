@@ -350,6 +350,13 @@ DEF_GETTER(HeapObject, IsDependentCode, bool) {
   return true;
 }
 
+DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
+  if (!IsWeakFixedArray(isolate)) return false;
+  // There's actually no way to see the difference between a weak fixed array
+  // and a osr optimized code cache.
+  return true;
+}
+
 DEF_GETTER(HeapObject, IsAbstractCode, bool) {
   return IsBytecodeArray(isolate) || IsCode(isolate);
 }
@@ -409,6 +416,12 @@ DEF_GETTER(HeapObject, IsHashTableBase, bool) { return IsHashTable(isolate); }
 DEF_GETTER(HeapObject, IsSmallOrderedHashTable, bool) {
   return IsSmallOrderedHashSet(isolate) || IsSmallOrderedHashMap(isolate) ||
          IsSmallOrderedNameDictionary(isolate);
+}
+
+DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
+  // It is not possible to check for the existence of certain properties on the
+  // underlying {JSReceiver} here because that requires calling handlified code.
+  return IsJSReceiver(isolate);
 }
 
 bool Object::IsPrimitive() const {
@@ -506,7 +519,7 @@ bool Object::IsMinusZero() const {
 
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
@@ -756,11 +769,13 @@ void HeapObject::set_map(Map value) {
 #endif
   }
   set_map_word(MapWord::FromMap(value));
+#ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
+#endif
 }
 
 DEF_GETTER(HeapObject, synchronized_map, Map) {
@@ -774,11 +789,13 @@ void HeapObject::synchronized_set_map(Map value) {
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
+#ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
+#endif
 }
 
 // Unsafe accessor omitting write barrier.
@@ -793,12 +810,14 @@ void HeapObject::set_map_no_write_barrier(Map value) {
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
+#ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
+#endif
 }
 
 ObjectSlot HeapObject::map_slot() const {

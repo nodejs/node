@@ -824,9 +824,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(Register object,
-                                                        int feedback_slot) {
-  OutputGetIterator(object, feedback_slot);
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = IteratorSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
+    Register object, int load_feedback_slot, int call_feedback_slot) {
+  OutputGetIterator(object, load_feedback_slot, call_feedback_slot);
   return *this;
 }
 

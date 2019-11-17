@@ -5,6 +5,7 @@
 #ifndef V8_LOGGING_LOG_H_
 #define V8_LOGGING_LOG_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
@@ -114,6 +115,9 @@ class Logger : public CodeEventListener {
     kBackgroundCompile,
     kStreamingCompile
   };
+
+  explicit Logger(Isolate* isolate);
+  ~Logger();
 
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext;
@@ -273,9 +277,6 @@ class Logger : public CodeEventListener {
   void LogCodeObject(Object code_object);
 
  private:
-  explicit Logger(Isolate* isolate);
-  ~Logger() override;
-
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -314,21 +315,11 @@ class Logger : public CodeEventListener {
   // of samples.
   std::unique_ptr<Profiler> profiler_;
 
-  // An array of log events names.
-  const char* const* log_events_;
-
-  // Internal implementation classes with access to
-  // private members.
-  friend class EventLog;
-  friend class Isolate;
-  friend class TimeLog;
+  // Internal implementation classes with access to private members.
   friend class Profiler;
-  template <StateTag Tag>
-  friend class VMState;
-  friend class LoggerTestHelper;
 
   bool is_logging_;
-  Log* log_;
+  std::unique_ptr<Log> log_;
   std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<PerfJitLogger> perf_jit_logger_;
   std::unique_ptr<LowLevelLogger> ll_logger_;
@@ -419,7 +410,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;
 
-  NameBuffer* name_buffer_;
+  std::unique_ptr<NameBuffer> name_buffer_;
 };
 
 struct CodeEvent {
@@ -432,6 +423,7 @@ struct CodeEvent {
   int script_column;
   CodeEventType code_type;
   const char* comment;
+  uintptr_t previous_code_start_address;
 };
 
 class ExternalCodeEventListener : public CodeEventListener {
@@ -457,7 +449,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void SetterCallbackEvent(Name name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override {}
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo shared) override {}
   void CodeMovingGCEvent() override {}

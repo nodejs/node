@@ -9,11 +9,9 @@ function Alloc(size) {
 }
 
 function RunSomeAllocs(total, retained, size) {
-  print(`-------iterations = ${total}, retained = $ { retained } -------`);
+  print(`-------iterations = ${total}, retained = ${retained} -------`);
   var array = new Array(retained);
   for (var i = 0; i < total; i++) {
-    if ((i % 25) == 0)
-      print(`iteration $ { i }`);
     let pair = Alloc(size);
     // For some iterations, retain the memory, view, or both.
     switch (i % 3) {

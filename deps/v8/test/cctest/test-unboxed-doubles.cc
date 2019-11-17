@@ -78,8 +78,9 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   }
 }
 
-void WriteToField(JSObject object, int descriptor, Object value) {
+void WriteToField(JSObject object, int index, Object value) {
   DescriptorArray descriptors = object.map().instance_descriptors();
+  InternalIndex descriptor(index);
   PropertyDetails details = descriptors.GetDetails(descriptor);
   object.WriteToField(descriptor, details, value);
 }
@@ -811,7 +812,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   Handle<Map> map;
   // Now check layout descriptors of all intermediate maps.
   for (int i = 0; i < number_of_descriptors; i++) {
-    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
     map = maps[i];
     LayoutDescriptor layout_desc = map->layout_descriptor();
 
@@ -962,7 +963,7 @@ TEST(Regress436816) {
   CHECK(fake_object.IsHeapObject());
 
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
-  for (int i = 0; i < kPropsCount; i++) {
+  for (InternalIndex i : InternalIndex::Range(kPropsCount)) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     CHECK(map->IsUnboxedDoubleField(index));
     object->RawFastDoublePropertyAsBitsAtPut(index, boom_value);
@@ -1100,7 +1101,7 @@ TEST(DoScavenge) {
 
   {
     // Ensure the object is properly set up.
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(0));
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
@@ -1119,7 +1120,8 @@ TEST(DoScavenge) {
   Address fake_object = temp->ptr() + kSystemPointerSize;
   double boom_value = bit_cast<double>(fake_object);
 
-  FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(obj->map(), InternalIndex(0));
   auto boom_number = factory->NewHeapNumber(boom_value);
   obj->FastPropertyAtPut(field_index, *boom_number);
 
@@ -1182,12 +1184,12 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
 
   {
     // Ensure the object is properly set up.
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(0));
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
 
-    field_index = FieldIndex::ForDescriptor(*map, 1);
+    field_index = FieldIndex::ForDescriptor(*map, InternalIndex(1));
     CHECK(field_index.is_inobject() && !field_index.is_double());
     CHECK(!map->IsUnboxedDoubleField(field_index));
   }
@@ -1225,7 +1227,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // |obj_value| must be evacuated.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  FieldIndex field_index = FieldIndex::ForDescriptor(*map, 1);
+  FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(1));
   CHECK_EQ(*obj_value, obj->RawFastPropertyAt(field_index));
 }
 
@@ -1248,7 +1250,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
 
   int end_offset = instance_size * 2;
   int first_non_tagged_field_offset = end_offset;
-  for (int i = 0; i < number_of_descriptors; i++) {
+  for (InternalIndex i : InternalIndex::Range(number_of_descriptors)) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
@@ -1430,9 +1432,9 @@ TEST(LayoutDescriptorSharing) {
   CHECK(map2->layout_descriptor().IsConsistentWithMap(*map2, true));
 }
 
-
 static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
-                             int tagged_descriptor, int double_descriptor,
+                             InternalIndex tagged_descriptor,
+                             InternalIndex double_descriptor,
                              bool check_tagged_value = true) {
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
@@ -1491,10 +1493,9 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
-
 static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
-                                        int tagged_descriptor,
-                                        int double_descriptor,
+                                        InternalIndex tagged_descriptor,
+                                        InternalIndex double_descriptor,
                                         bool check_tagged_value = true) {
   if (FLAG_never_compact || !FLAG_incremental_marking) return;
   ManualGCScope manual_gc_scope;
@@ -1607,14 +1608,16 @@ static void TestWriteBarrierObjectShiftFieldsRight(
             .ToHandleChecked();
 
   // Shift fields right by turning constant property to a field.
-  Handle<Map> new_map = Map::ReconfigureProperty(
-      isolate, map, 0, kData, NONE, Representation::Tagged(), any_type);
+  Handle<Map> new_map =
+      Map::ReconfigureProperty(isolate, map, InternalIndex(0), kData, NONE,
+                               Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
-    TestWriteBarrier(map, new_map, 2, 1);
+    TestWriteBarrier(map, new_map, InternalIndex(2), InternalIndex(1));
   } else {
     CHECK_EQ(OLD_TO_OLD_WRITE_BARRIER, write_barrier_kind);
-    TestIncrementalWriteBarrier(map, new_map, 2, 1);
+    TestIncrementalWriteBarrier(map, new_map, InternalIndex(2),
+                                InternalIndex(1));
   }
 }
 

@@ -24,42 +24,40 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
   DCHECK_LE(last_slot_, slot);
   last_slot_ = slot;
 #endif
-  while (slot >= invalidated_end_) {
-    ++iterator_;
-    if (iterator_ != iterator_end_) {
-      // Invalidated ranges must not overlap.
-      DCHECK_LE(invalidated_end_, iterator_->first.address());
-      invalidated_start_ = iterator_->first.address();
-      invalidated_end_ = invalidated_start_ + iterator_->second;
-      invalidated_object_ = HeapObject();
-      invalidated_object_size_ = 0;
-    } else {
-      invalidated_start_ = sentinel_;
-      invalidated_end_ = sentinel_;
-    }
-  }
-  // Now the invalidated region ends after the slot.
   if (slot < invalidated_start_) {
-    // The invalidated region starts after the slot.
     return true;
   }
-  // The invalidated region includes the slot.
-  // Ask the object if the slot is valid.
-  if (invalidated_object_.is_null()) {
-    invalidated_object_ = HeapObject::FromAddress(invalidated_start_);
-    DCHECK(!invalidated_object_.IsFiller());
-    invalidated_object_size_ =
-        invalidated_object_.SizeFromMap(invalidated_object_.map());
+
+  while (slot >= next_invalidated_start_) {
+    NextInvalidatedObject();
   }
+
+  HeapObject invalidated_object = HeapObject::FromAddress(invalidated_start_);
+
+  if (invalidated_size_ == 0) {
+    DCHECK(invalidated_object.map().IsMap());
+    invalidated_size_ = invalidated_object.Size();
+  }
+
   int offset = static_cast<int>(slot - invalidated_start_);
   DCHECK_GT(offset, 0);
-  DCHECK_LE(invalidated_object_size_,
-            static_cast<int>(invalidated_end_ - invalidated_start_));
+  if (offset < invalidated_size_)
+    return invalidated_object.IsValidSlot(invalidated_object.map(), offset);
 
-  if (offset >= invalidated_object_size_) {
-    return slots_in_free_space_are_valid_;
+  NextInvalidatedObject();
+  return true;
+}
+
+void InvalidatedSlotsFilter::NextInvalidatedObject() {
+  invalidated_start_ = next_invalidated_start_;
+  invalidated_size_ = 0;
+
+  if (iterator_ == iterator_end_) {
+    next_invalidated_start_ = sentinel_;
+  } else {
+    next_invalidated_start_ = iterator_->address();
+    iterator_++;
   }
-  return invalidated_object_.IsValidSlot(invalidated_object_.map(), offset);
 }
 
 void InvalidatedSlotsCleanup::Free(Address free_start, Address free_end) {
@@ -72,35 +70,25 @@ void InvalidatedSlotsCleanup::Free(Address free_start, Address free_end) {
 
   if (iterator_ == iterator_end_) return;
 
-  // Ignore invalidated objects before free region
-  while (free_start >= invalidated_end_) {
+  // Ignore invalidated objects that start before free region
+  while (invalidated_start_ < free_start) {
     ++iterator_;
     NextInvalidatedObject();
   }
 
-  // Loop here: Free region might contain multiple invalidated objects
-  while (free_end > invalidated_start_) {
-    // Case: Free region starts before current invalidated object
-    if (free_start <= invalidated_start_) {
-      iterator_ = invalidated_slots_->erase(iterator_);
-
-    } else {
-      // Case: Free region starts within current invalidated object
-      // (Can happen for right-trimmed objects)
-      iterator_++;
-    }
-
+  // Remove all invalidated objects that start within
+  // free region.
+  while (invalidated_start_ < free_end) {
+    iterator_ = invalidated_slots_->erase(iterator_);
     NextInvalidatedObject();
   }
 }
 
 void InvalidatedSlotsCleanup::NextInvalidatedObject() {
   if (iterator_ != iterator_end_) {
-    invalidated_start_ = iterator_->first.address();
-    invalidated_end_ = invalidated_start_ + iterator_->second;
+    invalidated_start_ = iterator_->address();
   } else {
     invalidated_start_ = sentinel_;
-    invalidated_end_ = sentinel_;
   }
 }
 

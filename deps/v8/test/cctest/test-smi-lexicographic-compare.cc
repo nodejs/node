@@ -14,11 +14,11 @@ namespace internal {
 
 namespace {
 
-void AddSigned(std::set<Smi>& smis, int64_t x) {  // NOLINT(runtime/references)
+void AddSigned(std::set<Smi>* smis, int64_t x) {
   if (!Smi::IsValid(x)) return;
 
-  smis.insert(Smi::FromInt(static_cast<int>(x)));
-  smis.insert(Smi::FromInt(static_cast<int>(-x)));
+  smis->insert(Smi::FromInt(static_cast<int>(x)));
+  smis->insert(Smi::FromInt(static_cast<int>(-x)));
 }
 
 // Uses std::lexicographical_compare twice to convert the result to -1, 0 or 1.
@@ -58,14 +58,14 @@ TEST(TestSmiLexicographicCompare) {
   for (int64_t xb = 1; xb <= Smi::kMaxValue; xb *= 10) {
     for (int64_t xf = 0; xf <= 9; ++xf) {
       for (int64_t xo = -1; xo <= 1; ++xo) {
-        AddSigned(smis, xb * xf + xo);
+        AddSigned(&smis, xb * xf + xo);
       }
     }
   }
 
   for (int64_t yb = 1; yb <= Smi::kMaxValue; yb *= 2) {
     for (int64_t yo = -2; yo <= 2; ++yo) {
-      AddSigned(smis, yb + yo);
+      AddSigned(&smis, yb + yo);
     }
   }
 

@@ -247,6 +247,10 @@ int32_t int64_mod_wrapper(Address data) {
   if (divisor == 0) {
     return 0;
   }
+  if (divisor == -1 && dividend == std::numeric_limits<int64_t>::min()) {
+    WriteUnalignedValue<int64_t>(data, 0);
+    return 1;
+  }
   WriteUnalignedValue<int64_t>(data, dividend % divisor);
   return 1;
 }

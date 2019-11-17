@@ -22,9 +22,35 @@ namespace compiler {
   } while (false)
 
 namespace {
-bool IsSmall(BytecodeArrayRef bytecode) {
+bool IsSmall(BytecodeArrayRef const& bytecode) {
   return bytecode.length() <= FLAG_max_inlined_bytecode_size_small;
 }
+
+bool CanConsiderForInlining(JSHeapBroker* broker,
+                            SharedFunctionInfoRef const& shared,
+                            FeedbackVectorRef const& feedback_vector) {
+  if (!shared.IsInlineable()) return false;
+  DCHECK(shared.HasBytecodeArray());
+  if (!shared.IsSerializedForCompilation(feedback_vector)) {
+    TRACE_BROKER_MISSING(
+        broker, "data for " << shared << " (not serialized for compilation)");
+    return false;
+  }
+  return true;
+}
+
+bool CanConsiderForInlining(JSHeapBroker* broker,
+                            JSFunctionRef const& function) {
+  if (!function.has_feedback_vector()) return false;
+  if (!function.serialized()) {
+    TRACE_BROKER_MISSING(
+        broker, "data for " << function << " (cannot consider for inlining)");
+    return false;
+  }
+  return CanConsiderForInlining(broker, function.shared(),
+                                function.feedback_vector());
+}
+
 }  // namespace
 
 JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
@@ -38,11 +64,11 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   if (m.HasValue() && m.Ref(broker()).IsJSFunction()) {
     out.functions[0] = m.Ref(broker()).AsJSFunction();
     JSFunctionRef function = out.functions[0].value();
-    if (function.IsSerializedForCompilation()) {
+    if (CanConsiderForInlining(broker(), function)) {
       out.bytecode[0] = function.shared().GetBytecodeArray();
+      out.num_functions = 1;
+      return out;
     }
-    out.num_functions = 1;
-    return out;
   }
   if (m.IsPhi()) {
     int const value_input_count = m.node()->op()->ValueInputCount();
@@ -59,7 +85,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 
       out.functions[n] = m.Ref(broker()).AsJSFunction();
       JSFunctionRef function = out.functions[n].value();
-      if (function.IsSerializedForCompilation()) {
+      if (CanConsiderForInlining(broker(), function)) {
         out.bytecode[n] = function.shared().GetBytecodeArray();
       }
     }
@@ -67,11 +93,14 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     return out;
   }
   if (m.IsJSCreateClosure()) {
-    CreateClosureParameters const& p = CreateClosureParametersOf(m.op());
     DCHECK(!out.functions[0].has_value());
-    out.shared_info = SharedFunctionInfoRef(broker(), p.shared_info());
-    SharedFunctionInfoRef shared_info = out.shared_info.value();
-    if (shared_info.HasBytecodeArray()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(m.op());
+    FeedbackCellRef feedback_cell(broker(), p.feedback_cell());
+    SharedFunctionInfoRef shared_info(broker(), p.shared_info());
+    out.shared_info = shared_info;
+    if (feedback_cell.value().IsFeedbackVector() &&
+        CanConsiderForInlining(broker(), shared_info,
+                               feedback_cell.value().AsFeedbackVector())) {
       out.bytecode[0] = shared_info.GetBytecodeArray();
     }
     out.num_functions = 1;
@@ -135,7 +164,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     SharedFunctionInfoRef shared = candidate.functions[i].has_value()
                                        ? candidate.functions[i].value().shared()
                                        : candidate.shared_info.value();
-    candidate.can_inline_function[i] = shared.IsInlineable();
+    candidate.can_inline_function[i] = candidate.bytecode[i].has_value();
+    CHECK_IMPLIES(candidate.can_inline_function[i], shared.IsInlineable());
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
@@ -151,14 +181,12 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
             node->id(), node->op()->mnemonic());
       candidate.can_inline_function[i] = false;
     }
-    // A function reaching this point should always have its bytecode
-    // serialized.
-    BytecodeArrayRef bytecode = candidate.bytecode[i].value();
     if (candidate.can_inline_function[i]) {
       can_inline_candidate = true;
+      BytecodeArrayRef bytecode = candidate.bytecode[i].value();
       candidate.total_size += bytecode.length();
+      candidate_is_small = candidate_is_small && IsSmall(bytecode);
     }
-    candidate_is_small = candidate_is_small && IsSmall(bytecode);
   }
   if (!can_inline_candidate) return NoChange();
 

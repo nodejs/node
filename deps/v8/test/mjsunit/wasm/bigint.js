@@ -26,30 +26,30 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let a_global_index = builder
-    .addImportedGlobal("mod", "a", kWasmI64)
+    .addImportedGlobal("mod", "a", kWasmI64);
 
   let b_global_index = builder
     .addImportedGlobal("mod", "b", kWasmI64);
 
-  let c_global_index = builder
-    .addImportedGlobal("mod", "c", kWasmI64);
-
   builder
     .addExportOfKind('a', kExternalGlobal, a_global_index)
     .addExportOfKind('b', kExternalGlobal, b_global_index)
-    .addExportOfKind('c', kExternalGlobal, c_global_index);
 
   let module = builder.instantiate({
     mod: {
       a: 1n,
       b: 2n ** 63n,
-      c: "123",
     }
   });
 
   assertEquals(module.exports.a.value, 1n);
   assertEquals(module.exports.b.value, - (2n ** 63n));
-  assertEquals(module.exports.c.value, 123n);
+})();
+
+(function TestJSBigIntGlobalImportInvalidType() {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("mod", "a", kWasmI64);
+  assertThrows(() => builder.instantiate({mod: { a: {} } }), WebAssembly.LinkError);
 })();
 
 (function TestJSBigIntToWasmI64MutableGlobal() {
@@ -86,7 +86,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder
     .addFunction("f", kSig_l_l) // i64 -> i64
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
     ])
     .exportFunc();
 
@@ -108,7 +108,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder
     .addFunction("f", kSig_l_ll) // i64 -> i64
     .addBody([
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
     ])
     .exportFunc();
 

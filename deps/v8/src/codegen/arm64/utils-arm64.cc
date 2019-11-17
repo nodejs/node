@@ -89,15 +89,6 @@ int CountLeadingSignBits(int64_t value, int width) {
   }
 }
 
-int CountTrailingZeros(uint64_t value, int width) {
-  DCHECK((width == 32) || (width == 64));
-  if (width == 64) {
-    return static_cast<int>(base::bits::CountTrailingZeros64(value));
-  }
-  return static_cast<int>(base::bits::CountTrailingZeros32(
-      static_cast<uint32_t>(value & 0xFFFFFFFFF)));
-}
-
 int CountSetBits(uint64_t value, int width) {
   DCHECK((width == 32) || (width == 64));
   if (width == 64) {
@@ -109,7 +100,7 @@ int CountSetBits(uint64_t value, int width) {
 
 int LowestSetBitPosition(uint64_t value) {
   DCHECK_NE(value, 0U);
-  return CountTrailingZeros(value, 64) + 1;
+  return base::bits::CountTrailingZeros(value) + 1;
 }
 
 int HighestSetBitPosition(uint64_t value) {
@@ -118,12 +109,14 @@ int HighestSetBitPosition(uint64_t value) {
 }
 
 uint64_t LargestPowerOf2Divisor(uint64_t value) {
-  return value & (-(int64_t)value);
+  // Simulate two's complement (instead of casting to signed and negating) to
+  // avoid undefined behavior on signed overflow.
+  return value & ((~value) + 1);
 }
 
 int MaskToBit(uint64_t mask) {
   DCHECK_EQ(CountSetBits(mask, 64), 1);
-  return CountTrailingZeros(mask, 64);
+  return base::bits::CountTrailingZeros(mask);
 }
 
 #undef __

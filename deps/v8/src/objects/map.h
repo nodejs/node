@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "torque-generated/field-offsets-tq.h"
 
@@ -470,7 +471,8 @@ class Map : public HeapObject {
   Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
   V8_EXPORT_PRIVATE Map FindRootMap(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE Map FindFieldOwner(Isolate* isolate, int descriptor) const;
+  V8_EXPORT_PRIVATE Map FindFieldOwner(Isolate* isolate,
+                                       InternalIndex descriptor) const;
 
   inline int GetInObjectPropertyOffset(int index) const;
 
@@ -513,7 +515,8 @@ class Map : public HeapObject {
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
   static void GeneralizeField(Isolate* isolate, Handle<Map> map,
-                              int modify_index, PropertyConstness new_constness,
+                              InternalIndex modify_index,
+                              PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
   // Returns true if the |field_type| is the most general one for
@@ -533,7 +536,7 @@ class Map : public HeapObject {
       Representation* representation, Handle<FieldType>* field_type);
 
   V8_EXPORT_PRIVATE static Handle<Map> ReconfigureProperty(
-      Isolate* isolate, Handle<Map> map, int modify_index,
+      Isolate* isolate, Handle<Map> map, InternalIndex modify_index,
       PropertyKind new_kind, PropertyAttributes new_attributes,
       Representation new_representation, Handle<FieldType> new_field_type);
 
@@ -541,7 +544,7 @@ class Map : public HeapObject {
       Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind);
 
   V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
-      Isolate* isolate, Handle<Map> old_map, int descriptor_number,
+      Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
       PropertyConstness constness, Handle<Object> value);
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
@@ -636,10 +639,11 @@ class Map : public HeapObject {
 
   inline PropertyDetails GetLastDescriptorDetails(Isolate* isolate) const;
 
-  inline int LastAdded() const;
+  inline InternalIndex LastAdded() const;
 
   inline int NumberOfOwnDescriptors() const;
   inline void SetNumberOfOwnDescriptors(int number);
+  inline InternalIndex::Range IterateOwnDescriptors() const;
 
   inline Cell RetrieveDescriptorsPointer();
 
@@ -742,12 +746,13 @@ class Map : public HeapObject {
       Handle<Object> value, PropertyAttributes attributes,
       PropertyConstness constness, StoreOrigin store_origin);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToAccessorProperty(
-      Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
-      Handle<Object> getter, Handle<Object> setter,
+      Isolate* isolate, Handle<Map> map, Handle<Name> name,
+      InternalIndex descriptor, Handle<Object> getter, Handle<Object> setter,
       PropertyAttributes attributes);
   V8_EXPORT_PRIVATE static Handle<Map> ReconfigureExistingProperty(
-      Isolate* isolate, Handle<Map> map, int descriptor, PropertyKind kind,
-      PropertyAttributes attributes, PropertyConstness constness);
+      Isolate* isolate, Handle<Map> map, InternalIndex descriptor,
+      PropertyKind kind, PropertyAttributes attributes,
+      PropertyConstness constness);
 
   inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
@@ -881,9 +886,6 @@ class Map : public HeapObject {
       InstanceType instance_type);
   inline bool CanHaveFastTransitionableElementsKind() const;
 
-  // Whether this is the map of the given native context's global proxy.
-  bool IsMapOfGlobalProxy(Handle<NativeContext> native_context) const;
-
  private:
   // This byte encodes either the instance size without the in-object slack or
   // the slack size in properties backing store.
@@ -925,7 +927,7 @@ class Map : public HeapObject {
       Handle<LayoutDescriptor> full_layout_descriptor);
   static void InstallDescriptors(
       Isolate* isolate, Handle<Map> parent_map, Handle<Map> child_map,
-      int new_descriptor, Handle<DescriptorArray> descriptors,
+      InternalIndex new_descriptor, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> full_layout_descriptor);
   static Handle<Map> CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                        Descriptor* descriptor,
@@ -938,7 +940,8 @@ class Map : public HeapObject {
 
   static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,
-                                           Descriptor* descriptor, int index,
+                                           Descriptor* descriptor,
+                                           InternalIndex index,
                                            TransitionFlag flag);
   static Handle<Map> CopyNormalized(Isolate* isolate, Handle<Map> map,
                                     PropertyNormalizationMode mode);
@@ -951,22 +954,24 @@ class Map : public HeapObject {
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
-  void UpdateFieldType(Isolate* isolate, int descriptor_number,
+  void UpdateFieldType(Isolate* isolate, InternalIndex descriptor_number,
                        Handle<Name> name, PropertyConstness new_constness,
                        Representation new_representation,
                        const MaybeObjectHandle& new_wrapped_type);
 
   // TODO(ishell): Move to MapUpdater.
-  void PrintReconfiguration(Isolate* isolate, FILE* file, int modify_index,
-                            PropertyKind kind, PropertyAttributes attributes);
+  void PrintReconfiguration(Isolate* isolate, FILE* file,
+                            InternalIndex modify_index, PropertyKind kind,
+                            PropertyAttributes attributes);
   // TODO(ishell): Move to MapUpdater.
   void PrintGeneralization(
-      Isolate* isolate, FILE* file, const char* reason, int modify_index,
-      int split, int descriptors, bool constant_to_field,
-      Representation old_representation, Representation new_representation,
-      PropertyConstness old_constness, PropertyConstness new_constness,
-      MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
-      MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
+      Isolate* isolate, FILE* file, const char* reason,
+      InternalIndex modify_index, int split, int descriptors,
+      bool constant_to_field, Representation old_representation,
+      Representation new_representation, PropertyConstness old_constness,
+      PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
+      MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
+      MaybeHandle<Object> new_value);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_ACCESSORS(synchronized_instance_descriptors, DescriptorArray)

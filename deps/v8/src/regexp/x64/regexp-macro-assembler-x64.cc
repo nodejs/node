@@ -296,7 +296,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   } else {
     DCHECK(mode_ == UC16);
     // Save important/volatile registers before calling C function.
-#ifndef _WIN64
+#ifndef V8_TARGET_OS_WIN
     // Caller save on Linux and callee save in Windows.
     __ pushq(rsi);
     __ pushq(rdi);
@@ -311,7 +311,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
 //   Isolate* isolate or 0 if unicode flag.
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
     DCHECK(rcx == arg_reg_1);
     DCHECK(rdx == arg_reg_2);
     // Compute and set byte_offset1 (start of capture).
@@ -333,7 +333,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     if (read_backward) {
       __ subq(rsi, rbx);
     }
-#endif  // _WIN64
+#endif  // V8_TARGET_OS_WIN
 
     // Set byte_length.
     __ movq(arg_reg_3, rbx);
@@ -358,7 +358,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_.CodeObject());
     __ popq(backtrack_stackpointer());
-#ifndef _WIN64
+#ifndef V8_TARGET_OS_WIN
     __ popq(rdi);
     __ popq(rsi);
 #endif
@@ -683,7 +683,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
   //  to order of kBackup_ebx etc.
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
   __ movq(Operand(rbp, kInputString), rcx);
@@ -890,7 +890,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   }
 
   __ bind(&return_rax);
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   // Restore callee save registers.
   __ leaq(rsp, Operand(rbp, kLastCalleeSaveRegister));
   __ popq(rbx);
@@ -943,7 +943,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Reached if the backtrack-stack limit has been hit.
 
     // Save registers before calling C function
-#ifndef _WIN64
+#ifndef V8_TARGET_OS_WIN
     // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
     __ pushq(rsi);
     __ pushq(rdi);
@@ -952,7 +952,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Call GrowStack(backtrack_stackpointer())
     static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments);
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
     // Microsoft passes parameters in rcx, rdx, r8.
     // First argument, backtrack stackpointer, is already in rcx.
     __ leaq(rdx, Operand(rbp, kStackHighEnd));  // Second argument
@@ -974,7 +974,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_.CodeObject());
-#ifndef _WIN64
+#ifndef V8_TARGET_OS_WIN
     __ popq(rdi);
     __ popq(rsi);
 #endif
@@ -1159,7 +1159,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // store anything volatile in a C call or overwritten by this function.
   static const int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments);
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   // Second argument: Code of self. (Do this before overwriting r8).
   __ movq(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.

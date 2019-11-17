@@ -83,6 +83,30 @@
   assertEquals('d', new C().getA().getD());
 }
 
+{
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      get #a() {}
+    }
+  }, TypeError);
+
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      set #a(val) {}
+    }
+  }, TypeError);
+
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      set #a(val) {}
+      get #a() {}
+    }
+  }, TypeError);
+}
+
 // Duplicate private accessors.
 // https://tc39.es/proposal-private-methods/#sec-static-semantics-early-errors
 {

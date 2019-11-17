@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-numberformat-unified
 // Similar to constructor-order.js but also consider the new options
 // in https://tc39-transfer.github.io/proposal-unified-intl-numberformat/
 

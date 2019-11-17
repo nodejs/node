@@ -179,16 +179,6 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
-  Vector<Node*> Buffer(size_t count) {
-    if (count > cur_bufsize_) {
-      size_t new_size = count + cur_bufsize_ + 5;
-      cur_buffer_ =
-          reinterpret_cast<Node**>(zone_->New(new_size * sizeof(Node*)));
-      cur_bufsize_ = new_size;
-    }
-    return {cur_buffer_, count};
-  }
-
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
   //-----------------------------------------------------------------------
@@ -199,11 +189,11 @@ class WasmGraphBuilder {
   Node* TerminateLoop(Node* effect, Node* control);
   Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
-  Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
+  Node* Phi(wasm::ValueType type, unsigned count, Node** vals_and_control);
   Node* CreateOrMergeIntoPhi(MachineRepresentation rep, Node* merge,
                              Node* tnode, Node* fnode);
   Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
-  Node* EffectPhi(unsigned count, Node** effects, Node* control);
+  Node* EffectPhi(unsigned count, Node** effects_and_control);
   Node* RefNull();
   Node* RefFunc(uint32_t function_index);
   Node* Uint32Constant(uint32_t value);
@@ -223,8 +213,9 @@ class WasmGraphBuilder {
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
-  Vector<Node*> GetExceptionValues(Node* except_obj,
-                                   const wasm::WasmException* exception);
+  Node* GetExceptionValues(Node* except_obj,
+                           const wasm::WasmException* exception,
+                           Vector<Node*> values_out);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -275,20 +266,21 @@ class WasmGraphBuilder {
   }
   Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Node** args, Node*** rets,
+  Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,
                    wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t table_index, uint32_t sig_index, Node** args,
-                     Node*** rets, wasm::WasmCodePosition position);
+  Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
+                     Vector<Node*> args, Vector<Node*> rets,
+                     wasm::WasmCodePosition position);
 
-  Node* ReturnCall(uint32_t index, Node** args,
+  Node* ReturnCall(uint32_t index, Vector<Node*> args,
                    wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
-                           Node** args, wasm::WasmCodePosition position);
+                           Vector<Node*> args, wasm::WasmCodePosition position);
 
   Node* Invert(Node* node);
 
-  Node* GetGlobal(uint32_t index);
-  Node* SetGlobal(uint32_t index, Node* val);
+  Node* GlobalGet(uint32_t index);
+  Node* GlobalSet(uint32_t index, Node* val);
   Node* TableGet(uint32_t table_index, Node* index,
                  wasm::WasmCodePosition position);
   Node* TableSet(uint32_t table_index, Node* index, Node* val,
@@ -427,8 +419,6 @@ class WasmGraphBuilder {
   void RemoveBytecodePositionDecorator();
 
  protected:
-  static const int kDefaultBufferSize = 16;
-
   Zone* const zone_;
   MachineGraph* const mcgraph_;
   wasm::CompilationEnv* const env_;
@@ -444,9 +434,6 @@ class WasmGraphBuilder {
   SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
-  Node** cur_buffer_;
-  size_t cur_bufsize_;
-  Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
   const bool untrusted_code_mitigations_ = true;
@@ -496,28 +483,29 @@ class WasmGraphBuilder {
 
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
-  Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
+  Node* BuildCallNode(wasm::FunctionSig* sig, Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op);
   // Helper function for {BuildIndirectCall}.
   void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
-  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index, Node** args,
-                          Node*** rets, wasm::WasmCodePosition position,
+  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
+                          Vector<Node*> args, Vector<Node*> rets,
+                          wasm::WasmCodePosition position,
                           IsReturnCall continuation);
-  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                      wasm::WasmCodePosition position, Node* instance_node,
-                      UseRetpoline use_retpoline);
-  Node* BuildWasmReturnCall(wasm::FunctionSig* sig, Node** args,
+  Node* BuildWasmCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                      Vector<Node*> rets, wasm::WasmCodePosition position,
+                      Node* instance_node, UseRetpoline use_retpoline);
+  Node* BuildWasmReturnCall(wasm::FunctionSig* sig, Vector<Node*> args,
                             wasm::WasmCodePosition position,
                             Node* instance_node, UseRetpoline use_retpoline);
-  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, int func_index,
-                        IsReturnCall continuation);
-  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, Node* func_index,
-                        IsReturnCall continuation);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                        Vector<Node*> rets, wasm::WasmCodePosition position,
+                        int func_index, IsReturnCall continuation);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                        Vector<Node*> rets, wasm::WasmCodePosition position,
+                        Node* func_index, IsReturnCall continuation);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
@@ -574,11 +562,14 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
+  Node* BuildTruncateIntPtrToInt32(Node* value);
   Node* BuildChangeInt32ToIntPtr(Node* value);
   Node* BuildChangeInt32ToSmi(Node* value);
   Node* BuildChangeUint31ToSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
+  Node* BuildSmiShiftBitsConstant32();
   Node* BuildChangeSmiToInt32(Node* value);
+  Node* BuildChangeSmiToIntPtr(Node* value);
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
@@ -599,15 +590,8 @@ class WasmGraphBuilder {
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);
   Node* BuildDecodeException64BitValue(Node* values_array, uint32_t* index);
 
-  Vector<Node*> Realloc(Node* const* buffer, size_t old_count,
-                        size_t new_count) {
-    DCHECK_GE(new_count, old_count);  // Only support growing.
-    Vector<Node*> buf = Buffer(new_count);
-    if (buf.begin() != buffer) {
-      memcpy(buf.begin(), buffer, old_count * sizeof(Node*));
-    }
-    return buf;
-  }
+  Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
+                                               Node* iterable, Node* context);
 
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove

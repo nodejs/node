@@ -166,13 +166,14 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
+constexpr size_t kMaxWasmCodeMB = 1024;
+constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 #if V8_TARGET_ARCH_ARM64
 // ARM64 only supports direct calls within a 128 MB range.
-constexpr size_t kMaxWasmCodeMB = 128;
+constexpr size_t kMaxWasmCodeSpaceSize = 128 * MB;
 #else
-constexpr size_t kMaxWasmCodeMB = 1024;
+constexpr size_t kMaxWasmCodeSpaceSize = kMaxWasmCodeMemory;
 #endif
-constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
@@ -230,7 +231,7 @@ constexpr int kTaggedSizeLog2 = 2;
 
 // These types define raw and atomic storage types for tagged values stored
 // on V8 heap.
-using Tagged_t = int32_t;
+using Tagged_t = uint32_t;
 using AtomicTagged_t = base::Atomic32;
 
 #else
@@ -244,11 +245,6 @@ using Tagged_t = Address;
 using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
-
-// Defines whether the branchless or branchful implementation of pointer
-// decompression should be used.
-constexpr bool kUseBranchlessPtrDecompressionInRuntime = false;
-constexpr bool kUseBranchlessPtrDecompressionInGeneratedCode = false;
 
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 STATIC_ASSERT((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
@@ -795,8 +791,6 @@ enum InlineCacheState {
   NO_FEEDBACK,
   // Has never been executed.
   UNINITIALIZED,
-  // Has been executed but monomorphic state has been delayed.
-  PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
   MONOMORPHIC,
   // Check failed due to prototype (or map deprecation).
@@ -816,8 +810,6 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "NOFEEDBACK";
     case UNINITIALIZED:
       return "UNINITIALIZED";
-    case PREMONOMORPHIC:
-      return "PREMONOMORPHIC";
     case MONOMORPHIC:
       return "MONOMORPHIC";
     case RECOMPUTE_HANDLER:
@@ -1215,6 +1207,10 @@ enum VariableLocation : uint8_t {
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
+
+// Static variables can only be used with the class in the closest
+// class scope as receivers.
+enum class IsStaticFlag : uint8_t { kNotStatic, kStatic };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 

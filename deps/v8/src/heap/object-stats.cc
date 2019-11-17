@@ -150,9 +150,8 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    int nof = map.NumberOfOwnDescriptors();
     DescriptorArray descriptors = map.instance_descriptors();
-    for (int descriptor = 0; descriptor < nof; descriptor++) {
+    for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
@@ -658,8 +657,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
   Object obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_TYPE;
@@ -669,8 +667,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_TYPE;
@@ -682,8 +679,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_TYPE;
@@ -829,10 +825,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
   // WeakArrayList.
-  RecordSimpleVirtualObjectStats(
-      HeapObject(),
-      WeakArrayList::cast(heap_->noscript_shared_function_infos()),
-      ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(),
                                  WeakArrayList::cast(heap_->script_list()),
                                  ObjectStats::SCRIPT_LIST_TYPE);

@@ -7,3 +7,5 @@ interpreter func:     2+0x3     load from 00000002 val: f32:68169720922112.00000
 interpreter func:     4+0x5      store to 00000004 val:  i8:171 / ab
 interpreter func:     0+0x3     load from 00000002 val: i32:1454047232 / 56ab0000
 interpreter func:     2+0x3     load from 00000002 val: f32:94008244174848.000000 / 56ab0000
+interpreter func:     6+0x7      store to 00000004 val: s128:48879 48879 48879 48879 / 0000beef 0000beef 0000beef 0000beef
+interpreter func:     5+0x3     load from 00000002 val: s128:-1091633152 -1091633152 -1091633152 -1091633152 / beef0000 beef0000 beef0000 beef0000

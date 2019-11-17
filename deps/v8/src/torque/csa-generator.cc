@@ -41,7 +41,7 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   Stack<std::string> stack;
   for (const Type* t : block->InputTypes()) {
     stack.Push(FreshNodeName());
-    out_ << "    compiler::TNode<" << t->GetGeneratedTNodeTypeName() << "> "
+    out_ << "    TNode<" << t->GetGeneratedTNodeTypeName() << "> "
          << stack.Top() << ";\n";
   }
   out_ << "    ca_.Bind(&" << BlockName(block);
@@ -56,14 +56,10 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
 }
 
 void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
-  std::string file = SourceFileMap::AbsolutePath(pos.source);
+  const std::string& file = SourceFileMap::AbsolutePath(pos.source);
   if (always_emit || !previous_position_.CompareStartIgnoreColumn(pos)) {
     // Lines in Torque SourcePositions are zero-based, while the
     // CodeStubAssembler and downwind systems are one-based.
-    for (auto& c : file) {
-      if (c == '\\')
-        c = '/';
-    }
     out_ << "    ca_.SetSourcePosition(\"" << file << "\", "
          << (pos.start.line + 1) << ");\n";
     previous_position_ = pos;
@@ -123,8 +119,8 @@ void CSAGenerator::EmitInstruction(
   for (const Type* lowered : LowerType(type)) {
     results.push_back(FreshNodeName());
     stack->Push(results.back());
-    out_ << "    compiler::TNode<" << lowered->GetGeneratedTNodeTypeName()
-         << "> " << stack->Top() << ";\n";
+    out_ << "    TNode<" << lowered->GetGeneratedTNodeTypeName() << "> "
+         << stack->Top() << ";\n";
     out_ << "    USE(" << stack->Top() << ");\n";
   }
   out_ << "    ";
@@ -179,7 +175,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   for (const Type* type : LowerType(return_type)) {
     results.push_back(FreshNodeName());
     stack->Push(results.back());
-    out_ << "    compiler::TNode<" << type->GetGeneratedTNodeTypeName() << "> "
+    out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
          << stack->Top() << ";\n";
     out_ << "    USE(" << stack->Top() << ");\n";
   }
@@ -302,7 +298,7 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   for (const Type* type : LowerType(return_type)) {
     results.push_back(FreshNodeName());
     stack->Push(results.back());
-    out_ << "    compiler::TNode<" << type->GetGeneratedTNodeTypeName() << "> "
+    out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
          << stack->Top() << ";\n";
     out_ << "    USE(" << stack->Top() << ");\n";
   }
@@ -354,8 +350,8 @@ void CSAGenerator::EmitInstruction(
     for (const Type* type :
          LowerType(instruction.macro->signature().return_type)) {
       results.push_back(FreshNodeName());
-      out_ << "    compiler::TNode<" << type->GetGeneratedTNodeTypeName()
-           << "> " << results.back() << ";\n";
+      out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
+           << results.back() << ";\n";
       out_ << "    USE(" << results.back() << ");\n";
     }
   }
@@ -453,9 +449,8 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
   } else {
     std::string result_name = FreshNodeName();
     if (result_types.size() == 1) {
-      out_ << "    compiler::TNode<"
-           << result_types[0]->GetGeneratedTNodeTypeName() << "> "
-           << result_name << ";\n";
+      out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
+           << "> " << result_name << ";\n";
     }
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
@@ -503,8 +498,7 @@ void CSAGenerator::EmitInstruction(
 
   stack->Push(FreshNodeName());
   std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-  out_ << "    compiler::TNode<" << generated_type << "> " << stack->Top()
-       << " = ";
+  out_ << "    TNode<" << generated_type << "> " << stack->Top() << " = ";
   if (generated_type != "Object") out_ << "TORQUE_CAST(";
   out_ << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
           "CallableFor(ca_."
@@ -543,8 +537,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
     if (!return_type->IsNever()) {
       out_ << "      ca_.Goto(&" << catch_name << "_skip);\n";
     }
-    out_ << "      compiler::TNode<Object> " << catch_name
-         << "_exception_object;\n";
+    out_ << "      TNode<Object> " << catch_name << "_exception_object;\n";
     out_ << "      ca_.Bind(&" << catch_name << "__label, &" << catch_name
          << "_exception_object);\n";
     out_ << "      ca_.Goto(&" << block_name;
@@ -579,9 +572,8 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
   } else {
     std::string result_name = FreshNodeName();
     if (result_types.size() == 1) {
-      out_ << "    compiler::TNode<"
-           << result_types[0]->GetGeneratedTNodeTypeName() << "> "
-           << result_name << ";\n";
+      out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
+           << "> " << result_name << ";\n";
     }
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
@@ -722,10 +714,9 @@ void CSAGenerator::EmitInstruction(
   std::string offset_name = FreshNodeName();
   stack->Push(offset_name);
 
-  out_ << "    compiler::TNode<IntPtrT> " << offset_name
-       << " = ca_.IntPtrConstant(";
-    out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
-         << CamelifyString(field.name_and_type.name) << "Offset";
+  out_ << "    TNode<IntPtrT> " << offset_name << " = ca_.IntPtrConstant(";
+  out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+       << CamelifyString(field.name_and_type.name) << "Offset";
   out_ << ");\n"
        << "    USE(" << stack->Top() << ");\n";
 }
@@ -776,8 +767,8 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
     out << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
-    out << "compiler::TNode<" << result.type()->GetGeneratedTNodeTypeName()
-        << ">{" << values.Peek(result.stack_range().begin()) << "}";
+    out << "TNode<" << result.type()->GetGeneratedTNodeTypeName() << ">{"
+        << values.Peek(result.stack_range().begin()) << "}";
   }
 }
 

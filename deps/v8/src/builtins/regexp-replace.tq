@@ -7,8 +7,6 @@
 namespace regexp {
 
   extern builtin
-  StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
-  extern builtin
   SubString(implicit context: Context)(String, Smi, Smi): String;
 
   extern runtime RegExpExecMultiple(implicit context: Context)(
@@ -20,9 +18,6 @@ namespace regexp {
   extern transitioning runtime
   StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
       String, JSRegExp, Callable): String;
-
-  extern macro
-  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
 
   transitioning macro RegExpReplaceCallableNoExplicitCaptures(implicit context:
                                                                   Context)(

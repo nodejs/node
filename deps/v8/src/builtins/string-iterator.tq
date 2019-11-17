@@ -11,7 +11,7 @@ namespace string_iterator {
       properties_or_hash: kEmptyFixedArray,
       elements: kEmptyFixedArray,
       string: string,
-      next_index: nextIndex
+      index: nextIndex
     };
   }
 
@@ -31,7 +31,7 @@ namespace string_iterator {
         kIncompatibleMethodReceiver, 'String Iterator.prototype.next',
         receiver);
     const string = iterator.string;
-    const position: intptr = SmiUntag(iterator.next_index);
+    const position: intptr = SmiUntag(iterator.index);
     const length: intptr = string.length_intptr;
     if (position >= length) {
       return AllocateJSIteratorResult(Undefined, True);
@@ -40,7 +40,7 @@ namespace string_iterator {
     const encoding = UTF16;
     const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
     const value: String = string::StringFromSingleUTF16EncodedCodePoint(ch);
-    iterator.next_index = SmiTag(position + value.length_intptr);
+    iterator.index = SmiTag(position + value.length_intptr);
     return AllocateJSIteratorResult(value, False);
   }
 }

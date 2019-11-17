@@ -129,6 +129,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x2ReplaceLane:
     case kX64F64x2Abs:
     case kX64F64x2Neg:
+    case kX64F64x2Sqrt:
     case kX64F64x2Add:
     case kX64F64x2Sub:
     case kX64F64x2Mul:
@@ -139,6 +140,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x2Ne:
     case kX64F64x2Lt:
     case kX64F64x2Le:
+    case kX64F64x2Qfma:
+    case kX64F64x2Qfms:
     case kX64F32x4Splat:
     case kX64F32x4ExtractLane:
     case kX64F32x4ReplaceLane:
@@ -148,6 +151,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4RecipSqrtApprox:
     case kX64F32x4Abs:
     case kX64F32x4Neg:
+    case kX64F32x4Sqrt:
     case kX64F32x4Add:
     case kX64F32x4AddHoriz:
     case kX64F32x4Sub:
@@ -159,6 +163,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Ne:
     case kX64F32x4Lt:
     case kX64F32x4Le:
+    case kX64F32x4Qfma:
+    case kX64F32x4Qfms:
     case kX64I64x2Splat:
     case kX64I64x2ExtractLane:
     case kX64I64x2ReplaceLane:
@@ -275,6 +281,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S1x4AllTrue:
     case kX64S1x8AnyTrue:
     case kX64S1x8AllTrue:
+    case kX64S8x16Swizzle:
     case kX64S8x16Shuffle:
     case kX64S32x4Swizzle:
     case kX64S32x4Shuffle:

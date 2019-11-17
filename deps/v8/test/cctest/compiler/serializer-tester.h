@@ -5,6 +5,8 @@
 #ifndef V8_CCTEST_COMPILER_SERIALIZER_TESTER_H_
 #define V8_CCTEST_COMPILER_SERIALIZER_TESTER_H_
 
+#include <memory>
+
 #include "src/compiler/js-heap-broker.h"
 #include "test/cctest/cctest.h"
 

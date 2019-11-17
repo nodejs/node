@@ -112,7 +112,8 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 14. Let dataLocale be r.[[DataLocale]].
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
-  if (numbering_system_str != nullptr) {
+  if (numbering_system_str != nullptr &&
+      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
     icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
     CHECK(U_SUCCESS(status));
   }

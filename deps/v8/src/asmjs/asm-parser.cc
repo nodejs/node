@@ -387,8 +387,8 @@ void AsmJsParser::ValidateModule() {
     uint32_t import_index = module_builder_->AddGlobalImport(
         global_import.import_name, global_import.value_type,
         false /* mutability */);
-    start->EmitWithI32V(kExprGetGlobal, import_index);
-    start->EmitWithI32V(kExprSetGlobal, VarIndex(global_import.var_info));
+    start->EmitWithI32V(kExprGlobalGet, import_index);
+    start->EmitWithI32V(kExprGlobalSet, VarIndex(global_import.var_info));
   }
   start->Emit(kExprEnd);
   FunctionSig::Builder b(zone(), 0, 0);
@@ -952,8 +952,8 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
           } else {
             FAIL("Bad local variable definition");
           }
-          current_function_builder_->EmitWithI32V(kExprGetGlobal,
-                                                    VarIndex(sinfo));
+          current_function_builder_->EmitWithI32V(kExprGlobalGet,
+                                                  VarIndex(sinfo));
           current_function_builder_->EmitSetLocal(info->index);
         } else if (sinfo->type->IsA(stdlib_fround_)) {
           EXPECT_TOKEN('(');
@@ -1447,7 +1447,7 @@ AsmType* AsmJsParser::Identifier() {
     if (info->kind != VarKind::kGlobal) {
       FAILn("Undefined global variable");
     }
-    current_function_builder_->EmitWithI32V(kExprGetGlobal, VarIndex(info));
+    current_function_builder_->EmitWithI32V(kExprGlobalGet, VarIndex(info));
     return info->type;
   }
   UNREACHABLE();
@@ -1558,8 +1558,8 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kLocal) {
         current_function_builder_->EmitTeeLocal(info->index);
       } else if (info->kind == VarKind::kGlobal) {
-        current_function_builder_->EmitWithU32V(kExprSetGlobal, VarIndex(info));
-        current_function_builder_->EmitWithU32V(kExprGetGlobal, VarIndex(info));
+        current_function_builder_->EmitWithU32V(kExprGlobalSet, VarIndex(info));
+        current_function_builder_->EmitWithU32V(kExprGlobalGet, VarIndex(info));
       } else {
         UNREACHABLE();
       }
@@ -2489,7 +2489,7 @@ void AsmJsParser::ValidateFloatCoercion() {
   // because imported functions are not allowed to have float return type.
   call_coercion_position_ = scanner_.Position();
   AsmType* ret;
-  RECURSE(ret = ValidateExpression());
+  RECURSE(ret = AssignmentExpression());
   if (ret->IsA(AsmType::Floatish())) {
     // Do nothing, as already a float.
   } else if (ret->IsA(AsmType::DoubleQ())) {

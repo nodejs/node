@@ -49,22 +49,22 @@ ConstantPoolEntry::Access ConstantPoolBuilder::NextAccess(
 }
 
 ConstantPoolEntry::Access ConstantPoolBuilder::AddEntry(
-    ConstantPoolEntry& entry, ConstantPoolEntry::Type type) {
+    ConstantPoolEntry* entry, ConstantPoolEntry::Type type) {
   DCHECK(!emitted_label_.is_bound());
   PerTypeEntryInfo& info = info_[type];
   const int entry_size = ConstantPoolEntry::size(type);
   bool merged = false;
 
-  if (entry.sharing_ok()) {
+  if (entry->sharing_ok()) {
     // Try to merge entries
     std::vector<ConstantPoolEntry>::iterator it = info.shared_entries.begin();
     int end = static_cast<int>(info.shared_entries.size());
     for (int i = 0; i < end; i++, it++) {
       if ((entry_size == kSystemPointerSize)
-              ? entry.value() == it->value()
-              : entry.value64() == it->value64()) {
+              ? entry->value() == it->value()
+              : entry->value64() == it->value64()) {
         // Merge with found entry.
-        entry.set_merged_index(i);
+        entry->set_merged_index(i);
         merged = true;
         break;
       }
@@ -72,16 +72,16 @@ ConstantPoolEntry::Access ConstantPoolBuilder::AddEntry(
   }
 
   // By definition, merged entries have regular access.
-  DCHECK(!merged || entry.merged_index() < info.regular_count);
+  DCHECK(!merged || entry->merged_index() < info.regular_count);
   ConstantPoolEntry::Access access =
       (merged ? ConstantPoolEntry::REGULAR : NextAccess(type));
 
   // Enforce an upper bound on search time by limiting the search to
   // unique sharable entries which fit in the regular section.
-  if (entry.sharing_ok() && !merged && access == ConstantPoolEntry::REGULAR) {
-    info.shared_entries.push_back(entry);
+  if (entry->sharing_ok() && !merged && access == ConstantPoolEntry::REGULAR) {
+    info.shared_entries.push_back(*entry);
   } else {
-    info.entries.push_back(entry);
+    info.entries.push_back(*entry);
   }
 
   // We're done if we found a match or have already triggered the

@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_FRAMES_H_
 #define V8_DEBUG_DEBUG_FRAMES_H_
 
+#include <memory>
+
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate.h"
 #include "src/execution/v8threads.h"

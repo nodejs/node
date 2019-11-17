@@ -6,6 +6,7 @@
 #define V8_INSPECTOR_V8_DEBUGGER_AGENT_IMPL_H_
 
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -94,6 +95,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) override;
   Response getScriptSource(const String16& scriptId,
                            String16* scriptSource) override;
+  Response getWasmBytecode(const String16& scriptId,
+                           protocol::Binary* bytecode) override;
   Response pause() override;
   Response resume() override;
   Response stepOver() override;
@@ -165,7 +168,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*);
   std::unique_ptr<protocol::Runtime::StackTrace> currentAsyncStackTrace();
   std::unique_ptr<protocol::Runtime::StackTraceId> currentExternalStackTrace();
-  std::unique_ptr<protocol::Runtime::StackTraceId> currentScheduledAsyncCall();
 
   void setPauseOnExceptionsImpl(int);
 

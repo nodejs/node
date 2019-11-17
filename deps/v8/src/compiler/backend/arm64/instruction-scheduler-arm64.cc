@@ -71,6 +71,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Sxth:
     case kArm64Sxth32:
     case kArm64Sxtw:
+    case kArm64Sbfx:
     case kArm64Sbfx32:
     case kArm64Ubfx:
     case kArm64Ubfx32:
@@ -142,6 +143,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2ReplaceLane:
     case kArm64F64x2Abs:
     case kArm64F64x2Neg:
+    case kArm64F64x2Sqrt:
     case kArm64F64x2Add:
     case kArm64F64x2Sub:
     case kArm64F64x2Mul:
@@ -152,6 +154,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2Ne:
     case kArm64F64x2Lt:
     case kArm64F64x2Le:
+    case kArm64F64x2Qfma:
+    case kArm64F64x2Qfms:
     case kArm64F32x4Splat:
     case kArm64F32x4ExtractLane:
     case kArm64F32x4ReplaceLane:
@@ -159,6 +163,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4UConvertI32x4:
     case kArm64F32x4Abs:
     case kArm64F32x4Neg:
+    case kArm64F32x4Sqrt:
     case kArm64F32x4RecipApprox:
     case kArm64F32x4RecipSqrtApprox:
     case kArm64F32x4Add:
@@ -172,6 +177,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4Ne:
     case kArm64F32x4Lt:
     case kArm64F32x4Le:
+    case kArm64F32x4Qfma:
+    case kArm64F32x4Qfms:
     case kArm64I64x2Splat:
     case kArm64I64x2ExtractLane:
     case kArm64I64x2ReplaceLane:
@@ -180,6 +187,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I64x2ShrS:
     case kArm64I64x2Add:
     case kArm64I64x2Sub:
+    case kArm64I64x2Mul:
     case kArm64I64x2Eq:
     case kArm64I64x2Ne:
     case kArm64I64x2GtS:
@@ -298,6 +306,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S8x16TransposeLeft:
     case kArm64S8x16TransposeRight:
     case kArm64S8x16Concat:
+    case kArm64S8x16Swizzle:
     case kArm64S8x16Shuffle:
     case kArm64S32x2Reverse:
     case kArm64S16x4Reverse:
@@ -439,6 +448,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64Clz:
     case kArm64Clz32:
+    case kArm64Sbfx:
     case kArm64Sbfx32:
     case kArm64Sxtb32:
     case kArm64Sxth32:

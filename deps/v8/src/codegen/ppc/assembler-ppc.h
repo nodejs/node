@@ -41,6 +41,7 @@
 #define V8_CODEGEN_PPC_ASSEMBLER_PPC_H_
 
 #include <stdio.h>
+#include <memory>
 #include <vector>
 
 #include "src/codegen/assembler.h"

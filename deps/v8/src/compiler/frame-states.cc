@@ -137,13 +137,17 @@ Node* CreateStubBuiltinContinuationFrameState(
   // Stack parameters first. Depending on {mode}, final parameters are added
   // by the deoptimizer and aren't explicitly passed in the frame state.
   int stack_parameter_count =
-      descriptor.GetParameterCount() - DeoptimizerParameterCountFor(mode);
-  // Reserving space in the vector, except for the case where
-  // stack_parameter_count is -1.
-  actual_parameters.reserve(stack_parameter_count >= 0
-                                ? stack_parameter_count +
-                                      descriptor.GetRegisterParameterCount()
-                                : 0);
+      descriptor.GetStackParameterCount() - DeoptimizerParameterCountFor(mode);
+
+  // Ensure the parameters added by the deoptimizer are passed on the stack.
+  // This check prevents using TFS builtins as continuations while doing the
+  // lazy deopt. Use TFC or TFJ builtin as a lazy deopt continuation which
+  // would pass the result parameter on the stack.
+  DCHECK_GE(stack_parameter_count, 0);
+
+  // Reserving space in the vector.
+  actual_parameters.reserve(stack_parameter_count +
+                            descriptor.GetRegisterParameterCount());
   for (int i = 0; i < stack_parameter_count; ++i) {
     actual_parameters.push_back(
         parameters[descriptor.GetRegisterParameterCount() + i]);

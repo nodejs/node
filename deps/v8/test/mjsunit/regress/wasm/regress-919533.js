@@ -8,8 +8,8 @@ const builder = new WasmModuleBuilder();
 builder.addFunction(undefined, kSig_v_v).addBody([]);
 builder.addFunction(undefined, kSig_i_i)
   .addBody([
-    kExprGetLocal, 0,
-    kExprGetLocal, 0,
+    kExprLocalGet, 0,
+    kExprLocalGet, 0,
     // Stack now contains two copies of the first param register.
     // Start a loop to create a merge point (values still in registers).
     kExprLoop, kWasmStmt,

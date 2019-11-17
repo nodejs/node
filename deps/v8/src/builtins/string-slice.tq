@@ -4,7 +4,8 @@
 
 namespace string_slice {
 
-  extern macro SubString(String, intptr, intptr): String;
+  extern macro StringBuiltinsAssembler::SubString(String, intptr, intptr):
+      String;
 
   // ES6 #sec-string.prototype.slice ( start, end )
   // https://tc39.github.io/ecma262/#sec-string.prototype.slice

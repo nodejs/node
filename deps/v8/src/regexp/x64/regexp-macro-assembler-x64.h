@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static const int kReturn_eip = kFramePointer + kSystemPointerSize;
   static const int kFrameAlign = kReturn_eip + kSystemPointerSize;
 
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   // Parameters (first four passed as registers, but with room on stack).
   // In Microsoft 64-bit Calling Convention, there is room on the callers
   // stack (before the return address) to spill parameter registers. We
@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static const int kIsolate = kDirectCall + kSystemPointerSize;
 #endif
 
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   // Microsoft calling convention has three callee-saved registers
   // (that we are using). We push these after the frame pointer.
   static const int kBackup_rsi = kFramePointer - kSystemPointerSize;

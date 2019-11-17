@@ -517,7 +517,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
     DisallowHeapAllocation no_gc;
     i::Address raw_filter_context =
         reinterpret_cast<i::Address>(options_.raw_filter_context());
-    context_filter_ = base::make_unique<ContextFilter>(raw_filter_context);
+    context_filter_ = std::make_unique<ContextFilter>(raw_filter_context);
   }
 }
 

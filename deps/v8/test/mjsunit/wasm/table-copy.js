@@ -38,7 +38,7 @@ function assertCall(call, ...elems) {
     for (let i = 0; i < kTableSize; i++) {
       let f = builder.addFunction("", kSig_i_v)
           .addBody([
-            kExprGetGlobal, g,
+            kExprGlobalGet, g,
             ...wasmI32Const(i),
             kExprI32Add
           ]);
@@ -47,15 +47,15 @@ function assertCall(call, ...elems) {
 
     builder.addFunction("copy", sig_v_iii)
       .addBody([
-        kExprGetLocal, 0,
-        kExprGetLocal, 1,
-        kExprGetLocal, 2,
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
         kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
       .exportAs("copy");
 
     builder.addFunction("call", sig_i_i)
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_i_v, kTableZero])
       .exportAs("call");
 

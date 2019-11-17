@@ -335,7 +335,11 @@ class RegisterAllocationData final : public ZoneObject {
     return result;
   }
 
-  void ResetSpillState() { spill_state_.clear(); }
+  void ResetSpillState() {
+    for (auto& state : spill_state_) {
+      state.clear();
+    }
+  }
 
   TickCounter* tick_counter() { return tick_counter_; }
 
@@ -626,9 +630,10 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
   bool CanCover(LifetimePosition position) const;
   bool Covers(LifetimePosition position) const;
-  LifetimePosition NextStartAfter(LifetimePosition position) const;
+  LifetimePosition NextStartAfter(LifetimePosition position);
   LifetimePosition NextEndAfter(LifetimePosition position) const;
   LifetimePosition FirstIntersection(LiveRange* other) const;
+  LifetimePosition NextStart() const { return next_start_; }
 
   void VerifyChildStructure() const {
     VerifyIntervals();
@@ -689,6 +694,8 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // Cache the last position splintering stopped at.
   mutable UsePosition* splitting_pointer_;
   LiveRangeBundle* bundle_ = nullptr;
+  // Next interval start, relative to the current linear scan position.
+  LifetimePosition next_start_;
 
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
@@ -1298,29 +1305,39 @@ class LinearScanAllocator final : public RegisterAllocator {
                                 LifetimePosition begin_pos,
                                 LiveRange* end_range);
   void MaybeUndoPreviousSplit(LiveRange* range);
-  void SpillNotLiveRanges(
-      RangeWithRegisterSet& to_be_live,  // NOLINT(runtime/references)
-      LifetimePosition position, SpillMode spill_mode);
+  void SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
+                          LifetimePosition position, SpillMode spill_mode);
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
-  void ReloadLiveRanges(
-      RangeWithRegisterSet& to_be_live,  // NOLINT(runtime/references)
-      LifetimePosition position);
+  void ReloadLiveRanges(RangeWithRegisterSet const& to_be_live,
+                        LifetimePosition position);
 
   void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
   bool BlockIsDeferredOrImmediatePredecessorIsNotDeferred(
       const InstructionBlock* block);
   bool HasNonDeferredPredecessor(InstructionBlock* block);
 
-  struct LiveRangeOrdering {
+  struct UnhandledLiveRangeOrdering {
     bool operator()(const LiveRange* a, const LiveRange* b) const {
       return a->ShouldBeAllocatedBefore(b);
     }
   };
-  using LiveRangeQueue = ZoneMultiset<LiveRange*, LiveRangeOrdering>;
-  LiveRangeQueue& unhandled_live_ranges() { return unhandled_live_ranges_; }
+
+  struct InactiveLiveRangeOrdering {
+    bool operator()(const LiveRange* a, const LiveRange* b) const {
+      return a->NextStart() < b->NextStart();
+    }
+  };
+
+  using UnhandledLiveRangeQueue =
+      ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
+  using InactiveLiveRangeQueue =
+      ZoneMultiset<LiveRange*, InactiveLiveRangeOrdering>;
+  UnhandledLiveRangeQueue& unhandled_live_ranges() {
+    return unhandled_live_ranges_;
+  }
   ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
-  ZoneVector<LiveRange*>& inactive_live_ranges() {
-    return inactive_live_ranges_;
+  InactiveLiveRangeQueue& inactive_live_ranges(int reg) {
+    return inactive_live_ranges_[reg];
   }
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
@@ -1333,10 +1350,10 @@ class LinearScanAllocator final : public RegisterAllocator {
       ZoneVector<LiveRange*>::iterator it);
   ZoneVector<LiveRange*>::iterator ActiveToInactive(
       ZoneVector<LiveRange*>::iterator it, LifetimePosition position);
-  ZoneVector<LiveRange*>::iterator InactiveToHandled(
-      ZoneVector<LiveRange*>::iterator it);
-  ZoneVector<LiveRange*>::iterator InactiveToActive(
-      ZoneVector<LiveRange*>::iterator it, LifetimePosition position);
+  InactiveLiveRangeQueue::iterator InactiveToHandled(
+      InactiveLiveRangeQueue::iterator it);
+  InactiveLiveRangeQueue::iterator InactiveToActive(
+      InactiveLiveRangeQueue::iterator it, LifetimePosition position);
 
   void ForwardStateTo(LifetimePosition position);
 
@@ -1386,9 +1403,9 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   void PrintRangeOverview(std::ostream& os);
 
-  LiveRangeQueue unhandled_live_ranges_;
+  UnhandledLiveRangeQueue unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
-  ZoneVector<LiveRange*> inactive_live_ranges_;
+  ZoneVector<InactiveLiveRangeQueue> inactive_live_ranges_;
 
   // Approximate at what position the set of ranges will change next.
   // Used to avoid scanning for updates even if none are present.

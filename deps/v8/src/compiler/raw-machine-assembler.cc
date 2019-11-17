@@ -690,15 +690,14 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* call_descriptor,
   return AddNode(common()->Call(call_descriptor), input_count, inputs);
 }
 
-Node* RawMachineAssembler::TailCallN(CallDescriptor* call_descriptor,
-                                     int input_count, Node* const* inputs) {
+void RawMachineAssembler::TailCallN(CallDescriptor* call_descriptor,
+                                    int input_count, Node* const* inputs) {
   // +1 is for target.
   DCHECK_EQ(input_count, call_descriptor->ParameterCount() + 1);
   Node* tail_call =
       MakeNode(common()->TailCall(call_descriptor), input_count, inputs);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
-  return tail_call;
 }
 
 namespace {

@@ -33,9 +33,9 @@ function getMemoryInit(mem, segment_data) {
   builder.addPassiveDataSegment(segment_data);
   builder.addFunction('init', kSig_v_iii)
       .addBody([
-        kExprGetLocal, 0,  // Dest.
-        kExprGetLocal, 1,  // Source.
-        kExprGetLocal, 2,  // Size in bytes.
+        kExprLocalGet, 0,  // Dest.
+        kExprLocalGet, 1,  // Source.
+        kExprLocalGet, 2,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
         0,  // Data segment index.
         0,  // Memory index.
@@ -102,9 +102,9 @@ function getMemoryCopy(mem) {
   const builder = new WasmModuleBuilder();
   builder.addImportedMemory("", "mem", 0);
   builder.addFunction("copy", kSig_v_iii).addBody([
-    kExprGetLocal, 0,  // Dest.
-    kExprGetLocal, 1,  // Source.
-    kExprGetLocal, 2,  // Size in bytes.
+    kExprLocalGet, 0,  // Dest.
+    kExprLocalGet, 1,  // Source.
+    kExprLocalGet, 2,  // Size in bytes.
     kNumericPrefix, kExprMemoryCopy, 0, 0,
   ]).exportAs("copy");
   return builder.instantiate({'': {mem}}).exports.copy;
@@ -128,9 +128,9 @@ function getMemoryFill(mem) {
   const builder = new WasmModuleBuilder();
   builder.addImportedMemory("", "mem", 0);
   builder.addFunction("fill", kSig_v_iii).addBody([
-    kExprGetLocal, 0,  // Dest.
-    kExprGetLocal, 1,  // Byte value.
-    kExprGetLocal, 2,  // Size.
+    kExprLocalGet, 0,  // Dest.
+    kExprLocalGet, 1,  // Byte value.
+    kExprLocalGet, 2,  // Size.
     kNumericPrefix, kExprMemoryFill, 0,
   ]).exportAs("fill");
   return builder.instantiate({'': {mem}}).exports.fill;

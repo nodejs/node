@@ -25,18 +25,8 @@ V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size) {
   (*memmove_function)(dest, src, size);
 }
 #elif V8_OS_POSIX && V8_HOST_ARCH_ARM
-void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
-                               size_t chars) {
-  uint16_t* limit = dest + chars;
-  while (dest < limit) {
-    *dest++ = static_cast<uint16_t>(*src++);
-  }
-}
-
 V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
     &MemCopyUint8Wrapper;
-MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
-    &MemCopyUint16Uint8Wrapper;
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
 V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
     &MemCopyUint8Wrapper;
@@ -54,9 +44,6 @@ void init_memcopy_functions() {
     EmbeddedData d = EmbeddedData::FromBlob();
     memcopy_uint8_function = reinterpret_cast<MemCopyUint8Function>(
         d.InstructionStartOfBuiltin(Builtins::kMemCopyUint8Uint8));
-    memcopy_uint16_uint8_function =
-        reinterpret_cast<MemCopyUint16Uint8Function>(
-            d.InstructionStartOfBuiltin(Builtins::kMemCopyUint16Uint8));
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {

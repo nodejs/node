@@ -54,7 +54,7 @@ class MapUpdater {
   // Prepares for reconfiguring of a property at |descriptor| to data field
   // with given |attributes| and |representation|/|field_type| and
   // performs the steps 1-5.
-  Handle<Map> ReconfigureToDataField(int descriptor,
+  Handle<Map> ReconfigureToDataField(InternalIndex descriptor,
                                      PropertyAttributes attributes,
                                      PropertyConstness constness,
                                      Representation representation,
@@ -127,26 +127,26 @@ class MapUpdater {
   State Normalize(const char* reason);
 
   // Returns name of a |descriptor| property.
-  inline Name GetKey(int descriptor) const;
+  inline Name GetKey(InternalIndex descriptor) const;
 
   // Returns property details of a |descriptor| in "updated" |old_descrtiptors_|
   // array.
-  inline PropertyDetails GetDetails(int descriptor) const;
+  inline PropertyDetails GetDetails(InternalIndex descriptor) const;
 
   // Returns value of a |descriptor| with kDescriptor location in "updated"
   // |old_descrtiptors_| array.
-  inline Object GetValue(int descriptor) const;
+  inline Object GetValue(InternalIndex descriptor) const;
 
   // Returns field type for a |descriptor| with kField location in "updated"
   // |old_descrtiptors_| array.
-  inline FieldType GetFieldType(int descriptor) const;
+  inline FieldType GetFieldType(InternalIndex descriptor) const;
 
   // If a |descriptor| property in "updated" |old_descriptors_| has kField
   // location then returns it's field type otherwise computes optimal field
   // type for the descriptor's value and |representation|. The |location|
   // value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(
-      int descriptor, PropertyLocation location,
+      InternalIndex descriptor, PropertyLocation location,
       Representation representation) const;
 
   // If a |descriptor| property in given |descriptors| array has kField
@@ -154,10 +154,10 @@ class MapUpdater {
   // type for the descriptor's value and |representation|.
   // The |location| value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(
-      Handle<DescriptorArray> descriptors, int descriptor,
+      Handle<DescriptorArray> descriptors, InternalIndex descriptor,
       PropertyLocation location, Representation representation);
 
-  void GeneralizeField(Handle<Map> map, int modify_index,
+  void GeneralizeField(Handle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,
                        Representation new_representation,
                        Handle<FieldType> new_field_type);
@@ -182,9 +182,9 @@ class MapUpdater {
   ElementsKind new_elements_kind_;
   bool is_transitionable_fast_elements_kind_;
 
-  // If |modified_descriptor_| is not equal to -1 then the fields below form
+  // If |modified_descriptor_.is_found()|, then the fields below form
   // an "update" of the |old_map_|'s descriptors.
-  int modified_descriptor_ = -1;
+  InternalIndex modified_descriptor_ = InternalIndex::NotFound();
   PropertyKind new_kind_ = kData;
   PropertyAttributes new_attributes_ = NONE;
   PropertyConstness new_constness_ = PropertyConstness::kMutable;

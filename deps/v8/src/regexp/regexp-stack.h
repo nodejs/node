@@ -73,6 +73,9 @@ class RegExpStack {
   char* RestoreStack(char* from);
   void FreeThreadResources() { thread_local_.Free(); }
 
+  // Maximal size of allocated stack area.
+  static constexpr size_t kMaximumStackSize = 64 * MB;
+
  private:
   RegExpStack();
   ~RegExpStack();
@@ -83,9 +86,6 @@ class RegExpStack {
 
   // Minimal size of allocated stack area.
   static const size_t kMinimumStackSize = 1 * KB;
-
-  // Maximal size of allocated stack area.
-  static const size_t kMaximumStackSize = 64 * MB;
 
   // Structure holding the allocated memory, size and limit.
   struct ThreadLocal {

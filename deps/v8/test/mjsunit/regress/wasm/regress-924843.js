@@ -8,7 +8,7 @@ const builder = new WasmModuleBuilder();
 const sig = builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.addFunction(undefined, sig)
   .addBody([
-    kExprGetLocal, 2,
+    kExprLocalGet, 2,
     kExprIf, kWasmStmt,
       kExprBlock, kWasmStmt
   ]);

@@ -136,16 +136,16 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
   auto embedded_target_os = ToEmbeddedTargetOs(target_os);
 
   if (embedded_target_os == EmbeddedTargetOs::kAIX) {
-    return base::make_unique<PlatformEmbeddedFileWriterAIX>(
-        embedded_target_arch, embedded_target_os);
+    return std::make_unique<PlatformEmbeddedFileWriterAIX>(embedded_target_arch,
+                                                           embedded_target_os);
   } else if (embedded_target_os == EmbeddedTargetOs::kMac) {
-    return base::make_unique<PlatformEmbeddedFileWriterMac>(
-        embedded_target_arch, embedded_target_os);
+    return std::make_unique<PlatformEmbeddedFileWriterMac>(embedded_target_arch,
+                                                           embedded_target_os);
   } else if (embedded_target_os == EmbeddedTargetOs::kWin) {
-    return base::make_unique<PlatformEmbeddedFileWriterWin>(
-        embedded_target_arch, embedded_target_os);
+    return std::make_unique<PlatformEmbeddedFileWriterWin>(embedded_target_arch,
+                                                           embedded_target_os);
   } else {
-    return base::make_unique<PlatformEmbeddedFileWriterGeneric>(
+    return std::make_unique<PlatformEmbeddedFileWriterGeneric>(
         embedded_target_arch, embedded_target_os);
   }
 

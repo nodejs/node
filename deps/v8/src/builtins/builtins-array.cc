@@ -1189,7 +1189,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  if (!isolate->IsIsConcatSpreadableLookupChainIntact(JSReceiver::cast(*obj))) {
+  if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate) ||
+      JSReceiver::cast(*obj).HasProxyInPrototype(isolate)) {
     // Slow path if @@isConcatSpreadable has been used.
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
@@ -1258,7 +1259,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   // dictionary.
   bool fast_case = is_array_species &&
                    (estimate_nof * 2) >= estimate_result_length &&
-                   isolate->IsIsConcatSpreadableLookupChainIntact();
+                   Protectors::IsIsConcatSpreadableLookupChainIntact(isolate);
 
   if (fast_case && kind == PACKED_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
@@ -1406,7 +1407,7 @@ bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
 
 MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
                                       BuiltinArguments* args) {
-  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+  if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate)) {
     return MaybeHandle<JSArray>();
   }
   // We shouldn't overflow when adding another len.

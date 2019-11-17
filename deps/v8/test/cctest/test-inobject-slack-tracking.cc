@@ -1112,7 +1112,7 @@ TEST(SubclassRegExpBuiltin) {
   v8::HandleScope scope(CcTest::isolate());
 
   const int first_field = 1;
-  TestSubclassBuiltin("A1", JS_REGEXP_TYPE, "RegExp", "'o(..)h', 'g'",
+  TestSubclassBuiltin("A1", JS_REG_EXP_TYPE, "RegExp", "'o(..)h', 'g'",
                       first_field);
 }
 

@@ -171,12 +171,11 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // Check that the "exec" method is unmodified.
   // Check that the index refers to "exec" method (this has to be consistent
   // with the init order in the bootstrapper).
+  InternalIndex kExecIndex(JSRegExp::kExecFunctionDescriptorIndex);
   DCHECK_EQ(*(isolate->factory()->exec_string()),
-            proto_map.instance_descriptors().GetKey(
-                JSRegExp::kExecFunctionDescriptorIndex));
-  if (proto_map.instance_descriptors()
-          .GetDetails(JSRegExp::kExecFunctionDescriptorIndex)
-          .constness() != PropertyConstness::kConst) {
+            proto_map.instance_descriptors().GetKey(kExecIndex));
+  if (proto_map.instance_descriptors().GetDetails(kExecIndex).constness() !=
+      PropertyConstness::kConst) {
     return false;
   }
 

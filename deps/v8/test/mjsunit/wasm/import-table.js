@@ -34,7 +34,7 @@ let kTableSize = 50;
     let f15 = addConstFunc(builder, 15);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");
@@ -57,7 +57,7 @@ let kTableSize = 50;
     let f21 = addConstFunc(builder, 21);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");
@@ -92,7 +92,7 @@ function addConstFuncUsingGlobal(builder, val) {
   let g = builder.addGlobal(kWasmI32, false);
   g.init = val;
   return builder.addFunction("global" + val, kSig_i_v)
-    .addBody([kExprGetGlobal, g.index]).index;
+    .addBody([kExprGlobalGet, g.index]).index;
 }
 
 (function TestAliasedImportedTableInstanceGlobals() {
@@ -106,7 +106,7 @@ function addConstFuncUsingGlobal(builder, val) {
     let f14 = addConstFuncUsingGlobal(builder, 14);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");
@@ -129,7 +129,7 @@ function addConstFuncUsingGlobal(builder, val) {
     let f22 = addConstFuncUsingGlobal(builder, 22);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");
@@ -186,7 +186,7 @@ function addConstFuncUsingMemory(builder, val) {
     let f13 = addConstFuncUsingMemory(builder, 13);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");
@@ -211,7 +211,7 @@ function addConstFuncUsingMemory(builder, val) {
     let f23 = addConstFuncUsingMemory(builder, 23);
     let call = builder.addFunction("call", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprCallIndirect, signums.i_v, kTableZero
         ])
         .exportAs("call");

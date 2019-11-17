@@ -33,8 +33,8 @@ namespace function_body_decoder_unittest {
 #define WASM_IF_OP kExprIf, kLocalVoid
 #define WASM_LOOP_OP kExprLoop, kLocalVoid
 
-static const byte kCodeGetLocal0[] = {kExprGetLocal, 0};
-static const byte kCodeGetLocal1[] = {kExprGetLocal, 1};
+static const byte kCodeGetLocal0[] = {kExprLocalGet, 0};
+static const byte kCodeGetLocal1[] = {kExprLocalGet, 1};
 static const byte kCodeSetLocal0[] = {WASM_SET_LOCAL(0, WASM_ZERO)};
 static const byte kCodeTeeLocal0[] = {WASM_TEE_LOCAL(0, WASM_ZERO)};
 
@@ -408,7 +408,7 @@ TEST_F(FunctionBodyDecoderTest, GetLocalN_local) {
   for (byte i = 1; i < 8; i++) {
     AddLocals(kWasmI32, 1);
     for (byte j = 0; j < i; j++) {
-      ExpectValidates(sigs.i_v(), {kExprGetLocal, j});
+      ExpectValidates(sigs.i_v(), {kExprLocalGet, j});
     }
   }
 }
@@ -422,7 +422,7 @@ TEST_F(FunctionBodyDecoderTest, GetLocal1_fail_no_locals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_off_end) {
-  ExpectFailure(sigs.i_i(), {kExprGetLocal});
+  ExpectFailure(sigs.i_i(), {kExprLocalGet});
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalBelowLimit) {
@@ -444,29 +444,29 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
   const int kMaxLocals = kV8MaxWasmFunctionLocals - 1;
   AddLocals(kWasmI32, kMaxLocals);
 
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_1(66)});
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_2(7777)});
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_3(8888)});
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(9999)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_1(66)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_2(7777)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_3(8888)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_4(9999)});
 
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_5(kMaxLocals - 1)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_5(kMaxLocals - 1)});
 
-  ExpectFailure(sigs.i_i(), {kExprGetLocal, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF});
+  ExpectFailure(sigs.i_i(), {kExprLocalGet, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF});
 
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals - 1)});
-  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals)});
-  ExpectFailure(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals + 1)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_4(kMaxLocals - 1)});
+  ExpectValidates(sigs.i_i(), {kExprLocalGet, U32V_4(kMaxLocals)});
+  ExpectFailure(sigs.i_i(), {kExprLocalGet, U32V_4(kMaxLocals + 1)});
 
-  ExpectFailure(sigs.i_v(), {kExprGetLocal, U32V_4(kMaxLocals)});
-  ExpectFailure(sigs.i_v(), {kExprGetLocal, U32V_4(kMaxLocals + 1)});
+  ExpectFailure(sigs.i_v(), {kExprLocalGet, U32V_4(kMaxLocals)});
+  ExpectFailure(sigs.i_v(), {kExprLocalGet, U32V_4(kMaxLocals + 1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_toomany) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 100);
   AddLocals(kWasmI32, 100);
 
-  ExpectValidates(sigs.i_v(), {kExprGetLocal, U32V_1(66)});
-  ExpectFailure(sigs.i_i(), {kExprGetLocal, U32V_1(66)});
+  ExpectValidates(sigs.i_v(), {kExprLocalGet, U32V_1(66)});
+  ExpectFailure(sigs.i_i(), {kExprLocalGet, U32V_1(66)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Binops_off_end) {
@@ -476,13 +476,13 @@ TEST_F(FunctionBodyDecoderTest, Binops_off_end) {
     ExpectFailure(sigs.i_i(), code1);
   }
 
-  byte code3[] = {kExprGetLocal, 0, 0};  // [expr] [opcode]
+  byte code3[] = {kExprLocalGet, 0, 0};  // [expr] [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
     code3[2] = kInt32BinopOpcodes[i];
     ExpectFailure(sigs.i_i(), code3);
   }
 
-  byte code4[] = {kExprGetLocal, 0, 0, 0};  // [expr] [opcode] [opcode]
+  byte code4[] = {kExprLocalGet, 0, 0, 0};  // [expr] [opcode] [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
     code4[2] = kInt32BinopOpcodes[i];
     code4[3] = kInt32BinopOpcodes[i];
@@ -778,7 +778,7 @@ TEST_F(FunctionBodyDecoderTest, If_else_else) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IfEmpty) {
-  ExpectValidates(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd});
+  ExpectValidates(sigs.v_i(), {kExprLocalGet, 0, WASM_IF_OP, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfSet) {
@@ -852,15 +852,15 @@ TEST_F(FunctionBodyDecoderTest, IfNop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, If_end) {
-  ExpectValidates(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd});
-  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd, kExprEnd});
+  ExpectValidates(sigs.v_i(), {kExprLocalGet, 0, WASM_IF_OP, kExprEnd});
+  ExpectFailure(sigs.v_i(), {kExprLocalGet, 0, WASM_IF_OP, kExprEnd, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_falloff1) {
-  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, kExprIf});
-  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP});
+  ExpectFailure(sigs.v_i(), {kExprLocalGet, 0, kExprIf});
+  ExpectFailure(sigs.v_i(), {kExprLocalGet, 0, WASM_IF_OP});
   ExpectFailure(sigs.v_i(),
-                {kExprGetLocal, 0, WASM_IF_OP, kExprNop, kExprElse});
+                {kExprLocalGet, 0, WASM_IF_OP, kExprNop, kExprElse});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseNop) {
@@ -1001,7 +1001,7 @@ TEST_F(FunctionBodyDecoderTest, ReturnVoid3) {
   ExpectFailure(sigs.v_v(), {kExprRefNull});
   ExpectFailure(sigs.v_v(), {kExprRefFunc, 0});
 
-  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0});
+  ExpectFailure(sigs.v_i(), {kExprLocalGet, 0});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable1) {
@@ -3485,10 +3485,10 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   ExpectLength(5, kExprF32Const);
   ExpectLength(9, kExprF64Const);
   ExpectLength(1, kExprRefNull);
-  ExpectLength(2, kExprGetLocal);
-  ExpectLength(2, kExprSetLocal);
-  ExpectLength(2, kExprGetGlobal);
-  ExpectLength(2, kExprSetGlobal);
+  ExpectLength(2, kExprLocalGet);
+  ExpectLength(2, kExprLocalSet);
+  ExpectLength(2, kExprGlobalGet);
+  ExpectLength(2, kExprGlobalSet);
   ExpectLength(2, kExprCallFunction);
   ExpectLength(3, kExprCallIndirect);
 }
@@ -3514,11 +3514,11 @@ TEST_F(WasmOpcodeLengthTest, I64Const) {
 }
 
 TEST_F(WasmOpcodeLengthTest, VariableLength) {
-  ExpectLength(2, kExprGetGlobal, U32V_1(1));
-  ExpectLength(3, kExprGetGlobal, U32V_2(33));
-  ExpectLength(4, kExprGetGlobal, U32V_3(44));
-  ExpectLength(5, kExprGetGlobal, U32V_4(66));
-  ExpectLength(6, kExprGetGlobal, U32V_5(77));
+  ExpectLength(2, kExprGlobalGet, U32V_1(1));
+  ExpectLength(3, kExprGlobalGet, U32V_2(33));
+  ExpectLength(4, kExprGlobalGet, U32V_3(44));
+  ExpectLength(5, kExprGlobalGet, U32V_4(66));
+  ExpectLength(6, kExprGlobalGet, U32V_5(77));
 
   ExpectLength(2, kExprRefFunc, U32V_1(1));
   ExpectLength(3, kExprRefFunc, U32V_2(33));

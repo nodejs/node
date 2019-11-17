@@ -23,12 +23,11 @@ V8_INLINE static size_t GetAllocLength(const char* str) {
 // location, and then advances |*buffer| by the amount written.
 V8_INLINE static void CopyTraceObjectParameter(char** buffer,
                                                const char** member) {
-  if (*member) {
-    size_t length = strlen(*member) + 1;
-    strncpy(*buffer, *member, length);
-    *member = *buffer;
-    *buffer += length;
-  }
+  if (*member == nullptr) return;
+  size_t length = strlen(*member) + 1;
+  memcpy(*buffer, *member, length);
+  *member = *buffer;
+  *buffer += length;
 }
 
 void TraceObject::Initialize(

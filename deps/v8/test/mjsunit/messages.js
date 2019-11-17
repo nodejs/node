@@ -166,13 +166,13 @@ for (constructor of typedArrayConstructors) {
     const ta = new constructor([1]);
     %ArrayBufferDetach(ta.buffer);
     ta.find(() => {});
-  }, "Cannot perform %TypedArray%.prototype.find on a neutered ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
 
   test(() => {
     const ta = new constructor([1]);
     %ArrayBufferDetach(ta.buffer);
     ta.findIndex(() => {});
-  }, "Cannot perform %TypedArray%.prototype.findIndex on a neutered ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
 }
 
 // kFirstArgumentNotRegExp

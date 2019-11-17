@@ -2019,17 +2019,19 @@ TEST(far_branch_backward) {
     START();
 
     Label done, fail;
-    Label near, far, in_range, out_of_range;
+    // Avoid using near and far as variable name because both are defined as
+    // macro in minwindef.h from Windows SDK.
+    Label near_label, far_label, in_range, out_of_range;
 
     __ Mov(x0, 0);
     __ Mov(x1, 1);
     __ Mov(x10, 0);
 
-    __ B(&near);
+    __ B(&near_label);
     __ Bind(&in_range);
     __ Orr(x0, x0, 1 << 0);
 
-    __ B(&far);
+    __ B(&far_label);
     __ Bind(&out_of_range);
     __ Orr(x0, x0, 1 << 1);
 
@@ -2053,19 +2055,19 @@ TEST(far_branch_backward) {
     // close to the limit.
     GenerateLandingNops(&masm, budget - kSlack, &fail);
 
-    __ Bind(&near);
+    __ Bind(&near_label);
     switch (type) {
       case TestBranchType:
         __ Tbz(x10, 3, &in_range);
         // This should be:
         //     TBZ <in_range>
-        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
         break;
       case CompareBranchType:
         __ Cbz(x10, &in_range);
         // This should be:
         //     CBZ <in_range>
-        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
         break;
       case CondBranchType:
         __ Cmp(x10, 0);
@@ -2073,7 +2075,7 @@ TEST(far_branch_backward) {
         // This should be:
         //     CMP
         //     B.EQ <in_range>
-        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&near));
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
         break;
       default:
         UNREACHABLE();
@@ -2083,7 +2085,7 @@ TEST(far_branch_backward) {
     // Now go past the limit so that branches are now out of range.
     GenerateLandingNops(&masm, kSlack * 2, &fail);
 
-    __ Bind(&far);
+    __ Bind(&far_label);
     switch (type) {
       case TestBranchType:
         __ Tbz(x10, 5, &out_of_range);
@@ -2091,7 +2093,7 @@ TEST(far_branch_backward) {
         //     TBNZ <skip>
         //     B <out_of_range>
         //   skip:
-        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
         break;
       case CompareBranchType:
         __ Cbz(x10, &out_of_range);
@@ -2099,7 +2101,7 @@ TEST(far_branch_backward) {
         //     CBNZ <skip>
         //     B <out_of_range>
         //   skip:
-        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
         break;
       case CondBranchType:
         __ Cmp(x10, 0);
@@ -2109,7 +2111,7 @@ TEST(far_branch_backward) {
         //     B.NE <skip>
         //     B <out_of_range>
         //  skip:
-        CHECK_EQ(3 * kInstrSize, __ SizeOfCodeGeneratedSince(&far));
+        CHECK_EQ(3 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
         break;
       default:
         UNREACHABLE();

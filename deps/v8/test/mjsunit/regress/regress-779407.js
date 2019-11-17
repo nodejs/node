@@ -10,4 +10,4 @@ for (var i = 0; i < 17; i++) {
   } catch (e) {
   }
 }
-s.replace(/[a]/g);
+s.replace(/a/g);

@@ -38,14 +38,14 @@ const indexes = (() => {
                         0|((offset >>> 28) & m)];
     builder.addFunction("load", makeSig([kWasmI32], [type]))
       .addBody([                         // --
-        kExprGetLocal, 0,                // --
+        kExprLocalGet, 0,                // --
         load_opcode, 0, ...offset_bytes, // --
       ])                                 // --
       .exportFunc();
     builder.addFunction("store", makeSig([kWasmI32, type], []))
       .addBody([                           // --
-        kExprGetLocal, 0,                  // --
-        kExprGetLocal, 1,                  // --
+        kExprLocalGet, 0,                  // --
+        kExprLocalGet, 1,                  // --
         store_opcode, 0, ...offset_bytes,  // --
       ])                                   // --
       .exportFunc();

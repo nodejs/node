@@ -80,8 +80,8 @@ static inline bool IsShortcutCandidate(int type) {
 
 enum InstanceType : uint16_t {
   // String types.
-  INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kSeqStringTag |
-                             kInternalizedTag,  // FIRST_PRIMITIVE_TYPE
+  INTERNALIZED_STRING_TYPE =
+      kTwoByteStringTag | kSeqStringTag | kInternalizedTag,
   ONE_BYTE_INTERNALIZED_STRING_TYPE =
       kOneByteStringTag | kSeqStringTag | kInternalizedTag,
   EXTERNAL_INTERNALIZED_STRING_TYPE =
@@ -116,262 +116,41 @@ enum InstanceType : uint16_t {
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
 
-  // Non-string names
-  SYMBOL_TYPE =
-      1 + (kIsNotInternalizedMask | kUncachedExternalStringMask |
-           kStringEncodingMask |
-           kStringRepresentationMask),  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
-
-  // Other primitives (cannot contain non-map-word pointers to heap objects).
-  HEAP_NUMBER_TYPE,
-  BIGINT_TYPE,
-  ODDBALL_TYPE,  // LAST_PRIMITIVE_TYPE
-
-  // Objects allocated in their own spaces (never in new space).
-  MAP_TYPE,
-  CODE_TYPE,
-
-  // "Data", objects that cannot contain non-map-word pointers to heap
-  // objects.
-  FOREIGN_TYPE,
-  BYTE_ARRAY_TYPE,
-  BYTECODE_ARRAY_TYPE,
-  FREE_SPACE_TYPE,
-  FIXED_DOUBLE_ARRAY_TYPE,
-  FEEDBACK_METADATA_TYPE,
-  FILLER_TYPE,  // LAST_DATA_TYPE
-
-  // Structs.
-  ACCESS_CHECK_INFO_TYPE,
-  ACCESSOR_INFO_TYPE,
-  ACCESSOR_PAIR_TYPE,
-  ALIASED_ARGUMENTS_ENTRY_TYPE,
-  ALLOCATION_MEMENTO_TYPE,
-  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  ASM_WASM_DATA_TYPE,
-  ASYNC_GENERATOR_REQUEST_TYPE,
-  CLASS_POSITIONS_TYPE,
-  DEBUG_INFO_TYPE,
-  ENUM_CACHE_TYPE,
-  FUNCTION_TEMPLATE_INFO_TYPE,
-  FUNCTION_TEMPLATE_RARE_DATA_TYPE,
-  INTERCEPTOR_INFO_TYPE,
-  INTERPRETER_DATA_TYPE,
-  OBJECT_TEMPLATE_INFO_TYPE,
-  PROMISE_CAPABILITY_TYPE,
-  PROMISE_REACTION_TYPE,
-  PROTOTYPE_INFO_TYPE,
-  SCRIPT_TYPE,
-  SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,
-  SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE,
-  STACK_FRAME_INFO_TYPE,
-  STACK_TRACE_FRAME_TYPE,
-  TEMPLATE_OBJECT_DESCRIPTION_TYPE,
-  TUPLE2_TYPE,
-  TUPLE3_TYPE,
-  WASM_CAPI_FUNCTION_DATA_TYPE,
-  WASM_DEBUG_INFO_TYPE,
-  WASM_EXCEPTION_TAG_TYPE,
-  WASM_EXPORTED_FUNCTION_DATA_TYPE,
-  WASM_INDIRECT_FUNCTION_TABLE_TYPE,
-  WASM_JS_FUNCTION_DATA_TYPE,
-
-  CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE
-  CALLBACK_TASK_TYPE,
-  PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
-  PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-  PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
-
-#define MAKE_TORQUE_INSTANCE_TYPE(V) V,
-  TORQUE_DEFINED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
+// Most instance types are defined in Torque, with the exception of the string
+// types above. They are ordered by inheritance hierarchy so that we can easily
+// use range checks to determine whether an object is an instance of a subclass
+// of any type. There are a few more constraints specified in the Torque type
+// definitions:
+// - Some instance types are exposed in v8.h, so they are locked to specific
+//   values to not unnecessarily change the ABI.
+// - JSSpecialObject and JSCustomElementsObject are aligned with the beginning
+//   of the JSObject range, so that we can use a larger range check from
+//   FIRST_JS_RECEIVER_TYPE to the end of those ranges and include JSProxy too.
+// - JSFunction is last, meaning we can use a single inequality check to
+//   determine whether an instance type is within the range for any class in the
+//   inheritance hierarchy of JSFunction. This includes commonly-checked classes
+//   JSObject and JSReceiver.
+#define MAKE_TORQUE_INSTANCE_TYPE(TYPE, value) TYPE = value,
+  TORQUE_ASSIGNED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
 #undef MAKE_TORQUE_INSTANCE_TYPE
 
-  // Modules
-  SOURCE_TEXT_MODULE_TYPE,  // FIRST_MODULE_TYPE
-  SYNTHETIC_MODULE_TYPE,    // LAST_MODULE_TYPE
-
-  ALLOCATION_SITE_TYPE,
-  EMBEDDER_DATA_ARRAY_TYPE,
-  // FixedArrays.
-  FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
-  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
-  CLOSURE_FEEDBACK_CELL_ARRAY_TYPE,
-  HASH_TABLE_TYPE,  // FIRST_HASH_TABLE_TYPE
-  ORDERED_HASH_MAP_TYPE,
-  ORDERED_HASH_SET_TYPE,
-  ORDERED_NAME_DICTIONARY_TYPE,
-  NAME_DICTIONARY_TYPE,
-  GLOBAL_DICTIONARY_TYPE,
-  NUMBER_DICTIONARY_TYPE,
-  SIMPLE_NUMBER_DICTIONARY_TYPE,
-  STRING_TABLE_TYPE,
-  EPHEMERON_HASH_TABLE_TYPE,  // LAST_HASH_TABLE_TYPE
-  SCOPE_INFO_TYPE,
-  SCRIPT_CONTEXT_TABLE_TYPE,  // LAST_FIXED_ARRAY_TYPE,
-
-  // Contexts.
-  AWAIT_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
-  BLOCK_CONTEXT_TYPE,
-  CATCH_CONTEXT_TYPE,
-  DEBUG_EVALUATE_CONTEXT_TYPE,
-  EVAL_CONTEXT_TYPE,
-  FUNCTION_CONTEXT_TYPE,
-  MODULE_CONTEXT_TYPE,
-  NATIVE_CONTEXT_TYPE,
-  SCRIPT_CONTEXT_TYPE,
-  WITH_CONTEXT_TYPE,  // LAST_CONTEXT_TYPE
-
-  WEAK_FIXED_ARRAY_TYPE,  // FIRST_WEAK_FIXED_ARRAY_TYPE
-  TRANSITION_ARRAY_TYPE,  // LAST_WEAK_FIXED_ARRAY_TYPE
-
-  // Misc.
-  CALL_HANDLER_INFO_TYPE,
-  CELL_TYPE,
-  CODE_DATA_CONTAINER_TYPE,
-  DESCRIPTOR_ARRAY_TYPE,
-  FEEDBACK_CELL_TYPE,
-  FEEDBACK_VECTOR_TYPE,
-  LOAD_HANDLER_TYPE,
-  PREPARSE_DATA_TYPE,
-  PROPERTY_ARRAY_TYPE,
-  PROPERTY_CELL_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
-  SMALL_ORDERED_HASH_MAP_TYPE,
-  SMALL_ORDERED_HASH_SET_TYPE,
-  SMALL_ORDERED_NAME_DICTIONARY_TYPE,
-  STORE_HANDLER_TYPE,
-  UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-  UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-  WEAK_ARRAY_LIST_TYPE,
-  WEAK_CELL_TYPE,
-
-  // All the following types are subtypes of JSReceiver, which corresponds to
-  // objects in the JS sense. The first and the last type in this range are
-  // the two forms of function. This organization enables using the same
-  // compares for checking the JS_RECEIVER and the NONCALLABLE_JS_OBJECT range.
-  // Some of the following instance types are exposed in v8.h, so to not
-  // unnecessarily change the ABI when we introduce new instance types in the
-  // future, we leave some space between instance types.
-  JS_PROXY_TYPE = 0x0400,  // FIRST_JS_RECEIVER_TYPE
-  JS_GLOBAL_OBJECT_TYPE,   // FIRST_JS_OBJECT_TYPE
-  JS_GLOBAL_PROXY_TYPE,
-  JS_MODULE_NAMESPACE_TYPE,
-  // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
-  // interceptors.
-  JS_SPECIAL_API_OBJECT_TYPE = 0x0410,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_PRIMITIVE_WRAPPER_TYPE,            // LAST_CUSTOM_ELEMENTS_RECEIVER
-  // Like JS_OBJECT_TYPE, but created from API function.
-  JS_API_OBJECT_TYPE = 0x0420,
-  JS_OBJECT_TYPE,
-  JS_ARGUMENTS_TYPE,
-  JS_ARRAY_BUFFER_TYPE,
-  JS_ARRAY_ITERATOR_TYPE,
-  JS_ARRAY_TYPE,
-  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
-  JS_ASYNC_FUNCTION_OBJECT_TYPE,
-  JS_ASYNC_GENERATOR_OBJECT_TYPE,
-  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
-  JS_DATE_TYPE,
-  JS_ERROR_TYPE,
-  JS_GENERATOR_OBJECT_TYPE,
-  JS_MAP_TYPE,
-  JS_MAP_KEY_ITERATOR_TYPE,
-  JS_MAP_KEY_VALUE_ITERATOR_TYPE,
-  JS_MAP_VALUE_ITERATOR_TYPE,
-  JS_MESSAGE_OBJECT_TYPE,
-  JS_PROMISE_TYPE,
-  JS_REGEXP_TYPE,
-  JS_REGEXP_STRING_ITERATOR_TYPE,
-  JS_SET_TYPE,
-  JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  JS_SET_VALUE_ITERATOR_TYPE,
-  JS_STRING_ITERATOR_TYPE,
-  JS_WEAK_REF_TYPE,
-  JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
-  JS_FINALIZATION_GROUP_TYPE,
-  JS_WEAK_MAP_TYPE,
-  JS_WEAK_SET_TYPE,
-
-  JS_TYPED_ARRAY_TYPE,
-  JS_DATA_VIEW_TYPE,
-
-#ifdef V8_INTL_SUPPORT
-  JS_INTL_V8_BREAK_ITERATOR_TYPE,
-  JS_INTL_COLLATOR_TYPE,
-  JS_INTL_DATE_TIME_FORMAT_TYPE,
-  JS_INTL_LIST_FORMAT_TYPE,
-  JS_INTL_LOCALE_TYPE,
-  JS_INTL_NUMBER_FORMAT_TYPE,
-  JS_INTL_PLURAL_RULES_TYPE,
-  JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
-  JS_INTL_SEGMENT_ITERATOR_TYPE,
-  JS_INTL_SEGMENTER_TYPE,
-#endif  // V8_INTL_SUPPORT
-
-  WASM_EXCEPTION_TYPE,
-  WASM_GLOBAL_TYPE,
-  WASM_INSTANCE_TYPE,
-  WASM_MEMORY_TYPE,
-  WASM_MODULE_TYPE,
-  WASM_TABLE_TYPE,
-  JS_BOUND_FUNCTION_TYPE,
-  JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
-
   // Pseudo-types
-  FIRST_TYPE = 0x0,
-  LAST_TYPE = JS_FUNCTION_TYPE,
-  FIRST_STRING_TYPE = FIRST_TYPE,
-  FIRST_NAME_TYPE = FIRST_STRING_TYPE,
-  LAST_NAME_TYPE = SYMBOL_TYPE,
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
-  FIRST_PRIMITIVE_TYPE = FIRST_NAME_TYPE,
-  LAST_PRIMITIVE_TYPE = ODDBALL_TYPE,
-  FIRST_FUNCTION_TYPE = JS_BOUND_FUNCTION_TYPE,
-  LAST_FUNCTION_TYPE = JS_FUNCTION_TYPE,
-  // Boundaries for testing if given HeapObject is a subclass of FixedArray.
-  FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
-  LAST_FIXED_ARRAY_TYPE = SCRIPT_CONTEXT_TABLE_TYPE,
-  // Boundaries for testing if given HeapObject is a subclass of HashTable
-  FIRST_HASH_TABLE_TYPE = HASH_TABLE_TYPE,
-  LAST_HASH_TABLE_TYPE = EPHEMERON_HASH_TABLE_TYPE,
-  // Boundaries for testing if given HeapObject is a subclass of WeakFixedArray.
-  FIRST_WEAK_FIXED_ARRAY_TYPE = WEAK_FIXED_ARRAY_TYPE,
-  LAST_WEAK_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,
-  // Boundaries for testing if given HeapObject is a Context
-  FIRST_CONTEXT_TYPE = AWAIT_CONTEXT_TYPE,
-  LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
-  // Boundaries for testing if given HeapObject is a subclass of Microtask.
-  FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
-  LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-  // Boundaries of module record types
-  FIRST_MODULE_TYPE = SOURCE_TEXT_MODULE_TYPE,
-  LAST_MODULE_TYPE = SYNTHETIC_MODULE_TYPE,
-  // Boundary for promotion to old space.
-  LAST_DATA_TYPE = FILLER_TYPE,
-  // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
-  // Note that there is no range for JSObject or JSProxy, since their subtypes
-  // are not continuous in this enum! The enum ranges instead reflect the
-  // external class names, where proxies are treated as either ordinary objects,
-  // or functions.
-  FIRST_JS_RECEIVER_TYPE = JS_PROXY_TYPE,
-  LAST_JS_RECEIVER_TYPE = LAST_TYPE,
-  // Boundaries for testing the types represented as JSObject
-  FIRST_JS_OBJECT_TYPE = JS_GLOBAL_OBJECT_TYPE,
-  LAST_JS_OBJECT_TYPE = LAST_TYPE,
   // Boundary for testing JSReceivers that need special property lookup handling
-  LAST_SPECIAL_RECEIVER_TYPE = JS_SPECIAL_API_OBJECT_TYPE,
+  LAST_SPECIAL_RECEIVER_TYPE = LAST_JS_SPECIAL_OBJECT_TYPE,
   // Boundary case for testing JSReceivers that may have elements while having
   // an empty fixed array as elements backing store. This is true for string
   // wrappers.
-  LAST_CUSTOM_ELEMENTS_RECEIVER = JS_PRIMITIVE_WRAPPER_TYPE,
+  LAST_CUSTOM_ELEMENTS_RECEIVER = LAST_JS_CUSTOM_ELEMENTS_OBJECT_TYPE,
 
-  FIRST_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  LAST_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
-
-  FIRST_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
-  LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
+  // Convenient names for things where the generated name is awkward:
+  FIRST_TYPE = FIRST_HEAP_OBJECT_TYPE,
+  LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
+  FIRST_FUNCTION_TYPE = FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
+  LAST_FUNCTION_TYPE = LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
+  BIGINT_TYPE = BIG_INT_BASE_TYPE,
 };
 
 // This constant is defined outside of the InstanceType enum because the
@@ -388,6 +167,40 @@ STATIC_ASSERT(JS_SPECIAL_API_OBJECT_TYPE == Internals::kJSSpecialApiObjectType);
 STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
+
+// Verify that string types are all less than other types.
+#define CHECK_STRING_RANGE(TYPE, ...) \
+  STATIC_ASSERT(TYPE < FIRST_NONSTRING_TYPE);
+STRING_TYPE_LIST(CHECK_STRING_RANGE)
+#undef CHECK_STRING_RANGE
+#define CHECK_NONSTRING_RANGE(TYPE) STATIC_ASSERT(TYPE >= FIRST_NONSTRING_TYPE);
+TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_NONSTRING_RANGE)
+#undef CHECK_NONSTRING_RANGE
+
+// Two ranges don't cleanly follow the inheritance hierarchy. Here we ensure
+// that only expected types fall within these ranges.
+// - From FIRST_JS_RECEIVER_TYPE to LAST_SPECIAL_RECEIVER_TYPE should correspond
+//   to the union type JSProxy | JSSpecialObject.
+// - From FIRST_JS_RECEIVER_TYPE to LAST_CUSTOM_ELEMENTS_RECEIVER should
+//   correspond to the union type JSProxy | JSCustomElementsObject.
+// Note in particular that these ranges include all subclasses of JSReceiver
+// that are not also subclasses of JSObject (currently only JSProxy).
+#define CHECK_INSTANCE_TYPE(TYPE)                                          \
+  STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
+                 TYPE <= LAST_SPECIAL_RECEIVER_TYPE) ==                    \
+                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                 TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
+                 TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
+                 TYPE == JS_SPECIAL_API_OBJECT_TYPE));                     \
+  STATIC_ASSERT((TYPE >= FIRST_JS_RECEIVER_TYPE &&                         \
+                 TYPE <= LAST_CUSTOM_ELEMENTS_RECEIVER) ==                 \
+                (TYPE == JS_PROXY_TYPE || TYPE == JS_GLOBAL_OBJECT_TYPE || \
+                 TYPE == JS_GLOBAL_PROXY_TYPE ||                           \
+                 TYPE == JS_MODULE_NAMESPACE_TYPE ||                       \
+                 TYPE == JS_SPECIAL_API_OBJECT_TYPE ||                     \
+                 TYPE == JS_PRIMITIVE_WRAPPER_TYPE));
+TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_INSTANCE_TYPE)
+#undef CHECK_INSTANCE_TYPE
 
 // Make sure it doesn't matter whether we sign-extend or zero-extend these
 // values, because Torque treats InstanceType as signed.
@@ -424,8 +237,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(FreeSpace, FREE_SPACE_TYPE)                                              \
   V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                                \
   V(HeapNumber, HEAP_NUMBER_TYPE)                                            \
-  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                                    \
-  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_TYPE)                          \
+  V(JSArgumentsObject, JS_ARGUMENTS_OBJECT_TYPE)                             \
+  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_OBJECT_TYPE)                   \
   V(JSArray, JS_ARRAY_TYPE)                                                  \
   V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                     \
   V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                                 \
@@ -449,9 +262,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSPrimitiveWrapper, JS_PRIMITIVE_WRAPPER_TYPE)                           \
   V(JSPromise, JS_PROMISE_TYPE)                                              \
   V(JSProxy, JS_PROXY_TYPE)                                                  \
-  V(JSRegExp, JS_REGEXP_TYPE)                                                \
+  V(JSRegExp, JS_REG_EXP_TYPE)                                               \
   V(JSRegExpResult, JS_ARRAY_TYPE)                                           \
-  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)                  \
+  V(JSRegExpResultIndices, JS_ARRAY_TYPE)                                    \
+  V(JSRegExpStringIterator, JS_REG_EXP_STRING_ITERATOR_TYPE)                 \
   V(JSSet, JS_SET_TYPE)                                                      \
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
@@ -487,28 +301,28 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(UncompiledDataWithoutPreparseData,                                       \
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                              \
   V(UncompiledDataWithPreparseData, UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE) \
-  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                                \
-  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                      \
-  V(WasmInstanceObject, WASM_INSTANCE_TYPE)                                  \
-  V(WasmMemoryObject, WASM_MEMORY_TYPE)                                      \
-  V(WasmModuleObject, WASM_MODULE_TYPE)                                      \
-  V(WasmTableObject, WASM_TABLE_TYPE)                                        \
+  V(WasmExceptionObject, WASM_EXCEPTION_OBJECT_TYPE)                         \
+  V(WasmGlobalObject, WASM_GLOBAL_OBJECT_TYPE)                               \
+  V(WasmInstanceObject, WASM_INSTANCE_OBJECT_TYPE)                           \
+  V(WasmMemoryObject, WASM_MEMORY_OBJECT_TYPE)                               \
+  V(WasmModuleObject, WASM_MODULE_OBJECT_TYPE)                               \
+  V(WasmTableObject, WASM_TABLE_OBJECT_TYPE)                                 \
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                                     \
   V(WeakCell, WEAK_CELL_TYPE)
 #ifdef V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)                     \
-  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                      \
-  V(JSV8BreakIterator, JS_INTL_V8_BREAK_ITERATOR_TYPE)       \
-  V(JSCollator, JS_INTL_COLLATOR_TYPE)                       \
-  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE)         \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)                  \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)                           \
-  V(JSNumberFormat, JS_INTL_NUMBER_FORMAT_TYPE)              \
-  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)                \
-  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JSSegmentIterator, JS_INTL_SEGMENT_ITERATOR_TYPE)        \
-  V(JSSegmenter, JS_INTL_SEGMENTER_TYPE)
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)                \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                 \
+  V(JSV8BreakIterator, JS_V8_BREAK_ITERATOR_TYPE)       \
+  V(JSCollator, JS_COLLATOR_TYPE)                       \
+  V(JSDateTimeFormat, JS_DATE_TIME_FORMAT_TYPE)         \
+  V(JSListFormat, JS_LIST_FORMAT_TYPE)                  \
+  V(JSLocale, JS_LOCALE_TYPE)                           \
+  V(JSNumberFormat, JS_NUMBER_FORMAT_TYPE)              \
+  V(JSPluralRules, JS_PLURAL_RULES_TYPE)                \
+  V(JSRelativeTimeFormat, JS_RELATIVE_TIME_FORMAT_TYPE) \
+  V(JSSegmentIterator, JS_SEGMENT_ITERATOR_TYPE)        \
+  V(JSSegmenter, JS_SEGMENTER_TYPE)
 
 #else
 
@@ -516,16 +330,23 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 #endif  // V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_RANGE(V)                             \
-  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                 \
-  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)      \
-  V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)         \
-  V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
-  V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
-  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
-  V(Module, FIRST_MODULE_TYPE, LAST_MODULE_TYPE)                    \
-  V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                          \
-  V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                    \
+#define INSTANCE_TYPE_CHECKERS_RANGE(V)                                   \
+  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                       \
+  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)            \
+  V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)               \
+  V(JSCustomElementsObject, FIRST_JS_CUSTOM_ELEMENTS_OBJECT_TYPE,         \
+    LAST_JS_CUSTOM_ELEMENTS_OBJECT_TYPE)                                  \
+  V(JSFunctionOrBoundFunction, FIRST_FUNCTION_TYPE, LAST_FUNCTION_TYPE)   \
+  V(JSMapIterator, FIRST_JS_MAP_ITERATOR_TYPE, LAST_JS_MAP_ITERATOR_TYPE) \
+  V(JSSetIterator, FIRST_JS_SET_ITERATOR_TYPE, LAST_JS_SET_ITERATOR_TYPE) \
+  V(JSSpecialObject, FIRST_JS_SPECIAL_OBJECT_TYPE,                        \
+    LAST_JS_SPECIAL_OBJECT_TYPE)                                          \
+  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)                 \
+  V(Module, FIRST_MODULE_TYPE, LAST_MODULE_TYPE)                          \
+  V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                                \
+  V(PrimitiveHeapObject, FIRST_PRIMITIVE_HEAP_OBJECT_TYPE,                \
+    LAST_PRIMITIVE_HEAP_OBJECT_TYPE)                                      \
+  V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                          \
   V(WeakFixedArray, FIRST_WEAK_FIXED_ARRAY_TYPE, LAST_WEAK_FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \

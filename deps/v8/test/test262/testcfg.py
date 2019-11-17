@@ -44,26 +44,26 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
-  'Intl.DateTimeFormat-formatRange': '--harmony-intl-date-format-range',
-  'Intl.NumberFormat-unified': '--harmony-intl-numberformat-unified',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
-  'BigInt': '--harmony-intl-bigint',
   'Promise.allSettled': '--harmony-promise-all-settled',
   'FinalizationGroup': '--harmony-weak-refs',
   'WeakRef': '--harmony-weak-refs',
   'host-gc-required': '--expose-gc-as=v8GC',
   'optional-chaining': '--harmony-optional-chaining',
+  'top-level-await': '--harmony-top-level-await',
+  'regexp-match-indices': '--harmony-regexp-match-indices',
+  # https://github.com/tc39/test262/pull/2395
+  'regexp-named-groups': '--harmony-regexp-match-indices',
+  'class-methods-private': '--harmony-private-methods',
+  'class-static-methods-private': '--harmony-private-methods',
 }
 
-SKIPPED_FEATURES = set(['class-methods-private',
-                        'class-static-methods-private',
-                        'top-level-await'])
+SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 

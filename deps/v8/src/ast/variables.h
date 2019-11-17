@@ -21,7 +21,8 @@ class Variable final : public ZoneObject {
  public:
   Variable(Scope* scope, const AstRawString* name, VariableMode mode,
            VariableKind kind, InitializationFlag initialization_flag,
-           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned)
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+           IsStaticFlag is_static_flag = IsStaticFlag::kNotStatic)
       : scope_(scope),
         name_(name),
         local_if_not_shadowed_(nullptr),
@@ -35,10 +36,13 @@ class Variable final : public ZoneObject {
                    ForceContextAllocationField::encode(false) |
                    ForceHoleInitializationField::encode(false) |
                    LocationField::encode(VariableLocation::UNALLOCATED) |
-                   VariableKindField::encode(kind)) {
+                   VariableKindField::encode(kind) |
+                   IsStaticFlagField::encode(is_static_flag)) {
     // Var declared variables never need initialization.
     DCHECK(!(mode == VariableMode::kVar &&
              initialization_flag == kNeedsInitialization));
+    DCHECK_IMPLIES(is_static_flag == IsStaticFlag::kStatic,
+                   IsConstVariableMode(mode));
   }
 
   explicit Variable(Variable* other);
@@ -59,6 +63,14 @@ class Variable final : public ZoneObject {
   void set_mode(VariableMode mode) {
     bit_field_ = VariableModeField::update(bit_field_, mode);
   }
+  void set_is_static_flag(IsStaticFlag is_static_flag) {
+    bit_field_ = IsStaticFlagField::update(bit_field_, is_static_flag);
+  }
+  IsStaticFlag is_static_flag() const {
+    return IsStaticFlagField::decode(bit_field_);
+  }
+  bool is_static() const { return is_static_flag() == IsStaticFlag::kStatic; }
+
   bool has_forced_context_allocation() const {
     return ForceContextAllocationField::decode(bit_field_);
   }
@@ -71,6 +83,9 @@ class Variable final : public ZoneObject {
   void set_is_used() { bit_field_ = IsUsedField::update(bit_field_, true); }
   MaybeAssignedFlag maybe_assigned() const {
     return MaybeAssignedFlagField::decode(bit_field_);
+  }
+  void clear_maybe_assigned() {
+    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kNotAssigned);
   }
   void SetMaybeAssigned() {
     if (mode() == VariableMode::kConst) return;
@@ -249,6 +264,7 @@ class Variable final : public ZoneObject {
   using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
   using MaybeAssignedFlagField =
       ForceHoleInitializationField::Next<MaybeAssignedFlag, 1>;
+  using IsStaticFlagField = MaybeAssignedFlagField::Next<IsStaticFlag, 1>;
 
   Variable** next() { return &next_; }
   friend List;

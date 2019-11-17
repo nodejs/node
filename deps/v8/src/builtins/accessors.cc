@@ -16,6 +16,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
@@ -838,6 +839,26 @@ void Accessors::ErrorStackSetter(
 Handle<AccessorInfo> Accessors::MakeErrorStackInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->stack_string(),
                       &ErrorStackGetter, &ErrorStackSetter);
+}
+
+//
+// Accessors::RegExpResultIndices
+//
+
+void Accessors::RegExpResultIndicesGetter(
+    v8::Local<v8::Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSRegExpResult> regexp_result(
+      Handle<JSRegExpResult>::cast(Utils::OpenHandle(*info.Holder())));
+  Handle<Object> indices(
+      JSRegExpResult::GetAndCacheIndices(isolate, regexp_result));
+  info.GetReturnValue().Set(Utils::ToLocal(indices));
+}
+
+Handle<AccessorInfo> Accessors::MakeRegExpResultIndicesInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->indices_string(),
+                      &RegExpResultIndicesGetter, nullptr);
 }
 
 }  // namespace internal

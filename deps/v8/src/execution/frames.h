@@ -145,7 +145,12 @@ class StackFrame {
     intptr_t type = marker >> kSmiTagSize;
     // TODO(petermarshall): There is a bug in the arm simulators that causes
     // invalid frame markers.
-#if !(defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM))
+#if defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)
+    if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
+      // Appease UBSan.
+      return Type::NUMBER_OF_TYPES;
+    }
+#else
     DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
 #endif
     return static_cast<Type>(type);
@@ -733,7 +738,7 @@ class JavaScriptFrame : public StandardFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
-  //  - OptimizedFrame  : Data is the stack slot count of the entire frame.
+  //  - OptimizedFrame  : Data is not used and will not return a value.
   //  - InterpretedFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction);
@@ -783,10 +788,8 @@ class StubFrame : public StandardFrame {
   Code unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
-  // TurboFan stub frames are supported. Also returns data associated with the
-  // handler site:
-  //  - TurboFan stub: Data is the stack slot count of the entire frame.
-  int LookupExceptionHandlerInTable(int* data);
+  // TurboFan stub frames are supported.
+  int LookupExceptionHandlerInTable();
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
@@ -938,9 +941,8 @@ class WasmCompiledFrame : public StandardFrame {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns the stack slot count of the entire frame.
-  int LookupExceptionHandlerInTable(int* data);
+  // Lookup exception handler for current {pc}, returns -1 if none found.
+  int LookupExceptionHandlerInTable();
 
   // Determine the code for the frame.
   Code unchecked_code() const override;

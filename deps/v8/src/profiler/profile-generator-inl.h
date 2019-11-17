@@ -7,6 +7,8 @@
 
 #include "src/profiler/profile-generator.h"
 
+#include <memory>
+
 namespace v8 {
 namespace internal {
 

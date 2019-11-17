@@ -68,6 +68,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
 
+  // Currently at https://tc39.github.io/proposal-intl-list-format/
+  // #sec-createstringlistfromiterable
+  TNode<JSArray> StringListFromIterable(TNode<Context> context,
+                                        TNode<Object> iterable);
+
   void FastIterableToList(TNode<Context> context, TNode<Object> iterable,
                           TVariable<Object>* var_result, Label* slow);
 };

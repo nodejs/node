@@ -26,6 +26,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
@@ -258,25 +259,25 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
-    case WASM_MODULE_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
       WasmModuleObject::cast(*this).WasmModuleObjectVerify(isolate);
       break;
-    case WASM_TABLE_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       WasmTableObject::cast(*this).WasmTableObjectVerify(isolate);
       break;
-    case WASM_MEMORY_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
       WasmMemoryObject::cast(*this).WasmMemoryObjectVerify(isolate);
       break;
-    case WASM_GLOBAL_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
       WasmGlobalObject::cast(*this).WasmGlobalObjectVerify(isolate);
       break;
-    case WASM_EXCEPTION_TYPE:
+    case WASM_EXCEPTION_OBJECT_TYPE:
       WasmExceptionObject::cast(*this).WasmExceptionObjectVerify(isolate);
       break;
-    case WASM_INSTANCE_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
       JSArgumentsObject::cast(*this).JSArgumentsObjectVerify(isolate);
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -365,10 +366,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_PROMISE_TYPE:
       JSPromise::cast(*this).JSPromiseVerify(isolate);
       break;
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       JSRegExp::cast(*this).JSRegExpVerify(isolate);
       break;
-    case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_REG_EXP_STRING_ITERATOR_TYPE:
       JSRegExpStringIterator::cast(*this).JSRegExpStringIteratorVerify(isolate);
       break;
     case FILLER_TYPE:
@@ -425,34 +426,34 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
       JSV8BreakIterator::cast(*this).JSV8BreakIteratorVerify(isolate);
       break;
-    case JS_INTL_COLLATOR_TYPE:
+    case JS_COLLATOR_TYPE:
       JSCollator::cast(*this).JSCollatorVerify(isolate);
       break;
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
       JSDateTimeFormat::cast(*this).JSDateTimeFormatVerify(isolate);
       break;
-    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
       JSListFormat::cast(*this).JSListFormatVerify(isolate);
       break;
-    case JS_INTL_LOCALE_TYPE:
+    case JS_LOCALE_TYPE:
       JSLocale::cast(*this).JSLocaleVerify(isolate);
       break;
-    case JS_INTL_NUMBER_FORMAT_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
       JSNumberFormat::cast(*this).JSNumberFormatVerify(isolate);
       break;
-    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_PLURAL_RULES_TYPE:
       JSPluralRules::cast(*this).JSPluralRulesVerify(isolate);
       break;
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(*this).JSRelativeTimeFormatVerify(isolate);
       break;
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
       JSSegmentIterator::cast(*this).JSSegmentIteratorVerify(isolate);
       break;
-    case JS_INTL_SEGMENTER_TYPE:
+    case JS_SEGMENTER_TYPE:
       JSSegmenter::cast(*this).JSSegmenterVerify(isolate);
       break;
 #endif  // V8_INTL_SUPPORT
@@ -511,8 +512,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(FreeSpace)
-
-USE_TORQUE_VERIFIER(FeedbackCell)
 
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::FeedbackVectorVerify(*this, isolate);
@@ -590,7 +589,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map().elements_kind());
 
-    for (int i = 0; i < map().NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
       if (details.location() == kField) {
         DCHECK_EQ(kData, details.kind());
@@ -668,7 +667,7 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
     DescriptorArray const descriptors = instance_descriptors();
-    for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
+    for (InternalIndex i : IterateOwnDescriptors()) {
       CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
     }
   }
@@ -803,9 +802,9 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
     // Check that properties with private symbols names are non-enumerable, and
     // that fields are in order.
     int expected_field_index = 0;
-    for (int descriptor = 0; descriptor < number_of_descriptors();
-         descriptor++) {
-      Object key = *(GetDescriptorSlot(descriptor) + kEntryKeyIndex);
+    for (InternalIndex descriptor :
+         InternalIndex::Range(number_of_descriptors())) {
+      Object key = *(GetDescriptorSlot(descriptor.as_int()) + kEntryKeyIndex);
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key.IsUndefined(isolate)) continue;
@@ -1050,7 +1049,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   if (scope_info().length() > 0) {
     ScopeInfo info = scope_info();
     CHECK(kind() == info.function_kind());
-    CHECK_EQ(kind() == kModule, info.scope_type() == MODULE_SCOPE);
+    CHECK_EQ(internal::IsModule(kind()), info.scope_type() == MODULE_SCOPE);
   }
 
   if (IsApiFunction()) {
@@ -1449,7 +1448,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex).IsSmi());
-      CHECK(arr.get(JSRegExp::kIrregexpTierUpTicksIndex).IsSmi());
+      CHECK(arr.get(JSRegExp::kIrregexpTicksUntilTierUpIndex).IsSmi());
       break;
     }
     default:
@@ -1543,10 +1542,18 @@ void Module::ModuleVerify(Isolate* isolate) {
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SourceTextModuleVerify(*this, isolate);
 
-  CHECK((status() >= kEvaluating && code().IsSourceTextModuleInfo()) ||
-        (status() == kInstantiated && code().IsJSGeneratorObject()) ||
-        (status() == kInstantiating && code().IsJSFunction()) ||
-        (code().IsSharedFunctionInfo()));
+  if (status() == kErrored) {
+    CHECK(code().IsSourceTextModuleInfo());
+  } else if (status() == kEvaluating || status() == kEvaluated) {
+    CHECK(code().IsJSGeneratorObject());
+  } else {
+    CHECK((status() == kInstantiated && code().IsJSGeneratorObject()) ||
+          (status() == kInstantiating && code().IsJSFunction()) ||
+          (status() == kPreInstantiating && code().IsSharedFunctionInfo()) ||
+          (status() == kUninstantiated && code().IsSharedFunctionInfo()));
+    CHECK(top_level_capability().IsUndefined() && !AsyncParentModuleCount() &&
+          !pending_async_dependencies() && !async_evaluating());
+  }
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
 }
@@ -1679,8 +1686,6 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(AccessorInfo)
 
-USE_TORQUE_VERIFIER(AccessorPair)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1733,8 +1738,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(DebugInfo)
-
 USE_TORQUE_VERIFIER(StackFrameInfo)
 
 void PreparseData::PreparseDataVerify(Isolate* isolate) {
@@ -1747,19 +1750,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
     CHECK(child.IsNull() || child.IsPreparseData());
     VerifyPointer(isolate, child);
   }
-}
-
-void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataVerify(
-    Isolate* isolate) {
-  CHECK(IsUncompiledDataWithPreparseData());
-  VerifyPointer(isolate, inferred_name());
-  VerifyPointer(isolate, preparse_data());
-}
-
-void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
-    Isolate* isolate) {
-  CHECK(IsUncompiledDataWithoutPreparseData());
-  VerifyPointer(isolate, inferred_name());
 }
 
 USE_TORQUE_VERIFIER(InterpreterData)

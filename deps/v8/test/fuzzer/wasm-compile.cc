@@ -322,7 +322,7 @@ class WasmGenerator {
       return Generate<wanted_type>(data);
     }
 
-    if (opcode != kExprGetLocal) Generate(local.type, data);
+    if (opcode != kExprLocalGet) Generate(local.type, data);
     builder_->EmitWithU32V(opcode, local.index);
     if (wanted_type != kWasmStmt && local.type != wanted_type) {
       Convert(local.type, wanted_type);
@@ -332,14 +332,14 @@ class WasmGenerator {
   template <ValueType wanted_type>
   void get_local(DataRange* data) {
     static_assert(wanted_type != kWasmStmt, "illegal type");
-    local_op<wanted_type>(data, kExprGetLocal);
+    local_op<wanted_type>(data, kExprLocalGet);
   }
 
-  void set_local(DataRange* data) { local_op<kWasmStmt>(data, kExprSetLocal); }
+  void set_local(DataRange* data) { local_op<kWasmStmt>(data, kExprLocalSet); }
 
   template <ValueType wanted_type>
   void tee_local(DataRange* data) {
-    local_op<wanted_type>(data, kExprTeeLocal);
+    local_op<wanted_type>(data, kExprLocalTee);
   }
 
   template <size_t num_bytes>
@@ -377,7 +377,7 @@ class WasmGenerator {
     }
 
     if (is_set) Generate(global.type, data);
-    builder_->EmitWithU32V(is_set ? kExprSetGlobal : kExprGetGlobal,
+    builder_->EmitWithU32V(is_set ? kExprGlobalSet : kExprGlobalGet,
                            global.index);
     if (!is_set && global.type != wanted_type) {
       Convert(global.type, wanted_type);
@@ -465,7 +465,7 @@ class WasmGenerator {
 
   template <ValueType T1, ValueType T2, ValueType... Ts>
   void Generate(DataRange* data) {
-    // TODO(clemensh): Implement a more even split.
+    // TODO(clemensb): Implement a more even split.
     auto first_data = data->split();
     Generate<T1>(&first_data);
     Generate<T2, Ts...>(data);

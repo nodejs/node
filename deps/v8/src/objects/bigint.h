@@ -6,8 +6,8 @@
 #define V8_OBJECTS_BIGINT_H_
 
 #include "src/common/globals.h"
-#include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -28,7 +28,7 @@ class ValueSerializer;
 
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
-class BigIntBase : public HeapObject {
+class BigIntBase : public PrimitiveHeapObject {
  public:
   inline int length() const {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
@@ -69,7 +69,7 @@ class BigIntBase : public HeapObject {
   V(kHeaderSize, 0)                                                       \
   V(kDigitsOffset, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, BIGINT_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(PrimitiveHeapObject::kHeaderSize, BIGINT_FIELDS)
 #undef BIGINT_FIELDS
 
   static constexpr bool HasOptionalPadding() {
@@ -105,7 +105,7 @@ class BigIntBase : public HeapObject {
   // Only serves to make macros happy; other code should use IsBigInt.
   bool IsBigIntBase() const { return true; }
 
-  OBJECT_CONSTRUCTORS(BigIntBase, HeapObject);
+  OBJECT_CONSTRUCTORS(BigIntBase, PrimitiveHeapObject);
 };
 
 class FreshlyAllocatedBigInt : public BigIntBase {
@@ -263,8 +263,8 @@ class BigInt : public BigIntBase {
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
   void SerializeDigits(uint8_t* storage);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
-      Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
-      AllocationType allocation);
+      Isolate* isolate, uint32_t bitfield,
+      Vector<const uint8_t> digits_storage);
 
   OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };

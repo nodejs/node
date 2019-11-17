@@ -90,6 +90,12 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_expose_wasm = false;
   }
 
+  if (FLAG_regexp_interpret_all && FLAG_regexp_tier_up) {
+    // Turning off the tier-up strategy, because the --regexp-interpret-all and
+    // --regexp-tier-up flags are incompatible.
+    FLAG_regexp_tier_up = false;
+  }
+
   // The --jitless and --interpreted-frames-native-stack flags are incompatible
   // since the latter requires code generation while the former prohibits code
   // generation.

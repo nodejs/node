@@ -43,81 +43,76 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
 
-Node* MakeConstant(RawMachineAssembler& m,  // NOLINT(runtime/references)
-                   MachineType type, int value) {
+Node* MakeConstant(RawMachineAssembler* m, MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Constant(static_cast<int32_t>(value));
+      return m->Int32Constant(static_cast<int32_t>(value));
     case MachineRepresentation::kWord64:
-      return m.Int64Constant(static_cast<int64_t>(value));
+      return m->Int64Constant(static_cast<int64_t>(value));
     case MachineRepresentation::kFloat32:
-      return m.Float32Constant(static_cast<float>(value));
+      return m->Float32Constant(static_cast<float>(value));
     case MachineRepresentation::kFloat64:
-      return m.Float64Constant(static_cast<double>(value));
+      return m->Float64Constant(static_cast<double>(value));
     default:
       UNREACHABLE();
   }
 }
 
-Node* Add(RawMachineAssembler& m,  // NOLINT(runtime/references)
-          MachineType type, Node* a, Node* b) {
+Node* Add(RawMachineAssembler* m, MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Add(a, b);
+      return m->Int32Add(a, b);
     case MachineRepresentation::kWord64:
-      return m.Int64Add(a, b);
+      return m->Int64Add(a, b);
     case MachineRepresentation::kFloat32:
-      return m.Float32Add(a, b);
+      return m->Float32Add(a, b);
     case MachineRepresentation::kFloat64:
-      return m.Float64Add(a, b);
+      return m->Float64Add(a, b);
     default:
       UNREACHABLE();
   }
 }
 
-Node* Sub(RawMachineAssembler& m,  // NOLINT(runtime/references)
-          MachineType type, Node* a, Node* b) {
+Node* Sub(RawMachineAssembler* m, MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Sub(a, b);
+      return m->Int32Sub(a, b);
     case MachineRepresentation::kWord64:
-      return m.Int64Sub(a, b);
+      return m->Int64Sub(a, b);
     case MachineRepresentation::kFloat32:
-      return m.Float32Sub(a, b);
+      return m->Float32Sub(a, b);
     case MachineRepresentation::kFloat64:
-      return m.Float64Sub(a, b);
+      return m->Float64Sub(a, b);
     default:
       UNREACHABLE();
   }
 }
 
-Node* Mul(RawMachineAssembler& m,  // NOLINT(runtime/references)
-          MachineType type, Node* a, Node* b) {
+Node* Mul(RawMachineAssembler* m, MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
-      return m.Int32Mul(a, b);
+      return m->Int32Mul(a, b);
     case MachineRepresentation::kWord64:
-      return m.Int64Mul(a, b);
+      return m->Int64Mul(a, b);
     case MachineRepresentation::kFloat32:
-      return m.Float32Mul(a, b);
+      return m->Float32Mul(a, b);
     case MachineRepresentation::kFloat64:
-      return m.Float64Mul(a, b);
+      return m->Float64Mul(a, b);
     default:
       UNREACHABLE();
   }
 }
 
-Node* ToInt32(RawMachineAssembler& m,  // NOLINT(runtime/references)
-              MachineType type, Node* a) {
+Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return a;
     case MachineRepresentation::kWord64:
-      return m.TruncateInt64ToInt32(a);
+      return m->TruncateInt64ToInt32(a);
     case MachineRepresentation::kFloat32:
-      return m.TruncateFloat32ToInt32(a);
+      return m->TruncateFloat32ToInt32(a);
     case MachineRepresentation::kFloat64:
-      return m.RoundFloat64ToInt32(a);
+      return m->RoundFloat64ToInt32(a);
     default:
       UNREACHABLE();
   }
@@ -159,9 +154,9 @@ void TestReturnMultipleValues(MachineType type) {
       using Node_ptr = Node*;
       std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
       for (int i = 0; i < count; ++i) {
-        if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
-        if (i % 3 == 1) returns[i] = Sub(m, type, p0, p1);
-        if (i % 3 == 2) returns[i] = Mul(m, type, p0, p1);
+        if (i % 3 == 0) returns[i] = Add(&m, type, p0, p1);
+        if (i % 3 == 1) returns[i] = Sub(&m, type, p0, p1);
+        if (i % 3 == 2) returns[i] = Mul(&m, type, p0, p1);
       }
       m.Return(count, returns.get());
 
@@ -175,7 +170,7 @@ void TestReturnMultipleValues(MachineType type) {
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_code) {
         StdoutStream os;
-        code->Disassemble("multi_value", os);
+        code->Disassemble("multi_value", os, handles.main_isolate());
       }
 #endif
 
@@ -201,29 +196,29 @@ void TestReturnMultipleValues(MachineType type) {
       // WasmContext dummy
       call_inputs[1] = mt.PointerConstant(nullptr);
       // Special inputs for the test.
-      call_inputs[2] = MakeConstant(mt, type, a);
-      call_inputs[3] = MakeConstant(mt, type, b);
+      call_inputs[2] = MakeConstant(&mt, type, a);
+      call_inputs[3] = MakeConstant(&mt, type, b);
       for (int i = 2; i < param_count; i++) {
-        call_inputs[2 + i] = MakeConstant(mt, type, i);
+        call_inputs[2 + i] = MakeConstant(&mt, type, i);
       }
 
       Node* ret_multi = mt.AddNode(mt.common()->Call(desc),
                                    input_count, call_inputs);
-      Node* ret = MakeConstant(mt, type, 0);
+      Node* ret = MakeConstant(&mt, type, 0);
       bool sign = false;
       for (int i = 0; i < count; ++i) {
         Node* x = (count == 1)
                       ? ret_multi
                       : mt.AddNode(mt.common()->Projection(i), ret_multi);
-        ret = sign ? Sub(mt, type, ret, x) : Add(mt, type, ret, x);
+        ret = sign ? Sub(&mt, type, ret, x) : Add(&mt, type, ret, x);
         if (i % 4 == 0) sign = !sign;
       }
-      mt.Return(ToInt32(mt, type, ret));
+      mt.Return(ToInt32(&mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
       Handle<Code> code2 = mt.GetCode();
       if (FLAG_print_code) {
         StdoutStream os;
-        code2->Disassemble("multi_value_call", os);
+        code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }
 #endif
       CHECK_EQ(expect, mt.Call());
@@ -265,7 +260,7 @@ void ReturnLastValue(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = MakeConstant(m, type, i);
+      returns[i] = MakeConstant(&m, type, i);
     }
 
     m.Return(return_count, returns.get());
@@ -292,8 +287,9 @@ void ReturnLastValue(MachineType type) {
 
     Node* call = mt.AddNode(mt.common()->Call(desc), 2, inputs);
 
-    mt.Return(ToInt32(
-        mt, type, mt.AddNode(mt.common()->Projection(return_count - 1), call)));
+    mt.Return(
+        ToInt32(&mt, type,
+                mt.AddNode(mt.common()->Projection(return_count - 1), call)));
 
     CHECK_EQ(expect, mt.Call());
   }
@@ -327,7 +323,7 @@ void ReturnSumOfReturns(MachineType type) {
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
     for (int i = 0; i < return_count; ++i) {
-      returns[i] = MakeConstant(m, type, i);
+      returns[i] = MakeConstant(&m, type, i);
     }
 
     m.Return(return_count, returns.get());
@@ -360,7 +356,7 @@ void ReturnSumOfReturns(MachineType type) {
       expect += i;
       result = mt.Int32Add(
           result,
-          ToInt32(mt, type, mt.AddNode(mt.common()->Projection(i), call)));
+          ToInt32(&mt, type, mt.AddNode(mt.common()->Projection(i), call)));
     }
 
     mt.Return(result);

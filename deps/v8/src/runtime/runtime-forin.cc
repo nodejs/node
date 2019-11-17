@@ -33,7 +33,10 @@ MaybeHandle<HeapObject> Enumerate(Isolate* isolate,
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys, accumulator.GetKeys(GetKeysConversion::kConvertToString),
+        isolate, keys,
+        accumulator.GetKeys(accumulator.may_have_elements()
+                                ? GetKeysConversion::kConvertToString
+                                : GetKeysConversion::kNoNumbers),
         HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;

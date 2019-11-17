@@ -125,26 +125,21 @@ Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
 
 BUILTIN(BigIntPrototypeToLocaleString) {
   HandleScope scope(isolate);
+  const char* method = "BigInt.prototype.toLocaleString";
 #ifdef V8_INTL_SUPPORT
-  if (FLAG_harmony_intl_bigint) {
-    // 1. Let x be ? thisBigIntValue(this value).
-    Handle<BigInt> x;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, x,
-        ThisBigIntValue(isolate, args.receiver(),
-                        "BigInt.prototype.toLocaleString"));
+  // 1. Let x be ? thisBigIntValue(this value).
+  Handle<BigInt> x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, x, ThisBigIntValue(isolate, args.receiver(), method));
 
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        Intl::NumberToLocaleString(isolate, x, args.atOrUndefined(isolate, 1),
-                                   args.atOrUndefined(isolate, 2)));
-  }
-  // Fallbacks to old toString implemention if flag is off or no
-  // V8_INTL_SUPPORT
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      Intl::NumberToLocaleString(isolate, x, args.atOrUndefined(isolate, 1),
+                                 args.atOrUndefined(isolate, 2), method));
+  // Fallbacks to old toString implemention if no V8_INTL_SUPPORT
 #endif  // V8_INTL_SUPPORT
   Handle<Object> radix = isolate->factory()->undefined_value();
-  return BigIntToStringImpl(args.receiver(), radix, isolate,
-                            "BigInt.prototype.toLocaleString");
+  return BigIntToStringImpl(args.receiver(), radix, isolate, method);
 }
 
 BUILTIN(BigIntPrototypeToString) {

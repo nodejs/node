@@ -603,7 +603,7 @@ int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
 
 int WasmStackFrame::GetModuleOffset() const {
   const int function_offset =
-      wasm_instance_->module_object().GetFunctionOffset(wasm_func_index_);
+      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
   return function_offset + GetPosition();
 }
 
@@ -631,7 +631,7 @@ Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
-  // TODO(clemensh): Return lazily created JSFunction.
+  // TODO(clemensb): Return lazily created JSFunction.
   return Null();
 }
 
@@ -894,7 +894,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
     Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
                                   isolate);
-    SerializeStackTraceFrame(isolate, frame, builder);
+    SerializeStackTraceFrame(isolate, frame, &builder);
 
     if (isolate->has_pending_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been

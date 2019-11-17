@@ -10,7 +10,6 @@
 
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -23,6 +22,7 @@ class CompilationStatistics;
 class HeapNumber;
 class WasmInstanceObject;
 class WasmModuleObject;
+class JSArrayBuffer;
 
 namespace wasm {
 
@@ -120,8 +120,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   WasmCodeManager* code_manager() { return &code_manager_; }
 
-  WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
-
   AccountingAllocator* allocator() { return &allocator_; }
 
   // Compilation statistics for TurboFan compilations.
@@ -156,8 +154,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   template <typename T, typename... Args>
   std::unique_ptr<T> NewBackgroundCompileTask(Args&&... args) {
-    return base::make_unique<T>(&background_compile_task_manager_,
-                                std::forward<Args>(args)...);
+    return std::make_unique<T>(&background_compile_task_manager_,
+                               std::forward<Args>(args)...);
   }
 
   // Trigger code logging for this WasmCode in all Isolates which have access to
@@ -243,7 +241,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
-  WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 

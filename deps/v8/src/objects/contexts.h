@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/osr-optimized-code-cache.h"
 #include "torque-generated/field-offsets-tq.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -37,21 +38,23 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
-  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)             \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                   \
-  V(OBJECT_CREATE, JSFunction, object_create)                           \
-  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
-  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
-  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
-  V(MATH_POW_INDEX, JSFunction, math_pow)                               \
-  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
-    promise_internal_constructor)                                       \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                     \
+  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
+  V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
+    async_module_evaluate_internal)                               \
+  V(MAKE_ERROR_INDEX, JSFunction, make_error)                     \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)         \
+  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)       \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)           \
+  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)             \
+  V(OBJECT_CREATE, JSFunction, object_create)                     \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \
+  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                     \
+  V(MATH_POW_INDEX, JSFunction, math_pow)                         \
+  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
+    promise_internal_constructor)                                 \
+  V(IS_PROMISE_INDEX, JSFunction, is_promise)                     \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
@@ -104,6 +107,8 @@ enum ContextLookupFlags {
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
+  V(CALL_ASYNC_MODULE_FULFILLED, JSFunction, call_async_module_fulfilled)      \
+  V(CALL_ASYNC_MODULE_REJECTED, JSFunction, call_async_module_rejected)        \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
@@ -159,6 +164,11 @@ enum ContextLookupFlags {
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
   V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
+  V(INTL_LIST_FORMAT_FUNCTION_INDEX, JSFunction, intl_list_format_function)    \
+  V(INTL_PLURAL_RULES_FUNCTION_INDEX, JSFunction, intl_plural_rules_function)  \
+  V(INTL_RELATIVE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                      \
+    intl_relative_time_format_function)                                        \
+  V(INTL_SEGMENTER_FUNCTION_INDEX, JSFunction, intl_segmenter_function)        \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
@@ -233,6 +243,7 @@ enum ContextLookupFlags {
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
   V(REGEXP_REPLACE_FUNCTION_INDEX, JSFunction, regexp_replace_function)        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
+  V(REGEXP_RESULT_INDICES_MAP_INDEX, Map, regexp_result_indices_map)           \
   V(REGEXP_SEARCH_FUNCTION_INDEX, JSFunction, regexp_search_function)          \
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
@@ -345,6 +356,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
+  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)                      \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -443,9 +455,19 @@ class Context : public HeapObject {
 
   DECL_CAST(Context)
 
+  enum class HasExtension { kYes, kNo };
+
   // [length]: length of the context.
   V8_INLINE int length() const;
-  V8_INLINE void set_length(int value);
+  V8_INLINE int synchronized_length() const;
+  V8_INLINE void initialize_length_and_extension_bit(
+      int len, HasExtension flag = HasExtension::kNo);
+
+  // We use the 30th bit. Otherwise if we set the 31st bit,
+  // the number would be pottentially bigger than an SMI.
+  // Any DCHECK(Smi::IsValue(...)) would fail.
+  using LengthField = BitField<int, 0, kSmiValueSize - 2>;
+  using HasExtensionField = BitField<int, kSmiValueSize - 2, 1>;
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
@@ -458,18 +480,18 @@ class Context : public HeapObject {
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
   // TODO(v8:8989): [torque] Support marker constants.
   /* TODO(ishell): remove this fixedArray-like header size. */
-  static const int kHeaderSize = kScopeInfoOffset;
+  static const int kFixedArrayLikeHeaderSize = kScopeInfoOffset;
   static const int kStartOfTaggedFieldsOffset = kScopeInfoOffset;
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  static const int kTodoHeaderSize = kSize;
+  static const int kTodoHeaderSize = kHeaderSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
     // TODO(ishell): switch to kTodoHeaderSize based approach once we no longer
     // reference common Context fields via index
-    return kHeaderSize + length * kTaggedSize;
+    return kFixedArrayLikeHeaderSize + length * kTaggedSize;
   }
 
   // Code Generation support.
@@ -517,7 +539,7 @@ class Context : public HeapObject {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_SLOTS,
-    WHITE_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
+    BLACK_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
   };
 
   // A region of native context entries containing maps for functions created
@@ -558,7 +580,6 @@ class Context : public HeapObject {
 
   // Returns a JSGlobalProxy object or null.
   V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
-  void set_global_proxy(JSGlobalProxy global);
 
   // Get the JSGlobalObject object.
   V8_EXPORT_PRIVATE JSGlobalObject global_object();
@@ -652,6 +673,8 @@ class Context : public HeapObject {
 #endif
 
   OBJECT_CONSTRUCTORS(Context, HeapObject);
+  DECL_INT_ACCESSORS(length_and_extension_flag)
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_extension_flag)
 };
 
 class NativeContext : public Context {
@@ -695,6 +718,8 @@ class NativeContext : public Context {
   Object OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object head);
   Object DeoptimizedCodeListHead();
+
+  inline OSROptimizedCodeCache GetOSROptimizedCodeCache();
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();

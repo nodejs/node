@@ -267,6 +267,12 @@ class Decoder {
   }
   const byte* end() const { return end_; }
 
+  // Check if the byte at {offset} from the current pc equals {expected}.
+  bool lookahead(int offset, byte expected) {
+    DCHECK_LE(pc_, end_);
+    return end_ - pc_ > offset && pc_[offset] == expected;
+  }
+
  protected:
   const byte* start_;
   const byte* pc_;

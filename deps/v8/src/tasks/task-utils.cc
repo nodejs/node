@@ -42,22 +42,22 @@ class CancelableIdleFuncTask final : public CancelableIdleTask {
 
 std::unique_ptr<CancelableTask> MakeCancelableTask(Isolate* isolate,
                                                    std::function<void()> func) {
-  return base::make_unique<CancelableFuncTask>(isolate, std::move(func));
+  return std::make_unique<CancelableFuncTask>(isolate, std::move(func));
 }
 
 std::unique_ptr<CancelableTask> MakeCancelableTask(
     CancelableTaskManager* manager, std::function<void()> func) {
-  return base::make_unique<CancelableFuncTask>(manager, std::move(func));
+  return std::make_unique<CancelableFuncTask>(manager, std::move(func));
 }
 
 std::unique_ptr<CancelableIdleTask> MakeCancelableIdleTask(
     Isolate* isolate, std::function<void(double)> func) {
-  return base::make_unique<CancelableIdleFuncTask>(isolate, std::move(func));
+  return std::make_unique<CancelableIdleFuncTask>(isolate, std::move(func));
 }
 
 std::unique_ptr<CancelableIdleTask> MakeCancelableIdleTask(
     CancelableTaskManager* manager, std::function<void(double)> func) {
-  return base::make_unique<CancelableIdleFuncTask>(manager, std::move(func));
+  return std::make_unique<CancelableIdleFuncTask>(manager, std::move(func));
 }
 
 }  // namespace internal

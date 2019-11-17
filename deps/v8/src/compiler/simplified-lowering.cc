@@ -1197,7 +1197,7 @@ class RepresentationSelector {
         // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
         // truncated BigInts.
         if (TypeOf(input).Is(Type::BigInt())) {
-          ProcessInput(node, i, UseInfo::AnyTagged());
+          ConvertInput(node, i, UseInfo::AnyTagged());
         }
 
         (*types)[i] =
@@ -1220,11 +1220,22 @@ class RepresentationSelector {
     // Accumulator is a special flower - we need to remember its type in
     // a singleton typed-state-values node (as if it was a singleton
     // state-values node).
+    Node* accumulator = node->InputAt(2);
     if (propagate()) {
-      EnqueueInput(node, 2, UseInfo::Any());
+      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+      // truncated BigInts.
+      if (TypeOf(accumulator).Is(Type::BigInt())) {
+        EnqueueInput(node, 2, UseInfo::AnyTagged());
+      } else {
+        EnqueueInput(node, 2, UseInfo::Any());
+      }
     } else if (lower()) {
+      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+      // truncated BigInts.
+      if (TypeOf(accumulator).Is(Type::BigInt())) {
+        ConvertInput(node, 2, UseInfo::AnyTagged());
+      }
       Zone* zone = jsgraph_->zone();
-      Node* accumulator = node->InputAt(2);
       if (accumulator == jsgraph_->OptimizedOutConstant()) {
         node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
       } else {
@@ -1237,7 +1248,7 @@ class RepresentationSelector {
         node->ReplaceInput(
             2, jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
                                               types, SparseInputMask::Dense()),
-                                          accumulator));
+                                          node->InputAt(2)));
       }
     }
 
@@ -2667,7 +2678,11 @@ class RepresentationSelector {
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {
-          NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
+          if (COMPRESS_POINTERS_BOOL) {
+            NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
+          } else {
+            NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
+          }
         }
         return;
       }
@@ -2894,6 +2909,18 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kLoadMessage: {
+        if (truncation.IsUnused()) return VisitUnused(node);
+        VisitUnop(node, UseInfo::Word(), MachineRepresentation::kTagged);
+        return;
+      }
+      case IrOpcode::kStoreMessage: {
+        ProcessInput(node, 0, UseInfo::Word());
+        ProcessInput(node, 1, UseInfo::AnyTagged());
+        ProcessRemainingInputs(node, 2);
+        SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kLoadFieldByIndex: {
         if (truncation.IsUnused()) return VisitUnused(node);
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
@@ -2943,6 +2970,11 @@ class RepresentationSelector {
         ElementAccess access = ElementAccessOf(node->op());
         VisitBinop(node, UseInfoForBasePointer(access), UseInfo::Word(),
                    access.machine_type.representation());
+        return;
+      }
+      case IrOpcode::kLoadStackArgument: {
+        if (truncation.IsUnused()) return VisitUnused(node);
+        VisitBinop(node, UseInfo::Word(), MachineRepresentation::kTagged);
         return;
       }
       case IrOpcode::kStoreElement: {

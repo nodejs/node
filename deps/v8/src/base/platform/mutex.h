@@ -290,6 +290,7 @@ class LockGuard final {
 };
 
 using MutexGuard = LockGuard<Mutex>;
+using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };
 

@@ -214,6 +214,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<Identifier*>>::id =
         ParseResultTypeId::kStdVectorOfIdentifierPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<ClassBody*>>::id =
+        ParseResultTypeId::kOptionalClassBody;
 
 namespace {
 
@@ -675,7 +679,9 @@ class AnnotationSet {
           Lint("Annotation ", a.name->value, error_message)
               .Position(a.name->pos);
         }
-        map_[a.name->value].push_back(*a.param);
+        if (!map_.insert({a.name->value, {*a.param, a.name->pos}}).second) {
+          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
+        }
       } else {
         if (allowed_without_param.find(a.name->value) ==
             allowed_without_param.end()) {
@@ -693,41 +699,104 @@ class AnnotationSet {
     }
   }
 
-  bool Contains(const std::string& s) { return set_.find(s) != set_.end(); }
-  const std::vector<std::string>& GetParams(const std::string& s) {
-    return map_[s];
+  bool Contains(const std::string& s) const {
+    return set_.find(s) != set_.end();
+  }
+  base::Optional<std::pair<std::string, SourcePosition>> GetParam(
+      const std::string& s) const {
+    auto it = map_.find(s);
+    return it == map_.end()
+               ? base::Optional<std::pair<std::string, SourcePosition>>()
+               : it->second;
   }
 
  private:
   std::set<std::string> set_;
-  std::map<std::string, std::vector<std::string>> map_;
+  std::map<std::string, std::pair<std::string, SourcePosition>> map_;
 };
+
+int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
+                       int default_value) {
+  auto value_and_pos = annotations.GetParam(name);
+  if (!value_and_pos.has_value()) return default_value;
+  const std::string& value = value_and_pos->first;
+  SourcePosition pos = value_and_pos->second;
+  if (value.empty()) {
+    Error("Annotation ", name, " requires an integer parameter").Position(pos);
+  }
+  size_t num_chars_converted = 0;
+  int result = default_value;
+  try {
+    result = std::stoi(value, &num_chars_converted, 0);
+  } catch (const std::invalid_argument&) {
+    Error("Expected an integer for annotation ", name).Position(pos);
+    return result;
+  } catch (const std::out_of_range&) {
+    Error("Integer out of 32-bit range in annotation ", name).Position(pos);
+    return result;
+  }
+  if (num_chars_converted != value.size()) {
+    Error("Parameter for annotation ", name,
+          " must be an integer with no trailing characters")
+        .Position(pos);
+  }
+  return result;
+}
+
+InstanceTypeConstraints MakeInstanceTypeConstraints(
+    const AnnotationSet& annotations) {
+  InstanceTypeConstraints result;
+  result.value =
+      GetAnnotationValue(annotations, ANNOTATION_INSTANCE_TYPE_VALUE, -1);
+  result.num_flags_bits = GetAnnotationValue(
+      annotations, ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE, -1);
+  return result;
+}
+
+base::Optional<ParseResult> MakeClassBody(ParseResultIterator* child_results) {
+  auto methods = child_results->NextAs<std::vector<Declaration*>>();
+  auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
+  base::Optional<ClassBody*> result =
+      MakeNode<ClassBody>(std::move(methods), std::move(fields));
+  return ParseResult(result);
+}
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
       child_results,
-      {"@generatePrint", "@noVerifier", "@abstract",
-       "@dirtyInstantiatedAbstractClass", "@hasSameInstanceTypeAsParent",
-       "@generateCppClass"},
-      {});
+      {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
+       ANNOTATION_INSTANTIATED_ABSTRACT_CLASS,
+       ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
+       ANNOTATION_GENERATE_CPP_CLASS,
+       ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
+       ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
+      {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
+       ANNOTATION_INSTANCE_TYPE_VALUE});
   ClassFlags flags = ClassFlag::kNone;
-  bool generate_print = annotations.Contains("@generatePrint");
+  bool generate_print = annotations.Contains(ANNOTATION_GENERATE_PRINT);
   if (generate_print) flags |= ClassFlag::kGeneratePrint;
-  bool generate_verify = !annotations.Contains("@noVerifier");
+  bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   if (generate_verify) flags |= ClassFlag::kGenerateVerify;
-  if (annotations.Contains("@abstract")) {
+  if (annotations.Contains(ANNOTATION_ABSTRACT)) {
     flags |= ClassFlag::kAbstract;
   }
-  if (annotations.Contains("@dirtyInstantiatedAbstractClass")) {
+  if (annotations.Contains(ANNOTATION_INSTANTIATED_ABSTRACT_CLASS)) {
     flags |= ClassFlag::kInstantiatedAbstractClass;
   }
-  if (annotations.Contains("@hasSameInstanceTypeAsParent")) {
+  if (annotations.Contains(ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT)) {
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
   }
-  if (annotations.Contains("@generateCppClass")) {
+  if (annotations.Contains(ANNOTATION_GENERATE_CPP_CLASS)) {
     flags |= ClassFlag::kGenerateCppClassDefinitions;
   }
+  if (annotations.Contains(ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT)) {
+    flags |= ClassFlag::kHighestInstanceTypeWithinParent;
+  }
+  if (annotations.Contains(ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT)) {
+    flags |= ClassFlag::kLowestInstanceTypeWithinParent;
+  }
+
   auto is_extern = child_results->NextAs<bool>();
   if (is_extern) flags |= ClassFlag::kExtern;
   auto transient = child_results->NextAs<bool>();
@@ -741,8 +810,15 @@ base::Optional<ParseResult> MakeClassDeclaration(
     ReportError("Expected type name in extends clause.");
   }
   auto generates = child_results->NextAs<base::Optional<std::string>>();
-  auto methods = child_results->NextAs<std::vector<Declaration*>>();
-  auto fields_raw = child_results->NextAs<std::vector<ClassFieldExpression>>();
+  auto body = child_results->NextAs<base::Optional<ClassBody*>>();
+  std::vector<Declaration*> methods;
+  std::vector<ClassFieldExpression> fields_raw;
+  if (body.has_value()) {
+    methods = (*body)->methods;
+    fields_raw = (*body)->fields;
+  } else {
+    flags |= ClassFlag::kUndefinedLayout;
+  }
 
   // Filter to only include fields that should be present based on decoration.
   std::vector<ClassFieldExpression> fields;
@@ -751,8 +827,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
       [](const ClassFieldExpression& exp) {
         for (const ConditionalAnnotation& condition : exp.conditions) {
           if (condition.type == ConditionalAnnotationType::kPositive
-                  ? !BuildFlags::GetFlag(condition.condition, "@if")
-                  : BuildFlags::GetFlag(condition.condition, "@ifnot")) {
+                  ? !BuildFlags::GetFlag(condition.condition, ANNOTATION_IF)
+                  : BuildFlags::GetFlag(condition.condition,
+                                        ANNOTATION_IFNOT)) {
             return false;
           }
         }
@@ -761,7 +838,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
 
   Declaration* result = MakeNode<ClassDeclaration>(
       name, flags, std::move(extends), std::move(generates), std::move(methods),
-      fields);
+      fields, MakeInstanceTypeConstraints(annotations));
   return ParseResult{result};
 }
 
@@ -1358,14 +1435,21 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results, {"@noVerifier"}, {"@if", "@ifnot"});
-  bool generate_verify = !annotations.Contains("@noVerifier");
+  AnnotationSet annotations(child_results, {ANNOTATION_NO_VERIFIER},
+                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   std::vector<ConditionalAnnotation> conditions;
-  for (const std::string& condition : annotations.GetParams("@if")) {
-    conditions.push_back({condition, ConditionalAnnotationType::kPositive});
+  base::Optional<std::pair<std::string, SourcePosition>> if_condition =
+      annotations.GetParam(ANNOTATION_IF);
+  base::Optional<std::pair<std::string, SourcePosition>> ifnot_condition =
+      annotations.GetParam(ANNOTATION_IFNOT);
+  if (if_condition.has_value()) {
+    conditions.push_back(
+        {if_condition->first, ConditionalAnnotationType::kPositive});
   }
-  for (const std::string& condition : annotations.GetParams("@ifnot")) {
-    conditions.push_back({condition, ConditionalAnnotationType::kNegative});
+  if (ifnot_condition.has_value()) {
+    conditions.push_back(
+        {ifnot_condition->first, ConditionalAnnotationType::kNegative});
   }
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
@@ -1892,6 +1976,13 @@ struct TorqueGrammar : Grammar {
        &block},
       MakeMethodDeclaration)};
 
+  // Result: base::Optional<ClassBody*>
+  Symbol optionalClassBody = {
+      Rule({Token("{"), List<Declaration*>(&method),
+            List<ClassFieldExpression>(&classField), Token("}")},
+           MakeClassBody),
+      Rule({Token(";")}, YieldDefaultValue<base::Optional<ClassBody*>>)};
+
   // Result: std::vector<Declaration*>
   Symbol declaration = {
       Rule({Token("const"), &name, Token(":"), &type, Token("="), expression,
@@ -1905,8 +1996,7 @@ struct TorqueGrammar : Grammar {
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
-            Token("{"), List<Declaration*>(&method),
-            List<ClassFieldExpression>(&classField), Token("}")},
+            &optionalClassBody},
            AsSingletonVector<Declaration*, MakeClassDeclaration>()),
       Rule({Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
