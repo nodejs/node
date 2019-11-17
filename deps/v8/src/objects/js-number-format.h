@@ -36,7 +36,7 @@ class JSNumberFormat : public JSObject {
   // ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
       Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+      Handle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(
@@ -72,26 +72,6 @@ class JSNumberFormat : public JSObject {
   DECL_PRINTER(JSNumberFormat)
   DECL_VERIFIER(JSNumberFormat)
 
-  // Current ECMA 402 spec mandates to record (Min|Max)imumFractionDigits
-  // unconditionally while the unified number proposal eventually will only
-  // record either (Min|Max)imumFractionDigits or (Min|Max)imumSignaficantDigits
-  // Since LocalizedNumberFormatter can only remember one set, and during
-  // 2019-1-17 ECMA402 meeting that the committee decide not to take a PR to
-  // address that prior to the unified number proposal, we have to add these two
-  // 5 bits int into flags to remember the (Min|Max)imumFractionDigits while
-  // (Min|Max)imumSignaficantDigits is present.
-  // TODO(ftang) remove the following once we ship int-number-format-unified
-  //  * Four inline functions: (set_)?(min|max)imum_fraction_digits
-  //  * kFlagsOffset
-  //  * #define FLAGS_BIT_FIELDS
-  //  * DECL_INT_ACCESSORS(flags)
-
-  inline int minimum_fraction_digits() const;
-  inline void set_minimum_fraction_digits(int digits);
-
-  inline int maximum_fraction_digits() const;
-  inline void set_maximum_fraction_digits(int digits);
-
   // [[Style]] is one of the values "decimal", "percent", "currency",
   // or "unit" identifying the style of the number format.
   // Note: "unit" is added in proposal-unified-intl-numberformat
@@ -102,19 +82,15 @@ class JSNumberFormat : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSNUMBER_FORMAT_FIELDS)
+                                TORQUE_GENERATED_JS_NUMBER_FORMAT_FIELDS)
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)            \
-  V(MinimumFractionDigitsBits, int, 5, _) \
-  V(MaximumFractionDigitsBits, int, 5, _) \
   V(StyleBits, Style, 2, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
-  STATIC_ASSERT(20 <= MinimumFractionDigitsBits::kMax);
-  STATIC_ASSERT(20 <= MaximumFractionDigitsBits::kMax);
   STATIC_ASSERT(Style::DECIMAL <= StyleBits::kMax);
   STATIC_ASSERT(Style::PERCENT <= StyleBits::kMax);
   STATIC_ASSERT(Style::CURRENCY <= StyleBits::kMax);

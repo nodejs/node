@@ -297,7 +297,6 @@ namespace array {
   transitioning builtin Delete<ElementsAccessor: type>(
       context: Context, sortState: SortState, index: Smi): Smi {
     const receiver = sortState.receiver;
-    if (!HasProperty_Inline(receiver, index)) return kSuccess;
     DeleteProperty(receiver, index, kStrict);
     return kSuccess;
   }

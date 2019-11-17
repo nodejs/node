@@ -54,7 +54,14 @@ void Reparenter::VisitClassLiteral(ClassLiteral* class_literal) {
 #if DEBUG
   // The same goes for the rest of the class, but we do some
   // sanity checking in debug mode.
-  for (ClassLiteralProperty* prop : *class_literal->properties()) {
+  for (ClassLiteralProperty* prop : *class_literal->private_members()) {
+    // No need to visit the values, since all values are functions with
+    // the class scope on their scope chain.
+    DCHECK(prop->value()->IsFunctionLiteral());
+    DCHECK_EQ(prop->value()->AsFunctionLiteral()->scope()->outer_scope(),
+              class_literal->scope());
+  }
+  for (ClassLiteralProperty* prop : *class_literal->public_members()) {
     // No need to visit the values, since all values are functions with
     // the class scope on their scope chain.
     DCHECK(prop->value()->IsFunctionLiteral());

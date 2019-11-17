@@ -99,7 +99,7 @@ namespace internal {
   F(WeakCollectionSet, 4, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
-  F(CompileForOnStackReplacement, 1, 1)   \
+  F(CompileForOnStackReplacement, 0, 1)   \
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
@@ -319,7 +319,6 @@ namespace internal {
   F(ObjectValues, 1, 1)                                         \
   F(ObjectValuesSkipFastPath, 1, 1)                             \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
-  F(PerformSideEffectCheckForObject, 1, 1)                      \
   F(SetDataProperties, 2, 1)                                    \
   F(SetKeyedProperty, 3, 1)                                     \
   F(SetNamedProperty, 3, 1)                                     \
@@ -515,6 +514,7 @@ namespace internal {
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
   F(SetWasmThreadsEnabled, 1, 1)              \
+  F(SimulateNewspaceFull, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
   F(TraceEnter, 0, 1)                         \
@@ -523,6 +523,7 @@ namespace internal {
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(WasmGetNumberOfInstances, 1, 1)           \
   F(WasmNumInterpretedCalls, 1, 1)            \
+  F(WasmNumCodeSpaces, 1, 1)                  \
   F(WasmTierUpFunction, 2, 1)                 \
   F(WasmTraceMemory, 1, 1)                    \
   I(DeoptimizeNow, 0, 1)

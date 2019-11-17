@@ -1506,8 +1506,11 @@ TEST(DiscardFunctionBody) {
         fun = exp->AsObjectLiteral()->properties()->at(0)->value()->
               AsFunctionLiteral();
       } else {
-        fun = exp->AsClassLiteral()->properties()->at(0)->value()->
-              AsFunctionLiteral();
+        fun = exp->AsClassLiteral()
+                  ->public_members()
+                  ->at(0)
+                  ->value()
+                  ->AsFunctionLiteral();
       }
     }
     CHECK(!fun->ShouldEagerCompile());
@@ -3608,6 +3611,14 @@ TEST(MaybeAssignedParameters) {
        "g(arg)}"},
       {true, "function f(arg) {g(arg); eval('arguments[0] = 42'); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
+
+      // default values
+      {false, "function f({x:arg = 1}) {}"},
+      {true, "function f({x:arg = 1}, {y:b=(arg=2)}) {}"},
+      {true, "function f({x:arg = (arg = 2)}) {}"},
+      {false, "var f = ({x:arg = 1}) => {}"},
+      {true, "var f = ({x:arg = 1}, {y:b=(arg=2)}) => {}"},
+      {true, "var f = ({x:arg = (arg = 2)}) => {}"},
   };
 
   const char* suffix = "; f";
@@ -5877,6 +5888,70 @@ TEST(PrivateMembersWrongAccessNoEarlyErrors) {
                     private_methods, arraysize(private_methods));
 }
 
+TEST(PrivateStaticClassMethodsAndAccessorsNoErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "static #a() { }",
+    "static get #a() { }",
+    "static set #a(val) { }",
+    "static get #a() { } static set #a(val) { }",
+    "static *#a() { }",
+    "static async #a() { }",
+    "static async *#a() { }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+TEST(PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "static get #a() {} static get #a() {}",
+    "static get #a() {} static #a() {}",
+    "static get #a() {} get #a() {}",
+    "static get #a() {} set #a(val) {}",
+    "static get #a() {} #a() {}",
+
+    "static set #a(val) {} static set #a(val) {}",
+    "static set #a(val) {} static #a() {}",
+    "static set #a(val) {} get #a() {}",
+    "static set #a(val) {} set #a(val) {}",
+    "static set #a(val) {} #a() {}",
+
+    "static #a() {} static #a() {}",
+    "static #a() {} #a(val) {}",
+    "static #a() {} set #a(val) {}",
+    "static #a() {} get #a() {}",
+
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 TEST(PrivateClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -6215,14 +6290,6 @@ TEST(PrivateStaticClassFieldsErrors) {
 
     "#a; static #a",
     "static #a; #a",
-
-    // TODO(joyee): support static private methods
-    "static #a() { }",
-    "static get #a() { }",
-    "static set #a() { }",
-    "static *#a() { }",
-    "static async #a() { }",
-    "static async *#a() { }",
 
     // ASI
     "static #['a'] = 0\n",

@@ -15,8 +15,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprBlock, sig_ii_v,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprEnd,
       kExprI32Add])
     .exportAs("main");
@@ -33,8 +33,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprBlock, sig_i_ii,
       kExprI32Add,
       kExprEnd])
@@ -54,8 +54,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprBlock, sig_ii_v,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprBr, 0,
       kExprEnd,
       kExprI32Add])
@@ -76,8 +76,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprLoop, sig_ii_v,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprEnd,
       kExprI32Add])
     .exportAs("main");
@@ -94,8 +94,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprLoop, sig_i_ii,
       kExprI32Add,
       kExprEnd])
@@ -114,13 +114,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let sig_ii_ii = builder.addType(kSig_ii_ii);
 
   builder.addFunction("dup", kSig_ii_i)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 0]);
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 0]);
   builder.addFunction("swap", kSig_ii_ii)
-    .addBody([kExprGetLocal, 1, kExprGetLocal, 0]);
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 0]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprLoop, sig_ii_ii,
       kExprCallFunction, 1,  // swap
       kExprCallFunction, 0,  // dup
@@ -164,13 +164,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, sig_ii_v,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprElse,
-      kExprGetLocal, 1,
-      kExprGetLocal, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 0,
       kExprEnd,
       kExprI32Sub])
     .exportAs("main");
@@ -188,9 +188,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 0,
       kExprIf, sig_i_ii,
       kExprI32Add,
       kExprElse,
@@ -212,14 +212,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, sig_ii_v,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprBr, 0,
       kExprElse,
-      kExprGetLocal, 1,
-      kExprGetLocal, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 0,
       kExprBr, 0,
       kExprEnd,
       kExprI32Sub])
@@ -231,6 +231,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(0, 3), 3);
 })();
 
+(function MultiIfParamOneArmedTest() {
+  print("MultiIfParamOneArmedTest");
+  let builder = new WasmModuleBuilder();
+  let sig_i_i = builder.addType(kSig_i_i);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprIf, sig_i_i,
+      kExprI32Const, 5,
+      kExprI32Add,
+      kExprEnd])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(0), 0);
+  assertEquals(instance.exports.main(1), 6);
+})();
+
 (function MultiResultTest() {
   print("MultiResultTest");
   let builder = new WasmModuleBuilder();
@@ -239,15 +260,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("callee", kSig_iii_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprI32Sub]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprCallFunction, 0,
       kExprI32Mul,
       kExprI32Add])
@@ -272,14 +293,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("callee", kSig_ii_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
       kExprI32Add,
       kExprReturn]);
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallFunction, 0,
       kExprI32Mul])
     .exportAs("main");
@@ -300,14 +321,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("callee", kSig_ii_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
       kExprI32Add,
       kExprBr, 0]);
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallFunction, 0,
       kExprI32Mul])
     .exportAs("main");
@@ -320,26 +341,26 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(10), 200);
 })();
 
-(function MultiJSReturnTest() {
+(function MultiWasmToJSReturnTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let sig_fi_if = makeSig([kWasmI32, kWasmF32], [kWasmF32, kWasmI32]);
 
   builder.addFunction("swap", sig_fi_if)
     .addBody([
-      kExprGetLocal, 1,
-      kExprGetLocal, 0])
+      kExprLocalGet, 1,
+      kExprLocalGet, 0])
     .exportAs("swap");
   builder.addFunction("addsubmul", kSig_iii_i)
       .addBody([
-        kExprGetLocal, 0,
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
+        kExprLocalGet, 0,
         kExprI32Add,
-        kExprGetLocal, 0,
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
+        kExprLocalGet, 0,
         kExprI32Sub,
-        kExprGetLocal, 0,
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
+        kExprLocalGet, 0,
         kExprI32Mul])
     .exportAs("addsubmul");
 
@@ -349,4 +370,76 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.swap(2, 3.75), [3.75, 2]);
   assertEquals(instance.exports.addsubmul(4), [8, 0, 16]);
   assertEquals(instance.exports.addsubmul(5), [10, 0, 25]);
+})();
+
+(function MultiJSToWasmReturnTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  function swap(x, y) { return [y, x]; }
+  function swap_proxy(x, y) {
+    return new Proxy([y, x], {
+      get: function(obj, prop) { return Reflect.get(obj, prop); },
+    });
+  }
+  function proxy_throw(x, y) {
+    return new Proxy([y, x], {
+      get: function(obj, prop) {
+        if (prop == 1) {
+          throw new Error("abc");
+        }
+        return Reflect.get(obj, prop); },
+    });
+  }
+  function drop_first(x, y) {
+    return [y];
+  }
+  function repeat(x, y) {
+    return [x, y, x, y];
+  }
+  function not_receiver(x, y) {
+    return 0;
+  }
+  function not_iterable(x, y) {
+    a = [x, y];
+    a[Symbol.iterator] = undefined;
+    return a;
+  }
+  function* generator(x, y) {
+    yield x;
+    yield y;
+  }
+  function* generator_throw(x, y) {
+    yield x;
+    throw new Error("def");
+  }
+
+  builder.addImport('imports', 'f', kSig_ii_ii);
+  builder.addFunction("main", kSig_ii_ii)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, 0])
+    .exportAs("main")
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+
+  var instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : swap } });
+  assertEquals(instance.exports.main(1, 2), [2, 1]);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : swap_proxy } });
+  assertEquals(instance.exports.main(1, 2), [2, 1]);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : generator } });
+  assertEquals(instance.exports.main(1, 2), [1, 2]);
+
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : drop_first } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, "multi-return length mismatch");
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : repeat } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, "multi-return length mismatch");
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : proxy_throw } });
+  assertThrows(() => instance.exports.main(1, 2), Error, "abc");
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : not_receiver } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, /not iterable/);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : not_iterable } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, /not iterable/);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : generator_throw } });
+  assertThrows(() => instance.exports.main(1, 2), Error, "def");
 })();

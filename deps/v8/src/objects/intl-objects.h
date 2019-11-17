@@ -10,6 +10,7 @@
 #define V8_OBJECTS_INTL_OBJECTS_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -164,7 +165,7 @@ class Intl {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
-      Handle<Object> locales, Handle<Object> options);
+      Handle<Object> locales, Handle<Object> options, const char* method);
 
   V8_WARN_UNUSED_RESULT static Handle<Object> CompareStrings(
       Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
@@ -173,7 +174,7 @@ class Intl {
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
-      Handle<Object> options);
+      Handle<Object> options, const char* method);
 
   // ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
@@ -239,14 +240,14 @@ class Intl {
       Handle<JSFunction> constructor, bool has_initialized_slot);
 
   // enum for "caseFirst" option: shared by Intl.Locale and Intl.Collator.
-  enum class CaseFirst { kUpper, kLower, kFalse, kUndefined };
+  enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
 
   // Shared function to read the "caseFirst" option.
   V8_WARN_UNUSED_RESULT static Maybe<CaseFirst> GetCaseFirst(
       Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
   // enum for "hourCycle" option: shared by Intl.Locale and Intl.DateTimeFormat.
-  enum class HourCycle { kH11, kH12, kH23, kH24, kUndefined };
+  enum class HourCycle { kUndefined, kH11, kH12, kH23, kH24 };
 
   static HourCycle ToHourCycle(const std::string& str);
 
@@ -269,6 +270,12 @@ class Intl {
   // Check the calendar is valid or not for that locale.
   static bool IsValidCalendar(const icu::Locale& locale,
                               const std::string& value);
+
+  // Check the numberingSystem is valid.
+  static bool IsValidNumberingSystem(const std::string& value);
+
+  // Check the calendar is well formed.
+  static bool IsWellFormedCalendar(const std::string& value);
 
   struct ResolvedLocale {
     std::string locale;
@@ -336,6 +343,8 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocalesForLocale();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
+
+  static bool IsStructurallyValidLanguageTag(const std::string& tag);
 };
 
 }  // namespace internal

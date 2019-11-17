@@ -102,13 +102,13 @@ class ConstantPoolBuilder {
   ConstantPoolEntry::Access AddEntry(int position, intptr_t value,
                                      bool sharing_ok) {
     ConstantPoolEntry entry(position, value, sharing_ok);
-    return AddEntry(entry, ConstantPoolEntry::INTPTR);
+    return AddEntry(&entry, ConstantPoolEntry::INTPTR);
   }
 
   // Add double constant to the embedded constant pool
   ConstantPoolEntry::Access AddEntry(int position, Double value) {
     ConstantPoolEntry entry(position, value);
-    return AddEntry(entry, ConstantPoolEntry::DOUBLE);
+    return AddEntry(&entry, ConstantPoolEntry::DOUBLE);
   }
 
   // Add double constant to the embedded constant pool
@@ -138,9 +138,8 @@ class ConstantPoolBuilder {
   inline Label* EmittedPosition() { return &emitted_label_; }
 
  private:
-  ConstantPoolEntry::Access AddEntry(
-      ConstantPoolEntry& entry,  // NOLINT(runtime/references)
-      ConstantPoolEntry::Type type);
+  ConstantPoolEntry::Access AddEntry(ConstantPoolEntry* entry,
+                                     ConstantPoolEntry::Type type);
   void EmitSharedEntries(Assembler* assm, ConstantPoolEntry::Type type);
   void EmitGroup(Assembler* assm, ConstantPoolEntry::Access access,
                  ConstantPoolEntry::Type type);

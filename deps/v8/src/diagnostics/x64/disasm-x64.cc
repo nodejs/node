@@ -91,9 +91,9 @@ static const ByteMnemonic zero_operands_instr[] = {
     {0x61, UNSET_OP_ORDER, "popad"}, {0x9C, UNSET_OP_ORDER, "pushfd"},
     {0x9D, UNSET_OP_ORDER, "popfd"}, {0x9E, UNSET_OP_ORDER, "sahf"},
     {0x99, UNSET_OP_ORDER, "cdq"},   {0x9B, UNSET_OP_ORDER, "fwait"},
-    {0xA4, UNSET_OP_ORDER, "movs"},  {0xA5, UNSET_OP_ORDER, "movs"},
-    {0xA6, UNSET_OP_ORDER, "cmps"},  {0xA7, UNSET_OP_ORDER, "cmps"},
-    {-1, UNSET_OP_ORDER, ""}};
+    {0xAB, UNSET_OP_ORDER, "stos"},  {0xA4, UNSET_OP_ORDER, "movs"},
+    {0xA5, UNSET_OP_ORDER, "movs"},  {0xA6, UNSET_OP_ORDER, "cmps"},
+    {0xA7, UNSET_OP_ORDER, "cmps"},  {-1, UNSET_OP_ORDER, ""}};
 
 static const ByteMnemonic call_jump_instr[] = {{0xE8, UNSET_OP_ORDER, "call"},
                                                {0xE9, UNSET_OP_ORDER, "jmp"},
@@ -1845,7 +1845,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += 1;
       } else {
         const char* mnemonic;
-        if (opcode == 0x54) {
+        if (opcode == 0x51) {
+          mnemonic = "sqrtpd";
+        } else if (opcode == 0x54) {
           mnemonic = "andpd";
         } else if (opcode == 0x55) {
           mnemonic = "andnpd";
@@ -2432,13 +2434,13 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
     byte_size_operand_ = idesc.byte_size_operation;
     switch (idesc.type) {
       case ZERO_OPERANDS_INSTR:
-        if (current >= 0xA4 && current <= 0xA7) {
+        if ((current >= 0xA4 && current <= 0xA7) ||
+            (current >= 0xAA && current <= 0xAD)) {
           // String move or compare operations.
           if (group_1_prefix_ == REP_PREFIX) {
             // REP.
             AppendToBuffer("rep ");
           }
-          if (rex_w()) AppendToBuffer("REX.W ");
           AppendToBuffer("%s%c", idesc.mnem, operand_size_code());
         } else {
           AppendToBuffer("%s%c", idesc.mnem, operand_size_code());

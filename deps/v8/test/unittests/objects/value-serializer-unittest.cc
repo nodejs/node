@@ -10,6 +10,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/unittests/test-utils.h"
@@ -1729,7 +1730,7 @@ class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
       Context::Scope scope(deserialization_context());
       output_buffer_ = ArrayBuffer::New(isolate(), kTestByteLength);
       const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xFF};
-      memcpy(output_buffer_->GetContents().Data(), data, kTestByteLength);
+      memcpy(output_buffer_->GetBackingStore()->Data(), data, kTestByteLength);
     }
   }
 
@@ -1987,22 +1988,43 @@ class ValueSerializerTestWithSharedArrayBufferClone
   ValueSerializerTestWithSharedArrayBufferClone()
       : serializer_delegate_(this), deserializer_delegate_(this) {}
 
-  void InitializeData(const std::vector<uint8_t>& data) {
+  void InitializeData(const std::vector<uint8_t>& data, bool is_wasm_memory) {
     data_ = data;
     {
       Context::Scope scope(serialization_context());
       input_buffer_ =
-          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
+          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
     }
     {
       Context::Scope scope(deserialization_context());
       output_buffer_ =
-          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
+          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
     }
   }
 
   const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
   const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
+
+  Local<SharedArrayBuffer> NewSharedArrayBuffer(void* data, size_t byte_length,
+                                                bool is_wasm_memory) {
+    if (is_wasm_memory) {
+      // TODO(titzer): there is no way to create Wasm memory backing stores
+      // through the API, or to create a shared array buffer whose backing
+      // store is wasm memory, so use the internal API.
+      DCHECK_EQ(0, byte_length % i::wasm::kWasmPageSize);
+      auto pages = byte_length / i::wasm::kWasmPageSize;
+      auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+      auto backing_store = i::BackingStore::AllocateWasmMemory(
+          i_isolate, pages, pages, i::SharedFlag::kShared);
+      memcpy(backing_store->buffer_start(), data, byte_length);
+      i::Handle<i::JSArrayBuffer> buffer =
+          i_isolate->factory()->NewJSSharedArrayBuffer(
+              std::move(backing_store));
+      return Utils::ToLocalShared(buffer);
+    } else {
+      return SharedArrayBuffer::New(isolate(), data, byte_length);
+    }
+  }
 
   static void SetUpTestCase() {
     flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
@@ -2075,7 +2097,7 @@ bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
-  InitializeData({0x00, 0x01, 0x80, 0xFF});
+  InitializeData({0x00, 0x01, 0x80, 0xFF}, false);
 
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
@@ -2114,7 +2136,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
 
   std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
   data.resize(65536);
-  InitializeData(data);
+  InitializeData(data, true);
 
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
@@ -2487,35 +2509,32 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
   class SerializeToTransfer : public ValueSerializer::Delegate {
    public:
-    SerializeToTransfer(
-        std::vector<WasmModuleObject::TransferrableModule>* modules)
+    explicit SerializeToTransfer(std::vector<CompiledWasmModule>* modules)
         : modules_(modules) {}
     Maybe<uint32_t> GetWasmModuleTransferId(
         Isolate* isolate, Local<WasmModuleObject> module) override {
-      modules_->push_back(module->GetTransferrableModule());
+      modules_->push_back(module->GetCompiledModule());
       return Just(static_cast<uint32_t>(modules_->size()) - 1);
     }
 
     void ThrowDataCloneError(Local<String> message) override { UNREACHABLE(); }
 
    private:
-    std::vector<WasmModuleObject::TransferrableModule>* modules_;
+    std::vector<CompiledWasmModule>* modules_;
   };
 
   class DeserializeFromTransfer : public ValueDeserializer::Delegate {
    public:
-    DeserializeFromTransfer(
-        std::vector<WasmModuleObject::TransferrableModule>* modules)
+    explicit DeserializeFromTransfer(std::vector<CompiledWasmModule>* modules)
         : modules_(modules) {}
 
     MaybeLocal<WasmModuleObject> GetWasmModuleFromId(Isolate* isolate,
                                                      uint32_t id) override {
-      return WasmModuleObject::FromTransferrableModule(isolate,
-                                                       modules_->at(id));
+      return WasmModuleObject::FromCompiledModule(isolate, modules_->at(id));
     }
 
    private:
-    std::vector<WasmModuleObject::TransferrableModule>* modules_;
+    std::vector<CompiledWasmModule>* modules_;
   };
 
   ValueSerializer::Delegate* GetSerializerDelegate() override {
@@ -2595,7 +2614,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  private:
   static bool g_saved_flag;
-  std::vector<WasmModuleObject::TransferrableModule> transfer_modules_;
+  std::vector<CompiledWasmModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
   ValueSerializer::Delegate* current_serializer_delegate_ = nullptr;

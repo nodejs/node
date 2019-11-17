@@ -46,10 +46,12 @@ constexpr int32_t kConstantStackSpace = kSystemPointerSize;
 // Three instructions are required to sub a large constant, movw + movt + sub.
 constexpr int32_t kPatchInstructionsRequired = 3;
 
+inline int GetStackSlotOffset(uint32_t index) {
+  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+}
+
 inline MemOperand GetStackSlot(uint32_t index) {
-  int32_t offset =
-      kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
-  return MemOperand(fp, -offset);
+  return MemOperand(fp, -GetStackSlotOffset(index));
 }
 
 inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
@@ -633,6 +635,44 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
 void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
                                    RegPairHalf half) {
   ldr(reg, liftoff::GetHalfStackSlot(index, half));
+}
+
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  // We need a zero reg. Always use r0 for that, and push it before to restore
+  // its value afterwards.
+  push(r0);
+  mov(r0, Operand(0));
+
+  if (count <= 5) {
+    // Special straight-line code for up to five slots. Generates two
+    // instructions per slot.
+    for (uint32_t offset = 0; offset < count; ++offset) {
+      str(r0, liftoff::GetHalfStackSlot(index + offset, kLowWord));
+      str(r0, liftoff::GetHalfStackSlot(index + offset, kHighWord));
+    }
+  } else {
+    // General case for bigger counts (9 instructions).
+    // Use r1 for start address (inclusive), r2 for end address (exclusive).
+    push(r1);
+    push(r2);
+    sub(r1, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
+    sub(r2, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
+
+    Label loop;
+    bind(&loop);
+    str(r0, MemOperand(r1, /* offset */ kSystemPointerSize, PostIndex));
+    cmp(r1, r2);
+    b(&loop, ne);
+
+    pop(r2);
+    pop(r1);
+  }
+
+  pop(r0);
 }
 
 #define I32_BINOP(name, instruction)                             \

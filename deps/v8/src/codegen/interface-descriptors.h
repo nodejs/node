@@ -9,11 +9,16 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-arch.h"
+#include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {
+
+#define TORQUE_BUILTIN_LIST_TFC(V)                                            \
+  BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
+                           IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define INTERFACE_DESCRIPTOR_LIST(V)  \
   V(Abort)                            \
@@ -52,6 +57,7 @@ namespace internal {
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
   V(FrameDropperTrampoline)           \
+  V(GetIteratorStackParameter)        \
   V(GetProperty)                      \
   V(GrowArrayElements)                \
   V(InterpreterCEntry1)               \
@@ -89,7 +95,8 @@ namespace internal {
   V(WasmTableGet)                     \
   V(WasmTableSet)                     \
   V(WasmThrow)                        \
-  BUILTIN_LIST_TFS(V)
+  BUILTIN_LIST_TFS(V)                 \
+  TORQUE_BUILTIN_LIST_TFC(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -486,6 +493,46 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };
 
+// This class is subclassed by Torque-generated call interface descriptors.
+template <int parameter_count>
+class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
+ public:
+  static constexpr int kDescriptorFlags = CallInterfaceDescriptorData::kNoFlags;
+  static constexpr int kParameterCount = parameter_count;
+  enum ParameterIndices { kContext = kParameterCount };
+  template <int i>
+  static ParameterIndices ParameterIndex() {
+    STATIC_ASSERT(0 <= i && i < kParameterCount);
+    return static_cast<ParameterIndices>(i);
+  }
+  static constexpr int kReturnCount = 1;
+
+  using CallInterfaceDescriptor::CallInterfaceDescriptor;
+
+ protected:
+  static const int kRegisterParams =
+      kParameterCount > kMaxTFSBuiltinRegisterParams
+          ? kMaxTFSBuiltinRegisterParams
+          : kParameterCount;
+  static const int kStackParams = kParameterCount - kRegisterParams;
+  virtual MachineType ReturnType() = 0;
+  virtual std::array<MachineType, kParameterCount> ParameterTypes() = 0;
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override {
+    DefaultInitializePlatformSpecific(data, kRegisterParams);
+  }
+  void InitializePlatformIndependent(
+      CallInterfaceDescriptorData* data) override {
+    std::vector<MachineType> machine_types = {ReturnType()};
+    auto parameter_types = ParameterTypes();
+    machine_types.insert(machine_types.end(), parameter_types.begin(),
+                         parameter_types.end());
+    DCHECK_EQ(kReturnCount + kParameterCount, machine_types.size());
+    data->InitializePlatformIndependent(Flags(kDescriptorFlags), kReturnCount,
+                                        kParameterCount, machine_types.data(),
+                                        static_cast<int>(machine_types.size()));
+  }
+};
+
 // Dummy descriptor used to mark builtins that don't yet have their proper
 // descriptor associated.
 using DummyDescriptor = VoidDescriptor;
@@ -706,7 +753,7 @@ class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kScopeInfo, kSlots)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kScopeInfo
-                         MachineType::Int32())      // kSlots
+                         MachineType::Uint32())     // kSlots
   DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
 
   static const Register ScopeInfoRegister();
@@ -768,6 +815,16 @@ class AsyncFunctionStackParameterDescriptor final
   DEFINE_PARAMETERS(kPromise, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+class GetIteratorStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kCallSlot, kFeedback, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
+                         MachineType::AnyTagged(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(GetIteratorStackParameterDescriptor,
                      CallInterfaceDescriptor)
 };
 
@@ -1297,6 +1354,11 @@ class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
   };
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR
+
+// This file contains interface descriptor class definitions for builtins
+// defined in Torque. It is included here because the class definitions need to
+// precede the definition of name##Descriptor::key() below.
+#include "torque-generated/interface-descriptors-tq.inc"
 
 #undef DECLARE_DEFAULT_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_BASE

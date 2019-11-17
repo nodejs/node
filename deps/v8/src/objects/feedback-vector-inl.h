@@ -286,10 +286,6 @@ Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
 
-Handle<Symbol> FeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->premonomorphic_symbol();
-}
-
 Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }

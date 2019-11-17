@@ -26,7 +26,6 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
 
@@ -207,20 +206,20 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   if (source->IsArrayBuffer()) {
     // A raw array buffer was passed.
     Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(source);
-    ArrayBuffer::Contents contents = buffer->GetContents();
+    auto backing_store = buffer->GetBackingStore();
 
-    start = reinterpret_cast<const uint8_t*>(contents.Data());
-    length = contents.ByteLength();
+    start = reinterpret_cast<const uint8_t*>(backing_store->Data());
+    length = backing_store->ByteLength();
     *is_shared = buffer->IsSharedArrayBuffer();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
     Local<ArrayBuffer> buffer = array->Buffer();
 
-    ArrayBuffer::Contents contents = buffer->GetContents();
+    auto backing_store = buffer->GetBackingStore();
 
-    start =
-        reinterpret_cast<const uint8_t*>(contents.Data()) + array->ByteOffset();
+    start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
+            array->ByteOffset();
     length = array->ByteLength();
     *is_shared = buffer->IsSharedArrayBuffer();
   } else {
@@ -434,8 +433,8 @@ class AsyncInstantiateCompileResultResolver
     finished_ = true;
     isolate_->wasm_engine()->AsyncInstantiate(
         isolate_,
-        base::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
-                                                          result),
+        std::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
+                                                         result),
         result, maybe_imports_);
   }
 
@@ -597,7 +596,7 @@ void WebAssemblyCompileStreaming(
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
-          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+          std::make_unique<WasmStreaming::WasmStreamingImpl>(
               isolate, kAPIMethodName, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
@@ -876,7 +875,7 @@ void WebAssemblyInstantiateStreaming(
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
-          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+          std::make_unique<WasmStreaming::WasmStreamingImpl>(
               isolate, kAPIMethodName, compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
@@ -1156,7 +1155,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  bool is_shared_memory = false;
+  auto shared = i::SharedFlag::kNotShared;
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   if (enabled_features.threads) {
     // Shared property of descriptor
@@ -1165,10 +1164,11 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
         descriptor->Get(context, shared_key);
     v8::Local<v8::Value> value;
     if (maybe_value.ToLocal(&value)) {
-      is_shared_memory = value->BooleanValue(isolate);
+      shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
+                                            : i::SharedFlag::kNotShared;
     }
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
-    if (is_shared_memory && maximum == -1) {
+    if (shared == i::SharedFlag::kShared && maximum == -1) {
       thrower.TypeError(
           "If shared is true, maximum property should be defined.");
       return;
@@ -1177,13 +1177,12 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Handle<i::JSObject> memory_obj;
   if (!i::WasmMemoryObject::New(i_isolate, static_cast<uint32_t>(initial),
-                                static_cast<uint32_t>(maximum),
-                                is_shared_memory)
+                                static_cast<uint32_t>(maximum), shared)
            .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;
   }
-  if (is_shared_memory) {
+  if (shared == i::SharedFlag::kShared) {
     i::Handle<i::JSArrayBuffer> buffer(
         i::Handle<i::WasmMemoryObject>::cast(memory_obj)->array_buffer(),
         i_isolate);
@@ -2034,8 +2033,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(module_constructor);
   Handle<JSObject> module_proto(
       JSObject::cast(module_constructor->instance_prototype()), isolate);
-  Handle<Map> module_map =
-      isolate->factory()->NewMap(i::WASM_MODULE_TYPE, WasmModuleObject::kSize);
+  Handle<Map> module_map = isolate->factory()->NewMap(
+      i::WASM_MODULE_OBJECT_TYPE, WasmModuleObject::kSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
@@ -2055,7 +2054,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSObject> instance_proto(
       JSObject::cast(instance_constructor->instance_prototype()), isolate);
   Handle<Map> instance_map = isolate->factory()->NewMap(
-      i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
+      i::WASM_INSTANCE_OBJECT_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
   InstallGetter(isolate, instance_proto, "exports",
                 WebAssemblyInstanceGetExports);
@@ -2075,8 +2074,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(table_constructor);
   Handle<JSObject> table_proto(
       JSObject::cast(table_constructor->instance_prototype()), isolate);
-  Handle<Map> table_map =
-      isolate->factory()->NewMap(i::WASM_TABLE_TYPE, WasmTableObject::kSize);
+  Handle<Map> table_map = isolate->factory()->NewMap(i::WASM_TABLE_OBJECT_TYPE,
+                                                     WasmTableObject::kSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
@@ -2096,8 +2095,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(memory_constructor);
   Handle<JSObject> memory_proto(
       JSObject::cast(memory_constructor->instance_prototype()), isolate);
-  Handle<Map> memory_map =
-      isolate->factory()->NewMap(i::WASM_MEMORY_TYPE, WasmMemoryObject::kSize);
+  Handle<Map> memory_map = isolate->factory()->NewMap(
+      i::WASM_MEMORY_OBJECT_TYPE, WasmMemoryObject::kSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
@@ -2115,8 +2114,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(global_constructor);
   Handle<JSObject> global_proto(
       JSObject::cast(global_constructor->instance_prototype()), isolate);
-  Handle<Map> global_map =
-      isolate->factory()->NewMap(i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
+  Handle<Map> global_map = isolate->factory()->NewMap(
+      i::WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kSize);
   JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
   InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
@@ -2137,7 +2136,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSObject> exception_proto(
         JSObject::cast(exception_constructor->instance_prototype()), isolate);
     Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::WASM_EXCEPTION_TYPE, WasmExceptionObject::kSize);
+        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kSize);
     JSFunction::SetInitialMap(exception_constructor, exception_map,
                               exception_proto);
   }

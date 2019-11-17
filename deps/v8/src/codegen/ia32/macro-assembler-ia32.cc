@@ -1168,57 +1168,44 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 }
 
-void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
-  Label skip_hook;
-
-  ExternalReference debug_hook_active =
-      ExternalReference::debug_hook_on_function_call_address(isolate());
-  push(eax);
-  cmpb(ExternalReferenceAsOperand(debug_hook_active, eax), Immediate(0));
-  pop(eax);
-  j(equal, &skip_hook);
-
-  {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun);
-    Push(fun);
-    Operand receiver_op =
-        actual.is_reg()
-            ? Operand(ebp, actual.reg(), times_system_pointer_size,
-                      kSystemPointerSize * 2)
-            : Operand(ebp, actual.immediate() * times_system_pointer_size +
-                               kSystemPointerSize * 2);
-    Push(receiver_op);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
-    }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+  if (expected.is_reg()) {
+    SmiTag(expected.reg());
+    Push(expected.reg());
   }
-  bind(&skip_hook);
+  if (actual.is_reg()) {
+    SmiTag(actual.reg());
+    Push(actual.reg());
+    SmiUntag(actual.reg());
+  }
+  if (new_target.is_valid()) {
+    Push(new_target);
+  }
+  Push(fun);
+  Push(fun);
+  Operand receiver_op =
+      actual.is_reg()
+          ? Operand(ebp, actual.reg(), times_system_pointer_size,
+                    kSystemPointerSize * 2)
+          : Operand(ebp, actual.immediate() * times_system_pointer_size +
+                             kSystemPointerSize * 2);
+  Push(receiver_op);
+  CallRuntime(Runtime::kDebugOnFunctionCall);
+  Pop(fun);
+  if (new_target.is_valid()) {
+    Pop(new_target);
+  }
+  if (actual.is_reg()) {
+    Pop(actual.reg());
+    SmiUntag(actual.reg());
+  }
+  if (expected.is_reg()) {
+    Pop(expected.reg());
+    SmiUntag(expected.reg());
+  }
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
@@ -1233,7 +1220,16 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(actual.is_reg(), actual.reg() == eax);
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  Label debug_hook, continue_after_hook;
+  {
+    ExternalReference debug_hook_active =
+        ExternalReference::debug_hook_on_function_call_address(isolate());
+    push(eax);
+    cmpb(ExternalReferenceAsOperand(debug_hook_active, eax), Immediate(0));
+    pop(eax);
+    j(not_equal, &debug_hook, Label::kNear);
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -1256,8 +1252,15 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       DCHECK(flag == JUMP_FUNCTION);
       JumpCodeObject(ecx);
     }
-    bind(&done);
   }
+  jmp(&done, Label::kNear);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  jmp(&continue_after_hook, Label::kNear);
+
+  bind(&done);
 }
 
 void MacroAssembler::InvokeFunction(Register fun, Register new_target,
@@ -1476,6 +1479,15 @@ void TurboAssembler::Psrlw(XMMRegister dst, uint8_t shift) {
     vpsrlw(dst, dst, shift);
   } else {
     psrlw(dst, shift);
+  }
+}
+
+void TurboAssembler::Psrlq(XMMRegister dst, uint8_t shift) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlq(dst, dst, shift);
+  } else {
+    psrlq(dst, shift);
   }
 }
 

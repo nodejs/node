@@ -21,7 +21,8 @@ namespace string {
 
   extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
       String, intptr, intptr, constexpr UnicodeEncoding): int32;
-  extern macro StringFromSingleUTF16EncodedCodePoint(int32): String;
+  extern macro StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
+      int32): String;
 
   // This function assumes StringPrimitiveWithNoCustomIteration is true.
   transitioning builtin StringToList(implicit context: Context)(string: String):
@@ -186,5 +187,13 @@ namespace string {
   transitioning builtin StringAddConvertRight(implicit context: Context)(
       left: String, right: JSAny): String {
     return left + ToStringImpl(context, ToPrimitiveDefault(right));
+  }
+
+  builtin StringCharAt(implicit context: Context)(
+      receiver: String, position: intptr): String {
+    // Load the character code at the {position} from the {receiver}.
+    const code: int32 = StringCharCodeAt(receiver, position);
+    // And return the single character string with only that {code}
+    return StringFromSingleCharCode(code);
   }
 }

@@ -48,8 +48,8 @@ TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
-  Node* value = Parameter(Descriptor::kReceiver);
-  Node* string = LoadJSPrimitiveWrapperValue(value);
+  TNode<JSPrimitiveWrapper> value = CAST(Parameter(Descriptor::kReceiver));
+  TNode<String> string = CAST(LoadJSPrimitiveWrapperValue(value));
   Return(LoadStringLengthAsSmi(string));
 }
 
@@ -388,15 +388,6 @@ TF_BUILTIN(StoreFastElementIC_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
   Generate_StoreFastElementIC(STORE_HANDLE_COW);
 }
 
-TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
-  Node* name = Parameter(Descriptor::kName);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name, slot, vector);
-}
-
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -409,14 +400,6 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
 
   BIND(&miss);
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
-}
-
-TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* context = Parameter(Descriptor::kContext);
-
-  TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
 TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {
@@ -489,17 +472,6 @@ TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB,
 TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW,
            HandlerBuiltinsAssembler) {
   Generate_KeyedStoreIC_SloppyArguments();
-}
-
-TF_BUILTIN(StoreInterceptorIC, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-  TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context, value, slot,
-                  vector, receiver, name);
 }
 
 TF_BUILTIN(LoadIndexedInterceptorIC, CodeStubAssembler) {

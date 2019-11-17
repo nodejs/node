@@ -515,26 +515,26 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void push(DoubleRegister src) {
-    lay(sp, MemOperand(sp, -kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
     StoreDouble(src, MemOperand(sp));
   }
 
   void push(Register src) {
-    lay(sp, MemOperand(sp, -kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize));
     StoreP(src, MemOperand(sp));
   }
 
   void pop(DoubleRegister dst) {
     LoadDouble(dst, MemOperand(sp));
-    la(sp, MemOperand(sp, kPointerSize));
+    la(sp, MemOperand(sp, kSystemPointerSize));
   }
 
   void pop(Register dst) {
     LoadP(dst, MemOperand(sp));
-    la(sp, MemOperand(sp, kPointerSize));
+    la(sp, MemOperand(sp, kSystemPointerSize));
   }
 
-  void pop() { la(sp, MemOperand(sp, kPointerSize)); }
+  void pop() { la(sp, MemOperand(sp, kSystemPointerSize)); }
 
   void Push(Register src) { push(src); }
 
@@ -544,25 +544,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
-    lay(sp, MemOperand(sp, -kPointerSize * 2));
-    StoreP(src1, MemOperand(sp, kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize * 2));
+    StoreP(src1, MemOperand(sp, kSystemPointerSize));
     StoreP(src2, MemOperand(sp, 0));
   }
 
   // Push three registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
-    lay(sp, MemOperand(sp, -kPointerSize * 3));
-    StoreP(src1, MemOperand(sp, kPointerSize * 2));
-    StoreP(src2, MemOperand(sp, kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize * 3));
+    StoreP(src1, MemOperand(sp, kSystemPointerSize * 2));
+    StoreP(src2, MemOperand(sp, kSystemPointerSize));
     StoreP(src3, MemOperand(sp, 0));
   }
 
   // Push four registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
-    lay(sp, MemOperand(sp, -kPointerSize * 4));
-    StoreP(src1, MemOperand(sp, kPointerSize * 3));
-    StoreP(src2, MemOperand(sp, kPointerSize * 2));
-    StoreP(src3, MemOperand(sp, kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize * 4));
+    StoreP(src1, MemOperand(sp, kSystemPointerSize * 3));
+    StoreP(src2, MemOperand(sp, kSystemPointerSize * 2));
+    StoreP(src3, MemOperand(sp, kSystemPointerSize));
     StoreP(src4, MemOperand(sp, 0));
   }
 
@@ -580,11 +580,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(src3 != src5);
     DCHECK(src4 != src5);
 
-    lay(sp, MemOperand(sp, -kPointerSize * 5));
-    StoreP(src1, MemOperand(sp, kPointerSize * 4));
-    StoreP(src2, MemOperand(sp, kPointerSize * 3));
-    StoreP(src3, MemOperand(sp, kPointerSize * 2));
-    StoreP(src4, MemOperand(sp, kPointerSize));
+    lay(sp, MemOperand(sp, -kSystemPointerSize * 5));
+    StoreP(src1, MemOperand(sp, kSystemPointerSize * 4));
+    StoreP(src2, MemOperand(sp, kSystemPointerSize * 3));
+    StoreP(src3, MemOperand(sp, kSystemPointerSize * 2));
+    StoreP(src4, MemOperand(sp, kSystemPointerSize));
     StoreP(src5, MemOperand(sp, 0));
   }
 
@@ -593,36 +593,36 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
     LoadP(src2, MemOperand(sp, 0));
-    LoadP(src1, MemOperand(sp, kPointerSize));
-    la(sp, MemOperand(sp, 2 * kPointerSize));
+    LoadP(src1, MemOperand(sp, kSystemPointerSize));
+    la(sp, MemOperand(sp, 2 * kSystemPointerSize));
   }
 
   // Pop three registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3) {
     LoadP(src3, MemOperand(sp, 0));
-    LoadP(src2, MemOperand(sp, kPointerSize));
-    LoadP(src1, MemOperand(sp, 2 * kPointerSize));
-    la(sp, MemOperand(sp, 3 * kPointerSize));
+    LoadP(src2, MemOperand(sp, kSystemPointerSize));
+    LoadP(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    la(sp, MemOperand(sp, 3 * kSystemPointerSize));
   }
 
   // Pop four registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Register src4) {
     LoadP(src4, MemOperand(sp, 0));
-    LoadP(src3, MemOperand(sp, kPointerSize));
-    LoadP(src2, MemOperand(sp, 2 * kPointerSize));
-    LoadP(src1, MemOperand(sp, 3 * kPointerSize));
-    la(sp, MemOperand(sp, 4 * kPointerSize));
+    LoadP(src3, MemOperand(sp, kSystemPointerSize));
+    LoadP(src2, MemOperand(sp, 2 * kSystemPointerSize));
+    LoadP(src1, MemOperand(sp, 3 * kSystemPointerSize));
+    la(sp, MemOperand(sp, 4 * kSystemPointerSize));
   }
 
   // Pop five registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Register src4,
            Register src5) {
     LoadP(src5, MemOperand(sp, 0));
-    LoadP(src4, MemOperand(sp, kPointerSize));
-    LoadP(src3, MemOperand(sp, 2 * kPointerSize));
-    LoadP(src2, MemOperand(sp, 3 * kPointerSize));
-    LoadP(src1, MemOperand(sp, 4 * kPointerSize));
-    la(sp, MemOperand(sp, 5 * kPointerSize));
+    LoadP(src4, MemOperand(sp, kSystemPointerSize));
+    LoadP(src3, MemOperand(sp, 2 * kSystemPointerSize));
+    LoadP(src2, MemOperand(sp, 3 * kSystemPointerSize));
+    LoadP(src1, MemOperand(sp, 4 * kSystemPointerSize));
+    la(sp, MemOperand(sp, 5 * kSystemPointerSize));
   }
 
   // Push a fixed frame, consisting of lr, fp, constant pool.
@@ -1182,12 +1182,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kPointerSizeLog2);
-    ShiftRightArithP(dst, src, Operand(kSmiShift - kPointerSizeLog2));
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
+    ShiftLeftP(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
 #else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kPointerSizeLog2);
-    ShiftLeftP(dst, src, Operand(kPointerSizeLog2 - kSmiShift));
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
+    ShiftRightArithP(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
 #endif
   }
 
@@ -1201,14 +1201,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
 
-#if V8_TARGET_ARCH_S390X
+#if !defined(V8_COMPRESS_POINTERS) && !defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   // Ensure it is permissible to read/write int value directly from
   // upper half of the smi.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
 #endif
 #if V8_TARGET_LITTLE_ENDIAN
-#define SmiWordOffset(offset) (offset + kPointerSize / 2)
+#define SmiWordOffset(offset) (offset + kSystemPointerSize / 2)
 #else
 #define SmiWordOffset(offset) offset
 #endif

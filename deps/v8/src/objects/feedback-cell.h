@@ -18,7 +18,7 @@ namespace internal {
 // number of closures created for a certain function per native
 // context. There's at most one FeedbackCell for each function in
 // a native context.
-class FeedbackCell : public Struct {
+class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
  public:
   static int GetInitialInterruptBudget() {
     if (FLAG_lazy_feedback_allocation) {
@@ -27,19 +27,8 @@ class FeedbackCell : public Struct {
     return FLAG_interrupt_budget;
   }
 
-  // [value]: value of the cell.
-  DECL_ACCESSORS(value, HeapObject)
-  DECL_INT32_ACCESSORS(interrupt_budget)
-
-  DECL_CAST(FeedbackCell)
-
   // Dispatched behavior.
   DECL_PRINTER(FeedbackCell)
-  DECL_VERIFIER(FeedbackCell)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_FEEDBACK_CELL_FIELDS)
 
   static const int kUnalignedSize = kSize;
   static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
@@ -50,7 +39,7 @@ class FeedbackCell : public Struct {
   using BodyDescriptor =
       FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
 
-  OBJECT_CONSTRUCTORS(FeedbackCell, Struct);
+  TQ_OBJECT_CONSTRUCTORS(FeedbackCell)
 };
 
 }  // namespace internal

@@ -11,8 +11,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyLazy,
                              kCompilationHintTierOptimized,
@@ -29,20 +29,20 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyDefault,
                              kCompilationHintTierInterpreter,
                              kCompilationHintTierInterpreter)
          .exportFunc();
   builder.addFunction('upow2', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow3', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   let instance = builder.instantiate({mod: {pow: Math.pow}});
   assertEquals(27, instance.exports.upow(3))
@@ -53,16 +53,16 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow2', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow3', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
   builder.addFunction('upow', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyEager,
                              kCompilationHintTierBaseline,
@@ -76,8 +76,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyEager,
                              kCompilationHintTierDefault,
@@ -91,8 +91,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyEager,
                              kCompilationHintTierDefault,
@@ -104,8 +104,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyEager,
                              kCompilationHintTierOptimized,
@@ -119,8 +119,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
                              kCompilationHintTierOptimized,

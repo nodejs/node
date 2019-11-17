@@ -93,7 +93,6 @@ function fuzz() {
   fuzz_index = 0;
   seed = 49734321;
   for (var i = 0; i < 1000; i++) {
-    print(i);
     var len = rand() & 0x1f;
     var ranges = new Array(len);
     var last = rand();

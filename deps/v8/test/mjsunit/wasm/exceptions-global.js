@@ -16,7 +16,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let g = builder.addGlobal(kWasmExnRef);
   builder.addFunction("push_and_drop_exnref", kSig_v_v)
       .addBody([
-        kExprGetGlobal, g.index,
+        kExprGlobalGet, g.index,
         kExprDrop,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -30,7 +30,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   let g = builder.addGlobal(kWasmExnRef);
   builder.addFunction('push_and_return_exnref', kSig_e_v)
-      .addBody([kExprGetGlobal, g.index])
+      .addBody([kExprGlobalGet, g.index])
       .exportFunc();
   let instance = builder.instantiate();
 
@@ -46,10 +46,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('catch_and_set_exnref', kSig_v_i)
       .addBody([
         kExprTry, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprThrow, except,
         kExprCatch,
-          kExprSetGlobal, g.index,
+          kExprGlobalSet, g.index,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -68,10 +68,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('set_param_exnref', kSig_v_e)
       .addBody([
         kExprTry, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprRethrow,
         kExprCatch,
-          kExprSetGlobal, g.index,
+          kExprGlobalSet, g.index,
         kExprEnd,
       ]).exportFunc();
   let exception = "my fancy exception";
@@ -88,7 +88,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let g_index = builder.addImportedGlobal("m", "exn", kWasmExnRef);
   builder.addFunction('rethrow_exnref', kSig_v_v)
       .addBody([
-        kExprGetGlobal, g_index,
+        kExprGlobalGet, g_index,
         kExprRethrow,
       ]).exportFunc();
   let exception = "my fancy exception";
@@ -104,7 +104,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let g = builder.addGlobal(kWasmExnRef, true).exportAs("exn");
   builder.addFunction('rethrow_exnref', kSig_v_v)
       .addBody([
-        kExprGetGlobal, g.index,
+        kExprGlobalGet, g.index,
         kExprRethrow,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -122,7 +122,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let g_index = builder.addImportedGlobal("m", "exn", kWasmExnRef, true);
   builder.addFunction('rethrow_exnref', kSig_v_v)
       .addBody([
-        kExprGetGlobal, g_index,
+        kExprGlobalGet, g_index,
         kExprRethrow,
       ]).exportFunc();
   let exception1 = "my fancy exception";
@@ -143,7 +143,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let g2 = builder.addGlobal(kWasmExnRef);
   g2.init_index = g1_index;  // Initialize {g2} to equal {g1}.
   builder.addFunction('push_and_return_exnref', kSig_e_v)
-      .addBody([kExprGetGlobal, g2.index])
+      .addBody([kExprGlobalGet, g2.index])
       .exportFunc();
   let exception = { x: "my fancy exception" };
   let instance = builder.instantiate({ "m": { "exn": exception }});

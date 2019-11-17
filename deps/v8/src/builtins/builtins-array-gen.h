@@ -17,51 +17,13 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   using BuiltinResultGenerator =
       std::function<void(ArrayBuiltinsAssembler* masm)>;
 
-  using CallResultProcessor = std::function<Node*(ArrayBuiltinsAssembler* masm,
-                                                  Node* k_value, Node* k)>;
-
-  using PostLoopAction = std::function<void(ArrayBuiltinsAssembler* masm)>;
-
-  void FindResultGenerator();
-
-  Node* FindProcessor(Node* k_value, Node* k);
-
-  void FindIndexResultGenerator();
-
-  Node* FindIndexProcessor(Node* k_value, Node* k);
-
-  void ForEachResultGenerator();
-
-  Node* ForEachProcessor(Node* k_value, Node* k);
-
-  void SomeResultGenerator();
-
-  Node* SomeProcessor(Node* k_value, Node* k);
-
-  void EveryResultGenerator();
-
-  Node* EveryProcessor(Node* k_value, Node* k);
-
-  void ReduceResultGenerator();
-
-  Node* ReduceProcessor(Node* k_value, Node* k);
-
-  void ReducePostLoopAction();
+  using CallResultProcessor = std::function<TNode<Object>(
+      ArrayBuiltinsAssembler* masm, TNode<Object> k_value, TNode<Object> k)>;
 
   void TypedArrayMapResultGenerator();
 
-  Node* SpecCompliantMapProcessor(Node* k_value, Node* k);
-
-  Node* FastMapProcessor(Node* k_value, Node* k);
-
   // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
-  Node* TypedArrayMapProcessor(Node* k_value, Node* k);
-
-  void NullPostLoopAction();
-
-  // Uses memset to effectively initialize the given FixedArray with Smi zeroes.
-  void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
-                                 TNode<Smi> smi_length);
+  TNode<Object> TypedArrayMapProcessor(TNode<Object> k_value, TNode<Object> k);
 
   TNode<String> CallJSArrayArrayJoinConcatToSequentialString(
       TNode<FixedArray> fixed_array, TNode<IntPtrT> length, TNode<String> sep,
@@ -86,20 +48,22 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> argc() { return argc_; }
   TNode<JSReceiver> o() { return o_; }
   TNode<Number> len() { return len_; }
-  Node* callbackfn() { return callbackfn_; }
-  Node* this_arg() { return this_arg_; }
-  TNode<Number> k() { return CAST(k_.value()); }
-  Node* a() { return a_.value(); }
+  TNode<Object> callbackfn() { return callbackfn_; }
+  TNode<Object> this_arg() { return this_arg_; }
+  TNode<Number> k() { return k_.value(); }
+  TNode<Object> a() { return a_.value(); }
 
-  void ReturnFromBuiltin(Node* value);
+  void ReturnFromBuiltin(TNode<Object> value);
 
   void InitIteratingArrayBuiltinBody(TNode<Context> context,
-                                     TNode<Object> receiver, Node* callbackfn,
-                                     Node* this_arg, TNode<IntPtrT> argc);
+                                     TNode<Object> receiver,
+                                     TNode<Object> callbackfn,
+                                     TNode<Object> this_arg,
+                                     TNode<IntPtrT> argc);
 
   void GenerateIteratingTypedArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
-      const CallResultProcessor& processor, const PostLoopAction& action,
+      const CallResultProcessor& processor,
       ForEachDirection direction = ForEachDirection::kForward);
 
   void TailCallArrayConstructorStub(
@@ -107,23 +71,25 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSFunction> target, TNode<HeapObject> allocation_site_or_undefined,
       TNode<Int32T> argc);
 
-  void GenerateDispatchToArrayStub(
-      TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
-      AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+  void GenerateDispatchToArrayStub(TNode<Context> context,
+                                   TNode<JSFunction> target, TNode<Int32T> argc,
+                                   AllocationSiteOverrideMode mode,
+                                   TNode<AllocationSite> allocation_site = {});
 
   void CreateArrayDispatchNoArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+      TNode<AllocationSite> allocation_site = {});
 
   void CreateArrayDispatchSingleArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+      TNode<AllocationSite> allocation_site = {});
 
-  void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
-                           Node* array_size, Node* allocation_site,
+  void GenerateConstructor(TNode<Context> context,
+                           TNode<HeapObject> array_function,
+                           TNode<Map> array_map, TNode<Object> array_size,
+                           TNode<HeapObject> allocation_site,
                            ElementsKind elements_kind, AllocationSiteMode mode);
   void GenerateArrayNoArgumentConstructor(ElementsKind kind,
                                           AllocationSiteOverrideMode mode);
@@ -135,33 +101,22 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<HeapObject> maybe_allocation_site);
 
  private:
-  static ElementsKind ElementsKindForInstanceType(InstanceType type);
-
-  void VisitAllTypedArrayElements(Node* array_buffer,
+  void VisitAllTypedArrayElements(TNode<JSArrayBuffer> array_buffer,
                                   const CallResultProcessor& processor,
                                   Label* detached, ForEachDirection direction,
                                   TNode<JSTypedArray> typed_array);
 
-  // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  // This version is specialized to create a zero length array
-  // of the elements kind of the input array.
-  void GenerateArraySpeciesCreate();
-
-  // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  void GenerateArraySpeciesCreate(TNode<Number> len);
-
-  Node* callbackfn_ = nullptr;
+  TNode<Object> callbackfn_;
   TNode<JSReceiver> o_;
-  Node* this_arg_ = nullptr;
+  TNode<Object> this_arg_;
   TNode<Number> len_;
   TNode<Context> context_;
   TNode<Object> receiver_;
   TNode<IntPtrT> argc_;
-  Node* fast_typed_array_target_ = nullptr;
+  TNode<BoolT> fast_typed_array_target_;
   const char* name_ = nullptr;
-  Variable k_;
-  Variable a_;
-  Variable to_;
+  TVariable<Number> k_;
+  TVariable<Object> a_;
   Label fully_spec_compliant_;
   ElementsKind source_elements_kind_ = ElementsKind::NO_ELEMENTS;
 };

@@ -221,6 +221,7 @@ class TransitionArray : public WeakFixedArray {
                                 Map* target);
 
   // Required for templatized Search interface.
+  inline Name GetKey(InternalIndex index);
   static constexpr int kNotFound = -1;
 
   inline Name GetSortedKey(int transition_number);

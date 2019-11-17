@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-datetime-style
-
 // Throws only once during construction.
 // Check for all getters to prevent regression.
 // Preserve the order of getter initialization.

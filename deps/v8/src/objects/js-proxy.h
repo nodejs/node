@@ -128,7 +128,7 @@ class JSProxyRevocableResult : public JSObject {
  public:
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSPROXY_REVOCABLE_RESULT_FIELDS)
+      JSObject::kHeaderSize, TORQUE_GENERATED_JS_PROXY_REVOCABLE_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kProxyIndex = 0;

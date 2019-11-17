@@ -681,7 +681,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
       if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
-      if (m.IsBitcastTaggedSignedToWord()) {
+      if (m.IsBitcastTaggedToWordForTagAndSmiBits()) {
         Int64Matcher n(m.node()->InputAt(0));
         if (n.IsChangeCompressedToTagged()) {
           DCHECK(machine()->Is64() && SmiValuesAre31Bits());
@@ -725,7 +725,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64RoundDown:
       return ReduceFloat64RoundDown(node);
     case IrOpcode::kBitcastTaggedToWord:
-    case IrOpcode::kBitcastTaggedSignedToWord: {
+    case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits: {
       NodeMatcher m(node->InputAt(0));
       if (m.IsBitcastWordToTaggedSigned()) {
         RelaxEffectsAndControls(node);

@@ -6,6 +6,7 @@
 #define V8_TORQUE_GLOBAL_CONTEXT_H_
 
 #include <map>
+#include <memory>
 
 #include "src/common/globals.h"
 #include "src/torque/ast.h"

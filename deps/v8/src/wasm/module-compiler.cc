@@ -14,7 +14,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
-#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
@@ -31,7 +30,6 @@
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -152,6 +150,9 @@ class CompilationUnitQueues {
     for (int task_id = 0; task_id < max_tasks; ++task_id) {
       queues_[task_id].next_steal_task_id = next_task_id(task_id);
     }
+    for (auto& atomic_counter : num_units_) {
+      std::atomic_init(&atomic_counter, size_t{0});
+    }
   }
 
   base::Optional<WasmCompilationUnit> GetNextUnit(
@@ -254,15 +255,14 @@ class CompilationUnitQueues {
   };
 
   struct BigUnitsQueue {
-    BigUnitsQueue() = default;
+    BigUnitsQueue() {
+      for (auto& atomic : has_units) std::atomic_init(&atomic, false);
+    }
 
     base::Mutex mutex;
 
     // Can be read concurrently to check whether any elements are in the queue.
-    std::atomic_bool has_units[kNumTiers] = {
-      ATOMIC_VAR_INIT(false),
-      ATOMIC_VAR_INIT(false)
-    };
+    std::atomic<bool> has_units[kNumTiers];
 
     // Protected by {mutex}:
     std::priority_queue<BigUnit> units[kNumTiers];
@@ -271,11 +271,8 @@ class CompilationUnitQueues {
   std::vector<Queue> queues_;
   BigUnitsQueue big_units_queue_;
 
-  std::atomic_size_t num_units_[kNumTiers] = {
-    ATOMIC_VAR_INIT(0),
-    ATOMIC_VAR_INIT(0)
-  };
-  std::atomic_int next_queue_to_add{0};
+  std::atomic<size_t> num_units_[kNumTiers];
+  std::atomic<int> next_queue_to_add{0};
 
   int next_task_id(int task_id) const {
     int next = task_id + 1;
@@ -482,7 +479,7 @@ class CompilationStateImpl {
 
   // Compilation error, atomically updated. This flag can be updated and read
   // using relaxed semantics.
-  std::atomic_bool compile_failed_{false};
+  std::atomic<bool> compile_failed_{false};
 
   const int max_background_tasks_ = 0;
 
@@ -967,6 +964,10 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
   return true;
 }
 
+bool NeedsDeterministicCompile() {
+  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
+}
+
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
 bool ExecuteCompilationUnits(
@@ -994,6 +995,7 @@ bool ExecuteCompilationUnits(
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
   double deadline = 0;
+  const bool deterministic = NeedsDeterministicCompile();
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1087,7 +1089,7 @@ bool ExecuteCompilationUnits(
       }
 
       // Get next unit.
-      if (deadline < platform->MonotonicallyIncreasingTime()) {
+      if (deterministic || deadline < platform->MonotonicallyIncreasingTime()) {
         unit = {};
       } else {
         unit = compile_scope.compilation_state()->GetNextCompilationUnit(
@@ -1197,10 +1199,6 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers + num_export_wrappers);
   builder.Commit();
-}
-
-bool NeedsDeterministicCompile() {
-  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
@@ -1373,7 +1371,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, std::move(module));
   native_module->SetWireBytes(std::move(wire_bytes_copy));
-  native_module->SetRuntimeStubs(isolate);
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   if (thrower->error()) return {};
@@ -1468,7 +1465,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
   stream_.reset(
-      new StreamingDecoder(base::make_unique<AsyncStreamingProcessor>(this)));
+      new StreamingDecoder(std::make_unique<AsyncStreamingProcessor>(this)));
   return stream_;
 }
 
@@ -1504,7 +1501,7 @@ void AsyncCompileJob::CreateNativeModule(
 
   // Create the module object and populate with compiled functions and
   // information needed at instantiation time.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // TODO(clemensb): For the same module (same bytes / same hash), we should
   // only have one {WasmModuleObject}. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
@@ -1512,7 +1509,6 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module));
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
-  native_module_->SetRuntimeStubs(isolate_);
 
   if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
 }
@@ -1707,7 +1703,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 void AsyncCompileJob::StartForegroundTask() {
   DCHECK_NULL(pending_foreground_task_);
 
-  auto new_task = base::make_unique<CompileTask>(this, true);
+  auto new_task = std::make_unique<CompileTask>(this, true);
   pending_foreground_task_ = new_task.get();
   foreground_task_runner_->PostTask(std::move(new_task));
 }
@@ -1715,7 +1711,7 @@ void AsyncCompileJob::StartForegroundTask() {
 void AsyncCompileJob::ExecuteForegroundTaskImmediately() {
   DCHECK_NULL(pending_foreground_task_);
 
-  auto new_task = base::make_unique<CompileTask>(this, true);
+  auto new_task = std::make_unique<CompileTask>(this, true);
   pending_foreground_task_ = new_task.get();
   new_task->Run();
 }
@@ -1727,7 +1723,7 @@ void AsyncCompileJob::CancelPendingForegroundTask() {
 }
 
 void AsyncCompileJob::StartBackgroundTask() {
-  auto task = base::make_unique<CompileTask>(this, false);
+  auto task = std::make_unique<CompileTask>(this, false);
 
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
@@ -2210,11 +2206,9 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 int GetMaxBackgroundTasks() {
-  if (NeedsDeterministicCompile()) return 1;
+  if (NeedsDeterministicCompile()) return 0;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
-  int num_compile_tasks =
-      std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
-  return std::max(1, num_compile_tasks);
+  return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
 
 CompilationStateImpl::CompilationStateImpl(
@@ -2228,7 +2222,7 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      max_background_tasks_(GetMaxBackgroundTasks()),
+      max_background_tasks_(std::max(GetMaxBackgroundTasks(), 1)),
       compilation_unit_queues_(max_background_tasks_),
       available_task_ids_(max_background_tasks_) {
   for (int i = 0; i < max_background_tasks_; ++i) {
@@ -2617,7 +2611,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     auto& function = module->functions[exp.index];
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
-      auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
+      auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
           isolate, isolate->wasm_engine(), function.sig, function.imported,
           enabled_features);
       compilation_units.emplace(key, std::move(unit));
@@ -2628,7 +2622,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   CancelableTaskManager task_manager;
   const int max_background_tasks = GetMaxBackgroundTasks();
   for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = base::make_unique<CompileJSToWasmWrapperTask>(
+    auto task = std::make_unique<CompileJSToWasmWrapperTask>(
         &task_manager, &queue, &compilation_units);
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   }
@@ -2699,12 +2693,21 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   const int kBufferSize = 32;
   char buffer[kBufferSize];
 
+  Handle<String> url_prefix =
+      isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
+
   int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
   DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-  MaybeHandle<String> name_str = isolate->factory()->NewStringFromOneByte(
-      VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
-      AllocationType::kOld);
-  script->set_name(*name_str.ToHandleChecked());
+  Handle<String> name_str =
+      isolate->factory()
+          ->NewStringFromOneByte(
+              VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
+              AllocationType::kOld)
+          .ToHandleChecked();
+  script->set_name(*name_str);
+  MaybeHandle<String> url_str =
+      isolate->factory()->NewConsString(url_prefix, name_str);
+  script->set_source_url(*url_str.ToHandleChecked());
 
   if (source_map_url.size() != 0) {
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(

@@ -90,6 +90,8 @@ class FunctionalList {
 
   size_t Size() const { return elements_ ? elements_->size : 0; }
 
+  void Clear() { elements_ = nullptr; }
+
   class iterator {
    public:
     explicit iterator(Cons* cur) : current_(cur) {}

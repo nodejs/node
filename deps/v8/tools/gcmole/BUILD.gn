@@ -11,6 +11,7 @@ group("v8_run_gcmole") {
     "gccause.lua",
     "GCMOLE.gn",
     "gcmole.lua",
+    "gcmole-test.cc",
     "gcmole-tools/",
     "parallel.py",
     "run-gcmole.py",

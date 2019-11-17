@@ -84,6 +84,13 @@ String16 String16::fromInteger(size_t number) {
 }
 
 // static
+String16 String16::fromInteger64(int64_t number) {
+  char buffer[50];
+  v8::base::OS::SNPrintF(buffer, arraysize(buffer), "%" PRId64 "", number);
+  return String16(buffer);
+}
+
+// static
 String16 String16::fromDouble(double number) {
   char arr[50];
   v8::internal::Vector<char> buffer(arr, arraysize(arr));

@@ -5,6 +5,8 @@
 #ifndef V8_LOGGING_COUNTERS_H_
 #define V8_LOGGING_COUNTERS_H_
 
+#include <memory>
+
 #include "include/v8.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/optional.h"
@@ -780,7 +782,6 @@ class RuntimeCallTimer final {
   V(Message_GetStartColumn)                                \
   V(Module_Evaluate)                                       \
   V(Module_InstantiateModule)                              \
-  V(Module_SetSyntheticModuleExport)                       \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \
@@ -1018,16 +1019,13 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadNormalDH)                          \
   V(LoadIC_LoadNormalFromPrototypeDH)             \
   V(LoadIC_NonReceiver)                           \
-  V(LoadIC_Premonomorphic)                        \
   V(LoadIC_SlowStub)                              \
   V(LoadIC_StringLength)                          \
   V(LoadIC_StringWrapperLength)                   \
   V(StoreGlobalIC_SlowStub)                       \
   V(StoreGlobalIC_StoreScriptContextField)        \
-  V(StoreGlobalIC_Premonomorphic)                 \
   V(StoreIC_HandlerCacheHit_Accessor)             \
   V(StoreIC_NonReceiver)                          \
-  V(StoreIC_Premonomorphic)                       \
   V(StoreIC_SlowStub)                             \
   V(StoreIC_StoreAccessorDH)                      \
   V(StoreIC_StoreAccessorOnPrototypeDH)           \

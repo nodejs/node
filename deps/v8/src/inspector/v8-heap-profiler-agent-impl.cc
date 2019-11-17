@@ -4,7 +4,6 @@
 
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
-#include "src/base/template-utils.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -128,7 +127,7 @@ class HeapStatsStream final : public v8::OutputStream {
   WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* updateData,
                                   int count) override {
     DCHECK_GT(count, 0);
-    auto statsDiff = v8::base::make_unique<protocol::Array<int>>();
+    auto statsDiff = std::make_unique<protocol::Array<int>>();
     for (int i = 0; i < count; ++i) {
       statsDiff->emplace_back(updateData[i].index);
       statsDiff->emplace_back(updateData[i].count);
@@ -337,7 +336,7 @@ namespace {
 std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfileNode>
 buildSampingHeapProfileNode(v8::Isolate* isolate,
                             const v8::AllocationProfile::Node* node) {
-  auto children = v8::base::make_unique<
+  auto children = std::make_unique<
       protocol::Array<protocol::HeapProfiler::SamplingHeapProfileNode>>();
   for (const auto* child : node->children)
     children->emplace_back(buildSampingHeapProfileNode(isolate, child));
@@ -384,7 +383,7 @@ Response V8HeapProfilerAgentImpl::getSamplingProfile(
   if (!v8Profile)
     return Response::Error("V8 sampling heap profiler was not started.");
   v8::AllocationProfile::Node* root = v8Profile->GetRootNode();
-  auto samples = v8::base::make_unique<
+  auto samples = std::make_unique<
       protocol::Array<protocol::HeapProfiler::SamplingHeapProfileSample>>();
   for (const auto& sample : v8Profile->GetSamples()) {
     samples->emplace_back(

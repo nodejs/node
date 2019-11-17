@@ -50,7 +50,9 @@ bool Type::IsSubtypeOf(const Type* supertype) const {
 
 base::Optional<const ClassType*> Type::ClassSupertype() const {
   for (const Type* t = this; t != nullptr; t = t->parent()) {
-    if (auto* class_type = ClassType::DynamicCast(t)) return class_type;
+    if (auto* class_type = ClassType::DynamicCast(t)) {
+      return class_type;
+    }
   }
   return base::nullopt;
 }
@@ -86,7 +88,7 @@ bool Type::IsAbstractName(const std::string& name) const {
 
 std::string Type::GetGeneratedTypeName() const {
   std::string result = GetGeneratedTypeNameImpl();
-  if (result.empty() || result == "compiler::TNode<>") {
+  if (result.empty() || result == "TNode<>") {
     ReportError("Generated type is required for type '", ToString(),
                 "'. Use 'generates' clause in definition.");
   }
@@ -382,7 +384,7 @@ std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
 
 std::string ClassType::GetGeneratedTypeNameImpl() const {
   return IsConstexpr() ? GetGeneratedTNodeTypeName()
-                       : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+                       : "TNode<" + GetGeneratedTNodeTypeName() + ">";
 }
 
 std::string ClassType::ToExplicitString() const {
@@ -404,11 +406,11 @@ void ClassType::Finalize() const {
     if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
       if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
       if (!super_class->IsAbstract() && !HasSameInstanceTypeAsParent()) {
-        Error(
-            "Super class must either be abstract (annotate super class with "
-            "@abstract) "
-            "or this class must have the same instance type as the super class "
-            "(annotate this class with @hasSameInstanceTypeAsParent).")
+        Error("Super class must either be abstract (annotate super class with ",
+              ANNOTATION_ABSTRACT,
+              ") or this class must have the same instance type as the super "
+              "class (annotate this class with ",
+              ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT, ").")
             .Position(this->decl_->name->pos);
       }
     }

@@ -24,7 +24,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder1.addFunction('store', kSig_v_i)
       .addBody([
         kExprI32Const, 0,        // i32.const 1
-        kExprGetLocal, 0,        // get_local 0
+        kExprLocalGet, 0,        // get_local 0
         kExprI32StoreMem, 0, 0,  // i32.store offset=0 align=0
       ])
       .exportFunc();
@@ -35,7 +35,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder2.addMemory(1, 1, true);
   builder2.addImport('mod', 'store', kSig_v_i);
   builder2.addFunction('call_store', kSig_v_i)
-      .addBody([kExprGetLocal, 0, kExprCallFunction, 0])
+      .addBody([kExprLocalGet, 0, kExprCallFunction, 0])
       .exportFunc();
   const instance2 = builder2.instantiate({mod: {store: instance1.exports.store}});
   const mem2 = new Int32Array(instance2.exports.memory.buffer);
@@ -75,7 +75,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder1.addFunction('store', kSig_v_i)
       .addBody([
         kExprI32Const, 0,        // i32.const 1
-        kExprGetLocal, 0,        // get_local 0
+        kExprLocalGet, 0,        // get_local 0
         kExprI32StoreMem, 0, 0,  // i32.store offset=0 align=0
       ])
       .exportFunc();

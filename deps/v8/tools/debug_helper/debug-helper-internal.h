@@ -10,6 +10,7 @@
 #ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 #define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,7 @@ struct Value {
   TValue value;
 };
 
+// Internal version of API class v8::debug_helper::ObjectProperty.
 class ObjectProperty {
  public:
   inline ObjectProperty(std::string name, std::string type,
@@ -68,15 +70,20 @@ struct ObjectPropertiesResultExtended : public d::ObjectPropertiesResult {
   ObjectPropertiesResultInternal* base;  // Back reference for cleanup
 };
 
+// Internal version of API class v8::debug_helper::ObjectPropertiesResult.
 class ObjectPropertiesResult {
  public:
-  inline ObjectPropertiesResult(
+  ObjectPropertiesResult(d::TypeCheckResult type_check_result,
+                         std::string brief, std::string type)
+      : type_check_result_(type_check_result), brief_(brief), type_(type) {}
+  ObjectPropertiesResult(
       d::TypeCheckResult type_check_result, std::string brief, std::string type,
-      std::vector<std::unique_ptr<ObjectProperty>> properties)
-      : type_check_result_(type_check_result),
-        brief_(brief),
-        type_(type),
-        properties_(std::move(properties)) {}
+      std::vector<std::unique_ptr<ObjectProperty>> properties,
+      std::vector<std::string> guessed_types)
+      : ObjectPropertiesResult(type_check_result, brief, type) {
+    properties_ = std::move(properties);
+    guessed_types_ = std::move(guessed_types);
+  }
 
   inline void Prepend(const char* prefix) { brief_ = prefix + brief_; }
 
@@ -85,11 +92,17 @@ class ObjectPropertiesResult {
     public_view_.brief = brief_.c_str();
     public_view_.type = type_.c_str();
     public_view_.num_properties = properties_.size();
-    properties_raw_.resize(0);
+    properties_raw_.clear();
     for (const auto& property : properties_) {
       properties_raw_.push_back(property->GetPublicView());
     }
     public_view_.properties = properties_raw_.data();
+    public_view_.num_guessed_types = guessed_types_.size();
+    guessed_types_raw_.clear();
+    for (const auto& guess : guessed_types_) {
+      guessed_types_raw_.push_back(guess.c_str());
+    }
+    public_view_.guessed_types = guessed_types_raw_.data();
     public_view_.base = this;
     return &public_view_;
   }
@@ -99,9 +112,11 @@ class ObjectPropertiesResult {
   std::string brief_;
   std::string type_;
   std::vector<std::unique_ptr<ObjectProperty>> properties_;
+  std::vector<std::string> guessed_types_;
 
   ObjectPropertiesResultExtended public_view_;
   std::vector<d::ObjectProperty*> properties_raw_;
+  std::vector<const char*> guessed_types_raw_;
 };
 
 class TqObjectVisitor;
@@ -116,13 +131,24 @@ class TqObject {
       d::MemoryAccessor accessor) const;
   virtual const char* GetName() const;
   virtual void Visit(TqObjectVisitor* visitor) const;
+  virtual bool IsSuperclassOf(const TqObject* other) const;
 
  protected:
   uintptr_t address_;
 };
 
+// In ptr-compr builds, returns whether the address looks like a compressed
+// pointer (sign-extended from 32 bits). Otherwise returns false because no
+// pointers can be compressed.
 bool IsPointerCompressed(uintptr_t address);
-uintptr_t Decompress(uintptr_t address, uintptr_t any_uncompressed_address);
+
+// If the given address looks like a compressed pointer, returns a decompressed
+// representation of it. Otherwise returns the address unmodified.
+uintptr_t EnsureDecompressed(uintptr_t address,
+                             uintptr_t any_uncompressed_address);
+
+// Converts the MemoryAccessResult from attempting to read an array's length
+// into the corresponding PropertyKind for the array.
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result);
 
 }  // namespace v8_debug_helper_internal

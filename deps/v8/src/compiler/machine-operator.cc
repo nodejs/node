@@ -146,7 +146,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
-  V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
+  V(Simd128ReverseBytes, Operator::kNoProperties, 1, 0, 1)                    \
+  V(BitcastTaggedToWordForTagAndSmiBits, Operator::kNoProperties, 1, 0, 1)    \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
   V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \
@@ -255,6 +256,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
   V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
@@ -265,11 +267,14 @@ MachineType AtomicOpType(Operator const* op) {
   V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \
   V(F64x2Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F64x2Qfma, Operator::kNoProperties, 3, 0, 1)                              \
+  V(F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                              \
   V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                       \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                                \
@@ -283,6 +288,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                                \
   V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                              \
+  V(F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                              \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
   V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                               \
@@ -395,6 +402,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
   V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)                           \
   V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:

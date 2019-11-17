@@ -201,11 +201,9 @@ To know our further pleasure in this case,\n\
 To old Free-town, our common judgment-place.\n\
 Once more, on pain of death, all men depart.\n"
 
-for (var i = 0; i < 4; ++i) {
+for (var i = 0; i < 2; ++i) {
   plainText += plainText;
 }
 
-assertEquals(hex_md5("abc"), "900150983cd24fb0d6963f7d28e17f72");
-for (var i = 0; i < 11; ++i) {
-  assertEquals(hex_md5(plainText), "1b8719c72d5d8bfd06e096ef6c6288c5");
-}
+assertEquals("900150983cd24fb0d6963f7d28e17f72", hex_md5("abc"));
+assertEquals("6c843ffbdd773e88ae4ac4a5df79a784", hex_md5(plainText));

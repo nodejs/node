@@ -16,10 +16,6 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
-
 enum class StoreMode { kOrdinary, kInLiteral };
 
 class KeyedStoreGenericAssembler : public AccessorAssembler {
@@ -62,9 +58,11 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                          TNode<Object> key, TNode<Object> value,
                          Maybe<LanguageMode> language_mode);
 
-  void EmitGenericElementStore(Node* receiver, TNode<Map> receiver_map,
-                               Node* instance_type, TNode<IntPtrT> index,
-                               Node* value, Node* context, Label* slow);
+  void EmitGenericElementStore(TNode<JSObject> receiver,
+                               TNode<Map> receiver_map,
+                               TNode<Uint16T> instance_type,
+                               TNode<IntPtrT> index, TNode<Object> value,
+                               TNode<Context> context, Label* slow);
 
   // If language mode is not provided it is deduced from the feedback slot's
   // kind.
@@ -86,38 +84,46 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                              Label* non_fast_elements,
                                              Label* only_fast_elements);
 
-  void TryRewriteElements(Node* receiver, TNode<Map> receiver_map,
-                          Node* elements, Node* native_context,
+  void TryRewriteElements(TNode<JSObject> receiver, TNode<Map> receiver_map,
+                          TNode<FixedArrayBase> elements,
+                          TNode<NativeContext> native_context,
                           ElementsKind from_kind, ElementsKind to_kind,
                           Label* bailout);
 
-  void StoreElementWithCapacity(Node* receiver, TNode<Map> receiver_map,
+  void StoreElementWithCapacity(TNode<JSObject> receiver,
+                                TNode<Map> receiver_map,
                                 SloppyTNode<FixedArrayBase> elements,
                                 TNode<Word32T> elements_kind,
-                                TNode<IntPtrT> index, Node* value,
-                                Node* context, Label* slow,
+                                TNode<IntPtrT> index, SloppyTNode<Object> value,
+                                TNode<Context> context, Label* slow,
                                 UpdateLength update_length);
 
-  void MaybeUpdateLengthAndReturn(Node* receiver, Node* index, Node* value,
+  void MaybeUpdateLengthAndReturn(TNode<JSObject> receiver,
+                                  TNode<IntPtrT> index, TNode<Object> value,
                                   UpdateLength update_length);
 
-  void TryChangeToHoleyMapHelper(Node* receiver, TNode<Map> receiver_map,
-                                 Node* native_context, ElementsKind packed_kind,
+  void TryChangeToHoleyMapHelper(TNode<JSObject> receiver,
+                                 TNode<Map> receiver_map,
+                                 TNode<NativeContext> native_context,
+                                 ElementsKind packed_kind,
                                  ElementsKind holey_kind, Label* done,
                                  Label* map_mismatch, Label* bailout);
-  void TryChangeToHoleyMap(Node* receiver, TNode<Map> receiver_map,
-                           TNode<Word32T> current_elements_kind, Node* context,
-                           ElementsKind packed_kind, Label* bailout);
-  void TryChangeToHoleyMapMulti(Node* receiver, TNode<Map> receiver_map,
+  void TryChangeToHoleyMap(TNode<JSObject> receiver, TNode<Map> receiver_map,
+                           TNode<Word32T> current_elements_kind,
+                           TNode<Context> context, ElementsKind packed_kind,
+                           Label* bailout);
+  void TryChangeToHoleyMapMulti(TNode<JSObject> receiver,
+                                TNode<Map> receiver_map,
                                 TNode<Word32T> current_elements_kind,
-                                Node* context, ElementsKind packed_kind,
+                                TNode<Context> context,
+                                ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
 
-  void LookupPropertyOnPrototypeChain(TNode<Map> receiver_map, Node* name,
-                                      Label* accessor,
-                                      Variable* var_accessor_pair,
-                                      Variable* var_accessor_holder,
-                                      Label* readonly, Label* bailout);
+  void LookupPropertyOnPrototypeChain(
+      TNode<Map> receiver_map, TNode<Name> name, Label* accessor,
+      TVariable<Object>* var_accessor_pair,
+      TVariable<HeapObject>* var_accessor_holder, Label* readonly,
+      Label* bailout);
 
   TNode<Map> FindCandidateStoreICTransitionMapHandler(TNode<Map> map,
                                                       TNode<Name> name,
@@ -173,18 +179,18 @@ void KeyedStoreGenericGenerator::SetPropertyInLiteral(
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
     TNode<Map> receiver_map, Label* non_fast_elements,
     Label* only_fast_elements) {
-  VARIABLE(var_map, MachineRepresentation::kTagged);
-  var_map.Bind(receiver_map);
+  TVARIABLE(Map, var_map);
+  var_map = receiver_map;
   Label loop_body(this, &var_map);
   Goto(&loop_body);
 
   BIND(&loop_body);
   {
-    Node* map = var_map.value();
+    TNode<Map> map = var_map.value();
     TNode<HeapObject> prototype = LoadMapPrototype(map);
     GotoIf(IsNull(prototype), only_fast_elements);
     TNode<Map> prototype_map = LoadMap(prototype);
-    var_map.Bind(prototype_map);
+    var_map = prototype_map;
     TNode<Uint16T> instance_type = LoadMapInstanceType(prototype_map);
     GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
            non_fast_elements);
@@ -196,9 +202,9 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
 }
 
 void KeyedStoreGenericAssembler::TryRewriteElements(
-    Node* receiver, TNode<Map> receiver_map, Node* elements,
-    Node* native_context, ElementsKind from_kind, ElementsKind to_kind,
-    Label* bailout) {
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
+    TNode<FixedArrayBase> elements, TNode<NativeContext> native_context,
+    ElementsKind from_kind, ElementsKind to_kind, Label* bailout) {
   DCHECK(IsFastPackedElementsKind(from_kind));
   ElementsKind holey_from_kind = GetHoleyElementsKind(from_kind);
   ElementsKind holey_to_kind = GetHoleyElementsKind(to_kind);
@@ -206,12 +212,12 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     TrapAllocationMemento(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
-  VARIABLE(var_target_map, MachineRepresentation::kTagged);
+  TVARIABLE(Map, var_target_map);
   // Check if the receiver has the default |from_kind| map.
   {
     TNode<Map> packed_map = LoadJSArrayElementsMap(from_kind, native_context);
     GotoIf(TaggedNotEqual(receiver_map, packed_map), &check_holey_map);
-    var_target_map.Bind(
+    var_target_map = CAST(
         LoadContextElement(native_context, Context::ArrayMapIndex(to_kind)));
     Goto(&perform_transition);
   }
@@ -222,7 +228,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     TNode<Object> holey_map = LoadContextElement(
         native_context, Context::ArrayMapIndex(holey_from_kind));
     GotoIf(TaggedNotEqual(receiver_map, holey_map), bailout);
-    var_target_map.Bind(LoadContextElement(
+    var_target_map = CAST(LoadContextElement(
         native_context, Context::ArrayMapIndex(holey_to_kind)));
     Goto(&perform_transition);
   }
@@ -240,9 +246,9 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
 }
 
 void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
-    Node* receiver, TNode<Map> receiver_map, Node* native_context,
-    ElementsKind packed_kind, ElementsKind holey_kind, Label* done,
-    Label* map_mismatch, Label* bailout) {
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
+    TNode<NativeContext> native_context, ElementsKind packed_kind,
+    ElementsKind holey_kind, Label* done, Label* map_mismatch, Label* bailout) {
   TNode<Map> packed_map = LoadJSArrayElementsMap(packed_kind, native_context);
   GotoIf(TaggedNotEqual(receiver_map, packed_map), map_mismatch);
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
@@ -255,23 +261,23 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
 }
 
 void KeyedStoreGenericAssembler::TryChangeToHoleyMap(
-    Node* receiver, TNode<Map> receiver_map,
-    TNode<Word32T> current_elements_kind, Node* context,
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
+    TNode<Word32T> current_elements_kind, TNode<Context> context,
     ElementsKind packed_kind, Label* bailout) {
   ElementsKind holey_kind = GetHoleyElementsKind(packed_kind);
   Label already_holey(this);
 
   GotoIf(Word32Equal(current_elements_kind, Int32Constant(holey_kind)),
          &already_holey);
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TryChangeToHoleyMapHelper(receiver, receiver_map, native_context, packed_kind,
                             holey_kind, &already_holey, bailout, bailout);
   BIND(&already_holey);
 }
 
 void KeyedStoreGenericAssembler::TryChangeToHoleyMapMulti(
-    Node* receiver, TNode<Map> receiver_map,
-    TNode<Word32T> current_elements_kind, Node* context,
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
+    TNode<Word32T> current_elements_kind, TNode<Context> context,
     ElementsKind packed_kind, ElementsKind packed_kind_2, Label* bailout) {
   ElementsKind holey_kind = GetHoleyElementsKind(packed_kind);
   ElementsKind holey_kind_2 = GetHoleyElementsKind(packed_kind_2);
@@ -282,7 +288,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapMulti(
   GotoIf(Word32Equal(current_elements_kind, Int32Constant(holey_kind_2)),
          &already_holey);
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TryChangeToHoleyMapHelper(receiver, receiver_map, native_context, packed_kind,
                             holey_kind, &already_holey, &check_other_kind,
                             bailout);
@@ -294,7 +300,8 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapMulti(
 }
 
 void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
-    Node* receiver, Node* index, Node* value, UpdateLength update_length) {
+    TNode<JSObject> receiver, TNode<IntPtrT> index, TNode<Object> value,
+    UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
     TNode<Smi> new_length = SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1))));
     StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset, new_length,
@@ -304,10 +311,10 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
 }
 
 void KeyedStoreGenericAssembler::StoreElementWithCapacity(
-    Node* receiver, TNode<Map> receiver_map,
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
     SloppyTNode<FixedArrayBase> elements, TNode<Word32T> elements_kind,
-    TNode<IntPtrT> index, Node* value, Node* context, Label* slow,
-    UpdateLength update_length) {
+    TNode<IntPtrT> index, SloppyTNode<Object> value, TNode<Context> context,
+    Label* slow, UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
     CSA_ASSERT(this, InstanceTypeEqual(LoadMapInstanceType(receiver_map),
                                        JS_ARRAY_TYPE));
@@ -331,8 +338,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
   // FixedArray backing store -> Smi or object elements.
   {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(
-        index, PACKED_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+    TNode<IntPtrT> offset =
+        ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
     // If we know that we're storing beyond the previous array length, we
@@ -387,8 +394,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Transition to the required ElementsKind.
     {
       Label transition_to_double(this), transition_to_object(this);
-      TNode<Context> native_context = LoadNativeContext(context);
-      Branch(TaggedEqual(LoadMap(value), HeapNumberMapConstant()),
+      TNode<NativeContext> native_context = LoadNativeContext(context);
+      Branch(TaggedEqual(LoadMap(CAST(value)), HeapNumberMapConstant()),
              &transition_to_double, &transition_to_object);
       BIND(&transition_to_double);
       {
@@ -401,11 +408,11 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                            PACKED_SMI_ELEMENTS, target_kind, slow);
         // Reload migrated elements.
         TNode<FixedArrayBase> double_elements = LoadElements(receiver);
-        TNode<IntPtrT> double_offset = ElementOffsetFromIndex(
-            index, PACKED_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+        TNode<IntPtrT> double_offset =
+            ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
         // Make sure we do not store signalling NaNs into double arrays.
         TNode<Float64T> double_value =
-            Float64SilenceNaN(LoadHeapNumberValue(value));
+            Float64SilenceNaN(LoadHeapNumberValue(CAST(value)));
         StoreNoWriteBarrier(MachineRepresentation::kFloat64, double_elements,
                             double_offset, double_value);
         MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
@@ -434,8 +441,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
          &check_cow_elements);
   // FixedDoubleArray backing store -> double elements.
   {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(
-        index, PACKED_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+    TNode<IntPtrT> offset =
+        ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
     {
@@ -457,7 +464,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      Node* double_value = TryTaggedToFloat64(value, &non_number_value);
+      TNode<Float64T> double_value =
+          TryTaggedToFloat64(value, &non_number_value);
 
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
@@ -475,7 +483,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
     // Transition to object elements.
     {
-      TNode<Context> native_context = LoadNativeContext(context);
+      TNode<NativeContext> native_context = LoadNativeContext(context);
       ElementsKind target_kind = update_length == kBumpLengthWithGap
                                      ? HOLEY_ELEMENTS
                                      : PACKED_ELEMENTS;
@@ -483,8 +491,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                          PACKED_DOUBLE_ELEMENTS, target_kind, slow);
       // Reload migrated elements.
       TNode<FixedArrayBase> fast_elements = LoadElements(receiver);
-      TNode<IntPtrT> fast_offset = ElementOffsetFromIndex(
-          index, PACKED_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+      TNode<IntPtrT> fast_offset =
+          ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
       Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
     }
@@ -498,8 +506,9 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 }
 
 void KeyedStoreGenericAssembler::EmitGenericElementStore(
-    Node* receiver, TNode<Map> receiver_map, Node* instance_type,
-    TNode<IntPtrT> index, Node* value, Node* context, Label* slow) {
+    TNode<JSObject> receiver, TNode<Map> receiver_map,
+    TNode<Uint16T> instance_type, TNode<IntPtrT> index, TNode<Object> value,
+    TNode<Context> context, Label* slow) {
   Label if_fast(this), if_in_bounds(this), if_out_of_bounds(this),
       if_increment_length_by_one(this), if_bump_length_with_gap(this),
       if_grow(this), if_nonfast(this), if_typed_array(this),
@@ -517,7 +526,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
   BIND(&if_array);
   {
-    TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(receiver));
+    TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(CAST(receiver)));
     GotoIf(UintPtrLessThan(index, length), &if_in_bounds);
     TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     GotoIf(UintPtrGreaterThanOrEqual(index, capacity), &if_grow);
@@ -595,32 +604,32 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 }
 
 void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
-    TNode<Map> receiver_map, Node* name, Label* accessor,
-    Variable* var_accessor_pair, Variable* var_accessor_holder, Label* readonly,
+    TNode<Map> receiver_map, TNode<Name> name, Label* accessor,
+    TVariable<Object>* var_accessor_pair,
+    TVariable<HeapObject>* var_accessor_holder, Label* readonly,
     Label* bailout) {
   Label ok_to_write(this);
-  VARIABLE(var_holder, MachineRepresentation::kTagged);
-  var_holder.Bind(LoadMapPrototype(receiver_map));
-  VARIABLE(var_holder_map, MachineRepresentation::kTagged);
-  var_holder_map.Bind(LoadMap(var_holder.value()));
+  TVARIABLE(HeapObject, var_holder);
+  TVARIABLE(Map, var_holder_map);
+  var_holder = LoadMapPrototype(receiver_map);
+  var_holder_map = LoadMap(var_holder.value());
 
-  Variable* merged_variables[] = {&var_holder, &var_holder_map};
-  Label loop(this, arraysize(merged_variables), merged_variables);
+  Label loop(this, {&var_holder, &var_holder_map});
   Goto(&loop);
   BIND(&loop);
   {
-    Node* holder = var_holder.value();
+    TNode<HeapObject> holder = var_holder.value();
     GotoIf(IsNull(holder), &ok_to_write);
-    Node* holder_map = var_holder_map.value();
+    TNode<Map> holder_map = var_holder_map.value();
     TNode<Uint16T> instance_type = LoadMapInstanceType(holder_map);
     Label next_proto(this);
     {
       Label found(this), found_fast(this), found_dict(this), found_global(this);
       TVARIABLE(HeapObject, var_meta_storage);
       TVARIABLE(IntPtrT, var_entry);
-      TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
-                        &found_dict, &found_global, &var_meta_storage,
-                        &var_entry, &next_proto, bailout);
+      TryLookupProperty(CAST(holder), holder_map, instance_type, name,
+                        &found_fast, &found_dict, &found_global,
+                        &var_meta_storage, &var_entry, &next_proto, bailout);
       BIND(&found_fast);
       {
         TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
@@ -631,10 +640,10 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         // Accessor case.
         // TODO(jkummerow): Implement a trimmed-down
         // LoadAccessorFromFastObject.
-        VARIABLE(var_details, MachineRepresentation::kWord32);
+        TVARIABLE(Uint32T, var_details);
         LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
                                    &var_details, var_accessor_pair);
-        var_accessor_holder->Bind(holder);
+        *var_accessor_holder = holder;
         Goto(accessor);
       }
 
@@ -648,9 +657,9 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
         if (accessor != nullptr) {
           // Accessor case.
-          var_accessor_pair->Bind(
-              LoadValueByKeyIndex<NameDictionary>(dictionary, entry));
-          var_accessor_holder->Bind(holder);
+          *var_accessor_pair =
+              LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+          *var_accessor_holder = holder;
           Goto(accessor);
         } else {
           Goto(&ok_to_write);
@@ -666,14 +675,14 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         TNode<Object> value =
             LoadObjectField(property_cell, PropertyCell::kValueOffset);
         GotoIf(TaggedEqual(value, TheHoleConstant()), &next_proto);
-        TNode<Int32T> details = LoadAndUntagToWord32ObjectField(
-            property_cell, PropertyCell::kPropertyDetailsRawOffset);
+        TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
+            property_cell, PropertyCell::kPropertyDetailsRawOffset));
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         if (accessor != nullptr) {
           // Accessor case.
-          var_accessor_pair->Bind(value);
-          var_accessor_holder->Bind(holder);
+          *var_accessor_pair = value;
+          *var_accessor_holder = holder;
           Goto(accessor);
         } else {
           Goto(&ok_to_write);
@@ -686,8 +695,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     GotoIf(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), bailout);
     TNode<HeapObject> proto = LoadMapPrototype(holder_map);
     GotoIf(IsNull(proto), &ok_to_write);
-    var_holder.Bind(proto);
-    var_holder_map.Bind(LoadMap(proto));
+    var_holder = proto;
+    var_holder_map = LoadMap(proto);
     Goto(&loop);
   }
   BIND(&ok_to_write);
@@ -763,8 +772,10 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     const StoreICParameters* p, ExitPoint* exit_point, Label* slow,
     Maybe<LanguageMode> maybe_language_mode) {
   CSA_ASSERT(this, IsSimpleObjectMap(receiver_map));
-  VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
-  VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
+  // TODO(rmcilroy) Type as Struct once we use a trimmed down
+  // LoadAccessorFromFastObject instead of LoadPropertyFromFastObject.
+  TVARIABLE(Object, var_accessor_pair);
+  TVARIABLE(HeapObject, var_accessor_holder);
   Label fast_properties(this), dictionary_properties(this), accessor(this),
       readonly(this);
   TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
@@ -792,11 +803,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       if (ShouldCallSetter()) {
         // Accessor case.
         // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
-        VARIABLE(var_details, MachineRepresentation::kWord32);
+        TVARIABLE(Uint32T, var_details);
         LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
                                    name_index, &var_details,
                                    &var_accessor_pair);
-        var_accessor_holder.Bind(receiver);
+        var_accessor_holder = receiver;
         Goto(&accessor);
       } else {
         // Handle accessor to data property reconfiguration in runtime.
@@ -836,7 +847,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
     NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);
@@ -849,9 +860,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       if (ShouldCallSetter()) {
         // Accessor case.
-        var_accessor_pair.Bind(LoadValueByKeyIndex<NameDictionary>(
-            properties, var_name_index.value()));
-        var_accessor_holder.Bind(receiver);
+        var_accessor_pair = LoadValueByKeyIndex<NameDictionary>(
+            properties, var_name_index.value());
+        var_accessor_holder = receiver;
         Goto(&accessor);
       } else {
         // We must reconfigure an accessor property to a data property
@@ -870,6 +881,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&not_found);
     {
+      // TODO(jkummerow): Also add support to correctly handle integer exotic
+      // cases for typed arrays and remove this check here.
+      GotoIf(InstanceTypeEqual(LoadMapInstanceType(receiver_map),
+                               JS_TYPED_ARRAY_TYPE),
+             slow);
       CheckForAssociatedProtector(name, slow);
       Label extensible(this), is_private_symbol(this);
       TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
@@ -909,7 +925,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&accessor);
     {
       Label not_callable(this);
-      Node* accessor_pair = var_accessor_pair.value();
+      TNode<Struct> accessor_pair = CAST(var_accessor_pair.value());
       GotoIf(IsAccessorInfoMap(LoadMap(accessor_pair)), slow);
       CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
       TNode<HeapObject> setter =
@@ -951,7 +967,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       LanguageMode language_mode;
       if (maybe_language_mode.To(&language_mode)) {
         if (language_mode == LanguageMode::kStrict) {
-          Node* type = Typeof(p->receiver());
+          TNode<String> type = Typeof(p->receiver());
           ThrowTypeError(p->context(), MessageTemplate::kStrictReadOnlyProperty,
                          name, type, p->receiver());
         } else {
@@ -969,15 +985,16 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
 // Helper that is used by the public KeyedStoreGeneric and by SetProperty.
 void KeyedStoreGenericAssembler::KeyedStoreGeneric(
-    TNode<Context> context, TNode<Object> receiver, TNode<Object> key,
+    TNode<Context> context, TNode<Object> receiver_maybe_smi, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode) {
   TVARIABLE(IntPtrT, var_index);
-  TVARIABLE(Object, var_unique, key);
+  TVARIABLE(Name, var_unique);
   Label if_index(this), if_unique_name(this), not_internalized(this),
       slow(this);
 
-  GotoIf(TaggedIsSmi(receiver), &slow);
-  TNode<Map> receiver_map = LoadMap(CAST(receiver));
+  GotoIf(TaggedIsSmi(receiver_maybe_smi), &slow);
+  TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+  TNode<Map> receiver_map = LoadMap(receiver);
   TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
@@ -989,14 +1006,14 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&if_index);
   {
     Comment("integer index");
-    EmitGenericElementStore(receiver, receiver_map, instance_type,
+    EmitGenericElementStore(CAST(receiver), receiver_map, instance_type,
                             var_index.value(), value, context, &slow);
   }
 
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value, nullptr,
+    StoreICParameters p(context, receiver, var_unique.value(), value, {},
                         nullptr);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &direct_exit,
@@ -1006,7 +1023,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&not_internalized);
   {
     if (FLAG_internalize_on_the_fly) {
-      TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+      TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                            &var_unique, &slow, &slow);
     } else {
       Goto(&slow);
@@ -1049,30 +1066,34 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   using Descriptor = StoreDescriptor;
 
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Object> receiver_maybe_smi = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label miss(this, Label::kDeferred), store_property(this);
 
-  GotoIf(TaggedIsSmi(receiver), &miss);
-  TNode<Map> receiver_map = LoadMap(receiver);
-  TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
-  // Receivers requiring non-standard element accesses (interceptors, access
-  // checks, strings and string wrappers, proxies) are handled in the runtime.
-  GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
+  GotoIf(TaggedIsSmi(receiver_maybe_smi), &miss);
+
   {
-    StoreICParameters p(CAST(context), receiver, name, value, slot,
-                        UndefinedConstant());
-    EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
+    TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+    TNode<Map> receiver_map = LoadMap(receiver);
+    TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
+    // Receivers requiring non-standard element accesses (interceptors, access
+    // checks, strings and string wrappers, proxies) are handled in the runtime.
+    GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
+    {
+      StoreICParameters p(context, receiver, name, value, slot,
+                          UndefinedConstant());
+      EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &miss);
+    }
   }
 
   BIND(&miss);
   {
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                    UndefinedConstant(), receiver, name);
+                    UndefinedConstant(), receiver_maybe_smi, name);
   }
 }
 
@@ -1082,7 +1103,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                              TNode<Name> unique_name,
                                              TNode<Object> value,
                                              LanguageMode language_mode) {
-  StoreICParameters p(context, receiver, unique_name, value, nullptr, nullptr);
+  StoreICParameters p(context, receiver, unique_name, value, {}, nullptr);
 
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](Node* result) { Goto(&done); });

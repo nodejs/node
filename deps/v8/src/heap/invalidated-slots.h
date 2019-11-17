@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_INVALIDATED_SLOTS_H_
 #define V8_HEAP_INVALIDATED_SLOTS_H_
 
-#include <map>
+#include <set>
 #include <stack>
 
 #include "src/base/atomic-utils.h"
@@ -20,7 +20,7 @@ namespace internal {
 // that potentially invalidates slots recorded concurrently. The second part
 // of each element is the size of the corresponding object before the layout
 // change.
-using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
+using InvalidatedSlots = std::set<HeapObject, Object::Comparer>;
 
 // This class provides IsValid predicate that takes into account the set
 // of invalidated objects in the given memory chunk.
@@ -34,8 +34,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   static InvalidatedSlotsFilter OldToNew(MemoryChunk* chunk);
 
   explicit InvalidatedSlotsFilter(MemoryChunk* chunk,
-                                  InvalidatedSlots* invalidated_slots,
-                                  bool slots_in_free_space_are_valid);
+                                  InvalidatedSlots* invalidated_slots);
   inline bool IsValid(Address slot);
 
  private:
@@ -43,14 +42,15 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   InvalidatedSlots::const_iterator iterator_end_;
   Address sentinel_;
   Address invalidated_start_;
-  Address invalidated_end_;
-  HeapObject invalidated_object_;
-  int invalidated_object_size_;
-  bool slots_in_free_space_are_valid_;
+  Address next_invalidated_start_;
+  int invalidated_size_;
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;
 #endif
+
+ private:
+  inline void NextInvalidatedObject();
 };
 
 class V8_EXPORT_PRIVATE InvalidatedSlotsCleanup {
@@ -71,7 +71,6 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsCleanup {
 
   Address sentinel_;
   Address invalidated_start_;
-  Address invalidated_end_;
 
   inline void NextInvalidatedObject();
 #ifdef DEBUG

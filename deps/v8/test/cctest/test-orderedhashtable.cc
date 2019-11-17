@@ -1262,6 +1262,7 @@ TEST(OrderedHashMapHandlerInsertion) {
   Verify(isolate, map);
   CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
   CHECK(SmallOrderedHashMap::Is(map));
+
   for (int i = 0; i < 1024; i++) {
     Handle<Smi> key_i(Smi::FromInt(i), isolate);
     Handle<Smi> value_i(Smi::FromInt(i), isolate);
@@ -1274,6 +1275,83 @@ TEST(OrderedHashMapHandlerInsertion) {
     }
   }
   CHECK(OrderedHashMap::Is(map));
+}
+
+TEST(OrderedHashSetHandlerDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> set =
+      OrderedHashSetHandler::Allocate(isolate, 4).ToHandleChecked();
+  Verify(isolate, set);
+
+  // Add a new key.
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashSetHandler::HasKey(isolate, set, key1));
+  set = OrderedHashSetHandler::Add(isolate, set, key1).ToHandleChecked();
+  Verify(isolate, set);
+  CHECK(OrderedHashSetHandler::HasKey(isolate, set, key1));
+
+  // Add existing key.
+  set = OrderedHashSetHandler::Add(isolate, set, key1).ToHandleChecked();
+  Verify(isolate, set);
+  CHECK(OrderedHashSetHandler::HasKey(isolate, set, key1));
+  CHECK(SmallOrderedHashSet::Is(set));
+
+  // Remove a non-existing key.
+  Handle<Smi> key2(Smi::FromInt(2), isolate);
+  OrderedHashSetHandler::Delete(isolate, set, key2);
+  Verify(isolate, set);
+  CHECK(OrderedHashSetHandler::HasKey(isolate, set, key1));
+  CHECK(!OrderedHashSetHandler::HasKey(isolate, set, key2));
+  CHECK(SmallOrderedHashSet::Is(set));
+
+  // Remove an existing key.
+  OrderedHashSetHandler::Delete(isolate, set, key1);
+  Verify(isolate, set);
+  CHECK(!OrderedHashSetHandler::HasKey(isolate, set, key1));
+  CHECK(SmallOrderedHashSet::Is(set));
+}
+
+TEST(OrderedHashMapHandlerDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> map =
+      OrderedHashMapHandler::Allocate(isolate, 4).ToHandleChecked();
+  Verify(isolate, map);
+
+  // Add a new key.
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key1));
+  map =
+      OrderedHashMapHandler::Add(isolate, map, key1, value1).ToHandleChecked();
+  Verify(isolate, map);
+  CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
+
+  // Add existing key.
+  map =
+      OrderedHashMapHandler::Add(isolate, map, key1, value1).ToHandleChecked();
+  Verify(isolate, map);
+  CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
+  CHECK(SmallOrderedHashMap::Is(map));
+
+  // Remove a non-existing key.
+  Handle<Smi> key2(Smi::FromInt(2), isolate);
+  OrderedHashMapHandler::Delete(isolate, map, key2);
+  Verify(isolate, map);
+  CHECK(OrderedHashMapHandler::HasKey(isolate, map, key1));
+  CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key2));
+  CHECK(SmallOrderedHashMap::Is(map));
+
+  // Remove an existing key.
+  OrderedHashMapHandler::Delete(isolate, map, key1);
+  Verify(isolate, map);
+  CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key1));
+  CHECK(SmallOrderedHashMap::Is(map));
 }
 
 TEST(OrderedNameDictionaryInsertion) {
@@ -1796,6 +1874,49 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
   }
 
   CHECK(table->IsOrderedNameDictionary());
+}
+
+TEST(OrderedNameDictionaryHandlerDeletion) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  HandleScope scope(isolate);
+
+  Handle<HeapObject> table =
+      OrderedNameDictionaryHandler::Allocate(isolate, 4).ToHandleChecked();
+  CHECK(table->IsSmallOrderedNameDictionary());
+  Verify(isolate, table);
+
+  // Add a new key.
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  Handle<String> key = isolate->factory()->InternalizeUtf8String("foo");
+  Handle<String> key2 = isolate->factory()->InternalizeUtf8String("foo2");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  table = OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
+              .ToHandleChecked();
+  DCHECK(key->IsUniqueName());
+  Verify(isolate, table);
+  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK_NE(OrderedNameDictionaryHandler::kNotFound,
+           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key));
+
+  // Remove a non-existing key.
+  OrderedNameDictionaryHandler::Delete(isolate, table, key2);
+  Verify(isolate, table);
+  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK_EQ(OrderedNameDictionaryHandler::kNotFound,
+           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key2));
+  CHECK_NE(OrderedNameDictionaryHandler::kNotFound,
+           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key));
+
+  // Remove an existing key.
+  OrderedNameDictionaryHandler::Delete(isolate, table, key);
+  Verify(isolate, table);
+  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK_EQ(OrderedNameDictionaryHandler::kNotFound,
+           OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key));
+
+  CHECK(table->IsSmallOrderedNameDictionary());
 }
 
 TEST(OrderedNameDictionarySetEntry) {

@@ -658,7 +658,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) OrderedHashTableHandler {
   using Entry = int;
 
   static MaybeHandle<HeapObject> Allocate(Isolate* isolate, int capacity);
-  static bool Delete(Handle<HeapObject> table, Handle<Object> key);
+  static bool Delete(Isolate* isolate, Handle<HeapObject> table,
+                     Handle<Object> key);
   static bool HasKey(Isolate* isolate, Handle<HeapObject> table,
                      Handle<Object> key);
 
@@ -730,6 +731,7 @@ class OrderedNameDictionary
 
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
+  static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
   static const int kPropertyDetailsOffset = 2;
@@ -831,6 +833,7 @@ class SmallOrderedNameDictionary
                                   Object value, PropertyDetails details);
 
   static inline RootIndex GetMapRootIndex();
+  static inline bool Is(Handle<HeapObject> table);
 
   OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,
                       SmallOrderedHashTable<SmallOrderedNameDictionary>);

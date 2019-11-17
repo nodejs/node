@@ -110,6 +110,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_collect_source_positions)
   FLAG_ACCESSOR(kAllowHarmonyNullish, allow_harmony_nullish,
                 set_allow_harmony_nullish)
+  FLAG_ACCESSOR(kAllowHarmonyTopLevelAwait, allow_harmony_top_level_await,
+                set_allow_harmony_top_level_await)
 
 #undef FLAG_ACCESSOR
 
@@ -319,6 +321,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsOneshotIIFE = 1 << 27,
     kCollectSourcePositions = 1 << 28,
     kAllowHarmonyNullish = 1 << 29,
+    kAllowHarmonyTopLevelAwait = 1 << 30,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

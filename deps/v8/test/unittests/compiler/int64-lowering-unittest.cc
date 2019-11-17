@@ -1015,7 +1015,7 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode
 
-  auto lowering_special_case = base::make_unique<Int64LoweringSpecialCase>();
+  auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
   lowering_special_case->bigint_to_i64_call_descriptor =
       bigint_to_i64_call_descriptor;
   lowering_special_case->bigint_to_i32_pair_call_descriptor =
@@ -1063,7 +1063,7 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
           Operator::kNoProperties,         // properties
           StubCallMode::kCallCodeObject);  // stub call mode
 
-  auto lowering_special_case = base::make_unique<Int64LoweringSpecialCase>();
+  auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
   lowering_special_case->i64_to_bigint_call_descriptor =
       i64_to_bigint_call_descriptor;
   lowering_special_case->i32_pair_to_bigint_call_descriptor =

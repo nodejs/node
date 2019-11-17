@@ -8,9 +8,9 @@ const builder = new WasmModuleBuilder();
 builder.addFunction(undefined, kSig_v_v)
   .addLocals({i32_count: 1}).addLocals({f32_count: 1}).addLocals({f64_count: 1})
   .addBody([
-kExprGetLocal, 1,
-kExprGetLocal, 2,
-kExprGetLocal, 0,
+kExprLocalGet, 1,
+kExprLocalGet, 2,
+kExprLocalGet, 0,
 kExprIf, kWasmI32,
   kExprI32Const, 1,
 kExprElse,

@@ -5,9 +5,6 @@
 #include 'src/builtins/builtins-regexp-gen.h'
 
 namespace string {
-  extern macro RegExpBuiltinsAssembler::IsRegExp(implicit context:
-                                                     Context)(Object): bool;
-
   // https://tc39.github.io/ecma262/#sec-string.prototype.startswith
   transitioning javascript builtin StringPrototypeStartsWith(
       js-implicit context: Context, receiver: JSAny)(...arguments): Boolean {
@@ -23,7 +20,7 @@ namespace string {
 
     // 3. Let isRegExp be ? IsRegExp(searchString).
     // 4. If isRegExp is true, throw a TypeError exception.
-    if (IsRegExp(searchString)) {
+    if (regexp::IsRegExp(searchString)) {
       ThrowTypeError(kFirstArgumentNotRegExp, kBuiltinName);
     }
 

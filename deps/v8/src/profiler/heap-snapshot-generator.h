@@ -6,6 +6,7 @@
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

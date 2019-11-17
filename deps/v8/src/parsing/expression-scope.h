@@ -625,14 +625,8 @@ class AccumulationScope {
     if (!scope->CanBeExpression()) return;
     scope_ = scope->AsExpressionParsingScope();
     for (int i = 0; i < kNumberOfErrors; i++) {
-      // If the underlying scope is already invalid at the start, stop
-      // accumulating. That means an error was found outside of an
-      // accumulating path.
-      if (!scope_->is_valid(i)) {
-        scope_ = nullptr;
-        break;
-      }
       copy(i);
+      scope_->clear(i);
     }
   }
 

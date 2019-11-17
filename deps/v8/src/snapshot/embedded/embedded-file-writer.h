@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"

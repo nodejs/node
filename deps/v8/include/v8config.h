@@ -54,7 +54,7 @@
 
 
 // -----------------------------------------------------------------------------
-// Operating system detection
+// Operating system detection (host)
 //
 //  V8_OS_ANDROID       - Android
 //  V8_OS_BSD           - BSDish (Mac OS X, Net/Free/Open/DragonFlyBSD)
@@ -122,6 +122,67 @@
 # define V8_OS_WIN 1
 #endif
 
+// -----------------------------------------------------------------------------
+// Operating system detection (target)
+//
+//  V8_TARGET_OS_ANDROID
+//  V8_TARGET_OS_FUCHSIA
+//  V8_TARGET_OS_IOS
+//  V8_TARGET_OS_LINUX
+//  V8_TARGET_OS_MACOSX
+//  V8_TARGET_OS_WIN
+//
+// If not set explicitly, these fall back to corresponding V8_OS_ values.
+
+#ifdef V8_HAVE_TARGET_OS
+
+// The target OS is provided, just check that at least one known value is set.
+# if !defined(V8_TARGET_OS_ANDROID) \
+  && !defined(V8_TARGET_OS_FUCHSIA) \
+  && !defined(V8_TARGET_OS_IOS) \
+  && !defined(V8_TARGET_OS_LINUX) \
+  && !defined(V8_TARGET_OS_MACOSX) \
+  && !defined(V8_TARGET_OS_WIN)
+#  error No known target OS defined.
+# endif
+
+#else  // V8_HAVE_TARGET_OS
+
+# if defined(V8_TARGET_OS_ANDROID) \
+  || defined(V8_TARGET_OS_FUCHSIA) \
+  || defined(V8_TARGET_OS_IOS) \
+  || defined(V8_TARGET_OS_LINUX) \
+  || defined(V8_TARGET_OS_MACOSX) \
+  || defined(V8_TARGET_OS_WIN)
+#  error A target OS is defined but V8_HAVE_TARGET_OS is unset.
+# endif
+
+// Fall back to the detected host OS.
+#ifdef V8_OS_ANDROID
+# define V8_TARGET_OS_ANDROID
+#endif
+
+#ifdef V8_OS_FUCHSIA
+# define V8_TARGET_OS_FUCHSIA
+#endif
+
+#ifdef V8_OS_IOS
+# define V8_TARGET_OS_IOS
+#endif
+
+#ifdef V8_OS_LINUX
+# define V8_TARGET_OS_LINUX
+#endif
+
+#ifdef V8_OS_MACOSX
+# define V8_TARGET_OS_MACOSX
+#endif
+
+#ifdef V8_OS_WIN
+# define V8_TARGET_OS_WIN
+#endif
+
+#endif  // V8_HAVE_TARGET_OS
 
 // -----------------------------------------------------------------------------
 // C library detection
@@ -169,7 +230,7 @@
 //
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
-//  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
+//  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
@@ -188,10 +249,8 @@
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
 //                                        supported
-//  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
-//  V8_HAS_DECLSPEC_NORETURN            - __declspec(noreturn) supported
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //
 // Note that testing for compilers and/or features must be done using #if
@@ -207,9 +266,7 @@
 #endif
 
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
-# define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
-# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
-    (__has_extension(attribute_deprecated_with_message))
+# define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
@@ -255,8 +312,6 @@
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
-# define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
@@ -278,10 +333,8 @@
 #if defined(_MSC_VER)
 # define V8_CC_MSVC 1
 
-# define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
-# define V8_HAS_DECLSPEC_NORETURN 1
 
 # define V8_HAS___FORCEINLINE 1
 
@@ -306,8 +359,19 @@
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   __builtin_assume_aligned((ptr), (alignment))
 #else
-# define V8_ASSUME_ALIGNED(ptr) (ptr)
+# define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
+
+
+// A macro to mark specific arguments as non-null.
+// Use like:
+//   int add(int* x, int y, int* z) V8_NONNULL(1, 3) { return *x + y + *z; }
+#if V8_HAS_ATTRIBUTE_NONNULL
+# define V8_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#else
+# define V8_NONNULL(...) /* NOT SUPPORTED */
+#endif
+
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.
@@ -323,31 +387,18 @@
 
 
 // A macro (V8_DEPRECATED) to mark classes or functions as deprecated.
-#if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-#define V8_DEPRECATED(message, declarator) \
-  declarator __attribute__((deprecated(message)))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-#define V8_DEPRECATED(message, declarator) \
-  declarator __attribute__((deprecated))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-#define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
+#if defined(V8_DEPRECATION_WARNINGS)
+# define V8_DEPRECATED(message) [[deprecated(message)]]
 #else
-#define V8_DEPRECATED(message, declarator) declarator
+# define V8_DEPRECATED(message)
 #endif
 
 
 // A macro (V8_DEPRECATE_SOON) to make it easier to see what will be deprecated.
-#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) && \
-    V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-#define V8_DEPRECATE_SOON(message, declarator) \
-  declarator __attribute__((deprecated(message)))
-#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-#define V8_DEPRECATE_SOON(message, declarator) \
-  declarator __attribute__((deprecated))
-#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-#define V8_DEPRECATE_SOON(message, declarator) __declspec(deprecated) declarator
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS)
+# define V8_DEPRECATE_SOON(message) [[deprecated(message)]]
 #else
-#define V8_DEPRECATE_SOON(message, declarator) declarator
+# define V8_DEPRECATE_SOON(message)
 #endif
 
 

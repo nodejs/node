@@ -6,9 +6,6 @@
 
 namespace regexp {
 
-  const kRegExpPrototypeSourceGetter: constexpr int31
-  generates 'v8::Isolate::kRegExpPrototypeSourceGetter';
-
   // ES6 21.2.5.10.
   // ES #sec-get-regexp.prototype.source
   transitioning javascript builtin RegExpPrototypeSourceGetter(

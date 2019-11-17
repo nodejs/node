@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
 #include "src/utils/memcopy.h"
@@ -166,6 +167,9 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
+  if (FLAG_randomize_all_allocations) {
+    hint = page_allocator->GetRandomMmapAddr();
+  }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result = page_allocator->AllocatePages(hint, size, alignment, access);

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_INT64_LOWERING_H_
 #define V8_COMPILER_INT64_LOWERING_H_
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"

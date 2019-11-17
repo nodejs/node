@@ -353,7 +353,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     };
     int index = rng_->NextInt(kMaxIndex);
     // destination can't be Constant.
-    switch (rng_->NextInt(is_source ? 5 : 4)) {
+    switch (rng_->NextInt(is_source ? 3 : 2)) {
       case 0:
         return AllocatedOperand(LocationOperand::STACK_SLOT, rep,
                                 GetValidSlotIndex(rep, index));
@@ -361,12 +361,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return AllocatedOperand(LocationOperand::REGISTER, rep,
                                 GetValidRegisterCode(rep, index));
       case 2:
-        return ExplicitOperand(LocationOperand::REGISTER, rep,
-                               GetValidRegisterCode(rep, 1));
-      case 3:
-        return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
-                               GetValidSlotIndex(rep, index));
-      case 4:
         return ConstantOperand(index);
     }
     UNREACHABLE();

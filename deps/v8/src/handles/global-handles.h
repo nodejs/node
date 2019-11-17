@@ -5,6 +5,7 @@
 #ifndef V8_HANDLES_GLOBAL_HANDLES_H_
 #define V8_HANDLES_GLOBAL_HANDLES_H_
 
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include <vector>

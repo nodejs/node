@@ -5,6 +5,8 @@
 #ifndef V8_TORQUE_TYPE_ORACLE_H_
 #define V8_TORQUE_TYPE_ORACLE_H_
 
+#include <memory>
+
 #include "src/torque/contextual.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"

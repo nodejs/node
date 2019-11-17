@@ -153,8 +153,17 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(target.IsHeapObject());
-        RememberedSet<OLD_TO_NEW>::Insert(MemoryChunk::FromHeapObject(host),
-                                          slot.address());
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+
+        // Sweeper is stopped during scavenge, so we can directly
+        // insert into its remembered set here.
+        if (chunk->sweeping_slot_set()) {
+          RememberedSetSweeping::Insert<AccessMode::ATOMIC>(chunk,
+                                                            slot.address());
+        } else {
+          RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
+                                                                slot.address());
+        }
       }
       SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
           HeapObject::cast(target)));
@@ -165,8 +174,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.
-      RememberedSet<OLD_TO_OLD>::Insert(MemoryChunk::FromHeapObject(host),
-                                        slot.address());
+      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
+          MemoryChunk::FromHeapObject(host), slot.address());
     }
   }
 
@@ -239,8 +248,10 @@ void ScavengerCollector::CollectGarbage() {
     // access to the slots of a page and can completely avoid any locks on
     // the page itself.
     Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages(
-        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
+    filter_scope.FilterOldSpaceSweepingPages([](Page* page) {
+      return !page->ContainsSlots<OLD_TO_NEW>() && !page->sweeping_slot_set();
+    });
+
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
         heap_, [&job](MemoryChunk* chunk) {
           job.AddItem(new PageScavengingItem(chunk));
@@ -335,11 +346,7 @@ void ScavengerCollector::CollectGarbage() {
   heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(heap_, [](MemoryChunk* chunk) {
-    if (chunk->SweepingDone()) {
-      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-    } else {
-      RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
-    }
+    RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
   });
 
   // Update how much has survived scavenge.
@@ -430,16 +437,45 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   }
 }
 
+// Remove this crashkey after chromium:1010312 is fixed.
+class ScopedFullHeapCrashKey {
+ public:
+  explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");
+  }
+  ~ScopedFullHeapCrashKey() {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "");
+  }
+
+ private:
+  Isolate* isolate_ = nullptr;
+};
+
 void Scavenger::ScavengePage(MemoryChunk* page) {
+  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(heap_->isolate());
   CodePageMemoryModificationScope memory_modification_scope(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
-      [this](MaybeObjectSlot addr) {
-        return CheckAndScavengeObject(heap_, addr);
+      [this, &filter](MaybeObjectSlot slot) {
+        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        return CheckAndScavengeObject(heap_, slot);
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  filter = InvalidatedSlotsFilter::OldToNew(page);
+  RememberedSetSweeping::Iterate(
+      page,
+      [this, &filter](MaybeObjectSlot slot) {
+        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        return CheckAndScavengeObject(heap_, slot);
       },
       SlotSet::KEEP_EMPTY_BUCKETS);
 
-  DCHECK_NULL(page->invalidated_slots<OLD_TO_NEW>());
+  if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
+    // The invalidated slots are not needed after old-to-new slots were
+    // processed.
+    page->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+  }
 
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [=](SlotType type, Address addr) {

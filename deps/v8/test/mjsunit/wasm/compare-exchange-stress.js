@@ -37,42 +37,42 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     const kLocalNextValue = 7; // the value to write in the update
     let body = [
         // Turn sequence length to equivalent in bytes.
-        kExprGetLocal, kArgSeqenceLength,
+        kExprLocalGet, kArgSeqenceLength,
         kExprI32Const, size / 8,
         kExprI32Mul,
-        kExprSetLocal, kArgSeqenceLength,
+        kExprLocalSet, kArgSeqenceLength,
         // Outer block so we have something to jump for return.
         ...[kExprBlock, kWasmStmt,
             // Set counter to 0.
             kExprI32Const, 0,
-            kExprSetLocal, kLocalCurrentOffset,
+            kExprLocalSet, kLocalCurrentOffset,
             // Outer loop until maxcount.
             ...[kExprLoop, kWasmStmt,
                 // Find the next value to wait for.
                 ...[kExprLoop, kWasmStmt,
                     // Check end of sequence.
-                    kExprGetLocal, kLocalCurrentOffset,
-                    kExprGetLocal, kArgSeqenceLength,
+                    kExprLocalGet, kLocalCurrentOffset,
+                    kExprLocalGet, kArgSeqenceLength,
                     kExprI32Eq,
                     kExprBrIf, 2, // return
                     ...[kExprBlock, kWasmStmt,
                         // Load next value.
-                        kExprGetLocal, kArgSequencePtr,
-                        kExprGetLocal, kLocalCurrentOffset,
+                        kExprLocalGet, kArgSequencePtr,
+                        kExprLocalGet, kLocalCurrentOffset,
                         kExprI32Add,
                         loadMemOpcode, 0, 0,
                         // Mask off bits.
-                        kExprGetLocal, kArgBitMask,
+                        kExprLocalGet, kArgBitMask,
                         kExprI32And,
                         // Compare with worker id.
-                        kExprGetLocal, kArgWorkerId,
+                        kExprLocalGet, kArgWorkerId,
                         kExprI32Eq,
                         kExprBrIf, 0,
                         // Not found, increment position.
-                        kExprGetLocal, kLocalCurrentOffset,
+                        kExprLocalGet, kLocalCurrentOffset,
                         kExprI32Const, size / 8,
                         kExprI32Add,
-                        kExprSetLocal, kLocalCurrentOffset,
+                        kExprLocalSet, kLocalCurrentOffset,
                         kExprBr, 1,
                         kExprEnd
                     ],
@@ -80,41 +80,41 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                     kExprEnd
                 ],
                 // Load expected value to local.
-                kExprGetLocal, kArgSequencePtr,
-                kExprGetLocal, kLocalCurrentOffset,
+                kExprLocalGet, kArgSequencePtr,
+                kExprLocalGet, kLocalCurrentOffset,
                 kExprI32Add,
                 loadMemOpcode, 0, 0,
-                kExprSetLocal, kLocalExpectedValue,
+                kExprLocalSet, kLocalExpectedValue,
                 // Load value after expected one.
-                kExprGetLocal, kArgSequencePtr,
-                kExprGetLocal, kLocalCurrentOffset,
+                kExprLocalGet, kArgSequencePtr,
+                kExprLocalGet, kLocalCurrentOffset,
                 kExprI32Add,
                 kExprI32Const, size / 8,
                 kExprI32Add,
                 loadMemOpcode, 0, 0,
-                kExprSetLocal, kLocalNextValue,
+                kExprLocalSet, kLocalNextValue,
                 // Hammer on memory until value found.
                 ...[kExprLoop, kWasmStmt,
                     // Load address.
-                    kExprGetLocal, kArgMemoryCell,
+                    kExprLocalGet, kArgMemoryCell,
                     // Load expected value.
-                    kExprGetLocal, kLocalExpectedValue,
+                    kExprLocalGet, kLocalExpectedValue,
                     // Load updated value.
-                    kExprGetLocal, kLocalNextValue,
+                    kExprLocalGet, kLocalNextValue,
                     // Try update.
                     kAtomicPrefix, compareExchangeOpcode, 0, 0,
                     // Load expected value.
-                    kExprGetLocal, kLocalExpectedValue,
+                    kExprLocalGet, kLocalExpectedValue,
                     // Spin if not what expected.
                     kExprI32Ne,
                     kExprBrIf, 0,
                     kExprEnd
                 ],
                 // Next iteration of loop.
-                kExprGetLocal, kLocalCurrentOffset,
+                kExprLocalGet, kLocalCurrentOffset,
                 kExprI32Const, size / 8,
                 kExprI32Add,
-                kExprSetLocal, kLocalCurrentOffset,
+                kExprLocalSet, kLocalCurrentOffset,
                 kExprBr, 0,
                 kExprEnd
             ], // outer loop

@@ -8,11 +8,12 @@ tebbi@chromium.org
 neis@chromium.org
 mvstanton@chromium.org
 mslekova@chromium.org
+jgruber@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org
 per-file wasm-*=binji@chromium.org
-per-file wasm-*=clemensh@chromium.org
+per-file wasm-*=clemensb@chromium.org
 per-file wasm-*=gdeepti@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org

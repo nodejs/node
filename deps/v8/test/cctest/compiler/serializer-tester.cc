@@ -52,17 +52,19 @@ SerializerTester::SerializerTester(const char* source)
 TEST(SerializeEmptyFunction) {
   SerializerTester tester(
       "function f() {}; %EnsureFeedbackVectorForFunction(f); return f;");
-  CHECK(tester.function().IsSerializedForCompilation());
+  JSFunctionRef function = tester.function();
+  CHECK(
+      function.shared().IsSerializedForCompilation(function.feedback_vector()));
 }
 
-// This helper function allows for testing weather an inlinee candidate
+// This helper function allows for testing whether an inlinee candidate
 // was properly serialized. It expects that the top-level function (that is
 // run through the SerializerTester) will return its inlinee candidate.
 void CheckForSerializedInlinee(const char* source, int argc = 0,
                                Handle<Object> argv[] = {}) {
   SerializerTester tester(source);
   JSFunctionRef f = tester.function();
-  CHECK(f.IsSerializedForCompilation());
+  CHECK(f.shared().IsSerializedForCompilation(f.feedback_vector()));
 
   MaybeHandle<Object> g_obj = Execution::Call(
       tester.isolate(), tester.function().object(),

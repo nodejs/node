@@ -28,8 +28,8 @@ class JSFinalizationGroup : public JSObject {
   DECL_ACCESSORS(native_context, NativeContext)
   DECL_ACCESSORS(cleanup, Object)
 
-  DECL_ACCESSORS(active_cells, Object)
-  DECL_ACCESSORS(cleared_cells, Object)
+  DECL_ACCESSORS(active_cells, HeapObject)
+  DECL_ACCESSORS(cleared_cells, HeapObject)
   DECL_ACCESSORS(key_map, Object)
 
   // For storing a list of JSFinalizationGroup objects in NativeContext.
@@ -66,7 +66,7 @@ class JSFinalizationGroup : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSFINALIZATION_GROUP_FIELDS)
+                                TORQUE_GENERATED_JS_FINALIZATION_GROUP_FIELDS)
 
   // Bitfields in flags.
   using ScheduledForCleanupField = BitField<bool, 0, 1>;
@@ -75,32 +75,10 @@ class JSFinalizationGroup : public JSObject {
 };
 
 // Internal object for storing weak references in JSFinalizationGroup.
-class WeakCell : public HeapObject {
+class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
  public:
   DECL_PRINTER(WeakCell)
   EXPORT_DECL_VERIFIER(WeakCell)
-  DECL_CAST(WeakCell)
-
-  DECL_ACCESSORS(finalization_group, Object)
-  DECL_ACCESSORS(target, HeapObject)
-  DECL_ACCESSORS(holdings, Object)
-
-  // For storing doubly linked lists of WeakCells in JSFinalizationGroup's
-  // "active_cells" and "cleared_cells" lists.
-  DECL_ACCESSORS(prev, Object)
-  DECL_ACCESSORS(next, Object)
-
-  // For storing doubly linked lists of WeakCells per key in
-  // JSFinalizationGroup's key-based hashmap. WeakCell also needs to know its
-  // key, so that we can remove the key from the key_map when we remove the last
-  // WeakCell associated with it.
-  DECL_ACCESSORS(key, Object)
-  DECL_ACCESSORS(key_list_prev, Object)
-  DECL_ACCESSORS(key_list_next, Object)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_CELL_FIELDS)
 
   class BodyDescriptor;
 
@@ -115,40 +93,27 @@ class WeakCell : public HeapObject {
 
   inline void RemoveFromFinalizationGroupCells(Isolate* isolate);
 
-  OBJECT_CONSTRUCTORS(WeakCell, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(WeakCell)
 };
 
-class JSWeakRef : public JSObject {
+class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
  public:
   DECL_PRINTER(JSWeakRef)
   EXPORT_DECL_VERIFIER(JSWeakRef)
-  DECL_CAST(JSWeakRef)
-
-  DECL_ACCESSORS(target, HeapObject)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_REF_FIELDS)
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(JSWeakRef, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
 };
 
-class JSFinalizationGroupCleanupIterator : public JSObject {
+class JSFinalizationGroupCleanupIterator
+    : public TorqueGeneratedJSFinalizationGroupCleanupIterator<
+          JSFinalizationGroupCleanupIterator, JSObject> {
  public:
   DECL_PRINTER(JSFinalizationGroupCleanupIterator)
   DECL_VERIFIER(JSFinalizationGroupCleanupIterator)
-  DECL_CAST(JSFinalizationGroupCleanupIterator)
 
-  DECL_ACCESSORS(finalization_group, JSFinalizationGroup)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-    JSObject::kHeaderSize,
-    TORQUE_GENERATED_JSFINALIZATION_GROUP_CLEANUP_ITERATOR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSFinalizationGroupCleanupIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSFinalizationGroupCleanupIterator)
 };
 
 }  // namespace internal

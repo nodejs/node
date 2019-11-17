@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-compiler::TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
+TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
     TNode<Context> context, TNode<JSReceiver> target,
     TNode<JSReceiver> handler) {
   VARIABLE(map, MachineRepresentation::kTagged);
@@ -59,7 +59,8 @@ compiler::TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
 }
 
 Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
-    Node* context, CodeStubArguments& args, Node* argc, ParameterMode mode) {
+    Node* context, const CodeStubArguments& args, Node* argc,
+    ParameterMode mode) {
   Comment("AllocateJSArrayForCodeStubArguments");
 
   Label if_empty_array(this), allocate_js_array(this);
@@ -80,7 +81,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 
     GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
            &if_large_object);
-    args.ForEach(list, [=, &offset](Node* arg) {
+    args.ForEach(list, [&](TNode<Object> arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
                           offset.value(), arg);
       Increment(&offset, kTaggedSize);
@@ -89,7 +90,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 
     BIND(&if_large_object);
     {
-      args.ForEach(list, [=, &offset](Node* arg) {
+      args.ForEach(list, [&](TNode<Object> arg) {
         Store(allocated_elements, offset.value(), arg);
         Increment(&offset, kTaggedSize);
       });
@@ -124,20 +125,19 @@ Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
   return context;
 }
 
-compiler::TNode<JSFunction>
-ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(TNode<Context> context,
-                                                      TNode<JSProxy> proxy) {
+TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
+    TNode<Context> context, TNode<JSProxy> proxy) {
   TNode<NativeContext> const native_context = LoadNativeContext(context);
 
-  Node* const proxy_context =
-      CreateProxyRevokeFunctionContext(proxy, native_context);
-  TNode<Object> const revoke_map = LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  TNode<Object> const revoke_info =
-      LoadContextElement(native_context, Context::PROXY_REVOKE_SHARED_FUN);
+  const TNode<Context> proxy_context =
+      CAST(CreateProxyRevokeFunctionContext(proxy, native_context));
+  const TNode<Map> revoke_map = CAST(LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+  const TNode<SharedFunctionInfo> revoke_info = CAST(
+      LoadContextElement(native_context, Context::PROXY_REVOKE_SHARED_FUN));
 
-  return CAST(AllocateFunctionWithMapAndContext(revoke_map, revoke_info,
-                                                proxy_context));
+  return AllocateFunctionWithMapAndContext(revoke_map, revoke_info,
+                                           proxy_context);
 }
 
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {

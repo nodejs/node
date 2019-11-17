@@ -13,7 +13,7 @@ let types = new Array(argc).fill(kWasmI32);
 let sig = makeSig(types, []);
 let body = [];
 for (let i = 0; i < argc; ++i) {
-  body.push(kExprGetLocal, i);
+  body.push(kExprLocalGet, i);
 }
 body.push(kExprCallFunction, 0);
 builder.addImport('', 'f', sig);

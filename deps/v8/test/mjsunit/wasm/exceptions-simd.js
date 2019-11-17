@@ -14,7 +14,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   builder.addFunction("throw_simd", kSig_v_v)
       .addLocals({s128_count: 1})
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprThrow, 0,
       ])
       .exportFunc();
@@ -32,7 +32,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addLocals({s128_count: 1})
       .addBody([
         kExprTry, kWasmS128,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprThrow, 0,
         kExprCatch,
           kExprBrOnExn, 0, except,

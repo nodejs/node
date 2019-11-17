@@ -338,7 +338,7 @@ class SystemTest(unittest.TestCase):
           basedir, dcheck_always_on=True, is_asan=True, is_cfi=True,
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
-          v8_use_snapshot=False, v8_enable_embedded_builtins=False,
+          v8_enable_embedded_builtins=False,
           v8_enable_verify_csa=False, v8_enable_lite_mode=False,
           v8_enable_pointer_compression=False)
       result = run_tests(
@@ -355,7 +355,6 @@ class SystemTest(unittest.TestCase):
           'dcheck_always_on\n'
           'msan\n'
           'no_i18n\n'
-          'no_snap\n'
           'tsan\n'
           'ubsan_vptr\n'
           '>>> Running tests for ia32.release')
@@ -572,7 +571,7 @@ class SystemTest(unittest.TestCase):
     variants.
     """
     with temp_base() as basedir:
-      override_build_config(basedir, v8_use_snapshot=False)
+      override_build_config(basedir, is_asan=True)
       result = run_tests(
           basedir,
           '--mode=Release',

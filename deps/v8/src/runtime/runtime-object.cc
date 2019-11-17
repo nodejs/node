@@ -91,7 +91,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // (2) The property to be deleted must be the last property.
   int nof = receiver_map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
-  int descriptor = nof - 1;
+  InternalIndex descriptor(nof - 1);
   Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
                                       isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;
@@ -132,8 +132,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
     DisallowHeapAllocation no_allocation;
-    isolate->heap()->NotifyObjectLayoutChange(
-        *receiver, receiver_map->instance_size(), no_allocation);
+
+    // Invalidate slots manually later in case we delete an in-object tagged
+    // property. In this case we might later store an untagged value in the
+    // recorded slot.
+    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation,
+                                              InvalidateRecordedSlots::kNo);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.
@@ -149,8 +153,13 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       // Slot clearing is the reason why this entire function cannot currently
       // be implemented in the DeleteProperty stub.
       if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
+        // We need to clear the recorded slot in this case because in-object
+        // slack tracking might not be finished. This ensures that we don't
+        // have recorded slots in free space.
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
+        chunk->InvalidateRecordedSlots(*receiver);
       }
     }
   }

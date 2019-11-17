@@ -1272,8 +1272,13 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       }
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
-    node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
-                                       jsgraph()->IntPtrConstant(0));
+    if (COMPRESS_POINTERS_BOOL) {
+      node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                         jsgraph()->Int32Constant(0));
+    } else {
+      node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
+                                         jsgraph()->IntPtrConstant(0));
+    }
     return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
   } else if (output_rep == MachineRepresentation::kCompressed) {
@@ -1546,14 +1551,17 @@ const Operator* RepresentationChanger::TaggedSignedOperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberLessThan:
-      return machine()->Is32() ? machine()->Int32LessThan()
-                               : machine()->Int64LessThan();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Int32LessThan()
+                 : machine()->Int64LessThan();
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-      return machine()->Is32() ? machine()->Int32LessThanOrEqual()
-                               : machine()->Int64LessThanOrEqual();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Int32LessThanOrEqual()
+                 : machine()->Int64LessThanOrEqual();
     case IrOpcode::kSpeculativeNumberEqual:
-      return machine()->Is32() ? machine()->Word32Equal()
-                               : machine()->Word64Equal();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Word32Equal()
+                 : machine()->Word64Equal();
     default:
       UNREACHABLE();
   }

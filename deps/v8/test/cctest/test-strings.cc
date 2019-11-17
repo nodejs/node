@@ -1857,6 +1857,48 @@ GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
 
 #undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
 
+namespace {
+
+struct IndexData {
+  const char* string;
+  bool is_array_index;
+  uint32_t array_index;
+  bool is_integer_index;
+  size_t integer_index;
+};
+
+void TestString(i::Isolate* isolate, const IndexData& data) {
+  Handle<String> s = isolate->factory()->NewStringFromAsciiChecked(data.string);
+  if (data.is_array_index) {
+    uint32_t index;
+    CHECK(s->AsArrayIndex(&index));
+    CHECK_EQ(data.array_index, index);
+    // AsArrayIndex only forces hash computation for cacheable indices;
+    // so trigger hash computation for longer strings manually.
+    if (s->length() > String::kMaxCachedArrayIndexLength) s->Hash();
+    CHECK_EQ(0, s->hash_field() & String::kIsNotArrayIndexMask);
+    CHECK(s->HasHashCode());
+  }
+  if (data.is_integer_index) {
+    size_t index;
+    CHECK(s->AsIntegerIndex(&index));
+    CHECK_EQ(data.integer_index, index);
+    s->Hash();
+    CHECK_EQ(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(s->HasHashCode());
+  }
+  if (!s->HasHashCode()) s->Hash();
+  CHECK(s->HasHashCode());
+  if (!data.is_array_index) {
+    CHECK_NE(0, s->hash_field() & String::kIsNotArrayIndexMask);
+  }
+  if (!data.is_integer_index) {
+    CHECK_NE(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+  }
+}
+
+}  // namespace
+
 TEST(HashArrayIndexStrings) {
   CcTest::InitializeVM();
   LocalContext context;
@@ -1870,6 +1912,27 @@ TEST(HashArrayIndexStrings) {
   CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
                Name::kHashShift,
            isolate->factory()->one_string()->Hash());
+
+  IndexData tests[] = {
+    {"", false, 0, false, 0},
+    {"123no", false, 0, false, 0},
+    {"12345", true, 12345, true, 12345},
+    {"12345678", true, 12345678, true, 12345678},
+    {"4294967294", true, 4294967294u, true, 4294967294u},
+#if V8_TARGET_ARCH_32_BIT
+    {"4294967295", false, 0, false, 0},  // Valid length but not index.
+    {"4294967296", false, 0, false, 0},
+    {"18446744073709551615", false, 0, false, 0},
+#else
+    {"4294967295", false, 0, true, 4294967295u},
+    {"4294967296", false, 0, true, 4294967296ull},
+    {"18446744073709551615", false, 0, true, 18446744073709551615ull},
+#endif
+    {"18446744073709551616", false, 0, false, 0}
+  };
+  for (int i = 0, n = arraysize(tests); i < n; i++) {
+    TestString(isolate, tests[i]);
+  }
 }
 
 TEST(StringEquals) {

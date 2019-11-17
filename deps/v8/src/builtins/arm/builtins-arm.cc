@@ -885,102 +885,70 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
   __ bind(&no_match);
 }
 
-static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
-                                           Register feedback_vector,
-                                           Register scratch1,
-                                           Register scratch2) {
+static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
+                                      Register optimized_code_entry,
+                                      Register scratch) {
+  // ----------- S t a t e -------------
+  //  -- r3 : new target (preserved for callee if needed, and caller)
+  //  -- r1 : target function (preserved for callee if needed, and caller)
+  // -----------------------------------
+  DCHECK(!AreAliased(r1, r3, optimized_code_entry, scratch));
+
+  Register closure = r1;
+
+  // Check if the optimized code is marked for deopt. If it is, call the
+  // runtime to clear it.
+  Label found_deoptimized_code;
+  __ ldr(scratch,
+         FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ b(ne, &found_deoptimized_code);
+
+  // Optimized code is good, get it into the closure and link the closure
+  // into the optimized functions list, then tail call the optimized code.
+  ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure);
+  static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
+  __ LoadCodeObjectEntry(r2, optimized_code_entry);
+  __ Jump(r2);
+
+  // Optimized code slot contains deoptimized code, evict it and re-enter
+  // the closure's code.
+  __ bind(&found_deoptimized_code);
+  GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
+}
+
+static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
+                              Register optimization_marker) {
   // ----------- S t a t e -------------
   //  -- r3 : new target (preserved for callee if needed, and caller)
   //  -- r1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
+  //  -- optimization_marker : a Smi containing a non-zero optimization marker.
   // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, r1, r3, scratch1, scratch2));
+  DCHECK(!AreAliased(feedback_vector, r1, r3, optimization_marker));
 
-  Label optimized_code_slot_is_weak_ref, fallthrough;
+  // TODO(v8:8394): The logging of first execution will break if
+  // feedback vectors are not allocated. We need to find a different way of
+  // logging these events if required.
+  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
+                                OptimizationMarker::kLogFirstExecution,
+                                Runtime::kFunctionFirstExecution);
+  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
+                                OptimizationMarker::kCompileOptimized,
+                                Runtime::kCompileOptimized_NotConcurrent);
+  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
+                                OptimizationMarker::kCompileOptimizedConcurrent,
+                                Runtime::kCompileOptimized_Concurrent);
 
-  Register closure = r1;
-  Register optimized_code_entry = scratch1;
-
-  __ ldr(
-      optimized_code_entry,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
-
-  // Check if the code entry is a Smi. If yes, we interpret it as an
-  // optimisation marker. Otherwise, interpret it as a weak reference to a code
-  // object.
-  __ JumpIfNotSmi(optimized_code_entry, &optimized_code_slot_is_weak_ref);
-
-  {
-    // Optimized code slot is a Smi optimization marker.
-
-    // Fall through if no optimization trigger.
-    __ cmp(optimized_code_entry,
-           Operand(Smi::FromEnum(OptimizationMarker::kNone)));
-    __ b(eq, &fallthrough);
-
-    // TODO(v8:8394): The logging of first execution will break if
-    // feedback vectors are not allocated. We need to find a different way of
-    // logging these events if required.
-    TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
-                                  OptimizationMarker::kLogFirstExecution,
-                                  Runtime::kFunctionFirstExecution);
-    TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
-                                  OptimizationMarker::kCompileOptimized,
-                                  Runtime::kCompileOptimized_NotConcurrent);
-    TailCallRuntimeIfMarkerEquals(
-        masm, optimized_code_entry,
-        OptimizationMarker::kCompileOptimizedConcurrent,
-        Runtime::kCompileOptimized_Concurrent);
-
-    {
-      // Otherwise, the marker is InOptimizationQueue, so fall through hoping
-      // that an interrupt will eventually update the slot with optimized code.
-      if (FLAG_debug_code) {
-        __ cmp(
-            optimized_code_entry,
-            Operand(Smi::FromEnum(OptimizationMarker::kInOptimizationQueue)));
-        __ Assert(eq, AbortReason::kExpectedOptimizationSentinel);
-      }
-      __ jmp(&fallthrough);
-    }
+  // Otherwise, the marker is InOptimizationQueue, so fall through hoping
+  // that an interrupt will eventually update the slot with optimized code.
+  if (FLAG_debug_code) {
+    __ cmp(optimization_marker,
+           Operand(Smi::FromEnum(OptimizationMarker::kInOptimizationQueue)));
+    __ Assert(eq, AbortReason::kExpectedOptimizationSentinel);
   }
-
-  {
-    // Optimized code slot is a weak reference.
-    __ bind(&optimized_code_slot_is_weak_ref);
-
-    __ LoadWeakValue(optimized_code_entry, optimized_code_entry, &fallthrough);
-
-    // Check if the optimized code is marked for deopt. If it is, call the
-    // runtime to clear it.
-    Label found_deoptimized_code;
-    __ ldr(scratch2, FieldMemOperand(optimized_code_entry,
-                                     Code::kCodeDataContainerOffset));
-    __ ldr(
-        scratch2,
-        FieldMemOperand(scratch2, CodeDataContainer::kKindSpecificFlagsOffset));
-    __ tst(scratch2, Operand(1 << Code::kMarkedForDeoptimizationBit));
-    __ b(ne, &found_deoptimized_code);
-
-    // Optimized code is good, get it into the closure and link the closure into
-    // the optimized functions list, then tail call the optimized code.
-    // The feedback vector is no longer used, so re-use it as a scratch
-    // register.
-    ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure);
-    static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
-    __ LoadCodeObjectEntry(r2, optimized_code_entry);
-    __ Jump(r2);
-
-    // Optimized code slot contains deoptimized code, evict it and re-enter the
-    // closure's code.
-    __ bind(&found_deoptimized_code);
-    GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
-  }
-
-  // Fall-through if the optimized code cell is clear and there is no
-  // optimization marker.
-  __ bind(&fallthrough);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -999,7 +967,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
           ExternalReference::bytecode_size_table_address());
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
-  Label process_bytecode, extra_wide;
+  Label process_bytecode;
   STATIC_ASSERT(0 == static_cast<int>(interpreter::Bytecode::kWide));
   STATIC_ASSERT(1 == static_cast<int>(interpreter::Bytecode::kExtraWide));
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
@@ -1008,30 +976,33 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ cmp(bytecode, Operand(0x3));
   __ b(hi, &process_bytecode);
   __ tst(bytecode, Operand(0x1));
-  __ b(ne, &extra_wide);
-
-  // Load the next bytecode and update table to the wide scaled table.
+  // Load the next bytecode.
   __ add(bytecode_offset, bytecode_offset, Operand(1));
   __ ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+
+  // Update table to the wide scaled table.
   __ add(bytecode_size_table, bytecode_size_table,
          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&process_bytecode);
-
-  __ bind(&extra_wide);
-  // Load the next bytecode and update table to the extra wide scaled table.
-  __ add(bytecode_offset, bytecode_offset, Operand(1));
-  __ ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+  // Conditionally update table to the extra wide scaled table. We are taking
+  // advantage of the fact that the extra wide follows the wide one.
   __ add(bytecode_size_table, bytecode_size_table,
-         Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+         Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount), LeaveCC,
+         ne);
 
   __ bind(&process_bytecode);
 
 // Bailout to the return label if this is a return bytecode.
-#define JUMP_IF_EQUAL(NAME)                                                    \
-  __ cmp(bytecode, Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
-  __ b(if_return, eq);
+
+  // Create cmp, cmpne, ..., cmpne to check for a return bytecode.
+  Condition flag = al;
+#define JUMP_IF_EQUAL(NAME)                                                   \
+  __ cmp(bytecode, Operand(static_cast<int>(interpreter::Bytecode::k##NAME)), \
+         flag);                                                               \
+  flag = ne;
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
+
+  __ b(if_return, eq);
 
   // Otherwise, load the size of the current bytecode and advance the offset.
   __ ldr(scratch1, MemOperand(bytecode_size_table, bytecode, LSL, 2));
@@ -1084,9 +1055,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ cmp(r4, Operand(FEEDBACK_VECTOR_TYPE));
   __ b(ne, &push_stack_frame);
 
-  // Read off the optimized code slot in the feedback vector, and if there
-  // is optimized code or an optimization marker, call that instead.
-  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r4, r6);
+  Register optimized_code_entry = r4;
+
+  // Read off the optimized code slot in the feedback vector.
+  __ ldr(optimized_code_entry,
+         FieldMemOperand(feedback_vector,
+                         FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
+
+  // Check if the optimized code slot is not empty.
+  Label optimized_code_slot_not_empty;
+  __ cmp(optimized_code_entry,
+         Operand(Smi::FromEnum(OptimizationMarker::kNone)));
+  __ b(ne, &optimized_code_slot_not_empty);
+
+  Label not_optimized;
+  __ bind(&not_optimized);
 
   // Increment invocation count for the function.
   __ ldr(r9, FieldMemOperand(feedback_vector,
@@ -1121,28 +1104,26 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(kInterpreterBytecodeArrayRegister, r0);
 
   // Allocate the local and temporary register file on the stack.
+  Label stack_overflow;
   {
     // Load frame size from the BytecodeArray object.
     __ ldr(r4, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
-    Label ok;
     __ sub(r9, sp, Operand(r4));
     LoadRealStackLimit(masm, r2);
     __ cmp(r9, Operand(r2));
-    __ b(hs, &ok);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ bind(&ok);
+    __ b(lo, &stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
     Label loop_check;
-    __ LoadRoot(r9, RootIndex::kUndefinedValue);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ b(&loop_check, al);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
-    __ push(r9);
+    __ push(kInterpreterAccumulatorRegister);
     // Continue loop if not done.
     __ bind(&loop_check);
     __ sub(r4, r4, Operand(kPointerSize), SetCC);
@@ -1157,8 +1138,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ cmp(r9, Operand::Zero());
   __ str(r3, MemOperand(fp, r9, LSL, kPointerSizeLog2), ne);
 
-  // Load accumulator with undefined.
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  // The accumulator is already loaded with undefined.
 
   // Load the dispatch table into a register and dispatch to the bytecode
   // handler at the current bytecode offset.
@@ -1199,8 +1179,26 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LeaveInterpreterFrame(masm, r2);
   __ Jump(lr);
 
+  __ bind(&optimized_code_slot_not_empty);
+  Label maybe_has_optimized_code;
+  // Check if optimized code marker is actually a weak reference to the
+  // optimized code.
+  __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
+  MaybeOptimizeCode(masm, feedback_vector, optimized_code_entry);
+  // Fall through if there's no runnable optimized code.
+  __ jmp(&not_optimized);
+
+  __ bind(&maybe_has_optimized_code);
+  // Load code entry from the weak reference, if it was cleared, resume
+  // execution of unoptimized code.
+  __ LoadWeakValue(optimized_code_entry, optimized_code_entry, &not_optimized);
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r6);
+
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+
+  __ bind(&stack_overflow);
+  __ CallRuntime(Runtime::kThrowStackOverflow);
   __ bkpt(0);  // Should not return.
 }
 
@@ -1565,14 +1563,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame.
-  __ ldr(r0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r0, MemOperand(r0, JavaScriptFrameConstants::kFunctionOffset));
-
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Pass function as argument.
-    __ push(r0);
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
   }
 
@@ -2182,7 +2174,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r1 : the target to call (can be any Object).
   // -----------------------------------
 
-  Label non_callable, non_function, non_smi;
+  Label non_callable, non_smi;
   __ JumpIfSmi(r1, &non_callable);
   __ bind(&non_smi);
   __ CompareObjectType(r1, r4, r5, JS_FUNCTION_TYPE);
@@ -2199,12 +2191,10 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
   // Check if target is a proxy and call CallProxy external builtin
   __ cmp(r5, Operand(JS_PROXY_TYPE));
-  __ b(ne, &non_function);
-  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
-  __ bind(&non_function);
   // Overwrite the original receiver the (original) target.
   __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   // Let the "call_as_function_delegate" take care of the rest.
@@ -3165,51 +3155,6 @@ void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
   __ ldrb(temp1, MemOperand(src), ne);
   __ strb(temp1, MemOperand(dest), ne);
   __ Ret();
-}
-
-void Builtins::Generate_MemCopyUint16Uint8(MacroAssembler* masm) {
-  Register dest = r0;
-  Register src = r1;
-  Register chars = r2;
-
-  {
-    UseScratchRegisterScope temps(masm);
-
-    Register temp1 = r3;
-    Register temp2 = temps.Acquire();
-    Register temp3 = lr;
-    Register temp4 = r4;
-    Label loop;
-    Label not_two;
-
-    __ Push(lr, r4);
-    __ bic(temp2, chars, Operand(0x3));
-    __ add(temp2, dest, Operand(temp2, LSL, 1));
-
-    __ bind(&loop);
-    __ ldr(temp1, MemOperand(src, 4, PostIndex));
-    __ uxtb16(temp3, temp1);
-    __ uxtb16(temp4, temp1, 8);
-    __ pkhbt(temp1, temp3, Operand(temp4, LSL, 16));
-    __ str(temp1, MemOperand(dest));
-    __ pkhtb(temp1, temp4, Operand(temp3, ASR, 16));
-    __ str(temp1, MemOperand(dest, 4));
-    __ add(dest, dest, Operand(8));
-    __ cmp(dest, temp2);
-    __ b(&loop, ne);
-
-    __ mov(chars, Operand(chars, LSL, 31), SetCC);  // bit0 => ne, bit1 => cs
-    __ b(&not_two, cc);
-    __ ldrh(temp1, MemOperand(src, 2, PostIndex));
-    __ uxtb(temp3, temp1, 8);
-    __ mov(temp3, Operand(temp3, LSL, 16));
-    __ uxtab(temp3, temp3, temp1);
-    __ str(temp3, MemOperand(dest, 4, PostIndex));
-    __ bind(&not_two);
-    __ ldrb(temp1, MemOperand(src), ne);
-    __ strh(temp1, MemOperand(dest), ne);
-    __ Pop(pc, r4);
-  }
 }
 
 #undef __

@@ -1,6 +1,7 @@
 adamk@chromium.org
 danno@chromium.org
 ulan@chromium.org
+verwaest@chromium.org
 yangguo@chromium.org
 
 per-file *DEPS=file:../COMMON_OWNERS

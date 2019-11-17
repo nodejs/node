@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -779,6 +778,10 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsByteSwap32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitWord32Ctz(Node* node) {
@@ -2015,6 +2018,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)         \
   V(F32x4Abs, kMipsF32x4Abs)                             \
   V(F32x4Neg, kMipsF32x4Neg)                             \
+  V(F32x4Sqrt, kMipsF32x4Sqrt)                           \
   V(F32x4RecipApprox, kMipsF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kMipsF32x4RecipSqrtApprox)     \
   V(I32x4SConvertF32x4, kMipsI32x4SConvertF32x4)         \

@@ -70,7 +70,7 @@ int FrameInspector::GetParametersCount() {
 
 Handle<Object> FrameInspector::GetParameter(int index) {
   if (is_optimized_) return deoptimized_frame_->GetParameter(index);
-  // TODO(clemensh): Handle wasm_interpreted_frame_.
+  // TODO(clemensb): Handle wasm_interpreted_frame_.
   return handle(frame_->GetParameter(index), isolate_);
 }
 
@@ -93,8 +93,10 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  IsStaticFlag is_static_flag;
   return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &mode, &init_flag,
-                                     &maybe_assigned_flag) != -1;
+                                     &maybe_assigned_flag,
+                                     &is_static_flag) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,

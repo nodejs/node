@@ -298,7 +298,6 @@ class ValueDeserializer {
   v8::ValueDeserializer::Delegate* const delegate_;
   const uint8_t* position_;
   const uint8_t* const end_;
-  AllocationType allocation_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
   bool expect_inline_wasm_ = false;

@@ -85,8 +85,25 @@ std::string Status::ToASCIIString() const {
       return ToASCIIString("CBOR: map start expected");
     case Error::CBOR_MAP_STOP_EXPECTED:
       return ToASCIIString("CBOR: map stop expected");
+    case Error::CBOR_ARRAY_START_EXPECTED:
+      return ToASCIIString("CBOR: array start expected");
     case Error::CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED:
       return ToASCIIString("CBOR: envelope size limit exceeded");
+
+    case Error::BINDINGS_MANDATORY_FIELD_MISSING:
+      return ToASCIIString("BINDINGS: mandatory field missing");
+    case Error::BINDINGS_BOOL_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: bool value expected");
+    case Error::BINDINGS_INT32_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: int32 value expected");
+    case Error::BINDINGS_DOUBLE_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: double value expected");
+    case Error::BINDINGS_STRING_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: string value expected");
+    case Error::BINDINGS_STRING8_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: string8 value expected");
+    case Error::BINDINGS_BINARY_VALUE_EXPECTED:
+      return ToASCIIString("BINDINGS: binary value expected");
   }
   // Some compilers can't figure out that we can't get here.
   return "INVALID ERROR CODE";
@@ -705,6 +722,12 @@ span<uint8_t> CBORTokenizer::GetBinary() const {
   assert(token_tag_ == CBORTokenTag::BINARY);
   auto length = static_cast<size_t>(token_start_internal_value_);
   return bytes_.subspan(status_.pos + (token_byte_length_ - length), length);
+}
+
+span<uint8_t> CBORTokenizer::GetEnvelope() const {
+  assert(token_tag_ == CBORTokenTag::ENVELOPE);
+  auto length = static_cast<size_t>(token_start_internal_value_);
+  return bytes_.subspan(status_.pos, length + kEncodedEnvelopeHeaderSize);
 }
 
 span<uint8_t> CBORTokenizer::GetEnvelopeContents() const {

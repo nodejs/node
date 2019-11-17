@@ -165,11 +165,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
               SourcePosition(pos_info.shared->StartPosition()),
               pos_info.shared);
 
-          std::unique_ptr<CodeEntry> inline_entry =
-              base::make_unique<CodeEntry>(
-                  tag, GetFunctionName(*pos_info.shared), resource_name,
-                  start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-                  code.InstructionStart(), inline_is_shared_cross_origin);
+          std::unique_ptr<CodeEntry> inline_entry = std::make_unique<CodeEntry>(
+              tag, GetFunctionName(*pos_info.shared), resource_name,
+              start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
+              code.InstructionStart(), inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
           // Create a canonical CodeEntry for each inlined frame and then re-use

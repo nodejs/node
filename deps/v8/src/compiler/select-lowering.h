@@ -5,33 +5,31 @@
 #ifndef V8_COMPILER_SELECT_LOWERING_H_
 #define V8_COMPILER_SELECT_LOWERING_H_
 
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Forward declarations.
-class CommonOperatorBuilder;
-class Graph;
-
-
 // Lowers Select nodes to diamonds.
 class SelectLowering final : public Reducer {
  public:
-  SelectLowering(Graph* graph, CommonOperatorBuilder* common);
+  SelectLowering(JSGraph* jsgraph, Zone* zone);
   ~SelectLowering() override;
 
   const char* reducer_name() const override { return "SelectLowering"; }
 
   Reduction Reduce(Node* node) override;
 
- private:
-  CommonOperatorBuilder* common() const { return common_; }
-  Graph* graph() const { return graph_; }
+  Node* LowerSelect(Node* node);
 
-  CommonOperatorBuilder* common_;
-  Graph* graph_;
+ private:
+  GraphAssembler* gasm() { return &graph_assembler_; }
+  Node* start() { return start_; }
+
+  GraphAssembler graph_assembler_;
+  Node* start_;
 };
 
 }  // namespace compiler

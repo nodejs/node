@@ -8,23 +8,23 @@ const builder = new WasmModuleBuilder();
 builder.addFunction(undefined, kSig_i_i)
   .addLocals({i32_count: 5})
   .addBody([
-    kExprGetLocal, 0,    // --> 1
+    kExprLocalGet, 0,    // --> 1
     kExprIf, kWasmI32,
-      kExprGetLocal, 0,  // --> 1
+      kExprLocalGet, 0,  // --> 1
     kExprElse,
       kExprUnreachable,
       kExprEnd,
     kExprIf, kWasmI32,
-      kExprGetLocal, 0,  // --> 1
+      kExprLocalGet, 0,  // --> 1
     kExprElse,
       kExprUnreachable,
       kExprEnd,
     kExprIf, kWasmI32,
       kExprI32Const, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprI32Sub,       // --> -1
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
       kExprI32Sub,       // --> 0
       kExprI32Sub,       // --> -1
     kExprElse,

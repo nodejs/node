@@ -10,11 +10,11 @@
 #include "test/cctest/cctest.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
-#include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
-#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
-#include "perfetto/trace/trace.pb.h"
 #include "perfetto/tracing.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_event.pbzero.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "protos/perfetto/trace/trace.pb.h"
 #include "src/libplatform/tracing/json-trace-event-listener.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
 #endif  // V8_USE_PERFETTO
@@ -157,7 +157,7 @@ void PopulateJSONWriter(TraceWriter* writer) {
   std::unique_ptr<v8::Platform> default_platform(
       v8::platform::NewDefaultPlatform());
   i::V8::SetPlatformForTesting(default_platform.get());
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
@@ -242,7 +242,7 @@ TEST(TestTracingController) {
       v8::platform::NewDefaultPlatform());
   i::V8::SetPlatformForTesting(default_platform.get());
 
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
@@ -301,8 +301,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
         v8::platform::NewDefaultPlatform());
     i::V8::SetPlatformForTesting(default_platform.get());
 
-    auto tracing =
-        base::make_unique<v8::platform::tracing::TracingController>();
+    auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
     v8::platform::tracing::TracingController* tracing_controller =
         tracing.get();
     static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
@@ -424,7 +423,7 @@ TEST(TracingObservers) {
       v8::platform::NewDefaultPlatform());
   i::V8::SetPlatformForTesting(default_platform.get());
 
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
@@ -517,7 +516,7 @@ TEST(AddTraceEventMultiThreaded) {
       v8::platform::NewDefaultPlatform());
   i::V8::SetPlatformForTesting(default_platform.get());
 
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
@@ -576,8 +575,7 @@ class TracingTestHarness {
     default_platform_ = v8::platform::NewDefaultPlatform();
     i::V8::SetPlatformForTesting(default_platform_.get());
 
-    auto tracing =
-        base::make_unique<v8::platform::tracing::TracingController>();
+    auto tracing = std::make_unique<v8::platform::tracing::TracingController>();
     tracing_controller_ = tracing.get();
     static_cast<v8::platform::DefaultPlatform*>(default_platform_.get())
         ->SetTracingController(std::move(tracing));

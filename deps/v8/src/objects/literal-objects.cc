@@ -31,11 +31,11 @@ void AddToDescriptorArrayTemplate(
     Isolate* isolate, Handle<DescriptorArray> descriptor_array_template,
     Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
     Handle<Object> value) {
-  int entry = descriptor_array_template->Search(
+  InternalIndex entry = descriptor_array_template->Search(
       *name, descriptor_array_template->number_of_descriptors());
   // TODO(ishell): deduplicate properties at AST level, this will allow us to
   // avoid creation of closures that will be overwritten anyway.
-  if (entry == DescriptorArray::kNotFound) {
+  if (entry.is_not_found()) {
     // Entry not found, add new one.
     Descriptor d;
     if (value_kind == ClassBoilerplate::kData) {
@@ -412,8 +412,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   ObjectDescriptor static_desc(kMinimumClassPropertiesCount);
   ObjectDescriptor instance_desc(kMinimumPrototypePropertiesCount);
 
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
+  for (int i = 0; i < expr->public_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->public_members()->at(i);
     ObjectDescriptor& desc =
         property->is_static() ? static_desc : instance_desc;
     if (property->is_computed_name()) {
@@ -477,14 +477,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   //
   int dynamic_argument_index = ClassBoilerplate::kFirstDynamicArgumentIndex;
 
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
-
-    // Private members are not processed using the class boilerplate.
-    if (property->is_private()) {
-      continue;
-    }
-
+  for (int i = 0; i < expr->public_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->public_members()->at(i);
     ClassBoilerplate::ValueKind value_kind;
     switch (property->kind()) {
       case ClassLiteral::Property::METHOD:

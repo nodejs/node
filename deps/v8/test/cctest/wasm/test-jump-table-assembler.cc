@@ -36,7 +36,7 @@ constexpr size_t kThunkBufferSize = AssemblerBase::kMinimalBufferSize;
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 constexpr uint32_t kAvailableBufferSlots =
-    (kMaxWasmCodeMemory - kJumpTableSize) / kThunkBufferSize;
+    (kMaxWasmCodeSpaceSize - kJumpTableSize) / kThunkBufferSize;
 constexpr uint32_t kBufferSlotStartOffset =
     RoundUp<kThunkBufferSize>(kJumpTableSize);
 #else
@@ -49,7 +49,7 @@ Address AllocateJumpTableThunk(
     std::vector<std::unique_ptr<TestingAssemblerBuffer>>* thunk_buffers) {
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
   // To guarantee that the branch range lies within the near-call range,
-  // generate the thunk in the same (kMaxWasmCodeMemory-sized) buffer as the
+  // generate the thunk in the same (kMaxWasmCodeSpaceSize-sized) buffer as the
   // jump_target itself.
   //
   // Allocate a slot that we haven't already used. This is necessary because
@@ -181,11 +181,13 @@ class JumpTablePatcher : public v8::base::Thread {
     // Then, repeatedly patch the jump table to jump to one of the two thunks.
     constexpr int kNumberOfPatchIterations = 64;
     for (int i = 0; i < kNumberOfPatchIterations; ++i) {
-      TRACE("  patcher %p patch slot " V8PRIxPTR_FMT " to thunk #%d\n", this,
-            slot_address, i % 2);
+      TRACE("  patcher %p patch slot " V8PRIxPTR_FMT
+            " to thunk #%d (" V8PRIxPTR_FMT ")\n",
+            this, slot_address, i % 2, thunks_[i % 2]);
       base::MutexGuard jump_table_guard(jump_table_mutex_);
       JumpTableAssembler::PatchJumpTableSlot(
-          slot_start_, slot_index_, thunks_[i % 2], WasmCode::kFlushICache);
+          slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_),
+          kNullAddress, thunks_[i % 2]);
     }
     TRACE("Patcher %p is stopping ...\n", this);
   }
@@ -219,11 +221,8 @@ TEST(JumpTablePatchingStress) {
   // is not reliable enough to guarantee that we can always achieve this with
   // separate allocations, so for Arm64 we generate all code in a single
   // kMaxMasmCodeMemory-sized chunk.
-  //
-  // TODO(wasm): Currently {kMaxWasmCodeMemory} limits code sufficiently, so
-  // that the jump table only supports {near_call} distances.
-  STATIC_ASSERT(kMaxWasmCodeMemory >= kJumpTableSize);
-  auto buffer = AllocateAssemblerBuffer(kMaxWasmCodeMemory);
+  STATIC_ASSERT(kMaxWasmCodeSpaceSize >= kJumpTableSize);
+  auto buffer = AllocateAssemblerBuffer(kMaxWasmCodeSpaceSize);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 #else
   auto buffer = AllocateAssemblerBuffer(kJumpTableSize);
@@ -242,8 +241,9 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     // Patch the jump table slot to jump to itself. This will later be patched
     // by the patchers.
-    JumpTableAssembler::PatchJumpTableSlot(
-        slot_start, slot, slot_start + slot_offset, WasmCode::kFlushICache);
+    Address slot_addr =
+        slot_start + JumpTableAssembler::JumpSlotIndexToOffset(slot);
+    JumpTableAssembler::PatchJumpTableSlot(slot_addr, kNullAddress, slot_addr);
     // For each patcher, generate two thunks where this patcher can emit code
     // which finally jumps back to {slot} in the jump table.
     std::vector<Address> patcher_thunks;

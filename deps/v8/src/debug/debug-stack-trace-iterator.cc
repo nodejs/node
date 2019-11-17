@@ -87,25 +87,26 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
-    ScopeIterator scope_iterator(isolate_, frame_inspector_.get(),
-                                 ScopeIterator::COLLECT_NON_LOCALS);
+    ScopeIterator scope_iterator(isolate_, frame_inspector_.get());
     // We lookup this variable in function context only when it is used in arrow
     // function otherwise V8 can optimize it out.
-    if (!scope_iterator.GetNonLocals()->Has(isolate_,
-                                            isolate_->factory()->this_string()))
+    if (!scope_iterator.ClosureScopeHasThisReference()) {
       return v8::MaybeLocal<v8::Value>();
+    }
     DisallowHeapAllocation no_gc;
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;
+    IsStaticFlag is_static_flag;
     int slot_index = ScopeInfo::ContextSlotIndex(
         context->scope_info(), ReadOnlyRoots(isolate_->heap()).this_string(),
-        &mode, &flag, &maybe_assigned_flag);
+        &mode, &flag, &maybe_assigned_flag, &is_static_flag);
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
     if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
+
   Handle<Object> value = frame_inspector_->GetReceiver();
   if (value.is_null() || (value->IsSmi() || !value->IsTheHole(isolate_))) {
     return Utils::ToLocal(value);

@@ -10,8 +10,6 @@
 namespace v8 {
 namespace internal {
 
-template <class T>
-using TNode = compiler::TNode<T>;
 
 // Utility class implementing a growable fixed array through CSA.
 class GrowableFixedArray : public CodeStubAssembler {

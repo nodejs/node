@@ -115,15 +115,26 @@ class GeneratedCode {
 #ifdef USE_SIMULATOR
   // Defined in simulator-base.h.
   Return Call(Args... args) {
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+    FATAL("Generated code execution not possible during cross-compilation.");
+#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
     return Simulator::current(isolate_)->template Call<Return>(
         reinterpret_cast<Address>(fn_ptr_), args...);
   }
 
-  DISABLE_CFI_ICALL Return CallIrregexp(Args... args) { return Call(args...); }
+  DISABLE_CFI_ICALL Return CallIrregexp(Args... args) {
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+    FATAL("Generated code execution not possible during cross-compilation.");
+#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+    return Call(args...);
+  }
 #else
 
   DISABLE_CFI_ICALL Return Call(Args... args) {
     // When running without a simulator we call the entry directly.
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+    FATAL("Generated code execution not possible during cross-compilation.");
+#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
 #if V8_OS_AIX
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
     // FD to ensure correct dispatch to generated code.  The 'volatile'
@@ -141,6 +152,9 @@ class GeneratedCode {
 
   DISABLE_CFI_ICALL Return CallIrregexp(Args... args) {
     // When running without a simulator we call the entry directly.
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+    FATAL("Generated code execution not possible during cross-compilation.");
+#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
     return fn_ptr_(args...);
   }
 #endif  // USE_SIMULATOR

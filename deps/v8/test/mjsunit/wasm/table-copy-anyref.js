@@ -17,7 +17,7 @@ builder.addTable(kWasmAnyFunc, 1000);
 
 builder.addFunction('copy', kSig_v_iii)
     .addBody([
-      kExprGetLocal, 0, kExprGetLocal, 1, kExprGetLocal, 2, kNumericPrefix,
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2, kNumericPrefix,
       kExprTableCopy, kTableZero, kTableZero
     ])
     .exportFunc();

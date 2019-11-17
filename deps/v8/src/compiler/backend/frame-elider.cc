@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/frame-elider.h"
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 
 namespace v8 {
 namespace internal {

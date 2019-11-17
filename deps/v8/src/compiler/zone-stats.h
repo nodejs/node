@@ -33,6 +33,8 @@ class V8_EXPORT_PRIVATE ZoneStats final {
       zone_ = nullptr;
     }
 
+    ZoneStats* zone_stats() const { return zone_stats_; }
+
    private:
     const char* zone_name_;
     ZoneStats* const zone_stats_;

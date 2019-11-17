@@ -38,12 +38,12 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
       !old_map->FindRootMap(isolate).GetConstructor().IsFunctionTemplateInfo());
 }
 
-Name MapUpdater::GetKey(int descriptor) const {
+Name MapUpdater::GetKey(InternalIndex descriptor) const {
   return old_descriptors_->GetKey(descriptor);
 }
 
-PropertyDetails MapUpdater::GetDetails(int descriptor) const {
-  DCHECK_LE(0, descriptor);
+PropertyDetails MapUpdater::GetDetails(InternalIndex descriptor) const {
+  DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
     PropertyAttributes attributes = new_attributes_;
     // If the original map was sealed or frozen, let us used the old
@@ -59,8 +59,8 @@ PropertyDetails MapUpdater::GetDetails(int descriptor) const {
   return old_descriptors_->GetDetails(descriptor);
 }
 
-Object MapUpdater::GetValue(int descriptor) const {
-  DCHECK_LE(0, descriptor);
+Object MapUpdater::GetValue(InternalIndex descriptor) const {
+  DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kDescriptor, new_location_);
     return *new_value_;
@@ -69,8 +69,8 @@ Object MapUpdater::GetValue(int descriptor) const {
   return old_descriptors_->GetStrongValue(descriptor);
 }
 
-FieldType MapUpdater::GetFieldType(int descriptor) const {
-  DCHECK_LE(0, descriptor);
+FieldType MapUpdater::GetFieldType(InternalIndex descriptor) const {
+  DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kField, new_location_);
     return *new_field_type_;
@@ -80,9 +80,9 @@ FieldType MapUpdater::GetFieldType(int descriptor) const {
 }
 
 Handle<FieldType> MapUpdater::GetOrComputeFieldType(
-    int descriptor, PropertyLocation location,
+    InternalIndex descriptor, PropertyLocation location,
     Representation representation) const {
-  DCHECK_LE(0, descriptor);
+  DCHECK(descriptor.is_found());
   // |location| is just a pre-fetched GetDetails(descriptor).location().
   DCHECK_EQ(location, GetDetails(descriptor).location());
   if (location == kField) {
@@ -93,7 +93,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
 }
 
 Handle<FieldType> MapUpdater::GetOrComputeFieldType(
-    Handle<DescriptorArray> descriptors, int descriptor,
+    Handle<DescriptorArray> descriptors, InternalIndex descriptor,
     PropertyLocation location, Representation representation) {
   // |location| is just a pre-fetched GetDetails(descriptor).location().
   DCHECK_EQ(descriptors->GetDetails(descriptor).location(), location);
@@ -105,13 +105,13 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   }
 }
 
-Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
+Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
                                                PropertyAttributes attributes,
                                                PropertyConstness constness,
                                                Representation representation,
                                                Handle<FieldType> field_type) {
   DCHECK_EQ(kInitialized, state_);
-  DCHECK_LE(0, descriptor);
+  DCHECK(descriptor.is_found());
   DCHECK(!old_map_->is_dictionary_map());
   modified_descriptor_ = descriptor;
   new_kind_ = kData;
@@ -190,7 +190,7 @@ Handle<Map> MapUpdater::Update() {
   return result_map_;
 }
 
-void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
+void MapUpdater::GeneralizeField(Handle<Map> map, InternalIndex modify_index,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  Handle<FieldType> new_field_type) {
@@ -338,7 +338,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
   }
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
-  if (modified_descriptor_ >= 0 && modified_descriptor_ < root_nof) {
+  if (modified_descriptor_.is_found() &&
+      modified_descriptor_.as_int() < root_nof) {
     PropertyDetails old_details =
         old_descriptors_->GetDetails(modified_descriptor_);
     if (old_details.kind() != new_kind_ ||
@@ -374,7 +375,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   target_map_ = root_map_;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
-  for (int i = root_nof; i < old_nof_; ++i) {
+  for (InternalIndex i : InternalIndex::Range(root_nof, old_nof_)) {
     PropertyDetails old_details = GetDetails(i);
     Map transition = TransitionsAccessor(isolate_, target_map_)
                          .SearchTransition(GetKey(i), old_details.kind(),
@@ -423,7 +424,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   int target_nof = target_map_->NumberOfOwnDescriptors();
   if (target_nof == old_nof_) {
 #ifdef DEBUG
-    if (modified_descriptor_ >= 0) {
+    if (modified_descriptor_.is_found()) {
       DescriptorArray target_descriptors = target_map_->instance_descriptors();
       PropertyDetails details =
           target_descriptors.GetDetails(modified_descriptor_);
@@ -465,7 +466,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   }
 
   // Find the last compatible target map in the transition tree.
-  for (int i = target_nof; i < old_nof_; ++i) {
+  for (InternalIndex i : InternalIndex::Range(target_nof, old_nof_)) {
     PropertyDetails old_details = GetDetails(i);
     Map transition = TransitionsAccessor(isolate_, target_map_)
                          .SearchTransition(GetKey(i), old_details.kind(),
@@ -521,7 +522,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   // general than we requested. Take |root_nof| entries as is.
   // 0 -> |root_nof|
   int current_offset = 0;
-  for (int i = 0; i < root_nof; ++i) {
+  for (InternalIndex i : InternalIndex::Range(root_nof)) {
     PropertyDetails old_details = old_descriptors_->GetDetails(i);
     if (old_details.location() == kField) {
       current_offset += old_details.field_width_in_words();
@@ -534,7 +535,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
   // Merge "updated" old_descriptor entries with target_descriptor entries.
   // |root_nof| -> |target_nof|
-  for (int i = root_nof; i < target_nof; ++i) {
+  for (InternalIndex i : InternalIndex::Range(root_nof, target_nof)) {
     Handle<Name> key(GetKey(i), isolate_);
     PropertyDetails old_details = GetDetails(i);
     PropertyDetails target_details = target_descriptors->GetDetails(i);
@@ -606,7 +607,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
   // Take "updated" old_descriptor entries.
   // |target_nof| -> |old_nof|
-  for (int i = target_nof; i < old_nof_; ++i) {
+  for (InternalIndex i : InternalIndex::Range(target_nof, old_nof_)) {
     PropertyDetails old_details = GetDetails(i);
     Handle<Name> key(GetKey(i), isolate_);
 
@@ -665,7 +666,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
-  for (int i = root_nof; i < old_nof_; i++) {
+  for (InternalIndex i : InternalIndex::Range(root_nof, old_nof_)) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
@@ -707,13 +708,13 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     state_ = kAtIntegrityLevelSource;
     return state_;
   }
-
-  PropertyDetails split_details = GetDetails(split_nof);
+  InternalIndex split_index(split_nof);
+  PropertyDetails split_details = GetDetails(split_index);
   TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
   Map maybe_transition = transitions.SearchTransition(
-      GetKey(split_nof), split_details.kind(), split_details.attributes());
+      GetKey(split_index), split_details.kind(), split_details.attributes());
   if (!maybe_transition.is_null()) {
     maybe_transition.DeprecateTransitionTree(isolate_);
   }
@@ -727,7 +728,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
 
   old_map_->NotifyLeafMapLayoutChange(isolate_);
 
-  if (FLAG_trace_generalization && modified_descriptor_ >= 0) {
+  if (FLAG_trace_generalization && modified_descriptor_.is_found()) {
     PropertyDetails old_details =
         old_descriptors_->GetDetails(modified_descriptor_);
     PropertyDetails new_details =

@@ -59,6 +59,26 @@ class iterator_range {
   const_iterator const end_;
 };
 
+template <typename ForwardIterator>
+auto make_iterator_range(ForwardIterator&& begin, ForwardIterator&& end) {
+  return iterator_range<ForwardIterator>{std::forward<ForwardIterator>(begin),
+                                         std::forward<ForwardIterator>(end)};
+}
+
+// {Reversed} returns a container adapter usable in a range-based "for"
+// statement for iterating a reversible container in reverse order.
+//
+// Example:
+//
+//   std::vector<int> v = ...;
+//   for (int i : base::Reversed(v)) {
+//     // iterates through v from back to front
+//   }
+template <typename T>
+auto Reversed(T& t) {  // NOLINT(runtime/references): match {rbegin} and {rend}
+  return make_iterator_range(std::rbegin(t), std::rend(t));
+}
+
 }  // namespace base
 }  // namespace v8
 

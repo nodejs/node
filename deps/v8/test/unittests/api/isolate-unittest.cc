@@ -9,7 +9,6 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"
@@ -62,7 +61,7 @@ TEST_F(IsolateTest, MemoryPressureNotificationBackground) {
   base::Semaphore semaphore(0);
 
   internal::V8::GetCurrentPlatform()->CallOnWorkerThread(
-      base::make_unique<MemoryPressureTask>(isolate(), &semaphore));
+      std::make_unique<MemoryPressureTask>(isolate(), &semaphore));
 
   semaphore.Wait();
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --expose-gc
 
 var Debug = debug.Debug;
 
@@ -27,6 +28,8 @@ function RunTest(formals_and_body, args, value1, value2) {
   // Enable the debugger, which should force recompilation of the generator
   // function and relocation of the suspended generator activation.
   Debug.setListener(listener);
+
+  gc();
 
   // Add a breakpoint on line 3 (the second yield).
   var bp = Debug.setBreakPoint(gen, 3);

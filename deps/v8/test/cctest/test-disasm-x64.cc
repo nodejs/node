@@ -182,6 +182,8 @@ TEST(DisasmX64) {
   __ decq(rdx);
   __ cdq();
 
+  __ repstosq();
+
   __ nop();
   __ idivq(rdx);
   __ mull(rdx);

@@ -26,7 +26,6 @@ namespace compiler {
 
 namespace {
 
-using Label = CodeAssemblerLabel;
 using Variable = CodeAssemblerVariable;
 
 class TestTorqueAssembler : public CodeStubAssembler {

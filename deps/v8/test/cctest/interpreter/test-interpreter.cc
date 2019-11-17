@@ -1485,19 +1485,20 @@ TEST(InterpreterCall) {
   }
 }
 
-static BytecodeArrayBuilder& SetRegister(
-    BytecodeArrayBuilder& builder,  // NOLINT(runtime/references)
-    Register reg, int value, Register scratch) {
-  return builder.StoreAccumulatorInRegister(scratch)
+static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder* builder,
+                                         Register reg, int value,
+                                         Register scratch) {
+  return builder->StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
       .StoreAccumulatorInRegister(reg)
       .LoadAccumulatorWithRegister(scratch);
 }
 
-static BytecodeArrayBuilder& IncrementRegister(
-    BytecodeArrayBuilder& builder,  // NOLINT(runtime/references)
-    Register reg, int value, Register scratch, int slot_index) {
-  return builder.StoreAccumulatorInRegister(scratch)
+static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder* builder,
+                                               Register reg, int value,
+                                               Register scratch,
+                                               int slot_index) {
+  return builder->StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
       .BinaryOperation(Token::Value::ADD, reg, slot_index)
       .StoreAccumulatorInRegister(reg)
@@ -1525,13 +1526,13 @@ TEST(InterpreterJumps) {
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[0]);
-  SetRegister(builder, reg, 1024, scratch).Bind(&loop_header);
-  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
-  SetRegister(builder, reg, 2048, scratch).Bind(&label[0]);
-  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot1))
+  SetRegister(&builder, reg, 1024, scratch).Bind(&loop_header);
+  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
+  SetRegister(&builder, reg, 2048, scratch).Bind(&label[0]);
+  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
       .JumpLoop(&loop_header, 0);
-  SetRegister(builder, reg, 4096, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot2))
+  SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
+  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -1566,19 +1567,19 @@ TEST(InterpreterConditionalJumps) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
-  IncrementRegister(builder, reg, 1024, scratch, GetIndex(slot))
+  IncrementRegister(&builder, reg, 1024, scratch, GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done);
-  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot1))
+  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot1))
       .LoadTrue()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &label[1]);
-  IncrementRegister(builder, reg, 2048, scratch, GetIndex(slot2))
+  IncrementRegister(&builder, reg, 2048, scratch, GetIndex(slot2))
       .Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot3))
+  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot3))
       .LoadFalse()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &done1);
-  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot4))
+  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
@@ -1616,19 +1617,19 @@ TEST(InterpreterConditionalJumps2) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &label[0]);
-  IncrementRegister(builder, reg, 1024, scratch, GetIndex(slot))
+  IncrementRegister(&builder, reg, 1024, scratch, GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done);
-  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot1))
+  IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot1))
       .LoadTrue()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &label[1]);
-  IncrementRegister(builder, reg, 2048, scratch, GetIndex(slot2))
+  IncrementRegister(&builder, reg, 2048, scratch, GetIndex(slot2))
       .Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot3))
+  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot3))
       .LoadFalse()
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &done1);
-  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot4))
+  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)

@@ -23,13 +23,13 @@ class BuiltinArguments : public Arguments {
     DCHECK_LE(1, this->length());
   }
 
-  Object operator[](int index) {
+  Object operator[](int index) const {
     DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }
 
   template <class S = Object>
-  Handle<S> at(int index) {
+  Handle<S> at(int index) const {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);
   }
@@ -42,10 +42,10 @@ class BuiltinArguments : public Arguments {
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
 
-  inline Handle<Object> atOrUndefined(Isolate* isolate, int index);
-  inline Handle<Object> receiver();
-  inline Handle<JSFunction> target();
-  inline Handle<HeapObject> new_target();
+  inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
+  inline Handle<Object> receiver() const;
+  inline Handle<JSFunction> target() const;
+  inline Handle<HeapObject> new_target() const;
 
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).
@@ -77,7 +77,7 @@ class BuiltinArguments : public Arguments {
                                 RuntimeCallCounterId::kBuiltin_##name);     \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
                  "V8.Builtin_" #name);                                      \
-    return Builtin_Impl_##name(args, isolate).ptr();                        \
+    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
@@ -87,7 +87,7 @@ class BuiltinArguments : public Arguments {
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);  \
     }                                                                       \
     BuiltinArguments args(args_length, args_object);                        \
-    return Builtin_Impl_##name(args, isolate).ptr();                        \
+    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \

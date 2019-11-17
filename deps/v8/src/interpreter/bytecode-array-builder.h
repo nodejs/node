@@ -135,7 +135,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
 
   // Named load property of the @@iterator symbol.
-  BytecodeArrayBuilder& GetIterator(Register object, int feedback_slot);
+  BytecodeArrayBuilder& LoadIteratorProperty(Register object,
+                                             int feedback_slot);
+
+  // Load and call property of the @@iterator symbol
+  BytecodeArrayBuilder& GetIterator(Register object, int load_feedback_slot,
+                                    int call_feedback_slot);
 
   // Named load property of the @@asyncIterator symbol.
   BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,

@@ -27,7 +27,7 @@ namespace {
 // == x64 ====================================================================
 // ===========================================================================
 
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
 // == x64 windows ============================================================
 #define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS rcx, rdx, r8, r9
@@ -39,12 +39,12 @@ namespace {
       (1 << xmm9.code()) | (1 << xmm10.code()) | (1 << xmm11.code()) |  \
       (1 << xmm12.code()) | (1 << xmm13.code()) | (1 << xmm14.code()) | \
       (1 << xmm15.code())
-#else
+#else  // V8_TARGET_OS_WIN
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
 #define CALLEE_SAVE_REGISTERS \
   rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit()
-#endif
+#endif  // V8_TARGET_OS_WIN
 
 #elif V8_TARGET_ARCH_ARM
 // ===========================================================================

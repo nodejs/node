@@ -25,11 +25,11 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
+#include "src/objects/backing-store.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/allocation.h"
 #include "src/utils/vector.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-memory.h"
 
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
@@ -80,19 +80,13 @@ class TrapHandlerTest : public TestWithIsolate,
                         public ::testing::WithParamInterface<TrapHandlerStyle> {
  protected:
   void SetUp() override {
-    void* base = nullptr;
-    size_t length = 0;
-    accessible_memory_start_ =
-        i_isolate()
-            ->wasm_engine()
-            ->memory_tracker()
-            ->TryAllocateBackingStoreForTesting(
-                i_isolate()->heap(), 1 * kWasmPageSize, &base, &length);
-    memory_buffer_ =
-        base::AddressRegion(reinterpret_cast<Address>(base), length);
-
-    // The allocated memory buffer ends with a guard page.
-    crash_address_ = memory_buffer_.end() - 32;
+    backing_store_ = BackingStore::AllocateWasmMemory(i_isolate(), 1, 1,
+                                                      SharedFlag::kNotShared);
+    CHECK(backing_store_);
+    CHECK(backing_store_->has_guard_regions());
+    // The allocated backing store ends with a guard page.
+    crash_address_ = reinterpret_cast<Address>(backing_store_->buffer_start()) +
+                     backing_store_->byte_length() + 32;
     // Allocate a buffer for the generated code.
     buffer_ = AllocateAssemblerBuffer(AssemblerBase::kMinimalBufferSize,
                                       GetRandomMmapAddr());
@@ -122,10 +116,7 @@ class TrapHandlerTest : public TestWithIsolate,
     CHECK(!GetThreadInWasmFlag());
     buffer_.reset();
     recovery_buffer_.reset();
-
-    // Free the allocated backing store.
-    i_isolate()->wasm_engine()->memory_tracker()->FreeBackingStoreForTesting(
-        memory_buffer_, accessible_memory_start_);
+    backing_store_.reset();
 
     // Clean up the trap handler
     trap_handler::RemoveTrapHandler();
@@ -252,14 +243,12 @@ class TrapHandlerTest : public TestWithIsolate,
 
   bool test_handler_executed() { return g_test_handler_executed; }
 
-  // Allocated memory which corresponds to wasm memory with guard regions.
-  base::AddressRegion memory_buffer_;
+  // The backing store used for testing the trap handler.
+  std::unique_ptr<BackingStore> backing_store_;
+
   // Address within the guard region of the wasm memory. Accessing this memory
   // address causes a signal or exception.
   Address crash_address_;
-  // The start of the accessible region in the allocated memory. This pointer is
-  // needed to de-register the memory from the wasm memory tracker again.
-  void* accessible_memory_start_;
 
   // Buffer for generated code.
   std::unique_ptr<TestingAssemblerBuffer> buffer_;
@@ -472,7 +461,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
 }
 
-INSTANTIATE_TEST_SUITE_P(/* no prefix */, TrapHandlerTest,
+INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
                          ::testing::Values(kDefault, kCallback),
                          PrintTrapHandlerTestParam);
 

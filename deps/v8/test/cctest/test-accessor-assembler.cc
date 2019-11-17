@@ -18,7 +18,6 @@ namespace internal {
 using compiler::CodeAssemblerTester;
 using compiler::FunctionTester;
 using compiler::Node;
-using compiler::TNode;
 
 namespace {
 

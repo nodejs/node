@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-bigint
-
 var locales = [
     "en",  // "1,234,567,890,123,456"
     "de",  // "1.234.567.890.123.456"

@@ -688,6 +688,71 @@ TEST(EncodeDecodeDoubleTest, RoundtripsAdditionalExamples) {
   }
 }
 
+TEST(EncodeDecodeEnvelopesTest, MessageWithNestingAndEnvelopeContentsAccess) {
+  // This encodes and decodes the following message, which has some nesting
+  // and therefore envelopes.
+  //  { "inner": { "foo" : "bar" } }
+  // The decoding is done with the Tokenizer,
+  // and we test both ::GetEnvelopeContents and GetEnvelope here.
+  std::vector<uint8_t> message;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&message);
+  size_t pos_after_header = message.size();
+  message.push_back(EncodeIndefiniteLengthMapStart());
+  EncodeString8(SpanFrom("inner"), &message);
+  size_t pos_inside_inner = message.size();
+  EnvelopeEncoder inner_envelope;
+  inner_envelope.EncodeStart(&message);
+  size_t pos_inside_inner_contents = message.size();
+  message.push_back(EncodeIndefiniteLengthMapStart());
+  EncodeString8(SpanFrom("foo"), &message);
+  EncodeString8(SpanFrom("bar"), &message);
+  message.push_back(EncodeStop());
+  size_t pos_after_inner = message.size();
+  inner_envelope.EncodeStop(&message);
+  message.push_back(EncodeStop());
+  envelope.EncodeStop(&message);
+
+  CBORTokenizer tokenizer(SpanFrom(message));
+  ASSERT_EQ(CBORTokenTag::ENVELOPE, tokenizer.TokenTag());
+  EXPECT_EQ(message.size(), tokenizer.GetEnvelope().size());
+  EXPECT_EQ(message.data(), tokenizer.GetEnvelope().data());
+  EXPECT_EQ(message.data() + pos_after_header,
+            tokenizer.GetEnvelopeContents().data());
+  EXPECT_EQ(message.size() - pos_after_header,
+            tokenizer.GetEnvelopeContents().size());
+  tokenizer.EnterEnvelope();
+  ASSERT_EQ(CBORTokenTag::MAP_START, tokenizer.TokenTag());
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING8, tokenizer.TokenTag());
+  EXPECT_EQ("inner", std::string(tokenizer.GetString8().begin(),
+                                 tokenizer.GetString8().end()));
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::ENVELOPE, tokenizer.TokenTag());
+  EXPECT_EQ(message.data() + pos_inside_inner, tokenizer.GetEnvelope().data());
+  EXPECT_EQ(pos_after_inner - pos_inside_inner, tokenizer.GetEnvelope().size());
+  EXPECT_EQ(message.data() + pos_inside_inner_contents,
+            tokenizer.GetEnvelopeContents().data());
+  EXPECT_EQ(pos_after_inner - pos_inside_inner_contents,
+            tokenizer.GetEnvelopeContents().size());
+  tokenizer.EnterEnvelope();
+  ASSERT_EQ(CBORTokenTag::MAP_START, tokenizer.TokenTag());
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING8, tokenizer.TokenTag());
+  EXPECT_EQ("foo", std::string(tokenizer.GetString8().begin(),
+                               tokenizer.GetString8().end()));
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING8, tokenizer.TokenTag());
+  EXPECT_EQ("bar", std::string(tokenizer.GetString8().begin(),
+                               tokenizer.GetString8().end()));
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STOP, tokenizer.TokenTag());
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STOP, tokenizer.TokenTag());
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
+}
+
 // =============================================================================
 // cbor::NewCBOREncoder - for encoding from a streaming parser
 // =============================================================================

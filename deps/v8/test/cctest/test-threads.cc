@@ -75,7 +75,7 @@ TEST(ThreadIdValidation) {
     ThreadIdValidationThread* prev =
         i == kNThreads - 1 ? nullptr : threads[i + 1].get();
     threads[i] =
-        base::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
+        std::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
   }
   CHECK(threads[0]->Start());
   for (int i = 0; i < kNThreads; i++) {

@@ -33,6 +33,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 #include "src/base/macros.h"

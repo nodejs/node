@@ -83,11 +83,6 @@ class MoveOptimizerTest : public InstructionSequenceTest {
         CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
         return AllocatedOperand(LocationOperand::REGISTER, rep, op.value_);
       }
-      case kExplicit: {
-        MachineRepresentation rep = GetCanonicalRep(op);
-        CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
-        return ExplicitOperand(LocationOperand::REGISTER, rep, op.value_);
-      }
       default:
         break;
     }
@@ -121,45 +116,6 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
   CHECK(Contains(move, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128)));
   CHECK(Contains(move, FPReg(kF64_1, kFloat64), FPReg(kF64_2, kFloat64)));
   CHECK(Contains(move, FPReg(kF32_1, kFloat32), FPReg(kF32_2, kFloat32)));
-}
-
-TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
-  int index1 = GetAllocatableCode(0);
-  int index2 = GetAllocatableCode(1);
-  int s128_1 = GetAllocatableCode(kS128_1, kSimd128);
-  int s128_2 = GetAllocatableCode(kS128_2, kSimd128);
-  int f64_1 = GetAllocatableCode(kF64_1, kFloat64);
-  int f64_2 = GetAllocatableCode(kF64_2, kFloat64);
-  int f32_1 = GetAllocatableCode(kF32_1, kFloat32);
-  int f32_2 = GetAllocatableCode(kF32_2, kFloat32);
-
-  StartBlock();
-  auto first_instr = EmitNop();
-  auto last_instr = EmitNop();
-
-  AddMove(first_instr, Reg(index1), ExplicitReg(index2));
-  AddMove(last_instr, Reg(index2), Reg(index1));
-
-  AddMove(first_instr, FPReg(s128_1, kSimd128),
-          ExplicitFPReg(s128_2, kSimd128));
-  AddMove(last_instr, FPReg(s128_2, kSimd128), FPReg(s128_1, kSimd128));
-  AddMove(first_instr, FPReg(f64_1, kFloat64), ExplicitFPReg(f64_2, kFloat64));
-  AddMove(last_instr, FPReg(f64_2, kFloat64), FPReg(f64_1, kFloat64));
-  AddMove(first_instr, FPReg(f32_1, kFloat32), ExplicitFPReg(f32_2, kFloat32));
-  AddMove(last_instr, FPReg(f32_2, kFloat32), FPReg(f32_1, kFloat32));
-
-  EndBlock(Last());
-
-  Optimize();
-
-  CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
-  auto move = last_instr->parallel_moves()[0];
-  CHECK_EQ(4, NonRedundantSize(move));
-  CHECK(Contains(move, Reg(index1), ExplicitReg(index2)));
-  CHECK(
-      Contains(move, FPReg(s128_1, kSimd128), ExplicitFPReg(s128_2, kSimd128)));
-  CHECK(Contains(move, FPReg(f64_1, kFloat64), ExplicitFPReg(f64_2, kFloat64)));
-  CHECK(Contains(move, FPReg(f32_1, kFloat32), ExplicitFPReg(f32_2, kFloat32)));
 }
 
 TEST_F(MoveOptimizerTest, SplitsConstants) {

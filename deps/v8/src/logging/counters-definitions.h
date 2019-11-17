@@ -221,6 +221,8 @@ namespace internal {
      MICROSECOND)                                                              \
   HT(compile_script_no_cache_because_cache_too_cold,                           \
      V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
+  HT(compile_script_streaming_finalization,                                    \
+     V8.CompileScriptMicroSeconds.StreamingFinalization, 1000000, MICROSECOND) \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \

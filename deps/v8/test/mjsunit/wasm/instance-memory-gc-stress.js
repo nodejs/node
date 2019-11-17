@@ -17,7 +17,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
   builder.addFunction("grow", kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero])
+    .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {

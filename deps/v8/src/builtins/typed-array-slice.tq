@@ -23,7 +23,7 @@ namespace typed_array_slice {
     // of src and result array are the same and they are not sharing the
     // same buffer, use memmove.
     if (srcKind != destInfo.kind) goto IfSlow;
-    if (BitcastTaggedToWord(dest.buffer) == BitcastTaggedToWord(src.buffer)) {
+    if (dest.buffer == src.buffer) {
       goto IfSlow;
     }
 

@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
+#include "src/regexp/regexp-bytecode-peephole.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -18,6 +19,7 @@ RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
       buffer_(Vector<byte>::New(1024)),
       pc_(0),
       advance_current_end_(kInvalidPC),
+      jump_edges_(zone),
       isolate_(isolate) {}
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
@@ -39,6 +41,7 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
       int fixup = pos;
       pos = *reinterpret_cast<int32_t*>(buffer_.begin() + fixup);
       *reinterpret_cast<uint32_t*>(buffer_.begin() + fixup) = pc_;
+      jump_edges_.emplace(fixup, pc_);
     }
   }
   l->bind_to(pc_);
@@ -46,16 +49,17 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
 
 void RegExpBytecodeGenerator::EmitOrLink(Label* l) {
   if (l == nullptr) l = &backtrack_;
+  int pos = 0;
   if (l->is_bound()) {
-    Emit32(l->pos());
+    pos = l->pos();
+    jump_edges_.emplace(pc_, pos);
   } else {
-    int pos = 0;
     if (l->is_linked()) {
       pos = l->pos();
     }
     l->link_to(pc_);
-    Emit32(pos);
   }
+  Emit32(pos);
 }
 
 void RegExpBytecodeGenerator::PopRegister(int register_index) {
@@ -365,8 +369,16 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
 Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Bind(&backtrack_);
   Emit(BC_POP_BT, 0);
-  Handle<ByteArray> array = isolate_->factory()->NewByteArray(length());
-  Copy(array->GetDataStartAddress());
+
+  Handle<ByteArray> array;
+  if (FLAG_regexp_peephole_optimization) {
+    array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
+        isolate_, zone(), source, buffer_.begin(), length(), jump_edges_);
+  } else {
+    array = isolate_->factory()->NewByteArray(length());
+    Copy(array->GetDataStartAddress());
+  }
+
   return array;
 }
 

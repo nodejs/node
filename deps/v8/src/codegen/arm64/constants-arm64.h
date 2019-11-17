@@ -33,6 +33,7 @@ constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
 constexpr uint8_t kLoadLiteralScaleLog2 = 2;
+constexpr uint8_t kLoadLiteralScale = 1 << kLoadLiteralScaleLog2;
 constexpr int kMaxLoadLiteralRange = 1 * MB;
 
 const int kNumberOfRegisters = 32;
@@ -146,7 +147,8 @@ const unsigned kFloat16ExponentBias = 15;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // TODO(sigurds): Choose best value.
-constexpr int kRootRegisterBias = 256;
+// TODO(ishell): Choose best value for ptr-compr.
+constexpr int kRootRegisterBias = kSystemPointerSize == kTaggedSize ? 256 : 0;
 
 using float16 = uint16_t;
 

@@ -5,9 +5,8 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
-#include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
-#include "torque-generated/class-definitions-tq.h"
+#include "src/objects/primitive-heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,7 +16,7 @@ namespace internal {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public TorqueGeneratedName<Name, HeapObject> {
+class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();
@@ -32,6 +31,7 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
+  inline bool AsIntegerIndex(size_t* index);
 
   // An "interesting symbol" is a well-known symbol, like @@toStringTag,
   // that's often looked up on random objects but is usually not present.
@@ -73,7 +73,8 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
   // array index.
   static const int kHashNotComputedMask = 1;
   static const int kIsNotArrayIndexMask = 1 << 1;
-  static const int kNofHashBitFields = 2;
+  static const int kIsNotIntegerIndexMask = 1 << 2;
+  static const int kNofHashBitFields = 3;
 
   // Shift constant retrieving hash code from hash field.
   static const int kHashShift = kNofHashBitFields;
@@ -88,6 +89,14 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
+  // Maximum number of characters that might be parsed into a size_t:
+  // 10 characters per 32 bits of size_t width.
+  // We choose this as large as possible (rather than MAX_SAFE_INTEGER range)
+  // because TypedArray accesses will treat all string keys that are
+  // canonical representations of numbers in the range [MAX_SAFE_INTEGER ..
+  // size_t::max] as out-of-bounds accesses, and we can handle those in the
+  // fast path if we tag them as such (see kIsNotIntegerIndexMask).
+  static const int kMaxIntegerIndexSize = 10 * (sizeof(size_t) / 4);
 
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be
@@ -120,7 +129,7 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
 
   // Value of empty hash field indicating that the hash is not computed.
   static const int kEmptyHashField =
-      kIsNotArrayIndexMask | kHashNotComputedMask;
+      kIsNotIntegerIndexMask | kIsNotArrayIndexMask | kHashNotComputedMask;
 
  protected:
   static inline bool IsHashFieldComputed(uint32_t field);

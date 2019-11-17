@@ -5,6 +5,8 @@
 #ifndef V8_API_API_H_
 #define V8_API_API_H_
 
+#include <memory>
+
 #include "include/v8-testing.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -274,6 +276,11 @@ class Utils {
     return CompiledWasmModule{std::move(native_module)};
   }
 
+  static inline const std::shared_ptr<i::wasm::NativeModule>& Open(
+      const CompiledWasmModule& compiled_module) {
+    return compiled_module.native_module_;
+  }
+
  private:
   static void ReportApiFailure(const char* location, const char* message);
 };
@@ -431,7 +438,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  DeferredHandles* Detach(Address* prev_limit);
+  std::unique_ptr<DeferredHandles> Detach(Address* prev_limit);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;

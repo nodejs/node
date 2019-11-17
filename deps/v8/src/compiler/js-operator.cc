@@ -11,6 +11,7 @@
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -284,8 +285,7 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty ||
-         op->opcode() == IrOpcode::kJSGetIterator);
+         op->opcode() == IrOpcode::kJSStoreProperty);
   return OpParameter<PropertyAccess>(op);
 }
 
@@ -473,6 +473,34 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
   return OpParameter<CreateBoundFunctionParameters>(op);
 }
 
+bool operator==(GetTemplateObjectParameters const& lhs,
+                GetTemplateObjectParameters const& rhs) {
+  return lhs.description().location() == rhs.description().location() &&
+         lhs.shared().location() == rhs.shared().location() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(GetTemplateObjectParameters const& lhs,
+                GetTemplateObjectParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(GetTemplateObjectParameters const& p) {
+  return base::hash_combine(p.description().location(), p.shared().location(),
+                            FeedbackSource::Hash()(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         GetTemplateObjectParameters const& p) {
+  return os << Brief(*p.description()) << ", " << Brief(*p.shared());
+}
+
+const GetTemplateObjectParameters& GetTemplateObjectParametersOf(
+    const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSGetTemplateObject);
+  return OpParameter<GetTemplateObjectParameters>(op);
+}
+
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.allocation() == rhs.allocation() &&
@@ -560,6 +588,31 @@ std::ostream& operator<<(std::ostream& os, CloneObjectParameters const& p) {
 const CloneObjectParameters& CloneObjectParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCloneObject);
   return OpParameter<CloneObjectParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os, GetIteratorParameters const& p) {
+  return os << p.loadFeedback() << ", " << p.callFeedback();
+}
+
+bool operator==(GetIteratorParameters const& lhs,
+                GetIteratorParameters const& rhs) {
+  return lhs.loadFeedback() == rhs.loadFeedback() &&
+         lhs.callFeedback() == rhs.callFeedback();
+}
+
+bool operator!=(GetIteratorParameters const& lhs,
+                GetIteratorParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+GetIteratorParameters const& GetIteratorParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSGetIterator);
+  return OpParameter<GetIteratorParameters>(op);
+}
+
+size_t hash_value(GetIteratorParameters const& p) {
+  return base::hash_combine(FeedbackSource::Hash()(p.loadFeedback()),
+                            FeedbackSource::Hash()(p.callFeedback()));
 }
 
 size_t hash_value(ForInMode mode) { return static_cast<uint8_t>(mode); }
@@ -957,9 +1010,10 @@ const Operator* JSOperatorBuilder::LoadProperty(
       access);                                             // parameter
 }
 
-const Operator* JSOperatorBuilder::GetIterator(FeedbackSource const& feedback) {
-  PropertyAccess access(LanguageMode::kSloppy, feedback);
-  return new (zone()) Operator1<PropertyAccess>(          // --
+const Operator* JSOperatorBuilder::GetIterator(
+    FeedbackSource const& load_feedback, FeedbackSource const& call_feedback) {
+  GetIteratorParameters access(load_feedback, call_feedback);
+  return new (zone()) Operator1<GetIteratorParameters>(   // --
       IrOpcode::kJSGetIterator, Operator::kNoProperties,  // opcode
       "JSGetIterator",                                    // name
       1, 1, 1, 1, 1, 2,                                   // counts
@@ -1255,6 +1309,18 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       "JSCreateLiteralObject",                             // name
       0, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
+}
+
+const Operator* JSOperatorBuilder::GetTemplateObject(
+    Handle<TemplateObjectDescription> description,
+    Handle<SharedFunctionInfo> shared, FeedbackSource const& feedback) {
+  GetTemplateObjectParameters parameters(description, shared, feedback);
+  return new (zone()) Operator1<GetTemplateObjectParameters>(  // --
+      IrOpcode::kJSGetTemplateObject,                          // opcode
+      Operator::kEliminatable,                                 // properties
+      "JSGetTemplateObject",                                   // name
+      0, 1, 1, 1, 1, 0,                                        // counts
+      parameters);                                             // parameter
 }
 
 const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,

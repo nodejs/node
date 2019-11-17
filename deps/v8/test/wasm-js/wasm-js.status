@@ -7,6 +7,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8633
   'limits': [SKIP],
   'proposals/reference-types/limits': [SKIP],
+  # TODO(v8:9673): Enable these spec tests once they exist, and the out-dated
+  # tests have been removed.
+  'proposals/JS-BigInt-integration/*': [SKIP],
 }], # ALWAYS
 
 ['arch == s390 or arch == s390x or system == aix', {

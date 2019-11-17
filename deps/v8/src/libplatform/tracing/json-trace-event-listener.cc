@@ -7,9 +7,9 @@
 #include <cmath>
 
 #include "base/trace_event/common/trace_event_common.h"
-#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
-#include "perfetto/trace/trace.pb.h"
 #include "perfetto/tracing.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "protos/perfetto/trace/trace.pb.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 

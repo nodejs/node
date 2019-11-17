@@ -8,18 +8,8 @@
   // v8 works around that ICU issue.
   // See https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry .
   ["cel-gaulish", "cel-gaulish"],
-  ["i-default", "i-default"],
-  ["i-mingo", "i-mingo"],
-  ["i-enochian", "i-enochian"],
-  ["zh-min", "zh-min"],
 
   // Matching should be case-insensitive.
-  ["I-default", "i-default"],
-  ["i-DEFAULT", "i-default"],
-  ["I-DEFAULT", "i-default"],
-  ["i-DEfauLT", "i-default"],
-  ["zh-Min", "zh-min"],
-  ["Zh-min", "zh-min"],
 ].forEach(([inputLocale, expectedLocale]) => {
   const canonicalLocales = Intl.getCanonicalLocales(inputLocale);
   assertEquals(canonicalLocales.length, 1);

@@ -49,7 +49,7 @@ class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
       const std::vector<std::pair<void*, void*>>& embedder_fields) final {}
   bool AdvanceTracing(double deadline_in_ms) final { return true; }
   bool IsTracingDone() final { return true; }
-  void TracePrologue() final {}
+  void TracePrologue(TraceFlags) final {}
   void TraceEpilogue() final {}
   void EnterFinalPause(EmbedderStackState) final {}
 

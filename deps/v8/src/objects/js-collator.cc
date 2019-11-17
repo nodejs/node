@@ -243,7 +243,8 @@ void SetCaseFirstOption(icu::Collator* icu_collator,
 // static
 MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
                                         Handle<Object> locales,
-                                        Handle<Object> options_obj) {
+                                        Handle<Object> options_obj,
+                                        const char* service) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -258,9 +259,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   } else {
     // 3. Else
     // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, options_obj,
-        Object::ToObject(isolate, options_obj, "Intl.Collator"), JSCollator);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, options_obj, service),
+                               JSCollator);
   }
 
   // At this point, options_obj can either be a JSObject or a JSProxy only.
@@ -269,7 +270,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
   Maybe<Usage> maybe_usage = Intl::GetStringOption<Usage>(
-      isolate, options, "usage", "Intl.Collator", {"sort", "search"},
+      isolate, options, "usage", service, {"sort", "search"},
       {Usage::SORT, Usage::SEARCH}, Usage::SORT);
   MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
   Usage usage = maybe_usage.FromJust();
@@ -278,7 +279,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // « "lookup", "best fit" », "best fit").
   // 10. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.Collator");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSCollator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -293,14 +294,14 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   //
   // 13. Set opt.[[kn]] to numeric.
   bool numeric;
-  Maybe<bool> found_numeric = Intl::GetBoolOption(isolate, options, "numeric",
-                                                  "Intl.Collator", &numeric);
+  Maybe<bool> found_numeric =
+      Intl::GetBoolOption(isolate, options, "numeric", service, &numeric);
   MAYBE_RETURN(found_numeric, MaybeHandle<JSCollator>());
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
   //     « "upper", "lower", "false" », undefined).
   Maybe<Intl::CaseFirst> maybe_case_first =
-      Intl::GetCaseFirst(isolate, options, "Intl.Collator");
+      Intl::GetCaseFirst(isolate, options, service);
   MAYBE_RETURN(maybe_case_first, MaybeHandle<JSCollator>());
   Intl::CaseFirst case_first = maybe_case_first.FromJust();
 
@@ -411,7 +412,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
   Maybe<Sensitivity> maybe_sensitivity = Intl::GetStringOption<Sensitivity>(
-      isolate, options, "sensitivity", "Intl.Collator",
+      isolate, options, "sensitivity", service,
       {"base", "accent", "case", "variant"},
       {Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
        Sensitivity::kVariant},
@@ -451,9 +452,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 27.Let ignorePunctuation be ? GetOption(options,
   // "ignorePunctuation", "boolean", undefined, false).
   bool ignore_punctuation;
-  Maybe<bool> found_ignore_punctuation =
-      Intl::GetBoolOption(isolate, options, "ignorePunctuation",
-                          "Intl.Collator", &ignore_punctuation);
+  Maybe<bool> found_ignore_punctuation = Intl::GetBoolOption(
+      isolate, options, "ignorePunctuation", service, &ignore_punctuation);
   MAYBE_RETURN(found_ignore_punctuation, MaybeHandle<JSCollator>());
 
   // 28. Set collator.[[IgnorePunctuation]] to ignorePunctuation.

@@ -9,8 +9,6 @@
 
   // Matching should be case-insensitive.
   ["sgn-De", "gsg"],
-  ["sgn-BE-FR", "sfb"],
-  ["Sgn-bE-Fr", "sfb"],
 
   // deprecated region tag
   ["und-Latn-dd", "und-Latn-DE"],

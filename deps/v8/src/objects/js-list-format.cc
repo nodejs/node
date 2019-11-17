@@ -252,40 +252,22 @@ namespace {
 // Extract String from JSArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
     Isolate* isolate, Handle<JSArray> array) {
-  Factory* factory = isolate->factory();
-  // In general, ElementsAccessor::Get actually isn't guaranteed to give us the
-  // elements in order. But if it is a holey array, it will cause the exception
-  // with the IsString check.
+  // Thanks to iterable-to-list preprocessing, we never see dictionary-mode
+  // arrays here, so the loop below can construct an entry from the index.
+  DCHECK(array->HasFastElements(isolate));
   auto* accessor = array->GetElementsAccessor();
   uint32_t length = accessor->NumberOfElements(*array);
 
-  // ecma402 #sec-createpartsfromlist
-  // 2. If list contains any element value such that Type(value) is not String,
-  // throw a TypeError exception.
-  //
-  // Per spec it looks like we're supposed to throw a TypeError exception if the
-  // item isn't already a string, rather than coercing to a string.
   std::vector<icu::UnicodeString> result;
   for (uint32_t i = 0; i < length; i++) {
-    DCHECK(accessor->HasElement(*array, i));
-    Handle<Object> item = accessor->Get(array, i);
-    DCHECK(!item.is_null());
-    if (!item->IsString()) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewTypeError(MessageTemplate::kArrayItemNotType,
-                       factory->list_string(),
-                       // TODO(ftang): For dictionary-mode arrays, i isn't
-                       // actually the index in the array but the index in the
-                       // dictionary.
-                       factory->NewNumber(i), factory->String_string()),
-          Nothing<std::vector<icu::UnicodeString>>());
-    }
+    InternalIndex entry(i);
+    DCHECK(accessor->HasEntry(*array, entry));
+    Handle<Object> item = accessor->Get(array, entry);
+    DCHECK(item->IsString());
     Handle<String> item_str = Handle<String>::cast(item);
     if (!item_str->IsFlat()) item_str = String::Flatten(isolate, item_str);
     result.push_back(Intl::ToICUUnicodeString(isolate, item_str));
   }
-  DCHECK(!array->HasDictionaryElements());
   return Just(result);
 }
 
@@ -294,9 +276,6 @@ MaybeHandle<T> FormatListCommon(
     Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list,
     MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
   DCHECK(!list->IsUndefined());
-  // ecma402 #sec-createpartsfromlist
-  // 2. If list contains any element value such that Type(value) is not String,
-  // throw a TypeError exception.
   Maybe<std::vector<icu::UnicodeString>> maybe_array =
       ToUnicodeStringArray(isolate, list);
   MAYBE_RETURN(maybe_array, Handle<T>());

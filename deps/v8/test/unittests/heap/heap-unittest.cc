@@ -145,8 +145,7 @@ TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
   EXPECT_TRUE(IsAligned(isolate_root, size_t{4} * GB));
 
   // Check that all memory chunks belong this region.
-  base::AddressRegion heap_reservation(isolate_root - size_t{2} * GB,
-                                       size_t{4} * GB);
+  base::AddressRegion heap_reservation(isolate_root, size_t{4} * GB);
 
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   for (;;) {

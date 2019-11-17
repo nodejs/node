@@ -9,14 +9,14 @@ builder.addFunction('main', kSig_d_d)
     .addBody([
       // Call with param 0 (converted to i64), to fill the stack with non-zero
       // values.
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 0
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 1
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 2
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 3
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 4
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 5
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 6
-      kExprGetLocal, 0, kExprI64SConvertF64,  // arg 7
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 0
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 1
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 2
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 3
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 4
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 5
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 6
+      kExprLocalGet, 0, kExprI64SConvertF64,  // arg 7
       kExprCallFunction, 1,                   // call #1
       // Now call with 0 constants.
       // The bug was that they were written out as i32 values, thus the upper 32
@@ -36,7 +36,7 @@ builder.addFunction('main', kSig_d_d)
     .exportFunc();
 builder.addFunction(undefined, makeSig(new Array(8).fill(kWasmI64), [kWasmF64]))
     .addBody([
-      kExprGetLocal, 7,     // get_local 7 (last parameter)
+      kExprLocalGet, 7,     // get_local 7 (last parameter)
       kExprF64SConvertI64,  // f64.convert_s/i64
     ]);
 const instance = builder.instantiate();

@@ -265,7 +265,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     }
 
     size_t length = Min(kBufferSize, range.length());
-    i::CopyCharsUnsigned(buffer_, range.start, length);
+    i::CopyChars(buffer_, range.start, length);
     buffer_end_ = &buffer_[length];
     return true;
   }

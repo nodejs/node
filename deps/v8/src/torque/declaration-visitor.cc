@@ -93,20 +93,6 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     }
   }
 
-  if (TorqueBuiltinDeclaration::DynamicCast(decl)) {
-    for (size_t i = 0; i < signature.types().size(); ++i) {
-      const Type* type = signature.types()[i];
-      if (!type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        const Identifier* id = signature.parameter_names.size() > i
-                                   ? signature.parameter_names[i]
-                                   : nullptr;
-        Error("Untagged argument ", id ? (id->value + " ") : "", "at position ",
-              i, " to builtin ", decl->name, " is not supported.")
-            .Position(id ? id->pos : decl->pos);
-      }
-    }
-  }
-
   if (const StructType* struct_type =
           StructType::DynamicCast(signature.return_type)) {
     Error("Builtins ", decl->name, " cannot return structs ",

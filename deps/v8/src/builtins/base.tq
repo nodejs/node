@@ -90,11 +90,28 @@ type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
-type NameDictionary extends FixedArray;
+// The HashTable inheritance hierarchy doesn't actually look like this in C++
+// because it uses some class templates that we can't yet (and may never)
+// express in Torque, but this is the expected organization of instance types.
+@abstract @dirtyInstantiatedAbstractClass
+extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
+extern class OrderedHashMap extends HashTable;
+extern class OrderedHashSet extends HashTable;
+extern class OrderedNameDictionary extends HashTable;
+extern class NameDictionary extends HashTable;
+extern class GlobalDictionary extends HashTable;
+extern class SimpleNumberDictionary extends HashTable;
+extern class StringTable extends HashTable;
+extern class EphemeronHashTable extends HashTable;
+type ObjectHashTable extends HashTable
+    generates 'TNode<ObjectHashTable>';
+extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
-type Code extends HeapObject generates 'TNode<Code>';
+extern class Code extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
+
+@abstract
 extern class Context extends HeapObject {
   length: Smi;
   scope_info: ScopeInfo;
@@ -102,10 +119,27 @@ extern class Context extends HeapObject {
   extension: Object;
   native_context: Object;
 }
-type NativeContext extends Context generates 'TNode<NativeContext>';
+extern class AwaitContext extends Context generates 'TNode<Context>';
+extern class BlockContext extends Context generates 'TNode<Context>';
+extern class CatchContext extends Context generates 'TNode<Context>';
+extern class DebugEvaluateContext extends Context
+    generates 'TNode<Context>';
+extern class EvalContext extends Context generates 'TNode<Context>';
+extern class FunctionContext extends Context generates 'TNode<Context>';
+extern class ModuleContext extends Context generates 'TNode<Context>';
+extern class NativeContext extends Context;
+extern class ScriptContext extends Context generates 'TNode<Context>';
+extern class WithContext extends Context generates 'TNode<Context>';
 
 @generateCppClass
-extern class Oddball extends HeapObject {
+@abstract
+extern class PrimitiveHeapObject extends HeapObject {
+}
+
+@generateCppClass
+@apiExposedInstanceTypeValue(0x43)
+@highestInstanceTypeWithinParentClassRange
+extern class Oddball extends PrimitiveHeapObject {
   to_number_raw: float64;
   to_string: String;
   to_number: Number;
@@ -113,13 +147,13 @@ extern class Oddball extends HeapObject {
   kind: Smi;
 }
 
-extern class HeapNumber extends HeapObject { value: float64; }
+extern class HeapNumber extends PrimitiveHeapObject { value: float64; }
 type Number = Smi | HeapNumber;
 type Numeric = Number | BigInt;
 
 @abstract
 @generateCppClass
-extern class Name extends HeapObject {
+extern class Name extends PrimitiveHeapObject {
   hash_field: uint32;
 }
 // This is the same as Name, but with the information that there are no other
@@ -137,6 +171,7 @@ type PrivateSymbol extends Symbol;
 
 @abstract
 @generateCppClass
+@reserveBitsInInstanceType(6)
 extern class String extends Name {
   length: int32;
 }
@@ -222,20 +257,35 @@ extern class FixedArrayBase extends HeapObject {
   length: Smi;
 }
 
-extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
+@abstract
+@dirtyInstantiatedAbstractClass
+extern class FixedArray extends FixedArrayBase {
+  objects[length]: Object;
+}
 
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64;
 }
 
-extern class WeakFixedArray extends HeapObject { length: Smi; }
+@abstract
+@dirtyInstantiatedAbstractClass
+extern class WeakFixedArray extends HeapObject {
+  length: Smi;
+}
 
 extern class ByteArray extends FixedArrayBase {}
 
+@hasSameInstanceTypeAsParent
+extern class ArrayList extends FixedArray {
+}
+
+extern class ObjectBoilerplateDescription extends FixedArray;
+extern class ClosureFeedbackCellArray extends FixedArray;
+extern class ScriptContextTable extends FixedArray;
+
 type LayoutDescriptor extends ByteArray
     generates 'TNode<LayoutDescriptor>';
-type TransitionArray extends WeakFixedArray
-    generates 'TNode<TransitionArray>';
+extern class TransitionArray extends WeakFixedArray;
 
 type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
 
@@ -282,6 +332,7 @@ extern class SourcePositionTableWithFrameCache extends Struct {
 // We make this class abstract because it is missing the variable-sized part,
 // which is still impossible to express in Torque.
 @abstract
+@dirtyInstantiatedAbstractClass
 extern class DescriptorArray extends HeapObject {
   number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
@@ -327,7 +378,9 @@ intrinsic
   }
 }
 
+// JSReceiver corresponds to objects in the JS sense.
 @abstract
+@highestInstanceTypeWithinParentClassRange
 extern class JSReceiver extends HeapObject {
   properties_or_hash: FixedArrayBase | PropertyArray | Smi;
 }
@@ -337,6 +390,8 @@ type Constructor extends JSReceiver;
 @abstract
 @dirtyInstantiatedAbstractClass
 @generateCppClass
+@apiExposedInstanceTypeValue(0x421)
+@highestInstanceTypeWithinParentClassRange
 extern class JSObject extends JSReceiver {
   // [elements]: The elements (properties with names that are integers).
   //
@@ -366,6 +421,18 @@ macro NewJSObject(implicit context: Context)(): JSObject {
     properties_or_hash: kEmptyFixedArray,
     elements: kEmptyFixedArray
   };
+}
+
+@abstract
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class JSCustomElementsObject extends JSObject {
+}
+
+@abstract
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class JSSpecialObject extends JSCustomElementsObject {
 }
 
 extern macro HasPrototypeSlot(JSFunction): bool;
@@ -401,7 +468,8 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
       map, properties, kEmptyFixedArray, kNone, kWithSlackTracking);
 }
 
-extern class JSFunction extends JSObject {
+@highestInstanceTypeWithinParentClassRange
+extern class JSFunction extends JSFunctionOrBoundFunction {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
@@ -419,6 +487,7 @@ extern class JSProxy extends JSReceiver {
 
 // Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
+@hasSameInstanceTypeAsParent
 extern class JSProxyRevocableResult extends JSObject {
   proxy: JSAny;
   revoke: JSAny;
@@ -436,14 +505,14 @@ macro NewJSProxyRevocableResult(implicit context: Context)(
 }
 
 @generateCppClass
-extern class JSGlobalProxy extends JSObject {
+extern class JSGlobalProxy extends JSSpecialObject {
   // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
   native_context: Object;
 }
 
 @generateCppClass
-extern class JSPrimitiveWrapper extends JSObject {
+extern class JSPrimitiveWrapper extends JSCustomElementsObject {
   value: JSAny;
 }
 
@@ -531,8 +600,6 @@ extern class CallHandlerInfo extends Struct {
   data: Object;
 }
 
-type ObjectHashTable extends FixedArray;
-
 @abstract
 extern class Module extends HeapObject {
   exports: ObjectHashTable;
@@ -569,9 +636,12 @@ extern class SourceTextModule extends Module {
   // Lazily initialized on first access. It's the hole before first access and
   // a JSObject afterwards.
   import_meta: TheHole | JSObject;
-
+  async_parent_modules: ArrayList;
+  top_level_capability: JSPromise | Undefined;
   dfs_index: Smi;
   dfs_ancestor_index: Smi;
+  pending_async_dependencies: Smi;
+  flags: Smi;
 }
 
 @generateCppClass
@@ -583,7 +653,8 @@ extern class SyntheticModule extends Module {
 
 @abstract
 @generateCppClass
-extern class JSModuleNamespace extends JSObject {
+@dirtyInstantiatedAbstractClass
+extern class JSModuleNamespace extends JSSpecialObject {
   module: Module;
 }
 
@@ -606,12 +677,27 @@ extern class JSWeakMap extends JSWeakCollection {
 }
 
 @generateCppClass
+@abstract
 extern class JSCollectionIterator extends JSObject {
   // The backing hash table mapping keys to values.
   table: Object;
   // The index into the data table.
   index: Object;
 }
+
+@abstract extern class JSMapIterator extends JSCollectionIterator;
+extern class JSMapKeyIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+extern class JSMapKeyValueIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+extern class JSMapValueIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+
+@abstract extern class JSSetIterator extends JSCollectionIterator;
+extern class JSSetKeyValueIterator extends JSSetIterator
+    generates 'TNode<JSSetIterator>';
+extern class JSSetValueIterator extends JSSetIterator
+    generates 'TNode<JSSetIterator>';
 
 extern class JSMessageObject extends JSObject {
   // Tagged fields.
@@ -656,7 +742,7 @@ extern class Script extends Struct {
   line_ends: Object;
   id: Smi;
   eval_from_shared_or_wrapped_arguments: Object;
-  eval_from_position: Smi;
+  eval_from_position: Smi | Foreign;  // Smi or Managed<wasm::NativeModule>
   shared_function_infos: Object;
   flags: Smi;
   source_url: Object;
@@ -669,12 +755,13 @@ extern class EmbedderDataArray extends HeapObject {
   length: Smi;
 }
 
-type ScopeInfo extends HeapObject generates 'TNode<ScopeInfo>';
+extern class ScopeInfo extends FixedArray;
 
+@generateCppClass
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
-  inner_length: int32;
+  children_length: int32;
 }
 
 extern class InterpreterData extends Struct {
@@ -697,13 +784,36 @@ extern class SharedFunctionInfo extends HeapObject {
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
+@abstract
 @generateCppClass
-extern class JSBoundFunction extends JSObject {
+extern class UncompiledData extends HeapObject {
+  inferred_name: String;
+  start_position: int32;
+  end_position: int32;
+}
+
+@generateCppClass
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+}
+
+@generateCppClass
+extern class UncompiledDataWithPreparseData extends UncompiledData {
+  preparse_data: PreparseData;
+}
+
+@abstract
+@generateCppClass
+@highestInstanceTypeWithinParentClassRange
+extern class JSFunctionOrBoundFunction extends JSObject {
+}
+
+@generateCppClass
+extern class JSBoundFunction extends JSFunctionOrBoundFunction {
   // The wrapped function object.
   bound_target_function: Callable;
   // The value that is always passed as the this value when calling the wrapped
   // function.
-  bound_this: JSAny;
+  bound_this: JSAny | SourceTextModule;
   // A list of values whose elements are used as the first arguments to any call
   // to the wrapped function.
   bound_arguments: FixedArray;
@@ -728,8 +838,6 @@ extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
     FixedArrayBase): intptr;
 
 type SloppyArgumentsElements extends FixedArray;
-type NumberDictionary extends HeapObject
-    generates 'TNode<NumberDictionary>';
 
 extern class FreeSpace extends HeapObject {
   size: Smi;
@@ -763,6 +871,8 @@ const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
 const REFLECT_APPLY_INDEX: constexpr NativeContextSlot
     generates 'Context::REFLECT_APPLY_INDEX';
+const REGEXP_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::REGEXP_FUNCTION_INDEX';
 const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
     generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
 const INITIAL_STRING_ITERATOR_MAP_INDEX: constexpr NativeContextSlot
@@ -834,7 +944,7 @@ extern class JSDate extends JSObject {
   cache_stamp: Undefined | Smi | NaN;
 }
 
-extern class JSGlobalObject extends JSObject {
+extern class JSGlobalObject extends JSSpecialObject {
   native_context: NativeContext;
   global_proxy: JSGlobalProxy;
 }
@@ -847,9 +957,12 @@ extern class JSAsyncFromSyncIterator extends JSObject {
   next: Object;
 }
 
+@generateCppClass
 extern class JSStringIterator extends JSObject {
+  // The [[IteratedString]] inobject property.
   string: String;
-  next_index: Smi;
+  // The [[StringIteratorNextIndex]] inobject property.
+  index: Smi;
 }
 
 @abstract
@@ -885,7 +998,7 @@ extern class FunctionTemplateRareData extends Struct {
 @generateCppClass
 extern class FunctionTemplateInfo extends TemplateInfo {
   // Handler invoked when calling an instance of this FunctionTemplateInfo.
-  // Either CallInfoHandler or Undefined.
+  // Either CallHandlerInfo or Undefined.
   call_code: Object;
   class_name: Object;
   // If the signature is a FunctionTemplateInfo it is used to check whether the
@@ -946,7 +1059,10 @@ const UTF16:
 const UTF32:
     constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF32';
 
-extern class Foreign extends HeapObject { foreign_address: RawPtr; }
+@apiExposedInstanceTypeValue(0x46)
+extern class Foreign extends HeapObject {
+  foreign_address: RawPtr;
+}
 
 @generateCppClass
 extern class InterceptorInfo extends Struct {
@@ -985,6 +1101,7 @@ extern class Cell extends HeapObject {
   value: Object;
 }
 
+@abstract
 extern class DataHandler extends Struct {
   smi_handler: Smi | Code;
   validity_cell: Smi | Cell;
@@ -995,6 +1112,9 @@ extern class DataHandler extends Struct {
   @noVerifier weak data_2: Object;
   @noVerifier weak data_3: Object;
 }
+
+extern class LoadHandler extends DataHandler;
+extern class StoreHandler extends DataHandler;
 
 @abstract
 @dirtyInstantiatedAbstractClass
@@ -1087,7 +1207,7 @@ extern class ClassPositions extends Struct {
   end: Smi;
 }
 
-type WasmInstanceObject extends JSObject;
+extern class WasmInstanceObject extends JSObject;
 
 extern class WasmExportedFunctionData extends Struct {
   wrapper_code: Code;
@@ -1129,6 +1249,7 @@ extern class WasmIndirectFunctionTable extends Struct {
 extern class WasmDebugInfo extends Struct {
   instance: WasmInstanceObject;
   interpreter_handle: Foreign | Undefined;
+  interpreter_reference_stack: Cell;
   locals_names: FixedArray | Undefined;
   c_wasm_entries: FixedArray | Undefined;
   c_wasm_entry_map: Foreign | Undefined;  // Managed<wasm::SignatureMap>
@@ -1305,9 +1426,6 @@ const kStrictReadOnlyProperty: constexpr MessageTemplate
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
 
-const kExternalPointerForOnHeapArray: constexpr RawPtr
-    generates 'JSTypedArray::ExternalPointerForOnHeapArray()';
-
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 
@@ -1332,6 +1450,7 @@ extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro IteratorSymbolConstant(): Symbol;
+extern macro MatchSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -1443,15 +1562,30 @@ RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
 @hasSameInstanceTypeAsParent
 extern class JSRegExpResult extends JSArray {
+  // In-object properties:
+  // The below fields are externally exposed.
   index: JSAny;
   input: JSAny;
   groups: JSAny;
+
+  // The below fields are for internal use only.
+  cached_indices_or_match_info: JSRegExpResultIndices | RegExpMatchInfo;
+  names: FixedArray | Undefined;
 }
+
+@hasSameInstanceTypeAsParent
+extern class JSRegExpResultIndices extends JSArray {
+  // In-object properties:
+  // The groups field is externally exposed.
+  groups: JSAny;
+}
+
+transient type FastJSRegExpResult extends JSRegExpResult;
 
 @generateCppClass
 extern class JSRegExpStringIterator extends JSObject {
   // The [[IteratingRegExp]] internal property.
-  iterating_reg_exp: JSAny;
+  iterating_reg_exp: JSReceiver;
   // The [[IteratedString]] internal property.
   iterated_string: String;
   flags: Smi;
@@ -1493,21 +1627,33 @@ extern class AccessorInfo extends Struct {
   data: Object;
 }
 
+@generateCppClass
 extern class AccessorPair extends Struct {
   getter: Object;
   setter: Object;
 }
 
-extern class BreakPoint extends Tuple2 {}
-extern class BreakPointInfo extends Tuple2 {}
+@hasSameInstanceTypeAsParent
+extern class BreakPoint extends Tuple2 {
+}
+@hasSameInstanceTypeAsParent
+extern class BreakPointInfo extends Tuple2 {
+}
 type CoverageInfo extends FixedArray;
 
+@generateCppClass
 extern class DebugInfo extends Struct {
-  shared_function_info: SharedFunctionInfo;
+  shared: SharedFunctionInfo;
   debugger_hints: Smi;
+  // Script field from shared function info.
   script: Undefined | Script;
+  // The original uninstrumented bytecode array for functions with break
+  // points - the instrumented bytecode is held in the shared function info.
   original_bytecode_array: Undefined | BytecodeArray;
+  // The debug instrumented bytecode array for functions with break points
+  // - also pointed to by the shared function info.
   debug_bytecode_array: Undefined | BytecodeArray;
+  // Fixed array holding status information for each active break point.
   break_points: FixedArray;
   flags: Smi;
   coverage_info: CoverageInfo | Undefined;
@@ -1527,12 +1673,15 @@ extern class FeedbackVector extends HeapObject {
   padding: uint32;
 }
 
+@generateCppClass
 extern class FeedbackCell extends Struct {
   value: Undefined | FeedbackVector | FixedArray;
   interrupt_budget: int32;
 }
 
-type AllocationSite extends Struct;
+extern class FeedbackMetadata extends HeapObject;
+
+extern class AllocationSite extends Struct;
 extern class AllocationMemento extends Struct {
   allocation_site: AllocationSite;
 }
@@ -1541,9 +1690,7 @@ extern class WasmModuleObject extends JSObject {
   native_module: Foreign;
   export_wrappers: FixedArray;
   script: Script;
-  weak_instance_list: WeakArrayList;
   asm_js_offset_table: ByteArray | Undefined;
-  break_point_infos: FixedArray | Undefined;
 }
 
 extern class WasmTableObject extends JSObject {
@@ -1590,22 +1737,35 @@ extern class JSFinalizationGroup extends JSObject {
   flags: Smi;
 }
 
+@generateCppClass
 extern class JSFinalizationGroupCleanupIterator extends JSObject {
   finalization_group: JSFinalizationGroup;
 }
 
+@generateCppClass
 extern class WeakCell extends HeapObject {
   finalization_group: Undefined | JSFinalizationGroup;
   target: Undefined | JSReceiver;
   holdings: Object;
+
+  // For storing doubly linked lists of WeakCells in JSFinalizationGroup's
+  // "active_cells" and "cleared_cells" lists.
   prev: Undefined | WeakCell;
   next: Undefined | WeakCell;
+
+  // For storing doubly linked lists of WeakCells per key in
+  // JSFinalizationGroup's key-based hashmap. WeakCell also needs to know its
+  // key, so that we can remove the key from the key_map when we remove the last
+  // WeakCell associated with it.
   key: Object;
   key_list_prev: Undefined | WeakCell;
   key_list_next: Undefined | WeakCell;
 }
 
-extern class JSWeakRef extends JSObject { target: Undefined | JSReceiver; }
+@generateCppClass
+extern class JSWeakRef extends JSObject {
+  target: Undefined | JSReceiver;
+}
 
 extern class BytecodeArray extends FixedArrayBase {
   // TODO(v8:8983): bytecode array object sizes vary based on their contents.
@@ -1619,6 +1779,29 @@ extern class BytecodeArray extends FixedArrayBase {
   osr_nesting_level: int8;
   bytecode_age: int8;
 }
+
+extern class Filler extends HeapObject generates 'TNode<HeapObject>';
+extern class CodeDataContainer extends HeapObject;
+@abstract
+extern class SmallOrderedHashTable extends HeapObject
+    generates 'TNode<HeapObject>';
+extern class SmallOrderedHashMap extends SmallOrderedHashTable;
+extern class SmallOrderedHashSet extends SmallOrderedHashTable;
+extern class SmallOrderedNameDictionary extends SmallOrderedHashTable;
+
+// Various logical subclasses of JSObject, which have their own instance types
+// but not their own class definitions:
+
+// Like JSObject, but created from API function.
+@apiExposedInstanceTypeValue(0x420)
+extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
+// Like JSApiObject, but requires access checks and/or has interceptors.
+@apiExposedInstanceTypeValue(0x410)
+extern class JSSpecialApiObject extends JSSpecialObject
+    generates 'TNode<JSSpecialObject>';
+extern class JSContextExtensionObject extends JSObject
+    generates 'TNode<JSObject>';
+extern class JSError extends JSObject generates 'TNode<JSObject>';
 
 extern macro Is64(): constexpr bool;
 
@@ -1657,6 +1840,8 @@ extern transitioning builtin HasProperty(implicit context: Context)(
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(Context, JSAny, JSAny, Smi, FeedbackVector): JSAny;
+extern macro CollectCallFeedback(
+    JSAny, Context, Undefined | FeedbackVector, uintptr);
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -1674,6 +1859,10 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
+extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
+    JSAny): never;
+extern transitioning runtime ThrowSymbolIteratorInvalid(
+    implicit context: Context)(): never;
 
 extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
     JSAny, constexpr MessageTemplate, constexpr string): void;
@@ -2232,6 +2421,14 @@ Cast<JSStringIterator>(o: HeapObject): JSStringIterator
   return HeapObjectToJSStringIterator(o) otherwise CastError;
 }
 
+Cast<JSRegExpStringIterator>(o: HeapObject): JSRegExpStringIterator
+    labels CastError {
+  if (IsJSRegExpStringIterator(o)) {
+    return %RawDownCast<JSRegExpStringIterator>(o);
+  }
+  goto CastError;
+}
+
 Cast<JSTypedArray>(o: HeapObject): JSTypedArray
     labels CastError {
   if (IsJSTypedArray(o)) return %RawDownCast<JSTypedArray>(o);
@@ -2354,9 +2551,22 @@ Cast<JSRegExp>(o: HeapObject): JSRegExp
   goto CastError;
 }
 
+Cast<FastJSRegExpResult>(implicit context: Context)(o: HeapObject):
+    FastJSRegExpResult
+    labels CastError {
+  if (regexp::IsFastRegExpResult(o)) return %RawDownCast<FastJSRegExpResult>(o);
+  goto CastError;
+}
+
 Cast<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
   if (IsMap(o)) return %RawDownCast<Map>(o);
+  goto CastError;
+}
+
+Cast<FeedbackVector>(implicit context: Context)(o: HeapObject): FeedbackVector
+    labels CastError {
+  if (IsFeedbackVector(o)) return %RawDownCast<FeedbackVector>(o);
   goto CastError;
 }
 
@@ -2513,6 +2723,7 @@ extern macro Signed(RawPtr): intptr;
 extern macro TruncateIntPtrToInt32(intptr): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
+extern macro SmiFromUint32(uint32): Smi;
 extern macro SmiUntag(Smi): intptr;
 extern macro SmiToInt32(Smi): int32;
 extern macro RoundIntPtrToFloat64(intptr): float64;
@@ -2556,6 +2767,7 @@ extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
 extern macro BitcastTaggedToWord(Tagged): intptr;
+extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 macro FromConstexpr<To: type, From: type>(o: From): To;
@@ -2674,7 +2886,7 @@ Convert<Number, uint32>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
 Convert<Smi, uint32>(ui: uint32): Smi {
-  return SmiFromInt32(Signed(ui));
+  return SmiFromUint32(ui);
 }
 Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
@@ -2811,8 +3023,7 @@ extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
 
-extern operator '.data_ptr' macro LoadJSTypedArrayBackingStore(JSTypedArray):
-    RawPtr;
+extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
@@ -2879,8 +3090,6 @@ extern macro LoadConstructorOrBackPointer(Map): Object;
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): JSAny
     labels NotData, IfHole;
-extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, JSAny)
-    labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
@@ -3255,9 +3464,11 @@ extern macro PerformStackCheck(implicit context: Context)(): void;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
+extern macro IsFeedbackVector(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
 extern macro IsJSRegExp(HeapObject): bool;
+extern macro IsJSRegExpStringIterator(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;

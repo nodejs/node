@@ -102,11 +102,12 @@ local function MakeClangCommandLine(
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang++ -std=c++11 -c "
+   return CLANG_BIN .. "/clang++ -std=c++14 -c"
       .. " -Xclang -load -Xclang " .. CLANG_PLUGINS .. "/libgcmole.so"
       .. " -Xclang -plugin -Xclang "  .. plugin
       .. (plugin_args or "")
       .. " -Xclang -triple -Xclang " .. triple
+      .. " -fno-exceptions"
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -DV8_INTL_SUPPORT"
@@ -466,6 +467,10 @@ end
 
 local function TestRun()
    local errors, output = SafeCheckCorrectnessForArch('x64', true)
+   if not errors then
+      log("** Test file should produce errors, but none were found.")
+      return false
+   end
 
    local filename = "tools/gcmole/test-expectations.txt"
    local exp_file = assert(io.open(filename), "failed to open test expectations file")
@@ -473,18 +478,18 @@ local function TestRun()
 
    if output ~= expectations then
       log("** Output mismatch from running tests. Please run them manually.")
-   else
-      log("** Tests ran successfully")
+      return false
    end
+
+   log("** Tests ran successfully")
+   return true
 end
 
-TestRun()
-
-local errors = false
+local errors = not TestRun()
 
 for _, arch in ipairs(ARCHS) do
    if not ARCHITECTURES[arch] then
-      error ("Unknown arch: " .. arch)
+      error("Unknown arch: " .. arch)
    end
 
    errors = SafeCheckCorrectnessForArch(arch, false) or errors

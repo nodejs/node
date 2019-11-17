@@ -46,6 +46,7 @@ enum class TypeCheckResult {
   kSmi,
   kWeakRef,
   kUsedMap,
+  kKnownMapPointer,
   kUsedTypeHint,
 
   // Failure cases:
@@ -98,6 +99,16 @@ struct ObjectPropertiesResult {
   const char* type;  // Runtime type of the object.
   size_t num_properties;
   ObjectProperty** properties;
+
+  // If not all relevant memory is available, GetObjectProperties may respond
+  // with a technically correct but uninteresting type such as HeapObject, and
+  // use other heuristics to make reasonable guesses about what specific type
+  // the object actually is. You may request data about the same object again
+  // using any of these guesses as the type hint, but the results should be
+  // formatted to the user in a way that clearly indicates that they're only
+  // guesses.
+  size_t num_guessed_types;
+  const char** guessed_types;
 };
 
 // Copies byte_count bytes of memory from the given address in the debuggee to
@@ -109,7 +120,7 @@ typedef MemoryAccessResult (*MemoryAccessor)(uintptr_t address,
 // Additional data that can help GetObjectProperties to be more accurate. Any
 // fields you don't know can be set to zero and this library will do the best it
 // can with the information available.
-struct Roots {
+struct HeapAddresses {
   // Beginning of allocated space for various kinds of data. These can help us
   // to detect certain common objects that are placed in memory during startup.
   // These values might be provided via name-value pairs in CrashPad dumps.
@@ -119,9 +130,9 @@ struct Roots {
   //    key stored in v8::internal::Isolate::isolate_key_.
   // 2. Get isolate->heap_.map_space_->memory_chunk_list_.front_ and similar for
   //    old_space_ and read_only_space_.
-  uintptr_t map_space;
-  uintptr_t old_space;
-  uintptr_t read_only_space;
+  uintptr_t map_space_first_page;
+  uintptr_t old_space_first_page;
+  uintptr_t read_only_space_first_page;
 
   // Any valid heap pointer address. On platforms where pointer compression is
   // enabled, this can allow us to get data from compressed pointers even if the
@@ -139,7 +150,8 @@ extern "C" {
 V8_DEBUG_HELPER_EXPORT v8::debug_helper::ObjectPropertiesResult*
 _v8_debug_helper_GetObjectProperties(
     uintptr_t object, v8::debug_helper::MemoryAccessor memory_accessor,
-    const v8::debug_helper::Roots& heap_roots, const char* type_hint);
+    const v8::debug_helper::HeapAddresses& heap_addresses,
+    const char* type_hint);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     v8::debug_helper::ObjectPropertiesResult* result);
 }
@@ -159,16 +171,16 @@ using ObjectPropertiesResultPtr =
 // Get information about the given object pointer, which could be:
 // - A tagged pointer, strong or weak
 // - A cleared weak pointer
-// - A compressed tagged pointer, sign-extended to 64 bits
+// - A compressed tagged pointer, zero-extended to 64 bits
 // - A tagged small integer
 // The type hint is only used if the object's Map is missing or corrupt. It
 // should be the fully-qualified name of a class that inherits from
 // v8::internal::Object.
 inline ObjectPropertiesResultPtr GetObjectProperties(
     uintptr_t object, v8::debug_helper::MemoryAccessor memory_accessor,
-    const Roots& heap_roots, const char* type_hint = nullptr) {
+    const HeapAddresses& heap_addresses, const char* type_hint = nullptr) {
   return ObjectPropertiesResultPtr(_v8_debug_helper_GetObjectProperties(
-      object, memory_accessor, heap_roots, type_hint));
+      object, memory_accessor, heap_addresses, type_hint));
 }
 
 }  // namespace debug_helper

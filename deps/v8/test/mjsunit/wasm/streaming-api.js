@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_i)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .exportAs("main");
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.compileStreaming(Promise.resolve(bytes)).then(
@@ -22,7 +22,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_i)
-         .addBody([kExprGetLocal, 0])
+         .addBody([kExprLocalGet, 0])
          .exportAs("main");
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes)).then(
@@ -47,8 +47,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_i)
-         .addBody([kExprGetLocal, 0,
-                   kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
+                   kExprLocalGet, 0,
                    kExprF32Mul])
          .exportAs("main");
   let bytes = builder.toBuffer();

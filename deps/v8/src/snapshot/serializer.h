@@ -328,7 +328,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeContent(Map map, int size);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
-  int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();

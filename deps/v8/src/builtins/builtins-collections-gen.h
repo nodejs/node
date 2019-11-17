@@ -11,13 +11,13 @@ namespace v8 {
 namespace internal {
 
 void BranchIfIterableWithOriginalKeyOrValueMapIterator(
-    compiler::CodeAssemblerState* state, compiler::TNode<Object> iterable,
-    compiler::TNode<Context> context, compiler::CodeAssemblerLabel* if_true,
+    compiler::CodeAssemblerState* state, TNode<Object> iterable,
+    TNode<Context> context, compiler::CodeAssemblerLabel* if_true,
     compiler::CodeAssemblerLabel* if_false);
 
 void BranchIfIterableWithOriginalValueSetIterator(
-    compiler::CodeAssemblerState* state, compiler::TNode<Object> iterable,
-    compiler::TNode<Context> context, compiler::CodeAssemblerLabel* if_true,
+    compiler::CodeAssemblerState* state, TNode<Object> iterable,
+    TNode<Context> context, compiler::CodeAssemblerLabel* if_true,
     compiler::CodeAssemblerLabel* if_false);
 
 }  // namespace internal

@@ -74,7 +74,7 @@ class CancelableTaskManagerTest : public ::testing::Test {
 
   std::unique_ptr<TestTask> NewTask(
       ResultType* result, TestTask::Mode mode = TestTask::kDoNothing) {
-    return base::make_unique<TestTask>(this, result, mode);
+    return std::make_unique<TestTask>(this, result, mode);
   }
 
   void CancelAndWait() {

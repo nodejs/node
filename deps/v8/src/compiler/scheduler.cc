@@ -6,7 +6,7 @@
 
 #include <iomanip>
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"

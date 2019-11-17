@@ -778,6 +778,14 @@ bool String::AsArrayIndex(uint32_t* index) {
   return SlowAsArrayIndex(index);
 }
 
+bool String::AsIntegerIndex(size_t* index) {
+  uint32_t field = hash_field();
+  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
+    return false;
+  }
+  return SlowAsIntegerIndex(index);
+}
+
 SubStringRange::SubStringRange(String string,
                                const DisallowHeapAllocation& no_gc, int first,
                                int length)
