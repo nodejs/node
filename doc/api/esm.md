@@ -834,9 +834,9 @@ To include an ES module into CommonJS, use [`import()`][].
 
 ### <code>import</code> statements
 
-An `import` statement can reference an ES module, a CommonJS module, or JSON.
-Other file types such as Native modules are not supported. For those,
-use [`module.createRequire()`][].
+An `import` statement can reference an ES module or a CommonJS module. Other
+file types such as JSON or Native modules are not supported. For those, use
+[`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
 in CommonJS, see [`import()`][].
@@ -846,23 +846,22 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name.
+the package name; unless the package’s `package.json` contains an [`"exports"`
+field][], in which case files within packages need to be accessed via the path
+defined in `"exports"`.
 
 ```js
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
 ```
 
-> Currently only the “default export” is supported for CommonJS files or
-> packages:
->
-> <!-- eslint-disable no-duplicate-imports -->
-> ```js
-> import packageMain from 'commonjs-package'; // Works
->
-> import { method } from 'commonjs-package'; // Errors
-> ```
->
-> There are ongoing efforts to make the latter code possible.
+Only the “default export” is supported for CommonJS files or packages:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import packageMain from 'commonjs-package'; // Works
+
+import { method } from 'commonjs-package'; // Errors
+```
 
 ### <code>import()</code> expressions
 
@@ -1394,6 +1393,7 @@ success!
 [Package Exports]: #esm_package_exports
 [Terminology]: #esm_terminology
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
+[`"exports"` field]: #esm_package_exports
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
