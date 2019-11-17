@@ -922,7 +922,7 @@ napi_status napi_get_all_property_names(napi_env env,
     case napi_key_include_prototypes:
       collection_mode = v8::KeyCollectionMode::kIncludePrototypes;
       break;
-    case napi_key_own_only:
+    case napi_key_include_own_properties:
       collection_mode = v8::KeyCollectionMode::kOwnOnly;
       break;
     default:

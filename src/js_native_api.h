@@ -514,6 +514,9 @@ napi_get_all_property_names(napi_env env,
                             napi_key_filter key_filter,
                             napi_key_conversion key_conversion,
                             napi_value* result);
+NAPI_EXTERN napi_status napi_get_own_property_names(napi_env env,
+                                                    napi_value object,
+                                                    napi_value* result);
 
 // Instance data
 NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,

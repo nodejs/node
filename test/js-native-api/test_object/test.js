@@ -6,7 +6,7 @@ const assert = require('assert');
 const test_object = require(`./build/${common.buildType}/test_object`);
 
 
-const object = {
+let object = {
   hello: 'world',
   array: [
     1, 94, 'str', 12.321, { test: 'obj in arr' }
@@ -203,14 +203,9 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.strictEqual(obj.foo, 'baz');
 }
 
-{
-  // Verify that napi_get_property_names gets the right set of property names,
-  // i.e.: includes prototypes, only enumerable properties, skips symbols,
-  // and includes indices and converts them to strings.
-
-  const object = Object.create({
-    inherited: 1
-  });
+object = Object.create({
+  inherited: 1
+});
 
   const fooSymbol = Symbol('foo');
 
@@ -224,11 +219,26 @@ assert.strictEqual(newObject.test_string, 'test string');
   });
   object[5] = 5;
 
+{
+  // Verify that napi_get_property_names gets the right set of property names,
+  // i.e.: includes prototypes, only enumerable properties, skips symbols,
+  // and includes indices and converts them to strings.
+
   assert.deepStrictEqual(test_object.GetPropertyNames(object),
                          ['5', 'normal', 'inherited']);
 
   assert.deepStrictEqual(test_object.GetSymbolNames(object),
                          [fooSymbol]);
+}
+
+{
+  // Verify that napi_get_own_property_names gets
+  // the right set of property names,
+  // i.e.: skips symbols and prototypes,
+  // and includes indices and converts them to strings.
+
+  assert.deepStrictEqual(test_object.GetOwnPropertyNames(object),
+                         ['5', 'normal', 'unenumerable']);
 }
 
 // Verify that passing NULL to napi_set_property() results in the correct
