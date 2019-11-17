@@ -353,6 +353,10 @@ and
 .It Fl -trace-events-enabled
 Enable the collection of trace event tracing information.
 .
+.It Fl -trace-exit
+Prints a stack trace whenever an environment is exited proactively,
+i.e. invoking `process.exit()`.
+.
 .It Fl -trace-sync-io
 Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
 .
