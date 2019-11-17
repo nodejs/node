@@ -31,7 +31,7 @@ file a new issue.
   * [Windows](#windows)
     * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
-      * [Option 1: Automated install with Boxstarter](#option-1-automated-install-with-boxstarter)
+      * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
