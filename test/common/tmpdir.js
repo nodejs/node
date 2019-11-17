@@ -83,7 +83,7 @@ function rmdirSync(p, originalEr) {
           rimrafSync(path.join(p, f));
         }
       });
-      fs.rmdirSync(p);
+      rmdirSync(p, null);
       return;
     }
     throw e;
