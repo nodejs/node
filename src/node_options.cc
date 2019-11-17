@@ -480,6 +480,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on deprecations",
             &EnvironmentOptions::trace_deprecation,
             kAllowedInEnvironment);
+  AddOption("--trace-exit",
+            "show stack trace when an environment exits",
+            &EnvironmentOptions::trace_exit,
+            kAllowedInEnvironment);
   AddOption("--trace-sync-io",
             "show stack trace when use of sync IO is detected after the "
             "first tick",
