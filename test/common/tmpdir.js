@@ -9,6 +9,8 @@ const { isMainThread } = require('worker_threads');
 
 const debug = debuglog('test/tmpdir');
 
+const isWindows = process.platform === 'win32';
+
 function rimrafSync(pathname, { spawn = true } = {}) {
   const st = (() => {
     try {
@@ -68,25 +70,33 @@ function rimrafSync(pathname, { spawn = true } = {}) {
 }
 
 function rmdirSync(p, originalEr) {
-  try {
-    fs.rmdirSync(p);
-  } catch (e) {
-    if (e.code === 'ENOTDIR')
-      throw originalEr;
-    if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST' || e.code === 'EPERM') {
-      const enc = process.platform === 'linux' ? 'buffer' : 'utf8';
-      fs.readdirSync(p, enc).forEach((f) => {
-        if (f instanceof Buffer) {
-          const buf = Buffer.concat([Buffer.from(p), Buffer.from(path.sep), f]);
-          rimrafSync(buf);
-        } else {
-          rimrafSync(path.join(p, f));
-        }
-      });
-      rmdirSync(p, null);
+  let i = 0;
+  // Due to Windows's issue of not closing file handles after
+  // they are deleted which may lead to further ENOTEMPTY errors.
+  const retries = isWindows ? 100 : 3;
+  while (true) {
+    try {
+      fs.rmdirSync(p);
       return;
+    } catch (e) {
+      if (e.code === 'ENOTDIR')
+        throw originalEr;
+      if (i++ >= retries)
+        throw e;
+      if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST' || e.code === 'EPERM') {
+        const enc = process.platform === 'linux' ? 'buffer' : 'utf8';
+        const prefix = Buffer.concat([Buffer.from(p), Buffer.from(path.sep)]);
+        fs.readdirSync(p, enc).forEach((f) => {
+          if (f instanceof Buffer) {
+            rimrafSync(Buffer.concat([prefix, f]));
+          } else {
+            rimrafSync(path.join(p, f));
+          }
+        });
+      } else {
+        throw e;
+      }
     }
-    throw e;
   }
 }
 
