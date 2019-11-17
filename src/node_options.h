@@ -141,6 +141,7 @@ class EnvironmentOptions : public Options {
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
+  bool trace_exit = false;
   bool trace_sync_io = false;
   bool trace_tls = false;
   bool trace_uncaught = false;

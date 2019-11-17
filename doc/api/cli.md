@@ -774,6 +774,14 @@ added: v7.7.0
 
 Enables the collection of trace event tracing information.
 
+### `--trace-exit`
+<!-- YAML
+added: REPLACEME
+-->
+
+Prints a stack trace whenever an environment is been exited proactively, i.e.
+invoking `process.exit()`.
+
 ### `--trace-sync-io`
 <!-- YAML
 added: v2.1.0
@@ -1101,6 +1109,7 @@ Node.js options that are allowed are:
 * `--trace-event-categories`
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
+* `--trace-exit`
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`
