@@ -2509,32 +2509,35 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
   class SerializeToTransfer : public ValueSerializer::Delegate {
    public:
-    explicit SerializeToTransfer(std::vector<CompiledWasmModule>* modules)
+    SerializeToTransfer(
+        std::vector<WasmModuleObject::TransferrableModule>* modules)
         : modules_(modules) {}
     Maybe<uint32_t> GetWasmModuleTransferId(
         Isolate* isolate, Local<WasmModuleObject> module) override {
-      modules_->push_back(module->GetCompiledModule());
+      modules_->push_back(module->GetTransferrableModule());
       return Just(static_cast<uint32_t>(modules_->size()) - 1);
     }
 
     void ThrowDataCloneError(Local<String> message) override { UNREACHABLE(); }
 
    private:
-    std::vector<CompiledWasmModule>* modules_;
+    std::vector<WasmModuleObject::TransferrableModule>* modules_;
   };
 
   class DeserializeFromTransfer : public ValueDeserializer::Delegate {
    public:
-    explicit DeserializeFromTransfer(std::vector<CompiledWasmModule>* modules)
+    DeserializeFromTransfer(
+        std::vector<WasmModuleObject::TransferrableModule>* modules)
         : modules_(modules) {}
 
     MaybeLocal<WasmModuleObject> GetWasmModuleFromId(Isolate* isolate,
                                                      uint32_t id) override {
-      return WasmModuleObject::FromCompiledModule(isolate, modules_->at(id));
+      return WasmModuleObject::FromTransferrableModule(isolate,
+                                                       modules_->at(id));
     }
 
    private:
-    std::vector<CompiledWasmModule>* modules_;
+    std::vector<WasmModuleObject::TransferrableModule>* modules_;
   };
 
   ValueSerializer::Delegate* GetSerializerDelegate() override {
@@ -2614,7 +2617,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  private:
   static bool g_saved_flag;
-  std::vector<CompiledWasmModule> transfer_modules_;
+  std::vector<WasmModuleObject::TransferrableModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
   ValueSerializer::Delegate* current_serializer_delegate_ = nullptr;

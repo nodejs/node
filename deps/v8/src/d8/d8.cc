@@ -3329,7 +3329,7 @@ class Serializer : public ValueSerializer::Delegate {
 
     size_t index = wasm_modules_.size();
     wasm_modules_.emplace_back(isolate_, module);
-    data_->compiled_wasm_modules_.push_back(module->GetCompiledModule());
+    data_->transferrable_modules_.push_back(module->GetTransferrableModule());
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
@@ -3455,9 +3455,11 @@ class Deserializer : public ValueDeserializer::Delegate {
   MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     DCHECK_NOT_NULL(data_);
-    if (transfer_id >= data_->compiled_wasm_modules().size()) return {};
-    return WasmModuleObject::FromCompiledModule(
-        isolate_, data_->compiled_wasm_modules().at(transfer_id));
+    if (transfer_id < data_->transferrable_modules().size()) {
+      return WasmModuleObject::FromTransferrableModule(
+          isolate_, data_->transferrable_modules().at(transfer_id));
+    }
+    return MaybeLocal<WasmModuleObject>();
   }
 
  private:

@@ -62,7 +62,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
 
   bool AdvanceTracing(double deadline_in_ms) final {
     for (auto global : to_register_with_v8_) {
-      RegisterEmbedderReference(global->As<v8::Data>());
+      RegisterEmbedderReference(global->As<v8::Value>());
     }
     to_register_with_v8_.clear();
     return true;

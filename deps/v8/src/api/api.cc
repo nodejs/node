@@ -907,6 +907,11 @@ void V8::SetFlagsFromString(const char* str, size_t length) {
   i::FlagList::EnforceFlagImplications();
 }
 
+void V8::SetFlagsFromString(const char* str, int length) {
+  CHECK_LE(0, length);
+  SetFlagsFromString(str, static_cast<size_t>(length));
+}
+
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
 }
@@ -7111,7 +7116,21 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 
 WasmModuleObject::TransferrableModule
 WasmModuleObject::GetTransferrableModule() {
-  return GetCompiledModule();
+  if (i::FLAG_wasm_shared_code) {
+    i::Handle<i::WasmModuleObject> obj =
+        i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
+    return TransferrableModule(obj->shared_native_module());
+  } else {
+    CompiledWasmModule compiled_module = GetCompiledModule();
+    OwnedBuffer serialized_module = compiled_module.Serialize();
+    MemorySpan<const uint8_t> wire_bytes_ref =
+        compiled_module.GetWireBytesRef();
+    size_t wire_size = wire_bytes_ref.size();
+    std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
+    memcpy(wire_bytes_copy.get(), wire_bytes_ref.data(), wire_size);
+    return TransferrableModule(std::move(serialized_module),
+                               {std::move(wire_bytes_copy), wire_size});
+  }
 }
 
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
@@ -7123,17 +7142,17 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
     Isolate* isolate,
     const WasmModuleObject::TransferrableModule& transferrable_module) {
-  return FromCompiledModule(isolate, transferrable_module);
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
-    Isolate* isolate, const CompiledWasmModule& compiled_module) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::WasmModuleObject> module_object =
-      i_isolate->wasm_engine()->ImportNativeModule(
-          i_isolate, Utils::Open(compiled_module));
-  return Local<WasmModuleObject>::Cast(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
+  if (i::FLAG_wasm_shared_code) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Handle<i::WasmModuleObject> module_object =
+        i_isolate->wasm_engine()->ImportNativeModule(
+            i_isolate, transferrable_module.shared_module_);
+    return Local<WasmModuleObject>::Cast(
+        Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
+  } else {
+    return Deserialize(isolate, AsReference(transferrable_module.serialized_),
+                       AsReference(transferrable_module.wire_bytes_));
+  }
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
@@ -8167,20 +8186,20 @@ Isolate* Isolate::Allocate() {
   return reinterpret_cast<Isolate*>(i::Isolate::New());
 }
 
+void Isolate::SetArrayBufferAllocatorShared(
+    std::shared_ptr<ArrayBuffer::Allocator> allocator) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  CHECK_EQ(allocator.get(), isolate->array_buffer_allocator());
+  isolate->set_array_buffer_allocator_shared(std::move(allocator));
+}
+
 // static
 // This is separate so that tests can provide a different |isolate|.
 void Isolate::Initialize(Isolate* isolate,
                          const v8::Isolate::CreateParams& params) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (auto allocator = params.array_buffer_allocator_shared) {
-    CHECK(params.array_buffer_allocator == nullptr ||
-          params.array_buffer_allocator == allocator.get());
-    i_isolate->set_array_buffer_allocator(allocator.get());
-    i_isolate->set_array_buffer_allocator_shared(std::move(allocator));
-  } else {
-    CHECK_NOT_NULL(params.array_buffer_allocator);
-    i_isolate->set_array_buffer_allocator(params.array_buffer_allocator);
-  }
+  CHECK_NOT_NULL(params.array_buffer_allocator);
+  i_isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != nullptr) {
     i_isolate->set_snapshot_blob(params.snapshot_blob);
   } else {
@@ -10221,6 +10240,10 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
+void CpuProfiler::CollectSample() {
+  reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
+}
+
 void CpuProfiler::StartProfiling(Local<String> title,
                                  CpuProfilingOptions options) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
@@ -10246,6 +10269,12 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
+}
+
+void CpuProfiler::SetIdle(bool is_idle) {
+  i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(this);
+  i::Isolate* isolate = profiler->isolate();
+  isolate->SetIdle(is_idle);
 }
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
@@ -10637,15 +10666,6 @@ void EmbedderHeapTracer::DecreaseAllocatedSize(size_t bytes) {
     DCHECK_NOT_NULL(tracer);
     tracer->DecreaseAllocatedSize(bytes);
   }
-}
-
-void EmbedderHeapTracer::RegisterEmbedderReference(
-    const TracedReferenceBase<v8::Data>& ref) {
-  if (ref.IsEmpty()) return;
-
-  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(
-      reinterpret_cast<i::Address*>(ref.val_));
 }
 
 void EmbedderHeapTracer::RegisterEmbedderReference(

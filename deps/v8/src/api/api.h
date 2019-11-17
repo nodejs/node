@@ -276,11 +276,6 @@ class Utils {
     return CompiledWasmModule{std::move(native_module)};
   }
 
-  static inline const std::shared_ptr<i::wasm::NativeModule>& Open(
-      const CompiledWasmModule& compiled_module) {
-    return compiled_module.native_module_;
-  }
-
  private:
   static void ReportApiFailure(const char* location, const char* message);
 };

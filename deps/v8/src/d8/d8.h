@@ -123,8 +123,9 @@ class SerializationData {
   const std::vector<std::shared_ptr<v8::BackingStore>>& sab_backing_stores() {
     return sab_backing_stores_;
   }
-  const std::vector<CompiledWasmModule>& compiled_wasm_modules() {
-    return compiled_wasm_modules_;
+  const std::vector<WasmModuleObject::TransferrableModule>&
+  transferrable_modules() {
+    return transferrable_modules_;
   }
 
  private:
@@ -136,7 +137,7 @@ class SerializationData {
   size_t size_;
   std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
-  std::vector<CompiledWasmModule> compiled_wasm_modules_;
+  std::vector<WasmModuleObject::TransferrableModule> transferrable_modules_;
 
  private:
   friend class Serializer;

@@ -733,6 +733,9 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
 DEFINE_BOOL(wasm_shared_engine, true,
             "shares one wasm engine between all isolates within a process")
 DEFINE_IMPLICATION(future, wasm_shared_engine)
+DEFINE_BOOL(wasm_shared_code, true,
+            "shares code underlying a wasm module when it is transferred")
+DEFINE_IMPLICATION(future, wasm_shared_code)
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
