@@ -680,6 +680,7 @@ typedef struct {
   uint8_t priority_listener_count;
   uint8_t frame_error_listener_count;
   uint32_t max_invalid_frames = 1000;
+  uint32_t max_rejected_streams = 100;
 } SessionJSFields;
 
 // Indices for js_fields_, which serves as a way to communicate data with JS
@@ -693,6 +694,7 @@ enum SessionUint8Fields {
   kSessionFrameErrorListenerCount =
       offsetof(SessionJSFields, frame_error_listener_count),
   kSessionMaxInvalidFrames = offsetof(SessionJSFields, max_invalid_frames),
+  kSessionMaxRejectedStreams = offsetof(SessionJSFields, max_rejected_streams),
   kSessionUint8FieldCount = sizeof(SessionJSFields)
 };
 
@@ -1028,7 +1030,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // limit will result in the session being destroyed, as an indication of a
   // misbehaving peer. This counter is reset once new streams are being
   // accepted again.
-  int32_t rejected_stream_count_ = 0;
+  uint32_t rejected_stream_count_ = 0;
   // Also use the invalid frame count as a measure for rejecting input frames.
   uint32_t invalid_frame_count_ = 0;
 

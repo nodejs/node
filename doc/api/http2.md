@@ -1941,6 +1941,9 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
+    description: Added `maxSessionRejectedStreams` option with a default of 100.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v12.4.0
     pr-url: https://github.com/nodejs/node/pull/27782
@@ -2005,6 +2008,12 @@ changes:
   * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
     frames that will be tolerated before the session is closed.
     **Default:** `1000`.
+  * `maxSessionRejectedStreams` {integer} Sets the maximum number of rejected
+    upon creation streams that will be tolerated before the session is closed.
+    Each rejection is associated with an `NGHTTP2_ENHANCE_YOUR_CALM`
+    error that should tell the peer to not open any more streams, continuing
+    to open streams is therefore regarded as a sign of a misbehaving peer.
+    **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using `options.selectPadding()`][].
@@ -2060,6 +2069,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30534
+    description: Added `maxSessionRejectedStreams` option with a default of 100.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
@@ -2126,6 +2138,12 @@ changes:
   * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
     frames that will be tolerated before the session is closed.
     **Default:** `1000`.
+  * `maxSessionRejectedStreams` {integer} Sets the maximum number of rejected
+    upon creation streams that will be tolerated before the session is closed.
+    Each rejection is associated with an `NGHTTP2_ENHANCE_YOUR_CALM`
+    error that should tell the peer to not open any more streams, continuing
+    to open streams is therefore regarded as a sign of a misbehaving peer.
+    **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using `options.selectPadding()`][].
