@@ -98,6 +98,5 @@ server.listen(0, () => {
   Promise.all([testHttp10, testHttp11, testClientTrailers]
     .map(util.promisify)
     .map((f) => f(server.address().port)))
-    .catch((e) => { throw e; })
-    .finally(() => server.close());
+    .then(() => server.close());
 });
