@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { SmartBuffer } from './smartbuffer';
+import { Buffer } from 'buffer';
 /**
  * Error strings
  */
@@ -48,4 +49,18 @@ declare function checkOffsetValue(offset: any): void;
  * @param { SmartBuffer } buff The SmartBuffer instance to check against.
  */
 declare function checkTargetOffset(offset: number, buff: SmartBuffer): void;
-export { ERRORS, isFiniteInteger, checkEncoding, checkOffsetValue, checkLengthValue, checkTargetOffset };
+interface Buffer {
+    readBigInt64BE(offset?: number): bigint;
+    readBigInt64LE(offset?: number): bigint;
+    readBigUInt64BE(offset?: number): bigint;
+    readBigUInt64LE(offset?: number): bigint;
+    writeBigInt64BE(value: bigint, offset?: number): number;
+    writeBigInt64LE(value: bigint, offset?: number): number;
+    writeBigUInt64BE(value: bigint, offset?: number): number;
+    writeBigUInt64LE(value: bigint, offset?: number): number;
+}
+/**
+ * Throws if Node.js version is too low to support bigint
+ */
+declare function bigIntAndBufferInt64Check(bufferMethod: keyof Buffer): void;
+export { ERRORS, isFiniteInteger, checkEncoding, checkOffsetValue, checkLengthValue, checkTargetOffset, bigIntAndBufferInt64Check };

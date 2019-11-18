@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const buffer_1 = require("buffer");
 /**
  * Error strings
  */
@@ -24,7 +25,7 @@ exports.ERRORS = ERRORS;
  * @param { String } encoding The encoding string to check.
  */
 function checkEncoding(encoding) {
-    if (!Buffer.isEncoding(encoding)) {
+    if (!buffer_1.Buffer.isEncoding(encoding)) {
         throw new Error(ERRORS.INVALID_ENCODING);
     }
 }
@@ -92,4 +93,16 @@ exports.checkTargetOffset = checkTargetOffset;
 function isInteger(value) {
     return typeof value === 'number' && isFinite(value) && Math.floor(value) === value;
 }
+/**
+ * Throws if Node.js version is too low to support bigint
+ */
+function bigIntAndBufferInt64Check(bufferMethod) {
+    if (typeof BigInt === 'undefined') {
+        throw new Error('Platform does not support JS BigInt type.');
+    }
+    if (typeof buffer_1.Buffer.prototype[bufferMethod] === 'undefined') {
+        throw new Error(`Platform does not support Buffer.prototype.${bufferMethod}.`);
+    }
+}
+exports.bigIntAndBufferInt64Check = bigIntAndBufferInt64Check;
 //# sourceMappingURL=utils.js.map

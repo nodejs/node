@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-logout
 description: Log out of the registry
 ---
 
-# npm-logout
+# npm-logout(1)
 
 ## Log out of the registry
 
@@ -40,7 +40,7 @@ it takes precedence.
 
 Default: The scope of your current project, if any, otherwise none.
 
-If specified, you will be logged out of the specified scope. See [`npm-scope`](npm-scope).
+If specified, you will be logged out of the specified scope. See [`scope`](/using-npm/npm-scope).
 
 ```bash
 npm logout --scope=@myco

@@ -1,7 +1,6 @@
-.TH "PACKAGE\-LOCK\.JSON" "" "November 2019" "" ""
+.TH "PACKAGE\-LOCK\.JSON" "5" "November 2019" "" ""
 .SH "NAME"
-\fBpackage-lock.json\fR
-.SH A manifestation of the manifest
+\fBpackage-lock.json\fR \- A manifestation of the manifest
 .SS Description
 .P
 \fBpackage\-lock\.json\fP is automatically generated for any operations where npm
@@ -25,7 +24,7 @@ And optimize the installation process by allowing npm to skip repeated metadata 
 .P
 One key detail about \fBpackage\-lock\.json\fP is that it cannot be published, and it
 will be ignored if found in any place other than the toplevel package\. It shares
-a format with npm\-shrinkwrap\.json \fIdocs/configuring\-npm/shrinkwrap\-json\fR, which is essentially the same file, but
+a format with npm help npm\-shrinkwrap\.json, which is essentially the same file, but
 allows publication\. This is not recommended unless deploying a CLI tool or
 otherwise using the publication process for producing production packages\.
 .P
@@ -140,14 +139,14 @@ The dependencies of this dependency, exactly as at the top level\.
 .SS See also
 .RS 0
 .IP \(bu 2
-npm help npm\-shrinkwrap
+npm help shrinkwrap
 .IP \(bu 2
-npm help shrinkwrap\-json
+npm help shrinkwrap\.json
 .IP \(bu 2
 npm help package\-locks
 .IP \(bu 2
-npm help package\-json
+npm help package\.json
 .IP \(bu 2
-npm help npm\-install
+npm help install
 
 .RE

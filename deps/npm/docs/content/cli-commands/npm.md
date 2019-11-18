@@ -1,10 +1,11 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm
 description: javascript package manager
 ---
 
-# npm
+# npm(1)
+
 ## javascript package manager
 
 ### Synopsis
@@ -44,7 +45,7 @@ terms of use.
 You probably got npm because you want to install stuff.
 
 Use `npm install blerg` to install the latest version of "blerg".  Check out
-[`npm-install`](npm-install) for more info.  It can do a lot of stuff.
+[`npm install`](/cli-commands/npm-install) for more info.  It can do a lot of stuff.
 
 Use the `npm search` command to show everything that's available.
 Use `npm ls` to show everything you've installed.
@@ -67,7 +68,7 @@ the [node-gyp Wiki](https://github.com/TooTallNate/node-gyp/wiki).
 
 ### Directories
 
-See [`npm-folders`](/docs/configuring-npm/folders) to learn about where npm puts stuff.
+See [`folders`](/configuring-npm/folders) to learn about where npm puts stuff.
 
 In particular, npm has two modes of operation:
 
@@ -88,7 +89,7 @@ If you're using npm to develop and publish your code, check out the
 following help topics:
 
 * json:
-  Make a package.json file.  See [`package.json`](/docs/configuring-npm/package.json).
+  Make a package.json file.  See [`package.json`](/configuring-npm/package.json).
 * link:
   For linking your current working code into Node's path, so that you
   don't have to reinstall every time you make a change.  Use
@@ -129,7 +130,7 @@ npm is extremely configurable.  It reads its configuration options from
   npm's default configuration options are defined in
   lib/utils/config-defs.js.  These must not be changed.
 
-See [`npm-config`](/docs/using-npm/config) for much much more information.
+See [`config`](/using-npm/config) for much much more information.
 
 ### Contributions
 
@@ -139,8 +140,7 @@ If you would like to contribute, but don't know what to work on, read
 the contributing guidelines and check the issues list.
 
 * [CONTRIBUTING.md](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
-* [Bug tracker](https://npm.community/c/bugs)
-* [Support tracker](https://npm.community/c/support)
+* [Bug tracker](https://github.com/npm/cli/issues)
 
 ### Bugs
 

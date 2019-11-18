@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-token
 description: Manage your authentication tokens
 ---
 
-# npm-token
+# npm-token(1)
 
 ## Manage your authentication tokens
 
@@ -64,5 +64,5 @@ This lets you list, create and revoke authentication tokens.
 * `npm token revoke <token|id>`:
   This removes an authentication token, making it immediately unusable. This can accept
   both complete tokens (as you get back from `npm token create` and will
-  find in your `.npmrc`) and ids as seen in the `npm token list` output.
+  find in your `.npmrc`) and ids as seen in the `npm token list` output. 
   This will NOT accept the truncated token found in `npm token list` output.

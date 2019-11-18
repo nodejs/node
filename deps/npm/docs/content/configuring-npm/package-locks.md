@@ -4,13 +4,13 @@ title: package-locks
 description: An explanation of npm lockfiles
 ---
 
-# package-locks
+# package-locks(5)
 
 ## An explanation of npm lockfiles
 
 ### Description
 
-Conceptually, the "input" to [`npm-install`](/docs/cli-commands/npm-install) is a [package.json](/docs/configuring-npm/package-json), while its
+Conceptually, the "input" to [`npm install`](/cli-commands/npm-install) is a [package.json](/configuring-npm/package-json), while its
 "output" is a fully-formed `node_modules` tree: a representation of the
 dependencies you declared. In an ideal world, npm would work like a pure
 function: the same `package.json` should produce the exact same `node_modules`
@@ -83,8 +83,7 @@ author are not the same person, there's no way for A's author to say
 that he or she does not want to pull in newly published versions of C
 when B hasn't changed at all.
 
-To prevent this potential issue, npm uses [package-lock.json](/docs/configuring-npm/package-lock-json) or, if present,
-[npm-shrinkwrap.json](shrinkwrap.json). These files are called package locks, or lockfiles.
+To prevent this potential issue, npm uses [package-lock.json](/configuring-npm/package-lock-json) or, if present, [npm-shrinkwrap.json](/configuring-npm/shrinkwrap-json). These files are called package locks, or lockfiles.
 
 Whenever you run `npm install`, npm generates or updates your package lock,
 which will look something like this:
@@ -112,7 +111,7 @@ which will look something like this:
 This file describes an *exact*, and more importantly *reproducible*
 `node_modules` tree. Once it's present, any future installation will base its
 work off this file, instead of recalculating dependency versions off
-[package.json](/docs/configuring-npm/package-json).
+[package.json](/configuring-npm/package-json).
 
 The presence of a package lock changes the installation behavior such that:
 

@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-outdated
 description: Check for outdated packages
 ---
 
-# npm-outdated
+# npm-outdated(1)
 
 ## Check for outdated packages
 

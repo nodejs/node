@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-audit
 description: Run a security audit
 ---
 
-# npm-audit
+# npm-audit(1)
 
 ## Run a security audit
 

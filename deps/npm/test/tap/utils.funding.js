@@ -35,6 +35,28 @@ test('single item missing funding', (t) => {
   t.end()
 })
 
+test('funding object missing url', (t) => {
+  t.deepEqual(
+    getFundingInfo({ name: 'project',
+      dependencies: {
+        'single-item': {
+          name: 'single-item',
+          version: '1.0.0',
+          funding: {
+            type: 'Foo'
+          }
+        }
+      }}),
+    {
+      name: 'project',
+      dependencies: {},
+      length: 0
+    },
+    'should return empty list'
+  )
+  t.end()
+})
+
 test('use path if name is missing', (t) => {
   t.deepEqual(
     getFundingInfo({ name: undefined,
@@ -82,6 +104,51 @@ test('single item tree', (t) => {
       length: 1
     },
     'should return list with a single item'
+  )
+  t.end()
+})
+
+test('top-level funding info', (t) => {
+  t.deepEqual(
+    getFundingInfo({ name: 'project',
+      funding: 'http://example.com'
+    }),
+    {
+      name: 'project',
+      funding: {
+        url: 'http://example.com'
+      },
+      dependencies: {},
+      length: 0
+    },
+    'should return top-level item with normalized funding info'
+  )
+  t.end()
+})
+
+test('use string shorthand', (t) => {
+  t.deepEqual(
+    getFundingInfo({ name: 'project',
+      dependencies: {
+        'single-item': {
+          name: 'single-item',
+          version: '1.0.0',
+          funding: 'http://example.com'
+        }
+      }}),
+    {
+      name: 'project',
+      dependencies: {
+        'single-item': {
+          version: '1.0.0',
+          funding: {
+            url: 'http://example.com'
+          }
+        }
+      },
+      length: 1
+    },
+    'should return item with normalized funding info'
   )
   t.end()
 })

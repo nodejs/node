@@ -1,14 +1,13 @@
-.TH "PACKAGE\.JSON" "" "November 2019" "" ""
+.TH "PACKAGE\.JSON" "5" "November 2019" "" ""
 .SH "NAME"
-\fBpackage.json\fR
-.SH Specifics of npm's package\.json handling
+\fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
 .P
 This document is all you need to know about what's required in your package\.json
 file\.  It must be actual JSON, not just a JavaScript object literal\.
 .P
 A lot of the behavior described in this document is affected by the config
-settings described in \fBnpm\-config\fP \fI/docs/using\-npm/config\fR\|\.
+settings described in npm help \fBconfig\fP\|\.
 .SS name
 .P
 If you plan to publish your package, the \fImost\fR important things in your
@@ -25,7 +24,7 @@ Some rules:
 The name must be less than or equal to 214 characters\. This includes the scope for
 scoped packages\.
 .IP \(bu 2
-The name can't start with a dot or an underscore\.
+The names of scoped packages can begin with a dot or an underscore\. This is not permitted without a scope\.
 .IP \(bu 2
 New packages must not have uppercase letters in the name\.
 .IP \(bu 2
@@ -52,7 +51,7 @@ already, before you get too attached to it\. https://www\.npmjs\.com/
 .RE
 .P
 A name can be optionally prefixed by a scope, e\.g\. \fB@myorg/mypackage\fP\|\. See
-\fBnpm\-scope\fP \fI/docs/using\-npm/scope\fR for more detail\.
+npm help \fBscope\fP for more detail\.
 .SS version
 .P
 If you plan to publish your package, the \fImost\fR important things in your
@@ -65,7 +64,7 @@ Version must be parseable by
 node\-semver \fIhttps://github\.com/isaacs/node\-semver\fR, which is bundled
 with npm as a dependency\.  (\fBnpm install semver\fP to use it yourself\.)
 .P
-More on version numbers and ranges at semver \fI/docs/using\-npm/semver\fR\|\.
+More on version numbers and ranges at npm help semver\.
 .SS description
 .P
 Put a description in it\.  It's a string\.  This helps people discover your
@@ -522,7 +521,7 @@ The "scripts" property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package\.  The key is the lifecycle
 event, and the value is the command to run at that point\.
 .P
-See \fBnpm\-scripts\fP \fI/docs/using\-npm/scripts\fR to find out more about writing package scripts\.
+See npm help \fBscripts\fP to find out more about writing package scripts\.
 .SS config
 .P
 A "config" object can be used to set configuration parameters used in package
@@ -540,7 +539,7 @@ and then had a "start" command that then referenced the
 \fBnpm_package_config_port\fP environment variable, then the user could
 override that by doing \fBnpm config set foo:port 8001\fP\|\.
 .P
-See \fBnpm\-config\fP \fI/docs/using\-npm/config\fR and \fBnpm\-scripts\fP \fI/docs/using\-npm/scripts\fR for more on package
+See npm help \fBconfig\fP and npm help \fBscripts\fP for more on package
 configs\.
 .SS dependencies
 .P
@@ -552,7 +551,7 @@ tarball or git URL\.
 \fBPlease do not put test harnesses or transpilers in your
 \fBdependencies\fP object\.\fR  See \fBdevDependencies\fP, below\.
 .P
-See semver \fI/docs/using\-npm/semver\fR for more details about specifying version ranges\.
+See npm help semver for more details about specifying version ranges\.
 .RS 0
 .IP \(bu 2
 \fBversion\fP Must match \fBversion\fP exactly
@@ -565,9 +564,9 @@ See semver \fI/docs/using\-npm/semver\fR for more details about specifying versi
 .IP \(bu 2
 \fB<=version\fP
 .IP \(bu 2
-\fB~version\fP "Approximately equivalent to version"  See semver \fI/docs/using\-npm/semver\fR
+\fB~version\fP "Approximately equivalent to version"  See npm help semver
 .IP \(bu 2
-\fB^version\fP "Compatible with version"  See semver \fI/docs/using\-npm/semver\fR
+\fB^version\fP "Compatible with version"  See npm help semver
 .IP \(bu 2
 \fB1\.2\.x\fP 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
 .IP \(bu 2
@@ -585,7 +584,7 @@ See semver \fI/docs/using\-npm/semver\fR for more details about specifying versi
 .IP \(bu 2
 \fBuser/repo\fP See 'GitHub URLs' below
 .IP \(bu 2
-\fBtag\fP A specific version tagged and published as \fBtag\fP  See \fBnpm\-dist\-tag\fP \fI/docs/cli\-commands/npm\-dist\-tag\fR
+\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBdist\-tag\fP
 .IP \(bu 2
 \fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
 
@@ -711,7 +710,7 @@ object\.
 .P
 These things will be installed when doing \fBnpm link\fP or \fBnpm install\fP
 from the root of a package, and can be managed like any other npm
-configuration param\.  See \fBnpm\-config\fP \fI/docs/using\-npm/config\fR for more on the topic\.
+configuration param\.  See npm help \fBconfig\fP for more on the topic\.
 .P
 For build steps that are not platform\-specific, such as compiling
 CoffeeScript or other languages to JavaScript, use the \fBprepare\fP
@@ -957,7 +956,7 @@ to the global public registry or that a scoped module is private by default\.
 Any config values can be overridden, but only "tag", "registry" and "access"
 probably matter for the purposes of publishing\.
 .P
-See \fBnpm\-config\fP \fI/docs/using\-npm/config\fR to see the list of config options that can be
+See npm help \fBconfig\fP to see the list of config options that can be
 overridden\.
 .SS DEFAULT VALUES
 .P
@@ -984,18 +983,18 @@ ignored\.
 .IP \(bu 2
 npm help semver
 .IP \(bu 2
-npm help npm\-init
+npm help init
 .IP \(bu 2
-npm help npm\-version
+npm help version
 .IP \(bu 2
-npm help npm\-config
+npm help config
 .IP \(bu 2
-npm help npm\-help
+npm help help
 .IP \(bu 2
-npm help npm\-install
+npm help install
 .IP \(bu 2
-npm help npm\-publish
+npm help publish
 .IP \(bu 2
-npm help npm\-uninstall
+npm help uninstall
 
 .RE

@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-dedupe
 description: Reduce duplication
 ---
 
-# npm-dedupe
+# npm-dedupe(1)
 
 ## Reduce duplication
 
@@ -32,7 +32,7 @@ a
     `-- c@1.0.10
 ```
 
-In this case, `npm-dedupe` will transform the tree to:
+In this case, `npm dedupe` will transform the tree to:
 
 ```bash
 a

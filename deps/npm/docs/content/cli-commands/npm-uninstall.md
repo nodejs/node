@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-uninstall
 description: Remove a package
 ---
 
-# npm-uninstall
+# npm-uninstall(1)
 
 ## Remove a package
 
@@ -44,7 +44,7 @@ the package version in your main package.json:
 Further, if you have an `npm-shrinkwrap.json` then it will be updated as
 well.
 
-Scope is optional and follows the usual rules for [`npm-scope`](snpm-scope).
+Scope is optional and follows the usual rules for [`scope`](/using-npm/scope).
 
 Examples:
 ```bash
