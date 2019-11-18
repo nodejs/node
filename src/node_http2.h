@@ -673,15 +673,23 @@ class Http2Stream::Provider::Stream : public Http2Stream::Provider {
                         void* user_data);
 };
 
+typedef struct {
+  uint8_t bitfield;
+  uint8_t priority_listener_count;
+  uint8_t frame_error_listener_count;
+} SessionJSFields;
+
 // Indices for js_fields_, which serves as a way to communicate data with JS
 // land fast. In particular, we store information about the number/presence
 // of certain event listeners in JS, and skip calls from C++ into JS if they
 // are missing.
 enum SessionUint8Fields {
-  kBitfield,  // See below
-  kSessionPriorityListenerCount,
-  kSessionFrameErrorListenerCount,
-  kSessionUint8FieldCount
+  kBitfield = offsetof(SessionJSFields, bitfield),  // See below
+  kSessionPriorityListenerCount =
+      offsetof(SessionJSFields, priority_listener_count),
+  kSessionFrameErrorListenerCount =
+      offsetof(SessionJSFields, frame_error_listener_count),
+  kSessionUint8FieldCount = sizeof(SessionJSFields)
 };
 
 enum SessionBitfieldFlags {
@@ -968,7 +976,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   nghttp2_session* session_;
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
-  uint8_t js_fields_[kSessionUint8FieldCount] = {};
+  SessionJSFields js_fields_ = {};
 
   // The session type: client or server
   nghttp2_session_type session_type_;
