@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-rebuild
 description: Rebuild a package
 ---
 
-# npm-rebuildd
+# npm-rebuild(1)
 
 ## Rebuild a package
 
@@ -18,9 +18,7 @@ alias: npm rb
 
 ### Description
 
-This command runs the `npm build` command on the matched folders.  This is useful
-when you install a new version of node, and must recompile all your C++ addons with
-the new binary.
+This command runs the `npm build` command on the matched folders.  This is useful when you install a new version of node, and must recompile all your C++ addons with the new binary.
 
 ### See Also
 

@@ -1,10 +1,8 @@
 import React from 'react'
-import Layout from 'src/components/Layout'
 import {graphql} from 'gatsby'
-import styled, { ThemeProvider } from 'styled-components'
-import {theme} from 'src/theme'
+import styled from 'styled-components'
 import FoundTypo from 'src/components/FoundTypo'
-import Scripts from 'src/components/Scripts'
+import Scripts from 'src/components/scripts'
 const version = require('../../../package.json').version
 
 const Content = styled.div`
@@ -15,20 +13,16 @@ const Content = styled.div`
 
 const Page = ({data}) => {
   const pageData = data.markdownRemark
-  const html = pageData.html.replace(/(npm-)+([a-zA-Z\\.-]*)<\/h1>/g, 'npm $2</h1>')
+  const html = pageData.html.replace(/@VERSION@/g, version)
+    .replace(/(npm-)+([a-zA-Z\\.-]*)(\((1|5|7)\))<\/h1>/, 'npm $2</h1>')
+    .replace(/([a-zA-Z\\.-]*)(\((1|5|7)\))<\/h1>/, '$1</h1>')
 
   return (
-    <ThemeProvider theme={theme}>
-      <Layout showSidebar>
-        <Content className='documentation'>
-          <div dangerouslySetInnerHTML={{
-            __html: html.replace(/@VERSION@/g, version)
-          }} />
-          <FoundTypo />
-          <Scripts />
-        </Content>
-      </Layout>
-    </ThemeProvider>
+    <Content className='documentation'>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <FoundTypo />
+      <Scripts />
+    </Content>
   )
 }
 

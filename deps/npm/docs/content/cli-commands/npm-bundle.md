@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-bundle
 description: REMOVED
 ---
 
-# npm-bundle
+# npm-bundle(1)
 
 ## REMOVED
 

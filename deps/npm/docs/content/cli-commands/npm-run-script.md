@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-run-script
 description: Run arbitrary package scripts
 ---
 
-# npm-run-script
+# npm-run-script(1)
 
 ## Run arbitrary package scripts
 

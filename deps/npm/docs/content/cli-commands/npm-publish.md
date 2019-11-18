@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-publish
 description: Publish a package
 ---
 
-# npm-publish
+# npm-publish(1)
 
 ## Publish a package
 
@@ -22,12 +22,10 @@ Publishes a package to the registry so that it can be installed by name. All
 files in the package directory are included if no local `.gitignore` or
 `.npmignore` file exists. If both files exist and a file is ignored by
 `.gitignore` but not by `.npmignore` then it will be included.  See
-[`npm-developers`](/docs/using-npm/developers) for full details on what's included in the published
-package, as well as details on how the package is built.
+[`developers`](/using-npm/developers) for full details on what's included in the published package, as well as details on how the package is built.
 
 By default npm will publish to the public registry. This can be overridden by
-specifying a different default registry or using a [`npm-scope`](npm-scope) in the name
-(see [`package.json`](/docs/configuring-npm/package-json)).
+specifying a different default registry or using a [`scope`](/using-npm/npm-scope) in the name (see [`package.json`](/configuring-npm/package-json)).
 
 * `<folder>`:
   A folder containing a package.json file
@@ -62,13 +60,13 @@ the specified registry.
 
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
-it is removed with [`npm-unpublish`](npm-unpublish).
+it is removed with [`npm unpublish`](/cli-commands/npm-unpublish).
 
 As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication. Subsequent
 installs will use the strongest supported algorithm to verify downloads.
 
-Similar to `--dry-run` see [`npm-pack`](npm-pack), which figures out the files to be
+Similar to `--dry-run` see [`npm pack`](/cli-commands/npm-pack), which figures out the files to be
 included and packs them into a tarball to be uploaded to the registry.
 
 ### See Also

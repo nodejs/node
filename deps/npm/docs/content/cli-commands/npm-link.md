@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-link
 description: Symlink a package folder
 ---
 
-# npm-link
+# npm-link(1)
 
 ## Symlink a package folder
 
@@ -33,7 +33,7 @@ of the current folder.
 Note that `package-name` is taken from `package.json`,
 not from directory name.
 
-The package name can be optionally prefixed with a scope. See [`npm-scope`](npm-scope).
+The package name can be optionally prefixed with a scope. See [`scope`](/using-npm/npm-scope).
 The scope must be preceded by an @-symbol and followed by a slash.
 
 When creating tarballs for `npm publish`, the linked packages are
@@ -76,8 +76,7 @@ installation target into your project's `node_modules` folder.
 Note that in this case, you are referring to the directory name, `node-redis`,
 rather than the package name `redis`.
 
-If your linked package is scoped (see [`npm-scope`](npm-scope)) your link command must
-include that scope, e.g.
+If your linked package is scoped (see [`scope`](/using-npm/npm-scope)) your link command must include that scope, e.g.
 
 ```bash
 npm link @myorg/privatepackage

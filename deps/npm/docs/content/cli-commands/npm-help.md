@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-help
 description: Get help on npm
 ---
 
-# npm-help
+# npm-help(1)
 
 ## Get help on npm
 

@@ -1,3 +1,61 @@
+## 6.13.1 (2019-11-18)
+
+### BUG FIXES
+
+* [`938d6124d`](https://github.com/npm/cli/commit/938d6124d6d15d96b5a69d0ae32ef59fceb8ceab)
+  [#472](https://github.com/npm/cli/pull/472)
+  fix(fund): support funding string shorthand
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`b49c5535b`](https://github.com/npm/cli/commit/b49c5535b7c41729a8d167b035924c3c66b36de0)
+  [#471](https://github.com/npm/cli/pull/471)
+  should not publish tap-snapshot folder
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`3471d5200`](https://github.com/npm/cli/commit/3471d5200217bfa612b1a262e36c9c043a52eb09)
+  [#253](https://github.com/npm/cli/pull/253)
+  Add preliminary WSL support for npm and npx
+  ([@infinnie](https://github.com/infinnie))
+* [`3ef295f23`](https://github.com/npm/cli/commit/3ef295f23ee1b2300abf13ec19e935c47a455179)
+  [#486](https://github.com/npm/cli/pull/486)
+  print quick audit report for human output
+  ([@isaacs](https://github.com/isaacs))
+
+### TESTING
+
+* [`dbbf977ac`](https://github.com/npm/cli/commit/dbbf977acd1e74bcdec859c562ea4a2bc0536442)
+  [#278](https://github.com/npm/cli/pull/278)
+  added workflow to trigger and run benchmarks
+  ([@mikemimik](https://github.com/mikemimik))
+* [`b4f5e3825`](https://github.com/npm/cli/commit/b4f5e3825535256aaada09c5e8f104570a3d96a4)
+  [#457](https://github.com/npm/cli/pull/457)
+  feat(docs): adding tests and updating docs to reflect changes in registry teams API.
+  ([@nomadtechie](https://github.com/nomadtechie))
+* [`454c7dd60`](https://github.com/npm/cli/commit/454c7dd60c78371bf606f11a17ed0299025bc37c)
+  [#456](https://github.com/npm/cli/pull/456)
+  fix git configs for git 2.23 and above
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`b8c1576a4`](https://github.com/npm/cli/commit/b8c1576a448566397c721655b95fc90bf202b35a) [`30b013ae8`](https://github.com/npm/cli/commit/30b013ae8eacd04b1b8a41ce2ed0dd50c8ebae25) [`26c1b2ef6`](https://github.com/npm/cli/commit/26c1b2ef6be1595d28d935d35faa8ec72daae544) [`9f943a765`](https://github.com/npm/cli/commit/9f943a765faf6ebb8a442e862b808dbb630e018d) [`c0346b158`](https://github.com/npm/cli/commit/c0346b158fc25ab6ca9954d4dd78d9e62f573a41) [`8e09d5ad6`](https://github.com/npm/cli/commit/8e09d5ad67d4f142241193cecbce61c659389be3) [`4a2f551ee`](https://github.com/npm/cli/commit/4a2f551eeb3285f6f200534da33644789715a41a) [`87d67258c`](https://github.com/npm/cli/commit/87d67258c213d9ea9a49ce1804294a718f08ff13) [`5c3b32722`](https://github.com/npm/cli/commit/5c3b3272234764c8b4d2d798b69af077b5a529c7) [`b150eaeff`](https://github.com/npm/cli/commit/b150eaeff428180bfa03be53fd741d5625897758) [`7555a743c`](https://github.com/npm/cli/commit/7555a743ce4c3146d6245dd63f91503c7f439a6c) [`b89423e2f`](https://github.com/npm/cli/commit/b89423e2f6a09b290b15254e7ff7e8033b434d83)
+  [#463](https://github.com/npm/cli/pull/463)
+  [#285](https://github.com/npm/cli/pull/285)
+  [#268](https://github.com/npm/cli/pull/268)
+  [#232](https://github.com/npm/cli/pull/232)
+  [#485](https://github.com/npm/cli/pull/485)
+  [#453](https://github.com/npm/cli/pull/453)
+  docs cleanup: typos, styling and content
+  ([@claudiahdz](https://github.com/claudiahdz))
+  ([@XhmikosR](https://github.com/XhmikosR))
+  ([@mugli](https://github.com/mugli))
+  ([@brettz9](https://github.com/brettz9))
+  ([@mkotsollaris](https://github.com/mkotsollaris))
+
+### DEPENDENCIES
+
+* [`661d86cd2`](https://github.com/npm/cli/commit/661d86cd229b14ddf687b7f25a66941a79d233e7)
+  `make-fetch-happen@5.0.2`
+  ([@claudiahdz](https://github.com/claudiahdz))
+
 ## 6.13.0 (2019-11-05)
 
 ### NEW FEATURES

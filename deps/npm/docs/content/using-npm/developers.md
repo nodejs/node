@@ -4,7 +4,7 @@ title: developers
 description: Developer Guide
 ---
 
-# developers
+# developers(7)
 
 ## Developer Guide
 
@@ -58,7 +58,7 @@ an argument to `git checkout`.  The default is `master`.
 You need to have a `package.json` file in the root of your project to do
 much of anything with npm.  That is basically the whole interface.
 
-See [`package.json`](/docs/configuring-npm/package-json) for details about what goes in that file.  At the very
+See [`package.json`](/configuring-npm/package-json) for details about what goes in that file.  At the very
 least, you need:
 
 * name:
@@ -87,7 +87,7 @@ least, you need:
   If you have a special compilation or installation script, then you
   should put it in the `scripts` object.  You should definitely have at
   least a basic smoke-test command as the "scripts.test" field.
-  See [npm-scripts](/docs/using-npm/scripts).
+  See [scripts](/using-npm/scripts).
 
 * main:
   If you have a single module that serves as the entry point to your
@@ -100,7 +100,7 @@ least, you need:
   they'll get installed just like these ones.
 
 You can use `npm init` in the root of your package in order to get you
-started with a pretty basic package.json file.  See [`npm-init`](/docs/cli-commands/npm-init) for
+started with a pretty basic package.json file.  See [`npm init`](/cli-commands/npm-init) for
 more info.
 
 ### Keeping files *out* of your package
@@ -169,7 +169,7 @@ changes in real time without having to keep re-installing it.  (You do
 need to either re-link or `npm rebuild -g` to update compiled packages,
 of course.)
 
-More info at [`npm-link`](/docs/cli-commands/npm-link).
+More info at [`npm link`](/cli-commands/npm-link).
 
 ### Before Publishing: Make Sure Your Package Installs and Works
 
@@ -217,7 +217,7 @@ npm adduser
 
 and then follow the prompts.
 
-This is documented better in [npm-adduser](/docs/cli-commands/npm-adduser).
+This is documented better in [npm adduser](/cli-commands/npm-adduser).
 
 ### Publish your package
 

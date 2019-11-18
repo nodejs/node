@@ -4,7 +4,7 @@ title: disputes
 description: Handling Module Name Disputes
 ---
 
-# disputes
+# disputes(7)
 
 ## Handling Module Name Disputes
 

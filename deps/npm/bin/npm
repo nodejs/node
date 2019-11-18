@@ -8,6 +8,10 @@ case `uname` in
 esac
 
 NODE_EXE="$basedir/node.exe"
+if [ -x "$NODE_EXE" ] && [ -f "/bin/wslpath" ]; then # run the corresponding command prompt when Node for Windows is executed within WSL
+  cmd.exe /c `wslpath -w "$basedir/npm.cmd"` "$@"
+  exit $?
+fi
 if ! [ -x "$NODE_EXE" ]; then
   NODE_EXE="$basedir/node"
 fi

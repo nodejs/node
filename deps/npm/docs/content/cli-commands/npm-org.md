@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-org
 description: Manage orgs
 ---
 
-# npm-org
+# npm-org(1)
 
 ## Manage orgs
 
