@@ -7,7 +7,7 @@ const { buffer } = require(`./build/${common.buildType}/binding`);
 // Test that buffers allocated with a free callback through our APIs are not
 // transfered.
 
-const { port1, port2 } = new MessageChannel();
+const { port1 } = new MessageChannel();
 const origByteLength = buffer.byteLength;
 port1.postMessage(buffer, [buffer.buffer]);
 
