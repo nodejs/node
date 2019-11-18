@@ -952,7 +952,8 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
     if (UNLIKELY(!session->CanAddStream() ||
                  Http2Stream::New(session, id, frame->headers.cat) ==
                      nullptr)) {
-      if (session->rejected_stream_count_++ > 100 &&
+      if (session->rejected_stream_count_++ >
+              session->js_fields_.max_rejected_streams &&
           !IsReverted(SECURITY_REVERT_CVE_2019_9514)) {
         return NGHTTP2_ERR_CALLBACK_FAILURE;
       }
@@ -3111,6 +3112,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kSessionPriorityListenerCount);
   NODE_DEFINE_CONSTANT(target, kSessionFrameErrorListenerCount);
   NODE_DEFINE_CONSTANT(target, kSessionMaxInvalidFrames);
+  NODE_DEFINE_CONSTANT(target, kSessionMaxRejectedStreams);
   NODE_DEFINE_CONSTANT(target, kSessionUint8FieldCount);
 
   NODE_DEFINE_CONSTANT(target, kSessionHasRemoteSettingsListeners);
