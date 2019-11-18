@@ -4,7 +4,7 @@ title: package.json
 description: Specifics of npm's package.json handling
 ---
 
-# package.json
+# package.json(5)
 
 ## Specifics of npm's package.json handling
 
@@ -14,7 +14,7 @@ This document is all you need to know about what's required in your package.json
 file.  It must be actual JSON, not just a JavaScript object literal.
 
 A lot of the behavior described in this document is affected by the config
-settings described in [`npm-config`](/docs/using-npm/config).
+settings described in [`config`](/using-npm/config).
 
 ### name
 
@@ -30,7 +30,7 @@ Some rules:
 
 * The name must be less than or equal to 214 characters. This includes the scope for
   scoped packages.
-* The name can't start with a dot or an underscore.
+* The names of scoped packages can begin with a dot or an underscore. This is not permitted without a scope.
 * New packages must not have uppercase letters in the name.
 * The name ends up being part of a URL, an argument on the command line, and a
   folder name. Therefore, the name can't contain any non-URL-safe characters.
@@ -47,7 +47,7 @@ Some tips:
   already, before you get too attached to it. <https://www.npmjs.com/>
 
 A name can be optionally prefixed by a scope, e.g. `@myorg/mypackage`. See
-[`npm-scope`](/docs/using-npm/scope) for more detail.
+[`scope`](/using-npm/scope) for more detail.
 
 ### version
 
@@ -61,7 +61,7 @@ Version must be parseable by
 [node-semver](https://github.com/isaacs/node-semver), which is bundled
 with npm as a dependency.  (`npm install semver` to use it yourself.)
 
-More on version numbers and ranges at [semver](/docs/using-npm/semver).
+More on version numbers and ranges at [semver](/using-npm/semver).
 
 ### description
 
@@ -469,7 +469,7 @@ The "scripts" property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
 event, and the value is the command to run at that point.
 
-See [`npm-scripts`](/docs/using-npm/scripts) to find out more about writing package scripts.
+See [`scripts`](/using-npm/scripts) to find out more about writing package scripts.
 
 ### config
 
@@ -486,7 +486,7 @@ and then had a "start" command that then referenced the
 `npm_package_config_port` environment variable, then the user could
 override that by doing `npm config set foo:port 8001`.
 
-See [`npm-config`](/docs/using-npm/config) and [`npm-scripts`](/docs/using-npm/scripts) for more on package
+See [`config`](/using-npm/config) and [`scripts`](/using-npm/scripts) for more on package
 configs.
 
 ### dependencies
@@ -499,15 +499,15 @@ tarball or git URL.
 **Please do not put test harnesses or transpilers in your
 `dependencies` object.**  See `devDependencies`, below.
 
-See [semver](/docs/using-npm/semver) for more details about specifying version ranges.
+See [semver](/using-npm/semver) for more details about specifying version ranges.
 
 * `version` Must match `version` exactly
 * `>version` Must be greater than `version`
 * `>=version` etc
 * `<version`
 * `<=version`
-* `~version` "Approximately equivalent to version"  See [semver](/docs/using-npm/semver)
-* `^version` "Compatible with version"  See [semver](/docs/using-npm/semver)
+* `~version` "Approximately equivalent to version"  See [semver](/using-npm/semver)
+* `^version` "Compatible with version"  See [semver](/using-npm/semver)
 * `1.2.x` 1.2.0, 1.2.1, etc., but not 1.3.0
 * `http://...` See 'URLs as Dependencies' below
 * `*` Matches any version
@@ -516,7 +516,7 @@ See [semver](/docs/using-npm/semver) for more details about specifying version r
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See [`npm-dist-tag`](/docs/cli-commands/npm-dist-tag)
+* `tag` A specific version tagged and published as `tag`  See [`npm dist-tag`](/cli-commands/npm-dist-tag)
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -632,7 +632,7 @@ object.
 
 These things will be installed when doing `npm link` or `npm install`
 from the root of a package, and can be managed like any other npm
-configuration param.  See [`npm-config`](/docs/using-npm/config) for more on the topic.
+configuration param.  See [`config`](/using-npm/config) for more on the topic.
 
 For build steps that are not platform-specific, such as compiling
 CoffeeScript or other languages to JavaScript, use the `prepare`
@@ -865,7 +865,7 @@ to the global public registry or that a scoped module is private by default.
 Any config values can be overridden, but only "tag", "registry" and "access"
 probably matter for the purposes of publishing.
 
-See [`npm-config`](/docs/using-npm/config) to see the list of config options that can be
+See [`config`](/using-npm/config) to see the list of config options that can be
 overridden.
 
 ### DEFAULT VALUES

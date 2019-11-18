@@ -1,10 +1,9 @@
-.TH "PACKAGE\-LOCKS" "" "November 2019" "" ""
+.TH "PACKAGE\-LOCKS" "5" "November 2019" "" ""
 .SH "NAME"
-\fBpackage-locks\fR
-.SH An explanation of npm lockfiles
+\fBpackage-locks\fR \- An explanation of npm lockfiles
 .SS Description
 .P
-Conceptually, the "input" to \fBnpm\-install\fP \fI/docs/cli\-commands/npm\-install\fR is a package\.json \fI/docs/configuring\-npm/package\-json\fR, while its
+Conceptually, the "input" to npm help \fBinstall\fP is a npm help package\.json, while its
 "output" is a fully\-formed \fBnode_modules\fP tree: a representation of the
 dependencies you declared\. In an ideal world, npm would work like a pure
 function: the same \fBpackage\.json\fP should produce the exact same \fBnode_modules\fP
@@ -91,8 +90,7 @@ author are not the same person, there's no way for A's author to say
 that he or she does not want to pull in newly published versions of C
 when B hasn't changed at all\.
 .P
-To prevent this potential issue, npm uses package\-lock\.json \fI/docs/configuring\-npm/package\-lock\-json\fR or, if present,
-npm\-shrinkwrap\.json \fIshrinkwrap\.json\fR\|\. These files are called package locks, or lockfiles\.
+To prevent this potential issue, npm uses npm help package\-lock\.json or, if present, npm help npm\-shrinkwrap\.json\. These files are called package locks, or lockfiles\.
 .P
 Whenever you run \fBnpm install\fP, npm generates or updates your package lock,
 which will look something like this:
@@ -122,7 +120,7 @@ which will look something like this:
 This file describes an \fIexact\fR, and more importantly \fIreproducible\fR
 \fBnode_modules\fP tree\. Once it's present, any future installation will base its
 work off this file, instead of recalculating dependency versions off
-package\.json \fI/docs/configuring\-npm/package\-json\fR\|\.
+npm help package\.json\.
 .P
 The presence of a package lock changes the installation behavior such that:
 .RS 0
@@ -191,12 +189,12 @@ pre\-\fBnpm@5\.7\.0\fP versions of npm 5, albeit a bit more noisily\. Note that 
 .IP \(bu 2
 https://medium\.com/@sdboyer/so\-you\-want\-to\-write\-a\-package\-manager\-4ae9c17d9527
 .IP \(bu 2
-npm help package\-json
+npm help package\.json
 .IP \(bu 2
-npm help package\-lock\-json
+npm help package\-lock\.json
 .IP \(bu 2
-npm help shrinkwrap\-json
+npm help shrinkwrap\.json
 .IP \(bu 2
-npm help npm\-shrinkwrap
+npm help shrinkwrap
 
 .RE

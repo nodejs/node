@@ -4,7 +4,7 @@ title: folders
 description: Folder Structures Used by npm
 ---
 
-# folders
+# folders(5)
 
 ## Folder Structures Used by npm
 
@@ -49,8 +49,7 @@ Global installs on Windows go to `{prefix}/node_modules` (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub-folder of the relevant `node_modules` folder with the name of that
 scope prefix by the @ symbol, e.g. `npm install @myorg/package` would place
-the package in `{prefix}/node_modules/@myorg/package`. See [`scope`](/docs/using-npm/scope) for
-more details.
+the package in `{prefix}/node_modules/@myorg/package`. See [`scope`](/using-npm/scope) for more details.
 
 If you wish to `require()` a package, then install it locally.
 
@@ -74,7 +73,7 @@ Man pages are not installed on Windows systems.
 
 #### Cache
 
-See [`npm-cache`](/docs/cli-commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
+See [`npm cache`](/cli-commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
 `%AppData%/npm-cache` on Windows.
 
 This is controlled by the `cache` configuration param.
@@ -210,7 +209,7 @@ not be included in the package tarball.
 
 This allows a package maintainer to install all of their dependencies
 (and dev dependencies) locally, but only re-publish those items that
-cannot be found elsewhere.  See [`package.json`](/docs/configuring-npm/package.json) for more information.
+cannot be found elsewhere.  See [`package.json`](/configuring-npm/package.json) for more information.
 
 ### See also
 

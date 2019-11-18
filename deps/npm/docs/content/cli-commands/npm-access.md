@@ -4,7 +4,7 @@ title: npm-access
 description: Set access level on published packages
 ---
 
-# npm-access
+# npm-access(1)
 
 ## Set access level on published packages
 

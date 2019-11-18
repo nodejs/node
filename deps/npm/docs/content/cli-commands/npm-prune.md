@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-prune
 description: Remove extraneous packages
 ---
 
-# npm-prune
+# npm-prune(1)
 ## Remove extraneous packages
 
 ### Synopsis

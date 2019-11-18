@@ -225,7 +225,7 @@ as `https://` URLs instead of versions.
   zeros deleted resulted in authentication failures.
   ([@iarna](https://github.com/iarna))
 * [`6eaa860ea`](https://github.com/npm/npm/commit/6eaa860ead3222a6dbd6d370b4271e7bf242b30b)
-  Eliminate direct use of `new Buffer` in `npm`. While the use of it in `npm` was safe, there
+  Eliminate direct use of `new Buffer` in `npm`. While the use of it in `npm` was safe, there 
   are two other reasons for this change:
 
   1. Node 10 emits warnings about its use.
@@ -341,7 +341,7 @@ and a handful of bug fixes! Let's get right in!
 
 ### NEW PACKAGE VIEW
 
-There's a new `npm view` in town.  You might it as `npm info` or `npm show`.
+There's a new `npm view` in town.  You might it as `npm info` or `npm show`. 
 The new output gives you a nicely summarized view that for most packages
 fits on one screen.  If you ask it for `--json` you'll still get the same
 results, so your scripts should still work fine.
@@ -377,7 +377,7 @@ you can double check your `.npmignore` settings before doing a publish.
 ### MERGE CONFLICT, SMERGE CONFLICT
 
 If you resolve a `package-lock.json` merge conflict with `npm install` we
-now suggest you setup a merge driver to handle these automatically for you.
+now suggest you setup a merge driver to handle these automatically for you. 
 If you're reading this and you'd like to set it up now, run:
 
 ```console

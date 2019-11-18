@@ -78,7 +78,7 @@
 	.st72{fill:#F2F2F2;}
 	.st73{opacity:0.4;fill:url(#SVGID_43_);}
 	.st74{fill:#413844;stroke:#223839;stroke-miterlimit:10;}
-
+	
 		.st75{fill:#FFFFFF;fill-opacity:0.5;stroke:#223839;stroke-width:1.802;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
 	.st76{fill:url(#SVGID_44_);}
 	.st77{fill:url(#SVGID_45_);}
@@ -217,7 +217,7 @@
 		</g>
 	</g>
 	<rect x="-8054" y="-4234.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -8048 -4220.3433)" class="st9" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -7088.0918 -4219.2417)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">npm Enterprise    Products    Solutions     Resources</tspan><tspan x="351.5" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:4;">	</tspan><tspan x="360" y="0" style="font-family:'Poppins-Regular'; font-size:14px;"> Docs    Support</tspan></text>
 	<linearGradient id="SVGID_6_" gradientUnits="userSpaceOnUse" x1="-8100" y1="-4253.543" x2="-6501" y2="-4253.543">
@@ -242,7 +242,7 @@
 			<stop  offset="0" style="stop-color:#F15A24"/>
 			<stop  offset="1" style="stop-color:#FF00FF"/>
 		</linearGradient>
-		<polygon class="st15" points="-7521.4,-4028.5 -7526.5,-4034.6 -7511.8,-4047.2 -7526.5,-4059.8 -7521.3,-4065.9 -7499.5,-4047.1
+		<polygon class="st15" points="-7521.4,-4028.5 -7526.5,-4034.6 -7511.8,-4047.2 -7526.5,-4059.8 -7521.3,-4065.9 -7499.5,-4047.1 
 					"/>
 	</g>
 	<g class="st16">
@@ -253,7 +253,7 @@
 		<rect x="-7036" y="-4023.1" class="st17" width="30.5" height="8"/>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="1618" height="1337" xlink:href="5FF73A65D6BEC3DE.png"  transform="matrix(1 0 0 1 -8110 -1427.5431)">
 		</image>
 		<g>
@@ -261,7 +261,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="431" height="91" xlink:href="5FF73A65D6BEC3E2.png"  transform="matrix(1 0 0 1 -7479 -4092.5432)">
 		</image>
 		<g>
@@ -290,7 +290,7 @@
 	<rect x="-7633.6" y="-3930.1" class="st47" width="742.6" height="304.6"/>
 	<text transform="matrix(1 0 0 1 -7633.584 -3907.9143)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">The</tspan><tspan x="61" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:13;"> </tspan><tspan x="81.8" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">intelligent</tspan><tspan x="255.3" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:13;"> </tspan><tspan x="276.1" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">package</tspan><tspan x="424.1" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:13;"> </tspan><tspan x="444.9" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">manager</tspan><tspan x="600.4" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:13;"> </tspan><tspan x="621.2" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">for</tspan><tspan x="668.2" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:13;"> </tspan><tspan x="689" y="0" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">the </tspan><tspan x="0" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">Node</tspan><tspan x="87.2" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:7;"> </tspan><tspan x="101.6" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">Javascript</tspan><tspan x="282.2" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:7;"> </tspan><tspan x="296.5" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">Platform.</tspan><tspan x="452.1" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:7;"> </tspan><tspan x="466.5" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">Install</tspan><tspan x="572.3" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:7;"> </tspan><tspan x="586.6" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">stuff</tspan><tspan x="664.1" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:7;"> </tspan><tspan x="678.5" y="43" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">and </tspan><tspan x="275.1" y="86" class="st18" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">get coding!</tspan></text>
 	<rect x="-7396" y="-3727.5" class="st19" width="276" height="71"/>
-
+	
 		<text transform="matrix(1 0 0 1 -7353.0112 -3690.1316)" style="font-family:'Poppins-SemiBold'; font-size:30px; letter-spacing:1;">Read Docs</text>
 	<path class="st18" d="M-6496-3507c18.3,18.3-25.9-40-51.8-40c-25.9,0-25.9,40-51.8,40c-25.9,0-25.9-40-51.7-40
 		c-25.9,0-25.9,40-51.7,40c-25.9,0-25.9-40-51.7-40s-25.9,40-51.7,40c-25.9,0-25.9-40-51.7-40c-25.9,0-25.9,40-51.7,40
@@ -300,7 +300,7 @@
 		c-25.9,0-25.9,40-51.7,40c-25.9,0-25.9-40-51.7-40s-25.9,40-51.7,40c-25.9,0-25.9-40-51.7-40s-25.9,40-51.7,40s-25.9-40-51.7-40
 		s-25.9,40-51.7,40s-25.9-40-51.7-40v1283.5h1603.5C-6496.5-2263.5-6498.4-3509.4-6496-3507z"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="346" height="346" xlink:href="5FF73A65D6BEC3E5.png"  transform="matrix(1 0 0 1 -7860 -3397.5432)">
 		</image>
 		<g>
@@ -308,7 +308,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="346" height="346" xlink:href="5FF73A65D6BEC3E6.png"  transform="matrix(1 0 0 1 -7867 -2698.5432)">
 		</image>
 		<g>
@@ -316,7 +316,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="346" height="346" xlink:href="5FF73A65D6BEC3E4.png"  transform="matrix(1 0 0 1 -7044 -2973.5432)">
 		</image>
 		<g>
@@ -337,7 +337,7 @@
 		s-25.9-24.2-51.8-24.2c-25.9,0-25.9,24.2-51.8,24.2c-25.9,0-25.9-24.2-51.8-24.2c-25.9,0-25.9,24.2-51.8,24.2
 		c-25.9,0-25.9-24.2-51.8-24.2c-25.9,0-25.9,24.2-51.8,24.2c-24.5,0-25.8-21.6-47.8-24v-607.2H-4883z"/>
 	<g>
-
+		
 			<image style="overflow:visible;" width="1608" height="1247" xlink:href="5FF73A65D6BEC3E3.png"  transform="matrix(1 0 0 1 -6487 -3578.5432)">
 		</image>
 		<g>
@@ -352,7 +352,7 @@
 		</g>
 	</g>
 	<rect x="-6434" y="-4232.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -6428 -4218.3433)" class="st9" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -5468.0918 -4223.2417)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">npm Enterprise    Products    Solutions     Resources</tspan><tspan x="351.5" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:4;">	</tspan><tspan x="360" y="0" style="font-family:'Poppins-Regular'; font-size:14px;"> Docs    Support</tspan></text>
 	<line class="st11" x1="-4880.5" y1="-4199.5" x2="-6480" y2="-4199.5"/>
@@ -367,7 +367,7 @@
 			<stop  offset="0" style="stop-color:#F15A24"/>
 			<stop  offset="1" style="stop-color:#FF00FF"/>
 		</linearGradient>
-		<polygon class="st22" points="-5943.4,-3997.5 -5948.5,-4003.6 -5933.8,-4016.2 -5948.5,-4028.8 -5943.3,-4034.9 -5921.5,-4016.1
+		<polygon class="st22" points="-5943.4,-3997.5 -5948.5,-4003.6 -5933.8,-4016.2 -5948.5,-4028.8 -5943.3,-4034.9 -5921.5,-4016.1 
 					"/>
 	</g>
 	<g class="st16">
@@ -378,7 +378,7 @@
 		<rect x="-5458" y="-3992.1" class="st23" width="30.5" height="8"/>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="431" height="91" xlink:href="5FF73A65D6BEC3ED.png"  transform="matrix(1 0 0 1 -5901 -4061.5432)">
 		</image>
 		<g>
@@ -407,10 +407,10 @@
 	<rect x="-6055.6" y="-3921.1" class="st47" width="742.6" height="304.6"/>
 	<text transform="matrix(1 0 0 1 -5908.5601 -3906.3142)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:20px; letter-spacing:1;">The intelligent package manager for the </tspan><tspan x="-75.6" y="31" class="st18" style="font-family:'Poppins-Regular'; font-size:20px; letter-spacing:1;">Node Javascript Platform. Install stuff and get coding!</tspan></text>
 	<rect x="-5805" y="-3805.7" class="st19" width="230" height="59.2"/>
-
+	
 		<text transform="matrix(1 0 0 1 -5754.0112 -3773.1316)" style="font-family:'Poppins-SemiBold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="309" height="304" xlink:href="5FF73A65D6BEC3EE.png"  transform="matrix(1 0 0 1 -6305.6226 -3473.1655)">
 		</image>
 		<g>
@@ -432,18 +432,18 @@
 		<stop  offset="1" style="stop-color:#FF00FF"/>
 	</linearGradient>
 	<line class="st26" x1="-6479" y1="-4253" x2="-4880" y2="-4253"/>
-
+	
 		<text transform="matrix(1 0 0 1 -5958.1777 -3354.8225)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Super Cool</text>
 	<g>
-
+		
 			<text transform="matrix(1 0 0 1 -6250.1777 -3012.8225)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Easy to Use</text>
 	</g>
 	<g>
-
+		
 			<text transform="matrix(1 0 0 1 -5945.1777 -2607.8225)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Ultra Fast</text>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.7;" width="309" height="304" xlink:href="5FF73A65D6BEC3EC.png"  transform="matrix(1 0 0 1 -6315.6226 -2745.1655)">
 		</image>
 		<g>
@@ -460,7 +460,7 @@
 			<use xlink:href="#XMLID_1_"  style="overflow:visible;"/>
 		</clipPath>
 		<g class="st27">
-
+			
 				<image style="overflow:visible;opacity:0.4;" width="247" height="242" xlink:href="DEBB70B809924F61.png"  transform="matrix(1 0 0 1 -5526.0918 -2896.5808)">
 			</image>
 			<g>
@@ -468,7 +468,7 @@
 			</g>
 		</g>
 		<g class="st27">
-
+			
 				<image style="overflow:visible;opacity:0.5;" width="309" height="304" xlink:href="DEBB70B809924F67.png"  transform="matrix(1 0 0 1 -5417.9448 -3063.2302)">
 			</image>
 			<g>
@@ -483,7 +483,7 @@
 	<circle class="st28" cx="-5219" cy="-2955" r="143"/>
 	<circle class="st8" cx="-5219" cy="-2955" r="134"/>
 	<rect x="-8054" y="-2020.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -8048 -2006.3434)" class="st9" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -7088.0918 -2011.2418)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">npm Enterprise    Products    Solutions     Resources</tspan><tspan x="351.5" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:4;">	</tspan><tspan x="360" y="0" style="font-family:'Poppins-Regular'; font-size:14px;"> Docs    Support</tspan></text>
 	<line class="st11" x1="-6500.5" y1="-1987.5" x2="-8100" y2="-1987.5"/>
@@ -498,7 +498,7 @@
 			<stop  offset="0" style="stop-color:#F15A24"/>
 			<stop  offset="1" style="stop-color:#FF00FF"/>
 		</linearGradient>
-		<polygon class="st30" points="-7563.4,-1785.5 -7568.5,-1791.6 -7553.8,-1804.2 -7568.5,-1816.8 -7563.3,-1822.9 -7541.5,-1804.1
+		<polygon class="st30" points="-7563.4,-1785.5 -7568.5,-1791.6 -7553.8,-1804.2 -7568.5,-1816.8 -7563.3,-1822.9 -7541.5,-1804.1 
 					"/>
 	</g>
 	<g class="st16">
@@ -509,7 +509,7 @@
 		<rect x="-7078" y="-1780" class="st31" width="30.5" height="8"/>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="431" height="91" xlink:href="DEBB70B809924F60.png"  transform="matrix(1 0 0 1 -7521 -1849.5431)">
 		</image>
 		<g>
@@ -538,10 +538,10 @@
 	<rect x="-7675.6" y="-1709.1" class="st47" width="742.6" height="304.6"/>
 	<text transform="matrix(1 0 0 1 -7528.5601 -1694.3141)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:20px; letter-spacing:1;">The intelligent package manager for the </tspan><tspan x="-75.6" y="31" class="st18" style="font-family:'Poppins-Regular'; font-size:20px; letter-spacing:1;">Node Javascript Platform. Install stuff and get coding!</tspan></text>
 	<rect x="-7425" y="-1593.7" class="st19" width="230" height="59.2"/>
-
+	
 		<text transform="matrix(1 0 0 1 -7374.0112 -1561.1315)" style="font-family:'Poppins-SemiBold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 	<g class="st16">
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="309" height="304" xlink:href="DEBB70B809924F63.png"  transform="matrix(1 0 0 1 -7914.6226 -1250.1655)">
 		</image>
 		<g>
@@ -553,14 +553,14 @@
 		<stop  offset="1" style="stop-color:#FF00FF"/>
 	</linearGradient>
 	<line class="st32" x1="-8099" y1="-2041" x2="-6500" y2="-2041"/>
-
+	
 		<text transform="matrix(1 0 0 1 -7567.1777 -1144.8224)" style="opacity:0.8;fill:#FFFFFF; font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Super Cool</text>
 	<g class="st33">
-
+		
 			<text transform="matrix(1 0 0 1 -7859.1777 -789.8224)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Easy to Use</text>
 	</g>
 	<g>
-
+		
 			<text transform="matrix(1 0 0 1 -7554.1777 -384.8224)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Ultra Fast</text>
 	</g>
 	<text transform="matrix(1 0 0 1 -7568.5654 -1097.0929)"><tspan x="0" y="0" class="st8" style="font-family:'Poppins-Regular'; font-size:20px;">Nunc malesuada suscipit enim at feugiat. Duis id mauris</tspan><tspan x="0" y="36" class="st8" style="font-family:'Poppins-Regular'; font-size:20px;">lectus. Donec a sagittis lectus.</tspan></text>
@@ -576,10 +576,10 @@
 		<path class="st8" d="M-6834.3-721l-20.8,21.9l-6.3-6l15.2-16l-15.2-16.3l6.3-5.9C-6855.1-743.2-6834.3-721-6834.3-721z"/>
 		<path class="st8" d="M-6829.4-707.8h30.3v8.7h-30.3V-707.8z"/>
 	</g>
-
+	
 		<text transform="matrix(1 0 0 1 -7556.1777 -1302.8224)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Why use NPM CLI?</text>
 	<rect x="-6432" y="-2021.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -6426 -2007.3434)" class="st35" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -5466.0918 -2008.2418)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">npm Enterprise    Products    Solutions     Resources</tspan><tspan x="351.5" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:4;">	</tspan><tspan x="360" y="0" style="font-family:'Poppins-Regular'; font-size:14px;"> Docs    Support</tspan></text>
 	<linearGradient id="SVGID_23_" gradientUnits="userSpaceOnUse" x1="-6480" y1="-2041.0431" x2="-4880" y2="-2041.0431">
@@ -595,21 +595,21 @@
 	<line class="st11" x1="-4878.5" y1="-1985.5" x2="-6478" y2="-1985.5"/>
 	<circle class="st8" cx="-6145" cy="-976.5" r="125"/>
 	<g class="st16">
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="309" height="304" xlink:href="DEBB70B809924F7F.png"  transform="matrix(1 0 0 1 -6991.8604 -885.184)">
 		</image>
 		<g>
 			<ellipse class="st8" cx="-6837.4" cy="-733.2" rx="113.9" ry="111.5"/>
 		</g>
 	</g>
-
+	
 		<text transform="matrix(1 0 0 1 -5833.1777 -1053.8224)" class="st18" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Why use this?</text>
 	<line class="st38" x1="-5573.5" y1="-922" x2="-5575.6" y2="-922"/>
 	<line class="st38" x1="-6168.3" y1="-922" x2="-6170.5" y2="-922"/>
 	<line class="st39" x1="-5146" y1="-641.6" x2="-5148.4" y2="-641.6"/>
 	<line class="st40" x1="-6111.6" y1="-1897.9" x2="-6114.4" y2="-1897.9"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="930" height="551" xlink:href="DEBB70B809924F62.png"  transform="matrix(1 0 0 1 -6164.3643 -1955.9076)">
 		</image>
 		<g>
@@ -623,7 +623,7 @@
 	<line class="st40" x1="-6058.1" y1="-1822.7" x2="-6060.8" y2="-1822.7"/>
 	<line class="st40" x1="-6089.8" y1="-1850.5" x2="-6092.5" y2="-1850.5"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="931" height="551" xlink:href="DEBB70B809924F65.png"  transform="matrix(1 0 0 1 -6132.3643 -1900.9076)">
 		</image>
 		<g>
@@ -642,7 +642,7 @@
 	<line class="st40" x1="-5229.1" y1="-1843.4" x2="-5231.7" y2="-1843.4"/>
 	<line class="st40" x1="-5893.2" y1="-1764.3" x2="-5895.9" y2="-1764.3"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="931" height="551" xlink:href="DEBB70B809924F66.png"  transform="matrix(1 0 0 1 -6098.3643 -1841.9076)">
 		</image>
 		<g>
@@ -666,11 +666,11 @@
 				<stop  offset="0" style="stop-color:#F15A24"/>
 				<stop  offset="1" style="stop-color:#FF00FF"/>
 			</linearGradient>
-			<polygon class="st43" points="-5900.4,-1659.5 -5905.5,-1665.6 -5890.8,-1678.2 -5905.5,-1690.8 -5900.3,-1696.9
+			<polygon class="st43" points="-5900.4,-1659.5 -5905.5,-1665.6 -5890.8,-1678.2 -5905.5,-1690.8 -5900.3,-1696.9 
 				-5878.5,-1678.1 			"/>
 		</g>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="425" height="85" xlink:href="DEBB70B809924F64.png"  transform="matrix(1 0 0 1 -5855 -1720.5431)">
 			</image>
 			<g>
@@ -701,7 +701,7 @@
 		<g>
 			<rect x="-5752.7" y="-1448.5" class="st14" width="230" height="59.2"/>
 			<rect x="-5746.8" y="-1442.7" class="st19" width="230" height="59.2"/>
-
+			
 				<text transform="matrix(1 0 0 1 -5695.8589 -1410.1315)" style="font-family:'Poppins-SemiBold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 		</g>
 	</g>
@@ -736,12 +736,12 @@
 				V-2004.3z"/>
 			<rect x="-6396.9" y="-2020.5" class="st47" width="49.9" height="16.2"/>
 		</g>
-		<polygon class="st46" points="-6331.9,-2017.3 -6331.9,-2011 -6325.8,-2011 -6325.8,-2007.9 -6332,-2007.9 -6338.3,-2007.9
+		<polygon class="st46" points="-6331.9,-2017.3 -6331.9,-2011 -6325.8,-2011 -6325.8,-2007.9 -6332,-2007.9 -6338.3,-2007.9 
 			-6338.2,-2020.5 -6325.8,-2020.5 -6325.8,-2017.4 		"/>
 		<rect x="-6323.2" y="-2020.5" class="st46" width="6.4" height="12.9"/>
-
+		
 			<rect x="-6317.3" y="-2013.9" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -8324.8926 4306.6318)" class="st46" width="3.1" height="9.5"/>
-
+		
 			<rect x="-6296.1" y="-2012.5" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -8303.5234 4286.77)" class="st46" width="2" height="8.3"/>
 		<rect x="-6309.1" y="-2020.5" class="st46" width="6.4" height="12.9"/>
 	</g>
@@ -758,7 +758,7 @@
 	</linearGradient>
 	<line class="st49" x1="-4462" y1="-1804.5" x2="-4462.5" y2="-1805"/>
 	<rect x="-4812" y="-2022.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -4806 -2008.3434)" class="st35" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -3653.0918 -2007.2418)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">Configuring NPM</tspan><tspan x="116" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:24;">	</tspan><tspan x="144" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">Using NPM</tspan><tspan x="216.4" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:31;">	</tspan><tspan x="252" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">CLI Commands</tspan><tspan x="359.8" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:-3;">	</tspan></text>
 	<line class="st11" x1="-3258.5" y1="-1986.5" x2="-4858" y2="-1986.5"/>
@@ -767,7 +767,7 @@
 	<line class="st39" x1="-3526" y1="-701.6" x2="-3528.4" y2="-701.6"/>
 	<line class="st40" x1="-4469.6" y1="-1891.9" x2="-4472.4" y2="-1891.9"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="930" height="551" xlink:href="DEBB70B809924F6C.png"  transform="matrix(1 0 0 1 -4610.3643 -1969.9076)">
 		</image>
 		<g>
@@ -781,7 +781,7 @@
 	<line class="st40" x1="-4416.1" y1="-1816.7" x2="-4418.8" y2="-1816.7"/>
 	<line class="st40" x1="-4447.8" y1="-1844.5" x2="-4450.5" y2="-1844.5"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="931" height="551" xlink:href="DEBB70B809924F84.png"  transform="matrix(1 0 0 1 -4556.3643 -1894.9076)">
 		</image>
 		<g>
@@ -814,7 +814,7 @@
 		<line class="st53" x1="-4858" y1="104.3" x2="-3257" y2="104.3"/>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.5;" width="931" height="551" xlink:href="DEBB70B809924F87.png"  transform="matrix(1 0 0 1 -4487.3643 -1802.9076)">
 		</image>
 		<g>
@@ -849,11 +849,11 @@
 				<stop  offset="0" style="stop-color:#F15A24"/>
 				<stop  offset="1" style="stop-color:#FF00FF"/>
 			</linearGradient>
-			<polygon class="st57" points="-4321.4,-1609.5 -4326.5,-1615.6 -4311.8,-1628.2 -4326.5,-1640.8 -4321.3,-1646.9
+			<polygon class="st57" points="-4321.4,-1609.5 -4326.5,-1615.6 -4311.8,-1628.2 -4326.5,-1640.8 -4321.3,-1646.9 
 				-4299.5,-1628.1 			"/>
 		</g>
 		<g class="st51">
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="425" height="85" xlink:href="DEBB70B809924F85.png"  transform="matrix(1 0 0 1 -4276 -1670.5431)">
 			</image>
 			<g>
@@ -884,7 +884,7 @@
 		<g>
 			<rect x="-4325.7" y="-1431.5" class="st14" width="230" height="59.2"/>
 			<rect x="-4319.8" y="-1425.7" class="st19" width="230" height="59.2"/>
-
+			
 				<text transform="matrix(1 0 0 1 -4268.8589 -1393.1315)" class="st8" style="font-family:'Poppins-SemiBold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 		</g>
 	</g>
@@ -907,16 +907,16 @@
 				V-2005.3z"/>
 			<rect x="-4776.9" y="-2021.5" class="st47" width="49.9" height="16.2"/>
 		</g>
-		<polygon class="st46" points="-4711.9,-2018.3 -4711.9,-2012 -4705.8,-2012 -4705.8,-2008.9 -4712,-2008.9 -4718.3,-2008.9
+		<polygon class="st46" points="-4711.9,-2018.3 -4711.9,-2012 -4705.8,-2012 -4705.8,-2008.9 -4712,-2008.9 -4718.3,-2008.9 
 			-4718.2,-2021.5 -4705.8,-2021.5 -4705.8,-2018.4 		"/>
 		<rect x="-4703.2" y="-2021.5" class="st46" width="6.4" height="12.9"/>
-
+		
 			<rect x="-4697.3" y="-2014.9" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -6705.8926 2685.6321)" class="st46" width="3.1" height="9.5"/>
-
+		
 			<rect x="-4676.1" y="-2013.5" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -6684.5234 2665.77)" class="st46" width="2" height="8.3"/>
 		<rect x="-4689.1" y="-2021.5" class="st46" width="6.4" height="12.9"/>
 	</g>
-
+	
 		<linearGradient id="SVGID_33_" gradientUnits="userSpaceOnUse" x1="-4638.583" y1="-630.0982" x2="-4258.5825" y2="-630.0982" gradientTransform="matrix(7.182470e-02 -0.9974 0.9974 7.182470e-02 -2848.011 -4203.3799)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -927,7 +927,7 @@
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<line class="st59" x1="-4860" y1="-2041" x2="-3260" y2="-2041"/>
-
+	
 		<linearGradient id="SVGID_35_" gradientUnits="userSpaceOnUse" x1="-3735.3538" y1="-583.6933" x2="-3531.3535" y2="-583.6933" gradientTransform="matrix(0.9887 -0.1501 0.1501 0.9887 46.8033 -571.8436)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -935,7 +935,7 @@
 	<polygon class="st60" points="-3489.5,-338.1 -3691.2,-307.5 -3776.5,-869 -3574.8,-899.6 	"/>
 	<line class="st50" x1="-3402.2" y1="-941.2" x2="-3403.9" y2="-941.2"/>
 	<g>
-
+		
 			<image style="overflow:visible;" width="827" height="400" xlink:href="DEBB70B809924F8B.png"  transform="matrix(1 0 0 1 -4477 -224.5431)">
 		</image>
 		<g>
@@ -946,14 +946,14 @@
 		</g>
 	</g>
 	<rect x="-4420" y="239.5" class="st8" width="21" height="38"/>
-
+	
 		<linearGradient id="SVGID_36_" gradientUnits="userSpaceOnUse" x1="-4623.8662" y1="-990.3799" x2="-4243.8662" y2="-990.3799" gradientTransform="matrix(0.1152 -0.9933 0.9933 0.1152 -2945.3704 -5199.7769)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<polygon class="st63" points="-4321.8,-1087.1 -4365.5,-709.6 -4558.2,-732 -4514.5,-1109.5 	"/>
 	<g>
-
+		
 			<image style="overflow:visible;" width="828" height="375" xlink:href="DEBB70B809924F8C.png"  transform="matrix(1 0 0 1 -4477 -1171.5431)">
 		</image>
 		<g>
@@ -970,29 +970,29 @@
 		<text transform="matrix(0.9755 0 0 1 -4250.5439 21.9071)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. </tspan><tspan x="0" y="27" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">Sed tempus sapien nibh, et vehicula ipsum cursus non. </tspan></text>
 	</g>
 	<g class="st33">
-
+		
 			<text transform="matrix(1 0 0 1 -7869.1777 -790.8224)" class="st8" style="font-family:'Poppins-BoldItalic'; font-size:50px; letter-spacing:3;">Easy to Use</text>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="236" height="59" xlink:href="DEBB70B809924F8F.png"  transform="matrix(1 0 0 1 -4175 -1039.5431)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -4171.9512 -1007.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Easy to Use</text>
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="202" height="59" xlink:href="DEBB70B809924F8D.png"  transform="matrix(1 0 0 1 -4244 -60.5431)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -4240.5254 -28.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Ultra Fast</text>
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;" width="827" height="401" xlink:href="DEBB70B809924F8A.png"  transform="matrix(1 0 0 1 -4477 -691.5432)">
 		</image>
 		<g>
@@ -1006,16 +1006,16 @@
 		<text transform="matrix(0.9755 0 0 1 -4264.5449 -469.0929)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">Sed accumsan vehicula diam vel auctor. Suspendisse id </tspan><tspan x="0" y="27" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">interdum lectus.  Phasellus sed tortor sed dui rutrum </tspan><tspan x="0" y="54" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">vestibulum vitae eget lacus. </tspan></text>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="237" height="59" xlink:href="DEBB70B809924F86.png"  transform="matrix(1 0 0 1 -4262 -553.5432)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -4258.5332 -521.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Easy to Use</text>
 		</g>
 	</g>
 	<polygon class="st64" points="-3256.4,442.8 -4863.1,392.6 -4863.1,835 -3259.5,835 	"/>
-
+	
 		<linearGradient id="SVGID_37_" gradientUnits="userSpaceOnUse" x1="-5595.8354" y1="-871.4171" x2="-5215.835" y2="-871.4171" gradientTransform="matrix(0.9989 -4.653295e-02 4.653295e-02 0.9989 912.5291 798.3806)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -1038,17 +1038,17 @@
 	<line class="st62" x1="-4360" y1="-552.5" x2="-4360" y2="-415.5"/>
 	<line class="st62" x1="-4360" y1="-73.5" x2="-4360" y2="63.5"/>
 	<g id="POueHo_1_">
-
+		
 			<image style="overflow:visible;" width="800" height="600" id="POueHo_2_" xlink:href="DEBB70B809924F84.jpg"  transform="matrix(1 0 0 1 -2971 -3325.5432)">
 		</image>
 	</g>
 	<g id="FkRr9g_1_">
-
+		
 			<image style="overflow:visible;" width="800" height="600" id="FkRr9g_2_" xlink:href="DEBB70B809924FAB.jpg"  transform="matrix(1 0 0 1 -4391 -3274.5432)">
 		</image>
 	</g>
 	<rect x="-3216" y="-2019.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -3210 -2005.3434)" class="st35" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -2035.0918 -2004.2418)"><tspan x="0" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">Configuring NPM</tspan><tspan x="116" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:24;">	</tspan><tspan x="144" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">Using NPM</tspan><tspan x="216.4" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:31;">	</tspan><tspan x="252" y="0" style="font-family:'Poppins-Regular'; font-size:14px;">CLI Commands</tspan><tspan x="359.8" y="0" style="font-family:'Poppins-Regular'; font-size:14px; letter-spacing:-3;">	</tspan></text>
 	<g>
@@ -1058,12 +1058,12 @@
 				V-2002.3z"/>
 			<rect x="-3180.9" y="-2018.5" class="st47" width="49.9" height="16.2"/>
 		</g>
-		<polygon class="st46" points="-3115.9,-2015.3 -3115.9,-2009 -3109.8,-2009 -3109.8,-2005.9 -3116,-2005.9 -3122.3,-2005.9
+		<polygon class="st46" points="-3115.9,-2015.3 -3115.9,-2009 -3109.8,-2009 -3109.8,-2005.9 -3116,-2005.9 -3122.3,-2005.9 
 			-3122.2,-2018.5 -3109.8,-2018.5 -3109.8,-2015.4 		"/>
 		<rect x="-3107.2" y="-2018.5" class="st46" width="6.4" height="12.9"/>
-
+		
 			<rect x="-3101.3" y="-2011.9" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -5106.8926 1092.6321)" class="st46" width="3.1" height="9.5"/>
-
+		
 			<rect x="-3080.1" y="-2010.5" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -5085.5234 1072.77)" class="st46" width="2" height="8.3"/>
 		<rect x="-3093.1" y="-2018.5" class="st46" width="6.4" height="12.9"/>
 	</g>
@@ -1081,19 +1081,19 @@
 	<polygon class="st68" points="-1641,646.5 -1641,-1224 -3239,-1224 -3239,642.5 	"/>
 	<line class="st50" x1="-2523.2" y1="-950.2" x2="-2524.9" y2="-950.2"/>
 	<line class="st38" x1="-2939.3" y1="-927" x2="-2941.5" y2="-927"/>
-
+	
 		<linearGradient id="SVGID_40_" gradientUnits="userSpaceOnUse" x1="-4577.875" y1="978.6965" x2="-4197.875" y2="978.6965" gradientTransform="matrix(7.182470e-02 -0.9974 0.9974 7.182470e-02 -2848.011 -4203.3799)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<polygon class="st69" points="-2076.6,60.9 -2103.9,439.9 -2297.4,426 -2270.1,47 	"/>
-
+	
 		<linearGradient id="SVGID_41_" gradientUnits="userSpaceOnUse" x1="-2109.3376" y1="-281.1946" x2="-1905.3374" y2="-281.1946" gradientTransform="matrix(0.9887 -0.1501 0.1501 0.9887 46.8033 -571.8436)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<polygon class="st70" points="-1836.5,-283.1 -2038.2,-252.5 -2123.5,-814 -1921.8,-844.6 	"/>
-
+	
 		<linearGradient id="SVGID_42_" gradientUnits="userSpaceOnUse" x1="-4493.1201" y1="614.242" x2="-4113.1201" y2="614.242" gradientTransform="matrix(0.1152 -0.9933 0.9933 0.1152 -2945.3704 -5199.7769)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -1113,15 +1113,15 @@
 		<text transform="matrix(0.9755 0 0 1 -2531.0342 -905.9582)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">Nunc malesuada suscipit enim at feugiat. </tspan><tspan x="-20.3" y="27" class="st18" style="font-family:'Poppins-Regular'; font-size:18px;">    Duis id mauris lectus. Donec a sagittis lectus.</tspan></text>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="236" height="59" xlink:href="DEBB70B809924FA9.png"  transform="matrix(1 0 0 1 -2532 -984.5432)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -2528.8369 -952.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Easy to Use</text>
 		</g>
 	</g>
-
+	
 		<linearGradient id="SVGID_43_" gradientUnits="userSpaceOnUse" x1="-3991.1377" y1="-741.6052" x2="-3611.1375" y2="-741.6052" gradientTransform="matrix(0.9989 -4.653295e-02 4.653295e-02 0.9989 912.5291 798.3806)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -1131,7 +1131,7 @@
 		"/>
 	<rect x="-2726.3" y="-975.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809924F97.png"  transform="matrix(1 0 0 1 -2722.1443 -954.6873)">
 		</image>
 		<g>
@@ -1143,7 +1143,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B809924F99.png"  transform="matrix(1 0 0 1 -2721.8997 -937.4428)">
 		</image>
 		<g>
@@ -1155,7 +1155,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B809924F9B.png"  transform="matrix(1 0 0 1 -2722.1565 -922.6997)">
 		</image>
 		<g>
@@ -1167,7 +1167,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B809924F9E.png"  transform="matrix(1 0 0 1 -2723.0876 -905.6309)">
 		</image>
 		<g>
@@ -1179,7 +1179,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B809924F9F.png"  transform="matrix(1 0 0 1 -2665.8997 -937.4428)">
 		</image>
 		<g>
@@ -1206,11 +1206,11 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="202" height="59" xlink:href="DEBB70B809924F9A.png"  transform="matrix(1 0 0 1 -2537 -557.5432)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -2533.6113 -525.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Ultra Fast</text>
 		</g>
 	</g>
@@ -1218,7 +1218,7 @@
 		"/>
 	<rect x="-2724.3" y="-529.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809924F95.png"  transform="matrix(1 0 0 1 -2720.1443 -508.6873)">
 		</image>
 		<g>
@@ -1230,7 +1230,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B809924F96.png"  transform="matrix(1 0 0 1 -2719.8997 -491.4428)">
 		</image>
 		<g>
@@ -1242,7 +1242,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B809924FF2.png"  transform="matrix(1 0 0 1 -2720.1565 -476.6997)">
 		</image>
 		<g>
@@ -1254,7 +1254,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B809924FF1.png"  transform="matrix(1 0 0 1 -2721.0876 -459.6309)">
 		</image>
 		<g>
@@ -1266,7 +1266,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B809924FF6.png"  transform="matrix(1 0 0 1 -2663.8997 -491.4428)">
 		</image>
 		<g>
@@ -1295,18 +1295,18 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="202" height="59" xlink:href="DEBB70B809924FF0.png"  transform="matrix(1 0 0 1 -2534 -94.5431)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -2530.6113 -62.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Ultra Fast</text>
 		</g>
 	</g>
 	<path class="st74" d="M-2599.7,30h-120.2c-1.1,0-2-0.9-2-2v-81h124.2c0,20.3,0,40.7,0,61v20C-2597.7,29.1-2598.6,30-2599.7,30z"/>
 	<rect x="-2721.3" y="-66.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809924FF3.png"  transform="matrix(1 0 0 1 -2717.1443 -45.6873)">
 		</image>
 		<g>
@@ -1318,7 +1318,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B809924FEF.png"  transform="matrix(1 0 0 1 -2716.8997 -28.4428)">
 		</image>
 		<g>
@@ -1330,7 +1330,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B809924FCE.png"  transform="matrix(1 0 0 1 -2717.1565 -13.6997)">
 		</image>
 		<g>
@@ -1342,7 +1342,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B809924FD1.png"  transform="matrix(1 0 0 1 -2718.0876 3.3691)">
 		</image>
 		<g>
@@ -1354,7 +1354,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B809924FD2.png"  transform="matrix(1 0 0 1 -2660.8997 -28.4428)">
 		</image>
 		<g>
@@ -1392,7 +1392,7 @@
 	</linearGradient>
 	<rect x="-1619" y="-1981.5" class="st94" width="1598" height="755"/>
 	<rect x="-1593" y="-2019.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 -1587 -2005.3434)" class="st35" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<text transform="matrix(1 0 0 1 -215.0918 -2004.2418)"><tspan x="0" y="0" style="font-family:'Poppins-Medium'; font-size:14px;">docs</tspan><tspan x="34.3" y="0" style="font-family:'Poppins-Medium'; font-size:14px; letter-spacing:-1;">	</tspan><tspan x="36" y="0" style="font-family:'Poppins-Medium'; font-size:14px; letter-spacing:32;">	</tspan><tspan x="72" y="0" style="font-family:'Poppins-Medium'; font-size:14px;">npmjs.com</tspan><tspan x="151.5" y="0" style="font-family:'Poppins-Medium'; font-size:14px; letter-spacing:24;">	</tspan></text>
 	<g>
@@ -1402,12 +1402,12 @@
 				V-2002.3z"/>
 			<rect x="-1546.9" y="-2018.5" class="st47" width="49.9" height="16.2"/>
 		</g>
-		<polygon class="st46" points="-1481.9,-2015.3 -1481.9,-2009 -1475.8,-2009 -1475.8,-2005.9 -1482,-2005.9 -1488.3,-2005.9
+		<polygon class="st46" points="-1481.9,-2015.3 -1481.9,-2009 -1475.8,-2009 -1475.8,-2005.9 -1482,-2005.9 -1488.3,-2005.9 
 			-1488.2,-2018.5 -1475.8,-2018.5 -1475.8,-2015.4 		"/>
 		<rect x="-1473.2" y="-2018.5" class="st46" width="6.4" height="12.9"/>
-
+		
 			<rect x="-1467.3" y="-2011.9" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -3472.8926 -541.368)" class="st46" width="3.1" height="9.5"/>
-
+		
 			<rect x="-1446.1" y="-2010.5" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -3451.5237 -561.23)" class="st46" width="2" height="8.3"/>
 		<rect x="-1459.1" y="-2018.5" class="st46" width="6.4" height="12.9"/>
 	</g>
@@ -1427,7 +1427,7 @@
 	<line class="st40" x1="-888.2" y1="-1827.3" x2="-890.9" y2="-1827.3"/>
 	<g>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="771" height="491" xlink:href="DEBB70B809924FD0.png"  transform="matrix(1 0 0 1 -1210 -1922.5431)">
 			</image>
 			<g>
@@ -1447,7 +1447,7 @@
 	<g>
 		<line class="st40" x1="-1052.6" y1="-1810.9" x2="-1055.4" y2="-1810.9"/>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="770" height="490" xlink:href="DEBB70B809924FCD.png"  transform="matrix(1 0 0 1 -1171 -1866.5431)">
 			</image>
 			<g>
@@ -1466,7 +1466,7 @@
 	</g>
 	<g>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="771" height="490" xlink:href="DEBB70B809925033.png"  transform="matrix(1 0 0 1 -1137 -1806.5431)">
 			</image>
 			<g>
@@ -1481,11 +1481,11 @@
 				<rect x="-650.3" y="-1640.7" class="st14" width="23.3" height="6.1"/>
 			</g>
 			<g>
-				<polygon class="st14" points="-1021.6,-1644.9 -1025.5,-1649.6 -1014.3,-1659.1 -1025.5,-1668.8 -1021.6,-1673.4
+				<polygon class="st14" points="-1021.6,-1644.9 -1025.5,-1649.6 -1014.3,-1659.1 -1025.5,-1668.8 -1021.6,-1673.4 
 					-1004.8,-1659.1 				"/>
 			</g>
 			<g class="st51">
-
+				
 					<image style="overflow:visible;opacity:0.2;" width="327" height="66" xlink:href="DEBB70B809925035.png"  transform="matrix(1 0 0 1 -987.5894 -1692.1324)">
 				</image>
 				<g>
@@ -1515,7 +1515,7 @@
 			<g>
 				<rect x="-1024.7" y="-1472.5" class="st14" width="230" height="59.2"/>
 				<rect x="-1018.8" y="-1466.7" class="st19" width="230" height="59.2"/>
-
+				
 					<text transform="matrix(1 0 0 1 -967.8589 -1434.1315)" class="st8" style="font-family:'Poppins-Bold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 			</g>
 		</g>
@@ -1541,19 +1541,19 @@
 	<polygon class="st100" points="-21,646.5 -21,-1224 -1619,-1224 -1619,642.5 	"/>
 	<line class="st50" x1="-903.2" y1="-950.2" x2="-904.9" y2="-950.2"/>
 	<line class="st38" x1="-1319.3" y1="-927" x2="-1321.5" y2="-927"/>
-
+	
 		<linearGradient id="SVGID_63_" gradientUnits="userSpaceOnUse" x1="-4461.519" y1="2594.5125" x2="-4081.5188" y2="2594.5125" gradientTransform="matrix(7.182470e-02 -0.9974 0.9974 7.182470e-02 -2848.011 -4203.3799)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<polygon class="st101" points="-456.6,60.9 -483.9,439.9 -677.4,426 -650.1,47 	"/>
-
+	
 		<linearGradient id="SVGID_64_" gradientUnits="userSpaceOnUse" x1="-507.6919" y1="-38.0262" x2="-303.6916" y2="-38.0262" gradientTransform="matrix(0.9887 -0.1501 0.1501 0.9887 46.8033 -571.8436)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
 	</linearGradient>
 	<polygon class="st102" points="-216.5,-283.1 -418.2,-252.5 -503.5,-814 -301.8,-844.6 	"/>
-
+	
 		<linearGradient id="SVGID_65_" gradientUnits="userSpaceOnUse" x1="-4306.4731" y1="2223.4539" x2="-3926.4729" y2="2223.4539" gradientTransform="matrix(0.1152 -0.9933 0.9933 0.1152 -2945.3704 -5199.7769)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -1573,15 +1573,15 @@
 		<text transform="matrix(0.9755 0 0 1 -921.3135 -905.9582)"><tspan x="0" y="0" class="st18" style="font-family:'Poppins-Regular'; font-size:19px;">Nunc malesuada suscipit enim at feugiat. </tspan><tspan x="-21.5" y="27" class="st18" style="font-family:'Poppins-Regular'; font-size:19px;">    Duis id mauris lectus. Donec a sagittis lectus.</tspan></text>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="236" height="59" xlink:href="DEBB70B809925037.png"  transform="matrix(1 0 0 1 -916 -984.5432)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -912.8369 -952.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Easy to Use</text>
 		</g>
 	</g>
-
+	
 		<linearGradient id="SVGID_66_" gradientUnits="userSpaceOnUse" x1="-2372.8923" y1="-666.2218" x2="-1992.8923" y2="-666.2218" gradientTransform="matrix(0.9989 -4.653295e-02 4.653295e-02 0.9989 912.5291 798.3806)">
 		<stop  offset="0" style="stop-color:#FB8817"/>
 		<stop  offset="1" style="stop-color:#E02AFF"/>
@@ -1590,7 +1590,7 @@
 	<path class="st74" d="M-984.7-879h-120.2c-1.1,0-2-0.9-2-2v-81h124.2c0,20.3,0,40.7,0,61v20C-982.7-879.9-983.6-879-984.7-879z"/>
 	<rect x="-1106.3" y="-975.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809925034.png"  transform="matrix(1 0 0 1 -1102.1442 -954.6873)">
 		</image>
 		<g>
@@ -1602,7 +1602,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B80992503C.png"  transform="matrix(1 0 0 1 -1101.8997 -937.4428)">
 		</image>
 		<g>
@@ -1614,7 +1614,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B80992503D.png"  transform="matrix(1 0 0 1 -1102.1566 -922.6997)">
 		</image>
 		<g>
@@ -1626,7 +1626,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B80992503F.png"  transform="matrix(1 0 0 1 -1103.0878 -905.6309)">
 		</image>
 		<g>
@@ -1638,7 +1638,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B80992503B.png"  transform="matrix(1 0 0 1 -1045.8997 -937.4428)">
 		</image>
 		<g>
@@ -1665,18 +1665,18 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="202" height="59" xlink:href="DEBB70B809925036.png"  transform="matrix(1 0 0 1 -917 -557.5432)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -913.6113 -525.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Ultra Fast</text>
 		</g>
 	</g>
 	<path class="st74" d="M-982.7-433h-120.2c-1.1,0-2-0.9-2-2v-81h124.2c0,20.3,0,40.7,0,61v20C-980.7-433.9-981.6-433-982.7-433z"/>
 	<rect x="-1104.3" y="-529.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809925018.png"  transform="matrix(1 0 0 1 -1100.1442 -508.6873)">
 		</image>
 		<g>
@@ -1688,7 +1688,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B80992501B.png"  transform="matrix(1 0 0 1 -1099.8997 -491.4428)">
 		</image>
 		<g>
@@ -1700,7 +1700,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B809925019.png"  transform="matrix(1 0 0 1 -1100.1566 -476.6997)">
 		</image>
 		<g>
@@ -1712,7 +1712,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B809925067.png"  transform="matrix(1 0 0 1 -1101.0878 -459.6309)">
 		</image>
 		<g>
@@ -1724,7 +1724,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B809925068.png"  transform="matrix(1 0 0 1 -1043.8997 -491.4428)">
 		</image>
 		<g>
@@ -1753,18 +1753,18 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="202" height="59" xlink:href="DEBB70B80992506B.png"  transform="matrix(1 0 0 1 -914 -94.5431)">
 		</image>
 		<g>
-
+			
 				<text transform="matrix(1 0 0 1 -910.6113 -62.8224)" class="st18" style="font-family:'Poppins-SemiBold'; font-size:36px; letter-spacing:2;">Ultra Fast</text>
 		</g>
 	</g>
 	<path class="st74" d="M-979.7,30h-120.2c-1.1,0-2-0.9-2-2v-81h124.2c0,20.3,0,40.7,0,61v20C-977.7,29.1-978.6,30-979.7,30z"/>
 	<rect x="-1101.3" y="-66.5" class="st75" width="123.2" height="14"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="85" height="18" xlink:href="DEBB70B809925069.png"  transform="matrix(1 0 0 1 -1097.1442 -45.6873)">
 		</image>
 		<g>
@@ -1776,7 +1776,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="60" height="17" xlink:href="DEBB70B80992506F.png"  transform="matrix(1 0 0 1 -1096.8997 -28.4428)">
 		</image>
 		<g>
@@ -1788,7 +1788,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="70" height="18" xlink:href="DEBB70B80992506A.png"  transform="matrix(1 0 0 1 -1097.1566 -13.6997)">
 		</image>
 		<g>
@@ -1800,7 +1800,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="64" height="19" xlink:href="DEBB70B809925065.png"  transform="matrix(1 0 0 1 -1098.0878 3.3691)">
 		</image>
 		<g>
@@ -1812,7 +1812,7 @@
 		</g>
 	</g>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.4;" width="27" height="17" xlink:href="DEBB70B80992500F.png"  transform="matrix(1 0 0 1 -1040.8997 -28.4428)">
 		</image>
 		<g>
@@ -1933,7 +1933,7 @@
 		c0,0,0,0,0-0.1c0,0,0,0,0,0l9.4-16.4C-1311.4-2137.5-1311.4-2137.7-1311.5-2137.8z M-1348.3-2137.7l8.9-15.4l17.6-0.1l-8.9,15.5
 		L-1348.3-2137.7z"/>
 	<rect x="37" y="-2020.5" class="st47" width="22" height="22.6"/>
-
+	
 		<text transform="matrix(1 0 0 1 43 -2006.3434)" class="st35" style="font-family:'SourceCodeVariable-Roman'; font-size:20px; letter-spacing:1;">❤</text>
 	<g>
 		<g>
@@ -1941,12 +1941,12 @@
 				h3.2v-13H102.8L102.8-2019.5z M93.8-2016.2H97v6.5h-3.2V-2016.2z M87.4-2003.3h6.4v-3.2h6.4v-13H87.4V-2003.3z"/>
 			<rect x="72.1" y="-2019.5" class="st47" width="49.9" height="16.2"/>
 		</g>
-		<polygon class="st46" points="137.1,-2016.3 137.1,-2010 143.2,-2010 143.2,-2006.9 137,-2006.9 130.7,-2006.9 130.8,-2019.5
+		<polygon class="st46" points="137.1,-2016.3 137.1,-2010 143.2,-2010 143.2,-2006.9 137,-2006.9 130.7,-2006.9 130.8,-2019.5 
 			143.2,-2019.5 143.2,-2016.4 		"/>
 		<rect x="145.8" y="-2019.5" class="st46" width="6.4" height="12.9"/>
-
+		
 			<rect x="151.7" y="-2012.9" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -1854.8926 -2161.3679)" class="st46" width="3.1" height="9.5"/>
-
+		
 			<rect x="172.9" y="-2011.5" transform="matrix(-1.836970e-16 1 -1 -1.836970e-16 -1833.5237 -2181.23)" class="st46" width="2" height="8.3"/>
 		<rect x="159.9" y="-2019.5" class="st46" width="6.4" height="12.9"/>
 	</g>
@@ -2045,9 +2045,9 @@
 		<text transform="matrix(0.9755 0 0 1 -1212.8857 559.7342)"><tspan x="0" y="0" class="st8" style="font-family:'Poppins-Regular'; font-size:18px;">Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod Lorem ipsum </tspan><tspan x="0" y="27" class="st8" style="font-family:'Poppins-Regular'; font-size:18px;">dolor sit amet, tetuer adipiscing elit, sed diam nonummy nibmod </tspan></text>
 	</g>
 	<text transform="matrix(1 0 0 1 39.8115 -1785.5431)" class="st132" style="font-family:'Poppins-Regular'; font-size:10px;">set access level on published packages</text>
-
+	
 		<text transform="matrix(0.9997 -2.420000e-02 2.420000e-02 0.9997 41.1204 -1800.894)" style="opacity:0.9;fill:#FB3B49; font-family:'Poppins-SemiBold'; font-size:14px;">access</text>
-
+	
 		<text transform="matrix(1 0 0 1 40.8115 -1756.5709)" style="opacity:0.9;fill:#FB3B49; font-family:'Poppins-SemiBold'; font-size:14px;">add user</text>
 	<g>
 		<text transform="matrix(1 0 0 1 40.8115 -1663.5709)" class="st14" style="font-family:'Poppins-SemiBold'; font-size:14px;">bin</text>
@@ -2252,7 +2252,7 @@
 	<line class="st40" x1="-2580.2" y1="-1841.3" x2="-2582.9" y2="-1841.3"/>
 	<g>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="771" height="491" xlink:href="DEBB70B80992500D.png"  transform="matrix(1 0 0 1 -2902 -1936.5431)">
 			</image>
 			<g>
@@ -2272,7 +2272,7 @@
 	<g>
 		<line class="st40" x1="-2744.6" y1="-1824.9" x2="-2747.4" y2="-1824.9"/>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="770" height="490" xlink:href="DEBB70B809925003.png"  transform="matrix(1 0 0 1 -2863 -1880.5431)">
 			</image>
 			<g>
@@ -2291,7 +2291,7 @@
 	</g>
 	<g>
 		<g>
-
+			
 				<image style="overflow:visible;opacity:0.2;" width="771" height="490" xlink:href="DEBB70B809925005.png"  transform="matrix(1 0 0 1 -2829 -1820.5431)">
 			</image>
 			<g>
@@ -2306,7 +2306,7 @@
 				<rect x="-2323.3" y="-1652.7" class="st14" width="23.3" height="6.1"/>
 			</g>
 			<g>
-				<polygon class="st14" points="-2713.6,-1658.9 -2717.5,-1663.6 -2706.3,-1673.1 -2717.5,-1682.8 -2713.6,-1687.4
+				<polygon class="st14" points="-2713.6,-1658.9 -2717.5,-1663.6 -2706.3,-1673.1 -2717.5,-1682.8 -2713.6,-1687.4 
 					-2696.8,-1673.1 				"/>
 			</g>
 			<rect x="-2718.7" y="-1586.1" class="st47" width="551.7" height="304.6"/>
@@ -2314,7 +2314,7 @@
 			<g>
 				<rect x="-2716.7" y="-1486.5" class="st14" width="230" height="59.2"/>
 				<rect x="-2710.8" y="-1480.7" class="st19" width="230" height="59.2"/>
-
+				
 					<text transform="matrix(1 0 0 1 -2659.8589 -1448.1315)" class="st8" style="font-family:'Poppins-Bold'; font-size:20px; letter-spacing:1;">Read Docs</text>
 			</g>
 		</g>
@@ -2409,7 +2409,7 @@
 		c-0.1,0.2-0.4,0.3-0.6,0.2c-0.2-0.1-0.3-0.4-0.2-0.6l9.4-16.3c0.1-0.1,0.2-0.2,0.4-0.2l18.6-0.1
 		C-3163-1907.1-3162.9-1907.1-3162.9-1907.1z"/>
 	<g>
-
+		
 			<image style="overflow:visible;opacity:0.2;" width="356" height="93" xlink:href="DEBB70B809925007.png"  transform="matrix(1 0 0 1 -2685.5894 -1716.1324)">
 		</image>
 		<g>

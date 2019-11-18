@@ -60,7 +60,7 @@ const Features = () => {
               text={featureTexts.textTwo}
             />
           </FeatureLink>
-          <FeatureLink to={'/using-npm/coding-style'}>
+          <FeatureLink to={'/using-npm/developers'}>
             <FeatureCard
               icon={networkIcon}
               title={featureTitles.titleThree}

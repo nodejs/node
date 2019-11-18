@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-cache
 description: Manipulates packages cache
 ---
 
-# npm-cache
+# npm-cache(1)
 
 ## Manipulates packages cache
 

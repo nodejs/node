@@ -4,7 +4,7 @@ title: registry
 description: The JavaScript Package Registry
 ---
 
-# registry
+# registry(7)
 
 ##  The JavaScript Package Registry
 
@@ -32,9 +32,9 @@ of which there is a public mirror at
 available at <https://github.com/npm/npm-registry-couchapp>.
 
 The registry URL used is determined by the scope of the package (see
-[`npm-scope`](scope). If no scope is specified, the default registry is used, which is
-supplied by the `registry` config parameter.  See [`npm-config`](/docs/cli-commands/npm-config),
-[`npmrc`](/docs/configuring-npm/npmrc), and [`npm-config`](/docs/using-npm/config) for more on managing npm's configuration.
+[`scope`](/using-npm/scope). If no scope is specified, the default registry is used, which is
+supplied by the `registry` config parameter.  See [`npm config`](/cli-commands/npm-config),
+[`npmrc`](/configuring-npm/npmrc), and [`config`](/using-npm/config) for more on managing npm's configuration.
 
 ### Does npm send any information about me back to the registry?
 
@@ -81,7 +81,7 @@ published at all, or
 `"publishConfig":{"registry":"http://my-internal-registry.local"}`
 to force it to be published only to your internal registry.
 
-See [`package.json`](/docs/configuring-npm/package-json) for more info on what goes in the package.json file.
+See [`package.json`](/configuring-npm/package-json) for more info on what goes in the package.json file.
 
 ### Will you replicate from my registry into the public one?
 

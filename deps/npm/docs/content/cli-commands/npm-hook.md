@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-hook
 description: Manage registry hooks
 ---
 
-# npm-hook
+# npm-hook(1)
 
 ## Manage registry hooks
 
@@ -56,8 +56,7 @@ $ npm hook rm id-deadbeef
 
 ### Description
 
-Allows you to manage [npm
-hooks](https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm),
+Allows you to manage [npm hooks](https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm),
 including adding, removing, listing, and updating.
 
 Hooks allow you to configure URL endpoints that will be notified whenever a
