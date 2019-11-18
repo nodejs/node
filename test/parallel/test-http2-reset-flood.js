@@ -13,7 +13,7 @@ const { Worker, parentPort } = require('worker_threads');
 // the two event loops intermixing, as we are writing in a busy loop here.
 
 if (process.env.HAS_STARTED_WORKER) {
-  const server = http2.createServer();
+  const server = http2.createServer({ maxSessionInvalidFrames: 100 });
   server.on('stream', (stream) => {
     stream.respond({
       'content-type': 'text/plain',
@@ -59,16 +59,20 @@ const worker = new Worker(__filename).on('message', common.mustCall((port) => {
   });
 
   let gotError = false;
+  let streamId = 1;
 
   function writeRequests() {
-    for (let i = 1; !gotError; i += 2) {
+    for (let i = 1; i < 10 && !gotError; i++) {
       h2header[3] = 1;  // HEADERS
       h2header[4] = 0x5;  // END_HEADERS|END_STREAM
       h2header.writeIntBE(1, 0, 3);  // Length: 1
-      h2header.writeIntBE(i, 5, 4);  // Stream ID
+      h2header.writeIntBE(streamId, 5, 4);  // Stream ID
+      streamId += 2;
       // 0x88 = :status: 200
       conn.write(Buffer.concat([h2header, Buffer.from([0x88])]));
     }
+    if (!gotError)
+      setImmediate(writeRequests);
   }
 
   conn.once('error', common.mustCall(() => {
