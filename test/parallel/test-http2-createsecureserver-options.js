@@ -52,6 +52,22 @@ Object.entries({
       },
     },
   ],
+  maxSessionRejectedStreams: [
+    {
+      val: -1,
+      err: {
+        name: 'RangeError',
+        code: 'ERR_OUT_OF_RANGE',
+      },
+    },
+    {
+      val: Number.NEGATIVE_INFINITY,
+      err: {
+        name: 'RangeError',
+        code: 'ERR_OUT_OF_RANGE',
+      },
+    },
+  ],
 }).forEach(([opt, tests]) => {
   tests.forEach(({ val, err }) => {
     assert.throws(
