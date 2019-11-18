@@ -1939,6 +1939,9 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30534
+    description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v12.4.0
     pr-url: https://github.com/nodejs/node/pull/27782
     description: The `options` parameter now supports `net.createServer()`
@@ -1999,6 +2002,9 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
+  * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
+    frames that will be tolerated before the session is closed.
+    **Default:** `1000`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using `options.selectPadding()`][].
@@ -2054,6 +2060,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30534
+    description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22956
     description: Added the `origins` option to automatically send an `ORIGIN`
@@ -2114,6 +2123,9 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
+  * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
+    frames that will be tolerated before the session is closed.
+    **Default:** `1000`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using `options.selectPadding()`][].

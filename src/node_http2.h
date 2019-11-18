@@ -679,6 +679,7 @@ typedef struct {
   uint8_t bitfield;
   uint8_t priority_listener_count;
   uint8_t frame_error_listener_count;
+  uint32_t max_invalid_frames = 1000;
 } SessionJSFields;
 
 // Indices for js_fields_, which serves as a way to communicate data with JS
@@ -691,6 +692,7 @@ enum SessionUint8Fields {
       offsetof(SessionJSFields, priority_listener_count),
   kSessionFrameErrorListenerCount =
       offsetof(SessionJSFields, frame_error_listener_count),
+  kSessionMaxInvalidFrames = offsetof(SessionJSFields, max_invalid_frames),
   kSessionUint8FieldCount = sizeof(SessionJSFields)
 };
 
@@ -1028,7 +1030,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // accepted again.
   int32_t rejected_stream_count_ = 0;
   // Also use the invalid frame count as a measure for rejecting input frames.
-  int32_t invalid_frame_count_ = 0;
+  uint32_t invalid_frame_count_ = 0;
 
   void PushOutgoingBuffer(nghttp2_stream_write&& write);
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
