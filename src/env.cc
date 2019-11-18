@@ -11,6 +11,7 @@
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
+#include "req_wrap-inl.h"
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
@@ -35,6 +36,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;

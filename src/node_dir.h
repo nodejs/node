@@ -4,8 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_file.h"
-#include "node.h"
-#include "req_wrap-inl.h"
 
 namespace node {
 
@@ -20,16 +18,13 @@ class DirHandle : public AsyncWrap {
   ~DirHandle() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Open(const v8::FunctionCallbackInfo<Value>& args);
-  static void Read(const v8::FunctionCallbackInfo<Value>& args);
-  static void Close(const v8::FunctionCallbackInfo<Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   inline uv_dir_t* dir() { return dir_; }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("dir", sizeof(*dir_));
-  }
-
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(DirHandle)
   SET_SELF_SIZE(DirHandle)
 

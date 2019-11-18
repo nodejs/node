@@ -616,6 +616,7 @@
         'src/node_dir.h',
         'src/node_errors.h',
         'src/node_file.h',
+        'src/node_file-inl.h',
         'src/node_http_parser_impl.h',
         'src/node_http2.h',
         'src/node_http2_state.h',
