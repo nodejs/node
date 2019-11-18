@@ -16,10 +16,10 @@ const MobileContainer = styled.div`
   right: 0px;
   background-color: ${(props) => props.theme.colors.white};
   z-index: 100;
-
+ 
   @media screen and (min-width: ${(props) => props.theme.breakpoints.TABLET}) {
     display: none;
-  }
+  } 
 `
 
 const MobileSidebar = () => {

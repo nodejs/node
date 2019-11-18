@@ -1,7 +1,6 @@
-.TH "NPM\-LINK" "" "November 2019" "" ""
+.TH "NPM\-LINK" "1" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-link\fR
-.SH Symlink a package folder
+\fBnpm-link\fR \- Symlink a package folder
 .SS Synopsis
 .P
 .RS 2
@@ -28,7 +27,7 @@ of the current folder\.
 Note that \fBpackage\-name\fP is taken from \fBpackage\.json\fP,
 not from directory name\.
 .P
-The package name can be optionally prefixed with a scope\. See \fBnpm\-scope\fP \fInpm\-scope\fR\|\.
+The package name can be optionally prefixed with a scope\. See npm help \fBscope\fP\|\.
 The scope must be preceded by an @\-symbol and followed by a slash\.
 .P
 When creating tarballs for \fBnpm publish\fP, the linked packages are
@@ -77,8 +76,7 @@ installation target into your project's \fBnode_modules\fP folder\.
 Note that in this case, you are referring to the directory name, \fBnode\-redis\fP,
 rather than the package name \fBredis\fP\|\.
 .P
-If your linked package is scoped (see \fBnpm\-scope\fP \fInpm\-scope)\fR your link command must
-include that scope, e\.g\.
+If your linked package is scoped (see npm help \fBscope\fP) your link command must include that scope, e\.g\.
 .P
 .RS 2
 .nf
@@ -90,13 +88,13 @@ npm link @myorg/privatepackage
 .IP \(bu 2
 npm help developers
 .IP \(bu 2
-npm help package\-json
+npm help package\.json
 .IP \(bu 2
-npm help npm\-install
+npm help npm\- nstall
 .IP \(bu 2
 npm help folders
 .IP \(bu 2
-npm help npm\-config
+npm help config
 .IP \(bu 2
 npm help npmrc
 

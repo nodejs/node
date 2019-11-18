@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-ls
 description: List installed packages
 ---
 
-# npm-ls
+# npm-ls(1)
 
 ## List installed packages
 

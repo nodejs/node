@@ -4,7 +4,7 @@ import styled from 'styled-components'
 import {Flex, Box} from 'rebass'
 
 const Container = styled(Flex)`
-  background: center / cover no-repeat url(${boxes});
+  background: center / cover no-repeat url(${boxes}); 
   height: 380px;
   background-color: ${(props) => props.theme.colors.offWhite};
  `

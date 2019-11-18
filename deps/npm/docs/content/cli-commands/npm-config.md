@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-config
 description: Manage the npm configuration files
 ---
 
-# npm-config
+# npm-config(1)
 
 ## Manage the npm configuration files
 
@@ -26,9 +26,9 @@ aliases: c
 npm gets its config settings from the command line, environment
 variables, `npmrc` files, and in some cases, the `package.json` file.
 
-See [npmrc](/docs/configuring-npm/npmrc) for more information about the npmrc files.
+See [npmrc](/configuring-npm/npmrc) for more information about the npmrc files.
 
-See [config](/docs/using-npm/config) for a more thorough discussion of the mechanisms
+See [config](/using-npm/config) for a more thorough discussion of the mechanisms
 involved.
 
 The `npm config` command can be used to update and edit the contents

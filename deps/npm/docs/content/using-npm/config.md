@@ -4,7 +4,7 @@ title: config
 description: More than you probably want to know about npm configuration
 ---
 
-# config
+# config(7)
 
 ## More than you probably want to know about npm configuration
 
@@ -33,7 +33,7 @@ interpreted as a configuration parameter.  For example, putting
 configuration parameter to `bar`.  Any environment configurations that
 are not given a value will be given the value of `true`.  Config
 values are case-insensitive, so `NPM_CONFIG_FOO=bar` will work the
-same. However, please note that inside [`npm-scripts`](/docs/using-npm/scripts)
+same. However, please note that inside [`scripts`](/using-npm/scripts)
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set.
 For details see [this issue](https://github.com/npm/npm/issues/14528).
@@ -52,7 +52,7 @@ The four relevant files are:
   CLI option `--globalconfig` or environment variable `$NPM_CONFIG_GLOBALCONFIG`)
 * npm's built-in configuration file (`/path/to/npm/npmrc`)
 
-See [npmrc](/docs/configuring-npm/npmrc) for more details.
+See [npmrc](/configuring-npm/npmrc) for more details.
 
 #### Default Configs
 
@@ -111,7 +111,7 @@ npm ls --global --parseable --long --loglevel info
 
 ### Per-Package Config Settings
 
-When running scripts (see [`npm-scripts`](scripts)) the package.json "config"
+When running scripts (see [`scripts`](/using-npm/scripts)) the package.json "config"
 keys are overwritten in the environment if there is a config param of
 `<name>[@<version>]:<key>`.  For example, if the package.json has
 this:
@@ -134,7 +134,7 @@ then the user could change the behavior by doing:
 npm config set foo:port 80
 ```
 
-See [package.json](/docs/configuring-npm/package-json) for more information.
+See [package.json](/configuring-npm/package-json) for more information.
 
 ### Config Settings
 
@@ -179,7 +179,7 @@ When "dev" or "development" and running local `npm shrinkwrap`,
 
 When "true" submit audit reports alongside `npm install` runs to the default
 registry and all registries configured for scopes.  See the documentation
-for [`npm-audit`](/docs/cli-commands/npm-audit) for details on what is submitted.
+for [`npm audit`](/cli-commands/npm-audit) for details on what is submitted.
 
 #### audit-level
 
@@ -270,7 +270,7 @@ well as for the CA information to be stored in a file on disk.
 * Default: Windows: `%AppData%\npm-cache`, Posix: `~/.npm`
 * Type: path
 
-The location of npm's cache directory.  See [`npm-cache`](/docs/cli-commands/npm-cache)
+The location of npm's cache directory.  See [`npm cache`](/cli-commands/npm-cache)
 
 #### cache-lock-stale
 
@@ -456,7 +456,7 @@ packages.
 
 When "true" displays the message at the end of each `npm install`
 aknowledging the number of dependencies looking for funding.
-See [`npm-fund`](/docs/cli-commands/npm-fund) for details.
+See [`npm fund`](/cli-commands/npm-fund) for details.
 
 #### git
 
@@ -488,7 +488,7 @@ Run git commit hooks when using the `npm version` command.
 
 Operates in "global" mode, so that packages are installed into the
 `prefix` folder instead of the current working directory.  See
-[npm-folders](/docs/configuring-npm/folders) for more on the differences in behavior.
+[folders](/configuring-npm/folders) for more on the differences in behavior.
 
 * packages are installed into the `{prefix}/lib/node_modules` folder, instead of the
   current working directory.
@@ -571,7 +571,7 @@ If true, npm does not run scripts specified in package.json files.
 A module that will be loaded by the `npm init` command.  See the
 documentation for the
 [init-package-json](https://github.com/isaacs/init-package-json) module
-for more information, or [npm-init](/docs/cli-commands/npm-init).
+for more information, or [npm init](/cli-commands/npm-init).
 
 #### init-author-name
 
@@ -857,7 +857,7 @@ for updates immediately even for fresh package data.
 
 #### prefix
 
-* Default: see [npm-folders](/docs/configuring-npm/folders)
+* Default: see [folders](/configuring-npm/folders)
 * Type: path
 
 The location to install global items.  If set on the command line, then
@@ -1228,7 +1228,7 @@ version of npm than the latest.
 * Type: Boolean
 
 Set to show short usage output (like the -H output)
-instead of complete help when doing [`npm-help`](/docs/cli-commands/npm-help).
+instead of complete help when doing [`npm help`](/cli-commands/npm-help).
 
 #### user
 

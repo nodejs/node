@@ -47,7 +47,7 @@ This is gonna be a much, MUCH smaller major version than 3.x was. Maybe even
 smaller than 2.x was. I can't tell you everything that'll be in there just
 yet, but at the very least it's going to have what's in our
 [4.x milestone](https://github.com/npm/npm/pulls?q=is%3Aopen+is%3Apr+milestone%3A4.x),
-PLUS, the first steps in
+PLUS, the first steps in 
 [making `prepublish` work](https://github.com/npm/npm/issues/10074) the way
 people expect it to.
 

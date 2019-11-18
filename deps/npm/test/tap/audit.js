@@ -27,6 +27,66 @@ function tmock (t) {
   })
 }
 
+const quickAuditResult = {
+  actions: [],
+  advisories: {
+    '1316': {
+      findings: [
+        {
+          version: '1.0.0',
+          paths: [
+            'baddep'
+          ]
+        }
+      ],
+      'id': 1316,
+      'created': '2019-11-14T15:29:41.991Z',
+      'updated': '2019-11-14T19:35:30.677Z',
+      'deleted': null,
+      'title': 'Arbitrary Code Execution',
+      'found_by': {
+        'link': '',
+        'name': 'François Lajeunesse-Robert',
+        'email': ''
+      },
+      'reported_by': {
+        'link': '',
+        'name': 'François Lajeunesse-Robert',
+        'email': ''
+      },
+      'module_name': 'baddep',
+      'cves': [],
+      'vulnerable_versions': '<4.5.2',
+      'patched_versions': '>=4.5.2',
+      'overview': 'a nice overview of the advisory',
+      'recommendation': 'how you should fix it',
+      'references': '',
+      'access': 'public',
+      'severity': 'high',
+      'cwe': 'CWE-79',
+      'metadata': {
+        'module_type': '',
+        'exploitability': 6,
+        'affected_components': ''
+      },
+      'url': 'https://npmjs.com/advisories/1234542069'
+    }
+  },
+  'muted': [],
+  'metadata': {
+    'vulnerabilities': {
+      'info': 0,
+      'low': 0,
+      'moderate': 0,
+      'high': 1,
+      'critical': 0
+    },
+    'dependencies': 1,
+    'devDependencies': 0,
+    'totalDependencies': 1
+  }
+}
+
 test('exits with zero exit code for vulnerabilities below the `audit-level` flag', t => {
   const fixture = new Tacks(new Dir({
     'package.json': new File({
@@ -40,7 +100,7 @@ test('exits with zero exit code for vulnerabilities below the `audit-level` flag
   fixture.create(testDir)
   return tmock(t).then(srv => {
     srv.filteringRequestBody(req => 'ok')
-    srv.post('/-/npm/v1/security/audits/quick', 'ok').reply(200, 'yeah')
+    srv.post('/-/npm/v1/security/audits/quick', 'ok').reply(200, quickAuditResult)
     srv.get('/baddep').twice().reply(200, {
       name: 'baddep',
       'dist-tags': {
@@ -75,6 +135,8 @@ test('exits with zero exit code for vulnerabilities below the `audit-level` flag
       '--registry', common.registry,
       '--cache', path.join(testDir, 'npm-cache')
     ], EXEC_OPTS).then(([code, stdout, stderr]) => {
+      const result = JSON.parse(stdout)
+      t.same(result.audit, quickAuditResult, 'printed quick audit result')
       srv.filteringRequestBody(req => 'ok')
       srv.post('/-/npm/v1/security/audits', 'ok').reply(200, {
         actions: [{
@@ -98,6 +160,62 @@ test('exits with zero exit code for vulnerabilities below the `audit-level` flag
       ], EXEC_OPTS).then(([code, stdout, stderr]) => {
         t.equal(code, 0, 'exited OK')
       })
+    })
+  })
+})
+
+test('shows quick audit results summary for human', t => {
+  const fixture = new Tacks(new Dir({
+    'package.json': new File({
+      name: 'foo',
+      version: '1.0.0',
+      dependencies: {
+        baddep: '1.0.0'
+      }
+    })
+  }))
+  fixture.create(testDir)
+  return tmock(t).then(srv => {
+    srv.filteringRequestBody(req => 'ok')
+    srv.post('/-/npm/v1/security/audits/quick', 'ok').reply(200, quickAuditResult)
+    srv.get('/baddep').twice().reply(200, {
+      name: 'baddep',
+      'dist-tags': {
+        'latest': '1.2.3'
+      },
+      versions: {
+        '1.0.0': {
+          name: 'baddep',
+          version: '1.0.0',
+          _hasShrinkwrap: false,
+          dist: {
+            shasum: 'deadbeef',
+            tarball: common.registry + '/idk/-/idk-1.0.0.tgz'
+          }
+        },
+        '1.2.3': {
+          name: 'baddep',
+          version: '1.2.3',
+          _hasShrinkwrap: false,
+          dist: {
+            shasum: 'deadbeef',
+            tarball: common.registry + '/idk/-/idk-1.2.3.tgz'
+          }
+        }
+      }
+    })
+    return common.npm([
+      'install',
+      '--audit',
+      '--no-json',
+      '--package-lock-only',
+      '--registry', common.registry,
+      '--cache', path.join(testDir, 'npm-cache')
+    ], EXEC_OPTS).then(([code, stdout, stderr]) => {
+      t.match(stdout, new RegExp('added 1 package and audited 1 package in .*\\n' +
+        'found 1 high severity vulnerability\\n' +
+        '  run `npm audit fix` to fix them, or `npm audit` for details\\n'),
+      'shows quick audit result')
     })
   })
 })

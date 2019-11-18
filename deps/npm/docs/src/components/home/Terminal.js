@@ -16,7 +16,7 @@ const TerminalBody = styled(Flex)`
   box-shadow: 0px 0px 17px 1px #dc3bc180;
   border-radius: 2px;
   top: ${(props) => props.top};
-  left: ${(props) => props.left};
+  left: ${(props) => props.left};  
   right: 0;
   position: absolute;
 `
@@ -78,7 +78,7 @@ const Bracket = styled.span`
   margin-top: 10px;
 `
 
-const Text = styled.strong`
+const Text = styled.span`
   font-size: 15px;
   font-weight: 400;
   letter-spacing: 1px;

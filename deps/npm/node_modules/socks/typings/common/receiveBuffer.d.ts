@@ -4,7 +4,7 @@ declare class ReceiveBuffer {
     private _offset;
     private _originalSize;
     constructor(size?: number);
-    readonly length: number;
+    get length(): number;
     append(data: Buffer): number;
     peek(length: number): Buffer;
     get(length: number): Buffer;

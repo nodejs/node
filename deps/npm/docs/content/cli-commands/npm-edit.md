@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-edit
 description: Edit an installed package
 ---
 
-# npm-edit
+# npm-edit(1)
 
 ## Edit an installed package
 

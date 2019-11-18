@@ -14,6 +14,7 @@
     "gatsby": "^2.13.73",
     "gatsby-image": "^2.2.10",
     "gatsby-plugin-catch-links": "^2.1.9",
+    "gatsby-plugin-ipfs": "^2.0.2",
     "gatsby-plugin-manifest": "^2.2.6",
     "gatsby-plugin-no-sourcemaps": "^2.1.1",
     "gatsby-plugin-offline": "^2.2.7",

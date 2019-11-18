@@ -9,7 +9,7 @@ const Card = styled(Flex)`
 `
 
 const Desc = styled.p`
-  padding: 5px 0;
+  padding: 5px 0; 
   font-size: 16px;
 `
 

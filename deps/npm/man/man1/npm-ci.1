@@ -1,7 +1,6 @@
-.TH "NPM\-CI" "" "November 2019" "" ""
+.TH "NPM\-CI" "1" "November 2019" "" ""
 .SH "NAME"
-\fBnpm-ci\fR
-.SH Install a project with a clean slate
+\fBnpm-ci\fR \- Install a project with a clean slate
 .SS Synopsis
 .P
 .RS 2
@@ -46,7 +45,7 @@ cache:
 .RE
 .SS Description
 .P
-This command is similar to \fBnpm\-install\fP \fInpm\-install\fR, except it's meant to be used in
+This command is similar to npm help \fBinstall\fP, except it's meant to be used in
 automated environments such as test platforms, continuous integration, and
 deployment \-\- or any situation where you want to make sure you're doing a clean
 install of your dependencies\. It can be significantly faster than a regular npm
@@ -71,7 +70,7 @@ It will never write to \fBpackage\.json\fP or any of the package\-locks: install
 .SS See Also
 .RS 0
 .IP \(bu 2
-npm help npm\-install
+npm help install
 .IP \(bu 2
 npm help package\-locks
 

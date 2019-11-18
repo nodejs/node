@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-install-ci-test
 description: Install a project with a clean slate and run tests
 ---
 
-# npm install-ci-test
+# npm install-ci-test(1)
 
 ## Install a project with a clean slate and run tests
 
