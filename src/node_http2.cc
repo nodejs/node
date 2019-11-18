@@ -1011,8 +1011,12 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
                                  void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
 
-  Debug(session, "invalid frame received, code: %d", lib_error_code);
-  if (session->invalid_frame_count_++ > 1000)
+  Debug(session,
+        "invalid frame received (%u/%u), code: %d",
+        session->invalid_frame_count_,
+        session->js_fields_.max_invalid_frames,
+        lib_error_code);
+  if (session->invalid_frame_count_++ > session->js_fields_.max_invalid_frames)
     return 1;
 
   // If the error is fatal or if error code is ERR_STREAM_CLOSED... emit error
@@ -3057,6 +3061,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kBitfield);
   NODE_DEFINE_CONSTANT(target, kSessionPriorityListenerCount);
   NODE_DEFINE_CONSTANT(target, kSessionFrameErrorListenerCount);
+  NODE_DEFINE_CONSTANT(target, kSessionMaxInvalidFrames);
   NODE_DEFINE_CONSTANT(target, kSessionUint8FieldCount);
 
   NODE_DEFINE_CONSTANT(target, kSessionHasRemoteSettingsListeners);
