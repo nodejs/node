@@ -1407,14 +1407,16 @@ napi_status napi_get_last_error_info(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
-  // you must update this assert to reference the last message
-  // in the napi_status enum each time a new error message is added.
+  // The value of the constant below must be updated to reference the last
+  // message in the `napi_status` enum each time a new error message is added.
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
+  const int last_status = napi_date_expected;
+
   static_assert(
-      node::arraysize(error_messages) == napi_date_expected + 1,
+      node::arraysize(error_messages) == last_status + 1,
       "Count of error messages must match count of error values");
-  CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
+  CHECK_LE(env->last_error.error_code, last_status);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
