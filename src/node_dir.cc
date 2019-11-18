@@ -1,10 +1,11 @@
 #include "node_dir.h"
+#include "node_file-inl.h"
 #include "node_process.h"
+#include "memory_tracker-inl.h"
 #include "util.h"
 
 #include "tracing/trace_event.h"
 
-#include "req_wrap-inl.h"
 #include "string_bytes.h"
 
 #include <fcntl.h>
@@ -83,6 +84,10 @@ DirHandle::~DirHandle() {
   CHECK(!closing_);  // We should not be deleting while explicitly closing!
   GCClose();         // Close synchronously and emit warning
   CHECK(closed_);    // We have to be closed at the point
+}
+
+void DirHandle::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("dir", sizeof(*dir_));
 }
 
 // Close the directory handle if it hasn't already been closed. A process
