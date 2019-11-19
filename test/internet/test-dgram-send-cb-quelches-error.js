@@ -28,7 +28,7 @@ function callbackOnly(err) {
 }
 
 function onEvent(err) {
-  assert.fail('Error should not be emitted if there is callback');
+  assert.fail(`Error should not be emitted if there is callback: ${err}`);
 }
 
 function onError(err) {
