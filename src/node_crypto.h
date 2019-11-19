@@ -310,7 +310,7 @@ class SSLWrap {
   ClientHelloParser hello_parser_;
 
   v8::Global<v8::ArrayBufferView> ocsp_response_;
-  v8::Global<v8::Value> sni_context_;
+  BaseObjectPtr<SecureContext> sni_context_;
 
   friend class SecureContext;
 };
