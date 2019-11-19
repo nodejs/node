@@ -1065,10 +1065,9 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  p->sni_context_.Reset(env->isolate(), ctx);
-
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
   CHECK_NOT_NULL(sc);
+  p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
   p->SetSNIContext(sc);
   return SSL_TLSEXT_ERR_OK;
 }

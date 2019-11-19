@@ -2991,9 +2991,15 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     goto fire_cb;
 
   if (cons->HasInstance(ctx)) {
-    SecureContext* sc;
-    ASSIGN_OR_RETURN_UNWRAP(&sc, ctx.As<Object>());
-    w->sni_context_.Reset(env->isolate(), ctx);
+    SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
+    CHECK_NOT_NULL(sc);
+    // XXX: There is a method w->SetSNIContext(sc), and you might think that
+    // it makes sense to call that here and make setting w->sni_context_ part
+    // of it. In fact, that passes the test suite, although SetSNIContext()
+    // performs a lot more operations.
+    // If anybody is familiar enough with the TLS code to know whether it makes
+    // sense, please do so or document why it doesn't.
+    w->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
     int rv;
 
