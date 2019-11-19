@@ -172,7 +172,7 @@ Please see [customizing ESM specifier resolution][] for example usage.
 
 ### `--experimental-conditional-exports`
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 Enable experimental support for the `"require"` and `"node"` conditional
@@ -681,7 +681,7 @@ with crypto support (default).
 
 ### `--tls-keylog=file`
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 Log TLS key material to a file. The key material is in NSS `SSLKEYLOGFILE`
