@@ -1669,7 +1669,7 @@ in application code consuming the stream.
 
 It is highly discouraged to override any public method or to emit any internal
 events such as `'error'`, `'data'`, `'end'`, `'finish'` and `'close'` manually
-through `.emit(err)` instead of using API provided callbacks or
+through `.emit(eventName)` instead of using API provided callbacks or
 `.destroy(err)`. Doing so can break current and future stream invariants
 leading to behavior and/or compatibility issues with other streams, stream
 utilities and user expectations.
