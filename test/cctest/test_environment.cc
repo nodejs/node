@@ -80,6 +80,33 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithCallback) {
   CHECK(called_cb);
 }
 
+TEST_F(EnvironmentTest, LoadEnvironmentWithSource) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  v8::Local<v8::Value> main_ret =
+      node::LoadEnvironment(*env,
+                            "return { process, require };").ToLocalChecked();
+
+  CHECK(main_ret->IsObject());
+  CHECK(main_ret.As<v8::Object>()->Get(
+      context,
+      v8::String::NewFromOneByte(
+          isolate_,
+          reinterpret_cast<const uint8_t*>("process"),
+          v8::NewStringType::kNormal).ToLocalChecked())
+          .ToLocalChecked()->IsObject());
+  CHECK(main_ret.As<v8::Object>()->Get(
+      context,
+      v8::String::NewFromOneByte(
+          isolate_,
+          reinterpret_cast<const uint8_t*>("require"),
+          v8::NewStringType::kNormal).ToLocalChecked())
+          .ToLocalChecked()->IsFunction());
+}
+
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
