@@ -43,7 +43,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
                    v8::Local<v8::Object> req,
                    AsyncWrap::ProviderType type,
                    bool use_bigint);
-  ~FSReqBase();
+  ~FSReqBase() override;
 
   inline void Init(const char* syscall,
                    const char* data,
@@ -177,7 +177,7 @@ class FileHandle;
 class FileHandleReadWrap final : public ReqWrap<uv_fs_t> {
  public:
   FileHandleReadWrap(FileHandle* handle, v8::Local<v8::Object> obj);
-  ~FileHandleReadWrap();
+  ~FileHandleReadWrap() override;
 
   static inline FileHandleReadWrap* from_req(uv_fs_t* req) {
     return static_cast<FileHandleReadWrap*>(ReqWrap::from_req(req));
