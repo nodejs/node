@@ -1068,7 +1068,11 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
   CHECK_NOT_NULL(sc);
   p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
-  p->SetSNIContext(sc);
+
+  p->ConfigureSecureContext(sc);
+  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx_.get()), sc->ctx_.get());
+  p->SetCACerts(sc);
+
   return SSL_TLSEXT_ERR_OK;
 }
 
