@@ -58,6 +58,19 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 }));
 
+// Test invalid symlink
+// TODO: Fix Windows
+if (process.platform !== 'win32') {
+  const invalidLinkData = fixtures.path('/not/exists/file');
+  const invalidLinkPath = path.join(tmpdir.path, 'symlink2.js');
+
+  fs.symlink(invalidLinkData, invalidLinkPath, common.mustCall(function(err) {
+    assert.ifError(err);
+
+    assert(!fs.existsSync(invalidLinkPath));
+  }));
+}
+
 [false, 1, {}, [], null, undefined].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',

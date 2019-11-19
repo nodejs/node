@@ -44,3 +44,26 @@ for (const linkTarget of linkTargets) {
     testAsync(linkTarget, `${linkPath}-${path.basename(linkTarget)}-async`);
   }
 }
+
+// Test invalid symlink
+// TODO: Fix Windows
+if (process.platform !== 'win32') {
+  function testSync(target, path) {
+    fs.symlinkSync(target, path);
+    assert(!fs.existsSync(path));
+  }
+
+  function testAsync(target, path) {
+    fs.symlink(target, path, common.mustCall((err) => {
+      assert.ifError(err);
+      assert(!fs.existsSync(path));
+    }));
+  }
+
+  for (const linkTarget of linkTargets.map((p) => p + '-broken')) {
+    for (const linkPath of linkPaths) {
+      testSync(linkTarget, `${linkPath}-${path.basename(linkTarget)}-sync`);
+      testAsync(linkTarget, `${linkPath}-${path.basename(linkTarget)}-async`);
+    }
+  }
+}
