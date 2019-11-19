@@ -1,5 +1,8 @@
 # C++ Style Guide
 
+See also the [C++ codebase README](src/README.md) for C++ idioms in the Node.js
+codebase not related to stylistic issues.
+
 ## Table of Contents
 
 * [Guides and References](#guides-and-references)
