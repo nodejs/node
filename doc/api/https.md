@@ -47,7 +47,7 @@ changes:
 
 #### Event: 'keylog'
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 * `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.

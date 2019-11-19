@@ -1273,7 +1273,7 @@ See [`response.socket`][].
 
 ### response.cork()
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 See [`writable.cork()`][].
@@ -1569,7 +1569,7 @@ status message which was sent out.
 
 ### response.uncork()
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 See [`writable.uncork()`][].

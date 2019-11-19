@@ -321,7 +321,7 @@ arbitrary command execution.**
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/30162
     description: The `serialization` option is supported now.
   - version: v8.0.0
@@ -392,7 +392,7 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/30162
     description: The `serialization` option is supported now.
   - version: v8.8.0
@@ -1491,7 +1491,7 @@ unavailable.
 
 ## Advanced Serialization
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 Child processes support a serialization mechanism for IPC that is based on the
