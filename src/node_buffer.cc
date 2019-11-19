@@ -53,6 +53,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::Global;
+using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
@@ -73,8 +74,10 @@ namespace {
 
 class CallbackInfo {
  public:
+  ~CallbackInfo();
+
   static inline void Free(char* data, void* hint);
-  static inline CallbackInfo* New(Isolate* isolate,
+  static inline CallbackInfo* New(Environment* env,
                                   Local<ArrayBuffer> object,
                                   FreeCallback callback,
                                   char* data,
@@ -84,9 +87,10 @@ class CallbackInfo {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
+  static void CleanupHook(void* data);
   static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate);
-  inline CallbackInfo(Isolate* isolate,
+  inline CallbackInfo(Environment* env,
                       Local<ArrayBuffer> object,
                       FreeCallback callback,
                       char* data,
@@ -95,6 +99,7 @@ class CallbackInfo {
   FreeCallback const callback_;
   char* const data_;
   void* const hint_;
+  Environment* const env_;
 };
 
 
@@ -103,31 +108,53 @@ void CallbackInfo::Free(char* data, void*) {
 }
 
 
-CallbackInfo* CallbackInfo::New(Isolate* isolate,
+CallbackInfo* CallbackInfo::New(Environment* env,
                                 Local<ArrayBuffer> object,
                                 FreeCallback callback,
                                 char* data,
                                 void* hint) {
-  return new CallbackInfo(isolate, object, callback, data, hint);
+  return new CallbackInfo(env, object, callback, data, hint);
 }
 
 
-CallbackInfo::CallbackInfo(Isolate* isolate,
+CallbackInfo::CallbackInfo(Environment* env,
                            Local<ArrayBuffer> object,
                            FreeCallback callback,
                            char* data,
                            void* hint)
-    : persistent_(isolate, object),
+    : persistent_(env->isolate(), object),
       callback_(callback),
       data_(data),
-      hint_(hint) {
+      hint_(hint),
+      env_(env) {
   ArrayBuffer::Contents obj_c = object->GetContents();
   CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
   if (object->ByteLength() != 0)
     CHECK_NOT_NULL(data_);
 
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+  env->AddCleanupHook(CleanupHook, this);
+  env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+}
+
+
+CallbackInfo::~CallbackInfo() {
+  persistent_.Reset();
+  env_->RemoveCleanupHook(CleanupHook, this);
+}
+
+
+void CallbackInfo::CleanupHook(void* data) {
+  CallbackInfo* self = static_cast<CallbackInfo*>(data);
+
+  {
+    HandleScope handle_scope(self->env_->isolate());
+    Local<ArrayBuffer> ab = self->persistent_.Get(self->env_->isolate());
+    CHECK(!ab.IsEmpty());
+    ab->Detach();
+  }
+
+  self->WeakCallback(self->env_->isolate());
 }
 
 
@@ -391,7 +418,7 @@ MaybeLocal<Object> New(Environment* env,
   }
   MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  CallbackInfo::New(env->isolate(), ab, callback, data, hint);
+  CallbackInfo::New(env, ab, callback, data, hint);
 
   if (ui.IsEmpty())
     return MaybeLocal<Object>();
