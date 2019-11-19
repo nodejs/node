@@ -749,12 +749,6 @@ Agent::Agent(Environment* env)
       host_port_(env->inspector_host_port()) {}
 
 Agent::~Agent() {
-  if (start_io_thread_async.data == this) {
-    CHECK(start_io_thread_async_initialized.exchange(false));
-    start_io_thread_async.data = nullptr;
-    // This is global, will never get freed
-    uv_close(reinterpret_cast<uv_handle_t*>(&start_io_thread_async), nullptr);
-  }
 }
 
 bool Agent::Start(const std::string& path,
@@ -776,6 +770,16 @@ bool Agent::Start(const std::string& path,
     start_io_thread_async.data = this;
     // Ignore failure, SIGUSR1 won't work, but that should not block node start.
     StartDebugSignalHandler();
+
+    parent_env_->AddCleanupHook([](void* data) {
+      Environment* env = static_cast<Environment*>(data);
+
+      // This is global, will never get freed
+      env->CloseHandle(&start_io_thread_async, [](uv_async_t*) {
+        start_io_thread_async.data = nullptr;
+        CHECK(start_io_thread_async_initialized.exchange(false));
+      });
+    }, parent_env_);
   }
 
   AtExit(parent_env_, [](void* env) {
