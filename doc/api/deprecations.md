@@ -2537,7 +2537,7 @@ data has been flushed, `'finish'` has been emitted and
 Use [`response.writableFinished`][] or [`response.writableEnded`][]
 accordingly instead to avoid the ambigiuty.
 
-To maintain existing functionality use [`response.writableEnded`][].
+To maintain existing behaviour `response.finished` should be replaced with `response.writableEnded`.
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
