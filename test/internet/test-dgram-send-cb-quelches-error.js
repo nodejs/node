@@ -24,7 +24,7 @@ function callbackOnly(err) {
   assert.ok(err);
   socket.removeListener('error', onEvent);
   socket.on('error', mustCall(onError));
-  socket.send(buffer, 0, buffer.length, 100, 'dne.example.com');
+  socket.send(buffer, 0, buffer.length, 100, 'dne.invalid');
 }
 
 function onEvent(err) {
