@@ -2530,7 +2530,7 @@ changes:
 Type: Documentation-only
 
 [`response.finished`][] indicates whether [`response.end()`] has been
-called and [`response.writableEnded`][] is `true`, not whether the underlying
+called, not whether the underlying
 data has been flushed, `'finish'` has been emitted and
 [`response.writableFinished`][] is `true`.
 
