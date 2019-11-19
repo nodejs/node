@@ -33,6 +33,14 @@ bool NativeModuleLoader::Exists(const char* id) {
   return source_.find(id) != source_.end();
 }
 
+bool NativeModuleLoader::Add(const char* id, const UnionBytes& source) {
+  if (Exists(id)) {
+    return false;
+  }
+  source_.emplace(id, source);
+  return true;
+}
+
 Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   Local<Object> out = Object::New(isolate);

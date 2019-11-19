@@ -33,6 +33,10 @@ Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
   return out;
 }
 
+bool NativeModuleEnv::Add(const char* id, const UnionBytes& source) {
+  return NativeModuleLoader::GetInstance()->Add(id, source);
+}
+
 bool NativeModuleEnv::Exists(const char* id) {
   return NativeModuleLoader::GetInstance()->Exists(id);
 }

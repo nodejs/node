@@ -47,6 +47,8 @@ class NativeModuleLoader {
   UnionBytes GetConfig();       // Return data for config.gypi
 
   bool Exists(const char* id);
+  bool Add(const char* id, const UnionBytes& source);
+
   v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
   v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   std::vector<std::string> GetModuleIds();
