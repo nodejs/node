@@ -1089,6 +1089,7 @@ void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
 
 
 void TLSWrap::MemoryInfo(MemoryTracker* tracker) const {
+  SSLWrap<TLSWrap>::MemoryInfo(tracker);
   tracker->TrackField("error", error_);
   tracker->TrackFieldWithSize("pending_cleartext_input",
                               pending_cleartext_input_.size(),

@@ -222,6 +222,8 @@ class SSLWrap {
   inline bool is_awaiting_new_session() const { return awaiting_new_session_; }
   inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
 
+  void MemoryInfo(MemoryTracker* tracker) const;
+
  protected:
   typedef void (*CertCb)(void* arg);
 
