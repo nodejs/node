@@ -2519,7 +2519,7 @@ Prefer [`response.socket`][] over [`response.connection`] and
 [`request.socket`][] over [`request.connection`].
 
 <a id="DEP0XXX"></a>
-### DEP0XXX: http finished
+### DEP0XXX: http/2 request.finished and response.finished
 <!-- YAML
 changes:
   - version: REPLACEME
