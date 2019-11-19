@@ -26,7 +26,7 @@ struct node_napi_env__ : public napi_env__ {
   }
 
   v8::Maybe<bool> mark_arraybuffer_as_untransferable(
-      v8::Local<v8::ArrayBuffer> ab) const {
+      v8::Local<v8::ArrayBuffer> ab) const override {
     return ab->SetPrivate(
         context(),
         node_env()->arraybuffer_untransferable_private_symbol(),
