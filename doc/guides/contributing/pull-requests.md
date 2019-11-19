@@ -121,7 +121,9 @@ in the API docs will also be checked when running `make lint` (or
 use `REPLACEME` for the version number in the documentation YAML.
 
 For contributing C++ code, you may want to look at the
-[C++ Style Guide](../../../CPP_STYLE_GUIDE.md).
+[C++ Style Guide](../../../CPP_STYLE_GUIDE.md), as well as the
+[README of `src/`](../../../src/README.md) for an overview over Node.js
+C++ internals.
 
 ### Step 4: Commit
 
