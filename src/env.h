@@ -1253,6 +1253,8 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
+  inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
+
  private:
   template <typename Fn>
   inline void CreateImmediate(Fn&& cb, bool ref);
@@ -1462,6 +1464,11 @@ class Environment : public MemoryRetainer {
 #undef V
 
   v8::Global<v8::Context> context_;
+
+  // Keeps the main script source alive is one was passed to LoadEnvironment().
+  // We should probably find a way to just use plain `v8::String`s created from
+  // the source passed to LoadEnvironment() directly instead.
+  std::unique_ptr<v8::String::Value> main_utf16_;
 };
 
 }  // namespace node

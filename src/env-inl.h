@@ -1266,6 +1266,11 @@ int64_t Environment::base_object_count() const {
   return base_object_count_;
 }
 
+void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
+  CHECK(!main_utf16_);
+  main_utf16_ = std::move(str);
+}
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)

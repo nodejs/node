@@ -422,7 +422,9 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 }
 
 void LoadEnvironment(Environment* env) {
-  USE(LoadEnvironment(env, nullptr, {}));
+  USE(LoadEnvironment(env,
+                      StartExecutionCallback{},
+                      {}));
 }
 
 MaybeLocal<Value> LoadEnvironment(
@@ -443,6 +445,38 @@ MaybeLocal<Value> LoadEnvironment(
 #endif
 
   return StartExecution(env, cb);
+}
+
+MaybeLocal<Value> LoadEnvironment(
+    Environment* env,
+    const char* main_script_source_utf8,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+  CHECK_NOT_NULL(main_script_source_utf8);
+  return LoadEnvironment(
+      env,
+      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+        // This is a slightly hacky way to convert UTF-8 to UTF-16.
+        Local<String> str =
+            String::NewFromUtf8(env->isolate(),
+                                main_script_source_utf8,
+                                v8::NewStringType::kNormal).ToLocalChecked();
+        auto main_utf16 = std::make_unique<String::Value>(env->isolate(), str);
+
+        // TODO(addaleax): Avoid having a global table for all scripts.
+        std::string name = "embedder_main_" + std::to_string(env->thread_id());
+        native_module::NativeModuleEnv::Add(
+            name.c_str(),
+            UnionBytes(**main_utf16, main_utf16->length()));
+        env->set_main_utf16(std::move(main_utf16));
+        std::vector<Local<String>> params = {
+            env->process_string(),
+            env->require_string()};
+        std::vector<Local<Value>> args = {
+            env->process_object(),
+            env->native_module_require()};
+        return ExecuteBootstrapper(env, name.c_str(), &params, &args);
+      },
+      std::move(inspector_parent_handle));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
