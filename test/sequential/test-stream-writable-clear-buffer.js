@@ -26,9 +26,8 @@ for (let i = 1; i <= 5; i++) {
   testStream.write(i, () => {
     assert.strictEqual(
       testStream._writableState.bufferedRequestCount,
-      testStream._writableState.getBuffer().length,
-      'bufferedRequestCount variable is different from the actual length of' +
-      ' the buffer');
+      testStream._writableState.getBuffer().length
+    );
   });
 }
 
