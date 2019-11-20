@@ -2596,6 +2596,7 @@ To maintain existing behaviour `response.finished` should be replaced with `resp
 [`request.connection`]: http.html#http_request_connection
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
+[`response.end()`]: http.html#http_response_end_data_encoding_callback
 [`response.finished`]: #http_response_finished
 [`response.writableFinished`]: #http_response_writablefinished
 [`response.writableEnded`]: #http_response_writableended
