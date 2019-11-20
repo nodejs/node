@@ -541,7 +541,7 @@ def ExpandXcodeVariables(string, expansions):
   """
 
   matches = _xcode_variable_re.findall(string)
-  if matches == None:
+  if matches is None:
     return string
 
   matches.reverse()
@@ -1010,7 +1010,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
         actions.append(action)
 
       if len(concrete_outputs_all) > 0:
-        # TODO(mark): There's a possibilty for collision here.  Consider
+        # TODO(mark): There's a possibility for collision here.  Consider
         # target "t" rule "A_r" and target "t_A" rule "r".
         makefile_name = '%s.make' % re.sub(
             '[^a-zA-Z0-9_]', '_' , '%s_%s' % (target_name, rule['rule_name']))

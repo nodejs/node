@@ -478,8 +478,7 @@ class MacTool(object):
     profiles_dir = os.path.join(
         os.environ['HOME'], 'Library', 'MobileDevice', 'Provisioning Profiles')
     if not os.path.isdir(profiles_dir):
-      print('cannot find mobile provisioning for %s' % bundle_identifier,
-            file=sys.stderr)
+      print('cannot find mobile provisioning for %s' % (bundle_identifier), file=sys.stderr)
       sys.exit(1)
     provisioning_profiles = None
     if profile:
@@ -500,8 +499,7 @@ class MacTool(object):
           valid_provisioning_profiles[app_id_pattern] = (
               profile_path, profile_data, team_identifier)
     if not valid_provisioning_profiles:
-      print('cannot find mobile provisioning for %s' % bundle_identifier,
-            file=sys.stderr)
+      print('cannot find mobile provisioning for %s' % (bundle_identifier), file=sys.stderr)
       sys.exit(1)
     # If the user has multiple provisioning profiles installed that can be
     # used for ${bundle_identifier}, pick the most specific one (ie. the

@@ -8,11 +8,14 @@ import os.path
 import re
 import tempfile
 import sys
+import subprocess
 
 try:
   from collections.abc import MutableSet
 except ImportError:
   from collections import MutableSet
+
+PY3 = bytes != str
 
 
 # A minimal memoizing decorator. It'll blow up if the args aren't immutable,
@@ -341,11 +344,16 @@ def WriteOnDiff(filename):
   class Writer(object):
     """Wrapper around file which only covers the target if it differs."""
     def __init__(self):
+      # On Cygwin remove the "dir" argument because `C:` prefixed paths are treated as relative,
+      # consequently ending up with current dir "/cygdrive/c/..." being prefixed to those, which was
+      # obviously a non-existent path, for example: "/cygdrive/c/<some folder>/C:\<my win style abs path>".
+      # See https://docs.python.org/2/library/tempfile.html#tempfile.mkstemp for more details
+      base_temp_dir = "" if IsCygwin() else os.path.dirname(filename)
       # Pick temporary file.
       tmp_fd, self.tmp_path = tempfile.mkstemp(
           suffix='.tmp',
           prefix=os.path.split(filename)[1] + '.gyp.',
-          dir=os.path.split(filename)[0])
+          dir=base_temp_dir)
       try:
         self.tmp_file = os.fdopen(tmp_fd, 'wb')
       except Exception:
@@ -426,9 +434,7 @@ def GetFlavor(params):
     return flavors[sys.platform]
   if sys.platform.startswith('sunos'):
     return 'solaris'
-  if sys.platform.startswith('freebsd'):
-    return 'freebsd'
-  if sys.platform.startswith('dragonfly'):
+  if sys.platform.startswith(('dragonfly', 'freebsd')):
     return 'freebsd'
   if sys.platform.startswith('openbsd'):
     return 'openbsd'
@@ -436,6 +442,8 @@ def GetFlavor(params):
     return 'netbsd'
   if sys.platform.startswith('aix'):
     return 'aix'
+  if sys.platform.startswith(('os390', 'zos')):
+    return 'zos'
 
   return 'linux'
 
@@ -620,3 +628,15 @@ def CrossCompileRequested():
           os.environ.get('AR_target') or
           os.environ.get('CC_target') or
           os.environ.get('CXX_target'))
+
+def IsCygwin():
+  try:
+    out = subprocess.Popen("uname",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    stdout, stderr = out.communicate()
+    if PY3:
+      stdout = stdout.decode("utf-8")
+    return "CYGWIN" in str(stdout)
+  except Exception:
+    return False
