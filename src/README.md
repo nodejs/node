@@ -51,7 +51,8 @@ particular a set of JavaScript objects that can refer to each other
 (the “heap”).
 
 The `v8::Isolate` is often passed to other V8 API functions, and provides some
-APIs for managing the behaviour of the JavaScript engine.
+APIs for managing the behaviour of the JavaScript engine or querying about its
+current state or statistics such as memory usage.
 
 V8 APIs are not thread-safe unless explicitly specified. In a typical Node.js
 application, the main thread and any `Worker` threads each have one `Isolate`,
@@ -308,6 +309,10 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 ```
+
+(Namespaces are usually omitted through the use of `using` statements in the
+Node.js source code.)
+
 
 `args[n]` is a `Local<Value>` that represents the n-th argument passed to the
 function. `args.This()` is the `this` value inside this function call.
