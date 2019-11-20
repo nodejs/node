@@ -77,6 +77,32 @@ subclasses such as `v8::Number` (which in turn has subclasses like `v8::Int32`),
 `v8::Boolean` or `v8::Object`. Most types are represented by subclasses
 of `v8::Object`, e.g. `v8::Uint8Array` or `v8::Date`.
 
+<a id="internal-fields"></a>
+### Internal fields
+
+V8 provides the ability to store data in so-called “internal fields” inside
+`v8::Object`s that were created as instances of C++-backed classes. The number
+of fields needs to be defined when creating that class.
+
+Both JavaScript values and `void*` pointers may be stored in such fields.
+In most native Node.js objects, the first internal field is used to store a
+pointer to a [`BaseObject`][] subclass, which then contains all relevant
+information associated with the JavaScript object.
+
+The most typical way of working internal fields are:
+
+* `obj->InternalFieldCount()` to look up the number of internal fields for an
+  object (`0` for regular JavaScript objects).
+* `obj->GetInternalField(i)` to get a JavaScript value from an internal field.
+* `obj->SetInternalField(i, v)` to store a JavaScript value in an
+  internal field.
+* `obj->GetAlignedPointerFromInternalField(i)` to get a `void*` pointer from an
+  internal field.
+* `obj->SetAlignedPointerInInternalField(i, p)` to store a `void*` pointer in an
+  internal field.
+
+[`Context`][]s provide the same feature under the name “embedder data”.
+
 <a id="js-handles"></a>
 ### JavaScript value handles
 
@@ -315,7 +341,9 @@ Node.js source code.)
 
 
 `args[n]` is a `Local<Value>` that represents the n-th argument passed to the
-function. `args.This()` is the `this` value inside this function call.
+function. `args.This()` is the `this` value inside this function call,
+and `args.Holder()` which is equivalent to `args.This()` in all use cases inside
+of Node.js.
 
 `args.GetReturnValue()` is a placeholder for the return value of the function,
 and provides a `.Set()` method that can be called with a boolean, integer,
@@ -577,7 +605,7 @@ Node.js, and most classes that are associated with JavaScript objects are
 subclasses of it. It is defined in [`base_object.h`][].
 
 Every `BaseObject` is associated with one [`Environment`][] and one
-`v8::Object`. The `v8::Object` needs to have at least one “internal field”
+`v8::Object`. The `v8::Object` needs to have at least one [internal field][]
 that is used for storing the pointer to the C++ object. In order to ensure this,
 the V8 `SetInternalFieldCount()` function is usually used when setting up the
 class from C++.
@@ -861,6 +889,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
+[internal field]: #internal-field
 [introduction for V8 embedders]: https://v8.dev/docs/embed
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
