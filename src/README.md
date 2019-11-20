@@ -101,7 +101,7 @@ function getFoo(obj) {
 
 ```c++
 v8::Local<v8::Value> GetFoo(v8::Local<v8::Context> context,
-                            v8::Local<Object> obj) {
+                            v8::Local<v8::Object> obj) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
@@ -112,7 +112,7 @@ v8::Local<v8::Value> GetFoo(v8::Local<v8::Context> context,
                               "foo",
                               v8::NewStringType::kNormal).ToLocalChecked();
 
-  v8::Local<Value> return_value;
+  v8::Local<v8::Value> return_value;
   if (obj->Get(context, foo_string).ToLocal(&return_value)) {
     return handle_scope.Escape(return_value);
   } else {
@@ -421,12 +421,12 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
 
   double sum = 0;
 
-  for (int i = 0; i < array_of_integers->Length()) {
+  for (uint32_t i = 0; i < array_of_integers->Length(); i++) {
     v8::Local<v8::Value> entry;
     if (array_of_integers->Get(context, i).ToLocal(&entry)) {
       // Oops, we might have hit a getter that throws an exception!
       // It’s better to not continue return an empty (“nothing”) Maybe.
-      return v8::Nothing<uint32_t>();
+      return v8::Nothing<double>();
     }
 
     if (!entry->IsNumber()) {
@@ -442,7 +442,7 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
     sum += entry_as_number->Value();
   }
 
-  return Just(sum);
+  return v8::Just(sum);
 }
 
 // Function that is exposed to JS:
@@ -636,7 +636,7 @@ Every `AsyncWrap` instance is associated with two numbers, the “async id”
 and the “async trigger id”. The “async id” is generally unique per `AsyncWrap`
 instance, and only changes when the object is re-used in some way.
 
-See the [`async_hooks` module][] documentation for more inforation about how
+See the [`async_hooks` module][] documentation for more information about how
 this information is provided to async tracking tools.
 
 <a id="makecallback"></a>
