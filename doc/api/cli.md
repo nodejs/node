@@ -419,6 +419,16 @@ added: v9.0.0
 Specify the `module` of a custom [experimental ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
+### `--insecure-http-parser`
+<!-- YAML
+added: REPLACEME
+-->
+
+Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
+interoperability with non-conformant HTTP implementations. It may also allow
+request smuggling and other HTTP attacks that rely on invalid headers being
+accepted. Avoid using this option.
+
 ### `--max-http-header-size=size`
 <!-- YAML
 added: v11.6.0
@@ -1064,6 +1074,7 @@ Node.js options that are allowed are:
 * `--http-parser`
 * `--icu-data-dir`
 * `--input-type`
+* `--insecure-http-parser`
 * `--inspect-brk`
 * `--inspect-port`, `--debug-port`
 * `--inspect-publish-uid`

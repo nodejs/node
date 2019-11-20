@@ -486,11 +486,13 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    bool lenient = args[3]->IsTrue();
 
     uint64_t max_http_header_size = 0;
 
     CHECK(args[0]->IsInt32());
     CHECK(args[1]->IsObject());
+
     if (args.Length() > 2) {
       CHECK(args[2]->IsNumber());
       max_http_header_size = args[2].As<Number>()->Value();
@@ -515,7 +517,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
-    parser->Init(type, max_http_header_size);
+    parser->Init(type, max_http_header_size, lenient);
   }
 
   template <bool should_pause>
@@ -762,8 +764,9 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  void Init(llhttp_type_t type, uint64_t max_http_header_size) {
+  void Init(llhttp_type_t type, uint64_t max_http_header_size, bool lenient) {
     llhttp_init(&parser_, type, &settings);
+    llhttp_set_lenient(&parser_, lenient);
     header_nread_ = 0;
     url_.Reset();
     status_message_.Reset();
