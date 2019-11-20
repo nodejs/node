@@ -338,6 +338,12 @@ class WeakArrayList : public HeapObject {
       Isolate* isolate, Handle<WeakArrayList> array,
       const MaybeObjectHandle& value);
 
+  // A version that adds to elements. This ensures that the elements are
+  // inserted atomically w.r.t GC.
+  V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
+      Isolate* isolate, Handle<WeakArrayList> array,
+      const MaybeObjectHandle& value1, const MaybeObjectHandle& value2);
+
   inline MaybeObject Get(int index) const;
   inline MaybeObject Get(Isolate* isolate, int index) const;
 

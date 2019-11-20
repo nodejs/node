@@ -930,6 +930,9 @@
   # Deadlocks on predictable platform (https://crbug.com/v8/9760).
   'wasm/async-compile': [SKIP],
   'wasm/streaming-compile': [SKIP],
+
+  # Race between postMessage and wasm memory.grow. (https://crbug.com/1010272).
+  'regress/wasm/regress-1010272': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
