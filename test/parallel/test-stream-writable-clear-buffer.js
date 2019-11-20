@@ -13,7 +13,6 @@ class StreamWritable extends Stream.Writable {
   // Refs: https://github.com/nodejs/node/issues/6758
   // We need a timer like on the original issue thread.
   // Otherwise the code will never reach our test case.
-  // This means this should go in the sequential folder.
   _write(chunk, encoding, cb) {
     setImmediate(cb);
   }
