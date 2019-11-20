@@ -240,7 +240,10 @@ def StringToCMakeTargetName(a):
   Invalid for make: ':'
   Invalid for unknown reasons but cause failures: '.'
   """
-  return a.translate(string.maketrans(' /():."', '_______'))
+  try:
+      return a.translate(str.maketrans(' /():."', '_______'))
+  except AttributeError:
+      return a.translate(string.maketrans(' /():."', '_______'))
 
 
 def WriteActions(target_name, actions, extra_sources, extra_deps,
@@ -575,7 +578,7 @@ class CMakeNamer(object):
   """Converts Gyp target names into CMake target names.
 
   CMake requires that target names be globally unique. One way to ensure
-  this is to fully qualify the names of the targets. Unfortunatly, this
+  this is to fully qualify the names of the targets. Unfortunately, this
   ends up with all targets looking like "chrome_chrome_gyp_chrome" instead
   of just "chrome". If this generator were only interested in building, it
   would be possible to fully qualify all target names, then create
@@ -647,7 +650,7 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
   cmake_target_type = cmake_target_type_from_gyp_target_type.get(target_type)
   if cmake_target_type is None:
     print('Target %s has unknown target type %s, skipping.' %
-          (        target_name,               target_type))
+          (        target_name,               target_type  ))
     return
 
   SetVariable(output, 'TARGET', target_name)

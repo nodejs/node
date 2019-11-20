@@ -6,10 +6,44 @@
 
 import os
 import sys
+import subprocess
+
+PY3 = bytes != str
+
+# Below IsCygwin() function copied from pylib/gyp/common.py
+def IsCygwin():
+  try:
+    out = subprocess.Popen("uname",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    stdout, stderr = out.communicate()
+    if PY3:
+      stdout = stdout.decode("utf-8")
+    return "CYGWIN" in str(stdout)
+  except Exception:
+    return False
+
+
+def UnixifyPath(path):
+  try:
+    if not IsCygwin():
+      return path
+    out = subprocess.Popen(["cygpath", "-u", path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    stdout, _ = out.communicate()
+    if PY3:
+      stdout = stdout.decode("utf-8")
+    return str(stdout)
+  except Exception:
+    return path
+
 
 # Make sure we're using the version of pylib in this repo, not one installed
-# elsewhere on the system.
-sys.path.insert(0, os.path.join(os.path.dirname(sys.argv[0]), 'pylib'))
+# elsewhere on the system. Also convert to Unix style path on Cygwin systems,
+# else the 'gyp' library will not be found
+path = UnixifyPath(sys.argv[0])
+sys.path.insert(0, os.path.join(os.path.dirname(path), 'pylib'))
 import gyp
 
 if __name__ == '__main__':

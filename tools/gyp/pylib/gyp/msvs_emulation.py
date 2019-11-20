@@ -16,6 +16,7 @@ from gyp.common import OrderedSet
 import gyp.MSVSUtil
 import gyp.MSVSVersion
 
+PY3 = bytes != str
 
 windows_quoter_regex = re.compile(r'(\\*)"')
 
@@ -130,7 +131,10 @@ def _FindDirectXInstallation():
     # Setup params to pass to and attempt to launch reg.exe.
     cmd = ['reg.exe', 'query', r'HKLM\Software\Microsoft\DirectX', '/s']
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    for line in p.communicate()[0].splitlines():
+    stdout = p.communicate()[0]
+    if PY3:
+      stdout = stdout.decode('utf-8')
+    for line in stdout.splitlines():
       if 'InstallPath' in line:
         dxsdk_dir = line.split('    ')[3] + "\\"
 
@@ -241,7 +245,11 @@ class MsvsSettings(object):
   def GetVSMacroEnv(self, base_to_build=None, config=None):
     """Get a dict of variables mapping internal VS macro names to their gyp
     equivalents."""
-    target_platform = 'Win32' if self.GetArch(config) == 'x86' else 'x64'
+    target_arch = self.GetArch(config)
+    if target_arch == 'x86':
+      target_platform = 'Win32'
+    else:
+      target_platform = target_arch
     target_name = self.spec.get('product_prefix', '') + \
         self.spec.get('product_name', self.spec['target_name'])
     target_dir = base_to_build + '\\' if base_to_build else ''
@@ -304,7 +312,7 @@ class MsvsSettings(object):
     if not platform: # If no specific override, use the configuration's.
       platform = configuration_platform
     # Map from platform to architecture.
-    return {'Win32': 'x86', 'x64': 'x64'}.get(platform, 'x86')
+    return {'Win32': 'x86', 'x64': 'x64', 'ARM64': 'arm64'}.get(platform, 'x86')
 
   def _TargetConfig(self, config):
     """Returns the target-specific configuration."""
@@ -379,7 +387,7 @@ class MsvsSettings(object):
     return pdbname
 
   def GetMapFileName(self, config, expand_special):
-    """Gets the explicitly overriden map file name for a target or returns None
+    """Gets the explicitly overridden map file name for a target or returns None
     if it's not set."""
     config = self._TargetConfig(config)
     map_file = self._Setting(('VCLinkerTool', 'MapFileName'), config)
@@ -575,7 +583,10 @@ class MsvsSettings(object):
                           'VCLinkerTool', append=ldflags)
     self._GetDefFileAsLdflags(ldflags, gyp_to_build_path)
     ld('GenerateDebugInformation', map={'true': '/DEBUG'})
-    ld('TargetMachine', map={'1': 'X86', '17': 'X64', '3': 'ARM'},
+    # TODO: These 'map' values come from machineTypeOption enum,
+    # and does not have an official value for ARM64 in VS2017 (yet).
+    # It needs to verify the ARM64 value when machineTypeOption is updated.
+    ld('TargetMachine', map={'1': 'X86', '17': 'X64', '3': 'ARM', '18': 'ARM64'},
        prefix='/MACHINE:')
     ldflags.extend(self._GetAdditionalLibraryDirectories(
         'VCLinkerTool', config, gyp_to_build_path))
@@ -872,7 +883,9 @@ class MsvsSettings(object):
                  ('iid', iid),
                  ('proxy', proxy)]
     # TODO(scottmg): Are there configuration settings to set these flags?
-    target_platform = 'win32' if self.GetArch(config) == 'x86' else 'x64'
+    target_platform = self.GetArch(config)
+    if target_platform == 'x86':
+      target_platform = 'win32'
     flags = ['/char', 'signed', '/env', target_platform, '/Oicf']
     return outdir, output, variables, flags
 
@@ -1045,6 +1058,8 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
     popen = subprocess.Popen(
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     variables, _ = popen.communicate()
+    if PY3:
+      variables = variables.decode('utf-8')
     if popen.returncode != 0:
       raise Exception('"%s" failed with error %d' % (args, popen.returncode))
     env = _ExtractImportantEnvironment(variables)
@@ -1066,6 +1081,8 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
       'for', '%i', 'in', '(cl.exe)', 'do', '@echo', 'LOC:%~$PATH:i'))
     popen = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE)
     output, _ = popen.communicate()
+    if PY3:
+      output = output.decode('utf-8')
     cl_paths[arch] = _ExtractCLPath(output)
   return cl_paths
 
