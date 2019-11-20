@@ -1,8 +1,10 @@
 'use strict';
+
+// This test ensures that the _writeableState.bufferedRequestCount and
+// the actual buffered request count are the same.
+
 require('../common');
 const Stream = require('stream');
-// This test ensures that the _writeableState.bufferedRequestCount and
-// the actual buffered request count are the same
 const assert = require('assert');
 
 class StreamWritable extends Stream.Writable {
