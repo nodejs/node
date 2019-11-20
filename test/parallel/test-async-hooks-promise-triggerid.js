@@ -13,8 +13,8 @@ async_hooks.createHook({
     if (type === 'PROMISE') {
       // Check that the last known Promise is triggering the creation of
       // this one.
-      assert.strictEqual(promiseAsyncIds[promiseAsyncIds.length - 1] || 1,
-                         triggerId);
+      assert.strictEqual(triggerId,
+                         promiseAsyncIds[promiseAsyncIds.length - 1] || 1);
       promiseAsyncIds.push(id);
     }
   }, 3),
