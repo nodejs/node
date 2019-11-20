@@ -339,7 +339,6 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
 (Namespaces are usually omitted through the use of `using` statements in the
 Node.js source code.)
 
-
 `args[n]` is a `Local<Value>` that represents the n-th argument passed to the
 function. `args.This()` is the `this` value inside this function call.
 `args.Holder()` is equivalent to `args.This()` in all use cases inside of
