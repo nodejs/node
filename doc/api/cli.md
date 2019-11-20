@@ -181,6 +181,16 @@ added: v9.0.0
 
 Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
+### `--insecure-http-parser`
+<!-- YAML
+added: REPLACEME
+-->
+
+Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
+interoperability with non-conformant HTTP implementations. It may also allow
+request smuggling and other HTTP attacks that rely on invalid headers being
+accepted. Avoid using this option.
+
 ### `--max-http-header-size=size`
 <!-- YAML
 added: v10.15.0
@@ -608,6 +618,7 @@ Node.js options that are allowed are:
 - `--experimental-worker`
 - `--force-fips`
 - `--icu-data-dir`
+- `--insecure-http-parser`
 - `--inspect`
 - `--inspect-brk`
 - `--inspect-port`

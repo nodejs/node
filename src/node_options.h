@@ -93,6 +93,8 @@ class EnvironmentOptions : public Options {
   bool print_eval = false;
   bool force_repl = false;
 
+  bool insecure_http_parser = false;
+
   std::vector<std::string> preload_modules;
 
   std::vector<std::string> user_argv;

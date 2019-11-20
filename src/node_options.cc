@@ -110,6 +110,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_worker,
             kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--insecure-http-parser",
+            "Use an insecure HTTP parser that accepts invalid HTTP headers",
+            &EnvironmentOptions::insecure_http_parser,
+            kAllowedInEnvironment);
   AddOption("--loader",
             "(with --experimental-modules) use the specified file as a "
             "custom loader",
