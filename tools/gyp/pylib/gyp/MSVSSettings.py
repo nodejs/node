@@ -522,8 +522,8 @@ def _ValidateSettings(validators, settings, stderr):
           try:
             tool_validators[setting](value)
           except ValueError as e:
-            print('Warning: for %s/%s, %s' % (tool_name, setting, e),
-                  file=stderr)
+            print('Warning: for %s/%s, %s' %
+                              (tool_name, setting, e), file=stderr)
         else:
           _ValidateExclusionSetting(setting,
                                     tool_validators,
@@ -976,7 +976,9 @@ _Same(_midl, 'TargetEnvironment',
       _Enumeration(['NotSet',
                     'Win32',  # /env win32
                     'Itanium',  # /env ia64
-                    'X64']))  # /env x64
+                    'X64',  # /env x64
+                    'ARM64',  # /env arm64
+                    ]))
 _Same(_midl, 'EnableErrorChecks',
       _Enumeration(['EnableCustom',
                     'None',  # /error none

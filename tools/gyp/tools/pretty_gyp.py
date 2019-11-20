@@ -18,7 +18,7 @@ COMMENT_RE = re.compile(r'\s*#.*')
 # Regex to remove quoted strings when we're counting braces.
 # It takes into account quoted quotes, and makes sure that the quotes match.
 # NOTE: It does not handle quotes that span more than one line, or
-# cases where an escaped quote is preceeded by an escaped backslash.
+# cases where an escaped quote is preceded by an escaped backslash.
 QUOTE_RE_STR = r'(?P<q>[\'"])(.*?)(?<![^\\][\\])(?P=q)'
 QUOTE_RE = re.compile(QUOTE_RE_STR)
 

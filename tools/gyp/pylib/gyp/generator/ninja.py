@@ -744,7 +744,7 @@ class NinjaWriter(object):
           elif var == 'name':
             extra_bindings.append(('name', cygwin_munge(basename)))
           else:
-            assert var == None, repr(var)
+            assert var is None, repr(var)
 
         outputs = [self.GypPathToNinja(o, env) for o in outputs]
         if self.flavor == 'win':
@@ -1880,7 +1880,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   # - The priority from low to high is gcc/g++, the 'make_global_settings' in
   #   gyp, the environment variable.
   # - If there is no 'make_global_settings' for CC.host/CXX.host or
-  #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
+  #   'CC_host'/'CXX_host' environment variable, cc_host/cxx_host should be set
   #   to cc/cxx.
   if flavor == 'win':
     ar = 'lib.exe'
@@ -2321,15 +2321,22 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       'stamp',
       description='STAMP $out',
       command='%s gyp-win-tool stamp $out' % sys.executable)
-    master_ninja.rule(
-      'copy',
-      description='COPY $in $out',
-      command='%s gyp-win-tool recursive-mirror $in $out' % sys.executable)
   else:
     master_ninja.rule(
       'stamp',
       description='STAMP $out',
       command='${postbuilds}touch $out')
+  if flavor == 'win':
+    master_ninja.rule(
+      'copy',
+      description='COPY $in $out',
+      command='%s gyp-win-tool recursive-mirror $in $out' % sys.executable)
+  elif flavor == 'zos':
+    master_ninja.rule(
+      'copy',
+      description='COPY $in $out',
+      command='rm -rf $out && cp -fRP $in $out')
+  else:
     master_ninja.rule(
       'copy',
       description='COPY $in $out',

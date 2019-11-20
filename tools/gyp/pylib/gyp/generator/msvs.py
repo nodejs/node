@@ -12,6 +12,8 @@ import re
 import subprocess
 import sys
 
+from collections import OrderedDict
+
 import gyp.common
 import gyp.easy_xml as easy_xml
 import gyp.generator.ninja as ninja_generator
@@ -25,15 +27,7 @@ import gyp.MSVSVersion as MSVSVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
-# TODO: Remove once bots are on 2.7, http://crbug.com/241769
-def _import_OrderedDict():
-  import collections
-  try:
-    return collections.OrderedDict
-  except AttributeError:
-    import gyp.ordered_dict
-    return gyp.ordered_dict.OrderedDict
-OrderedDict = _import_OrderedDict()
+PY3 = bytes != str
 
 
 # Regular expression for validating Visual Studio GUIDs.  If the GUID
@@ -90,6 +84,7 @@ generator_additional_non_configuration_keys = [
     'msvs_enable_winrt',
     'msvs_requires_importlibrary',
     'msvs_enable_winphone',
+    'msvs_enable_marmasm',
     'msvs_application_type_revision',
     'msvs_target_platform_version',
     'msvs_target_platform_minversion',
@@ -126,6 +121,8 @@ def _GetDomainAndUserName():
       call = subprocess.Popen(['net', 'config', 'Workstation'],
                               stdout=subprocess.PIPE)
       config = call.communicate()[0]
+      if PY3:
+        config = config.decode('utf-8')
       username_re = re.compile(r'^User name\s+(\S+)', re.MULTILINE)
       username_match = username_re.search(config)
       if username_match:
@@ -167,13 +164,22 @@ def _FixPath(path):
   Returns:
     The path with all slashes made into backslashes.
   """
-  if fixpath_prefix and path and not os.path.isabs(path) and not path[0] == '$':
+  if fixpath_prefix and path and not os.path.isabs(path) and not path[0] == '$' and not _IsWindowsAbsPath(path):
     path = os.path.join(fixpath_prefix, path)
   path = path.replace('/', '\\')
   path = _NormalizedSource(path)
   if path and path[-1] == '\\':
     path = path[:-1]
   return path
+
+
+def _IsWindowsAbsPath(path):
+  """
+  On Cygwin systems Python needs a little help determining if a path is an absolute Windows path or not, so that
+  it does not treat those as relative, which results in bad paths like:
+  '..\C:\<some path>\some_source_code_file.cc'
+  """
+  return path.startswith('c:') or path.startswith('C:')
 
 
 def _FixPaths(paths):
@@ -297,6 +303,9 @@ def _ConfigFullName(config_name, config_data):
 
 
 def _ConfigWindowsTargetPlatformVersion(config_data, version):
+  target_ver = config_data.get('msvs_windows_target_platform_version')
+  if target_ver and re.match(r'^\d+', target_ver):
+    return target_ver
   config_ver = config_data.get('msvs_windows_sdk_version')
   vers = [config_ver] if config_ver else version.compatible_sdks
   for ver in vers:
@@ -775,8 +784,8 @@ def _EscapeVCProjCommandLineArgListItem(s):
     # the VCProj but cause the same problem on the final command-line. Moving
     # the item to the end of the list does works, but that's only possible if
     # there's only one such item. Let's just warn the user.
-    print('Warning: MSVS may misinterpret the odd number of '
-          'quotes in ' + s, file=sys.stderr)
+    print('Warning: MSVS may misinterpret the odd number of ' +
+                          'quotes in ' + s, file=sys.stderr)
   return s
 
 
@@ -996,8 +1005,8 @@ def _ValidateSourcesForMSVSProject(spec, version):
       error += '  %s: %s\n' % (basename, ' '.join(files))
 
   if error:
-    print('static library %s has several files with the same basename:\n' %
-          spec['target_name'] + error + 'MSVC08 cannot handle that.')
+    print('static library %s has several files with the same basename:\n' % spec['target_name']
+          + error + 'MSVC08 cannot handle that.')
     raise GypError('Duplicate basenames in sources section, see list above')
 
 
@@ -1913,6 +1922,8 @@ def _InitNinjaFlavor(params, target_list, target_dicts):
       configuration = '$(Configuration)'
       if params.get('target_arch') == 'x64':
         configuration += '_x64'
+      if params.get('target_arch') == 'arm64':
+        configuration += '_arm64'
       spec['msvs_external_builder_out_dir'] = os.path.join(
           gyp.common.RelativePath(params['options'].toplevel_dir, gyp_dir),
           ninja_generator.ComputeOutputDir(params),
@@ -2163,7 +2174,7 @@ def _MapFileToMsBuildSourceType(source, rule_dependencies,
   if ext in extension_to_rule_name:
     group = 'rule'
     element = extension_to_rule_name[ext]
-  elif ext in ['.cc', '.cpp', '.c', '.cxx']:
+  elif ext in ['.cc', '.cpp', '.c', '.cxx', '.mm']:
     group = 'compile'
     element = 'ClCompile'
   elif ext in ['.h', '.hxx']:
@@ -3106,7 +3117,7 @@ def _FinalizeMSBuildSettings(spec, configuration):
   _ToolAppend(msbuild_settings, 'ResourceCompile',
               'AdditionalIncludeDirectories', resource_include_dirs)
   # Add in libraries, note that even for empty libraries, we want this
-  # set, to prevent inheriting default libraries from the enviroment.
+  # set, to prevent inheriting default libraries from the environment.
   _ToolSetOrAppend(msbuild_settings, 'Link', 'AdditionalDependencies',
                   libraries)
   _ToolAppend(msbuild_settings, 'Link', 'AdditionalLibraryDirectories',
@@ -3411,7 +3422,8 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
    content += _GetMSBuildLocalProperties(project.msbuild_toolset)
   content += import_cpp_props_section
   content += import_masm_props_section
-  content += import_marmasm_props_section
+  if spec.get('msvs_enable_marmasm'):
+    content += import_marmasm_props_section
   content += _GetMSBuildExtensions(props_files_of_rules)
   content += _GetMSBuildPropertySheets(configurations)
   content += macro_section
@@ -3424,7 +3436,8 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
   content += _GetMSBuildProjectReferences(project)
   content += import_cpp_targets_section
   content += import_masm_targets_section
-  content += import_marmasm_targets_section
+  if spec.get('msvs_enable_marmasm'):
+    content += import_marmasm_targets_section
   content += _GetMSBuildExtensionTargets(targets_files_of_rules)
 
   if spec.get('msvs_external_builder'):

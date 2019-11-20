@@ -23,6 +23,7 @@ from distutils.version import StrictVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
+PY3 = bytes != str
 
 # A list of types that are treated as linkable.
 linkable_types = [
@@ -157,7 +158,7 @@ def GetIncludedBuildFiles(build_file_path, aux_data, included=None):
   in the list will be relative to the current directory.
   """
 
-  if included == None:
+  if included is None:
     included = []
 
   if build_file_path in included:
@@ -222,7 +223,15 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes,
     return data[build_file_path]
 
   if os.path.exists(build_file_path):
-    build_file_contents = open(build_file_path).read()
+    # Open the build file for read ('r') with universal-newlines mode ('U')
+    # to make sure platform specific newlines ('\r\n' or '\r') are converted to '\n'
+    # which otherwise will fail eval()
+    if sys.platform == 'zos':
+      # On z/OS, universal-newlines mode treats the file as an ascii file. But since
+      # node-gyp produces ebcdic files, do not use that mode.
+      build_file_contents = open(build_file_path, 'r').read()
+    else:
+      build_file_contents = open(build_file_path, 'rU').read()
   else:
     raise GypError("%s not found (cwd: %s)" % (build_file_path, os.getcwd()))
 
@@ -231,7 +240,7 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes,
     if check:
       build_file_data = CheckedEval(build_file_contents)
     else:
-      build_file_data = eval(build_file_contents, {'__builtins__': None},
+      build_file_data = eval(build_file_contents, {'__builtins__': {}},
                              None)
   except SyntaxError as e:
     e.filename = build_file_path
@@ -700,9 +709,6 @@ PHASE_LATELATE = 2
 
 def ExpandVariables(input, phase, variables, build_file):
   # Look for the pattern that gets expanded into variables
-  def to_utf8(s):
-    return s if isinstance(s, str) else s.decode('utf-8')
-
   if phase == PHASE_EARLY:
     variable_re = early_variable_re
     expansion_symbol = '<'
@@ -906,8 +912,9 @@ def ExpandVariables(input, phase, variables, build_file):
                            (e, contents, build_file))
 
           p_stdout, p_stderr = p.communicate('')
-          p_stdout = to_utf8(p_stdout)
-          p_stderr = to_utf8(p_stderr)
+          if PY3:
+            p_stdout = p_stdout.decode('utf-8')
+            p_stderr = p_stderr.decode('utf-8')
 
           if p.wait() != 0 or p_stderr:
             sys.stderr.write(p_stderr)
@@ -1061,7 +1068,7 @@ def EvalCondition(condition, conditions_key, phase, variables, build_file):
     else:
       false_dict = None
       i = i + 2
-    if result == None:
+    if result is None:
       result = EvalSingleCondition(
           cond_expr, true_dict, false_dict, phase, variables, build_file)
 
@@ -1072,7 +1079,7 @@ def EvalSingleCondition(
     cond_expr, true_dict, false_dict, phase, variables, build_file):
   """Returns true_dict if cond_expr evaluates to true, and false_dict
   otherwise."""
-  # Do expansions on the condition itself.  Since the conditon can naturally
+  # Do expansions on the condition itself.  Since the condition can naturally
   # contain variable references without needing to resort to GYP expansion
   # syntax, this is of dubious value for variables, but someone might want to
   # use a command expansion directly inside a condition.
@@ -1089,7 +1096,7 @@ def EvalSingleCondition(
     else:
       ast_code = compile(cond_expr_expanded, '<string>', 'eval')
       cached_conditions_asts[cond_expr_expanded] = ast_code
-    env = {'__builtins__': None, 'v': StrictVersion}
+    env = {'__builtins__': {}, 'v': StrictVersion}
     if eval(ast_code, env, variables):
       return true_dict
     return false_dict
@@ -1178,7 +1185,7 @@ def LoadVariablesFromVariablesDict(variables, the_dict, the_dict_key):
         continue
       if the_dict_key == 'variables' and variable_name in the_dict:
         # If the variable is set without a % in the_dict, and the_dict is a
-        # variables dict (making |variables| a varaibles sub-dict of a
+        # variables dict (making |variables| a variables sub-dict of a
         # variables dict), use the_dict's definition.
         value = the_dict[variable_name]
     else:
@@ -1608,7 +1615,7 @@ class DependencyGraphNode(object):
 
   def DirectDependencies(self, dependencies=None):
     """Returns a list of just direct dependencies."""
-    if dependencies == None:
+    if dependencies is None:
       dependencies = []
 
     for dependency in self.dependencies:
@@ -1636,7 +1643,7 @@ class DependencyGraphNode(object):
     public entry point.
     """
 
-    if dependencies == None:
+    if dependencies is None:
       dependencies = []
 
     index = 0
@@ -1870,7 +1877,7 @@ def VerifyNoGYPFileCircularDependencies(targets):
         continue
       dependency_node = dependency_nodes.get(dependency_build_file)
       if not dependency_node:
-        raise GypError("Dependancy '%s' not found" % dependency_build_file)
+        raise GypError("Dependency '%s' not found" % dependency_build_file)
       if dependency_node not in build_file_node.dependencies:
         build_file_node.dependencies.append(dependency_node)
         dependency_node.dependents.append(build_file_node)
@@ -2040,7 +2047,7 @@ def MakePathRelative(to_file, fro_file, item):
         gyp.common.RelativePath(os.path.dirname(fro_file),
                                 os.path.dirname(to_file)),
                                 item)).replace('\\', '/')
-    if item[-1] == '/':
+    if item.endswith('/'):
       ret += '/'
     return ret
 
@@ -2288,7 +2295,7 @@ def SetUpConfigurations(target, target_dict):
         merged_configurations[configuration])
 
   # Now drop all the abstract ones.
-  for configuration in target_dict['configurations'].keys():
+  for configuration in list(target_dict['configurations']):
     old_configuration_dict = target_dict['configurations'][configuration]
     if old_configuration_dict.get('abstract'):
       del target_dict['configurations'][configuration]
@@ -2531,8 +2538,8 @@ def ValidateSourcesInTarget(target, target_dict, build_file,
       error += '  %s: %s\n' % (basename, ' '.join(files))
 
   if error:
-    print('static library %s has several files with the same basename:\n' %
-          target + error + 'libtool on Mac cannot handle that. Use '
+    print('static library %s has several files with the same basename:\n' % target
+          + error + 'libtool on Mac cannot handle that. Use '
           '--no-duplicate-basename-check to disable this validation.')
     raise GypError('Duplicate basenames in sources section, see list above')
 
