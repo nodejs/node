@@ -23,7 +23,7 @@ const testStream = new StreamWritable();
 testStream.cork();
 
 for (let i = 1; i <= 5; i++) {
-  testStream.write(i, function() {
+  testStream.write(i, () => {
     assert.strictEqual(
       testStream._writableState.bufferedRequestCount,
       testStream._writableState.getBuffer().length,
