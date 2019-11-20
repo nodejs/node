@@ -50,6 +50,9 @@ The `v8::Isolate` class represents a single JavaScript engine instance, in
 particular a set of JavaScript objects that can refer to each other
 (the “heap”).
 
+The `v8::Isolate` is often passed to other V8 API functions, and provides some
+APIs for managing the behaviour of the JavaScript engine.
+
 V8 APIs are not thread-safe unless explicitly specified. In a typical Node.js
 application, the main thread and any `Worker` threads each have one `Isolate`,
 and JavaScript objects from one `Isolate` cannot refer to objects from
@@ -64,6 +67,14 @@ Typical ways of accessing the current `Isolate` in the Node.js code are:
   using `args.GetIsolate()`.
 * Given a [`Context`][], using `context->GetIsolate()`.
 * Given a [`Environment`][], using `env->isolate()`.
+
+### V8 JavaScript values
+
+V8 provides classes that mostly correspond to JavaScript types; for example,
+`v8::Value` is a class representing any kind of JavaScript type, with
+subclasses such as `v8::Number` (which in turn has subclasses like `v8::Int32`),
+`v8::Boolean` or `v8::Object`. Most types are represented by subclasses
+of `v8::Object`, e.g. `v8::Uint8Array` or `v8::Date`.
 
 <a id="js-handles"></a>
 ### JavaScript value handles
@@ -132,6 +143,7 @@ be cast to that type using `.As<...>()`:
 
 ```c++
 v8::Local<v8::Value> some_value;
+// CHECK() is a Node.js utilitity that works similar to assert().
 CHECK(some_value->IsUint8Array());
 v8::Local<v8::Uint8Array> as_uint8 = some_value.As<v8::Uint8Array>();
 ```
@@ -544,13 +556,15 @@ and track their memory usage.
 
 This can be useful for debugging memory leaks.
 
+The [`memory_retainer.h`][] header file explains how to use this class.
+
 <a id="baseobject"></a>
 ### `BaseObject`
 
 A frequently recurring situation is that a JavaScript object and a C++ object
-need to be tied together. `BaseObject` is tha main abstraction for that in
+need to be tied together. `BaseObject` is the main abstraction for that in
 Node.js, and most classes that are associated with JavaScript objects are
-subclasses of it.
+subclasses of it. It is defined in [`base_object.h`][].
 
 Every `BaseObject` is associated with one [`Environment`][] and one
 `v8::Object`. The `v8::Object` needs to have at least one “internal field”
@@ -627,7 +641,7 @@ called. This can be useful when one `BaseObject` fully owns another
 `AsyncWrap` is a subclass of `BaseObject` that additionally provides tracking
 functions for asynchronous calls. It is commonly used for classes whose methods
 make calls into JavaScript without any JavaScript stack below, i.e. more or less
-directly from the event loop.
+directly from the event loop. It is defined in [`async_wrap.h`][].
 
 Every `AsyncWrap` subclass has a “provider type”. A list of provider types is
 maintained in `src/async_wrap.h`.
@@ -684,7 +698,7 @@ See [Callback scopes][] for more information.
 `HandleWrap` is a subclass of `AsyncWrap` specifically designed to make working
 with [libuv handles][] easier. It provides the `.ref()`, `.unref()` and
 `.hasRef()` methods as well as `.close()` to enable easier lifetime management
-from JavaScript.
+from JavaScript. It is defined in [`handle_wrap.h`][].
 
 `HandleWrap` instances are [cleaned up][cleanup hooks] automatically when the
 current Node.js [`Environment`][] is destroyed, e.g. when a Worker thread stops.
@@ -696,7 +710,7 @@ overview over libuv handles managed by Node.js.
 ### `ReqWrap`
 
 `ReqWrap` is a subclass of `AsyncWrap` specifically designed to make working
-with [libuv requests][] easier.
+with [libuv requests][] easier. It is defined in [`req_wrap.h`][].
 
 In particular, its `Dispatch()` method is designed to avoid the need to keep
 track of the current count of active libuv requests.
@@ -734,6 +748,11 @@ C++ codebase.
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
 [`ReqWrap`]: #reqwrap
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
+[`async_wrap.h`]: async_wrap.h
+[`base_object.h`]: base_object.h
+[`handle_wrap.h`]: handle_wrap.h
+[`memory_retainer.h`]: memory_retainer.h
+[`req_wrap.h`]: req_wrap.h
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
 [`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
 [`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
