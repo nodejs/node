@@ -416,6 +416,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "(default: 120000)",
             &EnvironmentOptions::http_server_default_timeout,
             kAllowedInEnvironment);
+  AddOption("--insecure-http-parser",
+            "Use an insecure HTTP parser that accepts invalid HTTP headers",
+            &EnvironmentOptions::insecure_http_parser,
+            kAllowedInEnvironment);
   AddOption("--input-type",
             "set module type for string input",
             &EnvironmentOptions::module_type,
