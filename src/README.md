@@ -31,7 +31,7 @@ embedder API.
 Important concepts when using V8 are the ones of [`Isolate`][]s and
 [JavaScript value handles][].
 
-## Libuv API documentation
+## libuv API documentation
 
 The other major dependency of Node.js is [libuv][], providing
 the [event loop][] and other operation system abstractions to Node.js.
@@ -755,7 +755,7 @@ Node.js uses a few custom C++ utilities, mostly defined in [`util.h`][].
 Node.js provides `Malloc()`, `Realloc()` and `Calloc()` functions that work
 like their C stdlib counterparts, but crash if memory cannot be allocated.
 (As V8 does not handle out-of-memory situations gracefully, it does not make
-sense for us to attempt to do so in all cases.)
+sense for Node.js to attempt to do so in all cases.)
 
 The `UncheckedMalloc()`, `UncheckedRealloc()` and `UncheckedCalloc()` functions
 return `nullptr` in these cases (or when `size == 0`).
