@@ -510,6 +510,9 @@ changes:
   - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/26628
     description: The `resourceLimits` option was introduced.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30559
+    description: The `argv` option was introduced.
 -->
 
 * `filename` {string} The path to the Worker’s main script. Must be
@@ -518,6 +521,10 @@ changes:
   If `options.eval` is `true`, this is a string containing JavaScript code
   rather than a path.
 * `options` {Object}
+  * `argv` {any[]} List of arguments which would be stringified and appended to
+    `process.argv` in the worker. This is mostly similar to the `workerData`
+    but the values will be available on the global `process.argv` as if they
+    were passed as CLI options to the script.
   * `env` {Object} If set, specifies the initial value of `process.env` inside
     the Worker thread. As a special value, [`worker.SHARE_ENV`][] may be used
     to specify that the parent thread and the child thread should share their
