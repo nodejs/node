@@ -341,9 +341,9 @@ Node.js source code.)
 
 
 `args[n]` is a `Local<Value>` that represents the n-th argument passed to the
-function. `args.This()` is the `this` value inside this function call,
-and `args.Holder()` which is equivalent to `args.This()` in all use cases inside
-of Node.js.
+function. `args.This()` is the `this` value inside this function call.
+`args.Holder()` is equivalent to `args.This()` in all use cases inside of
+Node.js.
 
 `args.GetReturnValue()` is a placeholder for the return value of the function,
 and provides a `.Set()` method that can be called with a boolean, integer,
