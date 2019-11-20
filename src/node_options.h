@@ -115,6 +115,7 @@ class EnvironmentOptions : public Options {
   bool expose_internals = false;
   bool frozen_intrinsics = false;
   std::string heap_snapshot_signal;
+  uint64_t max_http_header_size = 8 * 1024;
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;
@@ -200,7 +201,6 @@ class PerProcessOptions : public Options {
   std::string title;
   std::string trace_event_categories;
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
-  uint64_t max_http_header_size = 8 * 1024;
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;

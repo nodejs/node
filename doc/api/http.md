@@ -2047,6 +2047,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30570
+    description: The `maxHeaderSize` option is supported now.
   - version: v9.6.0, v8.12.0
     pr-url: https://github.com/nodejs/node/pull/15752
     description: The `options` argument is supported now.
@@ -2059,6 +2062,10 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `maxHeaderSize` {number} Optionally overrides the value of
+    [`--max-http-header-size`][] for requests received by this server, i.e.
+    the maximum length of request headers in bytes.
+    **Default:** 8192 (8KB).
 * `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -2156,11 +2163,17 @@ added: v11.6.0
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
 Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 
+This can be overridden for servers and client requests by passing the
+`maxHeaderSize` option.
+
 ## http.request(options\[, callback\])
 ## http.request(url\[, options\]\[, callback\])
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30570
+    description: The `maxHeaderSize` option is supported now.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: The `url` parameter can now be passed along with a separate
@@ -2196,6 +2209,10 @@ changes:
     `hostname` will be used if both `host` and `hostname` are specified.
   * `localAddress` {string} Local interface to bind for network connections.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
+  * `maxHeaderSize` {number} Optionally overrides the value of
+    [`--max-http-header-size`][] for requests received from the server, i.e.
+    the maximum length of response headers in bytes.
+    **Default:** 8192 (8KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
