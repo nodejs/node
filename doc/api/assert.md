@@ -1234,10 +1234,11 @@ assert.throws(
   (err) => {
     assert(err instanceof Error);
     assert(/value/.test(err));
-    // Returning anything from validation functions besides `true` is not
-    // recommended. Doing so results in the caught error being thrown again.
-    // That is usually not the desired outcome. Throw an error about the
-    // specific validation that failed instead (as done in this example).
+    // Avoid returning anything from validation functions besides `true`.
+    // Otherwise, it's not clear what part of the validation failed. Instead,
+    // throw an error about the specific validation that failed (as done in this
+    // example) and add as much helpful debugging information to that error as
+    // possible.
     return true;
   },
   'unexpected error'
@@ -1288,8 +1289,8 @@ assert.throws(throwingFirst, /Second$/);
 //     at throwingFirst (repl:2:9)
 ```
 
-Due to the confusing notation, it is recommended not to use a string as the
-second argument. This might lead to difficult-to-spot errors.
+Due to the confusing error-prone notation, avoid a string as the second
+argument.
 
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
