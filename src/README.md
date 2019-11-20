@@ -736,6 +736,91 @@ an `AsyncWrap*` argument (i.e. used as
 `InternalCallbackScope callback_scope(this);`) suffices inside of Node.js’s
 C++ codebase.
 
+## C++ utilities
+
+Node.js uses a few custom C++ utilities, mostly defined in [`util.h`][].
+
+### Memory allocation
+
+Node.js provides `Malloc()`, `Realloc()` and `Calloc()` functions that work
+like their C stdlib counterparts, but crash if memory cannot be allocated.
+(As V8 does not handle out-of-memory situations gracefully, it does not make
+sense for us to attempt to do so in all cases.)
+
+The `UncheckedMalloc()`, `UncheckedRealloc()` and `UncheckedCalloc()` functions
+return `nullptr` in these cases (or when `size == 0`).
+
+#### Optional stack-based memory allocation
+
+The `MaybeStackBuffer` class provides a way to allocate memory on the stack
+if it is smaller than a given limit, and falls back to allocating it on the
+heap if it is larger. This can be useful for performantly allocating temporary
+data if it is typically expected to be small (e.g. file paths).
+
+The `Utf8Value`, `TwoByteValue` (i.e. UTF-16 value) and `BufferValue`
+(`Utf8Value` but copy data from a `Buffer` is that is passed) helpers
+inherit from this class and allow accessing the characters in a JavaScript
+string this way.
+
+```c++
+static void Chdir(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // ...
+  CHECK(args[0]->IsString());
+  Utf8Value path(env->isolate(), args[0]);
+  int err = uv_chdir(*path);
+  if (err) {
+    // ... error handling ...
+  }
+}
+```
+
+### Assertions
+
+Node.js provides a few macros that behave similar to `assert()`:
+
+* `CHECK(expression)` aborts the process with a stack trace
+  if `expression` is false.
+* `CHECK_EQ(a, b)` checks for `a == b`
+* `CHECK_GE(a, b)` checks for `a >= b`
+* `CHECK_GT(a, b)` checks for `a > b`
+* `CHECK_LE(a, b)` checks for `a <= b`
+* `CHECK_LT(a, b)` checks for `a < b`
+* `CHECK_NE(a, b)` checks for `a != b`
+* `CHECK_NULL(val)` checks for `a == nullptr`
+* `CHECK_NOT_NULL(val)` checks for `a != nullptr`
+* `CHECK_IMPLIES(a, b)` checks that `b` is true if `a` is true.
+* `UNREACHABLE([message])` aborts the process if it is reached.
+
+`CHECK`s are always enabled. For checks that should only run in debug mode, use
+`DCHECK()`, `DCHECK_EQ()`, etc.
+
+### Scope-based cleanup
+
+The `OnScopeLeave()` function can be used to run a piece of code when leaving
+the current C++ scope.
+
+```c++
+static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_passwd_t pwd;
+  // ...
+
+  const int err = uv_os_get_passwd(&pwd);
+
+  if (err) {
+    // ... error handling, return early ...
+  }
+
+  auto free_passwd = OnScopeLeave([&]() { uv_os_free_passwd(&pwd); });
+
+  // ...
+  // Turn `pwd` into a JavaScript object now; whenever we return from this
+  // function, `uv_os_free_passwd()` will be called.
+  // ...
+}
+```
+
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -753,6 +838,7 @@ C++ codebase.
 [`handle_wrap.h`]: handle_wrap.h
 [`memory_retainer.h`]: memory_retainer.h
 [`req_wrap.h`]: req_wrap.h
+[`util.h`]: util.h
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
 [`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
 [`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
