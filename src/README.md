@@ -51,7 +51,7 @@ particular a set of JavaScript objects that can refer to each other
 (the “heap”).
 
 V8 APIs are not thread-safe unless explicitly specified. In a typical Node.js
-application, the main thread and each `Worker` thread each have one `Isolate`,
+application, the main thread and any `Worker` threads each have one `Isolate`,
 and JavaScript objects from one `Isolate` cannot refer to objects from
 another `Isolate`.
 
