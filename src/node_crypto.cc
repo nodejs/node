@@ -5050,8 +5050,8 @@ static AllocatedBuffer ConvertSignatureToP1363(Environment* env,
 
   const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig);
   const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig);
-  CHECK_EQ(n, BN_bn2binpad(r, data, n));
-  CHECK_EQ(n, BN_bn2binpad(s, data + n, n));
+  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(r, data, n)));
+  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(s, data + n, n)));
 
   ECDSA_SIG_free(asn1_sig);
 
