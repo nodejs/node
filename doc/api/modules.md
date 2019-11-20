@@ -932,7 +932,10 @@ via `require('module')`.
 
 ### module.builtinModules
 <!-- YAML
-added: v9.3.0
+added:
+  - v9.3.0
+  - v8.10.0
+  - v6.13.0
 -->
 
 * {string[]}
