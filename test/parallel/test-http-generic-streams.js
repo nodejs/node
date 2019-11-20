@@ -138,3 +138,17 @@ const MakeDuplexPair = require('../common/duplexpair');
   req.write(testData);
   req.end();
 }
+
+// Test 5: The client sends garbage.
+{
+  const server = http.createServer(common.mustNotCall());
+
+  const { clientSide, serverSide } = MakeDuplexPair();
+  server.emit('connection', serverSide);
+
+  server.on('clientError', common.mustCall());
+
+  // Send something that is not an HTTP request.
+  clientSide.end(
+    'I’m reading a book about anti-gravity. It’s impossible to put down!');
+}
