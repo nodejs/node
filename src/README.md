@@ -549,10 +549,15 @@ When calling into JavaScript without using [`MakeCallback()`][], check the
 ### `MemoryRetainer`
 
 A large number of classes in the Node.js C++ codebase refer to other objects.
-Inheriting from the `MemoryRetainer` class enables objects in a heap snapshot
-to refer to instances of that class, and in turn enables that class to point
-to other objects as well, including native C++ types such as `std::string`
-and track their memory usage.
+The `MemoryRetainer` class is a helper for annotating C++ classes with
+information that can be used by the heap snapshot builder in V8, so that
+memory retained by C++ can be tracked in V8 heap snapshots captured in
+Node.js applications.
+
+Inheriting from the `MemoryRetainer` class enables objects (both from JavaScript
+and C++) to refer to instances of that class, and in turn enables that class
+to point to other objects as well, including native C++ types
+such as `std::string` and track their memory usage.
 
 This can be useful for debugging memory leaks.
 
