@@ -495,6 +495,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    bool lenient = args[2]->IsTrue();
 
     CHECK(args[0]->IsInt32());
     CHECK(args[1]->IsObject());
@@ -515,7 +516,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
-    parser->Init(type);
+    parser->Init(type, lenient);
   }
 
   template <bool should_pause>
@@ -799,12 +800,14 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  void Init(parser_type_t type) {
+  void Init(parser_type_t type, bool lenient) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     llhttp_init(&parser_, type, &settings);
+    llhttp_set_lenient(&parser_, lenient);
     header_nread_ = 0;
 #else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_init(&parser_, type);
+    parser_.lenient_http_headers = lenient;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
     url_.Reset();
     status_message_.Reset();

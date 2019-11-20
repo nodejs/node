@@ -157,6 +157,8 @@ class EnvironmentOptions : public Options {
   bool print_eval = false;
   bool force_repl = false;
 
+  bool insecure_http_parser = false;
+
   bool tls_min_v1_0 = false;
   bool tls_min_v1_1 = false;
   bool tls_min_v1_2 = false;
