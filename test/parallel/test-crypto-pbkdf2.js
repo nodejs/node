@@ -68,15 +68,17 @@ assert.throws(
   }
 );
 
-assert.throws(
-  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, 'sha1'),
-  {
-    code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError',
-    message: 'The value of "iterations" is out of range. ' +
-             'It must be >= 0 && < 4294967296. Received -1'
-  }
-);
+for (const iterations of [-1, 0]) {
+  assert.throws(
+    () => crypto.pbkdf2Sync('password', 'salt', iterations, 20, 'sha1'),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError',
+      message: 'The value of "iterations" is out of range. ' +
+               `It must be >= 1 && < 4294967296. Received ${iterations}`
+    }
+  );
+}
 
 ['str', null, undefined, [], {}].forEach((notNumber) => {
   assert.throws(
