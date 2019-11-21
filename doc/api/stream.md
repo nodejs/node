@@ -364,12 +364,11 @@ immediately forwarding them to the underlining destination, `writable.cork()`
 buffers all the chunks until `writable.uncork()` is called, which will pass
 them all to `writable._writev()`, if present. This prevents an head-of-line
 blocking situation where data is being buffered while waiting for the first
-small chunk to be processed.
+small chunk to be processed. However, use of `writable.cork()` without 
+implementing `writable._writev()` may have an adverse effect on throughput.
 
-Note that using `writable.cork()` without implementing `writable._writev()` is
-likely to have an adverse effect on throughput.
 
-See also: [`writable.uncork()`][], [`writable._writev(chunks, callback)`][].
+See also: [`writable.uncork()`][], [`writable._writev()`][stream-_writev].
 
 ##### writable.destroy(\[error\])
 <!-- YAML
