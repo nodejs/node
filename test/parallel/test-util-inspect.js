@@ -855,6 +855,10 @@ util.inspect({ hasOwnProperty: null });
     assert.strictEqual(opts.budget, undefined);
     assert.strictEqual(opts.indentationLvl, undefined);
     assert.strictEqual(opts.showHidden, false);
+    assert.deepStrictEqual(
+      new Set(Object.keys(util.inspect.defaultOptions).concat(['stylize'])),
+      new Set(Object.keys(opts))
+    );
     opts.showHidden = true;
     return { [util.inspect.custom]: common.mustCall((depth, opts2) => {
       assert.deepStrictEqual(clone, opts2);
@@ -881,10 +885,11 @@ util.inspect({ hasOwnProperty: null });
 }
 
 {
-  const subject = { [util.inspect.custom]: common.mustCall((depth) => {
+  const subject = { [util.inspect.custom]: common.mustCall((depth, opts) => {
     assert.strictEqual(depth, null);
+    assert.strictEqual(opts.compact, true);
   }) };
-  util.inspect(subject, { depth: null });
+  util.inspect(subject, { depth: null, compact: true });
 }
 
 {
