@@ -758,7 +758,7 @@ overview over libuv handles managed by Node.js.
 <a id="callback-scopes"></a>
 ### Callback scopes
 
-The public `CallbackScope` and the internally use `InternalCallbackScope`
+The public `CallbackScope` and the internally used `InternalCallbackScope`
 classes provide the same facilities as [`MakeCallback()`][], namely:
 
 * Emitting the `'before'` event for async tracking when entering the scope
