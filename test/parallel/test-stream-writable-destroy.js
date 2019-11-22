@@ -355,14 +355,14 @@ const assert = require('assert');
     autoDestroy: false
   });
   write.cork();
-  write.write('asd', common.mustCall(err => {
+  write.write('asd', common.mustCall((err) => {
     assert.strictEqual(err.message, 'asd');
   }));
-  write.write('asd', common.mustCall(err => {
+  write.write('asd', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
-  write.on('error', common.mustCall(err => {
+  write.on('error', common.mustCall((err) => {
     assert.strictEqual(err.message, 'asd');
-  }))
+  }));
   write.uncork();
 }
