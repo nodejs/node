@@ -291,6 +291,7 @@ function processAnswers(answers) {
             jsx: true
         };
         config.plugins = ["react"];
+        config.extends.push("plugin:react/recommended");
     } else if (answers.framework === "vue") {
         config.plugins = ["vue"];
         config.extends.push("plugin:vue/essential");
@@ -522,9 +523,9 @@ function promptUser() {
             name: "styleguide",
             message: "Which style guide do you want to follow?",
             choices: [
-                { name: "Airbnb (https://github.com/airbnb/javascript)", value: "airbnb" },
-                { name: "Standard (https://github.com/standard/standard)", value: "standard" },
-                { name: "Google (https://github.com/google/eslint-config-google)", value: "google" }
+                { name: "Airbnb: https://github.com/airbnb/javascript", value: "airbnb" },
+                { name: "Standard: https://github.com/standard/standard", value: "standard" },
+                { name: "Google: https://github.com/google/eslint-config-google", value: "google" }
             ],
             when(answers) {
                 answers.packageJsonExists = npmUtils.checkPackageJson();

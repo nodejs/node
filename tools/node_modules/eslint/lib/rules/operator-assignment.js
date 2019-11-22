@@ -71,6 +71,9 @@ function same(a, b) {
              */
             return same(a.object, b.object) && same(a.property, b.property);
 
+        case "ThisExpression":
+            return true;
+
         default:
             return false;
     }
@@ -83,8 +86,14 @@ function same(a, b) {
  * @returns {boolean} `true` if the node can be fixed
  */
 function canBeFixed(node) {
-    return node.type === "Identifier" ||
-        node.type === "MemberExpression" && node.object.type === "Identifier" && (!node.computed || node.property.type === "Literal");
+    return (
+        node.type === "Identifier" ||
+        (
+            node.type === "MemberExpression" &&
+            (node.object.type === "Identifier" || node.object.type === "ThisExpression") &&
+            (!node.computed || node.property.type === "Literal")
+        )
+    );
 }
 
 module.exports = {

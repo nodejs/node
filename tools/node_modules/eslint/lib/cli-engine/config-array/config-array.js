@@ -31,6 +31,7 @@
 //------------------------------------------------------------------------------
 
 const { ExtractedConfig } = require("./extracted-config");
+const { IgnorePattern } = require("./ignore-pattern");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,6 +55,7 @@ const { ExtractedConfig } = require("./extracted-config");
  * @property {InstanceType<OverrideTester>|null} criteria The tester for the `files` and `excludedFiles` of this config element.
  * @property {Record<string, boolean>|undefined} env The environment settings.
  * @property {Record<string, GlobalConf>|undefined} globals The global variable settings.
+ * @property {IgnorePattern|undefined} ignorePattern The ignore patterns.
  * @property {boolean|undefined} noInlineConfig The flag that disables directive comments.
  * @property {DependentParser|undefined} parser The parser loader.
  * @property {Object|undefined} parserOptions The parser options.
@@ -231,6 +233,7 @@ function mergeRuleConfigs(target, source) {
  */
 function createConfig(instance, indices) {
     const config = new ExtractedConfig();
+    const ignorePatterns = [];
 
     // Merge elements.
     for (const index of indices) {
@@ -260,6 +263,11 @@ function createConfig(instance, indices) {
             config.reportUnusedDisableDirectives = element.reportUnusedDisableDirectives;
         }
 
+        // Collect ignorePatterns
+        if (element.ignorePattern) {
+            ignorePatterns.push(element.ignorePattern);
+        }
+
         // Merge others.
         mergeWithoutOverwrite(config.env, element.env);
         mergeWithoutOverwrite(config.globals, element.globals);
@@ -267,6 +275,11 @@ function createConfig(instance, indices) {
         mergeWithoutOverwrite(config.settings, element.settings);
         mergePlugins(config.plugins, element.plugins);
         mergeRuleConfigs(config.rules, element.rules);
+    }
+
+    // Create the predicate function for ignore patterns.
+    if (ignorePatterns.length > 0) {
+        config.ignores = IgnorePattern.createIgnore(ignorePatterns.reverse());
     }
 
     return config;

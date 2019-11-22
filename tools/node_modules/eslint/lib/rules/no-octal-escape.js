@@ -38,7 +38,7 @@ module.exports = {
 
                 // \0 represents a valid NULL character if it isn't followed by a digit.
                 const match = node.raw.match(
-                    /^(?:[^\\]|\\.)*?\\([0-3][0-7]{1,2}|[4-7][0-7]|[1-7])/u
+                    /^(?:[^\\]|\\.)*?\\([0-3][0-7]{1,2}|[4-7][0-7]|0(?=[89])|[1-7])/su
                 );
 
                 if (match) {

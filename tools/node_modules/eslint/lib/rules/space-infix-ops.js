@@ -69,7 +69,7 @@ module.exports = {
         function report(mainNode, culpritToken) {
             context.report({
                 node: mainNode,
-                loc: culpritToken.loc.start,
+                loc: culpritToken.loc,
                 message: "Operator '{{operator}}' must be spaced.",
                 data: {
                     operator: culpritToken.value

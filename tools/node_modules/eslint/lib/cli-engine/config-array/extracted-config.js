@@ -16,12 +16,25 @@
  */
 "use strict";
 
+const { IgnorePattern } = require("./ignore-pattern");
+
 // For VSCode intellisense
 /** @typedef {import("../../shared/types").ConfigData} ConfigData */
 /** @typedef {import("../../shared/types").GlobalConf} GlobalConf */
 /** @typedef {import("../../shared/types").SeverityConf} SeverityConf */
 /** @typedef {import("./config-dependency").DependentParser} DependentParser */
 /** @typedef {import("./config-dependency").DependentPlugin} DependentPlugin */
+
+/**
+ * Check if `xs` starts with `ys`.
+ * @template T
+ * @param {T[]} xs The array to check.
+ * @param {T[]} ys The array that may be the first part of `xs`.
+ * @returns {boolean} `true` if `xs` starts with `ys`.
+ */
+function startsWith(xs, ys) {
+    return xs.length >= ys.length && ys.every((y, i) => y === xs[i]);
+}
 
 /**
  * The class for extracted config data.
@@ -46,6 +59,12 @@ class ExtractedConfig {
          * @type {Record<string, GlobalConf>}
          */
         this.globals = {};
+
+        /**
+         * The glob patterns that ignore to lint.
+         * @type {(((filePath:string, dot?:boolean) => boolean) & { basePath:string; patterns:string[] }) | undefined}
+         */
+        this.ignores = void 0;
 
         /**
          * The flag that disables directive comments.
@@ -106,11 +125,19 @@ class ExtractedConfig {
             configNameOfNoInlineConfig: _ignore1,
             processor: _ignore2,
             /* eslint-enable no-unused-vars */
+            ignores,
             ...config
         } = this;
 
         config.parser = config.parser && config.parser.filePath;
         config.plugins = Object.keys(config.plugins).filter(Boolean).reverse();
+        config.ignorePatterns = ignores ? ignores.patterns : [];
+
+        // Strip the default patterns from `ignorePatterns`.
+        if (startsWith(config.ignorePatterns, IgnorePattern.DefaultPatterns)) {
+            config.ignorePatterns =
+                config.ignorePatterns.slice(IgnorePattern.DefaultPatterns.length);
+        }
 
         return config;
     }

@@ -153,10 +153,10 @@ module.exports = {
 
                 const property = node[propertyName];
 
-                const before = sourceCode.getTokenBefore(property),
-                    first = sourceCode.getFirstToken(property),
-                    last = sourceCode.getLastToken(property),
-                    after = sourceCode.getTokenAfter(property);
+                const before = sourceCode.getTokenBefore(property, astUtils.isOpeningBracketToken),
+                    first = sourceCode.getTokenAfter(before, { includeComments: true }),
+                    after = sourceCode.getTokenAfter(property, astUtils.isClosingBracketToken),
+                    last = sourceCode.getTokenBefore(after, { includeComments: true });
 
                 if (astUtils.isTokenOnSameLine(before, first)) {
                     if (propertyNameMustBeSpaced) {
