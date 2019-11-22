@@ -33,7 +33,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="13.2.0"></a>
-## 2019-11-21git log --oneline files/you/changed, Version 13.2.0 (Current), @MylesBorins
+## 2019-11-21, Version 13.2.0 (Current), @MylesBorins
 
 ### Notable Changes
 
