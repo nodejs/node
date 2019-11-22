@@ -58,6 +58,18 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 }));
 
+// Test invalid symlink
+{
+  const linkData = fixtures.path('/not/exists/file');
+  const linkPath = path.join(tmpdir.path, 'symlink2.js');
+
+  fs.symlink(linkData, linkPath, common.mustCall(function(err) {
+    assert.ifError(err);
+
+    assert(!fs.existsSync(linkPath));
+  }));
+}
+
 [false, 1, {}, [], null, undefined].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
