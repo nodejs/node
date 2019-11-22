@@ -356,7 +356,9 @@ module.exports = {
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         const variables = [];
         let reportCount = 0;
-        let name = "";
+        let checkedId = null;
+        let checkedName = "";
+
 
         /**
          * Reports given identifier nodes if all of the nodes should be declared
@@ -387,24 +389,29 @@ module.exports = {
                         /*
                          * First we check the declaration type and then depending on
                          * if the type is a "VariableDeclarator" or its an "ObjectPattern"
-                         * we compare the name from the first identifier, if the names are different
-                         * we assign the new name and reset the count of reportCount and nodeCount in
+                         * we compare the name and id from the first identifier, if the names are different
+                         * we assign the new name, id and reset the count of reportCount and nodeCount in
                          * order to check each block for the number of reported errors and base our fix
                          * based on comparing nodes.length and nodesToReport.length.
                          */
 
                         if (firstDecParent.type === "VariableDeclarator") {
 
-                            if (firstDecParent.id.name !== name) {
-                                name = firstDecParent.id.name;
+                            if (firstDecParent.id.name !== checkedName) {
+                                checkedName = firstDecParent.id.name;
                                 reportCount = 0;
                             }
 
                             if (firstDecParent.id.type === "ObjectPattern") {
-                                if (firstDecParent.init.name !== name) {
-                                    name = firstDecParent.init.name;
+                                if (firstDecParent.init.name !== checkedName) {
+                                    checkedName = firstDecParent.init.name;
                                     reportCount = 0;
                                 }
+                            }
+
+                            if (firstDecParent.id !== checkedId) {
+                                checkedId = firstDecParent.id;
+                                reportCount = 0;
                             }
                         }
                     }

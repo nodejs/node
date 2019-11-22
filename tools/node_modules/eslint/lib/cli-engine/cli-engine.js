@@ -25,10 +25,9 @@ const ModuleResolver = require("../shared/relative-module-resolver");
 const { Linter } = require("../linter");
 const builtInRules = require("../rules");
 const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
-const { getUsedExtractedConfigs } = require("./config-array");
+const { IgnorePattern, getUsedExtractedConfigs } = require("./config-array");
 const { FileEnumerator } = require("./file-enumerator");
 const hash = require("./hash");
-const { IgnoredPaths } = require("./ignored-paths");
 const LintResultCache = require("./lint-result-cache");
 
 const debug = require("debug")("eslint:cli-engine");
@@ -64,7 +63,7 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
  * @property {string[]} globals An array of global variables to declare.
  * @property {boolean} ignore False disables use of .eslintignore.
  * @property {string} ignorePath The ignore file to use instead of .eslintignore.
- * @property {string} ignorePattern A glob pattern of files to ignore.
+ * @property {string|string[]} ignorePattern One or more glob patterns to ignore.
  * @property {boolean} useEslintrc False disables looking for .eslintrc
  * @property {string} parser The name of the parser to use.
  * @property {ParserOptions} parserOptions An object of parserOption settings to use.
@@ -113,8 +112,8 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
  * @property {Map<string, Plugin>} additionalPluginPool The map for additional plugins.
  * @property {string} cacheFilePath The path to the cache of lint results.
  * @property {CascadingConfigArrayFactory} configArrayFactory The factory of configs.
+ * @property {(filePath: string) => boolean} defaultIgnores The default predicate function to check if a file ignored or not.
  * @property {FileEnumerator} fileEnumerator The file enumerator.
- * @property {IgnoredPaths} ignoredPaths The ignored paths.
  * @property {ConfigArray[]} lastConfigArrays The list of config arrays that the last `executeOnFiles` or `executeOnText` used.
  * @property {LintResultCache|null} lintResultCache The cache of lint results.
  * @property {Linter} linter The linter instance which has loaded rules.
@@ -486,13 +485,20 @@ function toBooleanMap(keys, defaultValue, displayName) {
  * @returns {ConfigData|null} The created config data.
  */
 function createConfigDataFromOptions(options) {
-    const { parser, parserOptions, plugins, rules } = options;
+    const {
+        ignorePattern,
+        parser,
+        parserOptions,
+        plugins,
+        rules
+    } = options;
     const env = toBooleanMap(options.envs, true, "envs");
     const globals = toBooleanMap(options.globals, false, "globals");
 
     if (
         env === void 0 &&
         globals === void 0 &&
+        (ignorePattern === void 0 || ignorePattern.length === 0) &&
         parser === void 0 &&
         parserOptions === void 0 &&
         plugins === void 0 &&
@@ -500,7 +506,15 @@ function createConfigDataFromOptions(options) {
     ) {
         return null;
     }
-    return { env, globals, parser, parserOptions, plugins, rules };
+    return {
+        env,
+        globals,
+        ignorePatterns: ignorePattern,
+        parser,
+        parserOptions,
+        plugins,
+        rules
+    };
 }
 
 /**
@@ -551,19 +565,18 @@ class CLIEngine {
             baseConfig: options.baseConfig || null,
             cliConfig: createConfigDataFromOptions(options),
             cwd: options.cwd,
+            ignorePath: options.ignorePath,
             resolvePluginsRelativeTo: options.resolvePluginsRelativeTo,
             rulePaths: options.rulePaths,
             specificConfigPath: options.configFile,
             useEslintrc: options.useEslintrc
         });
-        const ignoredPaths = new IgnoredPaths(options);
         const fileEnumerator = new FileEnumerator({
             configArrayFactory,
             cwd: options.cwd,
             extensions: options.extensions,
             globInputPaths: options.globInputPaths,
-            ignore: options.ignore,
-            ignoredPaths
+            ignore: options.ignore
         });
         const lintResultCache =
             options.cache ? new LintResultCache(cacheFilePath) : null;
@@ -577,8 +590,8 @@ class CLIEngine {
             additionalPluginPool,
             cacheFilePath,
             configArrayFactory,
+            defaultIgnores: IgnorePattern.createDefaultIgnore(options.cwd),
             fileEnumerator,
-            ignoredPaths,
             lastConfigArrays,
             lintResultCache,
             linter,
@@ -835,7 +848,6 @@ class CLIEngine {
         const {
             configArrayFactory,
             fileEnumerator,
-            ignoredPaths,
             lastConfigArrays,
             linter,
             options: {
@@ -852,7 +864,7 @@ class CLIEngine {
         // Clear the last used config arrays.
         lastConfigArrays.length = 0;
 
-        if (resolvedFilename && ignoredPaths.contains(resolvedFilename)) {
+        if (resolvedFilename && this.isPathIgnored(resolvedFilename)) {
             if (warnIgnored) {
                 results.push(createIgnoreResult(resolvedFilename, cwd));
             }
@@ -926,9 +938,23 @@ class CLIEngine {
      * @returns {boolean} Whether or not the given path is ignored.
      */
     isPathIgnored(filePath) {
-        const { ignoredPaths } = internalSlotsMap.get(this);
+        const {
+            configArrayFactory,
+            defaultIgnores,
+            options: { cwd, ignore }
+        } = internalSlotsMap.get(this);
+        const absolutePath = path.resolve(cwd, filePath);
 
-        return ignoredPaths.contains(filePath);
+        if (ignore) {
+            const config = configArrayFactory
+                .getConfigArrayForFile(absolutePath)
+                .extractConfig(absolutePath);
+            const ignores = config.ignores || defaultIgnores;
+
+            return ignores(absolutePath);
+        }
+
+        return defaultIgnores(absolutePath);
     }
 
     /**

@@ -97,10 +97,15 @@ module.exports = {
          * @private
          */
         function isOneLiner(node) {
-            const first = sourceCode.getFirstToken(node),
-                last = sourceCode.getLastToken(node);
+            if (node.type === "EmptyStatement") {
+                return true;
+            }
 
-            return first.loc.start.line === last.loc.end.line;
+            const first = sourceCode.getFirstToken(node);
+            const last = sourceCode.getLastToken(node);
+            const lastExcludingSemicolon = astUtils.isSemicolonToken(last) ? sourceCode.getTokenBefore(last) : last;
+
+            return first.loc.start.line === lastExcludingSemicolon.loc.end.line;
         }
 
         /**
@@ -240,7 +245,7 @@ module.exports = {
             if (node.type === "IfStatement" && node.consequent === body && requiresBraceOfConsequent(node)) {
                 expected = true;
             } else if (multiOnly) {
-                if (hasBlock && body.body.length === 1) {
+                if (hasBlock && body.body.length === 1 && !isLexicalDeclaration(body.body[0])) {
                     expected = false;
                 }
             } else if (multiLine) {

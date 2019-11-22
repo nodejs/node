@@ -85,7 +85,14 @@ module.exports = {
             description: "disallow unnecessary escape characters",
             category: "Best Practices",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-useless-escape"
+            url: "https://eslint.org/docs/rules/no-useless-escape",
+            suggestion: true
+        },
+
+        messages: {
+            unnecessaryEscape: "Unnecessary escape character: \\{{character}}.",
+            removeEscape: "Remove the `\\`. This maintains the current functionality.",
+            escapeBackslash: "Replace the `\\` with `\\\\` to include the actual backslash character."
         },
 
         schema: []
@@ -103,6 +110,8 @@ module.exports = {
          */
         function report(node, startOffset, character) {
             const start = sourceCode.getLocFromIndex(sourceCode.getIndexFromLoc(node.loc.start) + startOffset);
+            const rangeStart = sourceCode.getIndexFromLoc(node.loc.start) + startOffset;
+            const range = [rangeStart, rangeStart + 1];
 
             context.report({
                 node,
@@ -110,8 +119,22 @@ module.exports = {
                     start,
                     end: { line: start.line, column: start.column + 1 }
                 },
-                message: "Unnecessary escape character: \\{{character}}.",
-                data: { character }
+                messageId: "unnecessaryEscape",
+                data: { character },
+                suggest: [
+                    {
+                        messageId: "removeEscape",
+                        fix(fixer) {
+                            return fixer.removeRange(range);
+                        }
+                    },
+                    {
+                        messageId: "escapeBackslash",
+                        fix(fixer) {
+                            return fixer.insertTextBeforeRange(range, "\\");
+                        }
+                    }
+                ]
             });
         }
 

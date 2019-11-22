@@ -70,6 +70,8 @@ module.exports = {
                         { includeComments: true }
                     );
 
+                    const hasLineCommentBefore = tokenBefore.type === "Line";
+
                     context.report({
                         node,
                         loc: {
@@ -77,7 +79,7 @@ module.exports = {
                             end: currentArgToken.loc.start
                         },
                         messageId: checker.messageId,
-                        fix: checker.createFix(currentArgToken, tokenBefore)
+                        fix: hasLineCommentBefore ? null : checker.createFix(currentArgToken, tokenBefore)
                     });
                 }
             }

@@ -231,7 +231,7 @@ module.exports = {
             if (astUtils.isCommaToken(trailingToken)) {
                 context.report({
                     node: lastItem,
-                    loc: trailingToken.loc.start,
+                    loc: trailingToken.loc,
                     messageId: "unexpected",
                     fix(fixer) {
                         return fixer.remove(trailingToken);
@@ -267,7 +267,10 @@ module.exports = {
             if (trailingToken.value !== ",") {
                 context.report({
                     node: lastItem,
-                    loc: trailingToken.loc.end,
+                    loc: {
+                        start: trailingToken.loc.end,
+                        end: astUtils.getNextLocation(sourceCode, trailingToken.loc.end)
+                    },
                     messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextAfter(trailingToken, ",");
