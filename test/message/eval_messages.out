@@ -2,6 +2,7 @@
 [eval]:1
 with(this){__filename}
 ^^^^
+
 SyntaxError: Strict mode code may not include a with statement
     at new Script (vm.js:*:*)
     at createScript (vm.js:*:*)
@@ -24,7 +25,6 @@ Error: hello
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_string.js:*:*
-
 [eval]:1
 throw new Error("hello")
 ^
@@ -40,7 +40,7 @@ Error: hello
 100
 [eval]:1
 const x = 100; y = x;
-               ^
+                 ^
 
 ReferenceError: y is not defined
     at [eval]:1:18
