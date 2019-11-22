@@ -313,6 +313,10 @@ Node.js keeps a vendored copy of V8 inside of the deps/ directory. In addition,
 Node.js may need to float patches that do not exist upstream. This means that
 some care may need to be taken to update the vendored copy of V8.
 
+V8 builds against the version of ICU supplied by Node.js,
+see [maintaining-icu.md](./maintaining-icu.md) for special considerations.
+Specifically, a V8 update may necessitate an ICU update.
+
 ### Minor updates (patch level)
 
 Because there may be floating patches on the version of V8 in Node.js, it is
