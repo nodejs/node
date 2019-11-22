@@ -93,14 +93,13 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
 
   v8::Local<v8::Object> object =
       obj_templ->NewInstance(env.context()).ToLocalChecked();
-  DummyBaseObject obj(*env, object);
+  node::BaseObjectPtr<DummyBaseObject> obj =
+      node::MakeDetachedBaseObject<DummyBaseObject>(*env, object);
 
-  auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());
-  auto calculated = reinterpret_cast<uintptr_t>(&obj) +
+  auto expected = reinterpret_cast<uintptr_t>(&obj->persistent());
+  auto calculated = reinterpret_cast<uintptr_t>(obj.get()) +
       nodedbg_offset_BaseObject__persistent_handle___v8_Persistent_v8_Object;
   EXPECT_EQ(expected, calculated);
-
-  obj.persistent().Reset();  // ~BaseObject() expects an empty handle.
 }
 
 

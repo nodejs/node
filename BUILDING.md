@@ -476,7 +476,7 @@ To use the debug build with all the normal dependencies overwrite the release
 version in the install directory:
 
 ``` console
-$ make install --prefix=/opt/node-debug/
+$ make install PREFIX=/opt/node-debug/
 $ cp -a -f out/Debug/node /opt/node-debug/node
 ```
 

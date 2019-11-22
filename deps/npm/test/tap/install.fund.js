@@ -1,16 +1,15 @@
 'use strict'
 
-const { EOL } = require('os')
 const { test } = require('tap')
 const { getPrintFundingReport } = require('../../lib/install/fund')
 
 test('message when there are no funding found', (t) => {
-  t.deepEqual(
+  t.equal(
     getPrintFundingReport({}),
     '',
     'should not print any message if missing info'
   )
-  t.deepEqual(
+  t.equal(
     getPrintFundingReport({
       name: 'foo',
       version: '1.0.0',
@@ -19,7 +18,7 @@ test('message when there are no funding found', (t) => {
     '',
     'should not print any message if package has no dependencies'
   )
-  t.deepEqual(
+  t.equal(
     getPrintFundingReport({
       fund: true,
       idealTree: {
@@ -38,7 +37,7 @@ test('message when there are no funding found', (t) => {
 })
 
 test('print appropriate message for a single package', (t) => {
-  t.deepEqual(
+  t.equal(
     getPrintFundingReport({
       fund: true,
       idealTree: {
@@ -54,15 +53,15 @@ test('print appropriate message for a single package', (t) => {
           }
         ]
       }
-    }),
-    `${EOL}1 package is looking for funding.${EOL}Run "npm fund" to find out more.`,
+    }).replace(/[\r\n]+/g, '\n'),
+    `\n1 package is looking for funding\n  run \`npm fund\` for details\n`,
     'should print single package message'
   )
   t.end()
 })
 
 test('print appropriate message for many packages', (t) => {
-  t.deepEqual(
+  t.equal(
     getPrintFundingReport({
       fund: true,
       idealTree: {
@@ -92,8 +91,8 @@ test('print appropriate message for many packages', (t) => {
           }
         ]
       }
-    }),
-    `${EOL}3 packages are looking for funding.${EOL}Run "npm fund" to find out more.`,
+    }).replace(/[\r\n]+/g, '\n'),
+    `\n3 packages are looking for funding\n  run \`npm fund\` for details\n`,
     'should print many package message'
   )
   t.end()

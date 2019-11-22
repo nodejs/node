@@ -151,6 +151,7 @@ constexpr size_t kFsStatsBufferLength =
 // "node:" prefix to avoid name clashes with third-party code.
 #define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
   V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
+  V(arraybuffer_untransferable_private_symbol, "node:untransferableBuffer")   \
   V(arrow_message_private_symbol, "node:arrowMessage")                        \
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
@@ -1183,13 +1184,9 @@ class Environment : public MemoryRetainer {
   // cb will be called as cb(env) on the next event loop iteration.
   // keep_alive will be kept alive between now and after the callback has run.
   template <typename Fn>
-  inline void SetImmediate(Fn&& cb,
-                           v8::Local<v8::Object> keep_alive =
-                               v8::Local<v8::Object>());
+  inline void SetImmediate(Fn&& cb);
   template <typename Fn>
-  inline void SetUnrefImmediate(Fn&& cb,
-                                v8::Local<v8::Object> keep_alive =
-                                    v8::Local<v8::Object>());
+  inline void SetUnrefImmediate(Fn&& cb);
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -1215,6 +1212,12 @@ class Environment : public MemoryRetainer {
   inline std::shared_ptr<HostPort> inspector_host_port();
 
   inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
+
+  // The BaseObject count is a debugging helper that makes sure that there are
+  // no memory leaks caused by BaseObjects staying alive longer than expected
+  // (in particular, no circular BaseObjectPtr references).
+  inline void modify_base_object_count(int64_t delta);
+  inline int64_t base_object_count() const;
 
 #if HAVE_INSPECTOR
   void set_coverage_connection(
@@ -1254,9 +1257,7 @@ class Environment : public MemoryRetainer {
 
  private:
   template <typename Fn>
-  inline void CreateImmediate(Fn&& cb,
-                              v8::Local<v8::Object> keep_alive,
-                              bool ref);
+  inline void CreateImmediate(Fn&& cb, bool ref);
 
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1404,14 +1405,11 @@ class Environment : public MemoryRetainer {
   template <typename Fn>
   class NativeImmediateCallbackImpl final : public NativeImmediateCallback {
    public:
-    NativeImmediateCallbackImpl(Fn&& callback,
-                                v8::Global<v8::Object>&& keep_alive,
-                                bool refed);
+    NativeImmediateCallbackImpl(Fn&& callback, bool refed);
     void Call(Environment* env) override;
 
    private:
     Fn callback_;
-    v8::Global<v8::Object> keep_alive_;
   };
 
   std::unique_ptr<NativeImmediateCallback> native_immediate_callbacks_head_;
@@ -1426,6 +1424,8 @@ class Environment : public MemoryRetainer {
                      CleanupHookCallback::Equal> cleanup_hooks_;
   uint64_t cleanup_hook_counter_ = 0;
   bool started_cleanup_ = false;
+
+  int64_t base_object_count_ = 0;
 
   // A custom async abstraction (a pair of async handle and a state variable)
   // Used by embedders to shutdown running Node instance.

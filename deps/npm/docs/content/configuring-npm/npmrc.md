@@ -4,7 +4,7 @@ title: npmrc
 description: The npm config files
 ---
 
-# npmrc
+# npmrc(5)
 
 ## The npm config files
 
@@ -16,7 +16,7 @@ variables, and `npmrc` files.
 The `npm config` command can be used to update and edit the contents
 of the user and global npmrc files.
 
-For a list of available configuration options, see [npm-config](/docs/using-npm/config).
+For a list of available configuration options, see [config](/using-npm/config).
 
 ### Files
 

@@ -1,5 +1,6 @@
-module.exports = {
-  pathPrefix: `${__dirname}/public`,
+const IS_STATIC = process.env.GATSBY_IS_STATIC
+
+const OPTS = {
   siteMetadata: {
     title: 'npm cli documentation',
     description: 'Documentation for the npm cli.',
@@ -86,3 +87,10 @@ module.exports = {
     }
   ]
 }
+
+const STATIC_OPTS = Object.assign({}, OPTS, {
+  pathPrefix: '__GATSBY_IPFS_PATH_PREFIX__',
+  plugins: OPTS.plugins.concat(['gatsby-plugin-ipfs'])
+})
+
+module.exports = IS_STATIC ? STATIC_OPTS : OPTS

@@ -159,7 +159,7 @@ When this function is used, no `'message'` event will be emitted and the
 
 ### worker.resourceLimits
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 * {Object|undefined}
@@ -507,7 +507,7 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/26628
     description: The `resourceLimits` option was introduced.
 -->
@@ -618,7 +618,7 @@ no effect.
 
 ### worker.resourceLimits
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 * {Object}

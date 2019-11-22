@@ -114,8 +114,12 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 //   ]
 ```
 
-To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
+To deactivate the colors, use the `NO_COLOR` or
+`NODE_DISABLE_COLORS` environment variable.
 This will also deactivate the colors in the REPL.
+
+For more on the color support in terminal environments, read
+the tty [getColorDepth()](tty.html#tty_writestream_getcolordepth_env) doc.
 
 ## Legacy mode
 

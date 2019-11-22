@@ -193,7 +193,8 @@ exports.makeGitRepo = function (params, cb) {
     git.chainableExec(['config', 'user.name', user], opts),
     git.chainableExec(['config', 'user.email', email], opts),
     // don't time out tests waiting for a gpg passphrase or 2fa
-    git.chainableExec(['config', 'commit.gpgsign', 'false'], opts),
+    git.chainableExec(['config', 'commit.gpgSign', 'false'], opts),
+    git.chainableExec(['config', 'tag.gpgSign', 'false'], opts),
     git.chainableExec(['config', 'tag.forceSignAnnotated', 'false'], opts),
     git.chainableExec(['add'].concat(added), opts),
     git.chainableExec(['commit', '-m', message], opts)

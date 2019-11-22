@@ -49,17 +49,17 @@ const tests = [
     event: { ctrl: true, name: 'c' }
   },
   {
-    input: 'var i = 1;',
+    input: 'let i = 1;',
     output: '',
     event: { ctrl: true, name: 'c' }
   },
   {
-    input: 'var i = 1;\ni + 3',
+    input: 'let i = 1;\ni + 3',
     output: '\n4',
     event: { ctrl: true, name: 'd' }
   },
   {
-    input: '  var i = 1;\ni + 3',
+    input: '  let i = 1;\ni + 3',
     output: '\n4',
     event: { ctrl: true, name: 'd' }
   },
@@ -102,20 +102,20 @@ function testCodeAlignment({ input, cursor = 0, line = '' }) {
 
 const codeAlignmentTests = [
   {
-    input: 'var i = 1;\n'
+    input: 'let i = 1;\n'
   },
   {
-    input: '  var i = 1;\n',
+    input: '  let i = 1;\n',
     cursor: 2,
     line: '  '
   },
   {
-    input: '     var i = 1;\n',
+    input: '     let i = 1;\n',
     cursor: 5,
     line: '     '
   },
   {
-    input: ' var i = 1;\n var j = 2\n',
+    input: ' let i = 1;\n let j = 2\n',
     cursor: 2,
     line: '  '
   }

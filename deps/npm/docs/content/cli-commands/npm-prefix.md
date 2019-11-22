@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-prefix
 description: Display prefix
 ---
 
-# npm-prefix
+# npm-prefix(1)
 
 ## Display prefix
 
@@ -21,7 +21,7 @@ to contain a `package.json` file or `node_modules` directory, unless `-g` is
 also specified.
 
 If `-g` is specified, this will be the value of the global prefix. See
-[`npm-config`](npm-config) for more detail.
+[`npm config`](/cli-commands/npm-config) for more detail.
 
 ### See Also
 

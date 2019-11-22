@@ -33,6 +33,11 @@ const dirclosedError = {
   code: 'ERR_DIR_CLOSED'
 };
 
+const invalidCallbackObj = {
+  code: 'ERR_INVALID_CALLBACK',
+  name: 'TypeError'
+};
+
 // Check the opendir Sync version
 {
   const dir = fs.opendirSync(testDir);
@@ -205,3 +210,19 @@ for (const bufferSize of ['', '1', null]) {
   assertDirent(dir.readSync());
   dir.close();
 }
+
+// Check that when passing a string instead of function - throw an exception
+async function doAsyncIterInvalidCallbackTest() {
+  const dir = await fs.promises.opendir(testDir);
+  assert.throws(() => dir.close('not function'), invalidCallbackObj);
+}
+doAsyncIterInvalidCallbackTest().then(common.mustCall());
+
+// Check if directory already closed - throw an exception
+async function doAsyncIterDirClosedTest() {
+  const dir = await fs.promises.opendir(testDir);
+  await dir.close();
+
+  assert.throws(() => dir.close(), dirclosedError);
+}
+doAsyncIterDirClosedTest().then(common.mustCall());

@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-ci
 description: Install a project with a clean slate
 ---
 
-# npm-ci
+# npm-ci(1)
 
 ## Install a project with a clean slate
 
@@ -45,7 +45,7 @@ cache:
 
 ### Description
 
-This command is similar to [`npm-install`](npm-install), except it's meant to be used in
+This command is similar to [`npm install`](/cli-commands/npm-install), except it's meant to be used in
 automated environments such as test platforms, continuous integration, and
 deployment -- or any situation where you want to make sure you're doing a clean
 install of your dependencies. It can be significantly faster than a regular npm

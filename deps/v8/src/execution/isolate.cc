@@ -4274,9 +4274,8 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   detached_contexts = WeakArrayList::AddToEnd(
-      this, detached_contexts, MaybeObjectHandle(Smi::kZero, this));
-  detached_contexts = WeakArrayList::AddToEnd(this, detached_contexts,
-                                              MaybeObjectHandle::Weak(context));
+      this, detached_contexts, MaybeObjectHandle(Smi::kZero, this),
+      MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
 }
 

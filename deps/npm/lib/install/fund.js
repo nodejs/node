@@ -39,8 +39,8 @@ function getPrintFundingReport ({ fund, idealTree }, opts) {
 
   return padding('') + length + ' ' +
     packageQuantity(length) +
-    ' looking for funding.' +
-    padding('Run "npm fund" to find out more.')
+    ' looking for funding' +
+    padding('  run `npm fund` for details\n')
 }
 
 function getPrintFundingReportJSON ({ fund, idealTree }) {

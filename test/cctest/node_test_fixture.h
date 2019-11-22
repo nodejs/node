@@ -60,14 +60,13 @@ using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
 using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
-class NodeTestFixture : public ::testing::Test {
+class NodeZeroIsolateTestFixture : public ::testing::Test {
  protected:
   static ArrayBufferUniquePtr allocator;
   static TracingAgentUniquePtr tracing_agent;
   static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
   static bool node_initialized;
-  v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
     if (!node_initialized) {
@@ -99,17 +98,28 @@ class NodeTestFixture : public ::testing::Test {
   void SetUp() override {
     allocator = ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
                                      &node::FreeArrayBufferAllocator);
+  }
+};
+
+
+class NodeTestFixture : public NodeZeroIsolateTestFixture {
+ protected:
+  v8::Isolate* isolate_;
+
+  void SetUp() override {
+    NodeZeroIsolateTestFixture::SetUp();
     isolate_ = NewIsolate(allocator.get(), &current_loop);
-    CHECK_NE(isolate_, nullptr);
+    CHECK_NOT_NULL(isolate_);
     isolate_->Enter();
   }
 
   void TearDown() override {
+    platform->DrainTasks(isolate_);
     isolate_->Exit();
     isolate_->Dispose();
-    platform->DrainTasks(isolate_);
     platform->UnregisterIsolate(isolate_);
     isolate_ = nullptr;
+    NodeZeroIsolateTestFixture::TearDown();
   }
 };
 

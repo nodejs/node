@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-pack
 description: Create a tarball from a package
 ---
 
-# npm-pack
+# npm-pack(1)
 
 ## Create a tarball from a package
 

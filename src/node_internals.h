@@ -157,7 +157,7 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
                                size_t length,
                                bool uses_malloc);
-// Creates a Buffer instance over an existing Uint8Array.
+// Creates a Buffer instance over an existing ArrayBuffer.
 v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
                                    v8::Local<v8::ArrayBuffer> ab,
                                    size_t byte_offset,

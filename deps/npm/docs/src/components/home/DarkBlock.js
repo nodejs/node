@@ -30,7 +30,6 @@ const DarkBlock = () => {
         <Text>
           <p>The current stable version of npm is <a href={'https://github.com/npm/cli/releases/latest'} style={aStyle}>available on GitHub.</a></p>
           <p>To upgrade, run: <code className={'language-text'} style={{color: 'white'}}>npm install npm@latest -g</code></p>
-          <p>To report bugs or submit feature requests, <a href={'#'} style={aStyle}>please XXX.</a></p>
         </Text>
         <Box pt={4}><LinkButton to='cli-commands/npm' w={'120px'}>read docs</LinkButton></Box>
       </ContentWrapper>

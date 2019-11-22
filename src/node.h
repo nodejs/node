@@ -225,6 +225,16 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+enum OptionEnvvarSettings {
+  kAllowedInEnvironment,
+  kDisallowedInEnvironment
+};
+
+NODE_EXTERN int ProcessGlobalArgs(std::vector<std::string>* args,
+                      std::vector<std::string>* exec_args,
+                      std::vector<std::string>* errors,
+                      OptionEnvvarSettings settings);
+
 class NodeArrayBufferAllocator;
 
 // An ArrayBuffer::Allocator class with some Node.js-specific tweaks. If you do
@@ -252,6 +262,12 @@ class NODE_EXTERN ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 NODE_EXTERN ArrayBufferAllocator* CreateArrayBufferAllocator();
 NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
 
+class NODE_EXTERN IsolatePlatformDelegate {
+ public:
+  virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() = 0;
+  virtual bool IdleTasksEnabled() = 0;
+};
+
 class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
   ~MultiIsolatePlatform() override = default;
@@ -273,6 +289,12 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   // This function may only be called once per `Isolate`.
   virtual void RegisterIsolate(v8::Isolate* isolate,
                                struct uv_loop_s* loop) = 0;
+  // This method can be used when an application handles task scheduling on its
+  // own through `IsolatePlatformDelegate`. Upon registering an isolate with
+  // this overload any other method in this class with the exception of
+  // `UnregisterIsolate` *must not* be used on that isolate.
+  virtual void RegisterIsolate(v8::Isolate* isolate,
+                               IsolatePlatformDelegate* delegate) = 0;
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.

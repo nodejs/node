@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-team
 description: Manage organization teams and team memberships
 ---
 
-# npm-team
+# npm-team(1)
 
 ## Manage organization teams and team memberships
 
@@ -28,13 +28,10 @@ Used to manage teams in organizations, and change team memberships. Does not
 handle permissions for packages.
 
 Teams must always be fully qualified with the organization/scope they belong to
-when operating on them, separated by a colon (`:`). That is, if you have a
-`developers` team on a `foo` organization, you must always refer to that team as
-`foo:developers` in these commands.
+when operating on them, separated by a colon (`:`). That is, if you have a `wombats` team in a `wisdom` organization, you must always refer to that team as `wisdom:wombats` in these commands.
 
 * create / destroy:
-  Create a new team, or destroy an existing one.
-
+  Create a new team, or destroy an existing one. Note: You cannot remove the `developers` team, <a href="https://docs.npmjs.com/about-developers-team" target="_blank">learn more.</a>
 * add / rm:
   Add a user to an existing team, or remove a user from a team they belong to.
 

@@ -2581,6 +2581,8 @@ napi_status napi_create_external_arraybuffer(napi_env env,
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::ArrayBuffer> buffer =
       v8::ArrayBuffer::New(isolate, external_data, byte_length);
+  v8::Maybe<bool> marked = env->mark_arraybuffer_as_untransferable(buffer);
+  CHECK_MAYBE_NOTHING(env, marked, napi_generic_failure);
 
   if (finalize_cb != nullptr) {
     // Create a self-deleting weak reference that invokes the finalizer
