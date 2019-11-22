@@ -344,3 +344,25 @@ const assert = require('assert');
   }));
   write.destroy(new Error('asd'));
 }
+
+{
+  // Call buffered write callback with error
+
+  const write = new Writable({
+    write(chunk, enc, cb) {
+      process.nextTick(cb, new Error('asd'));
+    },
+    autoDestroy: false
+  });
+  write.cork();
+  write.write('asd', common.mustCall(err => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.write('asd', common.mustCall(err => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
+  write.on('error', common.mustCall(err => {
+    assert.strictEqual(err.message, 'asd');
+  }))
+  write.uncork();
+}
