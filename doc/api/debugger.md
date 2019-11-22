@@ -197,5 +197,10 @@ debugging sessions.)
 If the Chrome browser is older than 66.0.3345.0,
 use `inspector.html` instead of `js_app.html` in the above URL.
 
+Chrome DevTools doesn't support debugging [Worker Threads][] yet.
+[ndb][] can be used to debug them.
+
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
+[Worker Threads]: worker_threads.html
+[ndb]: https://github.com/GoogleChromeLabs/ndb/
