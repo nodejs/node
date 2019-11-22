@@ -2048,7 +2048,7 @@ Found'`.
 added: v0.1.13
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/30570
     description: The `maxHeaderSize` option is supported now.
   - version: v9.6.0, v8.12.0
     pr-url: https://github.com/nodejs/node/pull/15752
@@ -2063,8 +2063,9 @@ changes:
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
   * `maxHeaderSize` {number} Optionally overrides the value of
-    [`--max-http-header-size][] for requests received by this server.
-    **Default:** 8KB.
+    [`--max-http-header-size`][] for requests received by this server, i.e.
+    the maximum length of request headers in bytes.
+    **Default:** 8192 (8KB).
 * `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -2171,7 +2172,7 @@ This can be overridden for servers and client requests by passing the
 added: v0.3.6
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/30570
     description: The `maxHeaderSize` option is supported now.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
@@ -2209,8 +2210,9 @@ changes:
   * `localAddress` {string} Local interface to bind for network connections.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `maxHeaderSize` {number} Optionally overrides the value of
-    [`--max-http-header-size][] for requests received by this server.
-    **Default:** 8KB.
+    [`--max-http-header-size`][] for requests received from the server, i.e.
+    the maximum length of response headers in bytes.
+    **Default:** 8192 (8KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
