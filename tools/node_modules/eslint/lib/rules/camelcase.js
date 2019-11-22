@@ -28,6 +28,10 @@ module.exports = {
                         type: "boolean",
                         default: false
                     },
+                    ignoreImports: {
+                        type: "boolean",
+                        default: false
+                    },
                     properties: {
                         enum: ["always", "never"]
                     },
@@ -56,6 +60,7 @@ module.exports = {
         const options = context.options[0] || {};
         let properties = options.properties || "";
         const ignoreDestructuring = options.ignoreDestructuring;
+        const ignoreImports = options.ignoreImports;
         const allow = options.allow || [];
 
         if (properties !== "always" && properties !== "never") {
@@ -79,7 +84,7 @@ module.exports = {
         function isUnderscored(name) {
 
             // if there's an underscore, it might be A_CONSTANT, which is okay
-            return name.indexOf("_") > -1 && name !== name.toUpperCase();
+            return name.includes("_") && name !== name.toUpperCase();
         }
 
         /**
@@ -89,9 +94,9 @@ module.exports = {
          * @private
          */
         function isAllowed(name) {
-            return allow.findIndex(
+            return allow.some(
                 entry => name === entry || name.match(new RegExp(entry, "u"))
-            ) !== -1;
+            );
         }
 
         /**
@@ -127,7 +132,7 @@ module.exports = {
          * @private
          */
         function report(node) {
-            if (reported.indexOf(node) < 0) {
+            if (!reported.includes(node)) {
                 reported.push(node);
                 context.report({ node, messageId: "notCamelCase", data: { name: node.name } });
             }
@@ -209,10 +214,18 @@ module.exports = {
                     }
 
                 // Check if it's an import specifier
-                } else if (["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"].indexOf(node.parent.type) >= 0) {
+                } else if (["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(node.parent.type)) {
+
+                    if (node.parent.type === "ImportSpecifier" && ignoreImports) {
+                        return;
+                    }
 
                     // Report only if the local imported identifier is underscored
-                    if (node.parent.local && node.parent.local.name === node.name && nameIsUnderscored) {
+                    if (
+                        node.parent.local &&
+                        node.parent.local.name === node.name &&
+                        nameIsUnderscored
+                    ) {
                         report(node);
                     }
 

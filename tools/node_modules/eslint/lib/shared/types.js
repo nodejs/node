@@ -30,6 +30,7 @@ module.exports = {};
  * @property {Record<string, boolean>} [env] The environment settings.
  * @property {string | string[]} [extends] The path to other config files or the package name of shareable configs.
  * @property {Record<string, GlobalConf>} [globals] The global variable settings.
+ * @property {string | string[]} [ignorePatterns] The glob patterns that ignore to lint.
  * @property {boolean} [noInlineConfig] The flag that disables directive comments.
  * @property {OverrideConfigData[]} [overrides] The override settings per kind of files.
  * @property {string} [parser] The path to a parser or the package name of a parser.
@@ -91,6 +92,14 @@ module.exports = {};
  * @property {string} message The error message.
  * @property {string|null} ruleId The ID of the rule which makes this message.
  * @property {0|1|2} severity The severity of this message.
+ * @property {Array<{desc?: string, messageId?: string, fix: {range: [number, number], text: string}}>} [suggestions] Information for suggestions.
+ */
+
+/**
+ * @typedef {Object} SuggestionResult
+ * @property {string} desc A short description.
+ * @property {string} [messageId] Id referencing a message for the description.
+ * @property {{ text: string, range: number[] }} fix fix result info
  */
 
 /**

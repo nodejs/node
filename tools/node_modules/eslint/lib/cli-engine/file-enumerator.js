@@ -40,8 +40,8 @@ const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
 const { escapeRegExp } = require("lodash");
 const { Minimatch } = require("minimatch");
+const { IgnorePattern } = require("./config-array");
 const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
-const { IgnoredPaths } = require("./ignored-paths");
 const debug = require("debug")("eslint:file-enumerator");
 
 //------------------------------------------------------------------------------
@@ -64,7 +64,6 @@ const IGNORED = 2;
  * @property {string[]} [extensions] The extensions to match files for directory patterns.
  * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
  * @property {boolean} [ignore] The flag to check ignored files.
- * @property {IgnoredPaths} [ignoredPaths] The ignored paths.
  * @property {string[]} [rulePaths] The value of `--rulesdir` option.
  */
 
@@ -92,8 +91,7 @@ const IGNORED = 2;
  * @property {RegExp} extensionRegExp The RegExp to test if a string ends with specific file extensions.
  * @property {boolean} globInputPaths Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
  * @property {boolean} ignoreFlag The flag to check ignored files.
- * @property {IgnoredPaths} ignoredPathsWithDotfiles The ignored paths but don't include dot files.
- * @property {IgnoredPaths} ignoredPaths The ignored paths.
+ * @property {(filePath:string, dot:boolean) => boolean} defaultIgnores The default predicate function to ignore files.
  */
 
 /** @type {WeakMap<FileEnumerator, FileEnumeratorInternalSlots>} */
@@ -192,12 +190,12 @@ class FileEnumerator {
         configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
         extensions = [".js"],
         globInputPaths = true,
-        ignore = true,
-        ignoredPaths = new IgnoredPaths({ cwd, ignore })
+        ignore = true
     } = {}) {
         internalSlotsMap.set(this, {
             configArrayFactory,
             cwd,
+            defaultIgnores: IgnorePattern.createDefaultIgnore(cwd),
             extensionRegExp: new RegExp(
                 `.\\.(?:${extensions
                     .map(ext => escapeRegExp(
@@ -210,12 +208,7 @@ class FileEnumerator {
                 "u"
             ),
             globInputPaths,
-            ignoreFlag: ignore,
-            ignoredPaths,
-            ignoredPathsWithDotfiles: new IgnoredPaths({
-                ...ignoredPaths.options,
-                dotfiles: true
-            })
+            ignoreFlag: ignore
         });
     }
 
@@ -321,7 +314,7 @@ class FileEnumerator {
 
         const { configArrayFactory } = internalSlotsMap.get(this);
         const config = configArrayFactory.getConfigArrayForFile(filePath);
-        const ignored = this._isIgnoredFile(filePath, { direct: true });
+        const ignored = this._isIgnoredFile(filePath, { config, direct: true });
         const flag = ignored ? IGNORED : NONE;
 
         return [{ config, filePath, flag }];
@@ -353,7 +346,7 @@ class FileEnumerator {
     _iterateFilesWithGlob(pattern, dotfiles) {
         debug(`Glob: ${pattern}`);
 
-        const directoryPath = getGlobParent(pattern);
+        const directoryPath = path.resolve(getGlobParent(pattern));
         const globPart = pattern.slice(directoryPath.length + 1);
 
         /*
@@ -399,9 +392,18 @@ class FileEnumerator {
             // Check if the file is matched.
             if (stat && stat.isFile()) {
                 if (!config) {
-                    config = configArrayFactory.getConfigArrayForFile(filePath);
+                    config = configArrayFactory.getConfigArrayForFile(
+                        filePath,
+
+                        /*
+                         * We must ignore `ConfigurationNotFoundError` at this
+                         * point because we don't know if target files exist in
+                         * this directory.
+                         */
+                        { ignoreNotFoundError: true }
+                    );
                 }
-                const ignored = this._isIgnoredFile(filePath, options);
+                const ignored = this._isIgnoredFile(filePath, { ...options, config });
                 const flag = ignored ? IGNORED_SILENTLY : NONE;
                 const matched = options.selector
 
@@ -413,7 +415,11 @@ class FileEnumerator {
 
                 if (matched) {
                     debug(`Yield: ${filename}${ignored ? " but ignored" : ""}`);
-                    yield { config, filePath, flag };
+                    yield {
+                        config: configArrayFactory.getConfigArrayForFile(filePath),
+                        filePath,
+                        flag
+                    };
                 } else {
                     debug(`Didn't match: ${filename}`);
                 }
@@ -431,24 +437,37 @@ class FileEnumerator {
      * Check if a given file should be ignored.
      * @param {string} filePath The path to a file to check.
      * @param {Object} options Options
+     * @param {ConfigArray} [options.config] The config for this file.
      * @param {boolean} [options.dotfiles] If `true` then this is not ignore dot files by default.
      * @param {boolean} [options.direct] If `true` then this is a direct specified file.
      * @returns {boolean} `true` if the file should be ignored.
      * @private
      */
-    _isIgnoredFile(filePath, { dotfiles = false, direct = false }) {
+    _isIgnoredFile(filePath, {
+        config: providedConfig,
+        dotfiles = false,
+        direct = false
+    }) {
         const {
-            ignoreFlag,
-            ignoredPaths,
-            ignoredPathsWithDotfiles
+            configArrayFactory,
+            defaultIgnores,
+            ignoreFlag
         } = internalSlotsMap.get(this);
-        const adoptedIgnoredPaths = dotfiles
-            ? ignoredPathsWithDotfiles
-            : ignoredPaths;
 
-        return ignoreFlag
-            ? adoptedIgnoredPaths.contains(filePath)
-            : (!direct && adoptedIgnoredPaths.contains(filePath, "default"));
+        if (ignoreFlag) {
+            const config =
+                providedConfig ||
+                configArrayFactory.getConfigArrayForFile(
+                    filePath,
+                    { ignoreNotFoundError: true }
+                );
+            const ignores =
+                config.extractConfig(filePath).ignores || defaultIgnores;
+
+            return ignores(filePath, dotfiles);
+        }
+
+        return !direct && defaultIgnores(filePath, dotfiles);
     }
 }
 

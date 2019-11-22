@@ -74,16 +74,16 @@ module.exports = {
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token) {
+            const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: token.loc.end, end: nextToken.loc.start },
                 message: "There should be no space after '{{token}}'.",
                 data: {
                     token: token.value
                 },
                 fix(fixer) {
-                    const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
-
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
             });
@@ -96,16 +96,16 @@ module.exports = {
          * @returns {void}
          */
         function reportNoEndingSpace(node, token) {
+            const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: previousToken.loc.end, end: token.loc.start },
                 message: "There should be no space before '{{token}}'.",
                 data: {
                     token: token.value
                 },
                 fix(fixer) {
-                    const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
-
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
             });
@@ -120,7 +120,7 @@ module.exports = {
         function reportRequiredBeginningSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 message: "A space is required after '{{token}}'.",
                 data: {
                     token: token.value
@@ -140,7 +140,7 @@ module.exports = {
         function reportRequiredEndingSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 message: "A space is required before '{{token}}'.",
                 data: {
                     token: token.value

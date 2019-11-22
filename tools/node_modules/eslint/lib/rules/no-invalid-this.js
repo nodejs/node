@@ -26,10 +26,23 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-invalid-this"
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    capIsConstructor: {
+                        type: "boolean",
+                        default: true
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
     create(context) {
+        const options = context.options[0] || {};
+        const capIsConstructor = options.capIsConstructor !== false;
         const stack = [],
             sourceCode = context.getSourceCode();
 
@@ -48,7 +61,8 @@ module.exports = {
                 current.init = true;
                 current.valid = !astUtils.isDefaultThisBinding(
                     current.node,
-                    sourceCode
+                    sourceCode,
+                    { capIsConstructor }
                 );
             }
             return current;

@@ -1492,6 +1492,17 @@ module.exports = {
                 );
             },
 
+            JSXSpreadAttribute(node) {
+                const openingCurly = sourceCode.getFirstToken(node);
+                const closingCurly = sourceCode.getLastToken(node);
+
+                offsets.setDesiredOffsets(
+                    [openingCurly.range[1], closingCurly.range[0]],
+                    openingCurly,
+                    1
+                );
+            },
+
             "*"(node) {
                 const firstToken = sourceCode.getFirstToken(node);
 
