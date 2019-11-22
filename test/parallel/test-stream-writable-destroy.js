@@ -292,3 +292,98 @@ const assert = require('assert');
   }));
   write.uncork();
 }
+
+{
+  // Call end(cb) after error & destroy
+
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(new Error('asd')); }
+  });
+  write.on('error', common.mustCall(() => {
+    write.destroy();
+    let ticked = false;
+    write.end(common.mustCall((err) => {
+      assert.strictEqual(ticked, true);
+      assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    }));
+    ticked = true;
+  }));
+  write.write('asd');
+}
+
+{
+  // Call end(cb) after finish & destroy
+
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+  write.on('finish', common.mustCall(() => {
+    write.destroy();
+    let ticked = false;
+    write.end(common.mustCall((err) => {
+      assert.strictEqual(ticked, false);
+      assert.strictEqual(err.code, 'ERR_STREAM_ALREADY_FINISHED');
+    }));
+    ticked = true;
+  }));
+  write.end();
+}
+
+{
+  // Call end(cb) after error & destroy and don't trigger
+  // unhandled exception.
+
+  const write = new Writable({
+    write(chunk, enc, cb) { process.nextTick(cb); }
+  });
+  write.once('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.end('asd', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.destroy(new Error('asd'));
+}
+
+{
+  // Call buffered write callback with error
+
+  const write = new Writable({
+    write(chunk, enc, cb) {
+      process.nextTick(cb, new Error('asd'));
+    },
+    autoDestroy: false
+  });
+  write.cork();
+  write.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  }));
+  write.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+  write.uncork();
+}
+
+{
+  // Ensure callback order.
+
+  let state = 0;
+  const write = new Writable({
+    write(chunk, enc, cb) {
+      // `setImmediate()` is used on purpose to ensure the callback is called
+      // after `process.nextTick()` callbacks.
+      setImmediate(cb);
+    }
+  });
+  write.write('asd', common.mustCall(() => {
+    assert.strictEqual(state++, 0);
+  }));
+  write.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(state++, 1);
+  }));
+  write.destroy();
+}
