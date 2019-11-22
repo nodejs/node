@@ -187,7 +187,9 @@ Do not land any pull requests without passing (green or yellow) CI runs. If
 there are CI failures unrelated to the change in the pull request, try "Resume
 Build". It is in the left navigation of the relevant `node-test-pull-request`
 job. It will preserve all the green results from the current job but re-run
-everything else.
+everything else. Start a fresh CI if more than seven days have elapsed since
+the original failing CI as the compiled binaries for the Windows and ARM
+platforms are only kept for seven days.
 
 Some of the CI Jobs may require `GIT_REMOTE_REF` which is the remote portion
 of Git refspec. To specify the branch this way `refs/heads/BRANCH` is used
