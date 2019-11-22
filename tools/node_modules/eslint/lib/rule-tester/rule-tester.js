@@ -349,7 +349,7 @@ class RuleTester {
                 filename = item.filename;
             }
 
-            if (Object.prototype.hasOwnProperty.call(item, "options")) {
+            if (hasOwnProperty(item, "options")) {
                 assert(Array.isArray(item.options), "options must be an array");
                 config.rules[ruleName] = [1].concat(item.options);
             } else {
@@ -577,20 +577,54 @@ class RuleTester {
                             assert.strictEqual(message.nodeType, error.type, `Error type should be ${error.type}, found ${message.nodeType}`);
                         }
 
-                        if (Object.prototype.hasOwnProperty.call(error, "line")) {
+                        if (hasOwnProperty(error, "line")) {
                             assert.strictEqual(message.line, error.line, `Error line should be ${error.line}`);
                         }
 
-                        if (Object.prototype.hasOwnProperty.call(error, "column")) {
+                        if (hasOwnProperty(error, "column")) {
                             assert.strictEqual(message.column, error.column, `Error column should be ${error.column}`);
                         }
 
-                        if (Object.prototype.hasOwnProperty.call(error, "endLine")) {
+                        if (hasOwnProperty(error, "endLine")) {
                             assert.strictEqual(message.endLine, error.endLine, `Error endLine should be ${error.endLine}`);
                         }
 
-                        if (Object.prototype.hasOwnProperty.call(error, "endColumn")) {
+                        if (hasOwnProperty(error, "endColumn")) {
                             assert.strictEqual(message.endColumn, error.endColumn, `Error endColumn should be ${error.endColumn}`);
+                        }
+
+                        if (hasOwnProperty(error, "suggestions")) {
+
+                            // Support asserting there are no suggestions
+                            if (!error.suggestions) {
+                                assert.strictEqual(message.suggestions, error.suggestions, `Error should have no suggestions on error with message: "${message.message}"`);
+                            } else {
+                                assert.strictEqual(Array.isArray(message.suggestions), true, `Error should have an array of suggestions. Instead received "${message.suggestions}" on error with message: "${message.message}"`);
+                                assert.strictEqual(message.suggestions.length, error.suggestions.length, `Error should have ${error.suggestions.length} suggestions. Instead found ${message.suggestions.length} suggestions`);
+
+                                error.suggestions.forEach((expectedSuggestion, index) => {
+                                    const actualSuggestion = message.suggestions[index];
+
+                                    /**
+                                     * Tests equality of a suggestion key if that key is defined in the expected output.
+                                     * @param {string} key Key to validate from the suggestion object
+                                     * @returns {void}
+                                     */
+                                    function assertSuggestionKeyEquals(key) {
+                                        if (hasOwnProperty(expectedSuggestion, key)) {
+                                            assert.deepStrictEqual(actualSuggestion[key], expectedSuggestion[key], `Error suggestion at index: ${index} should have desc of: "${actualSuggestion[key]}"`);
+                                        }
+                                    }
+                                    assertSuggestionKeyEquals("desc");
+                                    assertSuggestionKeyEquals("messageId");
+
+                                    if (hasOwnProperty(expectedSuggestion, "output")) {
+                                        const codeWithAppliedSuggestion = SourceCodeFixer.applyFixes(item.code, [actualSuggestion]).output;
+
+                                        assert.strictEqual(codeWithAppliedSuggestion, expectedSuggestion.output, `Expected the applied suggestion fix to match the test suggestion output for suggestion at index: ${index} on error with message: "${message.message}"`);
+                                    }
+                                });
+                            }
                         }
                     } else {
 
@@ -600,7 +634,7 @@ class RuleTester {
                 }
             }
 
-            if (Object.prototype.hasOwnProperty.call(item, "output")) {
+            if (hasOwnProperty(item, "output")) {
                 if (item.output === null) {
                     assert.strictEqual(
                         result.output,

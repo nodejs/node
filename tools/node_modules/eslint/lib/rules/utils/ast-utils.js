@@ -581,23 +581,31 @@ module.exports = {
      *
      * First, this checks the node:
      *
-     * - The function name does not start with uppercase (it's a constructor).
+     * - The function name does not start with uppercase. It's a convention to capitalize the names
+     *   of constructor functions. This check is not performed if `capIsConstructor` is set to `false`.
      * - The function does not have a JSDoc comment that has a @this tag.
      *
      * Next, this checks the location of the node.
      * If the location is below, this judges `this` is valid.
      *
      * - The location is not on an object literal.
-     * - The location is not assigned to a variable which starts with an uppercase letter.
+     * - The location is not assigned to a variable which starts with an uppercase letter. Applies to anonymous
+     *   functions only, as the name of the variable is considered to be the name of the function in this case.
+     *   This check is not performed if `capIsConstructor` is set to `false`.
      * - The location is not on an ES2015 class.
      * - Its `bind`/`call`/`apply` method is not called directly.
      * - The function is not a callback of array methods (such as `.forEach()`) if `thisArg` is given.
      * @param {ASTNode} node A function node to check.
      * @param {SourceCode} sourceCode A SourceCode instance to get comments.
+     * @param {boolean} [capIsConstructor = true] `false` disables the assumption that functions which name starts
+     * with an uppercase or are assigned to a variable which name starts with an uppercase are constructors.
      * @returns {boolean} The function node is the default `this` binding.
      */
-    isDefaultThisBinding(node, sourceCode) {
-        if (isES5Constructor(node) || hasJSDocThisTag(node, sourceCode)) {
+    isDefaultThisBinding(node, sourceCode, { capIsConstructor = true } = {}) {
+        if (
+            (capIsConstructor && isES5Constructor(node)) ||
+            hasJSDocThisTag(node, sourceCode)
+        ) {
             return false;
         }
         const isAnonymous = node.id === null;
@@ -671,6 +679,7 @@ module.exports = {
                         return false;
                     }
                     if (
+                        capIsConstructor &&
                         isAnonymous &&
                         parent.left.type === "Identifier" &&
                         startsWithUpperCase(parent.left.name)
@@ -685,6 +694,7 @@ module.exports = {
                  */
                 case "VariableDeclarator":
                     return !(
+                        capIsConstructor &&
                         isAnonymous &&
                         parent.init === currentNode &&
                         parent.id.type === "Identifier" &&
@@ -1198,6 +1208,23 @@ module.exports = {
             start: Object.assign({}, start),
             end: Object.assign({}, end)
         };
+    },
+
+    /**
+     * Gets next location when the result is not out of bound, otherwise returns null.
+     * @param {SourceCode} sourceCode The sourceCode
+     * @param {{line: number, column: number}} location The location
+     * @returns {{line: number, column: number} | null} Next location
+     */
+    getNextLocation(sourceCode, location) {
+        const index = sourceCode.getIndexFromLoc(location);
+
+        // Avoid out of bound location
+        if (index + 1 > sourceCode.text.length) {
+            return null;
+        }
+
+        return sourceCode.getLocFromIndex(index + 1);
     },
 
     /**

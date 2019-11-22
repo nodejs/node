@@ -249,7 +249,8 @@ module.exports = {
                 beginRegex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
                 endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`, "u") : new RegExp(endNeverPattern, "u"),
                 hasExceptions: exceptions.length > 0,
-                markers: new RegExp(`^(${markers.map(escape).join("|")})`, "u")
+                captureMarker: new RegExp(`^(${markers.map(escape).join("|")})`, "u"),
+                markers: new Set(markers)
             };
 
             return rule;
@@ -322,8 +323,8 @@ module.exports = {
                 rule = styleRules[type],
                 commentIdentifier = type === "block" ? "/*" : "//";
 
-            // Ignores empty comments.
-            if (node.value.length === 0) {
+            // Ignores empty comments and comments that consist only of a marker.
+            if (node.value.length === 0 || rule.markers.has(node.value)) {
                 return;
             }
 
@@ -333,7 +334,7 @@ module.exports = {
             // Checks.
             if (requireSpace) {
                 if (!beginMatch) {
-                    const hasMarker = rule.markers.exec(node.value);
+                    const hasMarker = rule.captureMarker.exec(node.value);
                     const marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
                     if (rule.hasExceptions) {

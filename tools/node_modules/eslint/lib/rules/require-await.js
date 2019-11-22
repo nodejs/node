@@ -89,9 +89,17 @@ module.exports = {
             "ArrowFunctionExpression:exit": exitFunction,
 
             AwaitExpression() {
+                if (!scopeInfo) {
+                    return;
+                }
+
                 scopeInfo.hasAwait = true;
             },
             ForOfStatement(node) {
+                if (!scopeInfo) {
+                    return;
+                }
+
                 if (node.await) {
                     scopeInfo.hasAwait = true;
                 }
