@@ -120,10 +120,7 @@ Enable experimental support for "require" and "node" conditional export targets.
 Enable experimental JSON interop support for the ES Module loader.
 .
 .It Fl -experimental-modules
-Enable experimental ES module support and caching modules.
-.
-.It Fl -experimental-resolve-self
-Enable experimental support for a package to load itself.
+Enable experimental latest experimental modules features.
 .
 .It Fl -experimental-policy
 Use the specified file as a security policy.
@@ -137,6 +134,9 @@ keyword support in REPL.
 Enable experimental
 .Sy diagnostic report
 feature.
+.
+.It Fl -experimental-resolve-self
+Enable experimental support for a package to load itself.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
@@ -208,8 +208,7 @@ It uses the Chrome DevTools Protocol.
 .It Fl -experimental-loader Ns = Ns Ar module
 Specify the
 .Ar module
-as a custom loader, to load
-.Fl -experimental-modules .
+to use as a custom module loader.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 8KB.

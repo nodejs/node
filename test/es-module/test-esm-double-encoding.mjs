@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import '../common/index.mjs';
 
 // Assert we can import files with `%` in their pathname.

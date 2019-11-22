@@ -39,7 +39,7 @@ syntaxArgs.forEach(function(arg) {
   const stdin = 'export var p = 5; var foo bar;';
   const c = spawnSync(
     node,
-    ['--experimental-modules', '--input-type=module', '--no-warnings', arg],
+    ['--input-type=module', '--no-warnings', arg],
     { encoding: 'utf8', input: stdin }
   );
 

@@ -7,8 +7,7 @@ const { Worker } = require('worker_threads');
 const workerData = 'Hello from main thread';
 
 const worker = new Worker(fixtures.path('worker-data.mjs'), {
-  workerData,
-  execArgv: ['--experimental-modules']
+  workerData
 });
 
 worker.on('message', common.mustCall((message) => {

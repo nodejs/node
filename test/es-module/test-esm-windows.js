@@ -1,6 +1,5 @@
 'use strict';
 
-// Flags: --experimental-modules
 // This test ensures that JavaScript file that includes
 // a reserved Windows word can be loaded as ESM module
 

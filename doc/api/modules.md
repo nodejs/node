@@ -234,15 +234,15 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
    b. If "exports" is null or undefined, GOTO 3.
    c. If "exports" is an object with some keys starting with "." and some keys
       not starting with ".", throw "invalid config".
-   c. If "exports" is a string, or object with no keys starting with ".", treat
+   d. If "exports" is a string, or object with no keys starting with ".", treat
       it as having that value as its "." object property.
-   d. If subpath is "." and "exports" does not have a "." entry, GOTO 3.
-   e. Find the longest key in "exports" that the subpath starts with.
-   f. If no such key can be found, throw "not found".
-   g. let RESOLVED_URL =
+   e. If subpath is "." and "exports" does not have a "." entry, GOTO 3.
+   f. Find the longest key in "exports" that the subpath starts with.
+   g. If no such key can be found, throw "not found".
+   h. let RESOLVED_URL =
         PACKAGE_EXPORTS_TARGET_RESOLVE(pathToFileURL(DIR/name), exports[key],
-        subpath.slice(key.length)), as defined in the esm resolver.
-   h. return fileURLToPath(RESOLVED_URL)
+        subpath.slice(key.length)), as defined in the ESM resolver.
+   i. return fileURLToPath(RESOLVED_URL)
 3. return DIR/X
 ```
 

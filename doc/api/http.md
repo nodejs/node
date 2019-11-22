@@ -1231,6 +1231,13 @@ deprecated: v13.0.0
 
 See [`response.socket`][].
 
+### response.cork()
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`writable.cork()`][].
+
 ### response.end(\[data\[, encoding\]\]\[, callback\])
 <!-- YAML
 added: v0.1.90
@@ -1515,6 +1522,13 @@ response.statusMessage = 'Not found';
 
 After response header was sent to the client, this property indicates the
 status message which was sent out.
+
+### response.uncork()
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`writable.uncork()`][].
 
 ### response.writableEnded
 <!-- YAML
@@ -2133,6 +2147,7 @@ changes:
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
   * `localAddress` {string} Local interface to bind for network connections.
+  * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
@@ -2312,6 +2327,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`'finish'`]: #http_event_finish
 [`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
@@ -2356,3 +2372,5 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`socket.unref()`]: net.html#net_socket_unref
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
+[`writable.cork()`]: stream.html#stream_writable_cork
+[`writable.uncork()`]: stream.html#stream_writable_uncork
